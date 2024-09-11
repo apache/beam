@@ -22,21 +22,27 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.ordered.combiner.DefaultSequenceCombiner;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /**
  * Parent class for Ordered Processing configuration handlers.
  *
- * @param <EventT> type of events to be processed
- * @param <KeyT> type of keys which will be used to group the events
- * @param <StateT> type of internal State which will be used for processing
+ * @param <EventT>  type of events to be processed
+ * @param <KeyT>    type of keys which will be used to group the events
+ * @param <StateT>  type of internal State which will be used for processing
  * @param <ResultT> type of the result of the processing which will be output
  */
 public abstract class OrderedProcessingHandler<
-        EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT>
+    EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT>
     implements Serializable {
 
   private static final int DEFAULT_STATUS_UPDATE_FREQUENCY_SECONDS = 5;
@@ -54,14 +60,14 @@ public abstract class OrderedProcessingHandler<
   private boolean produceStatusUpdateOnEveryEvent = DEFAULT_PRODUCE_STATUS_UPDATE_ON_EVERY_EVENT;
 
   private SequenceType sequenceType = SequenceType.PER_KEY;
-  private @Nullable Long initialGlobalSequence;
+  private @Nullable GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> globalSequenceCombiner;
 
   /**
    * Provide concrete classes which will be used by the ordered processing transform.
    *
-   * @param eventTClass class of the events
-   * @param keyTClass class of the keys
-   * @param stateTClass class of the state
+   * @param eventTClass  class of the events
+   * @param keyTClass    class of the keys
+   * @param stateTClass  class of the state
    * @param resultTClass class of the results
    */
   public OrderedProcessingHandler(
@@ -73,10 +79,12 @@ public abstract class OrderedProcessingHandler<
     this.keyTClass = keyTClass;
     this.stateTClass = stateTClass;
     this.resultTClass = resultTClass;
-    this.initialGlobalSequence = null;
+    this.globalSequenceCombiner = null;
   }
 
-  /** @return the event examiner instance which will be used by the transform. */
+  /**
+   * @return the event examiner instance which will be used by the transform.
+   */
   public abstract @NonNull EventExaminer<EventT, StateT> getEventExaminer();
 
   /**
@@ -86,11 +94,11 @@ public abstract class OrderedProcessingHandler<
    * PCollection. If the input PCollection doesn't use KVCoder, it will attempt to get the coder
    * from the pipeline's coder registry.
    *
-   * @param pipeline of the transform
+   * @param pipeline   of the transform
    * @param inputCoder input coder of the transform
    * @return event coder
    * @throws CannotProvideCoderException if the method can't determine the coder based on the above
-   *     algorithm.
+   *                                     algorithm.
    */
   public @NonNull Coder<EventT> getEventCoder(
       Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
@@ -130,7 +138,7 @@ public abstract class OrderedProcessingHandler<
    * @param inputCoder
    * @return
    * @throws CannotProvideCoderException if the method can't determine the coder based on the above
-   *     algorithm.
+   *                                     algorithm.
    */
   public @NonNull Coder<KeyT> getKeyCoder(
       Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
@@ -161,7 +169,7 @@ public abstract class OrderedProcessingHandler<
    * <p>Default is 5 seconds.
    *
    * @return the frequency of updates. If null is returned, no updates will be emitted on a
-   *     scheduled basis.
+   * scheduled basis.
    */
   public @Nullable Duration getStatusUpdateFrequency() {
     return statusUpdateFrequency;
@@ -230,11 +238,21 @@ public abstract class OrderedProcessingHandler<
     this.sequenceType = sequenceType;
   }
 
-  public @javax.annotation.Nullable Long getInitialGlobalSequence() {
-    return initialGlobalSequence;
+  public GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> getGlobalSequenceCombiner() {
+    if (getSequenceType() != SequenceType.GLOBAL) {
+      throw new IllegalStateException(
+          "Global Sequence Combiner is only useful when the sequence is global. Current sequence type: "
+              + getSequenceType());
+    }
+    if (globalSequenceCombiner == null) {
+      globalSequenceCombiner = Combine.globally(
+          new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer())).asSingletonView();
+    }
+    return globalSequenceCombiner;
   }
 
-  public void setInitialGlobalSequence(Long initialGlobalSequence) {
-    this.initialGlobalSequence = initialGlobalSequence;
+  public void setGlobalSequenceCombiner(
+      GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> globalSequenceCombiner) {
+    this.globalSequenceCombiner = globalSequenceCombiner;
   }
 }

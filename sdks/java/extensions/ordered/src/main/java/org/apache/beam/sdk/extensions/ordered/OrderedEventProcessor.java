@@ -131,7 +131,7 @@ public abstract class OrderedEventProcessor<
                 .apply("Convert to SequenceAndTimestamp",
                     ParDo.of(new ToTimestampedEventConverter<>()))
                 .apply("Global Sequence Tracker",
-                    new GlobalSequenceTracker<>(handler.getEventExaminer()));
+                    new GlobalSequenceTracker<>(handler.getGlobalSequenceCombiner()));
 
         PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
             new PerKeyTickerGenerator<>(keyCoder, eventCoder, Duration.standardSeconds(5)));
