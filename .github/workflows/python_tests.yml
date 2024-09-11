@@ -113,10 +113,14 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Install tox
         run: pip install tox
-      - name: Run tests basic unix
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+      - name: Run tests basic linux
+        if: startsWith(matrix.os, 'ubuntu')
         working-directory: ./sdks/python
         run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}
+      - name: Run tests basic macos
+        if: startsWith(matrix.os, 'macos')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-macos
       - name: Run tests basic windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
