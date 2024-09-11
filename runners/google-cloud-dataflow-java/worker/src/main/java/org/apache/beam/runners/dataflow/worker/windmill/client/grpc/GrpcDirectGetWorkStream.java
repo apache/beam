@@ -71,13 +71,14 @@ public final class GrpcDirectGetWorkStream
           .build();
 
   private final AtomicReference<GetWorkBudget> maxGetWorkBudget;
-  private final AtomicReference<GetWorkBudget> inflightBudget;
+  private final AtomicReference<GetWorkBudget> inFlightBudget;
   private final GetWorkRequest requestHeader;
   private final WorkItemScheduler workItemScheduler;
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<HeartbeatSender> heartbeatSender;
   private final Supplier<WorkCommitter> workCommitter;
   private final Supplier<GetDataClient> getDataClient;
+  private final AtomicReference<StreamingGetWorkRequest> lastRequest;
 
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
@@ -120,8 +121,14 @@ public final class GrpcDirectGetWorkStream
     this.heartbeatSender = Suppliers.memoize(heartbeatSender::get);
     this.workCommitter = Suppliers.memoize(workCommitter::get);
     this.getDataClient = Suppliers.memoize(getDataClient::get);
-    this.maxGetWorkBudget = new AtomicReference<>(GetWorkBudget.noBudget());
-    this.inflightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
+    this.maxGetWorkBudget =
+        new AtomicReference<>(
+            GetWorkBudget.builder()
+                .setItems(requestHeader.getMaxItems())
+                .setBytes(requestHeader.getMaxBytes())
+                .build());
+    this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
+    this.lastRequest = new AtomicReference<>();
   }
 
   public static GrpcDirectGetWorkStream create(
@@ -168,25 +175,29 @@ public final class GrpcDirectGetWorkStream
   }
 
   private void sendRequestExtension() {
-    GetWorkBudget currentInflightBudget = inflightBudget.get();
+    GetWorkBudget currentInFlightBudget = inFlightBudget.get();
     GetWorkBudget currentMaxBudget = maxGetWorkBudget.get();
+
     // If the outstanding items or bytes limit has gotten too low, top both off with a
-    // GetWorkExtension.  The goal is to keep the limits relatively close to their maximum
+    // GetWorkExtension. The goal is to keep the limits relatively close to their maximum
     // values without sending too many extension requests.
-    if (currentInflightBudget.items() < currentMaxBudget.items() / 2
-        || currentInflightBudget.bytes() < currentMaxBudget.bytes() / 2) {
-      GetWorkBudget extension = currentMaxBudget.subtract(currentInflightBudget);
+    if (currentInFlightBudget.items() < currentMaxBudget.items() / 2
+        || currentInFlightBudget.bytes() < currentMaxBudget.bytes() / 2) {
+      GetWorkBudget extension = currentMaxBudget.subtract(currentInFlightBudget);
       if (extension.items() > 0 || extension.bytes() > 0) {
-        inflightBudget.getAndUpdate(budget -> budget.apply(extension));
+        inFlightBudget.getAndUpdate(budget -> budget.apply(extension));
         executeSafely(
-            () ->
-                send(
-                    StreamingGetWorkRequest.newBuilder()
-                        .setRequestExtension(
-                            Windmill.StreamingGetWorkRequestExtension.newBuilder()
-                                .setMaxItems(extension.items())
-                                .setMaxBytes(extension.bytes()))
-                        .build()));
+            () -> {
+              StreamingGetWorkRequest request =
+                  StreamingGetWorkRequest.newBuilder()
+                      .setRequestExtension(
+                          Windmill.StreamingGetWorkRequestExtension.newBuilder()
+                              .setMaxItems(extension.items())
+                              .setMaxBytes(extension.bytes()))
+                      .build();
+              lastRequest.getAndSet(request);
+              send(request);
+            });
       }
     }
   }
@@ -194,10 +205,10 @@ public final class GrpcDirectGetWorkStream
   @Override
   protected synchronized void onNewStream() {
     workItemAssemblers.clear();
-    inflightBudget.getAndSet(GetWorkBudget.noBudget());
     if (!isShutdown()) {
       GetWorkBudget currentMaxGetWorkBudget = maxGetWorkBudget.get();
-      send(
+      inFlightBudget.getAndSet(currentMaxGetWorkBudget);
+      StreamingGetWorkRequest request =
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
                   requestHeader
@@ -205,7 +216,9 @@ public final class GrpcDirectGetWorkStream
                       .setMaxItems(currentMaxGetWorkBudget.items())
                       .setMaxBytes(currentMaxGetWorkBudget.bytes())
                       .build())
-              .build());
+              .build();
+      lastRequest.getAndSet(request);
+      send(request);
     }
   }
 
@@ -218,8 +231,8 @@ public final class GrpcDirectGetWorkStream
   public void appendSpecificHtml(PrintWriter writer) {
     // Number of buffers is same as distinct workers that sent work on this stream.
     writer.format(
-        "GetWorkStream: %d buffers, %s inflight budget.",
-        workItemAssemblers.size(), inflightBudget.get());
+        "GetWorkStream: %d buffers, in-flight budget: %s; last sent request: %s.",
+        workItemAssemblers.size(), inFlightBudget.get(), lastRequest.get());
   }
 
   @Override
@@ -238,7 +251,7 @@ public final class GrpcDirectGetWorkStream
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
     // Record the fact that there are now fewer outstanding messages and bytes on the stream.
-    inflightBudget.updateAndGet(budget -> budget.subtract(1, assembledWorkItem.bufferedSize()));
+    inFlightBudget.updateAndGet(budget -> budget.subtract(1, assembledWorkItem.bufferedSize()));
     WorkItem workItem = assembledWorkItem.workItem();
     GetWorkResponseChunkAssembler.ComputationMetadata metadata =
         assembledWorkItem.computationMetadata();
@@ -252,7 +265,11 @@ public final class GrpcDirectGetWorkStream
 
   private Work.ProcessingContext createProcessingContext(String computationId) {
     return Work.createProcessingContext(
-        computationId, getDataClient.get(), workCommitter.get()::commit, heartbeatSender.get());
+        backendWorkerToken(),
+        computationId,
+        getDataClient.get(),
+        workCommitter.get()::commit,
+        heartbeatSender.get());
   }
 
   @Override
@@ -263,13 +280,13 @@ public final class GrpcDirectGetWorkStream
   @Override
   public void adjustBudget(long itemsDelta, long bytesDelta) {
     maxGetWorkBudget.getAndSet(
-        GetWorkBudget.builder().setBytes(itemsDelta).setBytes(bytesDelta).build());
+        GetWorkBudget.builder().setItems(itemsDelta).setBytes(bytesDelta).build());
     sendRequestExtension();
   }
 
   @Override
   public GetWorkBudget remainingBudget() {
-    return maxGetWorkBudget.getAndUpdate(budget -> budget.subtract(inflightBudget.get()));
+    return maxGetWorkBudget.getAndUpdate(budget -> budget.subtract(inFlightBudget.get()));
   }
 
   @Override

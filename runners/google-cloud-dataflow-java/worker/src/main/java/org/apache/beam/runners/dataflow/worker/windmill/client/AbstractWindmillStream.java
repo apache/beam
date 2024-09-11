@@ -191,13 +191,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         return;
       }
 
-      logger.error(
-          "StreamObserver was unexpectedly cancelled for stream={}, worker={}. stacktrace={}",
-          getClass(),
-          backendWorkerToken,
-          e.getStackTrace(),
-          e);
-      throw e;
+      requestObserver.onError(e);
     }
   }
 
@@ -414,8 +408,15 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       Status status = Status.fromThrowable(t);
       setLastError(status.toString());
 
-      // Don't log every error since it will get noisy, and many errors transient.
-      if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {
+      if (t instanceof StreamObserverCancelledException) {
+        logger.error(
+            "StreamObserver was unexpectedly cancelled for stream={}, worker={}. stacktrace={}",
+            getClass(),
+            backendWorkerToken,
+            t.getStackTrace(),
+            t);
+      } else if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {
+        // Don't log every error since it will get noisy, and many errors transient.
         logError(t, status);
       }
 

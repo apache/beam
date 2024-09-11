@@ -92,7 +92,6 @@ public class FanOutStreamingEngineWorkerHarnessTest {
               .setDirectEndpoint(DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString())
               .build());
 
-  private static final long CLIENT_ID = 1L;
   private static final String JOB_ID = "jobId";
   private static final String PROJECT_ID = "projectId";
   private static final String WORKER_ID = "workerId";
@@ -101,6 +100,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           .setJobId(JOB_ID)
           .setProjectId(PROJECT_ID)
           .setWorkerId(WORKER_ID)
+          .setClientId(1L)
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -134,7 +134,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .setJobId(JOB_ID)
         .setProjectId(PROJECT_ID)
         .setWorkerId(WORKER_ID)
-        .setClientId(CLIENT_ID)
+        .setClientId(JOB_HEADER.getClientId())
         .setMaxItems(items)
         .setMaxBytes(bytes)
         .build();
@@ -186,7 +186,6 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,
-        CLIENT_ID,
         ignored -> mock(WorkCommitter.class),
         new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)));
   }

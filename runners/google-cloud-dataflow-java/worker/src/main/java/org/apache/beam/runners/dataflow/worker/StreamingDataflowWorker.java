@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 
 import com.google.api.services.dataflow.model.MapTask;
@@ -33,10 +32,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -65,6 +63,7 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -81,7 +80,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServ
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -102,12 +105,10 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -169,7 +170,6 @@ public final class StreamingDataflowWorker {
   private final ActiveWorkRefresher activeWorkRefresher;
   private final StreamingWorkerStatusReporter workerStatusReporter;
   private final int numCommitThreads;
-  LongAdder longAdder;
 
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
@@ -189,7 +189,8 @@ public final class StreamingDataflowWorker {
       MemoryMonitor memoryMonitor,
       GrpcWindmillStreamFactory windmillStreamFactory,
       Function<String, ScheduledExecutorService> executorSupplier,
-      ConcurrentMap<String, StageInfo> stageInfoMap) {
+      ConcurrentMap<String, StageInfo> stageInfoMap,
+      @Nullable GrpcDispatcherClient dispatcherClient) {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
     this.configFetcher = configFetcher;
@@ -235,12 +236,7 @@ public final class StreamingDataflowWorker {
     if (isDirectPathPipeline(options)) {
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
-              JobHeader.newBuilder()
-                  .setJobId(options.getJobId())
-                  .setProjectId(options.getProject())
-                  .setWorkerId(options.getWorkerId())
-                  .setClientId(clientId)
-                  .build(),
+              createJobHeader(options, clientId),
               GetWorkBudget.builder()
                   .setItems(chooseMaxBundlesOutstanding(options))
                   .setBytes(MAX_GET_WORK_FETCH_BYTES)
@@ -261,7 +257,7 @@ public final class StreamingDataflowWorker {
                           }),
               stubFactory,
               GetWorkBudgetDistributors.distributeEvenly(),
-              GrpcDispatcherClient.create(stubFactory),
+              Preconditions.checkNotNull(dispatcherClient),
               commitWorkStream ->
                   StreamingEngineWorkCommitter.builder()
                       .setBackendWorkerToken(commitWorkStream.backendWorkerToken())
@@ -486,7 +482,8 @@ public final class StreamingDataflowWorker {
         memoryMonitor,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
         executorSupplier,
-        stageInfo);
+        stageInfo,
+        configFetcherComputationStateCacheAndWindmillClient.windmillDispatcherClient());
   }
 
   /**
@@ -505,6 +502,8 @@ public final class StreamingDataflowWorker {
     WindmillServerStub windmillServer;
     ComputationStateCache computationStateCache;
     GrpcWindmillStreamFactory windmillStreamFactory;
+    ConfigFetcherComputationStateCacheAndWindmillClient.Builder builder =
+        ConfigFetcherComputationStateCacheAndWindmillClient.builder();
     if (options.isEnableStreamingEngine()) {
       GrpcDispatcherClient dispatcherClient =
           GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
@@ -521,19 +520,20 @@ public final class StreamingDataflowWorker {
                   options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
               .build();
       windmillServer = GrpcWindmillServer.create(options, windmillStreamFactory, dispatcherClient);
+      builder.setWindmillDispatcherClient(dispatcherClient);
     } else {
       if (options.getWindmillServiceEndpoint() != null
           || options.getLocalWindmillHostport().startsWith("grpc:")) {
+        GrpcDispatcherClient dispatcherClient =
+            GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
         windmillStreamFactory =
             windmillStreamFactoryBuilder
                 .setHealthCheckIntervalMillis(
                     options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
                 .build();
         windmillServer =
-            GrpcWindmillServer.create(
-                options,
-                windmillStreamFactory,
-                GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options)));
+            GrpcWindmillServer.create(options, windmillStreamFactory, dispatcherClient);
+        builder.setWindmillDispatcherClient(dispatcherClient);
       } else {
         windmillStreamFactory = windmillStreamFactoryBuilder.build();
         windmillServer = new JniWindmillApplianceServer(options.getLocalWindmillHostport());
@@ -546,8 +546,12 @@ public final class StreamingDataflowWorker {
       computationStateCache = computationStateCacheFactory.apply(configFetcher);
     }
 
-    return ConfigFetcherComputationStateCacheAndWindmillClient.create(
-        configFetcher, computationStateCache, windmillServer, windmillStreamFactory);
+    return builder
+        .setConfigFetcher(configFetcher)
+        .setComputationStateCache(computationStateCache)
+        .setWindmillServer(windmillServer)
+        .setWindmillStreamFactory(windmillStreamFactory)
+        .build();
   }
 
   private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
@@ -578,6 +582,24 @@ public final class StreamingDataflowWorker {
         StreamingDataflowWorker.class.getSimpleName());
   }
 
+  private static ChannelCachingStubFactory createStubFactory(
+      DataflowWorkerHarnessOptions workerOptions) {
+    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
+        serviceAddress ->
+            remoteChannel(
+                serviceAddress, workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec());
+    ChannelCache channelCache =
+        ChannelCache.create(
+            serviceAddress ->
+                // IsolationChannel will create and manage separate RPC channels to the same
+                // serviceAddress via calling the channelFactory, else just directly return the
+                // RPC channel.
+                workerOptions.getUseWindmillIsolatedChannels()
+                    ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
+                    : channelFactory.apply(serviceAddress));
+    return ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
+  }
+
   @VisibleForTesting
   static StreamingDataflowWorker forTesting(
       Map<String, String> prePopulatedStateNameMappings,
@@ -592,7 +614,8 @@ public final class StreamingDataflowWorker {
       Function<String, ScheduledExecutorService> executorSupplier,
       StreamingGlobalConfigHandleImpl globalConfigHandle,
       int localRetryTimeoutMs,
-      StreamingCounters streamingCounters) {
+      StreamingCounters streamingCounters,
+      WindmillStubFactoryFactory stubFactory) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache =
@@ -696,7 +719,8 @@ public final class StreamingDataflowWorker {
                 .build()
             : windmillStreamFactory.build(),
         executorSupplier,
-        stageInfo);
+        stageInfo,
+        GrpcDispatcherClient.create(options, stubFactory));
   }
 
   private static GrpcWindmillStreamFactory.Builder createGrpcwindmillStreamFactoryBuilder(
@@ -705,13 +729,7 @@ public final class StreamingDataflowWorker {
         !options.isEnableStreamingEngine() && options.getLocalWindmillHostport() != null
             ? GrpcWindmillServer.LOCALHOST_MAX_BACKOFF
             : Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
-    return GrpcWindmillStreamFactory.of(
-            JobHeader.newBuilder()
-                .setJobId(options.getJobId())
-                .setProjectId(options.getProject())
-                .setWorkerId(options.getWorkerId())
-                .setClientId(clientId)
-                .build())
+    return GrpcWindmillStreamFactory.of(createJobHeader(options, clientId))
         .setWindmillMessagesBetweenIsReadyChecks(options.getWindmillMessagesBetweenIsReadyChecks())
         .setMaxBackOffSupplier(() -> maxBackoff)
         .setLogEveryNStreamFailures(options.getWindmillServiceStreamingLogEveryNStreamFailures())
@@ -720,6 +738,15 @@ public final class StreamingDataflowWorker {
             !options.isEnableStreamingEngine()
                 || DataflowRunner.hasExperiment(
                     options, "streaming_engine_disable_new_heartbeat_requests"));
+  }
+
+  private static JobHeader createJobHeader(DataflowWorkerHarnessOptions options, long clientId) {
+    return JobHeader.newBuilder()
+        .setJobId(options.getJobId())
+        .setProjectId(options.getProject())
+        .setWorkerId(options.getWorkerId())
+        .setClientId(clientId)
+        .build();
   }
 
   private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
@@ -881,13 +908,9 @@ public final class StreamingDataflowWorker {
   @AutoValue
   abstract static class ConfigFetcherComputationStateCacheAndWindmillClient {
 
-    private static ConfigFetcherComputationStateCacheAndWindmillClient create(
-        ComputationConfig.Fetcher configFetcher,
-        ComputationStateCache computationStateCache,
-        WindmillServerStub windmillServer,
-        GrpcWindmillStreamFactory windmillStreamFactory) {
-      return new AutoValue_StreamingDataflowWorker_ConfigFetcherComputationStateCacheAndWindmillClient(
-          configFetcher, computationStateCache, windmillServer, windmillStreamFactory);
+    private static Builder builder() {
+      return new AutoValue_StreamingDataflowWorker_ConfigFetcherComputationStateCacheAndWindmillClient
+          .Builder();
     }
 
     abstract ComputationConfig.Fetcher configFetcher();
@@ -897,6 +920,23 @@ public final class StreamingDataflowWorker {
     abstract WindmillServerStub windmillServer();
 
     abstract GrpcWindmillStreamFactory windmillStreamFactory();
+
+    abstract @Nullable GrpcDispatcherClient windmillDispatcherClient();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setConfigFetcher(ComputationConfig.Fetcher value);
+
+      abstract Builder setComputationStateCache(ComputationStateCache value);
+
+      abstract Builder setWindmillServer(WindmillServerStub value);
+
+      abstract Builder setWindmillStreamFactory(GrpcWindmillStreamFactory value);
+
+      abstract Builder setWindmillDispatcherClient(GrpcDispatcherClient value);
+
+      abstract ConfigFetcherComputationStateCacheAndWindmillClient build();
+    }
   }
 
   /**

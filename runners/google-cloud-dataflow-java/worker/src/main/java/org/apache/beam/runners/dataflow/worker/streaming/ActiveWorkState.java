@@ -312,7 +312,7 @@ public final class ActiveWorkState {
       if (executableWork != null) {
         Work work = executableWork.work();
         if (work.isStuckCommittingAt(stuckCommitDeadline)) {
-          LOG.error(
+          LOG.debug(
               "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
               shardedKey,
               work.getStateStartTime());
@@ -338,7 +338,16 @@ public final class ActiveWorkState {
         "<table border=\"1\" "
             + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
     writer.println(
-        "<tr><th>Key</th><th>Token</th><th>Queued</th><th>Active For</th><th>State</th><th>State Active For</th><th>Processing Thread</th></tr>");
+        "<tr>"
+            + "<th>Key</th>"
+            + "<th>Token</th>"
+            + "<th>Queued</th>"
+            + "<th>Active For</th>"
+            + "<th>State</th>"
+            + "<th>State Active For</th>"
+            + "<th>Processing Thread</th>"
+            + "<th>Produced By</th>"
+            + "</tr>");
     // Use StringBuilder because we are appending in loop.
     StringBuilder activeWorkStatus = new StringBuilder();
     int commitsPendingCount = 0;
@@ -366,6 +375,8 @@ public final class ActiveWorkState {
       activeWorkStatus.append(elapsedString(activeWork.getStateStartTime(), now));
       activeWorkStatus.append("</td><td>");
       activeWorkStatus.append(activeWork.getProcessingThreadName());
+      activeWorkStatus.append("</td><td>");
+      activeWorkStatus.append(activeWork.backendWorkerToken());
       activeWorkStatus.append("</td></tr>\n");
     }
 

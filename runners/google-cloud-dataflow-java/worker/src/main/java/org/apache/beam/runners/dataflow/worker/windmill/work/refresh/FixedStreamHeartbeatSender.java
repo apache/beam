@@ -62,9 +62,8 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
       }
       getDataStream.refreshActiveWork(heartbeats.heartbeatRequests().asMap());
     } catch (AbstractWindmillStream.WindmillStreamShutdownException e) {
-      LOG.warn(
-          "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
-              + " heartbeats",
+      LOG.debug(
+          "Trying to send {} heartbeats to worker=[{}] after work has moved off of worker.",
           getDataStream.backendWorkerToken(),
           heartbeats.heartbeatRequests().size());
       heartbeats.work().forEach(RefreshableWork::setFailed);

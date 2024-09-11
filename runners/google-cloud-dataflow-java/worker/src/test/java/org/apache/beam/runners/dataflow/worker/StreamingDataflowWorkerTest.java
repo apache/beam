@@ -131,6 +131,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -872,7 +875,12 @@ public class StreamingDataflowWorkerTest {
             streamingDataflowWorkerTestParams.executorSupplier(),
             mockGlobalConfigHandle,
             streamingDataflowWorkerTestParams.localRetryTimeoutMs(),
-            streamingCounters);
+            streamingCounters,
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(
+                    () ->
+                        WindmillChannelFactory.inProcessChannel(
+                            "StreamingDataflowWorkerTestChannel"))));
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }

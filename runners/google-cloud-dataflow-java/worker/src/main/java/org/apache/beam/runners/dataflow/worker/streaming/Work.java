@@ -111,7 +111,18 @@ public final class Work implements RefreshableWork {
       GetDataClient getDataClient,
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender) {
-    return ProcessingContext.create(computationId, getDataClient, workCommitter, heartbeatSender);
+    return ProcessingContext.create(
+        computationId, getDataClient, workCommitter, heartbeatSender, "");
+  }
+
+  public static ProcessingContext createProcessingContext(
+      String backendWorkerToken,
+      String computationId,
+      GetDataClient getDataClient,
+      Consumer<Commit> workCommitter,
+      HeartbeatSender heartbeatSender) {
+    return ProcessingContext.create(
+        computationId, getDataClient, workCommitter, heartbeatSender, backendWorkerToken);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -166,6 +177,10 @@ public final class Work implements RefreshableWork {
 
   public GlobalData fetchSideInput(GlobalDataRequest request) {
     return processingContext.getDataClient().getSideInputData(request);
+  }
+
+  public String backendWorkerToken() {
+    return processingContext.backendWorkerToken();
   }
 
   public Watermarks watermarks() {
@@ -351,9 +366,10 @@ public final class Work implements RefreshableWork {
         String computationId,
         GetDataClient getDataClient,
         Consumer<Commit> workCommitter,
-        HeartbeatSender heartbeatSender) {
+        HeartbeatSender heartbeatSender,
+        String backendWorkerToken) {
       return new AutoValue_Work_ProcessingContext(
-          computationId, getDataClient, heartbeatSender, workCommitter);
+          computationId, getDataClient, heartbeatSender, workCommitter, backendWorkerToken);
     }
 
     /** Computation that the {@link Work} belongs to. */
@@ -369,6 +385,8 @@ public final class Work implements RefreshableWork {
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
+
+    public abstract String backendWorkerToken();
 
     private Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest request) {
       return Optional.ofNullable(getDataClient().getStateData(computationId(), request));

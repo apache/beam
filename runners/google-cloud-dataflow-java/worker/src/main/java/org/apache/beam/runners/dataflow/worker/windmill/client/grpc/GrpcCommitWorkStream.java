@@ -45,7 +45,6 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +60,6 @@ final class GrpcCommitWorkStream
   private final JobHeader jobHeader;
   private final ThrottleTimer commitWorkThrottleTimer;
   private final int streamingRpcBatchLimit;
-  private final Monitor lock;
 
   private GrpcCommitWorkStream(
       String backendWorkerToken,
@@ -89,7 +87,6 @@ final class GrpcCommitWorkStream
     this.jobHeader = jobHeader;
     this.commitWorkThrottleTimer = commitWorkThrottleTimer;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
-    this.lock = new Monitor();
   }
 
   static GrpcCommitWorkStream create(
@@ -229,8 +226,7 @@ final class GrpcCommitWorkStream
     }
   }
 
-  private void issueSingleRequest(long id, PendingRequest pendingRequest)
-      throws InterruptedException {
+  private void issueSingleRequest(long id, PendingRequest pendingRequest) {
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
@@ -239,18 +235,17 @@ final class GrpcCommitWorkStream
         .setShardingKey(pendingRequest.shardingKey())
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
-    lock.enterInterruptibly();
-    try {
+    synchronized (this) {
       pending.put(id, pendingRequest);
-      send(chunk);
-    } catch (IllegalStateException e) {
-      // Stream was broken, request will be retried when stream is reopened.
-    } finally {
-      lock.leave();
+      try {
+        send(chunk);
+      } catch (IllegalStateException e) {
+        // Stream was broken, request will be retried when stream is reopened.
+      }
     }
   }
 
-  private void issueBatchedRequest(Map<Long, PendingRequest> requests) throws InterruptedException {
+  private void issueBatchedRequest(Map<Long, PendingRequest> requests) {
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     String lastComputation = null;
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
@@ -266,23 +261,20 @@ final class GrpcCommitWorkStream
           .setSerializedWorkItemCommit(request.serializedCommit());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
-    lock.enterInterruptibly();
-    try {
+    synchronized (this) {
       pending.putAll(requests);
-      send(request);
-    } catch (IllegalStateException e) {
-      // Stream was broken, request will be retried when stream is reopened.
-    } finally {
-      lock.leave();
+      try {
+        send(request);
+      } catch (IllegalStateException e) {
+        // Stream was broken, request will be retried when stream is reopened.
+      }
     }
   }
 
-  private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest)
-      throws InterruptedException {
+  private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
     checkNotNull(pendingRequest.computationId());
     final ByteString serializedCommit = pendingRequest.serializedCommit();
-    lock.enterInterruptibly();
-    try {
+    synchronized (this) {
       pending.put(id, pendingRequest);
       for (int i = 0;
           i < serializedCommit.size() && !isShutdown();
@@ -310,8 +302,6 @@ final class GrpcCommitWorkStream
           break;
         }
       }
-    } finally {
-      lock.leave();
     }
   }
 

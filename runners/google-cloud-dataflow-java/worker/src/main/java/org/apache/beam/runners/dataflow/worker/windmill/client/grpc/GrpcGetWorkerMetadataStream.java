@@ -19,10 +19,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
@@ -125,14 +127,14 @@ public final class GrpcGetWorkerMetadataStream
   private Optional<WindmillEndpoints> extractWindmillEndpointsFrom(
       WorkerMetadataResponse response) {
     synchronized (metadataLock) {
-      if (response.getMetadataVersion() > this.metadataVersion) {
+      if (response.getMetadataVersion() > metadataVersion) {
         this.metadataVersion = response.getMetadataVersion();
         this.latestResponse = response;
         return Optional.of(WindmillEndpoints.from(response));
       } else {
         // If the currentMetadataVersion is greater than or equal to one in the response, the
         // response data is stale, and we do not want to do anything.
-        LOG.info(
+        LOG.debug(
             "Received metadata version={}; Current metadata version={}. "
                 + "Skipping update because received stale metadata",
             response.getMetadataVersion(),
@@ -169,9 +171,13 @@ public final class GrpcGetWorkerMetadataStream
   @Override
   protected void appendSpecificHtml(PrintWriter writer) {
     synchronized (metadataLock) {
+      List<String> backendWorkerTokens =
+          latestResponse.getWorkEndpointsList().stream()
+              .map(WorkerMetadataResponse.Endpoint::getBackendWorkerToken)
+              .collect(Collectors.toList());
       writer.format(
-          "GetWorkerMetadataStream: version=[%d] , job_header=[%s], latest_response=[%s]",
-          this.metadataVersion, workerMetadataRequest.getHeader(), this.latestResponse);
+          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s]",
+          workerMetadataRequest.getHeader(), backendWorkerTokens);
     }
   }
 }

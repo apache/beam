@@ -59,6 +59,10 @@ public interface WindmillStream {
     /** Adjusts the {@link GetWorkBudget} for the stream. */
     void adjustBudget(long itemsDelta, long bytesDelta);
 
+    default void adjustBudget(GetWorkBudget newBudget) {
+      adjustBudget(newBudget.items(), newBudget.bytes());
+    }
+
     /** Returns the remaining in-flight {@link GetWorkBudget}. */
     GetWorkBudget remainingBudget();
   }

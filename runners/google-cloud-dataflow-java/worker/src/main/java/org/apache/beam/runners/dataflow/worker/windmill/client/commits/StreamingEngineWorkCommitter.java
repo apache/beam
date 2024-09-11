@@ -56,6 +56,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;
   private final AtomicBoolean isRunning;
+  private final String backendWorkerToken;
 
   StreamingEngineWorkCommitter(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
@@ -81,6 +82,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;
     this.isRunning = new AtomicBoolean(false);
+    this.backendWorkerToken = backendWorkerToken;
   }
 
   public static Builder builder() {
@@ -105,10 +107,12 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     if (commit.work().isFailed() || isShutdown) {
       if (isShutdown) {
         LOG.debug(
-            "Trying to queue commit on shutdown, failing commit=[computationId={}, shardingKey={}, workId={} ].",
+            "Trying to queue commit after shutdown, failing commit=[computationId={}, shardingKey={},"
+                + " workId={}. backendWorkerToken={} ].",
             commit.computationId(),
             commit.work().getShardedKey(),
-            commit.work().id());
+            commit.work().id(),
+            backendWorkerToken);
       }
       failCommit(commit);
     } else {
@@ -132,6 +136,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue.",
           e);
     }
+    LOG.info("trieu: stop() called, draining commit queue of {}.", commitQueue.size());
     drainCommitQueue();
   }
 
