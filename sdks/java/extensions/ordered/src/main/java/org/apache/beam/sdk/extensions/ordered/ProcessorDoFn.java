@@ -241,7 +241,9 @@ abstract class ProcessorDoFn<
       ProcessingState<EventKeyTypeT> processingState,
       MultiOutputReceiver outputReceiver,
       Instant statusTimestamp) {
-    LOG.info("Emitting status for: " + processingState.getKey() + ", " + processingState);
+    if(LOG.isTraceEnabled()) {
+      LOG.trace("Emitting status for: " + processingState.getKey() + ", " + processingState);
+    }
     outputReceiver
         .get(statusTupleTag)
         .outputWithTimestamp(

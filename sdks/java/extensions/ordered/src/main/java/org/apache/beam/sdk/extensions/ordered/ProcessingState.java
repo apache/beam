@@ -305,6 +305,13 @@ class ProcessingState<KeyT> {
     this.lastCompleteGlobalSequence = updated;
   }
 
+  public boolean haveGloballySequencedEventsToBeProcessed() {
+    return bufferedEventCount > 0
+        && lastCompleteGlobalSequence != null
+        && earliestBufferedSequence != null &&
+        earliestBufferedSequence <= lastCompleteGlobalSequence.getEnd();
+  }
+
   /**
    * Coder for the processing status.
    *

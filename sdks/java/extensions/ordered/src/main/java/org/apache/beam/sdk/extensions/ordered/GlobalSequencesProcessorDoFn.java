@@ -122,7 +122,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     EventKeyT key = eventAndSequence.getKey();
     long sequence = eventAndSequence.getValue().getKey();
 
-    if(LOG.isTraceEnabled()) {
+    if (LOG.isTraceEnabled()) {
       LOG.trace(key + ": " + sequence + " lastSequence: " + lastContinuousSequence);
     }
 
@@ -145,7 +145,6 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
       // TODO: we can keep resetting this into the future under heavy load.
       //  Need to add logic to avoid doing it.
-      //
       setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
 
       return;
@@ -182,7 +181,8 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   private void setBatchEmissionTimerIfNeeded(Timer batchEmissionTimer,
       ProcessingState<EventKeyT> processingState) {
     CompletedSequenceRange lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
-    if (processingState.getBufferedEventCount() > 0 && lastCompleteGlobalSequence != null) {
+    if (lastCompleteGlobalSequence != null &&
+        processingState.haveGloballySequencedEventsToBeProcessed()) {
       batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
     }
   }
@@ -218,7 +218,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       return;
     }
 
-    if(LOG.isTraceEnabled()) {
+    if (LOG.isTraceEnabled()) {
       LOG.trace("Emission timer: " + processingState);
     }
 

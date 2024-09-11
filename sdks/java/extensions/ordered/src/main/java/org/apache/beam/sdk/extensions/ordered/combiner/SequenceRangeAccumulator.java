@@ -10,6 +10,9 @@ import java.util.TreeMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.ordered.CompletedSequenceRange;
 import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -23,7 +26,7 @@ public class SequenceRangeAccumulator {
     return a.isAfter(b) ? a : b;
   }
 
-  private final TreeMap<Long, Pair<Long, Instant>> accumulator = new TreeMap<>();
+  private final TreeMap<Long, Pair<Long, Instant>> data = new TreeMap<>();
   private @Nullable Long initialSequence = null;
 
   public void add(long sequence, Instant timestamp, boolean isInitialSequence) {
@@ -41,11 +44,10 @@ public class SequenceRangeAccumulator {
       return;
     }
 
-    long lowerBound = sequence;
-    long upperBound = sequence;
+    long lowerBound = sequence, upperBound = sequence;
 
-    Entry<Long, Pair<Long, Instant>> lowerRange = accumulator.floorEntry(sequence);
-    if(lowerRange != null) {
+    Entry<Long, Pair<Long, Instant>> lowerRange = data.floorEntry(sequence);
+    if (lowerRange != null) {
       long inclusiveUpperBoundary = lowerRange.getValue().getLeft();
       if (sequence <= inclusiveUpperBoundary) {
         // Duplicate. No need to adjust the timestamp.
@@ -53,37 +55,38 @@ public class SequenceRangeAccumulator {
       }
 
       if (inclusiveUpperBoundary + 1 == sequence) {
-        // The new element extends this range
+        // The new element extends the lower range. Remove the range.
         timestamp = max(timestamp, lowerRange.getValue().getValue());
         lowerBound = lowerRange.getKey();
-        accumulator.remove(lowerRange.getKey());
+        data.remove(lowerRange.getKey());
       }
     }
 
     long nextSequenceNumber = sequence + 1;
-    Pair<Long, Instant> upperRange = accumulator.get(nextSequenceNumber);
+    Pair<Long, Instant> upperRange = data.get(nextSequenceNumber);
     if (upperRange != null) {
+      // The new element will extend the upper range. Remove the range.
       timestamp = max(timestamp, upperRange.getRight());
       upperBound = upperRange.getLeft();
-      accumulator.remove(nextSequenceNumber);
+      data.remove(nextSequenceNumber);
     }
 
-    accumulator.put(lowerBound, Pair.of(upperBound, timestamp));
+    data.put(lowerBound, Pair.of(upperBound, timestamp));
   }
 
   private void clearRangesBelowInitialSequence(long sequence, Instant timestamp) {
     // First, adjust the current range, if any
-    Entry<Long, Pair<Long, Instant>> lowerRange = accumulator.floorEntry(sequence);
-    if(lowerRange != null
+    Entry<Long, Pair<Long, Instant>> lowerRange = data.floorEntry(sequence);
+    if (lowerRange != null
         && lowerRange.getKey() < sequence
         && lowerRange.getValue().getLeft() > sequence) {
       // The sequence is in the middle of the range. Adjust it.
-      accumulator.remove(lowerRange.getKey());
-      accumulator.put(sequence,
+      data.remove(lowerRange.getKey());
+      data.put(sequence,
           Pair.of(lowerRange.getValue().getKey(), max(timestamp, lowerRange.getValue()
-          .getValue())));
+              .getValue())));
     }
-    accumulator.subMap(Long.MIN_VALUE, sequence).clear();
+    data.subMap(Long.MIN_VALUE, sequence).clear();
   }
 
   public CompletedSequenceRange largestContinuousRange() {
@@ -91,9 +94,9 @@ public class SequenceRangeAccumulator {
       return CompletedSequenceRange.EMPTY;
     }
 
-    Entry<Long, Pair<Long, Instant>> firstEntry = accumulator.firstEntry();
+    Entry<Long, Pair<Long, Instant>> firstEntry = data.firstEntry();
     if (firstEntry == null) {
-      throw new IllegalStateException("First entry is null");
+      throw new IllegalStateException("First entry is null when initial sequence is set.");
     }
     Long start = firstEntry.getKey();
     Long end = firstEntry.getValue().getLeft();
@@ -102,7 +105,7 @@ public class SequenceRangeAccumulator {
   }
 
   public int numberOfRanges() {
-    return accumulator.size();
+    return data.size();
   }
 
 
@@ -116,29 +119,29 @@ public class SequenceRangeAccumulator {
     if (another.initialSequence != null) {
       long newInitialSequence = another.initialSequence;
       this.initialSequence = newInitialSequence;
-      Entry<Long, Pair<Long, Instant>> firstEntry = another.accumulator.firstEntry();
-      if(firstEntry != null) {
+      Entry<Long, Pair<Long, Instant>> firstEntry = another.data.firstEntry();
+      if (firstEntry != null) {
         Instant timestampOfTheInitialRange = firstEntry.getValue().getRight();
         clearRangesBelowInitialSequence(newInitialSequence, timestampOfTheInitialRange);
       }
     }
 
-    another.accumulator.entrySet().stream().forEach(
+    another.data.entrySet().forEach(
         entry -> {
           long lowerBound = entry.getKey();
           long upperBound = entry.getValue().getLeft();
-          if(this.initialSequence != null) {
-            if(upperBound < initialSequence) {
+          if (this.initialSequence != null) {
+            if (upperBound < initialSequence) {
               // The whole range is below the initial sequence. Ignore it.
               return;
             }
-            if(lowerBound < initialSequence) {
+            if (lowerBound < initialSequence) {
               // This will cause pruning of the range up to the initial sequence
               lowerBound = this.initialSequence;
             }
           }
 
-          Entry<Long, Pair<Long, Instant>> lowerRange = this.accumulator.floorEntry(lowerBound);
+          Entry<Long, Pair<Long, Instant>> lowerRange = this.data.floorEntry(lowerBound);
 
           if (lowerRange != null) {
             if (lowerRange.getValue().getLeft() < lowerBound - 1) {
@@ -150,7 +153,7 @@ public class SequenceRangeAccumulator {
             }
           }
 
-          Entry<Long, Pair<Long, Instant>> upperRange = this.accumulator.floorEntry(upperBound + 1);
+          Entry<Long, Pair<Long, Instant>> upperRange = this.data.floorEntry(upperBound + 1);
           if (upperRange == null ||
               (lowerRange != null && Objects.equals(upperRange.getKey(), lowerRange.getKey()))) {
             // Nothing to do - either there is no adjacent upper range or it equals the lower range
@@ -161,14 +164,14 @@ public class SequenceRangeAccumulator {
           Instant latestTimestamp = removeAllRanges(lowerBound, upperBound,
               entry.getValue().getRight());
 
-          this.accumulator.put(lowerBound, Pair.of(upperBound, latestTimestamp));
+          this.data.put(lowerBound, Pair.of(upperBound, latestTimestamp));
         }
     );
   }
 
   private Instant removeAllRanges(long lowerBound, long upperBound, Instant currentTimestamp) {
     Instant result = currentTimestamp;
-    SortedMap<Long, Pair<Long, Instant>> rangesToRemove = accumulator.subMap(lowerBound,
+    SortedMap<Long, Pair<Long, Instant>> rangesToRemove = data.subMap(lowerBound,
         upperBound);
     for (Pair<Long, Instant> value : rangesToRemove.values()) {
       result = result.isAfter(value.getRight()) ? result : value.getRight();
@@ -177,21 +180,61 @@ public class SequenceRangeAccumulator {
     return result;
   }
 
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof SequenceRangeAccumulator)) {
+      return false;
+    }
+    SequenceRangeAccumulator that = (SequenceRangeAccumulator) o;
+    return data.equals(that.data) && Objects.equals(initialSequence, that.initialSequence);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(data, initialSequence);
+  }
+
+  @Override
+  public String toString() {
+    return "SequenceRangeAccumulator{initialSequence=" + initialSequence + ", data=" + data + '}';
+  }
+
   public static class SequenceRangeAccumulatorCoder extends CustomCoder<SequenceRangeAccumulator> {
 
-    // TODO implement
+    private final NullableCoder<Long> initialSequenceCoder = NullableCoder.of(VarLongCoder.of());
+    private final VarIntCoder numberOfRangesCoder = VarIntCoder.of();
+    private final VarLongCoder dataCoder = VarLongCoder.of();
+
     @Override
     public void encode(SequenceRangeAccumulator value,
         @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
         throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull @Initialized IOException {
-
+      numberOfRangesCoder.encode(value.numberOfRanges(), outStream);
+      initialSequenceCoder.encode(value.initialSequence, outStream);
+      for (Entry<Long, Pair<Long, Instant>> entry : value.data.entrySet()) {
+        dataCoder.encode(entry.getKey(), outStream);
+        dataCoder.encode(entry.getValue().getLeft(), outStream);
+        dataCoder.encode(entry.getValue().getRight().getMillis(), outStream);
+      }
     }
 
     @Override
     public SequenceRangeAccumulator decode(
         @UnknownKeyFor @NonNull @Initialized InputStream inStream)
         throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull @Initialized IOException {
-      return new SequenceRangeAccumulator();
+      SequenceRangeAccumulator result = new SequenceRangeAccumulator();
+      int numberOfRanges = numberOfRangesCoder.decode(inStream);
+      result.initialSequence = initialSequenceCoder.decode(inStream);
+      for (int i = 0; i < numberOfRanges; i++) {
+        long key = dataCoder.decode(inStream);
+        long upperBound = dataCoder.decode(inStream);
+        long millis = dataCoder.decode(inStream);
+        result.data.put(key, Pair.of(upperBound, Instant.ofEpochMilli(millis)));
+      }
+      return result;
     }
   }
 }
