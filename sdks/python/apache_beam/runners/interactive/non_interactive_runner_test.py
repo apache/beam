@@ -268,6 +268,7 @@ class NonInteractiveRunnerTest(unittest.TestCase):
         cls.run_count += 1
         return direct_runner.DirectRunner().run_pipeline(pipeline, options)
 
+    clear_side_effect()
     p = beam.Pipeline(direct_runner.DirectRunner())
 
     # Initial collection runs the pipeline.
@@ -276,7 +277,7 @@ class NonInteractiveRunnerTest(unittest.TestCase):
     self.assertEqual(set(collected1[0]), set(['a', 'b', 'c']))
     self.assertEqual(count_side_effects('a'), 1)
 
-    # Using the PCollection uses the cache.
+    # Using the PCollection uses the cache with a different runner and options.
     pcoll2 = pcoll1 | beam.Map(str.upper)
     collected2 = ib.collect(
         pcoll2,

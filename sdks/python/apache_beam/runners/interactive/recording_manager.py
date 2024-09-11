@@ -389,8 +389,8 @@ class RecordingManager:
       *,
       max_n: int,
       max_duration: Union[int, str],
-      runner: runner.PipelineRunner,
-      options: pipeline_options.PipelineOptions,
+      runner: runner.PipelineRunner = None,
+      options: pipeline_options.PipelineOptions = None,
       force_compute: bool = False) -> Recording:
     # noqa: F821
 
