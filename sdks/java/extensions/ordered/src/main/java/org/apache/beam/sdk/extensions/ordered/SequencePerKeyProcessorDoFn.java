@@ -151,8 +151,8 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
 
   private boolean checkIfProcessingIsCompleted(ProcessingState<EventKeyTypeT> processingState) {
     boolean result = processingState.isProcessingCompleted();
-    if (result) {
-      LOG.info("Processing for key '" + processingState.getKey() + "' is completed.");
+    if (result && LOG.isTraceEnabled()) {
+      LOG.trace("Processing for key '" + processingState.getKey() + "' is completed.");
     }
     return result;
   }

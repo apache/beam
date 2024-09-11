@@ -270,10 +270,12 @@ abstract class ProcessorDoFn<
                 : numberOfResultsBeforeBundleStart.longValue())
             >= maxNumberOfResultsToProduce;
     if (exceeded) {
-      LOG.info(
-          "Setting the timer to output next batch of events for key '"
-              + processingState.getKey()
-              + "'");
+      if(LOG.isTraceEnabled()) {
+        LOG.trace(
+            "Setting the timer to output next batch of events for key '"
+                + processingState.getKey()
+                + "'");
+      }
       // See GroupIntoBatches for examples on how to hold the timestamp.
       // TODO: test that on draining the pipeline all the results are still produced correctly.
       // See: https://github.com/apache/beam/issues/30781
