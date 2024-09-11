@@ -645,7 +645,7 @@ public class KafkaIOTest {
     p.run();
 
     kafkaIOExpectedLogs.verifyWarn(
-        "commitOffsetsInFinalize() will not capture all work processed if set with withRedistribute()");
+        "Offsets committed due to usage of commitOffsetsInFinalize() may not capture all work processed due to use of withRedistribute()");
   }
 
   @Test
@@ -695,29 +695,6 @@ public class KafkaIOTest {
                 .withProcessingTime()
                 .commitOffsets());
     p.run();
-  }
-
-  @Test
-  public void testEnableAutoCommitWithRedistribute() throws Exception {
-
-    int numElements = 1000;
-
-    PCollection<Long> input =
-        p.apply(
-                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
-                    .withRedistribute()
-                    .withRedistributeNumKeys(100)
-                    .withConsumerConfigUpdates(
-                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
-                    .withoutMetadata())
-            .apply(Values.create());
-
-    addCountingAsserts(input, numElements);
-
-    p.run();
-
-    kafkaIOExpectedLogs.verifyWarn(
-        "config.ENABLE_AUTO_COMMIT_CONFIG doesn't need to be set with withRedistribute()");
   }
 
   @Test

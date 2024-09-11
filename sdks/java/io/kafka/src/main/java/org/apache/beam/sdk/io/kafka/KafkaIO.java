@@ -1698,12 +1698,7 @@ public class KafkaIO {
         if (kafkaRead.isRedistributed()) {
           if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
             LOG.warn(
-                "commitOffsetsInFinalize() will not capture all work processed if set with withRedistribute()");
-          }
-          if (Boolean.TRUE.equals(
-              kafkaRead.getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
-            LOG.warn(
-                "config.ENABLE_AUTO_COMMIT_CONFIG doesn't need to be set with withRedistribute()");
+                "Offsets committed due to usage of commitOffsetsInFinalize() may not capture all work processed due to use of withRedistribute()");
           }
           PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
 
@@ -2659,7 +2654,6 @@ public class KafkaIO {
         if (getRedistributeNumKeys() == 0) {
           LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
         }
-        // is another check here needed for with commit offsets
         if (isCommitOffsetEnabled() || configuredKafkaCommit()) {
           LOG.warn(
               "Either auto_commit is set, or commitOffsetEnabled is enabled (or both), but since "
