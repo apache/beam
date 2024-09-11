@@ -103,6 +103,7 @@ __all__ = [
     'Windowing',
     'WindowInto',
     'Flatten',
+    'FlattenWith',
     'Create',
     'Impulse',
     'RestrictionProvider',
@@ -3834,6 +3835,33 @@ class Flatten(PTransform):
 
 PTransform.register_urn(
     common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter)
+
+
+class FlattenWith(PTransform):
+  """A PTransform that flattens its input with other PCollections.
+
+  This is equivalent to creating a tuple containing both the input and the
+  other PCollection(s), but has the advantage that it can be more easily used
+  inline.
+
+  Root PTransforms can be passed as well as PCollections, in which case their
+  outputs will be flattened.
+  """
+  def __init__(self, *others):
+    self._others = others
+
+  def expand(self, pcoll):
+    pcolls = [pcoll]
+    for other in self._others:
+      if isinstance(other, pvalue.PCollection):
+        pcolls.append(other)
+      elif isinstance(other, PTransform):
+        pcolls.append(pcoll.pipeline | other)
+      else:
+        raise TypeError(
+            'FlattenWith only takes other PCollections and PTransforms, '
+            f'got {other}')
+    return tuple(pcolls) | Flatten()
 
 
 class Create(PTransform):

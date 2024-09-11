@@ -787,6 +787,18 @@ class PTransformTest(unittest.TestCase):
       assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
       assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
+  def test_flatten_with(self):
+    with TestPipeline() as pipeline:
+      input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
+
+      result = (
+          input
+          | 'WithPCollection' >> beam.FlattenWith(input | beam.Map(str.lower))
+          | 'WithPTransform' >> beam.FlattenWith(beam.Create(['x', 'y'])))
+
+      assert_that(
+          result, equal_to(['AA', 'BBB', 'CC', 'aa', 'bbb', 'cc', 'x', 'y']))
+
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       with TestPipeline() as pipeline:

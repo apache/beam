@@ -69,6 +69,8 @@
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add new meta-transform FlattenWith and Tee that allow one to introduce branching
+  without breaking the linear/chaining style of pipeline construction.
 
 ## Breaking Changes
 
