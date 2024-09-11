@@ -21,7 +21,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"reflect"
 	"time"
 )
 
@@ -33,9 +32,9 @@ func init() {
 	register.Function3x2(asymJoinFn)
 	register.Function5x0(splitByName)
 	register.Function2x0(emitPipelineOptions)
-	beam.RegisterDoFn(reflect.TypeOf((*processElemBundleFinalizer)(nil)).Elem())
-	beam.RegisterDoFn(reflect.TypeOf((*finalizerInFinishBundle)(nil)).Elem())
-	beam.RegisterDoFn(reflect.TypeOf((*finalizerInAll)(nil)).Elem())
+	register.DoFn2x0[beam.BundleFinalization, []byte]((*processElemBundleFinalizer)(nil))
+	register.DoFn2x0[beam.BundleFinalization, []byte]((*finalizerInFinishBundle)(nil))
+	register.DoFn2x0[beam.BundleFinalization, []byte]((*finalizerInAll)(nil))
 
 	register.Iter1[int]()
 	register.Iter2[int, int]()
