@@ -16,6 +16,10 @@
 package primitives
 
 import (
+	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"sync/atomic"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -45,4 +49,97 @@ func TestParDoMultiMapSideInput(t *testing.T) {
 func TestParDoPipelineOptions(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, ParDoPipelineOptions())
+}
+
+var countInvokeBundleFinalizer atomic.Int32
+
+func TestParDoBundleFinalizer(t *testing.T) {
+	integration.CheckFilters(t)
+	for _, tt := range []struct {
+		name       string
+		fn         func() error
+		pipelineFn func(beam.EncodedFunc) *beam.Pipeline
+		want       int32
+		wantErr    bool
+	}{
+		{
+			name: "InProcessElement",
+			fn: func() error {
+				countInvokeBundleFinalizer.Add(1)
+				return nil
+			},
+			pipelineFn: ParDoProcessElementBundleFinalizer,
+			want:       1,
+		},
+		{
+			name: "InProcessElement_withErr",
+			fn: func() error {
+				return fmt.Errorf("error")
+			},
+			pipelineFn: ParDoProcessElementBundleFinalizer,
+			wantErr:    true,
+		},
+		{
+			name: "InFinishBundle",
+			fn: func() error {
+				countInvokeBundleFinalizer.Add(1)
+				return nil
+			},
+			pipelineFn: ParDoFinishBundleFinalizer,
+			want:       1,
+		},
+		{
+			name: "InFinishBundle_withError",
+			fn: func() error {
+				return fmt.Errorf("error")
+			},
+			pipelineFn: ParDoFinishBundleFinalizer,
+			wantErr:    true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			countInvokeBundleFinalizer.Store(0)
+			enc := beam.EncodedFunc{
+				Fn: reflectx.MakeFunc(tt.fn),
+			}
+			p := tt.pipelineFn(enc)
+			_, err := ptest.RunWithMetrics(p)
+			if err == nil && tt.wantErr {
+				t.Errorf("error nil from pipeline Job, wantErr: %v", tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if err != nil {
+				t.Fatalf("Failed to execute job: %v", err)
+			}
+			if got := countInvokeBundleFinalizer.Load(); got != tt.want {
+				t.Errorf("BundleFinalization RegisterCallback not invoked as expected via proxy counts, got: %v, want: %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParDoBundleFinalizerInAll(t *testing.T) {
+	var want int32 = 7
+	countInvokeBundleFinalizer.Store(0)
+	startFn := func() {
+		countInvokeBundleFinalizer.Add(1)
+	}
+	startEnc := beam.EncodedFunc{Fn: reflectx.MakeFunc(startFn)}
+	processFn := func() {
+		countInvokeBundleFinalizer.Add(2)
+	}
+	processEnc := beam.EncodedFunc{Fn: reflectx.MakeFunc(processFn)}
+	finishFn := func() {
+		countInvokeBundleFinalizer.Add(4)
+	}
+	finishEnc := beam.EncodedFunc{Fn: reflectx.MakeFunc(finishFn)}
+
+	p := ParDoFinalizerInAll(startEnc, processEnc, finishEnc)
+	ptest.RunAndValidate(t, p)
+
+	if got := countInvokeBundleFinalizer.Load(); got != want {
+		t.Errorf("BundleFinalization RegisterCallback not invoked as expected via proxy counts, got: %v, want: %v", got, want)
+	}
 }

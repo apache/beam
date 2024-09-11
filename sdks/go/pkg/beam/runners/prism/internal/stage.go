@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/debug"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -62,6 +63,7 @@ type stage struct {
 	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
 	internalCols []string        // PCollections that escape. Used for precise coder sending.
 	envID        string
+	finalize     bool
 	stateful     bool
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
@@ -82,7 +84,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	defer func() {
 		// Convert execution panics to errors to fail the bundle.
 		if e := recover(); e != nil {
-			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v", e, s)
+			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v,stackTrace:\n%s", e, s, debug.Stack())
 		}
 	}()
 	slog.Debug("Execute: starting bundle", "bundle", rb)
@@ -278,6 +280,14 @@ progress:
 		slog.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.primaryInput))
 	}
 	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residuals)
+	if s.finalize {
+		_, err := b.Finalize(ctx, wk)
+		if err != nil {
+			slog.Debug("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
+			panic(err)
+		}
+		slog.Info("finalized bundle", "bundle", rb)
+	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
 }

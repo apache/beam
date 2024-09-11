@@ -206,6 +206,20 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Unlock()
 }
 
+func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_FinalizeBundle{
+			FinalizeBundle: &fnpb.FinalizeBundleRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("finalize[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetFinalizeBundle(), nil
+}
+
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
 func (b *B) Progress(ctx context.Context, wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
 	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
