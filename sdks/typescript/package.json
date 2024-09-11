@@ -50,7 +50,7 @@
     "queue-typescript": "^1.0.1",
     "serialize-closures": "^0.2.7",
     "ts-closure-transform": "^0.1.7",
-    "ttypescript": "^1.5.15",
+    "ts-patch": "^3.2.1",
     "uuid": "^8.3.2"
   },
   "main": "./dist/src/apache_beam/index.js",
