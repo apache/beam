@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A sub-class of SchemaCoder that can only encode {@link Row} instances. */
@@ -35,7 +36,12 @@ public class RowCoder extends SchemaCoder<Row> {
 
   /** Override encoding positions for the given schema. */
   public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
-    SchemaCoder.overrideEncodingPositions(uuid, encodingPositions);
+    RowCoderGenerator.overrideEncodingPositions(uuid, encodingPositions);
+  }
+
+  @VisibleForTesting
+  static void clearGeneratedRowCoders() {
+    RowCoderGenerator.clearRowCoderCache();
   }
 
   private RowCoder(Schema schema) {
