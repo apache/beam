@@ -74,7 +74,9 @@ cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
 CURRENT_DIRECTORY=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Default test targets.
-TESTS="./test/integration/xlang"
+TESTS="./test/integration/... ./test/regression"
+
+#TESTS="./test/integration/xlang"
 
 # Default runner.
 RUNNER=portable
@@ -401,9 +403,8 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     fi
   fi
 else
-  TAG=dev
-  ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
-  CONTAINER=apache/beam_go_sdk
+  TAG=20240911-213809
+  CONTAINER=us.gcr.io/apache-beam-testing/github-actions/beam_go_sdk
 fi
 
 # The go test flag -p dictates the number of simultaneous test binaries running tests.

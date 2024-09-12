@@ -50,9 +50,7 @@ func init() {
 }
 
 func checkFlags(t *testing.T) {
-	if expansionAddr == "" {
 		t.Skip("No Test expansion address provided.")
-	}
 }
 
 // formatIntStringsFn is a DoFn that formats an int64 and a list of strings.
