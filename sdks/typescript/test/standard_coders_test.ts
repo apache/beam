@@ -24,10 +24,10 @@ import {
 import { Writer, Reader } from "protobufjs";
 import Long from "long";
 
-import assertions = require("assert");
-import yaml = require("js-yaml");
-import fs = require("fs");
-import util = require("util");
+import * as assertions from "assert";
+import * as yaml from "js-yaml";
+import * as fs from "fs";
+import * as util from "util";
 import { GlobalWindow, Timing } from "../src/apache_beam/values";
 import { IterableCoder } from "../src/apache_beam/coders/required_coders";
 
