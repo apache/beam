@@ -21,28 +21,28 @@ limitations under the License.
 -->
 
 Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides to allow for testing.
-We cover an opinionated set of best practices to write unit tests for your data pipeline in this post. Note that this post does not include integration tests, and those should be authored separately.
-All snippets in this post are included in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb). Additionally, please take a look at the [Beam starter projects](https://beam.apache.org/blog/beam-starter-projects/), as these contain tests that exhibit best practices.
+We cover an opinionated set of best practices to write unit tests for your data pipeline. This post doesn't include integration tests, and you need to author those separately.
+All snippets in this post are included in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb). Additionally, to see tests that exhibit best practices, look at the [Beam starter projects](https://beam.apache.org/blog/beam-starter-projects/), as these contain tests that exhibit best practices.
 
+## Best practices
 
+When testing Beam pipelines, we recommend the following best practices:
 
-####When testing Beam pipelines, we recommend the following best practices:
+1) You don’t need to write any unit tests for the already supported connectors in the Beam Library, such as `ReadFromBigQuery` and `WriteToText`. These connectors are already tested in Beam’s test suite to ensure correct functionality. They add unnecessary cost and dependencies to a unit test.
 
-1) You don’t need to write any unit tests for the already supported connectors in the Beam Library, such as `ReadFromBigQuery` and `WriteToText`. These connectors are already tested in Beam’s test suite to ensure correct functionality and add unnecessary cost and dependencies to a unit test.
-
-2) You should ensure your function is well tested when using it with `Map`, `FlatMap`, or `Filter`. You can assume your function will work as intended when using `Map(your_function)`.
+2) Ensure that your function is well tested when using it with `Map`, `FlatMap`, or `Filter`. You can assume your function will work as intended when using `Map(your_function)`.
 3) For more complex transforms such as `ParDo`’s, side inputs, timestamp inspection, etc., treat the entire transform as a unit, and test it.
 4) If needed, use mocking to mock any API calls that might be present in your DoFn. The purpose of mocking is to test your functionality extensively, even if this testing requires a specific response from an API call.
 
-   1) Be sure to modularize your API calls in separate functions, rather than making the API call directly in the `DoFn`. This will allow for a cleaner experience when mocking the external API calls.
+   1) Be sure to modularize your API calls in separate functions, rather than making the API call directly in the `DoFn`. This step provides a cleaner experience when mocking the external API calls.
 
 
-###Example 1
+## Example 1
 
-Let’s use the following pipeline as an example. We do not have to write a separate unit test to test this function in the context of this pipeline, assuming the function  `median_house_value_per_bedroom` is unit tested elsewhere in the code. We can trust that the Map primitive will work as expected (this illustrates point #2 from above).
+Use the following pipeline as an example. You don't have to write a separate unit test to test this function in the context of this pipeline, assuming the function `median_house_value_per_bedroom` is unit tested elsewhere in the code. You can trust that the `Map` primitive works as expected (this illustrates point #2 noted previously).
 
 ```python
-# The following code computes the median house value per bedroom
+# The following code computes the median house value per bedroom.
 
 with beam.Pipeline() as p1:
    result = (
@@ -53,9 +53,9 @@ with beam.Pipeline() as p1:
    )
 ```
 
-###Example 2
+## Example 2
 
-Now let’s use the following function as our example. The functions `median_house_value_per_bedroom`, and `multiply_by_factor` are tested elsewhere, but the pipeline as a whole (which consists of composite transforms) is not.
+Use the following function as the example. The functions `median_house_value_per_bedroom` and `multiply_by_factor` are tested elsewhere, but the pipeline as a whole, which consists of composite transforms, is not.
 
 ```python
 with beam.Pipeline() as p2:
@@ -69,7 +69,7 @@ with beam.Pipeline() as p2:
     )
 ```
 
-The best practice for the above is to create a transform with all functions between the  `ReadFromText` and `WriteToText`.This will separate the transformation logic from the IOs, allowing us to unit-test the transformation logic. The following is a refactoring of the code above:
+The best practice for the previous code is to create a transform with all functions between `ReadFromText` and `WriteToText`. This step separates the transformation logic from the I/Os, allowing you to unit-test the transformation logic. The following example is a refactoring of the previous code:
 
 ```python
 def transform_data_set(pcoll):
@@ -78,7 +78,7 @@ def transform_data_set(pcoll):
           | beam.Map(multiply_by_factor)
           | beam.CombinePerKey(sum))
 
-# Define a new class that inherits from beam.PTransform
+# Define a new class that inherits from beam.PTransform.
 class MapAndCombineTransform(beam.PTransform):
   def expand(self, pcoll):
     return transform_data_set(pcoll)
@@ -92,7 +92,7 @@ with beam.Pipeline() as p2:
    )
 ```
 
-Here is the corresponding unit test for the above example:
+This code shows the corresponding unit test for the previous example:
 
 ```python
 import unittest
@@ -121,15 +121,15 @@ class TestBeam(unittest.TestCase):
       assert_that(result,equal_to(expected))
 ```
 
-###Example 3
+## Example 3
 
-Suppose we write a pipeline that reads data from a JSON file, gets passed through a custom function that makes external API calls for parsing, and is then written to a custom destination (for example, we need to do some custom data formatting to have data prepared for a downstream application).
+Suppose we write a pipeline that reads data from a JSON file, passes it through a custom function that makes external API calls for parsing, and then writes it to a custom destination (for example, if we need to do some custom data formatting to have data prepared for a downstream application).
 
 
-The pipeline is structured as follows:
+The pipeline has the following structure:
 
 ```python
-#The following packages are used to run the example pipelines
+# The following packages are used to run the example pipelines.
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText, WriteToText
@@ -151,19 +151,19 @@ with beam.Pipeline() as p3:
   )
 ```
 
-This test checks that if the API response is a record of the wrong length, we throw the expected error.
+This test checks whether the API response is a record of the wrong length and throws the expected error if the test fails.
 
 ```python
-!pip install mock  # Install the 'mock' module
+!pip install mock  # Install the 'mock' module.
 ```
 ```python
-# We import the mock package for mocking functionality.
+# Import the mock package for mocking functionality.
 from unittest.mock import Mock,patch
 # from MyApiCall import get_data
 import mock
 
 
-# MyApiCall is a function that calls get_data to fetch some data via an API call.
+# MyApiCall is a function that calls get_data to fetch some data by using an API call.
 @patch('MyApiCall.get_data')
 def test_error_message_wrong_length(self, mock_get_data):
  response = ['field1','field2']
@@ -178,20 +178,21 @@ def test_error_message_wrong_length(self, mock_get_data):
      result
 ```
 
-###The following cover other testing best practices:
+## Other testing best practices:
 
-1) Test all error messages you raise.
-2) Cover any edge cases that might be present in your data.
-3) Notice that in example 1, we could have written the `beam.Map` step with lambda functions:
+1) Test all error messages that you raise.
+2) Cover any edge cases that might exist in your data.
+3) Example 1 could have written the `beam.Map` step with lambda functions instead of with `beam.Map(median_house_value_per_bedroom)`:
 
 ```
 beam.Map(lambda x: x.strip().split(',')) | beam.Map(lambda x: float(x[8])/float(x[4])
 ```
 
-, instead of `beam.Map(median_house_value_per_bedroom)`.  The latter (separating lambdas into a helper function) is the recommended approach for more testable code, as changes to the function would be modularized.
-5) Use the `assert_that` statement to ensure that PCollection values match up correctly, such as done above
+Separating lambdas into a helper function by using `beam.Map(median_house_value_per_bedroom)` is the recommended approach for more testable code, because changes to the function would be modularized.
 
-For more pointed guidance on testing on Beam/Dataflow, see the [Google Cloud documentation](https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines). Additionally, see some more examples of unit testing in Beam [here](https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262).
+4) Use the `assert_that` statement to ensure that `PCollection` values match correctly, as in the previous example.
+
+For more guidance about testing on Beam and Dataflow, see the [Google Cloud documentation](https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines). For more examples of unit testing in Beam, see [the `base_test.py` code](https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262).
 
 Special thanks to Robert Bradshaw, Danny McCormick, XQ Hu, Surjit Singh, and Rebecca Spzer, who helped refine the ideas in this post.
 
