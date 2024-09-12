@@ -22,7 +22,7 @@ limitations under the License.
 
 Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides for testing.
 We cover an opinionated set of best practices to write unit tests for your data pipeline. This post doesn't include integration tests, and you need to author those separately.
-All snippets in this post are included in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb). Additionally, to see tests that exhibit best practices, look at the [Beam starter projects](https://beam.apache.org/blog/beam-starter-projects/), as these contain tests that exhibit best practices.
+All snippets in this post are included in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb). Additionally, to see tests that exhibit best practices, look at the [Beam starter projects](https://beam.apache.org/blog/beam-starter-projects/), which contain tests that exhibit best practices.
 
 ## Best practices
 
