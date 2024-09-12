@@ -24,12 +24,12 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.SplitEnumeratorCompat;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> The output type of the encapsulated Beam {@link Source}.
  */
 public class LazyFlinkSourceSplitEnumerator<T>
-    implements SplitEnumeratorCompat<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> {
+    implements SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(LazyFlinkSourceSplitEnumerator.class);
   private final SplitEnumeratorContext<FlinkSourceSplit<T>> context;
   private final Source<T> beamSource;
@@ -121,7 +121,6 @@ public class LazyFlinkSourceSplitEnumerator<T>
     return snapshotState();
   }
 
-  @Override
   public Map<Integer, List<FlinkSourceSplit<T>>> snapshotState() throws Exception {
     // For type compatibility reasons, we return a Map but we do not actually care about the key
     Map<Integer, List<FlinkSourceSplit<T>>> state = new HashMap<>(1);
