@@ -403,8 +403,9 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     fi
   fi
 else
-  TAG=20240911-213809
-  CONTAINER=us.gcr.io/apache-beam-testing/github-actions/beam_go_sdk
+  TAG=2.59.0
+  CONTAINER=apache/beam_go_sdk
+  #CONTAINER=us.gcr.io/apache-beam-testing/github-actions/beam_go_sdk
 fi
 
 # The go test flag -p dictates the number of simultaneous test binaries running tests.
