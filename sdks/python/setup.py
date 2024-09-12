@@ -498,7 +498,10 @@ if __name__ == '__main__':
               'tf2onnx',
               'torch',
               'transformers',
-              'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+              # Comment out xgboost as it is breaking presubmit python ml
+              # tests due to tag check introduced since pip 24.2
+              # https://github.com/apache/beam/issues/31285
+              # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
