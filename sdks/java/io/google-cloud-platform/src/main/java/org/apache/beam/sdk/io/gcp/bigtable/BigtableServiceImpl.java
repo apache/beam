@@ -24,7 +24,6 @@ import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.rpc.ApiException;
-import com.google.api.gax.rpc.DeadlineExceededException;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.StreamController;
@@ -638,9 +637,6 @@ class BigtableServiceImpl implements BigtableService {
         if (throwable instanceof StatusRuntimeException) {
           serviceCallMetric.call(
               ((StatusRuntimeException) throwable).getStatus().getCode().value());
-        } else if (throwable instanceof DeadlineExceededException) {
-          // incoming throwable can be a StatusRuntimeException or a specific grpc ApiException
-          serviceCallMetric.call(504);
         } else {
           serviceCallMetric.call("unknown");
         }
