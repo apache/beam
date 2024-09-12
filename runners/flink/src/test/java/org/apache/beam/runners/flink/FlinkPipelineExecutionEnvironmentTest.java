@@ -38,6 +38,7 @@ import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -56,7 +57,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.resources.PipelineResources;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
@@ -373,7 +373,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     }
     replacementStdErr.flush();
     assertThat(
-        new String(byteArrayOutputStream.toByteArray(), Charsets.UTF_8),
+        new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8),
         containsString(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled."));
   }

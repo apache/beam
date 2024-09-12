@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -259,6 +260,12 @@ class WriteTables<DestinationT extends @NonNull Object>
         }
         // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
+      } else {
+        Lineage.getSinks()
+            .add(
+                "bigquery",
+                BigQueryHelpers.dataCatalogSegments(
+                    tableReference, c.getPipelineOptions().as(BigQueryOptions.class)));
       }
 
       WriteDisposition writeDisposition = firstPaneWriteDisposition;

@@ -173,8 +173,9 @@ def _is_connected(edge_list, expected_node_count):
 def _SqlJoinTransform(
     pcolls,
     sql_transform_constructor,
-    type: Union[str, Dict[str, List]],
+    *,
     equalities: Union[str, List[Dict[str, str]]],
+    type: Union[str, Dict[str, List]] = 'inner',
     fields: Optional[Dict[str, Any]] = None):
   """Joins two or more inputs using a specified condition.
 

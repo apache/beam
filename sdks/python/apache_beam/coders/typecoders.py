@@ -80,8 +80,8 @@ __all__ = ['registry']
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""
   def __init__(self, fallback_coder=None):
-    self._coders = {}  # type: Dict[Any, Type[coders.Coder]]
-    self.custom_types = []  # type: List[Any]
+    self._coders: Dict[Any, Type[coders.Coder]] = {}
+    self.custom_types: List[Any] = []
     self.register_standard_coders(fallback_coder)
 
   def register_standard_coders(self, fallback_coder):
@@ -104,12 +104,14 @@ class CoderRegistry(object):
   def register_fallback_coder(self, fallback_coder):
     self._fallback_coder = FirstOf([fallback_coder, self._fallback_coder])
 
-  def _register_coder_internal(self, typehint_type, typehint_coder_class):
-    # type: (Any, Type[coders.Coder]) -> None
+  def _register_coder_internal(
+      self, typehint_type: Any,
+      typehint_coder_class: Type[coders.Coder]) -> None:
     self._coders[typehint_type] = typehint_coder_class
 
-  def register_coder(self, typehint_type, typehint_coder_class):
-    # type: (Any, Type[coders.Coder]) -> None
+  def register_coder(
+      self, typehint_type: Any,
+      typehint_coder_class: Type[coders.Coder]) -> None:
     if not isinstance(typehint_coder_class, type):
       raise TypeError(
           'Coder registration requires a coder class object. '
@@ -122,8 +124,7 @@ class CoderRegistry(object):
       typehint_type = getattr(typehint_type, '__name__', str(typehint_type))
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
-  def get_coder(self, typehint):
-    # type: (Any) -> coders.Coder
+  def get_coder(self, typehint: Any) -> coders.Coder:
     if typehint and typehint.__module__ == '__main__':
       # See https://github.com/apache/beam/issues/21541
       # TODO(robertwb): Remove once all runners are portable.
@@ -187,8 +188,7 @@ class FirstOf(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A class used to get the first matching coder from a list of coders."""
-  def __init__(self, coders):
-    # type: (Iterable[Type[coders.Coder]]) -> None
+  def __init__(self, coders: Iterable[Type[coders.Coder]]) -> None:
     self._coders = coders
 
   def from_type_hint(self, typehint, registry):

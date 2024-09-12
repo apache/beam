@@ -95,8 +95,10 @@ import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -197,9 +199,7 @@ public class WorkerCustomSourcesTest {
         workItem,
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID,
-            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-            ignored -> {}),
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -610,7 +610,8 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -634,6 +635,7 @@ public class WorkerCustomSourcesTest {
               Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
+          OperationalLimits.builder().build(),
           Windmill.WorkItemCommitRequest.newBuilder());
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -964,7 +966,10 @@ public class WorkerCustomSourcesTest {
             COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
             /*stateNameMap=*/ ImmutableMap.of(),
-            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()).forComputation(COMPUTATION_ID),
+            WindmillStateCache.builder()
+                .setSizeMb(options.getWorkerCacheMb())
+                .build()
+                .forComputation(COMPUTATION_ID),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -974,7 +979,8 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 100;
@@ -996,8 +1002,9 @@ public class WorkerCustomSourcesTest {
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
                 COMPUTATION_ID,
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                gnored -> {}),
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             Instant::now,
             Collections.emptyList());
     context.start(
@@ -1005,6 +1012,7 @@ public class WorkerCustomSourcesTest {
         dummyWork,
         mock(WindmillStateReader.class),
         mock(SideInputStateFetcher.class),
+        OperationalLimits.builder().build(),
         Windmill.WorkItemCommitRequest.newBuilder());
 
     @SuppressWarnings({"unchecked", "rawtypes"})

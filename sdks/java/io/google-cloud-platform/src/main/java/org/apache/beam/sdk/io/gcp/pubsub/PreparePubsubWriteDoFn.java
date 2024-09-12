@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.naming.SizeLimitExceededException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
@@ -43,6 +44,8 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
 
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
   @Nullable SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction;
+  /** Last TopicPath that reported Lineage. */
+  private transient @Nullable String reportedLineage;
 
   private final BadRecordRouter badRecordRouter;
 
@@ -164,6 +167,13 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
             o, element, inputCoder, e, "Failed to determine PubSub topic using topic function");
         return;
       }
+    }
+    String topic = message.getTopic();
+    // topic shouldn't be null, but lineage report is fail-safe
+    if (topic != null && !topic.equals(reportedLineage)) {
+      Lineage.getSinks()
+          .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
+      reportedLineage = topic;
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);

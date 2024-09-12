@@ -26,6 +26,8 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
+import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 
 /** Test class to be used as a input to {@link MetricsSink} implementations tests. */
@@ -70,5 +72,14 @@ class CustomMetricQueryResults extends MetricQueryResults {
         "n3",
         GaugeResult.create(100L, new Instant(345862800L)),
         GaugeResult.create(120L, new Instant(345862800L)));
+  }
+
+  @Override
+  public Iterable<MetricResult<StringSetResult>> getStringSets() {
+    return makeResults(
+        "s3",
+        "n3",
+        StringSetResult.create(ImmutableSet.of("ab")),
+        StringSetResult.create(ImmutableSet.of("cd")));
   }
 }

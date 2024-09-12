@@ -56,6 +56,8 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.environments import ProcessEnvironment
 from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
@@ -267,7 +269,20 @@ class PipelineTest(unittest.TestCase):
         'pipeline. To apply a transform with a specified label, write '
         'pvalue | "label" >> transform or use the option '
         '"auto_unique_labels" to automatically generate unique '
-        'transform labels')
+        'transform labels. Note "auto_unique_labels" '
+        'could cause data loss when updating a pipeline or '
+        'reloading the job state. This is not recommended for '
+        'streaming jobs.')
+
+  @mock.patch('logging.info')  # Mock the logging.info function
+  def test_no_wait_until_finish(self, mock_info):
+    with Pipeline(runner='DirectRunner',
+                  options=PipelineOptions(["--no_wait_until_finish"])) as p:
+      _ = p | beam.Create(['test'])
+    mock_info.assert_called_once_with(
+        'Job execution continues without waiting for completion. '
+        'Use "wait_until_finish" in PipelineResult to block until finished.')
+    p.result.wait_until_finish()
 
   def test_auto_unique_labels(self):
 
@@ -757,6 +772,18 @@ class DoFnTest(unittest.TestCase):
           equal_to([((1, (-5, 5)), (-5, 5)), ((1, (0, 10)), (0, 10)),
                     ((7, (0, 10)), (0, 10)), ((7, (5, 15)), (5, 15))]),
           label='doubled windows')
+
+  def test_windowed_value_param(self):
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | Create([1, 7])
+          | Map(lambda x: TimestampedValue(x, x))
+          | WindowInto(windowfn=FixedWindows(5))
+          | Map(lambda _, wv=DoFn.WindowedValueParam: (wv.value, wv.windows)))
+      assert_that(
+          pcoll,
+          equal_to([(1, [IntervalWindow(0, 5)]), (7, [IntervalWindow(5, 10)])]))  # pylint: disable=too-many-function-args
 
   def test_timestamp_param(self):
     class TestDoFn(DoFn):

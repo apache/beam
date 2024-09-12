@@ -56,7 +56,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -95,7 +95,7 @@ jobs:
     - name: run Solace IO IT script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :sdks:java:io:solace:integrationTest
+        gradle-command: :sdks:java:io:solace:integrationTest --info
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \

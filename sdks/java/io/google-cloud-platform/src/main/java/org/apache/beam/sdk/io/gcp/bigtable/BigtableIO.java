@@ -21,13 +21,16 @@ import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.Bigtabl
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.DeadlineExceededException;
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.api.gax.rpc.NotFoundException;
+import com.google.api.gax.rpc.ResourceExhaustedException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
@@ -38,6 +41,7 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
+import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,6 +61,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
@@ -68,6 +73,8 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEsti
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -81,6 +88,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -1108,12 +1116,51 @@ public class BigtableIO {
      * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
      * server.
      *
+     * <p>When enabled, will also set default {@link #withThrottlingReportTargetMs} to 1 minute.
+     * This enables runner react with increased latency in flush call due to flow control.
+     *
      * <p>Does not modify this object.
      */
     public Write withFlowControl(boolean enableFlowControl) {
       BigtableWriteOptions options = getBigtableWriteOptions();
+      BigtableWriteOptions.Builder builder = options.toBuilder().setFlowControl(enableFlowControl);
+      if (enableFlowControl) {
+        builder = builder.setThrottlingReportTargetMs(60_000);
+      }
+      return toBuilder().setBigtableWriteOptions(builder.build()).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with client side latency based throttling enabled.
+     *
+     * <p>Will also set {@link #withThrottlingReportTargetMs} to the same value.
+     */
+    public Write withThrottlingTargetMs(int throttlingTargetMs) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
+          .setBigtableWriteOptions(
+              options
+                  .toBuilder()
+                  .setThrottlingTargetMs(throttlingTargetMs)
+                  .setThrottlingReportTargetMs(throttlingTargetMs)
+                  .build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with throttling time reporting enabled. When write
+     * request latency exceeded the set value, the amount greater than the target will be considered
+     * as throttling time and report back to runner.
+     *
+     * <p>If not set, defaults to 3 min for completed batch request. Client side flowing control
+     * configurations (e.g. {@link #withFlowControl}, {@link #withThrottlingTargetMs} will adjust
+     * the default value accordingly. Set to 0 to disable throttling time reporting.
+     */
+    public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(
+              options.toBuilder().setThrottlingReportTargetMs(throttlingReportTargetMs).build())
           .build();
     }
 
@@ -1282,7 +1329,15 @@ public class BigtableIO {
     private final Coder<KV<ByteString, Iterable<Mutation>>> inputCoder;
     private final BadRecordRouter badRecordRouter;
 
+    private final Counter throttlingMsecs =
+        Metrics.counter(Metrics.THROTTLE_TIME_NAMESPACE, Metrics.THROTTLE_TIME_COUNTER_NAME);
+
+    private final int throttleReportThresMsecs;
+
     private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
+    // Due to callback thread not supporting Beam metrics, Record pending metrics and report later.
+    private transient long pendingThrottlingMsecs;
+    private transient boolean reportedLineage;
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
@@ -1300,6 +1355,8 @@ public class BigtableIO {
       this.badRecordRouter = badRecordRouter;
       this.failures = new ConcurrentLinkedQueue<>();
       this.id = factory.newId();
+      // a request completed more than this time will be considered throttled. Disabled if set to 0
+      throttleReportThresMsecs = firstNonNull(writeOptions.getThrottlingReportTargetMs(), 180_000);
       LOG.debug("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
     }
 
@@ -1308,9 +1365,14 @@ public class BigtableIO {
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
 
-      if (bigtableWriter == null) {
+      // Ideally this would be in @Setup, but we need access to PipelineOptions and there is no easy
+      // way to plumb it to @Setup.
+      if (serviceEntry == null) {
         serviceEntry =
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+      }
+
+      if (bigtableWriter == null) {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
@@ -1321,19 +1383,51 @@ public class BigtableIO {
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
-      bigtableWriter.writeRecord(record).whenComplete(handleMutationException(record, window));
+      Instant writeStart = Instant.now();
+      pendingThrottlingMsecs = 0;
+      bigtableWriter
+          .writeRecord(record)
+          .whenComplete(handleMutationException(record, window, writeStart));
+      if (pendingThrottlingMsecs > 0) {
+        throttlingMsecs.inc(pendingThrottlingMsecs);
+      }
       ++recordsWritten;
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
     }
 
     private BiConsumer<MutateRowResponse, Throwable> handleMutationException(
-        KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
+        KV<ByteString, Iterable<Mutation>> record, BoundedWindow window, Instant writeStart) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
           if (isDataException(exception)) {
             retryIndividualRecord(record, window);
           } else {
+            // Exception due to resource unavailable or rate limited,
+            // including DEADLINE_EXCEEDED and RESOURCE_EXHAUSTED.
+            boolean isResourceException = false;
+            if (exception instanceof StatusRuntimeException) {
+              StatusRuntimeException se = (StatusRuntimeException) exception;
+              if (io.grpc.Status.DEADLINE_EXCEEDED.equals(se.getStatus())
+                  || io.grpc.Status.RESOURCE_EXHAUSTED.equals(se.getStatus())) {
+                isResourceException = true;
+              }
+            } else if (exception instanceof DeadlineExceededException
+                || exception instanceof ResourceExhaustedException) {
+              isResourceException = true;
+            }
+            if (isResourceException) {
+              pendingThrottlingMsecs = new Duration(writeStart, Instant.now()).getMillis();
+            }
             failures.add(new BigtableWriteException(record, exception));
+          }
+        } else {
+          // add the excessive amount to throttling metrics if elapsed time > target latency
+          if (throttleReportThresMsecs > 0) {
+            long excessTime =
+                new Duration(writeStart, Instant.now()).getMillis() - throttleReportThresMsecs;
+            if (excessTime > 0) {
+              pendingThrottlingMsecs = excessTime;
+            }
           }
         }
       };
@@ -1369,52 +1463,58 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      try {
-
-        if (bigtableWriter != null) {
-          try {
-            bigtableWriter.close();
-          } catch (IOException e) {
-            // If the writer fails due to a batching exception, but no failures were detected
-            // it means that error handling was enabled, and that errors were detected and routed
-            // to the error queue. Bigtable will successfully write other failures in the batch,
-            // so this exception should be ignored
-            if (!(e.getCause() instanceof BatchingException)) {
-              throw e;
-            }
-          }
-          bigtableWriter = null;
-        }
-
-        for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
-          try {
-            badRecordRouter.route(
-                c,
-                badRecord.getKey().getRecord(),
-                inputCoder,
-                (Exception) badRecord.getKey().getCause(),
-                "Failed to write malformed mutation to Bigtable",
-                badRecord.getValue());
-          } catch (Exception e) {
-            failures.add(badRecord.getKey());
+      if (bigtableWriter != null) {
+        Instant closeStart = Instant.now();
+        try {
+          bigtableWriter.close();
+        } catch (IOException e) {
+          // If the writer fails due to a batching exception, but no failures were detected
+          // it means that error handling was enabled, and that errors were detected and routed
+          // to the error queue. Bigtable will successfully write other failures in the batch,
+          // so this exception should be ignored
+          if (!(e.getCause() instanceof BatchingException)) {
+            throttlingMsecs.inc(new Duration(closeStart, Instant.now()).getMillis());
+            throw e;
           }
         }
-
-        checkForFailures();
-
-        LOG.debug("Wrote {} records", recordsWritten);
-
-        for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
-          c.output(
-              BigtableWriteResult.create(entry.getValue()),
-              entry.getKey().maxTimestamp(),
-              entry.getKey());
+        // add the excessive amount to throttling metrics if elapsed time > target latency
+        if (throttleReportThresMsecs > 0) {
+          long excessTime =
+              new Duration(closeStart, Instant.now()).getMillis() - throttleReportThresMsecs;
+          if (excessTime > 0) {
+            throttlingMsecs.inc(excessTime);
+          }
         }
-      } finally {
-        if (serviceEntry != null) {
-          serviceEntry.close();
-          serviceEntry = null;
+        if (!reportedLineage) {
+          bigtableWriter.reportLineage();
+          reportedLineage = true;
         }
+        bigtableWriter = null;
+      }
+
+      for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
+        try {
+          badRecordRouter.route(
+              c,
+              badRecord.getKey().getRecord(),
+              inputCoder,
+              (Exception) badRecord.getKey().getCause(),
+              "Failed to write malformed mutation to Bigtable",
+              badRecord.getValue());
+        } catch (Exception e) {
+          failures.add(badRecord.getKey());
+        }
+      }
+
+      checkForFailures();
+
+      LOG.debug("Wrote {} records", recordsWritten);
+
+      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+        c.output(
+            BigtableWriteResult.create(entry.getValue()),
+            entry.getKey().maxTimestamp(),
+            entry.getKey());
       }
     }
 
@@ -1515,6 +1615,7 @@ public class BigtableIO {
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
+    private transient boolean reportedLineage;
 
     private final BigtableServiceFactory.ConfigId configId;
 
@@ -1892,6 +1993,13 @@ public class BigtableIO {
     public ValueProvider<String> getTableId() {
       return readOptions.getTableId();
     }
+
+    void reportLineageOnce(BigtableService.Reader reader) {
+      if (!reportedLineage) {
+        reader.reportLineage();
+        reportedLineage = true;
+      }
+    }
   }
 
   private static class BigtableReader extends BoundedReader<Row> {
@@ -1922,6 +2030,7 @@ public class BigtableIO {
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
+        source.reportLineageOnce(reader);
       }
       return hasRecord;
     }
@@ -2014,7 +2123,7 @@ public class BigtableIO {
       super(
           String.format(
               "Error mutating row %s with mutations %s",
-              record.getKey().toStringUtf8(), record.getValue()),
+              record.getKey().toStringUtf8(), StringUtils.leftTruncate(record.getValue(), 100)),
           cause);
       this.record = record;
     }
@@ -2307,11 +2416,11 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      BigtableServiceFactory factory = new BigtableServiceFactory();
       if (getBigtableConfig().getValidate()) {
-        try {
+        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
+            BigtableChangeStreamAccessor.getOrCreate(getBigtableConfig())) {
           checkArgument(
-              factory.checkTableExists(getBigtableConfig(), options, getTableId()),
+              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
               "Change Stream table %s does not exist",
               getTableId());
         } catch (IOException e) {

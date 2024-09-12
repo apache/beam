@@ -26,6 +26,11 @@ from datetime import datetime
 import mock
 
 from apache_beam import version as beam_version
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 
 # pylint: disable=wrong-import-order, wrong-import-position
 
@@ -275,6 +280,60 @@ class TestGCSIO(unittest.TestCase):
     self.gcs = gcsio.GcsIO(self.client)
     self.client.create_bucket("gcsio-test")
 
+  def test_read_bucket_metric(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        client = FakeGcsClient()
+        gcs = gcsio.GcsIO(client, {"enable_bucket_read_metric_counter": True})
+        client.create_bucket("gcsio-test")
+        file_name = 'gs://gcsio-test/dummy_file'
+        file_size = 1234
+        self._insert_random_file(client, file_name, file_size)
+        reader = gcs.open(file_name, 'r')
+        reader.read()
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(
+                    "apache_beam.io.gcp.gcsio.BeamBlobReader",
+                    "GCS_read_bytes_counter_gcsio-test")).get_cumulative(),
+            file_size)
+    finally:
+      sampler.stop()
+
+  def test_write_bucket_metric(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        client = FakeGcsClient()
+        gcs = gcsio.GcsIO(client, {"enable_bucket_write_metric_counter": True})
+        client.create_bucket("gcsio-test")
+        file_name = 'gs://gcsio-test/dummy_file'
+        gcsFile = gcs.open(file_name, 'w')
+        gcsFile.write(str.encode("some text"))
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(
+                    "apache_beam.io.gcp.gcsio.BeamBlobWriter",
+                    "GCS_write_bytes_counter_gcsio-test")).get_cumulative(),
+            9)
+    finally:
+      sampler.stop()
+
   def test_default_bucket_name(self):
     self.assertEqual(
         gcsio.default_gcs_bucket_name(DEFAULT_GCP_PROJECT, "us-central1"),
@@ -472,7 +531,8 @@ class TestGCSIO(unittest.TestCase):
 
     with mock.patch('apache_beam.io.gcp.gcsio.BeamBlobReader') as reader:
       self.gcs.open(file_name, read_buffer_size=read_buffer_size)
-      reader.assert_called_with(blob, chunk_size=read_buffer_size)
+      reader.assert_called_with(
+          blob, chunk_size=read_buffer_size, enable_read_bucket_metric=False)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'

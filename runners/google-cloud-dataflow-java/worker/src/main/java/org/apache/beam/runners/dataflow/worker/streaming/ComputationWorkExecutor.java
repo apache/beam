@@ -24,6 +24,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
+import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * @implNote Once closed, it cannot be reused.
  */
 // TODO(m-trieu): See if this can be combined/cleaned up with StreamingModeExecutionContext as the
-// seperation of responsibilities are unclear.
+// separation of responsibilities are unclear.
 @AutoValue
 @Internal
 @NotThreadSafe
@@ -72,9 +73,11 @@ public abstract class ComputationWorkExecutor {
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
+      OperationalLimits operationalLimits,
       Windmill.WorkItemCommitRequest.Builder outputBuilder)
       throws Exception {
-    context().start(key, work, stateReader, sideInputStateFetcher, outputBuilder);
+    context()
+        .start(key, work, stateReader, sideInputStateFetcher, operationalLimits, outputBuilder);
     workExecutor().execute();
   }
 

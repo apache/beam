@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import base64
 import collections
 import os
 import tempfile
@@ -28,6 +29,7 @@ from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
+from apache_beam.testing import test_stream
 from apache_beam.transforms import combiners
 
 
@@ -145,9 +147,7 @@ class CacheManager(object):
     """Cleans up all the PCollection caches."""
     raise NotImplementedError
 
-  def size(self, *labels):
-    # type: (*str) -> int
-
+  def size(self, *labels: str) -> int:
     """Returns the size of the PCollection on disk in bytes."""
     raise NotImplementedError
 
@@ -156,7 +156,15 @@ class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
   _available_formats = {
-      'text': (textio.ReadFromText, textio.WriteToText),
+      'text': (
+          lambda path: textio.ReadFromText(
+              path,
+              coder=Base64Coder(),
+              compression_type=filesystems.CompressionTypes.BZIP2),
+          lambda path: textio.WriteToText(
+              path,
+              coder=Base64Coder(),
+              compression_type=filesystems.CompressionTypes.BZIP2)),
       'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
   }
 
@@ -228,12 +236,13 @@ class FileBasedCacheManager(CacheManager):
       return iter([]), -1
 
     # Otherwise, return a generator to the cached PCollection.
-    source = self.source(*labels)._source
+    coder = self.load_pcoder('reify', *labels[1:])
+    source = self.raw_source(*labels)._source
     range_tracker = source.get_range_tracker(None, None)
     reader = source.read(range_tracker)
     version = self._latest_version(*labels)
 
-    return reader, version
+    return (coder.decode(b) for b in reader), version
 
   def write(self, values, *labels):
     """Imitates how a WriteCache transform works without running a pipeline.
@@ -244,16 +253,17 @@ class FileBasedCacheManager(CacheManager):
     pcoder = coders.registry.get_coder(type(values[0]))
     # Save the pcoder for the actual labels.
     self.save_pcoder(pcoder, *labels)
+    self.save_pcoder(pcoder, 'reify', *labels[-1:])
     single_shard_labels = [*labels[:-1], '-00000-of-00001']
     # Save the pcoder for the labels that imitates the sharded cache file name
     # suffix.
     self.save_pcoder(pcoder, *single_shard_labels)
     # Put a '-%05d-of-%05d' suffix to the cache file.
-    sink = self.sink(single_shard_labels)._sink
+    sink = self.raw_sink(single_shard_labels)._sink
     path = self._path(*labels[:-1])
     writer = sink.open_writer(path, labels[-1])
     for v in values:
-      writer.write(v)
+      writer.write(pcoder.encode(v))
     writer.close()
 
   def clear(self, *labels):
@@ -263,12 +273,20 @@ class FileBasedCacheManager(CacheManager):
     return False
 
   def source(self, *labels):
-    return self._reader_class(
-        self._glob_path(*labels), coder=self.load_pcoder(*labels))
+    coder = self.load_pcoder('reify', *labels[1:])
+    return self.raw_source(*labels) | beam.Map(
+        lambda b: test_stream.WindowedValueHolder(coder.decode(b)))
 
   def sink(self, labels, is_capture=False):
-    return self._writer_class(
-        self._path(*labels), coder=self.load_pcoder(*labels))
+    coder = self.load_pcoder('reify', *labels[1:])
+    return beam.Map(lambda wvh: coder.encode(wvh.windowed_value)
+                    ) | self.raw_sink(labels, is_capture)
+
+  def raw_sink(self, labels, is_capture=False):
+    return self._writer_class(self._path(*labels))
+
+  def raw_source(self, *labels):
+    return self._reader_class(self._glob_path(*labels))
 
   def cleanup(self):
     if self._cache_dir.startswith('gs://'):
@@ -345,6 +363,12 @@ class WriteCache(beam.PTransform):
     # cached PCollection. _cache_manager.sink(...) call below
     # should be using this saved pcoder.
     self._cache_manager.save_pcoder(
+        beam.coders.WindowedValueCoder(
+            beam.coders.registry.get_coder(pcoll.element_type),
+            pcoll.windowing.windowfn.get_window_coder()),
+        'reify',
+        self._label)
+    self._cache_manager.save_pcoder(
         coders.registry.get_coder(pcoll.element_type), prefix, self._label)
 
     if self._sample:
@@ -367,3 +391,9 @@ class SafeFastPrimitivesCoder(coders.Coder):
 
   def decode(self, value):
     return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))
+
+
+class Base64Coder(coders.Coder):
+  """Used to safely encode arbitrary bytes to textio."""
+  encode = staticmethod(base64.b64encode)
+  decode = staticmethod(base64.b64decode)

@@ -65,8 +65,7 @@ RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar &&
     mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
     mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
 RUN apt-get update && \
-    wget http://http.us.debian.org/debian/pool/main/o/openjdk-11/openjdk-11-jre-headless_11.0.22+7-1~deb11u1_amd64.deb && \
-    apt install -y ./openjdk-11-jre-headless_11.0.22+7-1~deb11u1_amd64.deb
+    apt install openjdk-17-jre-headless -y 
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \

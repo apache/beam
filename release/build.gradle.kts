@@ -29,8 +29,8 @@ val library = project.extensions.extraProperties["library"] as Map<String, Map<S
 
 dependencies {
   implementation(library.getValue("groovy").getValue("groovy_all"))
-  implementation("commons-cli:commons-cli:1.6.0")
-  permitUnusedDeclared("commons-cli:commons-cli:1.6.0") // BEAM-11761
+  implementation("commons-cli:commons-cli:1.9.0")
+  permitUnusedDeclared("commons-cli:commons-cli:1.9.0") // BEAM-11761
 }
 
 task("runJavaExamplesValidationTask") {

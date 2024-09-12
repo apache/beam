@@ -37,6 +37,7 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam import coders
 from apache_beam.io import iobase
@@ -110,9 +111,7 @@ class PubsubMessage(object):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
   @staticmethod
-  def _from_proto_str(proto_msg):
-    # type: (bytes) -> PubsubMessage
-
+  def _from_proto_str(proto_msg: bytes) -> 'PubsubMessage':
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -185,9 +184,7 @@ class PubsubMessage(object):
     return serialized
 
   @staticmethod
-  def _from_message(msg):
-    # type: (Any) -> PubsubMessage
-
+  def _from_message(msg: Any) -> 'PubsubMessage':
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
@@ -211,14 +208,11 @@ class ReadFromPubSub(PTransform):
 
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
-
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -327,13 +321,10 @@ class WriteToPubSub(PTransform):
 
   def __init__(
       self,
-      topic,  # type: str
-      with_attributes=False,  # type: bool
-      id_label=None,  # type: Optional[str]
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
-
+      topic: str,
+      with_attributes: bool = False,
+      id_label: Optional[str] = None,
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -359,8 +350,7 @@ class WriteToPubSub(PTransform):
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
 
   @staticmethod
-  def message_to_proto_str(element):
-    # type: (PubsubMessage) -> bytes
+  def message_to_proto_str(element: PubsubMessage) -> bytes:
     if not isinstance(element, PubsubMessage):
       raise TypeError(
           'Unexpected element. Type: %s (expected: PubsubMessage), '
@@ -368,16 +358,15 @@ class WriteToPubSub(PTransform):
     return element._to_proto_str(for_publish=True)
 
   @staticmethod
-  def bytes_to_proto_str(element):
-    # type: (bytes) -> bytes
+  def bytes_to_proto_str(element: Union[bytes, str]) -> bytes:
     msg = PubsubMessage(element, {})
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.message_to_proto_str)
+      pcoll = pcoll | 'ToProtobufX' >> Map(self.message_to_proto_str)
     else:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.bytes_to_proto_str)
+      pcoll = pcoll | 'ToProtobufY' >> Map(self.bytes_to_proto_str)
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
@@ -438,12 +427,11 @@ class _PubSubSource(iobase.SourceBase):
   """
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -562,8 +550,8 @@ class MultipleReadFromPubSub(PTransform):
   """
   def __init__(
       self,
-      pubsub_source_descriptors,  # type: List[PubSubSourceDescriptor]
-      with_attributes=False,  # type: bool
+      pubsub_source_descriptors: List[PubSubSourceDescriptor],
+      with_attributes: bool = False,
   ):
     """Initializes ``PubSubMultipleReader``.
 

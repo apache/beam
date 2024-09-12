@@ -523,8 +523,8 @@ project.tasks.register("inferencePostCommitIT") {
 
 
 // Create cross-language tasks for running tests against Java expansion service(s)
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
@@ -533,8 +533,8 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
       collectMarker: taskMetadata.collectMarker,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
-        "--project=${dataflowProject}",
-        "--region=${dataflowRegion}",
+        "--project=${gcpProject}",
+        "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],

@@ -32,8 +32,8 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
+	"github.com/avast/retry-go/v4"
 	"google.golang.org/grpc"
-	"gopkg.in/retry.v1"
 )
 
 // maxRetries is the maximum number of retries to attempt connecting to
@@ -169,24 +169,23 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	client := jobpb.NewExpansionServiceClient(conn)
 
 	// Handling ExpansionResponse
-	strategy := retry.LimitCount(
-		maxRetries,
-		retry.Exponential{
-			Initial: time.Second,
-			Factor:  2,
-		},
-	)
+	retryOpts := []retry.Option{
+		retry.Attempts(maxRetries),
+		retry.DelayType(func(n uint, err error, config *retry.Config) time.Duration {
+			if n == 0 {
+				return time.Second
+			}
+			return retry.BackOffDelay(n, err, config)
+		}),
+	}
 	var res *jobpb.ExpansionResponse
-	for attempt := retry.Start(strategy, nil); attempt.Next(); {
+	err = retry.Do(func() error {
 		res, err = client.Expand(ctx, req)
-		if err == nil {
-			break
-		}
-
-		if attempt.Count() == maxRetries {
-			err = errors.Wrap(err, "expansion failed")
-			return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
-		}
+		return err
+	}, retryOpts...)
+	if err != nil {
+		err = errors.Wrap(err, "expansion failed")
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
 	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
 		err := errors.New(res.GetError())

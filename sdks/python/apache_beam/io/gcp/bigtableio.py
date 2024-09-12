@@ -141,7 +141,10 @@ class _BigTableWriteFn(beam.DoFn):
         self.beam_options['instance_id'],
         self.beam_options['table_id'])
     self.batcher = MutationsBatcher(
-        self.table, batch_completed_callback=self.write_mutate_metrics)
+        self.table,
+        batch_completed_callback=self.write_mutate_metrics,
+        flush_count=FLUSH_COUNT,
+        max_row_bytes=MAX_ROW_BYTES)
 
   def process(self, row):
     self.written.inc()

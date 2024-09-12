@@ -33,13 +33,18 @@ test {
   maxParallelForks = 1
 }
 
+configurations.testImplementation {
+  resolutionStrategy {
+    force "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  }
+}
+
 dependencies {
-  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
   testImplementation library.java.testcontainers_elasticsearch
 
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(":sdks:java:io:elasticsearch")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.slf4j_api
   testImplementation library.java.hamcrest
   testImplementation library.java.junit

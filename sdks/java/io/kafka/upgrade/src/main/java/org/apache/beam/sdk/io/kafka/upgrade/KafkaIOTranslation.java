@@ -98,6 +98,9 @@ public class KafkaIOTranslation {
             .addNullableLogicalTypeField("stop_read_time", new NanosInstant())
             .addBooleanField("is_commit_offset_finalize_enabled")
             .addBooleanField("is_dynamic_read")
+            .addBooleanField("redistribute")
+            .addBooleanField("allows_duplicates")
+            .addNullableInt32Field("redistribute_num_keys")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
@@ -215,6 +218,9 @@ public class KafkaIOTranslation {
                 + " is not supported yet.");
       }
 
+      fieldValues.put("redistribute", transform.isRedistributed());
+      fieldValues.put("redistribute_num_keys", transform.getRedistributeNumKeys());
+      fieldValues.put("allows_duplicates", transform.isAllowDuplicates());
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
@@ -324,6 +330,24 @@ public class KafkaIOTranslation {
         Long maxNumRecords = configRow.getInt64("max_num_records");
         if (maxNumRecords != null) {
           transform = transform.withMaxNumRecords(maxNumRecords);
+        }
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.58.0") >= 0) {
+          Boolean isRedistributed = configRow.getBoolean("redistribute");
+          if (isRedistributed != null && isRedistributed) {
+            transform = transform.withRedistribute();
+            Integer redistributeNumKeys =
+                configRow.getValue("redistribute_num_keys") == null
+                    ? Integer.valueOf(0)
+                    : configRow.getInt32("redistribute_num_keys");
+            if (redistributeNumKeys != null && !redistributeNumKeys.equals(0)) {
+              transform = transform.withRedistributeNumKeys(redistributeNumKeys);
+            }
+            Boolean allowDuplicates = configRow.getBoolean("allows_duplicates");
+            if (allowDuplicates != null && allowDuplicates) {
+              transform = transform.withAllowDuplicates(allowDuplicates);
+            }
+          }
         }
         Duration maxReadTime = configRow.getValue("max_read_time");
         if (maxReadTime != null) {

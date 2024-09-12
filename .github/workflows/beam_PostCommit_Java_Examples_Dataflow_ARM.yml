@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        job_name: [beam_PostCommit_Java_Examples__Dataflow_ARM]
+        job_name: [beam_PostCommit_Java_Examples_Dataflow_ARM]
         job_phrase: [Run Java_Examples_Dataflow_ARM PostCommit]
         java_version: ['8','11','17','21']
     if: |
@@ -80,7 +80,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: ${{ matrix.java_version }}
+          java-version: |
+            ${{ matrix.java_version != '11' && matrix.java_version || '' }}
+            11
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: GCloud Docker credential helper

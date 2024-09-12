@@ -1043,6 +1043,7 @@ define your pipeline's exact data processing tasks.
 > **Note:** When you create your `DoFn`, be mindful of the [Requirements
 > for writing user code for Beam transforms](#requirements-for-writing-user-code-for-beam-transforms)
 > and ensure that your code follows them.
+> You should avoid time-consuming operations such as reading large files in `DoFn.Setup`.
 
 {{< paragraph class="language-java">}}
 A `DoFn` processes one element at a time from the input `PCollection`. When you
@@ -7887,7 +7888,7 @@ Depending on the SDK language of the pipeline, you can use a high-level SDK-wrap
 
 #### 13.2.1. Using cross-language transforms in a Java pipeline
 
-Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, the Java SDK has the `DataframeTransform` class, which uses the Python SDK's `DataframeTransform`, and it has the `RunInference` class, which uses the Python SDK's `RunInference`, and so on. When an SDK-specific wrapper transform is not available for a target Python transform, you can use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from SDKs other than Python (including Java SDK itself), you can also use the lowest-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, the Java SDK has the `DataframeTransform` class, which uses the Python SDK's `DataframeTransform`, and it has the `RunInference` class, which uses the Python SDK's `RunInference`, and so on. When an SDK-specific wrapper transform is not available for a target Python transform, you can use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from SDKs other than Python (including Java SDK itself), you can also use the lowest-level [External](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/util/construction/External.java) class.
 
 **Using an SDK wrapper**
 
@@ -7919,7 +7920,7 @@ input.apply(
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
     Make sure the transform you are trying to use is available and can be used by the expansion service.
-3. Include [External.of(...)](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/test/java/org/apache/beam/runners/core/construction/ValidateRunnerXlangTest.java).
+3. Include [External.of(...)](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/util/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/util/construction/ValidateRunnerXlangTest.java).
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
 
 #### 13.2.2. Using cross-language transforms in a Python pipeline

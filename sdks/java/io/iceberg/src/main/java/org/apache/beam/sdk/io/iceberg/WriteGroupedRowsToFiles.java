@@ -17,15 +17,20 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
@@ -59,6 +64,8 @@ class WriteGroupedRowsToFiles
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
+    private final String filePrefix;
+    private final long maxFileSize;
 
     WriteGroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -66,6 +73,8 @@ class WriteGroupedRowsToFiles
         long maxFileSize) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
+      this.filePrefix = UUID.randomUUID().toString();
+      this.maxFileSize = maxFileSize;
     }
 
     private org.apache.iceberg.catalog.Catalog getCatalog() {
@@ -75,28 +84,36 @@ class WriteGroupedRowsToFiles
       return catalog;
     }
 
-    private RecordWriter createWriter(IcebergDestination destination) throws IOException {
-      return new RecordWriter(getCatalog(), destination, "-" + UUID.randomUUID());
-    }
-
     @ProcessElement
     public void processElement(
-        ProcessContext c, @Element KV<ShardedKey<Row>, Iterable<Row>> element) throws Exception {
+        ProcessContext c,
+        @Element KV<ShardedKey<Row>, Iterable<Row>> element,
+        BoundedWindow window,
+        PaneInfo pane)
+        throws Exception {
 
       Row destMetadata = element.getKey().getKey();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
-      RecordWriter writer = createWriter(destination);
-
-      for (Row e : element.getValue()) {
-        writer.write(e);
+      WindowedValue<IcebergDestination> windowedDestination =
+          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
+      RecordWriterManager writer;
+      try (RecordWriterManager openWriter =
+          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
+        writer = openWriter;
+        for (Row e : element.getValue()) {
+          writer.write(windowedDestination, e);
+        }
       }
 
-      writer.close();
-      c.output(
-          FileWriteResult.builder()
-              .setTableIdentifier(destination.getTableIdentifier())
-              .setManifestFile(writer.getManifestFile())
-              .build());
+      List<ManifestFile> manifestFiles =
+          Preconditions.checkNotNull(writer.getManifestFiles().get(windowedDestination));
+      for (ManifestFile manifestFile : manifestFiles) {
+        c.output(
+            FileWriteResult.builder()
+                .setTableIdentifier(destination.getTableIdentifier())
+                .setManifestFile(manifestFile)
+                .build());
+      }
     }
   }
 }

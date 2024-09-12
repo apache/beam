@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -81,7 +81,7 @@ public class TextTableProviderTest {
   public void testLegacyDefaultCsv() throws Exception {
     Files.write(
         tempFolder.newFile("test.csv").toPath(),
-        "hello,13\n\ngoodbye,42\n".getBytes(Charsets.UTF_8));
+        "hello,13\n\ngoodbye,42\n".getBytes(StandardCharsets.UTF_8));
     String query = "SELECT * FROM test";
     String ddl =
         String.format(
@@ -105,7 +105,7 @@ public class TextTableProviderTest {
   public void testLegacyTdfCsv() throws Exception {
     Files.write(
         tempFolder.newFile("test.csv").toPath(),
-        "hello\t13\n\ngoodbye\t42\n".getBytes(Charsets.UTF_8));
+        "hello\t13\n\ngoodbye\t42\n".getBytes(StandardCharsets.UTF_8));
 
     String query = "SELECT * FROM test";
     String ddl =
@@ -138,7 +138,7 @@ public class TextTableProviderTest {
   public void testExplicitCsv() throws Exception {
     Files.write(
         tempFolder.newFile("test.csv").toPath(),
-        "hello,13\n\ngoodbye,42\n".getBytes(Charsets.UTF_8));
+        "hello,13\n\ngoodbye,42\n".getBytes(StandardCharsets.UTF_8));
 
     String query = "SELECT * FROM test";
     String ddl =
@@ -165,7 +165,8 @@ public class TextTableProviderTest {
   @Test
   public void testExplicitCsvExcel() throws Exception {
     Files.write(
-        tempFolder.newFile("test.csv").toPath(), "hello\n\ngoodbye\n".getBytes(Charsets.UTF_8));
+        tempFolder.newFile("test.csv").toPath(),
+        "hello\n\ngoodbye\n".getBytes(StandardCharsets.UTF_8));
 
     String query = "SELECT * FROM test";
     String ddl =
@@ -191,7 +192,8 @@ public class TextTableProviderTest {
   public void testLines() throws Exception {
     // Data that looks like CSV but isn't parsed as it
     Files.write(
-        tempFolder.newFile("test.csv").toPath(), "hello,13\ngoodbye,42\n".getBytes(Charsets.UTF_8));
+        tempFolder.newFile("test.csv").toPath(),
+        "hello,13\ngoodbye,42\n".getBytes(StandardCharsets.UTF_8));
 
     String query = "SELECT * FROM test";
     String ddl =
@@ -210,7 +212,8 @@ public class TextTableProviderTest {
 
   @Test
   public void testJson() throws Exception {
-    Files.write(tempFolder.newFile("test.json").toPath(), JSON_TEXT.getBytes(Charsets.UTF_8));
+    Files.write(
+        tempFolder.newFile("test.json").toPath(), JSON_TEXT.getBytes(StandardCharsets.UTF_8));
 
     String query = "SELECT * FROM test";
     String ddl =
@@ -229,7 +232,8 @@ public class TextTableProviderTest {
   public void testInvalidJson() throws Exception {
     File deadLetterFile = new File(tempFolder.getRoot(), "dead-letter-file");
     Files.write(
-        tempFolder.newFile("test.json").toPath(), INVALID_JSON_TEXT.getBytes(Charsets.UTF_8));
+        tempFolder.newFile("test.json").toPath(),
+        INVALID_JSON_TEXT.getBytes(StandardCharsets.UTF_8));
 
     String query = "SELECT * FROM test";
     String ddl =

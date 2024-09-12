@@ -44,7 +44,7 @@ dependencies {
   implementation library.java.jackson_core
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib

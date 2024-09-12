@@ -136,6 +136,12 @@ class _SingletonEntry:
         del self.obj
         self.initialied = False
 
+  def unsafe_hard_delete(self):
+    with self.lock:
+      if self.initialied:
+        del self.obj
+        self.initialied = False
+
 
 class _SingletonManager:
   entries: Dict[Any, Any] = {}
@@ -153,6 +159,9 @@ class _SingletonManager:
   def release_singleton(self, tag, obj):
     return self.entries[tag].release(obj)
 
+  def unsafe_hard_delete_singleton(self, tag):
+    return self.entries[tag].unsafe_hard_delete()
+
 
 _process_level_singleton_manager = _SingletonManager()
 
@@ -169,6 +178,9 @@ _SingletonRegistrar.register(
 _SingletonRegistrar.register(
     'release_singleton',
     callable=_process_level_singleton_manager.release_singleton)
+_SingletonRegistrar.register(
+    'unsafe_hard_delete_singleton',
+    callable=_process_level_singleton_manager.unsafe_hard_delete_singleton)
 
 
 # By default, objects registered with BaseManager.register will have only
@@ -293,6 +305,17 @@ class MultiProcessShared(Generic[T]):
 
   def release(self, obj):
     self._manager.release_singleton(self._tag, obj.get_auto_proxy_object())
+
+  def unsafe_hard_delete(self):
+    """Force deletes the underlying object
+    
+      This function should be used with great care since any other references
+      to this object will now be invalid and may lead to strange errors. Only
+      call unsafe_hard_delete if either (a) you are sure no other references
+      to this object exist, or (b) you are ok with all existing references to
+      this object throwing strange errors when derefrenced.
+    """
+    self._get_manager().unsafe_hard_delete_singleton(self._tag)
 
   def _create_server(self, address_file):
     # We need to be able to authenticate with both the manager and the process.

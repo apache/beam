@@ -69,7 +69,8 @@ def json_schema_to_beam_schema(
       fields=[
           schemas.schema_field(
               name,
-              maybe_nullable(json_type_to_beam_type(t), name not in required))
+              maybe_nullable(json_type_to_beam_type(t), name not in required),
+              description=t.get('description') if isinstance(t, dict) else None)
           for (name, t) in json_schema['properties'].items()
       ])
 

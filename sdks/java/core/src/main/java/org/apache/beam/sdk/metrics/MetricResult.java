@@ -37,7 +37,7 @@ public abstract class MetricResult<T> {
   /** Return the name of the metric. */
   public MetricName getName() {
     return getKey().metricName();
-  };
+  }
 
   public abstract MetricKey getKey();
 

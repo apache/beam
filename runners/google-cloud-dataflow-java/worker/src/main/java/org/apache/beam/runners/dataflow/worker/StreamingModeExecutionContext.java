@@ -107,6 +107,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
+  private final boolean throwExceptionOnLargeOutput;
   private volatile long backlogBytes;
 
   /**
@@ -129,6 +130,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private Work work;
   private WindmillComputationKey computationKey;
   private SideInputStateFetcher sideInputStateFetcher;
+  // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
+  // be used for processing many work items and these values can change during the context's
+  // lifetime. start() is called for each work item.
+  private OperationalLimits operationalLimits;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
 
   /**
@@ -148,7 +153,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
-      long sinkByteLimit) {
+      long sinkByteLimit,
+      boolean throwExceptionOnLargeOutput) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -161,11 +167,24 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
+    this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
   }
 
   @VisibleForTesting
   public final long getBacklogBytes() {
     return backlogBytes;
+  }
+
+  public long getMaxOutputKeyBytes() {
+    return operationalLimits.maxOutputKeyBytes;
+  }
+
+  public long getMaxOutputValueBytes() {
+    return operationalLimits.maxOutputValueBytes;
+  }
+
+  public boolean throwExceptionsForLargeOutput() {
+    return throwExceptionOnLargeOutput;
   }
 
   public boolean workIsFailed() {
@@ -177,11 +196,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
+      OperationalLimits operationalLimits,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
+    this.operationalLimits = operationalLimits;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();

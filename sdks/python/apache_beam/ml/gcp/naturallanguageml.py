@@ -52,15 +52,13 @@ class Document(object):
     from_gcs (bool): Whether the content should be interpret as a Google Cloud
       Storage URI. The default value is :data:`False`.
   """
-
   def __init__(
       self,
-      content,  # type: str
-      type='PLAIN_TEXT',  # type: Union[str, language_v1.Document.Type]
-      language_hint=None,  # type: Optional[str]
-      encoding='UTF8',  # type: Optional[str]
-      from_gcs=False  # type: bool
-  ):
+      content: str,
+      type: Union[str, language_v1.Document.Type] = 'PLAIN_TEXT',
+      language_hint: Optional[str] = None,
+      encoding: Optional[str] = 'UTF8',
+      from_gcs: bool = False):
     self.content = content
     self.type = type
     self.encoding = encoding
@@ -68,8 +66,7 @@ class Document(object):
     self.from_gcs = from_gcs
 
   @staticmethod
-  def to_dict(document):
-    # type: (Document) -> Mapping[str, Optional[str]]
+  def to_dict(document: 'Document') -> Mapping[str, Optional[str]]:
     if document.from_gcs:
       dict_repr = {'gcs_content_uri': document.content}
     else:
@@ -82,11 +79,11 @@ class Document(object):
 
 @beam.ptransform_fn
 def AnnotateText(
-    pcoll,  # type: beam.pvalue.PCollection
-    features, # type: Union[Mapping[str, bool], language_v1.AnnotateTextRequest.Features]
-    timeout=None,  # type: Optional[float]
-    metadata=None  # type: Optional[Sequence[Tuple[str, str]]]
-):
+    pcoll: beam.pvalue.PCollection,
+    features: Union[Mapping[str, bool],
+                    language_v1.AnnotateTextRequest.Features],
+    timeout: Optional[float] = None,
+    metadata: Optional[Sequence[Tuple[str, str]]] = None):
   """A :class:`~apache_beam.transforms.ptransform.PTransform`
   for annotating text using the Google Cloud Natural Language API:
   https://cloud.google.com/natural-language/docs.
@@ -113,10 +110,10 @@ def AnnotateText(
 class _AnnotateTextFn(beam.DoFn):
   def __init__(
       self,
-      features,  # type: Union[Mapping[str, bool], language_v1.AnnotateTextRequest.Features]
-      timeout,  # type: Optional[float]
-      metadata=None  # type: Optional[Sequence[Tuple[str, str]]]
-  ):
+      features: Union[Mapping[str, bool],
+                      language_v1.AnnotateTextRequest.Features],
+      timeout: Optional[float],
+      metadata: Optional[Sequence[Tuple[str, str]]] = None):
     self.features = features
     self.timeout = timeout
     self.metadata = metadata
@@ -127,8 +124,7 @@ class _AnnotateTextFn(beam.DoFn):
     self.client = self._get_api_client()
 
   @staticmethod
-  def _get_api_client():
-    # type: () -> language.LanguageServiceClient
+  def _get_api_client() -> language.LanguageServiceClient:
     return language.LanguageServiceClient()
 
   def process(self, element):

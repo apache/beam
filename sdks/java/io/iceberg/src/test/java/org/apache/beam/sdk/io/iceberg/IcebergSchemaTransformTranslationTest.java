@@ -25,7 +25,9 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.junit.ClassRule;
@@ -63,18 +66,22 @@ public class IcebergSchemaTransformTranslationTest {
   static final IcebergReadSchemaTransformProvider READ_PROVIDER =
       new IcebergReadSchemaTransformProvider();
 
+  private static final Map<String, String> CATALOG_PROPERTIES =
+      ImmutableMap.<String, String>builder()
+          .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+          .put("warehouse", "test_location")
+          .build();
+  private static final Map<String, String> CONFIG_PROPERTIES =
+      ImmutableMap.<String, String>builder().put("key", "value").put("key2", "value2").build();
+
   @Test
   public void testReCreateWriteTransformFromRow() {
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouse_location", "test_location")
-            .build();
     Row transformConfigRow =
         Row.withSchema(WRITE_PROVIDER.configurationSchema())
             .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
+            .withFieldValue("catalog_name", "test-name")
+            .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
     IcebergWriteSchemaTransform writeTransform =
         (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
@@ -101,17 +108,12 @@ public class IcebergSchemaTransformTranslationTest {
                     Collections.singletonList(Row.withSchema(inputSchema).addValue("a").build())))
             .setRowSchema(inputSchema);
 
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_catalog")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("catalog_implementation", "test_implementation")
-            .withFieldValue("warehouse_location", warehouse.location)
-            .build();
     Row transformConfigRow =
         Row.withSchema(WRITE_PROVIDER.configurationSchema())
             .withFieldValue("table", "test_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
+            .withFieldValue("catalog_name", "test-name")
+            .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
 
     IcebergWriteSchemaTransform writeTransform =
@@ -158,16 +160,12 @@ public class IcebergSchemaTransformTranslationTest {
   @Test
   public void testReCreateReadTransformFromRow() {
     // setting a subset of fields here.
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouse_location", "test_location")
-            .build();
     Row transformConfigRow =
         Row.withSchema(READ_PROVIDER.configurationSchema())
             .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
+            .withFieldValue("catalog_name", "test-name")
+            .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
 
     IcebergReadSchemaTransform readTransform =
@@ -188,19 +186,18 @@ public class IcebergSchemaTransformTranslationTest {
       throws InvalidProtocolBufferException, IOException {
     // First build a pipeline
     Pipeline p = Pipeline.create();
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_catalog")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouse_location", warehouse.location)
-            .build();
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
     warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
+
+    Map<String, String> properties = new HashMap<>(CATALOG_PROPERTIES);
+    properties.put("warehouse", warehouse.location);
 
     Row transformConfigRow =
         Row.withSchema(READ_PROVIDER.configurationSchema())
             .withFieldValue("table", identifier)
-            .withFieldValue("catalog_config", catalogConfigRow)
+            .withFieldValue("catalog_name", "test-name")
+            .withFieldValue("catalog_properties", properties)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
 
     IcebergReadSchemaTransform readTransform =

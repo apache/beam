@@ -88,6 +88,7 @@ public class BigQueryHelpersTest {
   public void testTableParsing_validPatterns() {
     BigQueryHelpers.parseTableSpec("a123-456:foo_bar.d");
     BigQueryHelpers.parseTableSpec("a12345:b.c");
+    BigQueryHelpers.parseTableSpec("a1:b.c");
     BigQueryHelpers.parseTableSpec("b12345.c");
   }
 

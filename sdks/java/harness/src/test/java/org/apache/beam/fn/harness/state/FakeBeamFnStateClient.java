@@ -17,17 +17,25 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase.GET;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.NoSuchElementException;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import org.apache.beam.fn.harness.state.OrderedListUserState.TimestampedValueCoder;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -36,9 +44,14 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
@@ -47,6 +60,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   private static final int DEFAULT_CHUNK_SIZE = 6;
   private final Map<StateKey, List<ByteString>> data;
   private int currentId;
+  private final Map<StateKey, NavigableSet<Long>> orderedListSortKeysFromStateKey;
 
   public <V> FakeBeamFnStateClient(Coder<V> valueCoder, Map<StateKey, List<V>> initialData) {
     this(valueCoder, initialData, DEFAULT_CHUNK_SIZE);
@@ -97,6 +111,27 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                   }
                   return chunks;
                 }));
+
+    List<StateKey> orderedListStateKeys =
+        initialData.keySet().stream()
+            .filter((k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE)
+            .collect(Collectors.toList());
+
+    this.orderedListSortKeysFromStateKey = new HashMap<>();
+    for (StateKey key : orderedListStateKeys) {
+      long sortKey = key.getOrderedListUserState().getRange().getStart();
+
+      StateKey.Builder keyBuilder = key.toBuilder();
+
+      // clear the range in the state key before using it as a key to store, because ordered list
+      // with different ranges would be mapped to the same set of sort keys.
+      keyBuilder.getOrderedListUserStateBuilder().clearRange();
+
+      this.orderedListSortKeysFromStateKey
+          .computeIfAbsent(keyBuilder.build(), (unused) -> new TreeSet<>())
+          .add(sortKey);
+    }
+
     this.data =
         new ConcurrentHashMap<>(
             Maps.filterValues(encodedData, byteStrings -> !byteStrings.isEmpty()));
@@ -134,7 +169,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     assertNotEquals(TypeCase.TYPE_NOT_SET, key.getTypeCase());
     // multimap side input and runner based state keys only support get requests
     if (key.getTypeCase() == TypeCase.MULTIMAP_SIDE_INPUT || key.getTypeCase() == TypeCase.RUNNER) {
-      assertEquals(RequestCase.GET, request.getRequestCase());
+      assertEquals(GET, request.getRequestCase());
     }
     if (key.getTypeCase() == TypeCase.MULTIMAP_KEYS_VALUES_SIDE_INPUT && !data.containsKey(key)) {
       // Allow testing this not being supported rather than blindly returning the empty list.
@@ -143,34 +178,162 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
     switch (request.getRequestCase()) {
       case GET:
-        List<ByteString> byteStrings =
-            data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
-        int block = 0;
-        if (request.getGet().getContinuationToken().size() > 0) {
-          block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
+        if (key.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE) {
+          long start = key.getOrderedListUserState().getRange().getStart();
+          long end = key.getOrderedListUserState().getRange().getEnd();
+
+          KvCoder<Long, Integer> coder = KvCoder.of(VarLongCoder.of(), VarIntCoder.of());
+          long sortKey = start;
+          int index = 0;
+          if (!request.getGet().getContinuationToken().isEmpty()) {
+            try {
+              // The continuation format here is the sort key (long) followed by an index (int)
+              KV<Long, Integer> cursor =
+                  coder.decode(request.getGet().getContinuationToken().newInput());
+              sortKey = cursor.getKey();
+              index = cursor.getValue();
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          }
+
+          ByteString continuationToken;
+          ByteString returnBlock = ByteString.EMPTY;
+          try {
+            if (sortKey < start || sortKey >= end) {
+              throw new IndexOutOfBoundsException("sort key out of range");
+            }
+
+            StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+            stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
+            NavigableSet<Long> subset =
+                orderedListSortKeysFromStateKey
+                    .getOrDefault(stateKeyWithoutRange.build(), new TreeSet<>())
+                    .subSet(sortKey, true, end, false);
+
+            // get the effective sort key currently, can throw NoSuchElementException
+            Long nextSortKey = subset.first();
+
+            StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+            keyBuilder
+                .getOrderedListUserStateBuilder()
+                .getRangeBuilder()
+                .setStart(nextSortKey)
+                .setEnd(nextSortKey + 1);
+            List<ByteString> byteStrings =
+                data.getOrDefault(keyBuilder.build(), Collections.singletonList(ByteString.EMPTY));
+
+            // get the block specified in continuation token, can throw IndexOutOfBoundsException
+            returnBlock = byteStrings.get(index);
+
+            if (byteStrings.size() > index + 1) {
+              // more blocks from this sort key
+              index += 1;
+            } else {
+              // finish navigating the current sort key and need to find the next one,
+              // can throw NoSuchElementException
+              nextSortKey = subset.tailSet(nextSortKey, false).first();
+              index = 0;
+            }
+
+            ByteStringOutputStream outputStream = new ByteStringOutputStream();
+            try {
+              KV<Long, Integer> cursor = KV.of(nextSortKey, index);
+              coder.encode(cursor, outputStream);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+            continuationToken = outputStream.toByteString();
+          } catch (NoSuchElementException | IndexOutOfBoundsException e) {
+            continuationToken = ByteString.EMPTY;
+          }
+          response =
+              StateResponse.newBuilder()
+                  .setGet(
+                      StateGetResponse.newBuilder()
+                          .setData(returnBlock)
+                          .setContinuationToken(continuationToken));
+        } else {
+          List<ByteString> byteStrings =
+              data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
+          int block = 0;
+          if (!request.getGet().getContinuationToken().isEmpty()) {
+            block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
+          }
+          ByteString returnBlock = byteStrings.get(block);
+          ByteString continuationToken = ByteString.EMPTY;
+          if (byteStrings.size() > block + 1) {
+            continuationToken = ByteString.copyFromUtf8(Integer.toString(block + 1));
+          }
+          response =
+              StateResponse.newBuilder()
+                  .setGet(
+                      StateGetResponse.newBuilder()
+                          .setData(returnBlock)
+                          .setContinuationToken(continuationToken));
         }
-        ByteString returnBlock = byteStrings.get(block);
-        ByteString continuationToken = ByteString.EMPTY;
-        if (byteStrings.size() > block + 1) {
-          continuationToken = ByteString.copyFromUtf8(Integer.toString(block + 1));
-        }
-        response =
-            StateResponse.newBuilder()
-                .setGet(
-                    StateGetResponse.newBuilder()
-                        .setData(returnBlock)
-                        .setContinuationToken(continuationToken));
         break;
 
       case CLEAR:
-        data.remove(request.getStateKey());
+        if (key.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE) {
+          OrderedListRange r = request.getStateKey().getOrderedListUserState().getRange();
+          StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+          stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
+
+          List<Long> keysToRemove =
+              new ArrayList<>(
+                  orderedListSortKeysFromStateKey
+                      .getOrDefault(stateKeyWithoutRange.build(), new TreeSet<>())
+                      .subSet(r.getStart(), true, r.getEnd(), false));
+          for (Long l : keysToRemove) {
+            StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(l).setEnd(l + 1);
+            data.remove(keyBuilder.build());
+            orderedListSortKeysFromStateKey.get(stateKeyWithoutRange.build()).remove(l);
+          }
+        } else {
+          data.remove(request.getStateKey());
+        }
         response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
         break;
 
       case APPEND:
-        List<ByteString> previousValue =
-            data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
-        previousValue.add(request.getAppend().getData());
+        if (key.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE) {
+          InputStream inStream = request.getAppend().getData().newInput();
+          TimestampedValueCoder<byte[]> coder = TimestampedValueCoder.of(ByteArrayCoder.of());
+          try {
+            while (inStream.available() > 0) {
+              TimestampedValue<byte[]> tv = coder.decode(inStream);
+              ByteStringOutputStream outStream = new ByteStringOutputStream();
+              coder.encode(tv, outStream);
+              ByteString output = outStream.toByteString();
+
+              StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+              long sortKey = tv.getTimestamp().getMillis();
+              keyBuilder
+                  .getOrderedListUserStateBuilder()
+                  .getRangeBuilder()
+                  .setStart(sortKey)
+                  .setEnd(sortKey + 1);
+
+              List<ByteString> previousValues =
+                  data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
+              previousValues.add(output);
+
+              StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+              stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
+              orderedListSortKeysFromStateKey
+                  .computeIfAbsent(stateKeyWithoutRange.build(), (unused) -> new TreeSet<>())
+                  .add(sortKey);
+            }
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          }
+        } else {
+          List<ByteString> previousValue =
+              data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
+          previousValue.add(request.getAppend().getData());
+        }
         response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
         break;
 

@@ -22,7 +22,6 @@ labels:
     reviewers:
       - lostluck
       - jrmccluskey
-      - riteshghorse
     exclusionList:
       - youngoli
   - name: Python
@@ -30,7 +29,6 @@ labels:
       - damccorm
       - jrmccluskey
       - tvalentyn
-      - riteshghorse
       - liferoad
       - shunping
     exclusionList: []
@@ -85,7 +83,6 @@ fallbackReviewers:
   - jrmccluskey
   - kennknowles
   - lostluck
-  - riteshghorse
   - robertwb
   - shunping
   - tvalentyn

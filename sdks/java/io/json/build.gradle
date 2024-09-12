@@ -30,5 +30,5 @@ dependencies {
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
 }

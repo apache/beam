@@ -75,7 +75,7 @@ public class GrpcDispatcherClient {
   }
 
   @VisibleForTesting
-  static GrpcDispatcherClient forTesting(
+  public static GrpcDispatcherClient forTesting(
       WindmillStubFactory windmillGrpcStubFactory,
       List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs,
       List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs,
@@ -106,7 +106,7 @@ public class GrpcDispatcherClient {
   }
 
   /** Will block the calling thread until the initial endpoints are present. */
-  CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStubBlocking() {
+  public CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStubBlocking() {
     boolean initialized = false;
     long secondsWaited = 0;
     while (!initialized) {

@@ -39,7 +39,7 @@ on:
           --
           beam_site_pr: create the documentation update PR against apache/beam-site.
           --
-          prism: build and upload the artifacts to the release for this tag 
+          prism: build and upload the artifacts to the release for this tag
         required: true
         default: |
            {java_artifacts: "no",
@@ -50,9 +50,7 @@ on:
             prism: "no"}
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 jobs:
   publish_java_artifacts:
@@ -186,6 +184,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
+          disable-cache: true
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -339,7 +338,7 @@ jobs:
             pip install -U pip
             pip install tox
             # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-            tox -e py38-docs
+            tox -e docs
             rm -rf target/docs/_build/.doctrees
       - name: Build Typescript Docs
         working-directory: beam/sdks/typescript
@@ -435,8 +434,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-          cache-dependency-path: |
-             sdks/go.sum
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -469,7 +466,7 @@ jobs:
 
           svn co https://dist.apache.org/repos/dist/dev/beam
           mkdir -p "${SVN_ARTIFACTS_DIR}"
-          
+
           OUTPUT_DIR=$ROOT_DIR/$SVN_ARTIFACTS_DIR
           mkdir -p $OUTPUT_DIR
           echo "OUTPUT_DIR=$OUTPUT_DIR"
@@ -486,8 +483,8 @@ jobs:
           BUILD_DIR=`pwd`
 
           echo "............Build and stage prism artifacts in the Github Release $GH_RELEASE_ID for tag $RC_TAG.........."
-          
-          
+
+
           # Loop through and build desired set from allowed types.
           for OS in linux windows darwin; do
             for ARCH in amd64 arm64; do
@@ -498,7 +495,7 @@ jobs:
               OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
               if GOOS=$OS GOARCH=$ARCH CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "$OUTPUT_FILE" . > /dev/null 2>&1; then
                 cd $TARGET_DIR
-                # Extract real output name. Windows builds automatically have .exe added. 
+                # Extract real output name. Windows builds automatically have .exe added.
                 ARTIFACT=`ls`
                 echo "target built - $ARTIFACT"
 
@@ -511,10 +508,10 @@ jobs:
 
                 # Upload to the release.
                 gh release upload $RC_TAG $ZIP_NAME ${ZIP_NAME}.sha512 ${ZIP_NAME}.asc --clobber
-                
+
                 # Remove the binary from the release directory
                 rm $ARTIFACT
-                
+
                 # Return to our root build dir.
                 cd $BUILD_DIR
               else
@@ -530,6 +527,6 @@ jobs:
 
           echo "...........Adding prism artifacts to the Dev Apache SVN repo..........."
 
-          svn add --force prism
+          svn add --force --parents prism
           svn status
           svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"

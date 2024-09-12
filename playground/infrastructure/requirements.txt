@@ -22,7 +22,7 @@ pytest-mock==3.6.1
 PyYAML==6.0
 tqdm~=4.62.3
 sonora==0.2.2
-pydantic==1.10.2
+pydantic==1.10.13
 grpcio-tools==1.62.1
 protobuf==4.21.12
 google-cloud-datastore==2.11.0

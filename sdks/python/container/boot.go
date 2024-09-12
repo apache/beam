@@ -41,8 +41,8 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -217,12 +217,12 @@ func launchSDKProcess() error {
 
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 
 	if info.GetStatusEndpoint() != nil {
-		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
+		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", info.GetStatusEndpoint().String())
 	}
 
 	if metadata := info.GetMetadata(); metadata != nil {
@@ -441,7 +441,7 @@ func processArtifactsInSetupOnlyMode() {
 	files := make([]string, len(infoJsons))
 	for i, info := range infoJsons {
 		var artifactInformation pipepb.ArtifactInformation
-		if err := jsonpb.UnmarshalString(info, &artifactInformation); err != nil {
+		if err := protojson.Unmarshal([]byte(info), &artifactInformation); err != nil {
 			log.Fatalf("Unable to unmarshal artifact information from json string %v", info)
 		}
 

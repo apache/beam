@@ -169,9 +169,12 @@ class ProtoSchemaTranslator {
     if (alreadyVisitedSchemas.containsKey(descriptor)) {
       @Nullable Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
       if (existingSchema == null) {
+        String name = descriptor.getFullName();
+        if ("google.protobuf.Struct".equals(name)) {
+          throw new UnsupportedOperationException("Infer schema of Struct type is not supported.");
+        }
         throw new IllegalArgumentException(
-            "Cannot infer schema with a circular reference. Proto Field: "
-                + descriptor.getFullName());
+            "Cannot infer schema with a circular reference. Proto Field: " + name);
       }
       return existingSchema;
     }
@@ -204,7 +207,8 @@ class ProtoSchemaTranslator {
 
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
       int fieldDescriptorNumber = fieldDescriptor.getNumber();
-      if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
+      if (!(oneOfComponentFields.contains(fieldDescriptorNumber)
+          && fieldDescriptor.getRealContainingOneof() != null)) {
         // Store proto field number in metadata.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         fields.add(
@@ -339,7 +343,7 @@ class ProtoSchemaTranslator {
             fieldType = FieldType.logicalType(new NanosDuration());
             break;
           case "google.protobuf.Any":
-            throw new RuntimeException("Any not yet supported");
+            throw new UnsupportedOperationException("Any not yet supported");
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }

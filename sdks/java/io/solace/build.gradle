@@ -18,9 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.solace',
-        exportJavadoc: false,
-        publish: false,
+        automaticModuleName: 'org.apache.beam.sdk.io.solace'
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -30,4 +28,32 @@ ext.summary = """IO to read and write to Solace destinations (queues and topics)
 
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.slf4j_api
+    implementation library.java.joda_time
+    implementation library.java.solace
+    implementation library.java.google_cloud_core
+    implementation library.java.google_cloud_secret_manager
+    implementation library.java.proto_google_cloud_secret_manager_v1
+    implementation library.java.protobuf_java
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation project(":sdks:java:extensions:avro")
+    implementation library.java.avro
+    permitUnusedDeclared library.java.avro
+    implementation library.java.google_api_common
+    implementation library.java.threetenbp
+    implementation library.java.gax
+    implementation library.java.threetenbp
+    implementation library.java.google_http_client
+    implementation library.java.google_http_client_gson
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+
+    testImplementation library.java.junit
+    testImplementation project(path: ":sdks:java:io:common")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
+    testRuntimeOnly library.java.slf4j_jdk14
+    testImplementation library.java.testcontainers_solace
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

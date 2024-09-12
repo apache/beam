@@ -243,7 +243,11 @@ class SubprocessServer(object):
       if process.poll() is not None:
         break
       logging.debug("Sending SIGINT to process")
-      process.send_signal(signal.SIGINT)
+      try:
+        process.send_signal(signal.SIGINT)
+      except ValueError:
+        # process.send_signal raises a ValueError on Windows.
+        process.terminate()
       time.sleep(1)
     if process.poll() is None:
       process.kill()
@@ -381,7 +385,8 @@ class JavaJarServer(SubprocessServer):
           os.rename(cached_jar + '.tmp', cached_jar)
         except URLError as e:
           raise RuntimeError(
-              'Unable to fetch remote job server jar at %s: %s' % (url, e))
+              f'Unable to fetch remote job server jar at {url}: {e}. If no '
+              f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod

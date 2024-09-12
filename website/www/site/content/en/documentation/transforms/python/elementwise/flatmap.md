@@ -54,7 +54,7 @@ We define a function `split_words` which splits an input `str` element using the
 A common use case of `FlatMap` is to flatten a `PCollection` of iterables into a `PCollection` of elements. To do that, don't specify the function argument to `FlatMap`, which uses the identity mapping function.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_FlatMapNoFunction" show="flatmap_no_function" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_FlatMapNoFunction" show="flatmap_nofunction" >}}
 {{< /playground >}}
 
 ### Example 4: FlatMap with a lambda function

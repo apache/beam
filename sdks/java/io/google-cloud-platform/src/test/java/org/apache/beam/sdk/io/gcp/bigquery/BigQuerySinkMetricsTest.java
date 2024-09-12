@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
@@ -178,7 +179,8 @@ public class BigQuerySinkMetricsTest {
     testContainer.assertPerWorkerCounterValue(counterName, 1L);
 
     counterName =
-        MetricName.named(BigQueryServicesImpl.StorageClientImpl.class, "throttling-msecs");
+        MetricName.named(
+            BigQueryServicesImpl.StorageClientImpl.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
     assertEquals(1L, (long) testContainer.getCounter(counterName).getCumulative());
   }
 

@@ -53,7 +53,7 @@ dependencies {
 
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation project(path: ":sdks:java:io:parquet")
     testImplementation project(path: ":sdks:java:io:xml")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

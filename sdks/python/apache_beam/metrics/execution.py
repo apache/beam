@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """
 This module is for internal use only; no backwards-compatibility guarantees.
 
@@ -48,6 +46,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import StringSetCell
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.statesampler import get_current_tracker
 
@@ -259,6 +258,12 @@ class MetricsContainer(object):
         GaugeCell,
         self.get_metric_cell(_TypedMetricName(GaugeCell, metric_name)))
 
+  def get_string_set(self, metric_name):
+    # type: (MetricName) -> StringSetCell
+    return cast(
+        StringSetCell,
+        self.get_metric_cell(_TypedMetricName(StringSetCell, metric_name)))
+
   def get_metric_cell(self, typed_metric_name):
     # type: (_TypedMetricName) -> MetricCell
     cell = self.metrics.get(typed_metric_name, None)
@@ -292,7 +297,13 @@ class MetricsContainer(object):
         v in self.metrics.items() if k.cell_type == GaugeCell
     }
 
-    return MetricUpdates(counters, distributions, gauges)
+    string_sets = {
+        MetricKey(self.step_name, k.metric_name): v.get_cumulative()
+        for k,
+        v in self.metrics.items() if k.cell_type == StringSetCell
+    }
+
+    return MetricUpdates(counters, distributions, gauges, string_sets)
 
   def to_runner_api(self):
     return [
@@ -344,7 +355,8 @@ class MetricUpdates(object):
       self,
       counters=None,  # type: Optional[Dict[MetricKey, int]]
       distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
-      gauges=None  # type: Optional[Dict[MetricKey, GaugeData]]
+      gauges=None,  # type: Optional[Dict[MetricKey, GaugeData]]
+      string_sets=None,  # type: Optional[Dict[MetricKey, set]]
   ):
     # type: (...) -> None
 
@@ -354,7 +366,9 @@ class MetricUpdates(object):
       counters: Dictionary of MetricKey:MetricUpdate updates.
       distributions: Dictionary of MetricKey:MetricUpdate objects.
       gauges: Dictionary of MetricKey:MetricUpdate objects.
+      string_sets: Dictionary of MetricKey:MetricUpdate objects.
     """
     self.counters = counters or {}
     self.distributions = distributions or {}
     self.gauges = gauges or {}
+    self.string_sets = string_sets or {}

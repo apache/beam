@@ -373,8 +373,7 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
     pass
 
   @classmethod
-  def representation_type(cls):
-    # type: () -> type
+  def representation_type(cls) -> type:
     return Timestamp
 
   @classmethod
@@ -385,14 +384,12 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
   def language_type(cls):
     return datetime.date
 
-  def to_representation_type(self, value):
-    # type: (datetime.date) -> Timestamp
+  def to_representation_type(self, value: datetime.date) -> Timestamp:
     return Timestamp.from_utc_datetime(
         datetime.datetime.combine(
             value, datetime.datetime.min.time(), tzinfo=datetime.timezone.utc))
 
-  def to_language_type(self, value):
-    # type: (Timestamp) -> datetime.date
+  def to_language_type(self, value: Timestamp) -> datetime.date:
 
     return value.to_utc_datetime().date()
 
@@ -420,8 +417,7 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
     pass
 
   @classmethod
-  def representation_type(cls):
-    # type: () -> type
+  def representation_type(cls) -> type:
     return Timestamp
 
   @classmethod
@@ -432,16 +428,14 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
   def language_type(cls):
     return datetime.time
 
-  def to_representation_type(self, value):
-    # type: (datetime.date) -> Timestamp
+  def to_representation_type(self, value: datetime.date) -> Timestamp:
     return Timestamp.from_utc_datetime(
         datetime.datetime.combine(
             datetime.datetime.utcfromtimestamp(0),
             value,
             tzinfo=datetime.timezone.utc))
 
-  def to_language_type(self, value):
-    # type: (Timestamp) -> datetime.date
+  def to_language_type(self, value: Timestamp) -> datetime.date:
 
     return value.to_utc_datetime().time()
 

@@ -48,13 +48,14 @@ runs:
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
-        java-version: ${{ inputs.java-version == 'default' && '8' || inputs.java-version }}
+        java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:
-        cache-read-only: ${{ inputs.disable-cache }}
+        cache-disabled: ${{ inputs.disable-cache }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
-        go-version: ${{ inputs.go-version == 'default' && '1.21' || inputs.go-version }} # never set patch, to get latest patch releases.
+        go-version: ${{ inputs.go-version == 'default' && '1.22' || inputs.go-version }} # never set patch, to get latest patch releases.
+        cache-dependency-path: $${{ inputs.disable-cache && '' || 'sdks/go.sum' }}

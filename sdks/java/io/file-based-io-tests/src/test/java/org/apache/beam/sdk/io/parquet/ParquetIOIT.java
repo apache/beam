@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOI
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -173,7 +173,7 @@ public class ParquetIOIT {
 
   private void collectAndPublishMetrics(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
     final IOITMetrics metrics =

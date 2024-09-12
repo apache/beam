@@ -109,7 +109,7 @@ Here are some resources actively maintained by the Beam community to help you ge
     <td>A comprehensive, interactive learning experience covering Beam concepts in depth.</td>
   </tr>
   <tr>
-    <td><a href="https://www.cloudskillsboost.google/quests/310" target="_blank" rel="noopener noreferrer">Beam Quest </a></td>
+    <td><a href="https://www.cloudskillsboost.google/course_templates/724" target="_blank" rel="noopener noreferrer">Beam Quest </a></td>
     <td>A certification granted by Google Cloud, certifying proficiency in Beam.</td>
   </tr>
   <tr>

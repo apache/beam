@@ -63,6 +63,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -71,6 +72,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,9 +80,12 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.channels.CountingSeekableByteChannel;
+import org.apache.beam.sdk.extensions.gcp.util.channels.CountingWritableByteChannel;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -101,6 +106,22 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GcsUtil {
+
+  @AutoValue
+  public abstract static class GcsCountersOptions {
+    public abstract @Nullable String getReadCounterPrefix();
+
+    public abstract @Nullable String getWriteCounterPrefix();
+
+    public boolean hasAnyPrefix() {
+      return getWriteCounterPrefix() != null || getReadCounterPrefix() != null;
+    }
+
+    public static GcsCountersOptions create(
+        @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
+      return new AutoValue_GcsUtil_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
+    }
+  }
 
   /**
    * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using any transport
@@ -125,7 +146,14 @@ public class GcsUtil {
           hasExperiment(options, "use_grpc_for_gcs"),
           gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes(),
-          gcsOptions.getGcsRewriteDataOpBatchLimit());
+          gcsOptions.getGcsRewriteDataOpBatchLimit(),
+          GcsCountersOptions.create(
+              gcsOptions.getEnableBucketReadMetricCounter()
+                  ? gcsOptions.getGcsReadCounterPrefix()
+                  : null,
+              gcsOptions.getEnableBucketWriteMetricCounter()
+                  ? gcsOptions.getGcsWriteCounterPrefix()
+                  : null));
     }
 
     /** Returns an instance of {@link GcsUtil} based on the given parameters. */
@@ -135,7 +163,8 @@ public class GcsUtil {
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         Credentials credentials,
-        @Nullable Integer uploadBufferSizeBytes) {
+        @Nullable Integer uploadBufferSizeBytes,
+        GcsCountersOptions gcsCountersOptions) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
@@ -143,7 +172,8 @@ public class GcsUtil {
           hasExperiment(options, "use_grpc_for_gcs"),
           credentials,
           uploadBufferSizeBytes,
-          null);
+          null,
+          gcsCountersOptions);
     }
   }
 
@@ -191,6 +221,8 @@ public class GcsUtil {
 
   private final int rewriteDataOpBatchLimit;
 
+  private final GcsCountersOptions gcsCountersOptions;
+
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
 
@@ -216,7 +248,8 @@ public class GcsUtil {
       Boolean shouldUseGrpc,
       Credentials credentials,
       @Nullable Integer uploadBufferSizeBytes,
-      @Nullable Integer rewriteDataOpBatchLimit) {
+      @Nullable Integer rewriteDataOpBatchLimit,
+      GcsCountersOptions gcsCountersOptions) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
@@ -259,6 +292,7 @@ public class GcsUtil {
         };
     this.rewriteDataOpBatchLimit =
         rewriteDataOpBatchLimit == null ? MAX_REQUESTS_PER_COPY_BATCH : rewriteDataOpBatchLimit;
+    this.gcsCountersOptions = gcsCountersOptions;
   }
 
   // Use this only for testing purposes.
@@ -463,6 +497,64 @@ public class GcsUtil {
   }
 
   /**
+   * Create an integer consumer that updates the counter identified by a prefix and a bucket name.
+   */
+  private static Consumer<Integer> createCounterConsumer(String counterNamePrefix, String bucket) {
+    return Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))::inc;
+  }
+
+  private WritableByteChannel wrapInCounting(
+      WritableByteChannel writableByteChannel, String bucket) {
+    if (writableByteChannel instanceof CountingWritableByteChannel) {
+      return writableByteChannel;
+    }
+    return Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
+        .<WritableByteChannel>map(
+            prefix -> {
+              LOG.debug(
+                  "wrapping writable byte channel using counter name prefix {} and bucket {}",
+                  prefix,
+                  bucket);
+              return new CountingWritableByteChannel(
+                  writableByteChannel, createCounterConsumer(prefix, bucket));
+            })
+        .orElse(writableByteChannel);
+  }
+
+  private SeekableByteChannel wrapInCounting(
+      SeekableByteChannel seekableByteChannel, String bucket) {
+    if (seekableByteChannel instanceof CountingSeekableByteChannel
+        || !gcsCountersOptions.hasAnyPrefix()) {
+      return seekableByteChannel;
+    }
+
+    return new CountingSeekableByteChannel(
+        seekableByteChannel,
+        Optional.ofNullable(gcsCountersOptions.getReadCounterPrefix())
+            .map(
+                prefix -> {
+                  LOG.debug(
+                      "wrapping seekable byte channel with \"bytes read\" counter name prefix {}"
+                          + " and bucket {}",
+                      prefix,
+                      bucket);
+                  return createCounterConsumer(prefix, bucket);
+                })
+            .orElse(null),
+        Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
+            .map(
+                prefix -> {
+                  LOG.debug(
+                      "wrapping seekable byte channel with \"bytes written\" counter name prefix {}"
+                          + " and bucket {}",
+                      prefix,
+                      bucket);
+                  return createCounterConsumer(prefix, bucket);
+                })
+            .orElse(null));
+  }
+
+  /**
    * Opens an object in GCS.
    *
    * <p>Returns a SeekableByteChannel that provides access to data in the bucket.
@@ -471,7 +563,10 @@ public class GcsUtil {
    * @return a SeekableByteChannel that can read the object data
    */
   public SeekableByteChannel open(GcsPath path) throws IOException {
-    return googleCloudStorage.open(new StorageResourceId(path.getBucket(), path.getObject()));
+    String bucket = path.getBucket();
+    SeekableByteChannel channel =
+        googleCloudStorage.open(new StorageResourceId(path.getBucket(), path.getObject()));
+    return wrapInCounting(channel, bucket);
   }
 
   /**
@@ -505,7 +600,7 @@ public class GcsUtil {
           googleCloudStorage.open(
               new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
       serviceCallMetric.call("ok");
-      return channel;
+      return wrapInCounting(channel, path.getBucket());
     } catch (IOException e) {
       if (e.getCause() instanceof GoogleJsonResponseException) {
         serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
@@ -618,7 +713,7 @@ public class GcsUtil {
     try {
       WritableByteChannel channel = gcpStorage.create(resourceId, createBuilder.build());
       serviceCallMetric.call("ok");
-      return channel;
+      return wrapInCounting(channel, path.getBucket());
     } catch (IOException e) {
       if (e.getCause() instanceof GoogleJsonResponseException) {
         serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());

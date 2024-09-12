@@ -145,7 +145,7 @@ class CompressedFile(object):
 
   def __init__(
       self,
-      fileobj,  # type: BinaryIO
+      fileobj: BinaryIO,
       compression_type=CompressionTypes.GZIP,
       read_size=DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
@@ -167,7 +167,7 @@ class CompressedFile(object):
       raise ValueError(
           'File object must be at position 0 but was %d' % self._file.tell())
     self._uncompressed_position = 0
-    self._uncompressed_size = None  # type: Optional[int]
+    self._uncompressed_size: Optional[int] = None
 
     if self.readable():
       self._read_size = read_size
@@ -217,19 +217,15 @@ class CompressedFile(object):
       self._compressor = zlib.compressobj(
           zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, self._gzip_mask)
 
-  def readable(self):
-    # type: () -> bool
+  def readable(self) -> bool:
     mode = self._file.mode
     return 'r' in mode or 'a' in mode
 
-  def writeable(self):
-    # type: () -> bool
+  def writeable(self) -> bool:
     mode = self._file.mode
     return 'w' in mode or 'a' in mode
 
-  def write(self, data):
-    # type: (bytes) -> None
-
+  def write(self, data: bytes) -> None:
     """Write data to file."""
     if not self._compressor:
       raise ValueError('compressor not initialized')
@@ -303,9 +299,7 @@ class CompressedFile(object):
     return self._read_from_internal_buffer(
         lambda: self._read_buffer.read(num_bytes))
 
-  def readline(self):
-    # type: () -> bytes
-
+  def readline(self) -> bytes:
     """Equivalent to standard file.readline(). Same return conventions apply."""
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
@@ -345,31 +339,24 @@ class CompressedFile(object):
     self._file.flush()
 
   @property
-  def seekable(self):
-    # type: () -> bool
+  def seekable(self) -> bool:
     return 'r' in self._file.mode
 
-  def _clear_read_buffer(self):
-    # type: () -> None
-
+  def _clear_read_buffer(self) -> None:
     """Clears the read buffer by removing all the contents and
     resetting _read_position to 0"""
     self._read_position = 0
     self._read_buffer.seek(0)
     self._read_buffer.truncate(0)
 
-  def _rewind_file(self):
-    # type: () -> None
-
+  def _rewind_file(self) -> None:
     """Seeks to the beginning of the input file. Input file's EOF marker
     is cleared and _uncompressed_position is reset to zero"""
     self._file.seek(0, os.SEEK_SET)
     self._read_eof = False
     self._uncompressed_position = 0
 
-  def _rewind(self):
-    # type: () -> None
-
+  def _rewind(self) -> None:
     """Seeks to the beginning of the input file and resets the internal read
     buffer. The decompressor object is re-initialized to ensure that no data
     left in it's buffer."""
@@ -379,9 +366,7 @@ class CompressedFile(object):
     # Re-initialize decompressor to clear any data buffered prior to rewind
     self._initialize_decompressor()
 
-  def seek(self, offset, whence=os.SEEK_SET):
-    # type: (int, int) -> None
-
+  def seek(self, offset: int, whence: int = os.SEEK_SET) -> None:
     """Set the file's current offset.
 
     Seeking behavior:
@@ -445,9 +430,7 @@ class CompressedFile(object):
         break
       bytes_to_skip -= len(data)
 
-  def tell(self):
-    # type: () -> int
-
+  def tell(self) -> int:
     """Returns current position in uncompressed file."""
     return self._uncompressed_position
 
@@ -503,8 +486,7 @@ class MatchResult(object):
   """Result from the ``FileSystem`` match operation which contains the list
    of matched ``FileMetadata``.
   """
-  def __init__(self, pattern, metadata_list):
-    # type: (str, List[FileMetadata]) -> None
+  def __init__(self, pattern: str, metadata_list: List[FileMetadata]) -> None:
     self.metadata_list = metadata_list
     self.pattern = pattern
 
@@ -559,9 +541,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def join(self, basepath, *paths):
-    # type: (str, *str) -> str
-
+  def join(self, basepath: str, *paths: str) -> str:
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -573,9 +553,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def split(self, path):
-    # type: (str) -> Tuple[str, str]
-
+  def split(self, path: str) -> Tuple[str, str]:
     """Splits the given path into two parts.
 
     Splits the path into a pair (head, tail) such that tail contains the last
@@ -648,9 +626,8 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     scheme, path = self._split_scheme(url_or_path)
     return self._combine_scheme(scheme, posixpath.dirname(path))
 
-  def match_files(self, file_metas, pattern):
-    # type: (List[FileMetadata], str) -> Iterator[FileMetadata]
-
+  def match_files(self, file_metas: List[FileMetadata],
+                  pattern: str) -> Iterator[FileMetadata]:
     """Filter :class:`FileMetadata` objects by *pattern*
 
     Args:
@@ -671,9 +648,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
         yield file_metadata
 
   @staticmethod
-  def translate_pattern(pattern):
-    # type: (str) -> str
-
+  def translate_pattern(pattern: str) -> str:
     """
     Translate a *pattern* to a regular expression.
     There is no way to quote meta-characters.
@@ -809,9 +784,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
-
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a write channel for the given file path.
 
     Args:
@@ -828,9 +801,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
-
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a read channel for the given file path.
 
     Args:
@@ -870,9 +841,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def exists(self, path):
-    # type: (str) -> bool
-
+  def exists(self, path: str) -> bool:
     """Check if the provided path exists on the FileSystem.
 
     Args:
@@ -883,9 +852,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def size(self, path):
-    # type: (str) -> int
-
+  def size(self, path: str) -> int:
     """Get size in bytes of a file on the FileSystem.
 
     Args:

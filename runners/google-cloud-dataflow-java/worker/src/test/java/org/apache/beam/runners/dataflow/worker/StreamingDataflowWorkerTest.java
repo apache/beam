@@ -126,6 +126,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -330,9 +332,7 @@ public class StreamingDataflowWorkerTest {
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                computationId,
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             Instant::now,
             Collections.emptyList()),
         processWorkFn);
@@ -549,7 +549,6 @@ public class StreamingDataflowWorkerTest {
       List<Long> inputs,
       List<Timer> timers)
       throws Exception {
-    // Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     Windmill.WorkItem.Builder builder = Windmill.WorkItem.newBuilder();
     builder.setKey(DEFAULT_KEY_BYTES);
     builder.setShardingKey(DEFAULT_SHARDING_KEY);
@@ -849,7 +848,7 @@ public class StreamingDataflowWorkerTest {
             streamingDataflowWorkerTestParams.clock(),
             streamingDataflowWorkerTestParams.executorSupplier(),
             streamingDataflowWorkerTestParams.localRetryTimeoutMs(),
-            streamingDataflowWorkerTestParams.maxWorkItemCommitBytes());
+            streamingDataflowWorkerTestParams.operationalLimits());
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
@@ -888,7 +887,6 @@ public class StreamingDataflowWorkerTest {
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    server.setIsReady(false);
     StreamingConfigTask streamingConfig = new StreamingConfigTask();
     streamingConfig.setStreamingComputationConfigs(
         ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
@@ -936,8 +934,6 @@ public class StreamingDataflowWorkerTest {
             makeSourceInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
             makeSinkInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), 0));
 
-    server.setIsReady(false);
-
     StreamingConfigTask streamingConfig = new StreamingConfigTask();
     streamingConfig.setStreamingComputationConfigs(
         ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
@@ -974,8 +970,6 @@ public class StreamingDataflowWorkerTest {
         Arrays.asList(
             makeSourceInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
             makeSinkInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), 0));
-
-    server.setIsReady(false);
 
     StreamingConfigTask streamingConfig = new StreamingConfigTask();
     streamingConfig.setStreamingComputationConfigs(
@@ -1216,7 +1210,8 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams()
                 .setInstructions(instructions)
-                .setMaxWorkItemCommitBytes(1000)
+                .setOperationalLimits(
+                    OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
                 .publishCounters()
                 .build());
     worker.start();
@@ -1227,7 +1222,7 @@ public class StreamingDataflowWorkerTest {
         .thenReturn(makeInput(2, 0, "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
 
     assertEquals(2, result.size());
     assertEquals(
@@ -1269,6 +1264,73 @@ public class StreamingDataflowWorkerTest {
       }
     }
     assertTrue(foundErrors);
+  }
+
+  @Test
+  public void testOutputKeyTooLargeException() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new ExceptionCatchingFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    server.setExpectedExceptionCount(1);
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
+                .setInstructions(instructions)
+                .setOperationalLimits(OperationalLimits.builder().setMaxOutputKeyBytes(15).build())
+                .build());
+    worker.start();
+
+    // This large key will cause the ExceptionCatchingFn to throw an exception, which will then
+    // cause it to output a smaller key.
+    String bigKey = "some_much_too_large_output_key";
+    server.whenGetWorkCalled().thenReturn(makeInput(1, 0, bigKey, DEFAULT_SHARDING_KEY));
+    server.waitForEmptyWorkQueue();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    assertEquals(1, result.size());
+    assertEquals(
+        makeExpectedOutput(1, 0, bigKey, DEFAULT_SHARDING_KEY, "smaller_key").build(),
+        removeDynamicFields(result.get(1L)));
+  }
+
+  @Test
+  public void testOutputValueTooLargeException() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new ExceptionCatchingFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    server.setExpectedExceptionCount(1);
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
+                .setInstructions(instructions)
+                .setOperationalLimits(
+                    OperationalLimits.builder().setMaxOutputValueBytes(15).build())
+                .build());
+    worker.start();
+
+    // The first time processing will have value "data1_a_bunch_more_data_output", which is above
+    // the limit. After throwing the exception, the output should be just "data1", which is small
+    // enough.
+    server.whenGetWorkCalled().thenReturn(makeInput(1, 0, "key", DEFAULT_SHARDING_KEY));
+    server.waitForEmptyWorkQueue();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    assertEquals(1, result.size());
+    assertEquals(
+        makeExpectedOutput(1, 0, "key", DEFAULT_SHARDING_KEY, "smaller_key").build(),
+        removeDynamicFields(result.get(1L)));
   }
 
   @Test
@@ -2113,7 +2175,7 @@ public class StreamingDataflowWorkerTest {
     // No input messages
     assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
 
-    CacheStats stats = worker.stateCache.getCacheStats();
+    CacheStats stats = worker.getStateCacheStats();
     LOG.info("cache stats {}", stats);
     assertEquals(1, stats.hitCount());
     assertEquals(4, stats.missCount());
@@ -3410,8 +3472,9 @@ public class StreamingDataflowWorkerTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId",
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             clock,
             Collections.emptyList());
 
@@ -3428,7 +3491,7 @@ public class StreamingDataflowWorkerTest {
     clock.sleep(Duration.millis(60));
 
     Iterator<LatencyAttribution> it =
-        work.getLatencyAttributions(false, DataflowExecutionStateSampler.instance()).iterator();
+        work.getLatencyAttributions(DataflowExecutionStateSampler.instance()).iterator();
     assertTrue(it.hasNext());
     LatencyAttribution lat = it.next();
     assertSame(State.QUEUED, lat.getState());
@@ -3713,7 +3776,7 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     assertThat(server.numGetDataRequests(), greaterThan(0));
-    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
+    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(1);
 
     for (LatencyAttribution la :
         heartbeat
@@ -4017,6 +4080,18 @@ public class StreamingDataflowWorkerTest {
         c.output(KV.of(c.element().getKey(), s.toString()));
       } else {
         c.output(c.element());
+      }
+    }
+  }
+
+  static class ExceptionCatchingFn extends DoFn<KV<String, String>, KV<String, String>> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      try {
+        c.output(KV.of(c.element().getKey(), c.element().getValue() + "_a_bunch_more_data_output"));
+      } catch (Exception e) {
+        c.output(KV.of("smaller_key", c.element().getValue()));
       }
     }
   }
@@ -4433,7 +4508,7 @@ public class StreamingDataflowWorkerTest {
           .setLocalRetryTimeoutMs(-1)
           .setPublishCounters(false)
           .setClock(Instant::now)
-          .setMaxWorkItemCommitBytes(Integer.MAX_VALUE);
+          .setOperationalLimits(OperationalLimits.builder().build());
     }
 
     abstract ImmutableMap<String, String> stateNameMappings();
@@ -4450,7 +4525,7 @@ public class StreamingDataflowWorkerTest {
 
     abstract int localRetryTimeoutMs();
 
-    abstract int maxWorkItemCommitBytes();
+    abstract OperationalLimits operationalLimits();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -4484,7 +4559,7 @@ public class StreamingDataflowWorkerTest {
 
       abstract Builder setLocalRetryTimeoutMs(int value);
 
-      abstract Builder setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes);
+      abstract Builder setOperationalLimits(OperationalLimits operationalLimits);
 
       abstract StreamingDataflowWorkerTestParams build();
     }

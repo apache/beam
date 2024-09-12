@@ -16,6 +16,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -31,6 +32,10 @@ func MakePipelineOptionsFileAndEnvVar(options string) error {
 		return fmt.Errorf("unable to create %v: %w", fn, err)
 	}
 	defer f.Close()
+	var js map[string]interface{}
+	if json.Unmarshal([]byte(options), &js) != nil {
+		return fmt.Errorf("options string is not JSON formatted %v", options)
+	}
 	if _, err := f.WriteString(options); err != nil {
 		return fmt.Errorf("error writing %v: %w", f.Name(), err)
 	}

@@ -96,10 +96,38 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.59.0 (2024-09-11)
+Official [source code download](https://downloads.apache.org/beam/2.59.0/apache-beam-2.59.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.59.0/apache-beam-2.59.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.59.0/apache-beam-2.59.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.59.0)
+
+### 2.58.1 (2024-08-15)
+Official [source code download](https://archive.apache.org/dist/beam/2.58.1/apache-beam-2.58.1-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.58.1/apache-beam-2.58.1-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.58.1/apache-beam-2.58.1-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.58.1)
+
+### 2.58.0 (2024-08-06)
+Official [source code download](https://archive.apache.org/dist/beam/2.58.0/apache-beam-2.58.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.58.0/apache-beam-2.58.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.58.0/apache-beam-2.58.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.58.0)
+
+### 2.57.0 (2024-06-26)
+Official [source code download](https://archive.apache.org/dist/beam/2.57.0/apache-beam-2.57.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.57.0/apache-beam-2.57.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.57.0/apache-beam-2.57.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.57.0)
+
 ### 2.56.0 (2024-05-01)
-Official [source code download](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.56.0/apache-beam-2.56.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.56.0/apache-beam-2.56.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.56.0/apache-beam-2.56.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.56.0)
 

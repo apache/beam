@@ -39,15 +39,6 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 def hive_version = "3.1.3"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: use testTextures feature which is introduced in Gradle 5.6 instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":sdks:java:io:common")
-
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -67,7 +58,6 @@ dependencies {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testImplementation project(":sdks:java:io:common").sourceSets.test.output
   testImplementation library.java.commons_io
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
@@ -76,6 +66,7 @@ dependencies {
   testImplementation "org.apache.hive:hive-common:$hive_version"
   testImplementation "org.apache.hive:hive-cli:$hive_version"
   testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
+  testImplementation project(path: ":sdks:java:io:common")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
@@ -99,9 +90,20 @@ task hadoopVersionsTest(group: "Verification") {
 }
 
 hadoopVersions.each { kv ->
-  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+  tasks.create(name: "hadoopVersion${kv.key}Test", type: Test, group: "Verification") {
     description = "Runs HCatalog tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     include '**/*Test.class'
+  }
+}
+
+project.tasks.withType(Test).configureEach {
+  if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0 && project.findProperty('testJavaVersion') != '8') {
+    useJUnit {
+      filter {
+        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogIOTest"
+        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchemaTest"
+      }
+    }
   }
 }

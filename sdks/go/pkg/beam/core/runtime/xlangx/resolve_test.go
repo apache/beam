@@ -20,7 +20,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 func createExternalEdge(typeUrn string, typePayload []byte) *graph.MultiEdge {

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;

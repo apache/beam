@@ -148,9 +148,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
   // for writing unbounded data to avoid generating too many small files.
-  private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
-  private static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
-  private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+  public static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  public static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
+  public static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
       Duration.standardSeconds(5);
 
   static final int UNKNOWN_SHARDNUM = -1;
@@ -196,6 +196,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   abstract boolean getSkipIfEmpty();
 
+  abstract @Nullable Integer getBatchSize();
+
+  abstract @Nullable Integer getBatchSizeBytes();
+
+  abstract @Nullable Duration getBatchMaxBufferingDuration();
+
   abstract List<PCollectionView<?>> getSideInputs();
 
   public abstract @Nullable ShardingFunction<UserT, DestinationT> getShardingFunction();
@@ -225,6 +231,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         int maxNumWritersPerBundle);
 
     abstract Builder<UserT, DestinationT, OutputT> setSkipIfEmpty(boolean skipIfEmpty);
+
+    abstract Builder<UserT, DestinationT, OutputT> setBatchSize(@Nullable Integer batchSize);
+
+    abstract Builder<UserT, DestinationT, OutputT> setBatchSizeBytes(
+        @Nullable Integer batchSizeBytes);
+
+    abstract Builder<UserT, DestinationT, OutputT> setBatchMaxBufferingDuration(
+        @Nullable Duration batchMaxBufferingDuration);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -284,6 +298,38 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   /** Set this sink to skip writing any files if the PCollection is empty. */
   public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty(boolean skipIfEmpty) {
     return toBuilder().setSkipIfEmpty(skipIfEmpty).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that will batch the input records using specified batch size.
+   * The default value is {@link #FILE_TRIGGERING_RECORD_COUNT}.
+   *
+   * <p>This option is used only for writing unbounded data with auto-sharding.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withBatchSize(@Nullable Integer batchSize) {
+    return toBuilder().setBatchSize(batchSize).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that will batch the input records using specified batch size
+   * in bytes. The default value is {@link #FILE_TRIGGERING_BYTE_COUNT}.
+   *
+   * <p>This option is used only for writing unbounded data with auto-sharding.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withBatchSizeBytes(
+      @Nullable Integer batchSizeBytes) {
+    return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that will batch the input records using specified max
+   * buffering duration. The default value is {@link #FILE_TRIGGERING_RECORD_BUFFERING_DURATION}.
+   *
+   * <p>This option is used only for writing unbounded data with auto-sharding.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withBatchMaxBufferingDuration(
+      @Nullable Duration batchMaxBufferingDuration) {
+    return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
   }
 
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
@@ -445,7 +491,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         tempFileResults =
             input.apply(
                 "WriteAutoShardedBundlesToTempFiles",
-                new WriteAutoShardedBundlesToTempFiles(destinationCoder, fileResultCoder));
+                new WriteAutoShardedBundlesToTempFiles(
+                    destinationCoder,
+                    fileResultCoder,
+                    getBatchSize(),
+                    getBatchSizeBytes(),
+                    getBatchMaxBufferingDuration()));
       }
     }
 
@@ -887,11 +938,24 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       extends PTransform<PCollection<UserT>, PCollection<List<FileResult<DestinationT>>>> {
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
+    private final int batchSize;
+    private final int batchSizeBytes;
+    private final Duration maxBufferingDuration;
 
     private WriteAutoShardedBundlesToTempFiles(
-        Coder<DestinationT> destinationCoder, Coder<FileResult<DestinationT>> fileResultCoder) {
+        Coder<DestinationT> destinationCoder,
+        Coder<FileResult<DestinationT>> fileResultCoder,
+        Integer batchSize,
+        Integer batchSizeBytes,
+        Duration maxBufferingDuration) {
       this.destinationCoder = destinationCoder;
       this.fileResultCoder = fileResultCoder;
+      this.batchSize = batchSize != null ? batchSize : FILE_TRIGGERING_RECORD_COUNT;
+      this.batchSizeBytes = batchSizeBytes != null ? batchSizeBytes : FILE_TRIGGERING_BYTE_COUNT;
+      this.maxBufferingDuration =
+          maxBufferingDuration != null
+              ? maxBufferingDuration
+              : FILE_TRIGGERING_RECORD_BUFFERING_DURATION;
     }
 
     @Override
@@ -919,9 +983,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
               .apply(
                   "ShardAndBatch",
-                  GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                      .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-                      .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
+                  GroupIntoBatches.<Integer, UserT>ofSize(batchSize)
+                      .withByteSize(batchSizeBytes)
+                      .withMaxBufferingDuration(maxBufferingDuration)
                       .withShardedKey())
               .setCoder(
                   KvCoder.of(

@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -33,6 +34,13 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * The underlying Iceberg connector used by {@link org.apache.beam.sdk.managed.Managed#ICEBERG}. Not
+ * intended to be used directly.
+ *
+ * <p>For internal use only; no backwards compatibility guarantees
+ */
+@Internal
 public class IcebergIO {
 
   public static WriteRows writeRows(IcebergCatalogConfig catalog) {
@@ -129,7 +137,7 @@ public class IcebergIO {
                       .setCatalogConfig(getCatalogConfig())
                       .setScanType(IcebergScanConfig.ScanType.TABLE)
                       .setTableIdentifier(tableId)
-                      .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(table.schema()))
+                      .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
                       .build())));
     }
   }

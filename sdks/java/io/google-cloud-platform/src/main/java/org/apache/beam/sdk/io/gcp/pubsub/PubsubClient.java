@@ -37,14 +37,18 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PubsubClient implements Closeable {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubClient.class);
   private static final Map<String, SerializableFunction<String, Schema>>
       schemaTypeToConversionFnMap =
           ImmutableMap.of(
@@ -257,6 +261,10 @@ public abstract class PubsubClient implements Closeable {
       return String.format("/subscriptions/%s/%s", projectId, subscriptionName);
     }
 
+    public List<String> getDataCatalogSegments() {
+      return ImmutableList.of(projectId, subscriptionName);
+    }
+
     @Override
     public boolean equals(@Nullable Object o) {
       if (this == o) {
@@ -293,6 +301,7 @@ public abstract class PubsubClient implements Closeable {
 
   /** Path representing a Pubsub topic. */
   public static class TopicPath implements Serializable {
+    // Format: "projects/<project>/topics/<topic>"
     private final String path;
 
     TopicPath(String path) {
@@ -308,6 +317,26 @@ public abstract class PubsubClient implements Closeable {
 
       checkState(splits.size() == 4, "Malformed topic path %s", path);
       return splits.get(3);
+    }
+
+    /**
+     * Returns the data catalog segments. This method is fail-safe. If topic path is malformed, it
+     * returns an empty string.
+     */
+    public List<String> getDataCatalogSegments() {
+      List<String> splits = Splitter.on('/').splitToList(path);
+      if (splits.size() == 4) {
+        // well-formed path
+        return ImmutableList.of(splits.get(1), splits.get(3));
+      } else {
+        // Mal-formed path. It is either a test fixture or user error and will fail on publish.
+        // We do not throw exception instead return empty string here.
+        LOG.warn(
+            "Cannot get data catalog name for malformed topic path {}. Expected format: "
+                + "projects/<project>/topics/<topic>",
+            path);
+        return ImmutableList.of();
+      }
     }
 
     public String getFullPath() {

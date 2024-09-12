@@ -479,7 +479,11 @@ message StandardUserStateTypes {
     // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
     MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
 
-    // TODO(https://github.com/apache/beam/issues/20486): Add protocol to support OrderedListState
+    // Represents a user state specification that supports an ordered list.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.OrderedListUserState.
+    ORDERED_LIST = 2 [(beam_urn) = "beam:user_state:ordered_list:v1"];
   }
 }
 
@@ -1677,6 +1681,10 @@ message StandardProtocols {
     // the ProcessBundleProgressResponse messages.
     SDK_CONSUMING_RECEIVED_DATA = 9
     [(beam_urn) = "beam:protocol:sdk_consuming_received_data:v1"];
+
+    // Indicates whether the SDK supports ordered list state.
+    ORDERED_LIST_STATE = 10
+    [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
   }
 }
 

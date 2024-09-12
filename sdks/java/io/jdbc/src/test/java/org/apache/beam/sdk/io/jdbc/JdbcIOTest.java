@@ -45,6 +45,7 @@ import java.sql.Connection;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
@@ -91,6 +92,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
+import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
@@ -104,11 +106,14 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
 
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
       DataSourceConfiguration.create(
           "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
@@ -1326,7 +1331,10 @@ public class JdbcIOTest implements Serializable {
     PCollection<KV<DateTime, DateTime>> ranges =
         pipeline
             .apply(Create.of(KV.of(10L, KV.of(new DateTime(0), DateTime.now()))))
-            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class))));
+            .apply(
+                ParDo.of(
+                    new PartitioningFn<>(
+                        JdbcUtil.getPartitionsHelper(TypeDescriptor.of(DateTime.class)))));
 
     PAssert.that(ranges.apply(Count.globally()))
         .satisfies(
@@ -1407,9 +1415,78 @@ public class JdbcIOTest implements Serializable {
     PCollection<KV<Long, Long>> ranges =
         pipeline
             .apply(Create.of(KV.of(10L, KV.of(0L, 12346789L))))
-            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs())));
+            .apply(
+                ParDo.of(
+                    new PartitioningFn<>(JdbcUtil.getPartitionsHelper(TypeDescriptors.longs()))));
 
     PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPartitioningStringsWithCustomPartitionsHelper() {
+    JdbcReadWithPartitionsHelper<String> helper =
+        new JdbcReadWithPartitionsHelper<String>() {
+          @Override
+          public Iterable<KV<String, String>> calculateRanges(
+              String lowerBound, String upperBound, Long partitions) {
+            // we expect the elements in the test case follow the format <common prefix>idx
+            String prefix = StringUtils.getCommonPrefix(lowerBound, upperBound);
+            int minChar = lowerBound.charAt(prefix.length());
+            int maxChar = upperBound.charAt(prefix.length());
+            int numPartition;
+            if (maxChar - minChar < partitions) {
+              LOG.warn(
+                  "Partition large than possible! Adjust to {} partition instead",
+                  maxChar - minChar);
+              numPartition = maxChar - minChar;
+            } else {
+              numPartition = Math.toIntExact(partitions);
+            }
+            List<KV<String, String>> ranges = new ArrayList<>();
+            int stride = (maxChar - minChar) / numPartition + 1;
+            int highest = minChar;
+            for (int i = minChar; i < maxChar - stride; i += stride) {
+              ranges.add(KV.of(prefix + (char) i, prefix + (char) (i + stride)));
+              highest = i + stride;
+            }
+            if (highest <= maxChar) {
+              ranges.add(KV.of(prefix + (char) highest, prefix + (char) (highest + stride)));
+            }
+            return ranges;
+          }
+
+          @Override
+          public void setParameters(
+              KV<String, String> element, PreparedStatement preparedStatement) {
+            try {
+              preparedStatement.setString(1, element.getKey());
+              preparedStatement.setString(2, element.getValue());
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+
+          @Override
+          public KV<Long, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
+            if (resultSet.getMetaData().getColumnCount() == 3) {
+              return KV.of(
+                  resultSet.getLong(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
+            } else {
+              return KV.of(0L, KV.of(resultSet.getString(1), resultSet.getString(2)));
+            }
+          }
+        };
+
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow, String>readWithPartitions(helper)
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withTable(READ_TABLE_NAME)
+                .withNumPartitions(5)
+                .withPartitionColumn("name"));
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
   }
 }

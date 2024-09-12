@@ -299,6 +299,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
           splitResults.size());
       return splitResults;
     } else {
+      FileSystems.reportSourceLineage(getSingleFileMetadata().resourceId());
       if (isSplittable()) {
         @SuppressWarnings("unchecked")
         List<FileBasedSource<T>> splits =
