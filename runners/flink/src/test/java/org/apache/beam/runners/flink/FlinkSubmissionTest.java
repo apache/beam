@@ -26,6 +26,7 @@ import java.security.Permission;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -49,12 +50,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** End-to-end submission test of Beam jobs on a Flink cluster. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class FlinkSubmissionTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkSubmissionTest.class);
 
   @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
   private static final Map<String, String> ENV = System.getenv();
@@ -66,13 +71,8 @@ public class FlinkSubmissionTest {
   /** Each test has a timeout of 60 seconds (for safety). */
   @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
 
-  /** Whether to run in streaming or batch translation mode. */
-  private static boolean streaming;
-
   /** Counter which keeps track of the number of jobs submitted. */
   private static int expectedNumberOfJobs;
-
-  public static boolean useDataStreamForBatch;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -103,37 +103,36 @@ public class FlinkSubmissionTest {
 
   @Test
   public void testSubmissionBatch() throws Exception {
-    runSubmission(false, false);
+    runSubmission(false, false, false);
   }
 
   @Test
   public void testSubmissionBatchUseDataStream() throws Exception {
-    FlinkSubmissionTest.useDataStreamForBatch = true;
-    runSubmission(false, false);
+    runSubmission(false, false, true);
   }
 
   @Test
   public void testSubmissionStreaming() throws Exception {
-    runSubmission(false, true);
+    runSubmission(false, true, false);
   }
 
   @Test
   public void testDetachedSubmissionBatch() throws Exception {
-    runSubmission(true, false);
+    runSubmission(true, false, false);
   }
 
   @Test
   public void testDetachedSubmissionBatchUseDataStream() throws Exception {
-    FlinkSubmissionTest.useDataStreamForBatch = true;
-    runSubmission(true, false);
+    runSubmission(true, false, true);
   }
 
   @Test
   public void testDetachedSubmissionStreaming() throws Exception {
-    runSubmission(true, true);
+    runSubmission(true, true, false);
   }
 
-  private void runSubmission(boolean isDetached, boolean isStreaming) throws Exception {
+  private void runSubmission(boolean isDetached, boolean isStreaming, boolean useDataStreamForBatch)
+      throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
     options.setTempLocation(TEMP_FOLDER.getRoot().getPath());
@@ -150,8 +149,16 @@ public class FlinkSubmissionTest {
         argsBuilder.add("-d");
       }
       argsBuilder.add(jarPath);
+      argsBuilder.add("--runner=flink");
 
-      FlinkSubmissionTest.streaming = isStreaming;
+      if (isStreaming) {
+        argsBuilder.add("--streaming");
+      }
+
+      if (useDataStreamForBatch) {
+        argsBuilder.add("--useDataStreamForBatch");
+      }
+
       FlinkSubmissionTest.expectedNumberOfJobs++;
       // Run end-to-end test
       CliFrontend.main(argsBuilder.build().toArray(new String[0]));
@@ -169,19 +176,21 @@ public class FlinkSubmissionTest {
       Collection<JobStatusMessage> allJobsStates = flinkCluster.listJobs().get();
       if (allJobsStates.size() == expectedNumberOfJobs
           && allJobsStates.stream()
-              .allMatch(jobStatus -> jobStatus.getJobState().name().equals("FINISHED"))) {
+              .allMatch(jobStatus -> jobStatus.getJobState().isTerminalState())) {
+        LOG.info(
+            "All job finished with statuses: {}",
+            allJobsStates.stream().map(j -> j.getJobState().name()).collect(Collectors.toList()));
         return;
       }
-      Thread.sleep(100);
+      Thread.sleep(50);
     }
   }
 
   /** The Flink program which is executed by the CliFrontend. */
   public static void main(String[] args) {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
-    options.setUseDataStreamForBatch(useDataStreamForBatch);
+    FlinkPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(FlinkPipelineOptions.class);
     options.setRunner(FlinkRunner.class);
-    options.setStreaming(streaming);
     options.setParallelism(1);
     Pipeline p = Pipeline.create(options);
     p.apply(GenerateSequence.from(0).to(1));
