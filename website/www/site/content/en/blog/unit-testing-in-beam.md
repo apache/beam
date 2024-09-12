@@ -69,7 +69,7 @@ with beam.Pipeline() as p2:
     )
 ```
 
-The best practice for the previous code is to create a transform with all functions between `ReadFromText` and `WriteToText`. This step separates the transformation logic from the I/Os, allowing you to unit-test the transformation logic. The following example is a refactoring of the previous code:
+The best practice for the previous code is to create a transform with all functions between `ReadFromText` and `WriteToText`. This step separates the transformation logic from the I/Os, allowing you to unit test the transformation logic. The following example is a refactoring of the previous code:
 
 ```python
 def transform_data_set(pcoll):
