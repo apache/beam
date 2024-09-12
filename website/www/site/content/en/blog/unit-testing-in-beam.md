@@ -1,6 +1,6 @@
 ---
 title:  "Unit Testing in Beam: An opinionated guide"
-date:   2024-09-09 00:00:01 -0800
+date:   2024-09-13 00:00:01 -0800
 categories:
   - blog
 aliases:
@@ -192,7 +192,7 @@ Separating lambdas into a helper function by using `beam.Map(median_house_value_
 
 4) Use the `assert_that` statement to ensure that `PCollection` values match correctly, as in the previous example.
 
-For more guidance about testing on Beam and Dataflow, see the [Google Cloud documentation](https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines). For more examples of unit testing in Beam, see [the `base_test.py` code](https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262).
+For more guidance about testing on Beam and Dataflow, see the [Google Cloud documentation](https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines). For more examples of unit testing in Beam, see the `base_test.py` [code](https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262).
 
 Special thanks to Robert Bradshaw, Danny McCormick, XQ Hu, Surjit Singh, and Rebecca Spzer, who helped refine the ideas in this post.
 
