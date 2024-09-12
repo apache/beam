@@ -22,7 +22,7 @@ import { schemaio } from "./schemaio";
 import { Schema } from "../proto/schema";
 import { withCoderInternal } from "../transforms/internal";
 
-export function readFromAvro<T>(
+export function readFromAvro<T extends Object>(
   filePattern: string,
   // TODO: Allow schema to be inferred.
   options: { schema: Schema },
@@ -34,7 +34,7 @@ export function readFromAvro<T>(
   );
 }
 
-export function writeToAvro<T>(filePath: string, options: { schema: Schema }) {
+export function writeToAvro<T extends Object>(filePath: string, options: { schema: Schema }) {
   return async function writeToAvro(
     pcoll: beam.PCollection<Object>,
   ): Promise<{}> {
