@@ -1696,7 +1696,7 @@ public class KafkaIO {
         }
 
         if (kafkaRead.isRedistributed()) {
-          if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
+          if (kafkaRead.isCommitOffsetsInFinalizeEnabled() && kafkaRead.isAllowDuplicates()) {
             LOG.warn(
                 "Offsets committed due to usage of commitOffsetsInFinalize() may not capture all work processed due to use of withRedistribute()");
           }
@@ -1797,7 +1797,7 @@ public class KafkaIO {
             return pcol.apply(
                 "Insert Redistribute with Shards",
                 Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(true)
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
                     .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
           }
         }
@@ -2654,10 +2654,10 @@ public class KafkaIO {
         if (getRedistributeNumKeys() == 0) {
           LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
         }
-        if (isCommitOffsetEnabled() || configuredKafkaCommit()) {
+        if ((isCommitOffsetEnabled() || configuredKafkaCommit()) && isAllowDuplicates()) {
           LOG.warn(
               "Either auto_commit is set, or commitOffsetEnabled is enabled (or both), but since "
-                  + "withRestribute() is enabled, the runner may have additional work processed that "
+                  + "withRestribute() is enabled with allow duplicates, the runner may have additional work processed that "
                   + "is ahead of the current checkpoint");
         }
       }
@@ -2717,7 +2717,7 @@ public class KafkaIO {
               < 0) {
             // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
             // prior to the redistribute. The reshuffle will occur before commits are offsetted and
-            // before outputting KafkaRecords. Adding a redistrube then afterwards doesn't provide
+            // before outputting KafkaRecords. Adding a redistribute then afterwards doesn't provide
             // additional performance benefit.
             checkArgument(
                 !isRedistribute(),

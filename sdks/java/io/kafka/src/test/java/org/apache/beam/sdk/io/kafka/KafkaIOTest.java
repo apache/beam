@@ -382,7 +382,13 @@ public class KafkaIOTest {
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-    return mkKafkaReadTransform(numElements, numElements, timestampFn, false, 0);
+    return mkKafkaReadTransform(
+        numElements,
+        numElements,
+        timestampFn,
+        false, /*redistribute*/
+        false, /*allowDuplicates*/
+        0);
   }
 
   /**
@@ -394,6 +400,7 @@ public class KafkaIOTest {
       @Nullable Integer maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
       @Nullable Boolean redistribute,
+      @Nullable Boolean withAllowDuplicates,
       @Nullable Integer numKeys) {
 
     KafkaIO.Read<Integer, Long> reader =
@@ -409,13 +416,21 @@ public class KafkaIOTest {
       reader = reader.withMaxNumRecords(maxNumRecords);
     }
 
+    if (withAllowDuplicates == null) {
+      withAllowDuplicates = false;
+    }
+
     if (timestampFn != null) {
       reader = reader.withTimestampFn(timestampFn);
     }
 
     if (redistribute) {
       if (numKeys != null) {
-        reader = reader.withRedistribute().withRedistributeNumKeys(numKeys);
+        reader =
+            reader
+                .withRedistribute()
+                .withAllowDuplicates(withAllowDuplicates)
+                .withRedistributeNumKeys(numKeys);
       }
       reader = reader.withRedistribute();
     }
@@ -629,12 +644,18 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testCommitOffsetsInFinalizeAndRedistributeWarnings() {
+  public void testCommitOffsetsInFinalizeAndRedistributeWarningsWithAllowDuplicates() {
     int numElements = 1000;
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
+                mkKafkaReadTransform(
+                        numElements,
+                        numElements,
+                        new ValueAsTimestampFn(),
+                        true, /*redistribute*/
+                        true, /*allowDuplicates*/
+                        0)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -649,6 +670,29 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testCommitOffsetsInFinalizeAndRedistributeNoWarningsWithAllowDuplicates() {
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(
+                        numElements,
+                        numElements,
+                        new ValueAsTimestampFn(),
+                        true, /*redistribute*/
+                        false, /*allowDuplicates*/
+                        0)
+                    .commitOffsetsInFinalize()
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
   public void testNumKeysIgnoredWithRedistributeNotEnabled() {
     thrown.expect(Exception.class);
     thrown.expectMessage(
@@ -658,7 +702,13 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
+                mkKafkaReadTransform(
+                        numElements,
+                        numElements,
+                        new ValueAsTimestampFn(),
+                        false, /*redistribute*/
+                        false, /*allowDuplicates*/
+                        0)
                     .withRedistributeNumKeys(100)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
@@ -2016,7 +2066,13 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn(), false, 0)
+                mkKafkaReadTransform(
+                        numElements,
+                        maxNumRecords,
+                        new ValueAsTimestampFn(),
+                        false, /*redistribute*/
+                        false, /*allowDuplicates*/
+                        0)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
             .apply(Values.create());
@@ -2040,7 +2096,13 @@ public class KafkaIOTest {
     int startTime = numElements / 20;
 
     p.apply(
-            mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
+            mkKafkaReadTransform(
+                    numElements,
+                    numElements,
+                    new ValueAsTimestampFn(),
+                    false, /*redistribute*/
+                    false, /*allowDuplicates*/
+                    0)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
         .apply(Values.create());
