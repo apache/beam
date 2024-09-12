@@ -28,7 +28,9 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
@@ -384,8 +386,11 @@ class RecordingManager:
   def record(
       self,
       pcolls: List[beam.pvalue.PCollection],
+      *,
       max_n: int,
       max_duration: Union[int, str],
+      runner: runner.PipelineRunner = None,
+      options: pipeline_options.PipelineOptions = None,
       force_compute: bool = False) -> Recording:
     # noqa: F821
 
@@ -427,12 +432,20 @@ class RecordingManager:
       # incomplete.
       self._clear()
 
+      merged_options = pipeline_options.PipelineOptions(
+          **{
+              **self.user_pipeline.options.get_all_options(
+                  drop_default=True, retain_unknown_options=True),
+              **options.get_all_options(
+                  drop_default=True, retain_unknown_options=True)
+          }) if options else self.user_pipeline.options
+
       cache_path = ie.current_env().options.cache_root
       is_remote_run = cache_path and ie.current_env(
       ).options.cache_root.startswith('gs://')
       pf.PipelineFragment(
-          list(uncomputed_pcolls),
-          self.user_pipeline.options).run(blocking=is_remote_run)
+          list(uncomputed_pcolls), merged_options,
+          runner=runner).run(blocking=is_remote_run)
       result = ie.current_env().pipeline_result(self.user_pipeline)
     else:
       result = None
