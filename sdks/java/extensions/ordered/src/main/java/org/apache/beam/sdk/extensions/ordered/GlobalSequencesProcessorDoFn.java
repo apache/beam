@@ -105,10 +105,10 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   @ProcessElement
   public void processElement(ProcessContext context,
       @Element KV<EventKeyT, KV<Long, EventT>> eventAndSequence,
-      @StateId(BUFFERED_EVENTS) OrderedListState<EventT> bufferedEventsState,
+      @StateId(BUFFERED_EVENTS) OrderedListState<EventT> bufferedEventsProxy,
       @AlwaysFetched @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyT>> processingStateState,
-      @StateId(MUTABLE_STATE) ValueState<StateT> mutableStateState,
+      ValueState<ProcessingState<EventKeyT>> processingStateProxy,
+      @StateId(MUTABLE_STATE) ValueState<StateT> mutableStateProxy,
       @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
       @TimerId(BATCH_EMISSION_TIMER) Timer batchEmissionTimer,
       MultiOutputReceiver outputReceiver,
@@ -118,7 +118,6 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
         latestContinuousSequenceSideInput);
 
     EventT event = eventAndSequence.getValue().getValue();
-
     EventKeyT key = eventAndSequence.getKey();
     long sequence = eventAndSequence.getValue().getKey();
 
@@ -126,7 +125,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       LOG.trace(key + ": " + sequence + " lastSequence: " + lastContinuousSequence);
     }
 
-    ProcessingState<EventKeyT> processingState = processingStateState.read();
+    ProcessingState<EventKeyT> processingState = processingStateProxy.read();
 
     if (processingState == null) {
       // This is the first time we see this key/window pair
@@ -140,11 +139,9 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     processingState.updateGlobalSequenceDetails(lastContinuousSequence);
 
     if (event == null) {
-      // This is the ticker event. We only need to update the state as it relates to the global sequence.
-      processingStateState.write(processingState);
+      // This is a ticker event. We only need to update the state as it relates to the global sequence.
+      processingStateProxy.write(processingState);
 
-      // TODO: we can keep resetting this into the future under heavy load.
-      //  Need to add logic to avoid doing it.
       setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
 
       return;
@@ -162,27 +159,26 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
             sequence,
             event,
             processingState,
-            mutableStateState,
-            bufferedEventsState,
+            mutableStateProxy,
+            bufferedEventsProxy,
             outputReceiver);
 
     saveStates(
-        processingStateState,
+        processingStateProxy,
         processingState,
-        mutableStateState,
+        mutableStateProxy,
         state,
         outputReceiver,
         window.maxTimestamp());
 
-    // Only if the record matches the sequence it can be output now
-    // TODO: refactor the code from SequencePerKeyDoFn
+    setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
   }
 
   private void setBatchEmissionTimerIfNeeded(Timer batchEmissionTimer,
       ProcessingState<EventKeyT> processingState) {
     CompletedSequenceRange lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
     if (lastCompleteGlobalSequence != null &&
-        processingState.haveGloballySequencedEventsToBeProcessed()) {
+        processingState.thereAreGloballySequencedEventsToBeProcessed()) {
       batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
     }
   }

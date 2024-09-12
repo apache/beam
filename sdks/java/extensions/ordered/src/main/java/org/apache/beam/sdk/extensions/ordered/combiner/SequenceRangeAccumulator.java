@@ -111,7 +111,7 @@ public class SequenceRangeAccumulator {
 
   public void merge(SequenceRangeAccumulator another) {
     if (this.initialSequence != null && another.initialSequence != null
-        && this.initialSequence.equals(another.initialSequence)) {
+        && ! this.initialSequence.equals(another.initialSequence)) {
       throw new IllegalStateException("Two accumulators contain different initial sequences: "
           + this.initialSequence + " and " + another.initialSequence);
     }

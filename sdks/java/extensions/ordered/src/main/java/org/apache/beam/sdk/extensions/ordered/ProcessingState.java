@@ -302,10 +302,16 @@ class ProcessingState<KeyT> {
   }
 
   public void updateGlobalSequenceDetails(CompletedSequenceRange updated) {
+    if(thereAreGloballySequencedEventsToBeProcessed()) {
+      // We don't update the timer if we can already process events in the onTimer batch.
+      // Otherwise, it's possible that we will be pushing the timer to later timestamps
+      // without a chance to run and produce output.
+      return;
+    }
     this.lastCompleteGlobalSequence = updated;
   }
 
-  public boolean haveGloballySequencedEventsToBeProcessed() {
+  public boolean thereAreGloballySequencedEventsToBeProcessed() {
     return bufferedEventCount > 0
         && lastCompleteGlobalSequence != null
         && earliestBufferedSequence != null &&

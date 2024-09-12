@@ -16,18 +16,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Main DoFn for processing ordered events.
+ * Base DoFn for processing ordered events.
  *
- * @param <EventTypeT>
- * @param <EventKeyTypeT>
- * @param <StateTypeT>
+ * @param <EventT>     type of the events to process
+ * @param <EventKeyT>  event key type
+ * @param <StateT> state type
  */
-abstract class ProcessorDoFn<
-    EventTypeT,
-    EventKeyTypeT,
-    ResultTypeT,
-    StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
-    extends DoFn<KV<EventKeyTypeT, KV<Long, EventTypeT>>, KV<EventKeyTypeT, ResultTypeT>> {
+abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
+    StateT extends MutableState<EventT, ResultT>>
+    extends DoFn<KV<EventKeyT, KV<Long, EventT>>, KV<EventKeyT, ResultT>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessorDoFn.class);
 
@@ -36,38 +33,27 @@ abstract class ProcessorDoFn<
 
   protected static final String STATUS_EMISSION_TIMER = "statusTimer";
   protected static final String WINDOW_CLOSED = "windowClosed";
-  protected final EventExaminer<EventTypeT, StateTypeT> eventExaminer;
+  protected final EventExaminer<EventT, StateT> eventExaminer;
 
-  private final TupleTag<KV<EventKeyTypeT, OrderedProcessingStatus>> statusTupleTag;
+  private final TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusTupleTag;
   protected final Duration statusUpdateFrequency;
 
-  protected final TupleTag<KV<EventKeyTypeT, ResultTypeT>> mainOutputTupleTag;
-  protected final TupleTag<KV<EventKeyTypeT, KV<Long, UnprocessedEvent<EventTypeT>>>>
+  protected final TupleTag<KV<EventKeyT, ResultT>> mainOutputTupleTag;
+  protected final TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>
       unprocessedEventsTupleTag;
   private final boolean produceStatusUpdateOnEveryEvent;
 
   private final long maxNumberOfResultsToProduce;
 
 
-  protected @Nullable Long numberOfResultsBeforeBundleStart = Long.valueOf(0);
+  protected @Nullable Long numberOfResultsBeforeBundleStart = 0L;
 
-  /**
-   * Stateful DoFn to do the bulk of processing.
-   *
-   * @param eventExaminer
-   * @param mainOutputTupleTag
-   * @param statusTupleTag
-   * @param statusUpdateFrequency
-   * @param unprocessedEventTupleTag
-   * @param produceStatusUpdateOnEveryEvent
-   * @param maxNumberOfResultsToProduce
-   */
   ProcessorDoFn(
-      EventExaminer<EventTypeT, StateTypeT> eventExaminer,
-      TupleTag<KV<EventKeyTypeT, ResultTypeT>> mainOutputTupleTag,
-      TupleTag<KV<EventKeyTypeT, OrderedProcessingStatus>> statusTupleTag,
+      EventExaminer<EventT, StateT> eventExaminer,
+      TupleTag<KV<EventKeyT, ResultT>> mainOutputTupleTag,
+      TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusTupleTag,
       Duration statusUpdateFrequency,
-      TupleTag<KV<EventKeyTypeT, KV<Long, UnprocessedEvent<EventTypeT>>>>
+      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>
           unprocessedEventTupleTag,
       boolean produceStatusUpdateOnEveryEvent,
       long maxNumberOfResultsToProduce) {
@@ -92,6 +78,9 @@ abstract class ProcessorDoFn<
     numberOfResultsBeforeBundleStart = null;
   }
 
+  /**
+   * @return true if each event needs to be examined.
+   */
   abstract boolean checkForInitialEvent();
 
   /**
@@ -99,12 +88,12 @@ abstract class ProcessorDoFn<
    *
    * @return newly created or updated State. If null is returned - the event wasn't processed.
    */
-  protected @javax.annotation.Nullable StateTypeT processNewEvent(
+  protected @javax.annotation.Nullable StateT processNewEvent(
       long currentSequence,
-      EventTypeT currentEvent,
-      ProcessingState<EventKeyTypeT> processingState,
-      ValueState<StateTypeT> currentStateState,
-      OrderedListState<EventTypeT> bufferedEventsState,
+      EventT currentEvent,
+      ProcessingState<EventKeyT> processingState,
+      ValueState<StateT> currentStateState,
+      OrderedListState<EventT> bufferedEventsState,
       MultiOutputReceiver outputReceiver) {
     if (currentSequence == Long.MAX_VALUE) {
       // OrderedListState can't handle the timestamp based on MAX_VALUE.
@@ -132,7 +121,7 @@ abstract class ProcessorDoFn<
       return null;
     }
 
-    StateTypeT state;
+    StateT state;
     boolean thisIsTheLastEvent = eventExaminer.isLastEvent(currentSequence, currentEvent);
     if (checkForInitialEvent() && eventExaminer.isInitialEvent(currentSequence, currentEvent)) {
       // First event of the key/window
@@ -142,7 +131,7 @@ abstract class ProcessorDoFn<
 
       processingState.eventAccepted(currentSequence, thisIsTheLastEvent);
 
-      ResultTypeT result = state.produceResult();
+      ResultT result = state.produceResult();
       if (result != null) {
         outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
         processingState.resultProduced();
@@ -172,7 +161,7 @@ abstract class ProcessorDoFn<
         return null;
       }
 
-      ResultTypeT result = state.produceResult();
+      ResultT result = state.produceResult();
       if (result != null) {
         outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
         processingState.resultProduced();
@@ -186,16 +175,15 @@ abstract class ProcessorDoFn<
     bufferEvent(currentSequence, currentEvent, processingState, bufferedEventsState,
         thisIsTheLastEvent);
 
-    // This will signal that the state hasn't been mutated and we don't need to save it.
+    // This will signal that the state hasn't been mutated. We don't need to save it.
     return null;
   }
 
-
   protected void saveStates(
-      ValueState<ProcessingState<EventKeyTypeT>> processingStatusState,
-      ProcessingState<EventKeyTypeT> processingStatus,
-      ValueState<StateTypeT> currentStateState,
-      @Nullable StateTypeT state,
+      ValueState<ProcessingState<EventKeyT>> processingStatusState,
+      ProcessingState<EventKeyT> processingStatus,
+      ValueState<StateT> currentStateState,
+      @Nullable StateT state,
       MultiOutputReceiver outputReceiver,
       Instant windowTimestamp) {
     // There is always a change to the processing status
@@ -217,11 +205,11 @@ abstract class ProcessorDoFn<
 
   void processStatusTimerEvent(MultiOutputReceiver outputReceiver, Timer statusEmissionTimer,
       ValueState<Boolean> windowClosedState,
-      ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
-    ProcessingState<EventKeyTypeT> currentState = processingStateState.read();
+      ValueState<ProcessingState<EventKeyT>> processingStateState) {
+    ProcessingState<EventKeyT> currentState = processingStateState.read();
     if (currentState == null) {
       // This could happen if the state has been purged already during the draining.
-      // It means that there is nothing that we can do and we just need to return.
+      // It means that there is nothing that we can do.
       LOG.warn(
           "Current processing state is null in onStatusEmission() - most likely the pipeline is shutting down.");
       return;
@@ -238,10 +226,10 @@ abstract class ProcessorDoFn<
   }
 
   protected void emitProcessingStatus(
-      ProcessingState<EventKeyTypeT> processingState,
+      ProcessingState<EventKeyT> processingState,
       MultiOutputReceiver outputReceiver,
       Instant statusTimestamp) {
-    if(LOG.isTraceEnabled()) {
+    if (LOG.isTraceEnabled()) {
       LOG.trace("Emitting status for: " + processingState.getKey() + ", " + processingState);
     }
     outputReceiver
@@ -263,14 +251,13 @@ abstract class ProcessorDoFn<
 
 
   protected boolean reachedMaxResultCountForBundle(
-      ProcessingState<EventKeyTypeT> processingState, Timer largeBatchEmissionTimer) {
+      ProcessingState<EventKeyT> processingState, Timer largeBatchEmissionTimer) {
     boolean exceeded =
         processingState.resultsProducedInBundle(
-            numberOfResultsBeforeBundleStart == null ? 0
-                : numberOfResultsBeforeBundleStart.longValue())
+            numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart)
             >= maxNumberOfResultsToProduce;
     if (exceeded) {
-      if(LOG.isTraceEnabled()) {
+      if (LOG.isTraceEnabled()) {
         LOG.trace(
             "Setting the timer to output next batch of events for key '"
                 + processingState.getKey()
@@ -284,9 +271,9 @@ abstract class ProcessorDoFn<
     return exceeded;
   }
 
-  private void bufferEvent(long currentSequence, EventTypeT currentEvent,
-      ProcessingState<EventKeyTypeT> processingState,
-      OrderedListState<EventTypeT> bufferedEventsState, boolean thisIsTheLastEvent) {
+  private void bufferEvent(long currentSequence, EventT currentEvent,
+      ProcessingState<EventKeyT> processingState,
+      OrderedListState<EventT> bufferedEventsState, boolean thisIsTheLastEvent) {
     Instant eventTimestamp = fromLong(currentSequence);
     bufferedEventsState.add(TimestampedValue.of(currentEvent, eventTimestamp));
     processingState.eventBuffered(currentSequence, thisIsTheLastEvent);
@@ -295,9 +282,9 @@ abstract class ProcessorDoFn<
   abstract boolean checkForSequenceGapInBufferedEvents();
 
   @Nullable
-  StateTypeT processBufferedEventRange(ProcessingState<EventKeyTypeT> processingState,
-      @Nullable StateTypeT state,
-      OrderedListState<EventTypeT> bufferedEventsState, MultiOutputReceiver outputReceiver,
+  StateT processBufferedEventRange(ProcessingState<EventKeyT> processingState,
+      @Nullable StateT state,
+      OrderedListState<EventT> bufferedEventsState, MultiOutputReceiver outputReceiver,
       Timer largeBatchEmissionTimer, CompletedSequenceRange completedSequenceRange) {
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
     Long latestBufferedSequence = processingState.getLatestBufferedSequence();
@@ -308,18 +295,18 @@ abstract class ProcessorDoFn<
     Instant endRange = fromLong(latestBufferedSequence + 1);
 
     // readRange is efficiently implemented and will bring records in batches
-    Iterable<TimestampedValue<EventTypeT>> events =
+    Iterable<TimestampedValue<EventT>> events =
         bufferedEventsState.readRange(startRange, endRange);
 
     Instant endClearRange = startRange; // it will get re-adjusted later.
 
-    Iterator<TimestampedValue<EventTypeT>> bufferedEventsIterator = events.iterator();
+    Iterator<TimestampedValue<EventT>> bufferedEventsIterator = events.iterator();
     while (bufferedEventsIterator.hasNext()) {
-      TimestampedValue<EventTypeT> timestampedEvent = bufferedEventsIterator.next();
+      TimestampedValue<EventT> timestampedEvent = bufferedEventsIterator.next();
       Instant eventTimestamp = timestampedEvent.getTimestamp();
       long eventSequence = eventTimestamp.getMillis();
 
-      EventTypeT bufferedEvent = timestampedEvent.getValue();
+      EventT bufferedEvent = timestampedEvent.getValue();
       boolean skipProcessing = false;
 
       if (completedSequenceRange != null && eventSequence < completedSequenceRange.getStart()) {
@@ -333,7 +320,7 @@ abstract class ProcessorDoFn<
         skipProcessing = true;
       }
 
-      if(skipProcessing) {
+      if (skipProcessing) {
         outputReceiver
             .get(unprocessedEventsTupleTag)
             .output(
@@ -349,13 +336,12 @@ abstract class ProcessorDoFn<
       }
 
       Long lastOutputSequence = processingState.getLastOutputSequence();
-      boolean currentEventIsNotInSequence =
-          lastOutputSequence != null && eventSequence > lastOutputSequence + 1;
-      boolean stopProcessing = checkForSequenceGapInBufferedEvents() ?
-          currentEventIsNotInSequence :
-          // TODO: can it be made more clear?
-          (!(eventSequence <= completedSequenceRange.getEnd()) && currentEventIsNotInSequence);
-      if (stopProcessing) {
+      boolean currentEventIsNextInSequence =
+          lastOutputSequence != null && eventSequence == lastOutputSequence + 1;
+      boolean continueProcessing = checkForSequenceGapInBufferedEvents() ?
+          currentEventIsNextInSequence :
+          (eventSequence <= completedSequenceRange.getEnd() || currentEventIsNextInSequence);
+      if (!continueProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element
         endClearRange = fromLong(eventSequence);
@@ -374,12 +360,12 @@ abstract class ProcessorDoFn<
 
       try {
         if (state == null) {
-          if(LOG.isTraceEnabled()) {
+          if (LOG.isTraceEnabled()) {
             LOG.trace("Creating a new state: " + processingState.getKey() + " " + bufferedEvent);
           }
           state = eventExaminer.createStateOnInitialEvent(bufferedEvent);
         } else {
-          if(LOG.isTraceEnabled()) {
+          if (LOG.isTraceEnabled()) {
             LOG.trace("Mutating " + processingState.getKey() + " " + bufferedEvent);
           }
           state.mutate(bufferedEvent);
@@ -396,7 +382,7 @@ abstract class ProcessorDoFn<
         continue;
       }
 
-      ResultTypeT result = state.produceResult();
+      ResultT result = state.produceResult();
       if (result != null) {
         outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
         processingState.resultProduced();

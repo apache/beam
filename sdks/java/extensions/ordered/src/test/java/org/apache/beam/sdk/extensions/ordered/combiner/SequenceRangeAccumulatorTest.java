@@ -9,7 +9,7 @@ import org.junit.Test;
 
 public class SequenceRangeAccumulatorTest {
 
-  // Atomic ust in case tests are run in parallel
+  // Atomic just in case tests are run in parallel
   private final static AtomicLong currentTicker = new AtomicLong();
 
   static Instant nextTimestamp() {
@@ -128,7 +128,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(7, nextTimestamp(), true),
     };
 
-    doTestAccumulation(events, CompletedSequenceRange.of(7,7, eventTimestamp(events, 7)), 1);
+    doTestAccumulation(events, CompletedSequenceRange.of(7, 7, eventTimestamp(events, 7)), 1);
   }
 
   @Test
@@ -151,7 +151,7 @@ public class SequenceRangeAccumulatorTest {
     };
 
     Instant timestampOfTheLastEvent = events[events.length - 1].timestamp;
-    doTestAccumulation(events, CompletedSequenceRange.of(7,8, timestampOfTheLastEvent), 1);
+    doTestAccumulation(events, CompletedSequenceRange.of(7, 8, timestampOfTheLastEvent), 1);
   }
 
   private static void doTestAccumulation(Event[] events, CompletedSequenceRange expectedResult,
@@ -233,7 +233,6 @@ public class SequenceRangeAccumulatorTest {
 
   @Test
   public void testMergingAdjacentRanges() {
-    // TODO: Test the max timestamp being selected.
     Event[] set1 = new Event[]{
         new Event(1, nextTimestamp(), true),
         new Event(2, nextTimestamp()),
@@ -274,7 +273,66 @@ public class SequenceRangeAccumulatorTest {
 
   @Test
   public void testDuplicateHandling() {
-    // TODO:
+    Event[] set1 = new Event[]{
+        new Event(1, nextTimestamp(), true),
+        new Event(2, nextTimestamp()),
+        new Event(3, nextTimestamp()),
+        new Event(5, nextTimestamp()),
+    };
+    Event[] set2 = new Event[]{
+        new Event(3, nextTimestamp()),
+        new Event(4, nextTimestamp()),
+        new Event(5, nextTimestamp()),
+        new Event(6, nextTimestamp())
+    };
+
+    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 6,
+        eventTimestamp(set2, 6L));
+    int expectedNumberOfRanges = 1;
+
+    doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
+  }
+
+  @Test
+  public void testExceptionThrownIfThereAreDifferentInitialSequences() {
+    Event[] set1 = new Event[]{
+        new Event(1, nextTimestamp(), true),
+        new Event(2, nextTimestamp()),
+    };
+    Event[] set2 = new Event[]{
+        new Event(3, nextTimestamp(), true),
+        new Event(4, nextTimestamp()),
+        new Event(5, nextTimestamp()),
+        new Event(6, nextTimestamp())
+    };
+
+    try {
+      doTestMerging(set1, set2, CompletedSequenceRange.EMPTY, 0);
+      Assert.fail("Expected to throw an exception");
+    } catch (IllegalStateException e) {
+      Assert.assertEquals("Exception message",
+          "Two accumulators contain different initial sequences: 1 and 3", e.getMessage());
+    }
+  }
+
+
+  @Test
+  public void testSelectingHighestTimestampWhenMerging() {
+    Event[] set1 = new Event[]{
+        new Event(1, nextTimestamp(), true),
+        new Event(2, Instant.ofEpochMilli(currentTicker.get() + 10000)),
+    };
+    Event[] set2 = new Event[]{
+        new Event(3, nextTimestamp()),
+        new Event(4, nextTimestamp()),
+        new Event(5, nextTimestamp()),
+        new Event(6, nextTimestamp())
+    };
+
+    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 6,
+        eventTimestamp(set1, 2L));
+    int expectedNumberOfRanges = 1;
+    doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
   }
 
   private static void doTestMerging(Event[] set1, Event[] set2,
