@@ -170,8 +170,8 @@ final class GrpcCommitWorkStream
       }
       PendingRequest pendingRequest = pending.remove(requestId);
       if (pendingRequest == null) {
-        // Skip responses when the stream is shutdown since they are now invalid.
         if (!isShutdown()) {
+          // Skip responses when the stream is shutdown since they are now invalid.
           LOG.error("Got unknown commit request ID: {}", requestId);
         }
       } else {
@@ -183,8 +183,11 @@ final class GrpcCommitWorkStream
           // other commits from being processed. Aggregate all the failures to throw after
           // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
-          if (failure == null) failure = e;
-          else failure.addSuppressed(e);
+          if (failure == null) {
+            failure = e;
+          } else {
+            failure.addSuppressed(e);
+          }
         }
       }
     }
@@ -361,15 +364,15 @@ final class GrpcCommitWorkStream
     /** Flushes any pending work items to the wire. */
     @Override
     public void flush() {
-      if (!isShutdown()) {
-        try {
+      try {
+        if (!isShutdown()) {
           flushInternal(queue);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        } finally {
-          queuedBytes = 0;
-          queue.clear();
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } finally {
+        queuedBytes = 0;
+        queue.clear();
       }
     }
 

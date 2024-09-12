@@ -174,7 +174,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     stubFactory.shutdown();
   }
 
-  private FanOutStreamingEngineWorkerHarness newStreamingEngineClient(
+  private FanOutStreamingEngineWorkerHarness newFanOutStreamingEngineWorkerHarness(
       GetWorkBudget getWorkBudget,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       WorkItemScheduler workItemScheduler) {
@@ -200,7 +200,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         spy(new TestGetWorkBudgetDistributor(numBudgetDistributionsExpected));
 
     fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
+        newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(items).setBytes(bytes).build(),
             getWorkBudgetDistributor,
             noOpProcessWorkItemFn());
@@ -247,29 +247,9 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             any(),
             eq(noOpProcessWorkItemFn()));
 
-    verify(streamFactory, times(2)).createGetDataStream(any(), any());
-    verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
-  }
-
-  @Test
-  public void testScheduledBudgetRefresh() throws InterruptedException {
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor =
-        spy(new TestGetWorkBudgetDistributor(2));
-    fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
-            GetWorkBudget.builder().setItems(1L).setBytes(1L).build(),
-            getWorkBudgetDistributor,
-            noOpProcessWorkItemFn());
-
-    getWorkerMetadataReady.await();
-    fakeGetWorkerMetadataStub.injectWorkerMetadata(
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(1)
-            .addWorkEndpoints(metadataResponseEndpoint("workerToken"))
-            .putAllGlobalDataEndpoints(DEFAULT)
-            .build());
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
-    verify(getWorkBudgetDistributor, atLeast(2)).distributeBudget(any(), any());
+    verify(streamFactory, times(2)).createDirectGetDataStream(any(WindmillConnection.class), any());
+    verify(streamFactory, times(2))
+        .createDirectCommitWorkStream(any(WindmillConnection.class), any());
   }
 
   @Test
@@ -279,7 +259,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(metadataCount));
     fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
+        newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
             noOpProcessWorkItemFn());
@@ -333,7 +313,6 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   public void testOnNewWorkerMetadata_redistributesBudget() throws InterruptedException {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";
-    String workerToken3 = "workerToken3";
 
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
@@ -353,23 +332,14 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                     .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
-    WorkerMetadataResponse thirdWorkerMetadata =
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(3)
-            .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder()
-                    .setBackendWorkerToken(workerToken3)
-                    .build())
-            .putAllGlobalDataEndpoints(DEFAULT)
-            .build();
 
     List<WorkerMetadataResponse> workerMetadataResponses =
-        Lists.newArrayList(firstWorkerMetadata, secondWorkerMetadata, thirdWorkerMetadata);
+        Lists.newArrayList(firstWorkerMetadata, secondWorkerMetadata);
 
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(workerMetadataResponses.size()));
     fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
+        newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
             noOpProcessWorkItemFn());
@@ -382,6 +352,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .forEach(fakeGetWorkerMetadataStub::injectWorkerMetadata);
 
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
+
     verify(getWorkBudgetDistributor, atLeast(workerMetadataResponses.size()))
         .distributeBudget(any(), any());
   }

@@ -182,7 +182,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   }
 
   private boolean hasDeadlineExpired(long totalSecondsWaited) {
-    return (deadlineSeconds > 0 ? deadlineSeconds : MAX_WAIT_SECONDS) > totalSecondsWaited;
+    return totalSecondsWaited > (deadlineSeconds > 0 ? deadlineSeconds : MAX_WAIT_SECONDS);
   }
 
   private String constructStreamCancelledErrorMessage(long totalSecondsWaited) {

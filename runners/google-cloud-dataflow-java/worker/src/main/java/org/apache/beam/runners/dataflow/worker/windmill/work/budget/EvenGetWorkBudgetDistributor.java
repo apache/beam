@@ -22,8 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.Do
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath.divide;
 
 import java.math.RoundingMode;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.annotations.Internal;
@@ -37,12 +35,12 @@ import org.slf4j.LoggerFactory;
 final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
   private final Supplier<GetWorkBudget> activeWorkBudgetSupplier;
-  private final boolean isActiveWorkBudgetAware;
+  private final boolean shouldConsiderRemainingBudget;
 
   EvenGetWorkBudgetDistributor(
-      Supplier<GetWorkBudget> activeWorkBudgetSupplier, boolean isActiveWorkBudgetAware) {
+      Supplier<GetWorkBudget> activeWorkBudgetSupplier, boolean shouldConsiderRemainingBudget) {
     this.activeWorkBudgetSupplier = activeWorkBudgetSupplier;
-    this.isActiveWorkBudgetAware = isActiveWorkBudgetAware;
+    this.shouldConsiderRemainingBudget = shouldConsiderRemainingBudget;
   }
 
   private static boolean isBelowFiftyPercentOfTarget(
@@ -53,8 +51,8 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
 
   @Override
   public <T extends GetWorkBudgetSpender> void distributeBudget(
-      ImmutableCollection<T> budgetOwners, GetWorkBudget getWorkBudget) {
-    if (budgetOwners.isEmpty()) {
+      ImmutableCollection<T> budgetSpenders, GetWorkBudget getWorkBudget) {
+    if (budgetSpenders.isEmpty()) {
       LOG.debug("Cannot distribute budget to no owners.");
       return;
     }
@@ -64,19 +62,19 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
       return;
     }
 
-    Map<T, GetWorkBudget> desiredBudgets = computeDesiredBudgets(budgetOwners, getWorkBudget);
-
-    for (Entry<T, GetWorkBudget> streamAndDesiredBudget : desiredBudgets.entrySet()) {
-      GetWorkBudgetSpender getWorkBudgetSpender = streamAndDesiredBudget.getKey();
-      GetWorkBudget desired = streamAndDesiredBudget.getValue();
-      GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
-      if (isBelowFiftyPercentOfTarget(remaining, desired) && isActiveWorkBudgetAware) {
-        GetWorkBudget adjustment = desired.subtract(remaining);
-        getWorkBudgetSpender.adjustBudget(adjustment);
-      } else {
-        getWorkBudgetSpender.adjustBudget(desired);
-      }
-    }
+    computeDesiredBudgets(budgetSpenders, getWorkBudget)
+        .forEach(
+            (getWorkBudgetSpender, desiredBudget) -> {
+              if (shouldConsiderRemainingBudget) {
+                GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
+                if (isBelowFiftyPercentOfTarget(remaining, desiredBudget)) {
+                  GetWorkBudget adjustment = desiredBudget.subtract(remaining);
+                  getWorkBudgetSpender.adjustBudget(adjustment);
+                }
+              } else {
+                getWorkBudgetSpender.adjustBudget(desiredBudget);
+              }
+            });
   }
 
   private <T extends GetWorkBudgetSpender> ImmutableMap<T, GetWorkBudget> computeDesiredBudgets(

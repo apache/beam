@@ -81,10 +81,11 @@ import org.slf4j.LoggerFactory;
 public final class FanOutStreamingEngineWorkerHarness implements StreamingWorkerHarness {
   private static final Logger LOG =
       LoggerFactory.getLogger(FanOutStreamingEngineWorkerHarness.class);
-  private static final String PUBLISH_NEW_WORKER_METADATA_THREAD = "PublishNewWorkerMetadataThread";
-  private static final String CONSUME_NEW_WORKER_METADATA_THREAD = "ConsumeNewWorkerMetadataThread";
-  private static final String STREAM_STARTER_THREAD = "WindmillStreamStarter";
-  private static final String STREAM_CLOSER_THREAD = "WindmillStreamCloser";
+  private static final String PUBLISH_NEW_WORKER_METADATA_THREAD_NAME =
+      "PublishNewWorkerMetadataThread";
+  private static final String CONSUME_NEW_WORKER_METADATA_THREAD_NAME =
+      "ConsumeNewWorkerMetadataThread";
+  private static final String STREAM_MANAGER_THREAD_NAME = "WindmillStreamManager-%d";
 
   private final JobHeader jobHeader;
   private final GrpcWindmillStreamFactory streamFactory;
@@ -98,8 +99,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
-  private final ExecutorService windmillStreamStarter;
-  private final ExecutorService windmillStreamCloser;
+  private final ExecutorService windmillStreamManager;
   private final ExecutorService newWorkerMetadataPublisher;
   private final ExecutorService newWorkerMetadataConsumer;
 
@@ -128,18 +128,19 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.channelCachingStubFactory = channelCachingStubFactory;
     this.dispatcherClient = dispatcherClient;
     this.getWorkerMetadataThrottleTimer = new ThrottleTimer();
-    this.windmillStreamStarter =
+    this.windmillStreamManager =
         Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat(STREAM_STARTER_THREAD).build());
-    this.windmillStreamCloser =
-        Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat(STREAM_CLOSER_THREAD).build());
+            new ThreadFactoryBuilder().setNameFormat(STREAM_MANAGER_THREAD_NAME).build());
     this.newWorkerMetadataPublisher =
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat(PUBLISH_NEW_WORKER_METADATA_THREAD).build());
+            new ThreadFactoryBuilder()
+                .setNameFormat(PUBLISH_NEW_WORKER_METADATA_THREAD_NAME)
+                .build());
     this.newWorkerMetadataConsumer =
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat(CONSUME_NEW_WORKER_METADATA_THREAD).build());
+            new ThreadFactoryBuilder()
+                .setNameFormat(CONSUME_NEW_WORKER_METADATA_THREAD_NAME)
+                .build());
     this.newWindmillEndpoints = Queues.synchronizedQueue(EvictingQueue.create(1));
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.totalGetWorkBudget = totalGetWorkBudget;
@@ -269,38 +270,33 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   private void consumeWindmillWorkerEndpoints(WindmillEndpoints newWindmillEndpoints) {
-    consumeEndpoints(newWindmillEndpoints).join();
-  }
+    CompletableFuture<Void> closeStaleStreams;
 
-  /**
-   * {@link java.util.function.Consumer<WindmillEndpoints>} used to update {@link #connections} on
-   * new backend worker metadata.
-   */
-  private synchronized CompletableFuture<Void> consumeEndpoints(
-      WindmillEndpoints newWindmillEndpoints) {
-    LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
-    ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
-        createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
-    CompletableFuture<Void> closeStaleStreams =
-        closeStaleStreams(newWindmillConnections.values(), connections.get().windmillStreams());
-    ImmutableMap<WindmillConnection, WindmillStreamSender> newStreams =
-        createAndStartNewStreams(newWindmillConnections.values()).join();
-    StreamingEngineConnectionState newConnectionsState =
-        StreamingEngineConnectionState.builder()
-            .setWindmillConnections(newWindmillConnections)
-            .setWindmillStreams(newStreams)
-            .setGlobalDataStreams(
-                createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
-            .build();
-    LOG.info(
-        "Setting new connections: {}. Previous connections: {}.",
-        newConnectionsState,
-        connections.get());
-    connections.set(newConnectionsState);
-    getWorkBudgetDistributor.distributeBudget(newStreams.values(), totalGetWorkBudget);
+    synchronized (this) {
+      LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
+      ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
+          createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
+      closeStaleStreams =
+          closeStaleStreams(newWindmillConnections.values(), connections.get().windmillStreams());
+      ImmutableMap<WindmillConnection, WindmillStreamSender> newStreams =
+          createAndStartNewStreams(newWindmillConnections.values()).join();
+      StreamingEngineConnectionState newConnectionsState =
+          StreamingEngineConnectionState.builder()
+              .setWindmillConnections(newWindmillConnections)
+              .setWindmillStreams(newStreams)
+              .setGlobalDataStreams(
+                  createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
+              .build();
+      LOG.info(
+          "Setting new connections: {}. Previous connections: {}.",
+          newConnectionsState,
+          connections.get());
+      connections.set(newConnectionsState);
+      getWorkBudgetDistributor.distributeBudget(newStreams.values(), totalGetWorkBudget);
+    }
 
     // Close the streams outside the lock.
-    return closeStaleStreams;
+    closeStaleStreams.join();
   }
 
   /** Close the streams that are no longer valid asynchronously. */
@@ -316,17 +312,15 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                 entry ->
                     CompletableFuture.runAsync(
                         () -> {
-                          LOG.debug("Closing streams to {}", entry.getKey().backendWorkerToken());
+                          LOG.debug("Closing streams to {}", entry);
                           entry.getValue().closeAllStreams();
                           entry
                               .getKey()
                               .directEndpoint()
                               .ifPresent(channelCachingStubFactory::remove);
-                          LOG.debug(
-                              "Successfully closed streams to {}",
-                              entry.getKey().backendWorkerToken());
+                          LOG.debug("Successfully closed streams to {}", entry);
                         },
-                        windmillStreamCloser))
+                        windmillStreamManager))
             .toArray(CompletableFuture[]::new));
   }
 
@@ -349,7 +343,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                                                 () ->
                                                     createAndStartWindmillStreamSender(
                                                         connection))),
-                                windmillStreamStarter))
+                                windmillStreamManager))
                     .collect(Collectors.toList()));
 
     return connectionAndSenderFuture

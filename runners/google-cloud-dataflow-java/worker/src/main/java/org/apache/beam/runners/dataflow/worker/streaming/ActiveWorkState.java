@@ -312,7 +312,7 @@ public final class ActiveWorkState {
       if (executableWork != null) {
         Work work = executableWork.work();
         if (work.isStuckCommittingAt(stuckCommitDeadline)) {
-          LOG.debug(
+          LOG.error(
               "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
               shardedKey,
               work.getStateStartTime());
@@ -337,6 +337,7 @@ public final class ActiveWorkState {
     writer.println(
         "<table border=\"1\" "
             + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
+    // Columns.
     writer.println(
         "<tr>"
             + "<th>Key</th>"

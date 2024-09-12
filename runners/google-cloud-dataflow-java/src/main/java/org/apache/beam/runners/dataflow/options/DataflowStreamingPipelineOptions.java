@@ -300,7 +300,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
     }
   }
 
-  /** EnableStreamingEngine defaults to false unless one of the two experiments is set. */
+  /** EnableStreamingEngine defaults to false unless one of the experiment is set. */
   class EnableWindmillServiceDirectPathFactory implements DefaultValueFactory<Boolean> {
     @Override
     public Boolean create(PipelineOptions options) {

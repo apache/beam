@@ -136,7 +136,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue.",
           e);
     }
-    LOG.info("trieu: stop() called, draining commit queue of {}.", commitQueue.size());
     drainCommitQueue();
   }
 

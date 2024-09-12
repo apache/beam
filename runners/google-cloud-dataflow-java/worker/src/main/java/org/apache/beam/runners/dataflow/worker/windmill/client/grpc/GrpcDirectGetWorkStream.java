@@ -174,6 +174,11 @@ public final class GrpcDirectGetWorkStream
         .build();
   }
 
+  /**
+   * @implNote Do not lock/synchronize here due to this running on grpc serial executor for message
+   *     which can deadlock since we send on the stream beneath the synchronization. {@link
+   *     AbstractWindmillStream#send(Object)} is synchronized so the sends are already guarded.
+   */
   private void sendRequestExtension() {
     GetWorkBudget currentInFlightBudget = inFlightBudget.get();
     GetWorkBudget currentMaxBudget = maxGetWorkBudget.get();
@@ -265,11 +270,11 @@ public final class GrpcDirectGetWorkStream
 
   private Work.ProcessingContext createProcessingContext(String computationId) {
     return Work.createProcessingContext(
-        backendWorkerToken(),
         computationId,
         getDataClient.get(),
         workCommitter.get()::commit,
-        heartbeatSender.get());
+        heartbeatSender.get(),
+        backendWorkerToken());
   }
 
   @Override
@@ -286,7 +291,7 @@ public final class GrpcDirectGetWorkStream
 
   @Override
   public GetWorkBudget remainingBudget() {
-    return maxGetWorkBudget.getAndUpdate(budget -> budget.subtract(inFlightBudget.get()));
+    return maxGetWorkBudget.get().subtract(inFlightBudget.get());
   }
 
   @Override

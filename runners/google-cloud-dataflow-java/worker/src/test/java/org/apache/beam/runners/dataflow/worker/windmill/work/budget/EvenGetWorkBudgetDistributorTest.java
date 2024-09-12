@@ -52,6 +52,20 @@ public class EvenGetWorkBudgetDistributorTest {
             .build());
   }
 
+  private static GetWorkBudgetSpender createGetWorkBudgetOwnerWithRemainingBudgetOf(
+      GetWorkBudget getWorkBudget) {
+    return spy(
+        new GetWorkBudgetSpender() {
+          @Override
+          public void adjustBudget(long itemsDelta, long bytesDelta) {}
+
+          @Override
+          public GetWorkBudget remainingBudget() {
+            return getWorkBudget;
+          }
+        });
+  }
+
   @Test
   public void testDistributeBudget_doesNothingWhenPassedInStreamsEmpty() {
     createBudgetDistributor(1L)
@@ -217,17 +231,33 @@ public class EvenGetWorkBudgetDistributorTest {
                 .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
   }
 
-  private GetWorkBudgetSpender createGetWorkBudgetOwnerWithRemainingBudgetOf(
-      GetWorkBudget getWorkBudget) {
-    return spy(
-        new GetWorkBudgetSpender() {
-          @Override
-          public void adjustBudget(long itemsDelta, long bytesDelta) {}
+  @Test
+  public void
+      testDistributeBudget_adjustBudgetIgnoringRemainingBudget_shouldIgnoreRemainingBudget() {
+    long totalItemsAndBytes = 10L;
+    List<GetWorkBudgetSpender> streams = new ArrayList<>();
+    for (int i = 0; i < totalItemsAndBytes; i++) {
+      streams.add(
+          spy(
+              createGetWorkBudgetOwnerWithRemainingBudgetOf(
+                  GetWorkBudget.builder()
+                      .setItems(totalItemsAndBytes)
+                      .setBytes(totalItemsAndBytes)
+                      .build())));
+    }
 
-          @Override
-          public GetWorkBudget remainingBudget() {
-            return getWorkBudget;
-          }
-        });
+    GetWorkBudgetDistributors.distributeEvenly()
+        .distributeBudget(
+            ImmutableList.copyOf(streams),
+            GetWorkBudget.builder()
+                .setItems(totalItemsAndBytes)
+                .setBytes(totalItemsAndBytes)
+                .build());
+
+    long itemsAndBytesPerStream = totalItemsAndBytes / streams.size();
+    streams.forEach(
+        stream ->
+            verify(stream, times(1))
+                .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
   }
 }

@@ -40,6 +40,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.api.client.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -71,6 +72,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // Default gRPC streams to 2MB chunks, which has shown to be a large enough chunk size to reduce
   // per-chunk overhead, and small enough that we can still perform granular flow-control.
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
+  private static final Status OK_STATUS = Status.fromCode(Status.Code.OK);
 
   protected final AtomicBoolean clientClosed;
   protected final Sleeper sleeper;
@@ -79,9 +81,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final BackOff backoff;
   private final AtomicLong startTimeMs;
   private final AtomicLong lastResponseTimeMs;
+  private final AtomicInteger restartCount;
   private final AtomicInteger errorCount;
-  private final AtomicReference<String> lastError;
-  private final AtomicReference<DateTime> lastErrorTime;
+  private final AtomicReference<String> lastRestartReason;
+  private final AtomicReference<DateTime> lastRestartTime;
   private final AtomicLong sleepUntil;
   private final CountDownLatch finishLatch;
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
@@ -89,7 +92,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final String backendWorkerToken;
   private final ResettableRequestObserver<RequestT> requestObserver;
   private final AtomicBoolean isShutdown;
+
+  /**
+   * Indicates if the current {@link ResettableRequestObserver} was closed by calling {@link
+   * #halfClose()}.
+   */
   private final AtomicBoolean streamClosed;
+
   private final Logger logger;
 
   protected AbstractWindmillStream(
@@ -117,9 +126,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.startTimeMs = new AtomicLong();
     this.lastSendTimeMs = new AtomicLong();
     this.lastResponseTimeMs = new AtomicLong();
+    this.restartCount = new AtomicInteger();
     this.errorCount = new AtomicInteger();
-    this.lastError = new AtomicReference<>();
-    this.lastErrorTime = new AtomicReference<>();
+    this.lastRestartReason = new AtomicReference<>();
+    this.lastRestartTime = new AtomicReference<>();
     this.sleepUntil = new AtomicLong();
     this.finishLatch = new CountDownLatch(1);
     this.requestObserver =
@@ -223,6 +233,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           sleeper.sleep(sleep);
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
+          logger.info(
+              "Interrupted during stream creation backoff. The stream will not be created.");
           break;
         } catch (IOException ioe) {
           // Keep trying to create the stream.
@@ -267,10 +279,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    */
   public final void appendSummaryHtml(PrintWriter writer) {
     appendSpecificHtml(writer);
-    if (errorCount.get() > 0) {
+    if (restartCount.get() > 0) {
       writer.format(
-          ", %d errors, last error [ %s ] at [%s]",
-          errorCount.get(), lastError.get(), lastErrorTime.get());
+          ", %d restarts, last restart reason [ %s ] at [%s], %d errors",
+          restartCount.get(), lastRestartReason.get(), lastRestartTime.get(), errorCount.get());
     }
     if (clientClosed.get()) {
       writer.write(", client closed");
@@ -327,9 +339,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
-  private void setLastError(String error) {
-    lastError.set(error);
-    lastErrorTime.set(DateTime.now());
+  private void recordRestartReason(String error) {
+    lastRestartReason.set(error);
+    lastRestartTime.set(DateTime.now());
   }
 
   protected abstract void shutdownInternal();
@@ -358,12 +370,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
 
     private synchronized StreamObserver<RequestT> delegate() {
-      if (delegateRequestObserver == null) {
-        throw new NullPointerException(
-            "requestObserver cannot be null. Missing a call to startStream() to initialize.");
-      }
-
-      return delegateRequestObserver;
+      return Preconditions.checkNotNull(
+          delegateRequestObserver,
+          "requestObserver cannot be null. Missing a call to startStream() to initialize.");
     }
 
     private synchronized void reset() {
@@ -405,25 +414,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         return;
       }
 
-      Status status = Status.fromThrowable(t);
-      setLastError(status.toString());
-
-      if (t instanceof StreamObserverCancelledException) {
-        logger.error(
-            "StreamObserver was unexpectedly cancelled for stream={}, worker={}. stacktrace={}",
-            getClass(),
-            backendWorkerToken,
-            t.getStackTrace(),
-            t);
-      } else if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {
-        // Don't log every error since it will get noisy, and many errors transient.
-        logError(t, status);
-      }
-
-      // If the stream was stopped due to a resource exhausted error then we are throttled.
-      if (status.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-        startThrottleTimer();
-      }
+      recordStreamStatus(Status.fromThrowable(t));
 
       try {
         long sleep = backoff.nextBackOffMillis();
@@ -439,40 +430,62 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       executeSafely(AbstractWindmillStream.this::startStream);
     }
 
-    private void logError(Throwable exception, Status status) {
-      long nowMillis = Instant.now().getMillis();
-      String responseDebug =
-          lastResponseTimeMs.get() == 0
-              ? "never received response"
-              : "received response " + (nowMillis - lastResponseTimeMs.get()) + "ms ago";
-
-      logger.debug(
-          "{} streaming Windmill RPC errors for {}, last was: {} with status {}."
-              + " created {}ms ago, {}. This is normal with autoscaling.",
-          AbstractWindmillStream.this.getClass(),
-          errorCount.get(),
-          exception,
-          status,
-          nowMillis - startTimeMs.get(),
-          responseDebug);
-    }
-
     @Override
     public void onCompleted() {
       if (maybeTeardownStream()) {
         return;
       }
-
-      errorCount.incrementAndGet();
-      String error =
-          "Stream completed successfully but did not complete requested operations, "
-              + "recreating";
-      logger.warn(error);
-      setLastError(error);
-
+      recordStreamStatus(OK_STATUS);
       executeSafely(AbstractWindmillStream.this::startStream);
     }
 
+    private void recordStreamStatus(Status status) {
+      int currentRestartCount = restartCount.incrementAndGet();
+      if (status.isOk()) {
+        String restartReason =
+            "Stream completed successfully but did not complete requested operations, "
+                + "recreating";
+        logger.warn(restartReason);
+        recordRestartReason(restartReason);
+      } else {
+        int currentErrorCount = errorCount.incrementAndGet();
+        recordRestartReason(status.toString());
+        Throwable t = status.getCause();
+        if (t instanceof StreamObserverCancelledException) {
+          logger.error(
+              "StreamObserver was unexpectedly cancelled for stream={}, worker={}. stacktrace={}",
+              getClass(),
+              backendWorkerToken,
+              t.getStackTrace(),
+              t);
+        } else if (currentRestartCount % logEveryNStreamFailures == 0) {
+          // Don't log every restart since it will get noisy, and many errors transient.
+          long nowMillis = Instant.now().getMillis();
+          String responseDebug =
+              lastResponseTimeMs.get() == 0
+                  ? "never received response"
+                  : "received response " + (nowMillis - lastResponseTimeMs.get()) + "ms ago";
+
+          logger.debug(
+              "{} has been restarted {} times. Streaming Windmill RPC Error Count: {}; last was: {} with status: {}."
+                  + " created {}ms ago; {}. This is normal with autoscaling.",
+              AbstractWindmillStream.this.getClass(),
+              currentRestartCount,
+              currentErrorCount,
+              t,
+              status,
+              nowMillis - startTimeMs.get(),
+              responseDebug);
+        }
+
+        // If the stream was stopped due to a resource exhausted error then we are throttled.
+        if (status.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+          startThrottleTimer();
+        }
+      }
+    }
+
+    /** Returns true if the stream was torn down and should not be restarted internally. */
     private synchronized boolean maybeTeardownStream() {
       if (isShutdown() || (clientClosed.get() && !hasPendingRequests())) {
         streamRegistry.remove(AbstractWindmillStream.this);

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 
 import com.google.auto.value.AutoBuilder;
@@ -78,7 +77,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private static final int NO_HEALTH_CHECKS = -1;
   private static final String NO_BACKEND_WORKER_TOKEN = "";
   private static final long NO_DEADLINE = -1;
-  private static final long DEFAULT_DEADLINE_SECONDS = DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2;
+  private static final long DEFAULT_DEADLINE_SECONDS =
+      AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2;
   private static final String DISPATCHER_DEBUG_NAME = "Dispatcher";
 
   private final JobHeader jobHeader;
@@ -207,7 +207,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         responseObserver -> withDefaultDeadline(stub).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(true),
+        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
@@ -227,7 +227,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         responseObserver -> connection.stub().getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(false),
+        newStreamObserverFactory(NO_DEADLINE),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
@@ -243,7 +243,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(true),
+        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
         streamRegistry,
         logEveryNStreamFailures,
         getDataThrottleTimer,
@@ -260,7 +260,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         connection.backendWorkerToken(),
         responseObserver -> connection.stub().getDataStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(false),
+        newStreamObserverFactory(NO_DEADLINE),
         streamRegistry,
         logEveryNStreamFailures,
         getDataThrottleTimer,
@@ -277,7 +277,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).commitWorkStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(true),
+        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
         streamRegistry,
         logEveryNStreamFailures,
         commitWorkThrottleTimer,
@@ -292,7 +292,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         connection.backendWorkerToken(),
         responseObserver -> connection.stub().commitWorkStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(false),
+        newStreamObserverFactory(NO_DEADLINE),
         streamRegistry,
         logEveryNStreamFailures,
         commitWorkThrottleTimer,
@@ -308,7 +308,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return GrpcGetWorkerMetadataStream.create(
         responseObserver -> withDefaultDeadline(stub).getWorkerMetadata(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(true),
+        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
         streamRegistry,
         logEveryNStreamFailures,
         jobHeader,
@@ -317,9 +317,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         onNewWindmillEndpoints);
   }
 
-  private StreamObserverFactory newStreamObserverFactory(boolean hasDeadline) {
-    return StreamObserverFactory.direct(
-        hasDeadline ? DEFAULT_DEADLINE_SECONDS : NO_DEADLINE, windmillMessagesBetweenIsReadyChecks);
+  private StreamObserverFactory newStreamObserverFactory(long deadline) {
+    return StreamObserverFactory.direct(deadline, windmillMessagesBetweenIsReadyChecks);
   }
 
   @Override

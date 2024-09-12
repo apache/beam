@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Indicates that a {@link WindmillStream#shutdown()} was called while waiting for some internal
@@ -26,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
  * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem} being processed by {@link
  * WindmillStream}.
  */
+@Internal
 final class WindmillStreamShutdownException extends RuntimeException {
   WindmillStreamShutdownException(String message) {
     super(message);

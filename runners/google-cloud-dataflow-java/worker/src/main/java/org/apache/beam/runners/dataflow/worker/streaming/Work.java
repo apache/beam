@@ -116,11 +116,11 @@ public final class Work implements RefreshableWork {
   }
 
   public static ProcessingContext createProcessingContext(
-      String backendWorkerToken,
       String computationId,
       GetDataClient getDataClient,
       Consumer<Commit> workCommitter,
-      HeartbeatSender heartbeatSender) {
+      HeartbeatSender heartbeatSender,
+      String backendWorkerToken) {
     return ProcessingContext.create(
         computationId, getDataClient, workCommitter, heartbeatSender, backendWorkerToken);
   }
