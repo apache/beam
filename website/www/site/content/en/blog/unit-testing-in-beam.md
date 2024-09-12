@@ -28,7 +28,7 @@ All snippets in this post are included in [this notebook](https://github.com/apa
 
 When testing Beam pipelines, we recommend the following best practices:
 
-1) You don’t need to write any unit tests for the already supported connectors in the Beam Library, such as `ReadFromBigQuery` and `WriteToText`. These connectors are already tested in Beam’s test suite to ensure correct functionality. They add unnecessary cost and dependencies to a unit test.
+1) Don't write unit tests for the already supported connectors in the Beam Library, such as `ReadFromBigQuery` and `WriteToText`. These connectors are already tested in Beam’s test suite to ensure correct functionality. They add unnecessary cost and dependencies to a unit test.
 
 2) Ensure that your function is well tested when using it with `Map`, `FlatMap`, or `Filter`. You can assume your function will work as intended when using `Map(your_function)`.
 3) For more complex transforms such as `ParDo`’s, side inputs, timestamp inspection, etc., treat the entire transform as a unit, and test it.
