@@ -227,7 +227,7 @@ class GcsIO(object):
       return BeamBlobReader(
           blob,
           chunk_size=read_buffer_size,
-          enable_read_bucket_metric=self.enable_read_bucket_metric, 
+          enable_read_bucket_metric=self.enable_read_bucket_metric,
           retry=self._storage_client_retry)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.blob(blob_name)
@@ -569,7 +569,7 @@ class BeamBlobReader(BlobReader):
       self,
       blob,
       chunk_size=DEFAULT_READ_BUFFER_SIZE,
-      enable_read_bucket_metric=False, 
+      enable_read_bucket_metric=False,
       retry=DEFAULT_RETRY):
     super().__init__(blob, chunk_size=chunk_size, retry=retry)
     self.enable_read_bucket_metric = enable_read_bucket_metric
@@ -587,7 +587,7 @@ class BeamBlobReader(BlobReader):
 
 class BeamBlobWriter(BlobWriter):
   def __init__(
-      self,  
+      self,
       blob,
       content_type,
       chunk_size=16 * 1024 * 1024,
