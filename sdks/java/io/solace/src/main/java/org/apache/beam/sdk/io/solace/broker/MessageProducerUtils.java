@@ -23,7 +23,6 @@ import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -58,7 +57,7 @@ public class MessageProducerUtils {
       Solace.CorrelationKey key =
           Solace.CorrelationKey.builder()
               .setMessageId(record.getMessageId())
-              .setPublishMonotonicMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()))
+              .setPublishMonotonicNanos(System.nanoTime())
               .build();
       msg.setCorrelationKey(key);
     } else {

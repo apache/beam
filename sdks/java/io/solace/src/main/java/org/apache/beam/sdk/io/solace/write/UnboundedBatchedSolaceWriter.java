@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.solace.write;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -168,7 +167,7 @@ public final class UnboundedBatchedSolaceWriter {
                     String.format(
                         "Batch could not be published after several" + " retries. Error: %s",
                         e.getMessage()))
-                .setLatencyMilliseconds(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()))
+                .setLatencyNanos(System.nanoTime())
                 .build();
         PublishResultsReceiver.addResult(errorPublish);
       }

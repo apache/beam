@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
@@ -57,8 +56,8 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
       messageId = "";
     } else if (key instanceof Solace.CorrelationKey) {
       messageId = ((Solace.CorrelationKey) key).getMessageId();
-      long latencyMillis = calculateLatency((Solace.CorrelationKey) key);
-      resultBuilder = resultBuilder.setLatencyMilliseconds(latencyMillis);
+      long latencyNanos = calculateLatency((Solace.CorrelationKey) key);
+      resultBuilder = resultBuilder.setLatencyNanos(latencyNanos);
     } else {
       messageId = key.toString();
     }
@@ -83,8 +82,8 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {
-    long currentMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-    long publishMillis = key.getPublishMonotonicMillis();
+    long currentMillis = System.nanoTime();
+    long publishMillis = key.getPublishMonotonicNanos();
     return currentMillis - publishMillis;
   }
 }

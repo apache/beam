@@ -51,6 +51,7 @@ public class Solace {
       return name;
     }
   }
+
   /** Represents a Solace topic. */
   public static class Topic {
     private final String name;
@@ -67,6 +68,7 @@ public class Solace {
       return name;
     }
   }
+
   /** Represents a Solace destination type. */
   public enum DestinationType {
     TOPIC,
@@ -131,6 +133,7 @@ public class Solace {
     @SuppressWarnings("mutable")
     @SchemaFieldNumber("1")
     public abstract byte[] getPayload();
+
     /**
      * Gets the destination (topic or queue) to which the message was sent.
      *
@@ -318,12 +321,12 @@ public class Solace {
     public abstract Boolean getPublished();
 
     /**
-     * The publishing latency in milliseconds. This is the difference between the time the message
+     * The publishing latency in nanoseconds. This is the difference between the time the message
      * was created, and the time the message was published. It is only available if the {@link
-     * CorrelationKey} class is used as correlation key of the messages.
+     * CorrelationKey} class is used as correlation key of the messages, and null otherwise.
      */
     @SchemaFieldNumber("2")
-    public abstract @Nullable Long getLatencyMilliseconds();
+    public abstract @Nullable Long getLatencyNanos();
 
     /** The error details if the message could not be published. */
     @SchemaFieldNumber("3")
@@ -339,7 +342,7 @@ public class Solace {
 
       public abstract Builder setPublished(Boolean published);
 
-      public abstract Builder setLatencyMilliseconds(Long latencyMs);
+      public abstract Builder setLatencyNanos(Long latencyNanos);
 
       public abstract Builder setError(String error);
 
@@ -361,7 +364,7 @@ public class Solace {
     public abstract String getMessageId();
 
     @SchemaFieldNumber("1")
-    public abstract long getPublishMonotonicMillis();
+    public abstract long getPublishMonotonicNanos();
 
     public static Builder builder() {
       return new AutoValue_Solace_CorrelationKey.Builder();
@@ -371,7 +374,7 @@ public class Solace {
     public abstract static class Builder {
       public abstract Builder setMessageId(String messageId);
 
-      public abstract Builder setPublishMonotonicMillis(long millis);
+      public abstract Builder setPublishMonotonicNanos(long nanos);
 
       public abstract CorrelationKey build();
     }

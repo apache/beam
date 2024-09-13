@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.solace.write;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -130,7 +129,7 @@ public final class UnboundedStreamingSolaceWriter {
                     String.format(
                         "Message could not be published after several" + " retries. Error: %s",
                         e.getMessage()))
-                .setLatencyMilliseconds(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()))
+                .setLatencyNanos(System.nanoTime())
                 .build();
         PublishResultsReceiver.addResult(errorPublish);
       }

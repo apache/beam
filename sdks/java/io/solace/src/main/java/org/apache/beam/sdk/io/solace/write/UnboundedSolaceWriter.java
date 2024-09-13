@@ -144,7 +144,7 @@ public final class UnboundedSolaceWriter {
       }
 
       while (result != null) {
-        Long latency = result.getLatencyMilliseconds();
+        Long latency = result.getLatencyNanos();
 
         if (latency == null && shouldPublishLatencyMetrics()) {
           LOG.error(
@@ -181,12 +181,23 @@ public final class UnboundedSolaceWriter {
       }
 
       if (shouldPublishLatencyMetrics()) {
+        // Report all latency value in milliseconds
         if (countPublish > 0) {
-          getPublishLatencyMetric().update(sumPublish, countPublish, minPublish, maxPublish);
+          getPublishLatencyMetric()
+              .update(
+                  TimeUnit.NANOSECONDS.toMillis(sumPublish),
+                  countPublish,
+                  TimeUnit.NANOSECONDS.toMillis(minPublish),
+                  TimeUnit.NANOSECONDS.toMillis(maxPublish));
         }
 
         if (countFailed > 0) {
-          getFailedLatencyMetric().update(sumFailed, countFailed, minFailed, maxFailed);
+          getFailedLatencyMetric()
+              .update(
+                  TimeUnit.NANOSECONDS.toMillis(sumFailed),
+                  countFailed,
+                  TimeUnit.NANOSECONDS.toMillis(minFailed),
+                  TimeUnit.NANOSECONDS.toMillis(maxFailed));
         }
       }
     }
@@ -212,7 +223,7 @@ public final class UnboundedSolaceWriter {
         Solace.CorrelationKey key =
             Solace.CorrelationKey.builder()
                 .setMessageId(record.getMessageId())
-                .setPublishMonotonicMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()))
+                .setPublishMonotonicNanos(System.nanoTime())
                 .build();
         msg.setCorrelationKey(key);
       } else {
@@ -336,11 +347,13 @@ public final class UnboundedSolaceWriter {
         } else if (finishBundleContext != null) {
           if (timestamp == null) {
             throw new IllegalStateException(
-                "SolaceIO.Write.UnboundedSolaceWriter.Context: Timestamp is required for a FinishBundleContext.");
+                "SolaceIO.Write.UnboundedSolaceWriter.Context: Timestamp is required for a"
+                    + " FinishBundleContext.");
           }
           if (window == null) {
             throw new IllegalStateException(
-                "SolaceIO.Write.UnboundedSolaceWriter.Context: BoundedWindow is required for a FinishBundleContext.");
+                "SolaceIO.Write.UnboundedSolaceWriter.Context: BoundedWindow is required for a"
+                    + " FinishBundleContext.");
           }
           finishBundleContext.output(tag, output, timestamp, window);
         } else {
@@ -386,7 +399,7 @@ public final class UnboundedSolaceWriter {
           Solace.PublishResult.builder()
               .setPublished(true)
               .setMessageId(record.getMessageId())
-              .setLatencyMilliseconds(0L)
+              .setLatencyNanos(0L)
               .build();
       receiver.output(result);
     }
