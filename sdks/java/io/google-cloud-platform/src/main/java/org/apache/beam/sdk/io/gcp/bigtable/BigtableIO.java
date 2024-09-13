@@ -45,12 +45,10 @@ import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
 import org.apache.beam.sdk.PipelineRunner;
@@ -1334,7 +1332,8 @@ public class BigtableIO {
 
     private final int throttleReportThresMsecs;
 
-    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
+    private transient ConcurrentLinkedQueue<KV<BigtableWriteException, BoundedWindow>> badRecords =
+        null;
     // Due to callback thread not supporting Beam metrics, Record pending metrics and report later.
     private transient long pendingThrottlingMsecs;
     private transient boolean reportedLineage;
@@ -1376,7 +1375,7 @@ public class BigtableIO {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
-      badRecords = new HashSet<>();
+      badRecords = new ConcurrentLinkedQueue<>();
     }
 
     @ProcessElement
