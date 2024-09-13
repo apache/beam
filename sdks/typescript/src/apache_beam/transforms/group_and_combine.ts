@@ -301,7 +301,7 @@ export function binaryCombineFn<I>(
     createAccumulator: () => undefined,
     addInput: (a, b) => (a === undefined ? b : combiner(a, b)),
     mergeAccumulators: (accs) =>
-      [...accs].filter((a) => a !== null && a !== undefined).reduce(combiner),
+      (<I[]>([...accs].filter((a) => a !== null && a !== undefined))).reduce(combiner),
     extractOutput: (a) => a,
   };
 }
