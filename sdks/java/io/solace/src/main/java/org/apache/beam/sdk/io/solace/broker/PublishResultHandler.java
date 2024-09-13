@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,19 +42,19 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
 
   @Override
   public void handleErrorEx(Object key, JCSMPException cause, long timestamp) {
-    processKey(key, false, Optional.ofNullable(cause));
+    processKey(key, false, cause);
   }
 
   @Override
   public void responseReceivedEx(Object key) {
-    processKey(key, true, Optional.empty());
+    processKey(key, true, null);
   }
 
-  private void processKey(Object key, boolean isPublished, Optional<JCSMPException> cause) {
+  private void processKey(Object key, boolean isPublished, @Nullable JCSMPException cause) {
     PublishResult.Builder resultBuilder = PublishResult.builder();
     String messageId;
     if (key == null) {
-      messageId = "NULL";
+      messageId = "";
     } else if (key instanceof Solace.CorrelationKey) {
       messageId = ((Solace.CorrelationKey) key).getMessageId();
       long latencyMillis = calculateLatency((Solace.CorrelationKey) key);
@@ -65,12 +65,12 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
 
     resultBuilder = resultBuilder.setMessageId(messageId).setPublished(isPublished);
     if (!isPublished) {
-      if (cause.isPresent()) {
-        resultBuilder = resultBuilder.setError(cause.get().getMessage());
+      if (cause != null) {
+        resultBuilder = resultBuilder.setError(cause.getMessage());
       } else {
         resultBuilder = resultBuilder.setError("NULL - Not set by Solace");
       }
-    } else if (cause.isPresent()) {
+    } else if (cause != null) {
       LOG.warn(
           "Message with id {} is published but exception is populated. Ignoring exception",
           messageId);
