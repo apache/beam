@@ -54,6 +54,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -1390,14 +1391,7 @@ public class BigtableIO {
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      // burn down the completed futures to avoid unbounded memory growth
-      for (Future<?> f = outstandingWrites.peek();
-          f != null && f.isDone();
-          f = outstandingWrites.peek()) {
-        // Also ensure that errors in the handler get bubbled up
-        outstandingWrites.remove().get();
-      }
-
+      drainCompletedElementFutures();
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
       Instant writeStart = Instant.now();
@@ -1414,6 +1408,16 @@ public class BigtableIO {
       }
       ++recordsWritten;
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
+    }
+
+    private void drainCompletedElementFutures() throws ExecutionException, InterruptedException {
+      // burn down the completed futures to avoid unbounded memory growth
+      for (Future<?> f = outstandingWrites.peek();
+          f != null && f.isDone();
+          f = outstandingWrites.peek()) {
+        // Also ensure that errors in the handler get bubbled up
+        outstandingWrites.remove().get();
+      }
     }
 
     private BiFunction<MutateRowResponse, Throwable, Void> handleMutationException(
