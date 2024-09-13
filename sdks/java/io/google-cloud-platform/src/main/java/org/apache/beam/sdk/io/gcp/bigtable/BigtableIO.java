@@ -1124,6 +1124,20 @@ public class BigtableIO {
           .build();
     }
 
+    /** Returns a new {@link BigtableIO.Write} with client side latency based throttling enabled. */
+    public Write withThrottlingTargetMs(int throttlingTargetMs) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(
+              options.toBuilder().setThrottlingTargetMs(throttlingTargetMs).build())
+          .build();
+    }
+
+    /** This configuration is removed in Beam 2.60.0, Do not use. */
+    public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
+      throw new UnsupportedOperationException("withThrottlingReportTargetMs is removed");
+    }
+
     public Write withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
