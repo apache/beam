@@ -110,7 +110,7 @@ public class StreamingModeExecutionContextTest {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
-    StreamingGlobalConfigHandle configManager =
+    StreamingGlobalConfigHandle globalConfigHandle =
         new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
@@ -132,7 +132,7 @@ public class StreamingModeExecutionContextTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            configManager,
+            globalConfigHandle,
             Long.MAX_VALUE,
             /*throwExceptionOnLargeOutput=*/ false);
   }

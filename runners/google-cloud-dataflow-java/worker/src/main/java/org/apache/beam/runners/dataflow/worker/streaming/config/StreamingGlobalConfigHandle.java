@@ -26,14 +26,12 @@ import org.apache.beam.sdk.annotations.Internal;
 @ThreadSafe
 public interface StreamingGlobalConfigHandle {
 
-  /*
-   * Returns the latest StreamingEnginePipelineConfig
-   */
+  /** Returns the latest StreamingGlobalConfig */
   StreamingGlobalConfig getConfig();
 
-  /*
-   * Subscribe to config updates by registering a callback.
-   * Callback should be called the first time with settings, if any, inline before the method returns.
+  /**
+   * Subscribe to config updates by registering a callback. Callback should be called the first time
+   * with settings, if any, inline before the method returns.
    */
-  void onConfig(@Nonnull Consumer<StreamingGlobalConfig> callback);
+  void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback);
 }

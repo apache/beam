@@ -80,7 +80,7 @@ public class StreamingEngineComputationConfigFetcherTest {
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(initialConfig));
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
-    globalConfigHandle.onConfig(
+    globalConfigHandle.registerConfigObserver(
         config -> {
           try {
             receivedPipelineConfig.add(config);
@@ -131,7 +131,7 @@ public class StreamingEngineComputationConfigFetcherTest {
         // StreamingConfigTask.
         .thenReturn(Optional.of(new WorkItem().setJobId("jobId")));
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
-    globalConfigHandle.onConfig(
+    globalConfigHandle.registerConfigObserver(
         config -> {
           receivedPipelineConfig.add(config);
           numExpectedRefreshes.countDown();
@@ -208,7 +208,7 @@ public class StreamingEngineComputationConfigFetcherTest {
   public void testGetComputationConfig_noComputationPresent() throws IOException {
     Set<StreamingGlobalConfig> receivedPipelineConfig = new HashSet<>();
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
-    globalConfigHandle.onConfig(receivedPipelineConfig::add);
+    globalConfigHandle.registerConfigObserver(receivedPipelineConfig::add);
     streamingEngineConfigFetcher =
         createConfigFetcher(/* waitForInitialConfig= */ false, 0, globalConfigHandle);
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString()))

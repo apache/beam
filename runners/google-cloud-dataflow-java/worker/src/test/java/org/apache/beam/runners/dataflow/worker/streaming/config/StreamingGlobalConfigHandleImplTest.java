@@ -35,6 +35,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class StreamingGlobalConfigHandleImplTest {
+
   @Test
   public void getConfig() {
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
@@ -57,7 +58,8 @@ public class StreamingGlobalConfigHandleImplTest {
   }
 
   @Test
-  public void onConfig_configSetAfterRegisteringCallback() throws InterruptedException {
+  public void registerConfigObserver_configSetAfterRegisteringCallback()
+      throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
     StreamingGlobalConfig configToSet =
@@ -75,7 +77,7 @@ public class StreamingGlobalConfigHandleImplTest {
                     .build())
             .build();
     AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
-    globalConfigHandle.onConfig(
+    globalConfigHandle.registerConfigObserver(
         config -> {
           configFromCallback.set(config);
           latch.countDown();
@@ -86,7 +88,8 @@ public class StreamingGlobalConfigHandleImplTest {
   }
 
   @Test
-  public void onConfig_configSetBeforeRegisteringCallback() throws InterruptedException {
+  public void registerConfigObserver_configSetBeforeRegisteringCallback()
+      throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
     StreamingGlobalConfig configToSet =
@@ -105,7 +108,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .build();
     AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
     globalConfigHandle.setConfig(configToSet);
-    globalConfigHandle.onConfig(
+    globalConfigHandle.registerConfigObserver(
         config -> {
           configFromCallback.set(config);
           latch.countDown();
@@ -115,7 +118,8 @@ public class StreamingGlobalConfigHandleImplTest {
   }
 
   @Test
-  public void onConfig_shouldNotCallCallbackForIfConfigRemainsSame() throws InterruptedException {
+  public void registerConfigObserver_shouldNotCallCallbackForIfConfigRemainsSame()
+      throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     AtomicInteger callbackCount = new AtomicInteger(0);
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
@@ -134,7 +138,7 @@ public class StreamingGlobalConfigHandleImplTest {
                         .setUseSeparateWindmillHeartbeatStreams(false)
                         .build())
                 .build();
-    globalConfigHandle.onConfig(
+    globalConfigHandle.registerConfigObserver(
         config -> {
           callbackCount.incrementAndGet();
           latch.countDown();

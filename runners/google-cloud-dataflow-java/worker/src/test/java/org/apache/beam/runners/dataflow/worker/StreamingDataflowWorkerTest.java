@@ -277,7 +277,8 @@ public class StreamingDataflowWorkerTest {
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
-  StreamingGlobalConfigHandleImpl mockConfigManager = mock(StreamingGlobalConfigHandleImpl.class);
+  StreamingGlobalConfigHandleImpl mockglobalConfigHandle =
+      mock(StreamingGlobalConfigHandleImpl.class);
   HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
   private @Nullable ComputationStateCache computationStateCache = null;
@@ -839,7 +840,7 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorker makeWorker(
       StreamingDataflowWorkerTestParams streamingDataflowWorkerTestParams) {
-    when(mockConfigManager.getConfig())
+    when(mockglobalConfigHandle.getConfig())
         .thenReturn(streamingDataflowWorkerTestParams.streamingGlobalConfig());
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
@@ -854,7 +855,7 @@ public class StreamingDataflowWorkerTest {
             hotKeyLogger,
             streamingDataflowWorkerTestParams.clock(),
             streamingDataflowWorkerTestParams.executorSupplier(),
-            mockConfigManager,
+            mockglobalConfigHandle,
             streamingDataflowWorkerTestParams.localRetryTimeoutMs());
     this.computationStateCache = worker.getComputationStateCache();
     return worker;

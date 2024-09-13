@@ -597,7 +597,7 @@ public class WorkerCustomSourcesTest {
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
     ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
-    StreamingGlobalConfigHandle configManager =
+    StreamingGlobalConfigHandle globalConfigHandle =
         new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
@@ -615,7 +615,7 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            configManager,
+            globalConfigHandle,
             Long.MAX_VALUE,
             /*throwExceptionOnLargeOutput=*/ false);
 
@@ -965,7 +965,7 @@ public class WorkerCustomSourcesTest {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
-    StreamingGlobalConfigHandle configManager =
+    StreamingGlobalConfigHandle globalConfigHandle =
         new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
@@ -986,7 +986,7 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            configManager,
+            globalConfigHandle,
             Long.MAX_VALUE,
             /*throwExceptionOnLargeOutput=*/ false);
 

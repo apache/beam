@@ -110,7 +110,7 @@ public final class StreamingWorkerStatusPages {
     this.getDataStatusProvider = getDataStatusProvider;
     this.workUnitExecutor = workUnitExecutor;
     this.statusPageDumper = statusPageDumper;
-    globalConfigHandle.onConfig(seConfig::set);
+    globalConfigHandle.registerConfigObserver(seConfig::set);
   }
 
   public static StreamingWorkerStatusPages.Builder builder() {

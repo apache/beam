@@ -25,7 +25,7 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 @ThreadSafe
 /*
- *  StreamingEnginePipelineConfigManager returning a fixed config
+ *  StreamingGlobalConfigHandle returning a fixed config
  *  initialized during construction. Used for Appliance and Tests.
  */
 public class FixedGlobalConfigHandle implements StreamingGlobalConfigHandle {
@@ -42,7 +42,7 @@ public class FixedGlobalConfigHandle implements StreamingGlobalConfigHandle {
   }
 
   @Override
-  public void onConfig(@Nonnull Consumer<StreamingGlobalConfig> callback) {
+  public void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback) {
     callback.accept(config);
   }
 }

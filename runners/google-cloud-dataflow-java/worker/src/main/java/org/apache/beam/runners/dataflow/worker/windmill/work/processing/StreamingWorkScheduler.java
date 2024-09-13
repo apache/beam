@@ -84,7 +84,7 @@ public final class StreamingWorkScheduler {
   private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
-  private final StreamingGlobalConfigHandle configManager;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
 
   public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
@@ -98,7 +98,7 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      StreamingGlobalConfigHandle configManager) {
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -110,7 +110,7 @@ public final class StreamingWorkScheduler {
     this.hotKeyLogger = hotKeyLogger;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
-    this.configManager = configManager;
+    this.globalConfigHandle = globalConfigHandle;
   }
 
   public static StreamingWorkScheduler create(
@@ -126,7 +126,7 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       DataflowExecutionStateSampler sampler,
       IdGenerator idGenerator,
-      StreamingGlobalConfigHandle configManager,
+      StreamingGlobalConfigHandle globalConfigHandle,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
         new ComputationWorkExecutorFactory(
@@ -137,7 +137,7 @@ public final class StreamingWorkScheduler {
             sampler,
             streamingCounters.pendingDeltaCounters(),
             idGenerator,
-            configManager);
+            globalConfigHandle);
 
     return new StreamingWorkScheduler(
         options,
@@ -151,7 +151,7 @@ public final class StreamingWorkScheduler {
         hotKeyLogger,
         stageInfoMap,
         sampler,
-        configManager);
+        globalConfigHandle);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -295,7 +295,7 @@ public final class StreamingWorkScheduler {
       Windmill.WorkItemCommitRequest commitRequest,
       String computationId,
       Windmill.WorkItem workItem) {
-    long byteLimit = configManager.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
+    long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
     int commitSize = commitRequest.getSerializedSize();
     int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 

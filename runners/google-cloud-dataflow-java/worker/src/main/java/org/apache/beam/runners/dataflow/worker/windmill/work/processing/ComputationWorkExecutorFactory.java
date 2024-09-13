@@ -95,7 +95,7 @@ final class ComputationWorkExecutorFactory {
 
   private final long maxSinkBytes;
   private final IdGenerator idGenerator;
-  private final StreamingGlobalConfigHandle configManager;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
 
   ComputationWorkExecutorFactory(
@@ -106,13 +106,13 @@ final class ComputationWorkExecutorFactory {
       DataflowExecutionStateSampler sampler,
       CounterSet pendingDeltaCounters,
       IdGenerator idGenerator,
-      StreamingGlobalConfigHandle configManager) {
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
     this.stateCacheFactory = stateCacheFactory;
     this.idGenerator = idGenerator;
-    this.configManager = configManager;
+    this.globalConfigHandle = globalConfigHandle;
     this.readerRegistry = ReaderRegistry.defaultRegistry();
     this.sinkRegistry = SinkRegistry.defaultRegistry();
     this.sampler = sampler;
@@ -266,7 +266,7 @@ final class ComputationWorkExecutorFactory {
         stageInfo.metricsContainerRegistry(),
         executionStateTracker,
         stageInfo.executionStateRegistry(),
-        configManager,
+        globalConfigHandle,
         maxSinkBytes,
         throwExceptionOnLargeOutput);
   }

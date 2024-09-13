@@ -434,7 +434,7 @@ public final class StreamingDataflowWorker {
       configFetcher =
           StreamingEngineComputationConfigFetcher.create(
               options.getGlobalConfigRefreshPeriod().getMillis(), dataflowServiceClient);
-      configFetcher.getGlobalConfigHandle().onConfig(dispatcherClient::onJobConfig);
+      configFetcher.getGlobalConfigHandle().registerConfigObserver(dispatcherClient::onJobConfig);
       computationStateCache = computationStateCacheFactory.apply(configFetcher);
       windmillStreamFactory =
           windmillStreamFactoryBuilder

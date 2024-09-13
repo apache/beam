@@ -50,12 +50,12 @@ public class FixedGlobalConfigHandleTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    FixedGlobalConfigHandle configManager = new FixedGlobalConfigHandle(config);
-    assertEquals(config, configManager.getConfig());
+    FixedGlobalConfigHandle globalConfigHandle = new FixedGlobalConfigHandle(config);
+    assertEquals(config, globalConfigHandle.getConfig());
   }
 
   @Test
-  public void onConfig() throws InterruptedException {
+  public void registerConfigObserver() throws InterruptedException {
     StreamingGlobalConfig config =
         StreamingGlobalConfig.builder()
             .setOperationalLimits(
@@ -70,15 +70,15 @@ public class FixedGlobalConfigHandleTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    FixedGlobalConfigHandle configManager = new FixedGlobalConfigHandle(config);
+    FixedGlobalConfigHandle globalConfigHandle = new FixedGlobalConfigHandle(config);
     AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
     CountDownLatch latch = new CountDownLatch(1);
-    configManager.onConfig(
+    globalConfigHandle.registerConfigObserver(
         cbConfig -> {
           configFromCallback.set(cbConfig);
           latch.countDown();
         });
     assertTrue(latch.await(10, TimeUnit.SECONDS));
-    assertEquals(config, configManager.getConfig());
+    assertEquals(configFromCallback.get(), globalConfigHandle.getConfig());
   }
 }

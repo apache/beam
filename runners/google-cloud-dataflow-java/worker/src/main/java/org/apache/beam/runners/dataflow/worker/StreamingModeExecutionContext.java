@@ -108,7 +108,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
-  private final StreamingGlobalConfigHandle configManager;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private volatile long backlogBytes;
 
@@ -155,7 +155,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
-      StreamingGlobalConfigHandle configManager,
+      StreamingGlobalConfigHandle globalConfigHandle,
       long sinkByteLimit,
       boolean throwExceptionOnLargeOutput) {
     super(
@@ -166,7 +166,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         sinkByteLimit);
     this.computationId = computationId;
     this.readerCache = readerCache;
-    this.configManager = configManager;
+    this.globalConfigHandle = globalConfigHandle;
     this.sideInputCache = new HashMap<>();
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
@@ -205,7 +205,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.work = work;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
-    this.operationalLimits = configManager.getConfig().operationalLimits();
+    // Snapshot the limits for entire bundle processing.
+    this.operationalLimits = globalConfigHandle.getConfig().operationalLimits();
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();

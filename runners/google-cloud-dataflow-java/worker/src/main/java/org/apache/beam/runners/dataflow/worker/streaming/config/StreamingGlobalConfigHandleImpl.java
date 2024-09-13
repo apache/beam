@@ -36,9 +36,6 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
   private final CopyOnWriteArrayList<Consumer<StreamingGlobalConfig>> config_callbacks =
       new CopyOnWriteArrayList<>();
 
-  /*
-   * Returns the latest StreamingEnginePipelineConfig
-   */
   @Override
   public StreamingGlobalConfig getConfig() {
     Preconditions.checkState(
@@ -47,25 +44,22 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
     return streamingEngineConfig.get();
   }
 
-  /*
-   * Subscribe to config updates by registering a callback.
-   * Callback will be called the first time with settings, if any, inline before the method returns.
-   */
   @Override
-  public void onConfig(@Nonnull Consumer<StreamingGlobalConfig> callback) {
+  public void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback) {
     StreamingGlobalConfig config;
     synchronized (this) {
       config_callbacks.add(callback);
       config = streamingEngineConfig.get();
     }
     if (config != null) {
-      callback.accept(config);
+      // read config from streamingEngineConfig again
+      // to prevent calling callback with stale config.
+      // The cached `config` will be stale if setConfig
+      // ran after the synchronized block.
+      callback.accept(streamingEngineConfig.get());
     }
   }
 
-  /*
-   * Package private setter for setting config
-   */
   void setConfig(@Nonnull StreamingGlobalConfig config) {
     Iterator<Consumer<StreamingGlobalConfig>> iterator;
     synchronized (this) {
