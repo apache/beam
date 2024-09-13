@@ -1106,9 +1106,7 @@ public class SolaceIO {
                 windowingStrategy);
       } else {
         LOG.info(
-            String.format(
-                "Solace.Write: omitting writer output because delivery mode is %s",
-                getDeliveryMode()));
+            "Solace.Write: omitting writer output because delivery mode is {}", getDeliveryMode());
         output = SolaceOutput.in(input.getPipeline(), null, null);
       }
 
