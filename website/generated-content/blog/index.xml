@@ -1,4 +1,160 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 11 Sep 2024 13:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.59.0</title><link>/blog/beam-2.59.0/</link><pubDate>Wed, 11 Sep 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.59.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Fri, 13 Sep 2024 00:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Unit Testing in Beam: An opinionated guide</title><link>/blog/unit-testing-in-beam/</link><pubDate>Fri, 13 Sep 2024 00:00:01 -0800</pubDate><guid>/blog/unit-testing-in-beam/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides for testing.
+We cover an opinionated set of best practices to write unit tests for your data pipeline. This post doesn&amp;rsquo;t include integration tests, and you need to author those separately.
+All snippets in this post are included in &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb">this notebook&lt;/a>. Additionally, to see tests that exhibit best practices, look at the &lt;a href="https://beam.apache.org/blog/beam-starter-projects/">Beam starter projects&lt;/a>, which contain tests that exhibit best practices.&lt;/p>
+&lt;h2 id="best-practices">Best practices&lt;/h2>
+&lt;p>When testing Beam pipelines, we recommend the following best practices:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Don&amp;rsquo;t write unit tests for the already supported connectors in the Beam Library, such as &lt;code>ReadFromBigQuery&lt;/code> and &lt;code>WriteToText&lt;/code>. These connectors are already tested in Beam’s test suite to ensure correct functionality. They add unnecessary cost and dependencies to a unit test.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Ensure that your function is well tested when using it with &lt;code>Map&lt;/code>, &lt;code>FlatMap&lt;/code>, or &lt;code>Filter&lt;/code>. You can assume your function will work as intended when using &lt;code>Map(your_function)&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>For more complex transforms such as &lt;code>ParDo&lt;/code>’s, side inputs, timestamp inspection, etc., treat the entire transform as a unit, and test it.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>If needed, use mocking to mock any API calls that might be present in your DoFn. The purpose of mocking is to test your functionality extensively, even if this testing requires a specific response from an API call.&lt;/p>
+&lt;ol>
+&lt;li>Be sure to modularize your API calls in separate functions, rather than making the API call directly in the &lt;code>DoFn&lt;/code>. This step provides a cleaner experience when mocking the external API calls.&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="example-1">Example 1&lt;/h2>
+&lt;p>Use the following pipeline as an example. You don&amp;rsquo;t have to write a separate unit test to test this function in the context of this pipeline, assuming the function &lt;code>median_house_value_per_bedroom&lt;/code> is unit tested elsewhere in the code. You can trust that the &lt;code>Map&lt;/code> primitive works as expected (this illustrates point #2 noted previously).&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The following code computes the median house value per bedroom.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p1&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/california_housing_test.csv&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">skip_header_lines&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">median_house_value_per_bedroom&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example2&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="example-2">Example 2&lt;/h2>
+&lt;p>Use the following function as the example. The functions &lt;code>median_house_value_per_bedroom&lt;/code> and &lt;code>multiply_by_factor&lt;/code> are tested elsewhere, but the pipeline as a whole, which consists of composite transforms, is not.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p2&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/california_housing_test.csv&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">skip_header_lines&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">median_house_value_per_bedroom&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">multiply_by_factor&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombinePerKey&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example3&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The best practice for the previous code is to create a transform with all functions between &lt;code>ReadFromText&lt;/code> and &lt;code>WriteToText&lt;/code>. This step separates the transformation logic from the I/Os, allowing you to unit test the transformation logic. The following example is a refactoring of the previous code:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">transform_data_set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">median_house_value_per_bedroom&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">multiply_by_factor&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombinePerKey&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Define a new class that inherits from beam.PTransform.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">MapAndCombineTransform&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">transform_data_set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p2&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/california_housing_test.csv&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">skip_header_lines&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">MapAndCombineTransform&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example3&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This code shows the corresponding unit test for the previous example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">unittest&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.testing.test_pipeline&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">TestPipeline&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.testing.util&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">assert_that&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">equal_to&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">TestBeam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unittest&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TestCase&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># This test corresponds to example 3, and is written to confirm the pipeline works as intended.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">test_transform_data_set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expected&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">10570.185786231425&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">13.375337533753376&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">13.315649867374006&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;-122.050000,37.370000,27.000000,3885.000000,661.000000,1537.000000,606.000000,6.608500,344700.000000&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;121.05,99.99,23.30,39.5,55.55,41.01,10,34,74.30,91.91&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;122.05,100.99,24.30,40.5,56.55,42.01,11,35,75.30,92.91&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;-120.05,39.37,29.00,4085.00,681.00,1557.00,626.00,6.8085,364700.00&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p2&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MapAndCombineTransform&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">assert_that&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">result&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">equal_to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">expected&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="example-3">Example 3&lt;/h2>
+&lt;p>Suppose we write a pipeline that reads data from a JSON file, passes it through a custom function that makes external API calls for parsing, and then writes it to a custom destination (for example, if we need to do some custom data formatting to have data prepared for a downstream application).&lt;/p>
+&lt;p>The pipeline has the following structure:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The following packages are used to run the example pipelines.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.io&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">WriteToText&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">MyDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">returned_record&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MyApiCall&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;http://my-api-call.com&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">returned_record&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">!=&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">raise&lt;/span> &lt;span class="ne">ValueError&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;Length of record does not match expected length&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">yield&lt;/span> &lt;span class="n">returned_record&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p3&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p3&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/anscombe.json&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MyDoFn&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example1&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This test checks whether the API response is a record of the wrong length and throws the expected error if the test fails.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">mock&lt;/span> &lt;span class="c1"># Install the &amp;#39;mock&amp;#39; module.&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Import the mock package for mocking functionality.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">unittest.mock&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Mock&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">patch&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># from MyApiCall import get_data&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">mock&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># MyApiCall is a function that calls get_data to fetch some data by using an API call.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nd">@patch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;MyApiCall.get_data&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">test_error_message_wrong_length&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">mock_get_data&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;field1&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="s1">&amp;#39;field2&amp;#39;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">mock_get_data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">return_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Mock&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">mock_get_data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">return_value&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">return_value&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">response&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;-122.050000,37.370000,27.000000,3885.000000,661.000000,1537.000000,606.000000,6.608500,344700.000000&amp;#39;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1">#input length 9&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">assertRaisesRegex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="ne">ValueError&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Length of record does not match expected length&amp;#39;&amp;#34;&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p3&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p3&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_elements&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MyDoFn&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="other-testing-best-practices">Other testing best practices:&lt;/h2>
+&lt;ol>
+&lt;li>Test all error messages that you raise.&lt;/li>
+&lt;li>Cover any edge cases that might exist in your data.&lt;/li>
+&lt;li>Example 1 could have written the &lt;code>beam.Map&lt;/code> step with lambda functions instead of with &lt;code>beam.Map(median_house_value_per_bedroom)&lt;/code>:&lt;/li>
+&lt;/ol>
+&lt;pre tabindex="0">&lt;code>beam.Map(lambda x: x.strip().split(&amp;#39;,&amp;#39;)) | beam.Map(lambda x: float(x[8])/float(x[4])
+&lt;/code>&lt;/pre>&lt;p>Separating lambdas into a helper function by using &lt;code>beam.Map(median_house_value_per_bedroom)&lt;/code> is the recommended approach for more testable code, because changes to the function would be modularized.&lt;/p>
+&lt;ol start="4">
+&lt;li>Use the &lt;code>assert_that&lt;/code> statement to ensure that &lt;code>PCollection&lt;/code> values match correctly, as in the previous example.&lt;/li>
+&lt;/ol>
+&lt;p>For more guidance about testing on Beam and Dataflow, see the &lt;a href="https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines">Google Cloud documentation&lt;/a>. For more examples of unit testing in Beam, see the &lt;code>base_test.py&lt;/code> &lt;a href="https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262">code&lt;/a>.&lt;/p>
+&lt;p>Special thanks to Robert Bradshaw, Danny McCormick, XQ Hu, Surjit Singh, and Rebecca Spzer, who helped refine the ideas in this post.&lt;/p></description></item><item><title>Blog: Apache Beam 2.59.0</title><link>/blog/beam-2.59.0/</link><pubDate>Wed, 11 Sep 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.59.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7121,66 +7277,4 @@ masahitojp, Matthias Baetens, Maximilian Michels, Milena Bukal,
 Nathan J. Mehl, Pablo Estrada, Peter Sobot, Reuven Lax, Robert Bradshaw,
 Robert Burke, roger-mike, Sam Rohde, Sam Whittle, Stephan Hoyer, Tom Underhill,
 tvalentyn, Uday Singh, Udi Meiri, Vitaly Terentyev, Xinyu Liu, Yichi Zhang,
-Yifan Mai, yoshiki.obata, zhoufek&lt;/p></description></item><item><title>Blog: Apache Beam 2.30.0</title><link>/blog/beam-2.30.0/</link><pubDate>Wed, 09 Jun 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.30.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.30.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2300-2021-06-09">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.30.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349978">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Legacy Read transform (non-SDF based Read) is used by default for non-FnAPI opensource runners. Use &lt;code>use_sdf_read&lt;/code> experimental flag to re-enable SDF based Read transforms (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10670">BEAM-10670&lt;/a>)&lt;/li>
-&lt;li>Upgraded vendored gRPC dependency to 1.36.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11227">BEAM-11227&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Fixed the issue that WriteToBigQuery with batch file loads does not respect schema update options when there are multiple load jobs (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11277">BEAM-11277&lt;/a>)&lt;/li>
-&lt;li>Fixed the issue that the job didn&amp;rsquo;t properly retry since BigQuery sink swallows HttpErrors when performing streaming inserts (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12362">BEAM-12362&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Added capability to declare resource hints in Java and Python SDKs (&lt;a href="https://issues.apache.org/jira/browse/BEAM-2085">BEAM-2085&lt;/a>)&lt;/li>
-&lt;li>Added Spanner IO Performance tests for read and write in Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10029">BEAM-10029&lt;/a>)&lt;/li>
-&lt;li>Added support for accessing GCP PubSub Message ordering keys, message IDs and message publish timestamp in Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7819">BEAM-7819&lt;/a>)&lt;/li>
-&lt;li>DataFrame API: Added support for collecting DataFrame objects in interactive Beam (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11855">BEAM-11855&lt;/a>)&lt;/li>
-&lt;li>DataFrame API: Added &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe">apache_beam.examples.dataframe&lt;/a> module (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12024">BEAM-12024&lt;/a>)&lt;/li>
-&lt;li>Upgraded the GCP Libraries BOM version to 20.0.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11205">BEAM-11205&lt;/a>). For Google Cloud client library versions set by this BOM, see &lt;a href="https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/20.0.0/artifact_details.html">this table&lt;/a>&lt;/li>
-&lt;li>Added &lt;code>sdkContainerImage&lt;/code> flag to (eventually) replace &lt;code>workerHarnessContainerImage&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12212">BEAM-12212&lt;/a>)&lt;/li>
-&lt;li>Added support for Dataflow update when schemas are used (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12198">BEAM-12198&lt;/a>)&lt;/li>
-&lt;li>Fixed the issue that &lt;code>ZipFiles.zipDirectory&lt;/code> leaks native JVM memory (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12220">BEAM-12220&lt;/a>)&lt;/li>
-&lt;li>Fixed the issue that &lt;code>Reshuffle.withNumBuckets&lt;/code> creates &lt;code>(N*2)-1&lt;/code> buckets (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12361">BEAM-12361&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Drop support for Flink 1.8 and 1.9 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11948">BEAM-11948&lt;/a>)&lt;/li>
-&lt;li>MongoDbIO: Read.withFilter() and Read.withProjection() are removed since they are deprecated since Beam 2.12.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12217">BEAM-12217&lt;/a>)&lt;/li>
-&lt;li>RedisIO.readAll() was removed since it was deprecated since Beam 2.13.0. Please use RedisIO.readKeyPatterns() for the equivalent functionality (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12214">BEAM-12214&lt;/a>)&lt;/li>
-&lt;li>MqttIO.create() with clientId constructor removed because it was deprecated since Beam 2.13.0 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12216">BEAM-12216&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.30.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to &lt;code>git shortlog&lt;/code>, the following people contributed to the 2.30.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Anant Damle, Andreas Bergmeier, Andrew Pilloud, Ankur Goenka,
-Anup D, Artur Khanin, Benjamin Gonzalez, Bipin Upadhyaya, Boyuan Zhang, Brian Hulette, Bulat Shakirzyanov,
-Chamikara Jayalath, Chun Yang, Daniel Kulp, Daniel Oliveira, David Cavazos, Elliotte Rusty Harold, Emily Ye,
-Eric Roshan-Eisner, Evan Galpin, Fabien Caylus, Fernando Morales, Heejong Lee, Iñigo San Jose Visiers,
-Isidro Martínez, Ismaël Mejía, Ke Wu, Kenneth Knowles, KevinGG, Kyle Weaver, Ludovic Post, MATTHEW Ouyang (LCL),
-Mackenzie Clark, Masato Nakamura, Matthias Baetens, Max, Nicholas Azar, Ning Kang, Pablo Estrada, Patrick McCaffrey,
-Quentin Sommer, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle, Shoaib Zafar,
-Siyuan Chen, Sruthi Sree Kumar, Steve Niemitz, Sylvain Veyrié, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev,
-Vitaly Terentyev, Wenbing, Xinyu Liu, Yichi Zhang, Yifan Mai, Yueyang Qiu, Yunqing Zhou, ajo thomas, brucearctor,
-dmkozh, dpcollins-google, emily, jordan-moore, kileys, lostluck, masahitojp, roger-mike, sychen, tvalentyn,
-vachan-shetty, yoshiki.obata&lt;/p></description></item></channel></rss>
+Yifan Mai, yoshiki.obata, zhoufek&lt;/p></description></item></channel></rss>

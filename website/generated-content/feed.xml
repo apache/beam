@@ -1,4 +1,160 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.59.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Unit Testing in Beam: An opinionated guide</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides for testing.
+We cover an opinionated set of best practices to write unit tests for your data pipeline. This post doesn&amp;rsquo;t include integration tests, and you need to author those separately.
+All snippets in this post are included in &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb">this notebook&lt;/a>. Additionally, to see tests that exhibit best practices, look at the &lt;a href="https://beam.apache.org/blog/beam-starter-projects/">Beam starter projects&lt;/a>, which contain tests that exhibit best practices.&lt;/p>
+&lt;h2 id="best-practices">Best practices&lt;/h2>
+&lt;p>When testing Beam pipelines, we recommend the following best practices:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Don&amp;rsquo;t write unit tests for the already supported connectors in the Beam Library, such as &lt;code>ReadFromBigQuery&lt;/code> and &lt;code>WriteToText&lt;/code>. These connectors are already tested in Beam’s test suite to ensure correct functionality. They add unnecessary cost and dependencies to a unit test.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Ensure that your function is well tested when using it with &lt;code>Map&lt;/code>, &lt;code>FlatMap&lt;/code>, or &lt;code>Filter&lt;/code>. You can assume your function will work as intended when using &lt;code>Map(your_function)&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>For more complex transforms such as &lt;code>ParDo&lt;/code>’s, side inputs, timestamp inspection, etc., treat the entire transform as a unit, and test it.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>If needed, use mocking to mock any API calls that might be present in your DoFn. The purpose of mocking is to test your functionality extensively, even if this testing requires a specific response from an API call.&lt;/p>
+&lt;ol>
+&lt;li>Be sure to modularize your API calls in separate functions, rather than making the API call directly in the &lt;code>DoFn&lt;/code>. This step provides a cleaner experience when mocking the external API calls.&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="example-1">Example 1&lt;/h2>
+&lt;p>Use the following pipeline as an example. You don&amp;rsquo;t have to write a separate unit test to test this function in the context of this pipeline, assuming the function &lt;code>median_house_value_per_bedroom&lt;/code> is unit tested elsewhere in the code. You can trust that the &lt;code>Map&lt;/code> primitive works as expected (this illustrates point #2 noted previously).&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The following code computes the median house value per bedroom.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p1&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/california_housing_test.csv&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">skip_header_lines&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">median_house_value_per_bedroom&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example2&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="example-2">Example 2&lt;/h2>
+&lt;p>Use the following function as the example. The functions &lt;code>median_house_value_per_bedroom&lt;/code> and &lt;code>multiply_by_factor&lt;/code> are tested elsewhere, but the pipeline as a whole, which consists of composite transforms, is not.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p2&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/california_housing_test.csv&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">skip_header_lines&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">median_house_value_per_bedroom&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">multiply_by_factor&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombinePerKey&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example3&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The best practice for the previous code is to create a transform with all functions between &lt;code>ReadFromText&lt;/code> and &lt;code>WriteToText&lt;/code>. This step separates the transformation logic from the I/Os, allowing you to unit test the transformation logic. The following example is a refactoring of the previous code:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">transform_data_set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">median_house_value_per_bedroom&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">multiply_by_factor&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombinePerKey&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Define a new class that inherits from beam.PTransform.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">MapAndCombineTransform&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">transform_data_set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p2&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/california_housing_test.csv&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">skip_header_lines&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">MapAndCombineTransform&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example3&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This code shows the corresponding unit test for the previous example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">unittest&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.testing.test_pipeline&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">TestPipeline&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.testing.util&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">assert_that&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">equal_to&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">TestBeam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unittest&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TestCase&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># This test corresponds to example 3, and is written to confirm the pipeline works as intended.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">test_transform_data_set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expected&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">10570.185786231425&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">13.375337533753376&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">13.315649867374006&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;-122.050000,37.370000,27.000000,3885.000000,661.000000,1537.000000,606.000000,6.608500,344700.000000&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;121.05,99.99,23.30,39.5,55.55,41.01,10,34,74.30,91.91&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;122.05,100.99,24.30,40.5,56.55,42.01,11,35,75.30,92.91&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;-120.05,39.37,29.00,4085.00,681.00,1557.00,626.00,6.8085,364700.00&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p2&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MapAndCombineTransform&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">assert_that&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">result&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">equal_to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">expected&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="example-3">Example 3&lt;/h2>
+&lt;p>Suppose we write a pipeline that reads data from a JSON file, passes it through a custom function that makes external API calls for parsing, and then writes it to a custom destination (for example, if we need to do some custom data formatting to have data prepared for a downstream application).&lt;/p>
+&lt;p>The pipeline has the following structure:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The following packages are used to run the example pipelines.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.io&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">WriteToText&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">MyDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">returned_record&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MyApiCall&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;http://my-api-call.com&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">returned_record&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">!=&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">raise&lt;/span> &lt;span class="ne">ValueError&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;Length of record does not match expected length&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">yield&lt;/span> &lt;span class="n">returned_record&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p3&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p3&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/sample_data/anscombe.json&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MyDoFn&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;/content/example1&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This test checks whether the API response is a record of the wrong length and throws the expected error if the test fails.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">mock&lt;/span> &lt;span class="c1"># Install the &amp;#39;mock&amp;#39; module.&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Import the mock package for mocking functionality.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">unittest.mock&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Mock&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">patch&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># from MyApiCall import get_data&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">mock&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># MyApiCall is a function that calls get_data to fetch some data by using an API call.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nd">@patch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;MyApiCall.get_data&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">test_error_message_wrong_length&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">mock_get_data&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;field1&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="s1">&amp;#39;field2&amp;#39;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">mock_get_data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">return_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Mock&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">mock_get_data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">return_value&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">return_value&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">response&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;-122.050000,37.370000,27.000000,3885.000000,661.000000,1537.000000,606.000000,6.608500,344700.000000&amp;#39;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1">#input length 9&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">assertRaisesRegex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="ne">ValueError&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Length of record does not match expected length&amp;#39;&amp;#34;&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p3&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p3&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_elements&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MyDoFn&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">result&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="other-testing-best-practices">Other testing best practices:&lt;/h2>
+&lt;ol>
+&lt;li>Test all error messages that you raise.&lt;/li>
+&lt;li>Cover any edge cases that might exist in your data.&lt;/li>
+&lt;li>Example 1 could have written the &lt;code>beam.Map&lt;/code> step with lambda functions instead of with &lt;code>beam.Map(median_house_value_per_bedroom)&lt;/code>:&lt;/li>
+&lt;/ol>
+&lt;pre tabindex="0">&lt;code>beam.Map(lambda x: x.strip().split(&amp;#39;,&amp;#39;)) | beam.Map(lambda x: float(x[8])/float(x[4])
+&lt;/code>&lt;/pre>&lt;p>Separating lambdas into a helper function by using &lt;code>beam.Map(median_house_value_per_bedroom)&lt;/code> is the recommended approach for more testable code, because changes to the function would be modularized.&lt;/p>
+&lt;ol start="4">
+&lt;li>Use the &lt;code>assert_that&lt;/code> statement to ensure that &lt;code>PCollection&lt;/code> values match correctly, as in the previous example.&lt;/li>
+&lt;/ol>
+&lt;p>For more guidance about testing on Beam and Dataflow, see the &lt;a href="https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines">Google Cloud documentation&lt;/a>. For more examples of unit testing in Beam, see the &lt;code>base_test.py&lt;/code> &lt;a href="https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262">code&lt;/a>.&lt;/p>
+&lt;p>Special thanks to Robert Bradshaw, Danny McCormick, XQ Hu, Surjit Singh, and Rebecca Spzer, who helped refine the ideas in this post.&lt;/p></description><link>/blog/unit-testing-in-beam/</link><pubDate>Fri, 13 Sep 2024 00:00:01 -0800</pubDate><guid>/blog/unit-testing-in-beam/</guid><category>blog</category></item><item><title>Apache Beam 2.59.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1743,139 +1899,4 @@ See the &lt;a href="/get-started/downloads/">download page&lt;/a> for this relea
 &lt;p>tvalentyn&lt;/p>
 &lt;p>Vlado Djerek&lt;/p>
 &lt;p>Yi Hu&lt;/p>
-&lt;p>Zechen Jian&lt;/p></description><link>/blog/beam-2.54.0/</link><pubDate>Wed, 14 Feb 2024 09:00:00 -0400</pubDate><guid>/blog/beam-2.54.0/</guid><category>blog</category><category>release</category></item><item><title>Behind the Scenes: Crafting an Autoscaler for Apache Beam in a High-Volume Streaming Environment</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h3 id="introduction-to-the-design-of-our-autoscaler-for-apache-beam-jobs">Introduction to the Design of Our Autoscaler for Apache Beam Jobs&lt;/h3>
-&lt;p>Welcome to the third and final part of our blog series on building a scalable, self-managed streaming infrastructure with Beam and Flink. &lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/">In our previous post&lt;/a>, we delved into the scale of our streaming platforms, highlighting our capacity to manage over 40,000 streaming jobs and process upwards of 10 million events per second. This impressive scale sets the stage for the challenge we address today: the intricate task of resource allocation in a dynamic streaming environment.&lt;/p>
-&lt;p>In this blog post &lt;a href="https://www.linkedin.com/in/talatuyarer/">Talat Uyarer (Architect / Senior Principal Engineer)&lt;/a> and &lt;a href="https://www.linkedin.com/in/rishabhkedia/">Rishabh Kedia (Principal Engineer)&lt;/a> describe more details about our Autoscaler. Imagine a scenario where your streaming system is inundated with fluctuating workloads. Our case presents a unique challenge, as our customers, equipped with firewalls distributed globally, generate logs at various times of the day. This results in workloads that not only vary by time but also escalate over time due to changes in settings or the addition of new cybersecurity solutions from PANW. Furthermore, updates to our codebase necessitate rolling out changes across all streaming jobs, leading to a temporary surge in demand as the system processes unprocessed data.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/resource-allocation.png"
-alt="Resource Allocation">&lt;/p>
-&lt;p>Traditionally, managing this ebb and flow of demand involves a manual, often inefficient approach. One might over-provision resources to handle peak loads, inevitably leading to resource wastage during off-peak hours. Conversely, a more cost-conscious strategy might involve accepting delays during peak times, with the expectation of catching up later. However, both methods demand constant monitoring and manual adjustment - a far from ideal situation.&lt;/p>
-&lt;p>In this modern era, where automated scaling of web front-ends is a given, we aspire to bring the same level of efficiency and automation to streaming infrastructure. Our goal is to develop a system that can dynamically track and adjust to the workload demands of our streaming operations. In this blog post, we will introduce you to our innovative solution - an autoscaler designed specifically for Apache Beam jobs.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/auto-tuned-worker.png"
-alt="Auto Tuned Resource Allocation">&lt;/p>
-&lt;p>For clarity, when we refer to &amp;ldquo;resources&amp;rdquo; in this context, we mean the number of Flink Task Managers, or Kubernetes Pods, that process your streaming pipeline. These Task Managers aren&amp;rsquo;t just about CPU; they also involve RAM, Network, Disk IO, and other computational resources.&lt;/p>
-&lt;p>However, our solution is predicated on certain assumptions. Primarily, it&amp;rsquo;s geared towards operations processing substantial data volumes. If your workload only requires a couple of Task Managers, this system might not be the best fit. In Our case we have 10K+ workload and each each of them has different workload. Manual tuning was not an option for us. We also assume that the data is evenly distributed, allowing for increased throughput with the addition of more Task Managers. This assumption is crucial for effective horizontal scaling. While there are real-world complexities that might challenge these assumptions, for the scope of this discussion, we will focus on scenarios where these conditions hold true.&lt;/p>
-&lt;p>Join us as we delve into the design and functionality of our autoscaler, a solution tailored to bring efficiency, adaptability, and a touch of intelligence to the world of streaming infrastructure.&lt;/p>
-&lt;h2 id="identifying-the-right-signals-for-autoscaling">Identifying the Right Signals for Autoscaling&lt;/h2>
-&lt;p>When we&amp;rsquo;re overseeing a system like Apache Beam jobs on Flink, it&amp;rsquo;s crucial to identify key signals that help us understand the relationship between our workload and resources. These signals are our guiding lights, showing us when we&amp;rsquo;re lagging behind or wasting resources. By accurately identifying these signals, we can formulate effective scaling policies and implement changes in real-time. Imagine needing to expand from 100 to 200 TaskManagers — how do we smoothly make that transition? That&amp;rsquo;s where these signals come into play.&lt;/p>
-&lt;p>Remember, we&amp;rsquo;re aiming for a universal solution applicable to any workload and pipeline. While specific problems might benefit from unique signals, our focus here is on creating a one-size-fits-all approach.&lt;/p>
-&lt;p>In Flink, tasks form the basic execution unit and consist of one or more operators, such as map, filter, or reduce. Flink optimizes performance by chaining these operators into single tasks when possible, minimizing overheads like thread context switching and network I/O. Your pipeline, when optimized, turns into a directed acyclic graph of stages, each processing elements based on your code. Don&amp;rsquo;t confuse stages with physical machines — they&amp;rsquo;re separate concepts. In our job we measure backlog information by using Apache Beam&amp;rsquo;s &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/metrics/SourceMetrics.java#L32">&lt;code>backlog_bytes&lt;/code> and &lt;code>backlog_elements&lt;/code>&lt;/a> metrics.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/flink-operator-chaining.png"
-alt="Apache Beam Pipeline Optimization by Apache Flink">&lt;/p>
-&lt;h5 id="upscaling-signals">&lt;strong>Upscaling Signals&lt;/strong>&lt;/h5>
-&lt;h5 id="backlog-growth">&lt;em>Backlog Growth&lt;/em>&lt;/h5>
-&lt;p>Let’s take a practical example. Consider a pipeline reading from Kafka, where different operators handle data parsing, formatting, and accumulation. The key metric here is throughput — how much data each operstor processes over time. But throughput alone isn&amp;rsquo;t enough. We need to examine the queue size or backlog at each operator. A growing backlog indicates we&amp;rsquo;re falling behind. We measure this as backlog growth — the first derivative of backlog size over time, highlighting our processing deficit.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/backlog_growth.png"
-alt="Backlog Growth Calculation">&lt;/p>
-&lt;h5 id="backlog-time">&lt;em>Backlog Time&lt;/em>&lt;/h5>
-&lt;p>This leads us to backlog time, a derived metric that compares backlog size with throughput. It’s a measure of how long it would take to clear the current backlog, assuming no new data arrives. This helps us identify if a backlog of a certain size is acceptable or problematic, based on our specific processing needs and thresholds.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/backlog_time.png"
-alt="Backlog Time Calculation">&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/operator-backlog.png"
-alt="Close looks at Operator Backlog">&lt;/p>
-&lt;h4 id="downscaling-when-less-is-more">&lt;strong>Downscaling: When Less is More&lt;/strong>&lt;/h4>
-&lt;h5 id="cpu-utilization">&lt;em>CPU Utilization&lt;/em>&lt;/h5>
-&lt;p>A key signal for downscaling is CPU utilization. Low CPU utilization suggests we&amp;rsquo;re using more resources than necessary. By monitoring this, we can scale down efficiently without compromising performance.&lt;/p>
-&lt;h4 id="signals-summary">&lt;strong>Signals Summary&lt;/strong>&lt;/h4>
-&lt;p>In summary, the signals we&amp;rsquo;ve identified for effective autoscaling are:&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>Throughput:&lt;/strong> The baseline of our performance.&lt;/li>
-&lt;li>&lt;strong>Backlog Growth:&lt;/strong> Indicates if we’re keeping pace with incoming data.&lt;/li>
-&lt;li>&lt;strong>Backlog Time:&lt;/strong> Helps understand the severity of backlog.&lt;/li>
-&lt;li>&lt;strong>CPU Utilization:&lt;/strong> Guides us in resource optimization.&lt;/li>
-&lt;/ol>
-&lt;p>These signals might seem straightforward, but their simplicity is key to a scalable, workload-agnostic autoscaling solution.&lt;/p>
-&lt;h2 id="simplifying-autoscaling-policies-for-apache-beam-jobs-on-flink">Simplifying Autoscaling Policies for Apache Beam Jobs on Flink&lt;/h2>
-&lt;p>In the world of Apache Beam jobs running on Flink, deciding when to scale up or down is a bit like being a chef in a busy kitchen. You need to keep an eye on several ingredients — your workload, virtual machines (VMs), and how they interact. It&amp;rsquo;s about maintaining a perfect balance. Our main goals? Avoid falling behind in processing (no backlog growth), ensure that any existing backlog is manageable (short backlog time), and use our resources (like CPU) efficiently.&lt;/p>
-&lt;h4 id="up-scaling-keeping-up-and-catching-up">&lt;strong>Up-scaling: Keeping Up and Catching Up&lt;/strong>&lt;/h4>
-&lt;p>Imagine your system is like a team of chefs working together. Here&amp;rsquo;s how we decide when to bring more chefs into the kitchen (a.k.a. upscaling):&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>&lt;strong>Keeping Up:&lt;/strong> First, we look at our current team size (number of VMs) and how much they&amp;rsquo;re processing (throughput). We then adjust our team size based on the amount of incoming orders (input rate). It&amp;rsquo;s about ensuring that our team is big enough to handle the current demand.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Catching Up:&lt;/strong> Sometimes, we might have a backlog of orders. In that case, we decide how many extra chefs we need to clear this backlog within a desired time (like 60 seconds). This part of the policy helps us get back on track swiftly.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;h4 id="scaling-example-a-practical-look">&lt;strong>Scaling Example: A Practical Look&lt;/strong>&lt;/h4>
-&lt;p>Let&amp;rsquo;s paint a picture with an example. Initially, we have a steady flow of orders (input rate) matching our processing capacity (throughput), so there&amp;rsquo;s no backlog. But suddenly, orders increase, and our team starts falling behind, creating a backlog. We respond by increasing our team size to match the new rate of orders. Though the backlog doesn&amp;rsquo;t grow further, it still exists. Finally, we add a few more chefs to the team, which allows us to clear the backlog quickly and return to a new, balanced state.&lt;/p>
-&lt;h4 id="downscaling-when-to-reduce-resources">&lt;strong>Downscaling: When to Reduce Resources&lt;/strong>&lt;/h4>
-&lt;p>Downscaling is like knowing when some chefs can take a break after a rush hour. We consider this when:&lt;/p>
-&lt;ul>
-&lt;li>Our backlog is low — we&amp;rsquo;ve caught up with the orders.&lt;/li>
-&lt;li>The backlog isn&amp;rsquo;t growing — we&amp;rsquo;re keeping up with incoming orders.&lt;/li>
-&lt;li>Our kitchen (CPU) isn&amp;rsquo;t working too hard — we&amp;rsquo;re using our resources efficiently.&lt;/li>
-&lt;/ul>
-&lt;p>Downscaling is all about reducing resources without affecting the quality of service. It&amp;rsquo;s about ensuring that we&amp;rsquo;re not overstaffed when the rush hour is over.&lt;/p>
-&lt;h4 id="summary-a-recipe-for-effective-scaling">&lt;strong>Summary: A Recipe for Effective Scaling&lt;/strong>&lt;/h4>
-&lt;p>In summary, our scaling policy is for scale up, we first ensure that the time to drain the backlog is beyond the threshold (120s) or the cpu is above the threshold (90%)&lt;/p>
-&lt;p>Increasing Backlog aka Backlog Growth &amp;gt; 0 :&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_require.png"
-alt="Required Worker Calculation">&lt;/p>
-&lt;p>Consistent Backlog aka Backlog Growth = 0:&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_extra.png"
-alt="Extra Worker Calculation">&lt;/p>
-&lt;p>To Sum up:&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_scaleup.png"
-alt="Scale up Worker Calculation">&lt;/p>
-&lt;p>To scale down, we need to ensure the machine utilization is low (&amp;lt; 70%) and there is no backlog growth and current time to drain backlog is less than the limit (10s)&lt;/p>
-&lt;p>So the only driving factor to calculate the required resources after a scale down is CPU&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/cpurate_desired.png"
-alt="Desired Cpu Rate Calculation">&lt;/p>
-&lt;h2 id="executing-autoscaling-decision">Executing Autoscaling Decision&lt;/h2>
-&lt;p>In our setup we use Reactive Mode which uses Adaptive Scheduler and Declarative Resources manager. We wanted to align resources with slots. As advised in most of the Flink documentation we set one per vCPU slot. Most of our jobs use 1 vCPU 4GB Memory combination for TaskManager.&lt;/p>
-&lt;p>Reactive Mode, a unique feature of the Adaptive Scheduler, operates under the principle of one job per cluster, a rule enforced in Application Mode. In this mode, a job is configured to utilize all available resources within the cluster. Adding a TaskManager will increase the job&amp;rsquo;s scale, while removing resources will decrease it. In this setup, Flink autonomously manages the job&amp;rsquo;s parallelism, always maximizing it.&lt;/p>
-&lt;p>During a rescaling event, Reactive Mode restarts the job using the most recent checkpoint. This eliminates the need for creating a savepoint, typically required for manual job rescaling. The volume of data reprocessed after rescaling is influenced by the checkpointing interval(10 seconds for us), and the time it takes to restore depends on the size of the state.&lt;/p>
-&lt;p>The scheduler determines the parallelism of each operator within a job. This setting is not user-configurable and any attempts to set it, whether for individual operators or the entire job, will be overlooked.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part3/adaptive_scheduler_rescale.png"
-alt="How Reactive Mode Works">&lt;/p>
-&lt;p>Parallelism can only be influenced by setting a maximum for pipelines, which the scheduler will honor. Our maxParallelism is limited by the total count of partitions that the pipeline will process, as well as by the job itself. We cap the maximum number of TaskManagers with maxWorker count and control the job&amp;rsquo;s key count in shuffle by setting maxParallelism. Additionally, we set maxParallelism per pipeline to manage pipeline parallelism. The job cannot exceed the job&amp;rsquo;s maxParallelism in terms of workers.&lt;/p>
-&lt;p>After autoscaler analysis, we will tag if the job needs to be scaled up, no action or scaled down. To interact with the job, we use a library we have built over Flink Kubernetes Operator. This library allows us to interact with our flink jobs via a simple java method call. Library will convert our method call to a kubernetes command.&lt;/p>
-&lt;p>In the kubernetes world, the call will look like this for a scale up:&lt;/p>
-&lt;p>&lt;code>kubectl scale flinkdeployment job-name --replicas=100&lt;/code>&lt;/p>
-&lt;p>Apache Flink will handle the rest of the work needed to scale up.&lt;/p>
-&lt;h2 id="maintaining-state-for-stateful-streaming-application-with-autoscaling">Maintaining State for Stateful Streaming Application with Autoscaling&lt;/h2>
-&lt;p>Adapting Apache Flink&amp;rsquo;s state recovery mechanisms for autoscaling involves leveraging its robust features like max parallelism, checkpointing, and the Adaptive Scheduler to ensure efficient and resilient stream processing, even as the system dynamically adjusts to varying loads. Here&amp;rsquo;s how these components work together in an autoscaling context:&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>Max Parallelism&lt;/strong> sets an upper limit on how much a job can scale out, ensuring that state can be redistributed across a larger or smaller number of nodes without exceeding predefined boundaries. This is crucial for autoscaling because it allows Flink to manage state effectively, even as the number of task slots changes to accommodate varying workloads.&lt;/li>
-&lt;li>&lt;strong>Checkpointing&lt;/strong> is at the heart of Flink&amp;rsquo;s fault tolerance mechanism, periodically saving the state of each job to a durable storage (in our case it is GCS bucket). In an autoscaling scenario, checkpointing enables Flink to recover to a consistent state after scaling operations. When the system scales out (adds more resources) or scales in (removes resources), Flink can restore the state from these checkpoints, ensuring data integrity and processing continuity without losing critical information. In scale down or up situations there could be a moment to reprocess data from last checkpoint. To reduce that amount we reduce the checkpointing interval to 10 seconds.&lt;/li>
-&lt;li>&lt;strong>Reactive Mode&lt;/strong> is a special mode for Adaptive Scheduler, that assumes a single job per-cluster (enforced by the Application Mode). Reactive Mode configures a job so that it always uses all resources available in the cluster. Adding a TaskManager will scale up your job, removing resources will scale it down. Flink will manage the parallelism of the job, always setting it to the highest possible values. When a job undergoes resizing, Reactive Mode triggers a restart using the most recent successful checkpoint.&lt;/li>
-&lt;/ol>
-&lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>In this blog series, we&amp;rsquo;ve taken a deep dive into the creation of an autoscaler for Apache Beam in a high-volume streaming environment, highlighting the journey from conceptualization to implementation. This endeavor not only tackled the complexities of dynamic resource allocation but also set a new standard for efficiency and adaptability in streaming infrastructure. By marrying intelligent scaling policies with the robust capabilities of Apache Beam and Flink, we&amp;rsquo;ve showcased a scalable solution that optimizes resource use and maintains performance under varying loads. This project stands as a testament to the power of teamwork, innovation, and a forward-thinking approach to streaming data processing. As we wrap up this series, we express our gratitude to all contributors and look forward to the continuous evolution of this technology, inviting the community to join us in further discussions and developments.&lt;/p>
-&lt;h1 id="references">References&lt;/h1>
-&lt;p>[1] Streaming Auto-scaling in Google Cloud Dataflow &lt;a href="https://www.infoq.com/presentations/google-cloud-dataflow/">https://www.infoq.com/presentations/google-cloud-dataflow/&lt;/a>&lt;/p>
-&lt;p>[2] Pipeline lifecycle &lt;a href="https://cloud.google.com/dataflow/docs/pipeline-lifecycle">https://cloud.google.com/dataflow/docs/pipeline-lifecycle&lt;/a>&lt;/p>
-&lt;p>[3] Flink Elastic Scaling &lt;a href="https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/elastic_scaling/">https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/elastic_scaling/&lt;/a>&lt;/p>
-&lt;h1 id="acknowledgements">Acknowledgements&lt;/h1>
-&lt;p>This is a large effort to build the new infrastructure and to migrate the large customer based applications from cloud provider managed streaming infrastructure to self-managed Flink based infrastructure at scale. Thanks the Palo Alto Networks CDL streaming team who helped to make this happen: Kishore Pola, Andrew Park, Hemant Kumar, Manan Mangal, Helen Jiang, Mandy Wang, Praveen Kumar Pasupuleti, JM Teo, Rishabh Kedia, Talat Uyarer, Naitik Dani, and David He.&lt;/p>
-&lt;hr>
-&lt;p>&lt;strong>Explore More:&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/">Part 1: Introduction to Building and Managing Apache Beam Flink Services on Kubernetes&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes-part2/">Part 2: Build a scalable, self-managed streaming infrastructure with Flink: Tackling Autoscaling Challenges - Part 2&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>&lt;em>Join the conversation and share your experiences on our &lt;a href="https://beam.apache.org/community/">Community&lt;/a> or contribute to our ongoing projects on &lt;a href="https://github.com/apache/beam">GitHub&lt;/a>. Your feedback is invaluable. If you have any comments or questions about this series, please feel free to reach out to us via &lt;a href="https://beam.apache.org/community/contact-us/">User Mailist&lt;/a>&lt;/em>&lt;/p>
-&lt;p>&lt;em>Stay connected with us for more updates and insights into Apache Beam, Flink, and Kubernetes.&lt;/em>&lt;/p></description><link>/blog/apache-beam-flink-and-kubernetes-part3/</link><pubDate>Mon, 05 Feb 2024 09:00:00 -0400</pubDate><guid>/blog/apache-beam-flink-and-kubernetes-part3/</guid><category>blog</category></item></channel></rss>
+&lt;p>Zechen Jian&lt;/p></description><link>/blog/beam-2.54.0/</link><pubDate>Wed, 14 Feb 2024 09:00:00 -0400</pubDate><guid>/blog/beam-2.54.0/</guid><category>blog</category><category>release</category></item></channel></rss>
