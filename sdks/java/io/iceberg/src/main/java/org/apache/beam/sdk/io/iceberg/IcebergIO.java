@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -25,6 +26,12 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -33,6 +40,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * The underlying Iceberg connector used by {@link org.apache.beam.sdk.managed.Managed#ICEBERG}. Not
@@ -49,12 +57,15 @@ public class IcebergIO {
 
   @AutoValue
   public abstract static class WriteRows extends PTransform<PCollection<Row>, IcebergWriteResult> {
+    private static final int TRIGGERING_RECORD_COUNT = 50_000;
 
     abstract IcebergCatalogConfig getCatalogConfig();
 
     abstract @Nullable TableIdentifier getTableIdentifier();
 
     abstract @Nullable DynamicDestinations getDynamicDestinations();
+
+    abstract @Nullable Duration getTriggeringFrequency();
 
     abstract Builder toBuilder();
 
@@ -66,6 +77,8 @@ public class IcebergIO {
 
       abstract Builder setDynamicDestinations(DynamicDestinations destinations);
 
+      abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
+
       abstract WriteRows build();
     }
 
@@ -75,6 +88,21 @@ public class IcebergIO {
 
     public WriteRows to(DynamicDestinations destinations) {
       return toBuilder().setDynamicDestinations(destinations).build();
+    }
+
+    /**
+     * Sets the frequency at which data is committed and a new {@link org.apache.iceberg.Snapshot}
+     * is produced.
+     *
+     * <p>Every triggeringFrequency duration, all accumulated {@link
+     * org.apache.iceberg.ManifestFile}s are appended and committed to the table. This results in a
+     * new table {@link org.apache.iceberg.Snapshot}.
+     *
+     * <p>This is only applicable when writing an unbounded {@link PCollection} (i.e. a streaming
+     * pipeline).
+     */
+    public WriteRows withTriggeringFrequency(Duration triggeringFrequency) {
+      return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
     }
 
     @Override
@@ -89,11 +117,32 @@ public class IcebergIO {
         destinations =
             DynamicDestinations.singleTable(Preconditions.checkNotNull(getTableIdentifier()));
       }
+
+      if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+        Duration triggeringFrequency = getTriggeringFrequency();
+        checkArgumentNotNull(
+            triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
+        input =
+            input.apply(
+                "WindowIntoGlobal",
+                Window.<Row>into(new GlobalWindows())
+                    .triggering(
+                        Repeatedly.forever(
+                            AfterFirst.of(
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(triggeringFrequency),
+                                AfterPane.elementCountAtLeast(TRIGGERING_RECORD_COUNT))))
+                    .discardingFiredPanes());
+      } else {
+        Preconditions.checkArgument(
+            getTriggeringFrequency() == null,
+            "Triggering frequency is only applicable for streaming pipelines.");
+      }
       return input
           .apply("Set Destination Metadata", new AssignDestinations(destinations))
           .apply(
               "Write Rows to Destinations",
-              new WriteToDestinations(getCatalogConfig(), destinations));
+              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
     }
   }
 

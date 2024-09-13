@@ -28,24 +28,35 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResult> {
 
   static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
   static final int DEFAULT_NUM_FILE_SHARDS = 0;
-  static final int FILE_TRIGGERING_RECORD_COUNT = 50_000;
 
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
+  private final @Nullable Duration triggeringFrequency;
 
-  WriteToDestinations(IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
+  WriteToDestinations(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
+    this.triggeringFrequency = triggeringFrequency;
   }
 
   @Override
@@ -108,10 +119,39 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
                 "Write remaining rows to files",
                 new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations));
 
+    PCollection<FileWriteResult> writeUngroupedResultPColl = writeUngroupedResult.getWrittenFiles();
+
+    if (triggeringFrequency != null) {
+      // for streaming pipelines, re-window both outputs to keep Flatten happy
+      writeGroupedResult =
+          writeGroupedResult.apply(
+              "RewindowGroupedRecords",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))));
+      writeUngroupedResultPColl =
+          writeUngroupedResultPColl.apply(
+              "RewindowUnGroupedRecords",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))));
+    }
+
     PCollection<FileWriteResult> allWrittenFiles =
-        PCollectionList.of(writeUngroupedResult.getWrittenFiles())
+        PCollectionList.of(writeUngroupedResultPColl)
             .and(writeGroupedResult)
             .apply("Flatten Written Files", Flatten.pCollections());
+
+    if (triggeringFrequency != null) {
+      // apply the user's trigger before we start committing and creating snapshots
+      allWrittenFiles =
+          allWrittenFiles.apply(
+              "ApplyUserTrigger",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterProcessingTime.pastFirstElementInPane()
+                              .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
+                  .discardingFiredPanes());
+    }
 
     // Apply any sharded writes and flatten everything for catalog updates
     PCollection<KV<String, SnapshotInfo>> snapshots =

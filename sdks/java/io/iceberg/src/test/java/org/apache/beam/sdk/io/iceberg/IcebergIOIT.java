@@ -19,10 +19,12 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,9 +35,12 @@ import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
@@ -57,6 +62,8 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -303,6 +310,40 @@ public class IcebergIOIT implements Serializable {
     pipeline.run().waitUntilFinish();
 
     // Read back and check records are correct
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  @Test
+  public void testStreamingWrite() {
+    PartitionSpec partitionSpec =
+        PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
+    Table table = catalog.createTable(tableId, ICEBERG_SCHEMA, partitionSpec);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig());
+    config.put("triggering_frequency_seconds", 10);
+
+    Instant start = new Instant(0);
+    Instant stop = start.plus(Duration.millis(999));
+
+    PCollection<Row> input =
+        pipeline
+            .apply(
+                PeriodicImpulse.create()
+                    .startAt(start)
+                    .stopAt(stop)
+                    .withInterval(Duration.millis(1)))
+            .apply(
+                MapElements.into(TypeDescriptors.rows())
+                    .via(instant -> ROW_FUNC.apply(instant.getMillis())))
+            .setRowSchema(BEAM_SCHEMA);
+
+    assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
+
+    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));

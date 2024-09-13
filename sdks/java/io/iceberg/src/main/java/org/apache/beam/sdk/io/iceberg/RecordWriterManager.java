@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -60,8 +62,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link DestinationState} maintains its writers in a {@link Cache}. If a {@link RecordWriter}
  * is inactive for 1 minute, the {@link DestinationState} will automatically close it to free up
- * resources. Calling {@link #close()} on this {@link RecordWriterManager} will do the following for
- * each {@link DestinationState}:
+ * resources. When a data writer is closed, its resulting {@link DataFile} gets written. Calling
+ * {@link #close()} on this {@link RecordWriterManager} will do the following for each {@link
+ * DestinationState}:
  *
  * <ol>
  *   <li>Close all underlying {@link RecordWriter}s
@@ -74,6 +77,10 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+  private final Counter dataFilesWritten =
+      Metrics.counter(RecordWriterManager.class, "dataFilesWritten");
+  private final Counter manifestFilesWritten =
+      Metrics.counter(RecordWriterManager.class, "manifestFilesWritten");
 
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
@@ -88,6 +95,7 @@ class RecordWriterManager implements AutoCloseable {
     private final PartitionKey partitionKey;
     private final String tableLocation;
     private final FileIO fileIO;
+    private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
     private final List<DataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Cache<PartitionKey, RecordWriter> writers;
@@ -100,6 +108,7 @@ class RecordWriterManager implements AutoCloseable {
       this.partitionKey = new PartitionKey(spec, schema);
       this.tableLocation = table.location();
       this.fileIO = table.io();
+      this.table = table;
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -123,6 +132,7 @@ class RecordWriterManager implements AutoCloseable {
                     }
                     openWriters--;
                     dataFiles.add(recordWriter.getDataFile());
+                    dataFilesWritten.inc();
                   })
               .build();
     }
@@ -170,8 +180,8 @@ class RecordWriterManager implements AutoCloseable {
       try {
         RecordWriter writer =
             new RecordWriter(
-                catalog,
-                icebergDestination,
+                table,
+                icebergDestination.getFileFormat(),
                 filePrefix + "_" + stateToken + "_" + recordIndex,
                 partitionKey);
         openWriters++;
@@ -261,13 +271,7 @@ class RecordWriterManager implements AutoCloseable {
         manifestWriter = openWriter;
       }
       ManifestFile manifestFile = manifestWriter.toManifestFile();
-
-      LOG.info(
-          "Successfully wrote manifest file, adding {} data files ({} rows) to table '{}': {}.",
-          manifestFile.addedFilesCount(),
-          manifestFile.addedRowsCount(),
-          windowedDestination.getValue().getTableIdentifier(),
-          outputFile.location());
+      manifestFilesWritten.inc();
 
       totalManifestFiles
           .computeIfAbsent(windowedDestination, dest -> Lists.newArrayList())
