@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -771,6 +772,7 @@ public abstract class Row implements Serializable {
       checkState(values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValue(fieldAccessDescriptor, value);
     }
+
     /**
      * Sets field values using the field names. Nested values can be set using the field selection
      * syntax.
@@ -836,10 +838,10 @@ public abstract class Row implements Serializable {
     }
 
     @Internal
-    public Row withFieldValueGetters(
-        Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
+    public <T extends @NonNull Object> Row withFieldValueGetters(
+        Factory<List<FieldValueGetter<T, ?>>> fieldValueGetterFactory, T getterTarget) {
       checkState(getterTarget != null, "getters require withGetterTarget.");
-      return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+      return new RowWithGetters<>(schema, fieldValueGetterFactory, getterTarget);
     }
 
     public Row build() {

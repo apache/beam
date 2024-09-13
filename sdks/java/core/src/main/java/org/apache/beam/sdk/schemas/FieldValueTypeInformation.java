@@ -41,10 +41,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
 public abstract class FieldValueTypeInformation implements Serializable {
   /** Optionally returns the field index. */
   public abstract @Nullable Integer getNumber();
@@ -350,10 +346,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
-  @SuppressWarnings("unchecked")
   private static @Nullable FieldValueTypeInformation getMapType(
       TypeDescriptor<?> valueType, int index) {
-    TypeDescriptor mapType = ReflectUtils.getMapType(valueType, index);
+    TypeDescriptor<?> mapType = ReflectUtils.getMapType(valueType, index);
     if (mapType == null) {
       return null;
     }

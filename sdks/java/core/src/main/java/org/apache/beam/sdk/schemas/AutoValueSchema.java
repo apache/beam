@@ -19,7 +19,6 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
@@ -32,13 +31,10 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link SchemaProvider} for AutoValue classes. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
 public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on AutoValue getters. */
   @VisibleForTesting
@@ -49,7 +45,11 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
 
       // If the generated class is passed in, we want to look at the base class to find the getters.
-      TypeDescriptor<?> targetTypeDescriptor = AutoValueUtils.getBaseAutoValueClass(typeDescriptor);
+      TypeDescriptor<?> targetTypeDescriptor =
+          Preconditions.checkNotNull(
+              AutoValueUtils.getBaseAutoValueClass(typeDescriptor),
+              "unable to determine base AutoValue class for type {}",
+              typeDescriptor);
 
       List<Method> methods =
           ReflectUtils.getMethods(targetTypeDescriptor.getRawType()).stream()
@@ -64,7 +64,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
       for (int i = 0; i < methods.size(); ++i) {
         types.add(FieldValueTypeInformation.forGetter(typeDescriptor, methods.get(i), i));
       }
-      types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
+      types.sort(JavaBeanUtils.comparingNullFirst(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
       return types;
     }
@@ -89,8 +89,8 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getGetters(
         targetTypeDescriptor,
         schema,

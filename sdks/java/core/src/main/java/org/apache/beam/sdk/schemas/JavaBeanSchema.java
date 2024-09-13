@@ -19,7 +19,6 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -49,10 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
  * on the schema.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on getter methods. */
   @VisibleForTesting
@@ -70,7 +67,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
       for (int i = 0; i < methods.size(); ++i) {
         types.add(FieldValueTypeInformation.forGetter(typeDescriptor, methods.get(i), i));
       }
-      types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
+      types.sort(JavaBeanUtils.comparingNullFirst(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
       return types;
     }
@@ -117,26 +114,29 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
           .map(m -> FieldValueTypeInformation.forSetter(typeDescriptor, m))
           .map(
               t -> {
-                if (t.getMethod().getAnnotation(SchemaFieldNumber.class) != null) {
+                Method m =
+                    Preconditions.checkNotNull(
+                        t.getMethod(), JavaBeanUtils.SETTER_WITH_NULL_METHOD_ERROR);
+                if (m.getAnnotation(SchemaFieldNumber.class) != null) {
                   throw new RuntimeException(
                       String.format(
                           "@SchemaFieldNumber can only be used on getters in Java Beans. Found on"
                               + " setter '%s'",
-                          t.getMethod().getName()));
+                          m.getName()));
                 }
-                if (t.getMethod().getAnnotation(SchemaFieldName.class) != null) {
+                if (m.getAnnotation(SchemaFieldName.class) != null) {
                   throw new RuntimeException(
                       String.format(
                           "@SchemaFieldName can only be used on getters in Java Beans. Found on"
                               + " setter '%s'",
-                          t.getMethod().getName()));
+                          m.getName()));
                 }
-                if (t.getMethod().getAnnotation(SchemaCaseFormat.class) != null) {
+                if (m.getAnnotation(SchemaCaseFormat.class) != null) {
                   throw new RuntimeException(
                       String.format(
                           "@SchemaCaseFormat can only be used on getters in Java Beans. Found on"
                               + " setter '%s'",
-                          t.getMethod().getName()));
+                          m.getName()));
                 }
                 return t;
               })
@@ -172,8 +172,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getGetters(
         targetTypeDescriptor,
         schema,

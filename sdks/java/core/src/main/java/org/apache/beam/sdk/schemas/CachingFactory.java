@@ -20,6 +20,8 @@ package org.apache.beam.sdk.schemas;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -39,9 +41,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class CachingFactory<CreatedT> implements Factory<CreatedT> {
   private transient @Nullable ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = null;
 
-  private final Factory<CreatedT> innerFactory;
+  private final @NotOnlyInitialized Factory<CreatedT> innerFactory;
 
-  public CachingFactory(Factory<CreatedT> innerFactory) {
+  public CachingFactory(@UnknownInitialization Factory<CreatedT> innerFactory) {
     this.innerFactory = innerFactory;
   }
 
