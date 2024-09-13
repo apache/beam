@@ -2037,12 +2037,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getPublishBatchWithOrderingKey()) {
         throw new UnsupportedOperationException(
             String.format(
-                "%s does not currently support publishing with ordering keys. "
+                "The DataflowRunner does not currently support publishing to Pubsub with ordering keys. "
                     + "%s is required to support publishing with ordering keys. "
                     + "Set the pipeline option --experiments=%s to use this PTransform.",
-                StreamingPubsubIOWrite.class.getSimpleName(),
-                PubsubUnboundedSink.class.getSimpleName(),
-                ENABLE_CUSTOM_PUBSUB_SINK));
+                PubsubUnboundedSink.class.getSimpleName(), ENABLE_CUSTOM_PUBSUB_SINK));
       }
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider() != null) {

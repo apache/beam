@@ -39,6 +39,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private static final int PUBSUB_MESSAGE_MAX_ATTRIBUTES = 100;
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_BYTES = 256;
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES = 1024;
+  private static final int ORDERING_KEY_MAX_VALUE_BYTES = 1024;
   // The amount of bytes that each attribute entry adds up to the request
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
   private boolean allowOrderingKey;
@@ -71,12 +72,12 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
     @Nullable String orderingKey = message.getOrderingKey();
     if (orderingKey != null) {
       int orderingKeySize = orderingKey.getBytes(StandardCharsets.UTF_8).length;
-      if (orderingKeySize > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES) {
+      if (orderingKeySize > ORDERING_KEY_MAX_VALUE_BYTES) {
         throw new SizeLimitExceededException(
             "Pubsub message ordering key of length "
                 + orderingKeySize
                 + " exceeds maximum of "
-                + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES
+                + ORDERING_KEY_MAX_VALUE_BYTES
                 + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
       }
       totalSize += orderingKeySize;
