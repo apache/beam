@@ -38,7 +38,6 @@ dependencies {
     implementation library.java.proto_google_cloud_secret_manager_v1
     implementation library.java.protobuf_java
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.vendored_grpc_1_60_1
     implementation project(":sdks:java:extensions:avro")
     implementation library.java.avro
     permitUnusedDeclared library.java.avro
