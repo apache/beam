@@ -1436,7 +1436,7 @@ public class BigtableIO {
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       try {
         bigtableWriter.writeSingleRecord(record);
-      } catch (ApiException e) {
+      } catch (Throwable e) {
         if (isDataException(e)) {
           // if we get another NotFoundException, we know this is the bad record.
           badRecords.add(KV.of(new BigtableWriteException(record, e), window));
