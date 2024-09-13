@@ -1334,7 +1334,7 @@ public class BigtableIO {
 
     private final int throttleReportThresMsecs;
 
-    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
+    private transient ConcurrentLinkedQueue<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
     // Due to callback thread not supporting Beam metrics, Record pending metrics and report later.
     private transient long pendingThrottlingMsecs;
     private transient boolean reportedLineage;
@@ -1376,7 +1376,7 @@ public class BigtableIO {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
-      badRecords = new HashSet<>();
+      badRecords = new ConcurrentLinkedQueue<>();
     }
 
     @ProcessElement
