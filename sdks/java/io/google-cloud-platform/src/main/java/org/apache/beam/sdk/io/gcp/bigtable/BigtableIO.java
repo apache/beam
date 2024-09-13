@@ -1489,8 +1489,6 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      List<Throwable> elementErrors = new ArrayList<>();
-
       if (bigtableWriter != null) {
         Instant closeStart = Instant.now();
         try {
