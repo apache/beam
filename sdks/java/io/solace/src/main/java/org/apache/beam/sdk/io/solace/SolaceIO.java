@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -62,7 +63,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1203,32 +1203,32 @@ public class SolaceIO {
      */
     private void validateWriteTransform(boolean usingSolaceRecords) {
       if (!usingSolaceRecords) {
-        Preconditions.checkArgument(
-            getFormatFunction() != null,
+        checkNotNull(
+            getFormatFunction(),
             "SolaceIO.Write: If you are not using Solace.Record as the input type, you"
                 + " must set a format function using withFormatFunction().");
       }
 
-      Preconditions.checkArgument(
+      checkArgument(
           getMaxNumOfUsedWorkers() > 0,
           "SolaceIO.Write: The number of used workers must be positive.");
-      Preconditions.checkArgument(
+      checkArgument(
           getNumberOfClientsPerWorker() > 0,
           "SolaceIO.Write: The number of clients per worker must be positive.");
-      Preconditions.checkArgument(
+      checkArgument(
           getDeliveryMode() == DeliveryMode.DIRECT || getDeliveryMode() == DeliveryMode.PERSISTENT,
           String.format(
               "SolaceIO.Write: Delivery mode must be either DIRECT or PERSISTENT. %s"
                   + " not supported",
               getDeliveryMode()));
       if (getPublishLatencyMetrics()) {
-        Preconditions.checkArgument(
+        checkArgument(
             getDeliveryMode() == DeliveryMode.PERSISTENT,
             "SolaceIO.Write: Publish latency metrics can only be enabled for PERSISTENT"
                 + " delivery mode.");
       }
-      Preconditions.checkArgument(
-          getSessionServiceFactory() != null,
+      checkNotNull(
+          getSessionServiceFactory(),
           "SolaceIO: You need to pass a session service factory. For basic"
               + " authentication, you can use BasicAuthJcsmpSessionServiceFactory.");
     }
