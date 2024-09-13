@@ -49,8 +49,6 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A writer that manages multiple {@link RecordWriter}s to write to multiple tables and partitions.
@@ -76,7 +74,6 @@ import org.slf4j.LoggerFactory;
  * #getManifestFiles()}.
  */
 class RecordWriterManager implements AutoCloseable {
-  private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
   private final Counter dataFilesWritten =
       Metrics.counter(RecordWriterManager.class, "dataFilesWritten");
   private final Counter manifestFilesWritten =
