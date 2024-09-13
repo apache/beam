@@ -1043,12 +1043,9 @@ public class SolaceIO {
 
     @Override
     public SolaceOutput expand(PCollection<T> input) {
-      Class<? super T> pcollClass = checkNotNull(input.getTypeDescriptor()).getRawType();
       boolean usingSolaceRecord =
-          pcollClass
-                  .getTypeName()
-                  .equals("org.apache.beam.sdk.io.solace.data.AutoValue_Solace_Record")
-              || pcollClass.isAssignableFrom(Solace.Record.class);
+          TypeDescriptor.of(Solace.Record.class)
+              .isSupertypeOf(checkNotNull(input.getTypeDescriptor()));
 
       validateWriteTransform(usingSolaceRecord);
 
@@ -1065,7 +1062,7 @@ public class SolaceIO {
 
       @SuppressWarnings("unchecked")
       PCollection<Solace.Record> records =
-          getFormatFunction() == null
+          usingSolaceRecord
               ? (PCollection<Solace.Record>) input
               : input.apply(
                   "Format records",
