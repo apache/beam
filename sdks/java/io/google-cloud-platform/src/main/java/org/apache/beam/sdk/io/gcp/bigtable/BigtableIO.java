@@ -46,7 +46,6 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -1341,7 +1340,8 @@ public class BigtableIO {
 
     private final int throttleReportThresMsecs;
 
-    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
+    private transient ConcurrentLinkedQueue<KV<BigtableWriteException, BoundedWindow>> badRecords =
+        null;
     // Due to callback thread not supporting Beam metrics, Record pending metrics and report later.
     private transient long pendingThrottlingMsecs;
     private transient boolean reportedLineage;
@@ -1385,7 +1385,7 @@ public class BigtableIO {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
-      badRecords = new HashSet<>();
+      badRecords = new ConcurrentLinkedQueue<>();
       outstandingWrites = new ArrayDeque<>();
     }
 
@@ -1463,7 +1463,7 @@ public class BigtableIO {
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       try {
         bigtableWriter.writeSingleRecord(record);
-      } catch (ApiException e) {
+      } catch (Throwable e) {
         if (isDataException(e)) {
           // if we get another NotFoundException, we know this is the bad record.
           badRecords.add(KV.of(new BigtableWriteException(record, e), window));
