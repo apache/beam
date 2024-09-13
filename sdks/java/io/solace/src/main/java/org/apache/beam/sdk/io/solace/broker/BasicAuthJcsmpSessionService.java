@@ -62,7 +62,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder queueName(@Nullable String q);
+    public abstract Builder queueName(@Nullable String queueName);
 
     public abstract Builder host(String host);
 
