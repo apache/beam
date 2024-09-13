@@ -24,7 +24,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -259,7 +258,7 @@ public class Solace {
           .setPriority(-1)
           .setRedelivered(false)
           .setTimeToLive(0)
-          .setAttachmentBytes(ByteString.empty().toByteArray());
+          .setAttachmentBytes(new byte[0]);
     }
 
     @AutoValue.Builder
