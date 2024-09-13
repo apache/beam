@@ -115,7 +115,6 @@ dependencies {
   implementation library.java.http_client
   implementation library.java.hamcrest
   implementation library.java.http_core
-  implementation library.java.jackson_annotations
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
   implementation library.java.jackson_datatype_joda
