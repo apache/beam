@@ -43,6 +43,7 @@ import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -56,7 +57,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
@@ -1386,7 +1386,7 @@ public class BigtableIO {
       }
 
       badRecords = new HashSet<>();
-      outstandingWrites = new LinkedBlockingDeque<>();
+      outstandingWrites = new ArrayDeque<>();
     }
 
     @ProcessElement
