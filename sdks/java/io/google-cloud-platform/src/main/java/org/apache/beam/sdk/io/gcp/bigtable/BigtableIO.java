@@ -54,7 +54,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -1349,7 +1348,7 @@ public class BigtableIO {
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
 
-    private transient Queue<Future<?>> outstandingWrites;
+    private transient Queue<CompletableFuture<?>> outstandingWrites;
 
     BigtableWriterFn(
         BigtableServiceFactory factory,
@@ -1503,18 +1502,15 @@ public class BigtableIO {
           }
         }
 
-        for (Future<?> f = outstandingWrites.poll(); f != null; f = outstandingWrites.poll()) {
-          try {
-            // This should never block as the writer closing should've resolved all the element
-            // futures
-            f.get(1, TimeUnit.MINUTES);
-          } catch (ExecutionException e) {
-            elementErrors.add(e.getCause());
-          } catch (TimeoutException e) {
-            throw new IllegalStateException(
-                "Unexpected timeout waiting for element future to resolve after the writer was closed",
-                e);
-          }
+        // Sanity check: ensure that all element futures are resolved. This should be already be the
+        // case once bigtableWriter.close() finishes.
+        try {
+          CompletableFuture.allOf(outstandingWrites.toArray(new CompletableFuture<?>[0]))
+              .get(1, TimeUnit.MINUTES);
+        } catch (TimeoutException e) {
+          throw new IllegalStateException(
+              "Unexpected timeout waiting for element future to resolve after the writer was closed",
+              e);
         }
 
         // add the excessive amount to throttling metrics if elapsed time > target latency
@@ -1547,20 +1543,6 @@ public class BigtableIO {
       }
 
       checkForFailures();
-
-      // Double check that no errors were hidden in the element futures
-      if (!elementErrors.isEmpty() && failures.isEmpty()) {
-        StringBuilder sb = new StringBuilder().append("Unexpected element failures:\n");
-
-        for (Throwable elementError : elementErrors) {
-          sb.append(elementError.getMessage());
-          if (elementError.getCause() != null) {
-            sb.append(": ").append(elementError.getCause().getMessage());
-          }
-          sb.append("\n");
-        }
-        throw new IllegalStateException(sb.toString());
-      }
 
       LOG.debug("Wrote {} records", recordsWritten);
 
