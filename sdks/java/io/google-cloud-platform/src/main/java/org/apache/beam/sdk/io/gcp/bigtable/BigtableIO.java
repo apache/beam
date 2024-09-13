@@ -50,9 +50,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.BiConsumer;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -1342,6 +1349,8 @@ public class BigtableIO {
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
 
+    private transient Queue<Future<?>> outstandingWrites;
+
     BigtableWriterFn(
         BigtableServiceFactory factory,
         BigtableConfig bigtableConfig,
@@ -1377,17 +1386,30 @@ public class BigtableIO {
       }
 
       badRecords = new HashSet<>();
+      outstandingWrites = new LinkedBlockingDeque<>();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      // burn down the completed futures to avoid unbounded memory growth
+      for (Future<?> f = outstandingWrites.peek();
+          f != null && f.isDone();
+          f = outstandingWrites.peek()) {
+        // Also ensure that errors in the handler get bubbled up
+        outstandingWrites.remove().get();
+      }
+
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
       Instant writeStart = Instant.now();
       pendingThrottlingMsecs = 0;
-      bigtableWriter
-          .writeRecord(record)
-          .whenComplete(handleMutationException(record, window, writeStart));
+      CompletableFuture<Void> f =
+          bigtableWriter
+              .writeRecord(record)
+              // transform the next CompletionStage to have its own status
+              // this allows us to capture any unexpected errors in the handler
+              .handle(handleMutationException(record, window, writeStart));
+      outstandingWrites.add(f);
       if (pendingThrottlingMsecs > 0) {
         throttlingMsecs.inc(pendingThrottlingMsecs);
       }
@@ -1395,7 +1417,7 @@ public class BigtableIO {
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
     }
 
-    private BiConsumer<MutateRowResponse, Throwable> handleMutationException(
+    private BiFunction<MutateRowResponse, Throwable, Void> handleMutationException(
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window, Instant writeStart) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
@@ -1430,6 +1452,7 @@ public class BigtableIO {
             }
           }
         }
+        return null;
       };
     }
 
@@ -1463,6 +1486,8 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
+      List<Throwable> elementErrors = new ArrayList<>();
+
       if (bigtableWriter != null) {
         Instant closeStart = Instant.now();
         try {
@@ -1477,6 +1502,21 @@ public class BigtableIO {
             throw e;
           }
         }
+
+        for (Future<?> f = outstandingWrites.poll(); f != null; f = outstandingWrites.poll()) {
+          try {
+            // This should never block as the writer closing should've resolved all the element
+            // futures
+            f.get(1, TimeUnit.MINUTES);
+          } catch (ExecutionException e) {
+            elementErrors.add(e.getCause());
+          } catch (TimeoutException e) {
+            throw new IllegalStateException(
+                "Unexpected timeout waiting for element future to resolve after the writer was closed",
+                e);
+          }
+        }
+
         // add the excessive amount to throttling metrics if elapsed time > target latency
         if (throttleReportThresMsecs > 0) {
           long excessTime =
@@ -1507,6 +1547,20 @@ public class BigtableIO {
       }
 
       checkForFailures();
+
+      // Double check that no errors were hidden in the element futures
+      if (!elementErrors.isEmpty() && failures.isEmpty()) {
+        StringBuilder sb = new StringBuilder().append("Unexpected element failures:\n");
+
+        for (Throwable elementError : elementErrors) {
+          sb.append(elementError.getMessage());
+          if (elementError.getCause() != null) {
+            sb.append(": ").append(elementError.getCause().getMessage());
+          }
+          sb.append("\n");
+        }
+        throw new IllegalStateException(sb.toString());
+      }
 
       LOG.debug("Wrote {} records", recordsWritten);
 
