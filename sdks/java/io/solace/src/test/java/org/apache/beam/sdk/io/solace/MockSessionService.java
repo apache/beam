@@ -135,7 +135,7 @@ public abstract class MockSessionService extends SessionService {
     }
   }
 
-  public static class MockProducer extends MessageProducer implements Serializable {
+  public static class MockProducer implements MessageProducer {
     private final PublishResultHandler handler;
 
     public MockProducer(PublishResultHandler handler) {

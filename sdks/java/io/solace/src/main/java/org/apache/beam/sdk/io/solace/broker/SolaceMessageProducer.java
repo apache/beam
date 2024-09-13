@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
+import static org.apache.beam.sdk.io.solace.broker.MessageProducerUtils.createBytesXMLMessage;
+import static org.apache.beam.sdk.io.solace.broker.MessageProducerUtils.createJCSMPSendMultipleEntry;
+
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
@@ -32,7 +35,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 @Internal
-public class SolaceMessageProducer extends MessageProducer {
+public class SolaceMessageProducer implements MessageProducer {
 
   private final XMLMessageProducer producer;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();

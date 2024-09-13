@@ -17,30 +17,24 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import com.solacesystems.jcsmp.JCSMPFactory;
-import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
- * Interface for publishing messages to a Solace broker.
+ * Base class for publishing messages to a Solace broker.
  *
  * <p>Implementations of this interface are responsible for managing the connection to the broker
  * and for publishing messages to the broker.
  */
 @Internal
-public abstract class MessageProducer {
-  // This is the batch limit supported by the send multiple JCSMP API method.
-  static final int SOLACE_BATCH_LIMIT = 50;
+public interface MessageProducer {
 
   /** Publishes a message to the broker. */
-  public abstract void publishSingleMessage(
+  void publishSingleMessage(
       Solace.Record msg,
       Destination topicOrQueue,
       boolean useCorrelationKeyLatency,
@@ -53,91 +47,15 @@ public abstract class MessageProducer {
    *
    * <p>It returns the number of messages written.
    */
-  public abstract int publishBatch(
+  int publishBatch(
       List<Solace.Record> records,
       boolean useCorrelationKeyLatency,
       SerializableFunction<Solace.Record, Destination> destinationFn,
       DeliveryMode deliveryMode);
 
-  /**
-   * Create a {@link BytesXMLMessage} to be published in Solace.
-   *
-   * @param record The record to be published.
-   * @param useCorrelationKeyLatency Whether to use a complex key for tracking latency.
-   * @param deliveryMode The {@link DeliveryMode} used to publish the message.
-   * @return A {@link BytesXMLMessage} that can be sent to Solace "as is".
-   */
-  public static BytesXMLMessage createBytesXMLMessage(
-      Solace.Record record, boolean useCorrelationKeyLatency, DeliveryMode deliveryMode) {
-    JCSMPFactory jcsmpFactory = JCSMPFactory.onlyInstance();
-    BytesXMLMessage msg = jcsmpFactory.createBytesXMLMessage();
-    byte[] payload = record.getPayload();
-    msg.writeBytes(payload);
-
-    Long senderTimestamp = record.getSenderTimestamp();
-    if (senderTimestamp == null) {
-      senderTimestamp = System.currentTimeMillis();
-    }
-    msg.setSenderTimestamp(senderTimestamp);
-    msg.setDeliveryMode(deliveryMode);
-    if (useCorrelationKeyLatency) {
-      Solace.CorrelationKey key =
-          Solace.CorrelationKey.builder()
-              .setMessageId(record.getMessageId())
-              .setPublishMonotonicMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()))
-              .build();
-      msg.setCorrelationKey(key);
-    } else {
-      // Use only a string as correlation key
-      msg.setCorrelationKey(record.getMessageId());
-    }
-    msg.setApplicationMessageId(record.getMessageId());
-    return msg;
-  }
-
-  /**
-   * Create a {@link JCSMPSendMultipleEntry} array to be published in Solace. This can be used with
-   * `sendMultiple` to send all the messages in a single API call.
-   *
-   * <p>The size of the list cannot be larger than 50 messages. This is a hard limit enforced by the
-   * Solace API.
-   *
-   * @param records A {@link List} of records to be published
-   * @param useCorrelationKeyLatency Whether to use a complex key for tracking latency.
-   * @param destinationFn A function that maps every record to its destination.
-   * @param deliveryMode The {@link DeliveryMode} used to publish the message.
-   * @return A {@link JCSMPSendMultipleEntry} array that can be sent to Solace "as is".
-   */
-  public static JCSMPSendMultipleEntry[] createJCSMPSendMultipleEntry(
-      List<Solace.Record> records,
-      boolean useCorrelationKeyLatency,
-      SerializableFunction<Solace.Record, Destination> destinationFn,
-      DeliveryMode deliveryMode) {
-    if (records.size() > SOLACE_BATCH_LIMIT) {
-      throw new RuntimeException(
-          String.format(
-              "SolaceIO.Write: Trying to create a batch of %d, but Solace supports a"
-                  + " maximum of %d. The batch will likely be rejected by Solace.",
-              records.size(), SOLACE_BATCH_LIMIT));
-    }
-
-    JCSMPSendMultipleEntry[] entries = new JCSMPSendMultipleEntry[records.size()];
-    for (int i = 0; i < records.size(); i++) {
-      Solace.Record record = records.get(i);
-      JCSMPSendMultipleEntry entry =
-          JCSMPFactory.onlyInstance()
-              .createSendMultipleEntry(
-                  createBytesXMLMessage(record, useCorrelationKeyLatency, deliveryMode),
-                  destinationFn.apply(record));
-      entries[i] = entry;
-    }
-
-    return entries;
-  }
-
   /** Returns {@literal true} if the message producer is closed, {@literal false} otherwise. */
-  public abstract boolean isClosed();
+  boolean isClosed();
 
   /** Closes the message producer. */
-  public abstract void close();
+  void close();
 }
