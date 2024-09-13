@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=openjdk:11
-FROM golang:1.20-bullseye AS build
+FROM golang:1-bullseye AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
 
