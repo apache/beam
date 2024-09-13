@@ -458,6 +458,7 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
   }
+
   /**
    * Create a {@link Read} transform, to read from Solace. Specify a {@link SerializableFunction} to
    * map incoming {@link BytesXMLMessage} records, to the object of your choice. You also need to
@@ -975,21 +976,6 @@ public class SolaceIO {
      */
     public Write<T> withWriterType(WriterType writerType) {
       return toBuilder().setWriterType(writerType).build();
-    }
-
-    /**
-     * Set the format function for your custom data type, and/or for dynamic destinations.
-     *
-     * <p>If you are using a custom data class, this function should return a {@link Solace.Record}
-     * corresponding to your custom data class instance.
-     *
-     * <p>If you are using this formatting function with dynamic destinations, you must ensure that
-     * you set the right value in the destination value of the {@link Solace.Record} messages.
-     *
-     * <p>In any other case, this format function is optional.
-     */
-    public Write<T> withFormatFunction(SerializableFunction<T, Solace.Record> formatFunction) {
-      return toBuilder().setFormatFunction(formatFunction).build();
     }
 
     /**
