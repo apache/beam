@@ -122,7 +122,7 @@ public class Solace {
     public abstract String getMessageId();
 
     /**
-     * Gets the payload of the message as a ByteString.
+     * Gets the payload of the message as a byte array.
      *
      * <p>Mapped from {@link BytesXMLMessage#getBytes()}
      *
@@ -241,12 +241,12 @@ public class Solace {
     public abstract @Nullable String getReplicationGroupMessageId();
 
     /**
-     * Gets the attachment data of the message as a ByteString, if any. This might represent files
+     * Gets the attachment data of the message as a byte array, if any. This might represent files
      * or other binary content associated with the message.
      *
      * <p>Mapped from {@link BytesXMLMessage#getAttachmentByteBuffer()}
      *
-     * @return The attachment data, or an empty ByteString if no attachment is present.
+     * @return The attachment data, or an empty byte array if no attachment is present.
      */
     @SuppressWarnings("mutable")
     @SchemaFieldNumber("12")
