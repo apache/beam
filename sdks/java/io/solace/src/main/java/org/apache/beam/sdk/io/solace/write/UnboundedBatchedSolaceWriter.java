@@ -26,13 +26,10 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -76,10 +73,6 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
 
   // State variables are never explicitly "used"
   @SuppressWarnings("UnusedVariable")
-  @StateId("processing_key")
-  private final StateSpec<ValueState<Integer>> processingKeySpec = StateSpecs.value();
-
-  @SuppressWarnings("UnusedVariable")
   @TimerId("bundle_flusher")
   private final TimerSpec bundleFlusherTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
@@ -103,7 +96,6 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   @ProcessElement
   public void processElement(
       @Element KV<Integer, Solace.Record> element,
-      @StateId("processing_key") ValueState<Integer> ignoredProcessingKey,
       @TimerId("bundle_flusher") Timer bundleFlusherTimer,
       @Timestamp Instant timestamp,
       BoundedWindow window) {
