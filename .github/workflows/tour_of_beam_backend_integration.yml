@@ -69,7 +69,7 @@ env:
 
 jobs:
   integration:
-    runs-on: ubuntu-latest
+    runs-on: uubuntu-22.04
     defaults:
       run:
         working-directory: ./learning/tour-of-beam/backend
@@ -88,7 +88,7 @@ jobs:
 
       # 1. Start emulators
       - name: Start emulators
-        run: docker-compose up -d
+        run: docker compose up -d
 
       # 2. start function-framework processes in BG
       - name: Compile CF
@@ -118,7 +118,7 @@ jobs:
 
       - name: Stop emulators
         if: always()
-        run: docker-compose down
+        run: docker compose down
 
       # 5. Compare storage/datastore/index.yml VS generated
       - name: Check index.yaml
