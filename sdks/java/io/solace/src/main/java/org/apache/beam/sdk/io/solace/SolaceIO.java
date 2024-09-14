@@ -41,9 +41,10 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
+import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
+import org.apache.beam.sdk.io.solace.write.RecordToPublishResultDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
 import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
-import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -1071,8 +1072,7 @@ public class SolaceIO {
 
       // Store the current window used by the input
       PCollection<Solace.PublishResult> captureWindow =
-          records.apply(
-              "Capture window", ParDo.of(new UnboundedSolaceWriter.RecordToPublishResultDoFn()));
+          records.apply("Capture window", ParDo.of(new RecordToPublishResultDoFn()));
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<Solace.PublishResult, BoundedWindow> windowingStrategy =
@@ -1084,8 +1084,7 @@ public class SolaceIO {
 
       PCollection<KV<Integer, Solace.Record>> withShardKeys =
           withGlobalWindow.apply(
-              "Add shard key",
-              ParDo.of(new UnboundedSolaceWriter.AddShardKeyDoFn(getMaxNumOfUsedWorkers())));
+              "Add shard key", ParDo.of(new AddShardKeyDoFn(getMaxNumOfUsedWorkers())));
 
       String label =
           getWriterType() == WriterType.STREAMING ? "Publish (streaming)" : "Publish (batched)";
@@ -1116,14 +1115,14 @@ public class SolaceIO {
       ParDo.SingleOutput<KV<Integer, Solace.Record>, Solace.PublishResult> writer =
           ParDo.of(
               getWriterType() == WriterType.STREAMING
-                  ? new UnboundedStreamingSolaceWriter.WriterDoFn(
+                  ? new UnboundedStreamingSolaceWriter(
                       destinationFn,
                       checkNotNull(getSessionServiceFactory()),
                       getDeliveryMode(),
                       getDispatchMode(),
                       getNumberOfClientsPerWorker(),
                       getPublishLatencyMetrics())
-                  : new UnboundedBatchedSolaceWriter.WriterDoFn(
+                  : new UnboundedBatchedSolaceWriter(
                       destinationFn,
                       checkNotNull(getSessionServiceFactory()),
                       getDeliveryMode(),
