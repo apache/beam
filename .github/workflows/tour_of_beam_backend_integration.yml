@@ -69,7 +69,7 @@ env:
 
 jobs:
   integration:
-    runs-on: uubuntu-22.04
+    runs-on: ubuntu-22.04
     defaults:
       run:
         working-directory: ./learning/tour-of-beam/backend
