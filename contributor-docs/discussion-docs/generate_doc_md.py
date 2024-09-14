@@ -119,10 +119,12 @@ def extract_name_re(email_string):
 def convert_to_timestamp(date_string):
   """Converts a date string to a timestamp object."""
 
-  date_format = "%a, %d %b %Y %H:%M:%S %z"
-  datetime_obj = datetime.datetime.strptime(date_string, date_format)
-  timestamp = datetime_obj.timestamp()
-  return timestamp
+  try:
+    date_format = "%a, %d %b %Y %H:%M:%S %z"
+    datetime_obj = datetime.datetime.strptime(date_string, date_format)
+    return datetime_obj.timestamp()
+  except:
+    return None
 
 
 @dataclass
@@ -168,13 +170,15 @@ def add_message(messages: list[EmailMessage], new_message: EmailMessage):
   messages.append(new_message)
 
 
-def remove_invalid_characters(string):
+def remove_invalid_characters(string_url):
   """Removes invalid characters from a string."""
 
-  while string.endswith(".") or string.endswith("(") or string.endswith(")"):
-    string = string[:-1]
+  while string_url.endswith(".") or string_url.endswith(
+      ",") or string_url.endswith("*") or string_url.endswith(
+          "(") or string_url.endswith(")"):
+    string_url = string_url[:-1]
 
-  return string
+  return string_url
 
 
 def find_google_docs_links(mbox_file, doc_messages, doc_urls):
@@ -230,7 +234,7 @@ def find_google_docs_links(mbox_file, doc_messages, doc_urls):
 def sort_emails_by_timestamp(emails: list[EmailMessage]) -> list[EmailMessage]:
   """Sorts a list of EmailMessage objects by timestamp from oldest to newest."""
 
-  return sorted(emails, key=lambda email: email.timestamp)
+  return sorted(emails, key=lambda email: email.timestamp or 0)
 
 
 def extract_docs_for_one_year(year):
@@ -263,13 +267,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->\n\n""")
-    f.write(
-        f"# List Of Documents Submitted To dev@beam.apache.org In {year}\n")
+    f.write(f"# List Of Documents Submitted To dev@beam.apache.org In {year}\n")
     f.write("| No. | Author | Subject | Date (UTC) |\n")
     f.write("|---|---|---|---|")
     for eid, email in enumerate(email_messages):
-      datetime_obj = datetime.datetime.fromtimestamp(email.timestamp)
-      formatted_date = datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+      if email.timestamp:
+        datetime_obj = datetime.datetime.fromtimestamp(email.timestamp)
+        formatted_date = datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+      else:
+        formatted_date = "Unknown"
       doc_title = email.doc_title.replace("|", ":")
       row_no = f'{eid+1}'
       f.write(
@@ -280,7 +286,7 @@ limitations under the License.
 if __name__ == '__main__':
   if len(sys.argv) > 1:
     year = sys.argv[1]
-    #download_mbox_for_one_year(year)
+    download_mbox_for_one_year(year)
     docs = extract_docs_for_one_year(year)
     convert_to_md_table(docs, year)
   else:
