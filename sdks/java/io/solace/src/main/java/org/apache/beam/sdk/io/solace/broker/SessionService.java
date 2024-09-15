@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,7 +137,7 @@ public abstract class SessionService implements Serializable {
    * this method is used, the producer is created from the session instance, otherwise it returns
    * the producer created initially.
    */
-  public abstract MessageProducer getProducer();
+  public abstract MessageProducer getProducer(SubmissionMode mode);
 
   /**
    * Override this method and provide your specific properties, including all those related to
@@ -272,7 +273,7 @@ public abstract class SessionService implements Serializable {
         LOG.info(
             " SolaceIO.Write: Using the custom JCSMP properties set by the user. No property has"
                 + " been overridden by the connector.");
-                break;
+        break;
       case TESTING:
         LOG.warn(
             "SolaceIO.Write: Overriding JCSMP properties for testing. **IF THIS IS AN"

@@ -111,7 +111,7 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
     // The publish method will retry, let's send a failure message if all the retries fail
     try {
       solaceSessionService()
-          .getProducer()
+          .getProducer(getSubmissionMode())
           .publishSingleMessage(
               record,
               getDestinationFn().apply(record),

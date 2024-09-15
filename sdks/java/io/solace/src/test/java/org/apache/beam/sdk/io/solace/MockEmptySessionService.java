@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.JCSMPProperties;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
@@ -48,7 +49,7 @@ public abstract class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getProducer() {
+  public MessageProducer getProducer(SubmissionMode mode) {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 

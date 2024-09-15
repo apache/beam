@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.solace.write;
 
 import static org.apache.beam.sdk.io.solace.SolaceIO.DEFAULT_WRITER_CLIENTS_PER_WORKER;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 
@@ -55,7 +57,11 @@ final class SolaceWriteSessionsHandler {
     SessionServiceFactory factory = key.sessionServiceFactory();
     SessionService sessionService = factory.create();
     // Start the producer now that the initialization is locked for other threads
-    sessionService.getProducer();
+    SubmissionMode mode = factory.getSubmissionMode();
+    checkStateNotNull(
+        mode,
+        "SolaceIO.Write: Submission mode is not set. You need to set it to create write sessions.");
+    sessionService.getProducer(mode);
     return sessionService;
   }
 

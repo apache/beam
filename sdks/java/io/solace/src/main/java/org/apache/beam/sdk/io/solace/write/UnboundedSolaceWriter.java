@@ -89,6 +89,9 @@ public abstract class UnboundedSolaceWriter
       boolean publishLatencyMetrics) {
     this.destinationFn = destinationFn;
     this.sessionServiceFactory = sessionServiceFactory;
+    // Make sure that we set the submission mode now that we know which mode has been set by the
+    // user.
+    this.sessionServiceFactory.setSubmissionMode(submissionMode);
     this.deliveryMode = deliveryMode;
     this.submissionMode = submissionMode;
     this.producersMapCardinality = producersMapCardinality;
@@ -279,7 +282,7 @@ public abstract class UnboundedSolaceWriter
     return deliveryMode;
   }
 
-  public SubmissionMode getDispatchMode() {
+  public SubmissionMode getSubmissionMode() {
     return submissionMode;
   }
 

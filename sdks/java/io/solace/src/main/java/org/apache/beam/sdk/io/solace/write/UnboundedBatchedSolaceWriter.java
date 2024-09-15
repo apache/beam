@@ -143,7 +143,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
     try {
       int entriesPublished =
           solaceSessionService()
-              .getProducer()
+              .getProducer(getSubmissionMode())
               .publishBatch(
                   records, shouldPublishLatencyMetrics(), getDestinationFn(), getDeliveryMode());
       sentToBroker.inc(entriesPublished);

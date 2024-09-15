@@ -30,12 +30,16 @@ import com.google.auto.value.AutoValue;
  */
 @AutoValue
 public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionServiceFactory {
+  /** The host name or IP address of the Solace broker. Format: Host[:Port] */
   public abstract String host();
 
+  /** The username to use for authentication. */
   public abstract String username();
 
+  /** The password to use for authentication. */
   public abstract String password();
 
+  /** The name of the VPN to connect to. */
   public abstract String vpnName();
 
   public static Builder builder() {
@@ -53,6 +57,7 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
 
     /** Set Solace username. */
     public abstract Builder username(String username);
+
     /** Set Solace password. */
     public abstract Builder password(String password);
 

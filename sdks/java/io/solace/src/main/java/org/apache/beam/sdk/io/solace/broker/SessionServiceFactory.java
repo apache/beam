@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.Queue;
 import java.io.Serializable;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -60,6 +61,12 @@ public abstract class SessionServiceFactory implements Serializable {
   @Nullable Queue queue;
 
   /**
+   * The write submission mode. This is set when the writers are created. This property is used only
+   * by the write connector.
+   */
+  @Nullable SubmissionMode submissionMode;
+
+  /**
    * This is the core method that subclasses must implement. It defines how to construct and return
    * a SessionService object.
    */
@@ -78,6 +85,7 @@ public abstract class SessionServiceFactory implements Serializable {
    */
   @Override
   public abstract int hashCode();
+
   /**
    * This method is called in the {@link
    * org.apache.beam.sdk.io.solace.SolaceIO.Read#expand(org.apache.beam.sdk.values.PBegin)} method
@@ -85,5 +93,16 @@ public abstract class SessionServiceFactory implements Serializable {
    */
   public void setQueue(Queue queue) {
     this.queue = queue;
+  }
+
+  /**
+   * Called by the write connector to set the submission mode used to create the message producers.
+   */
+  public void setSubmissionMode(SubmissionMode submissionMode) {
+    this.submissionMode = submissionMode;
+  }
+
+  public @Nullable SubmissionMode getSubmissionMode() {
+    return submissionMode;
   }
 }
