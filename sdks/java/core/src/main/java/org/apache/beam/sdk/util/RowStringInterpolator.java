@@ -78,18 +78,29 @@ import org.joda.time.Instant;
 public class RowStringInterpolator implements Serializable {
   private final String template;
   private final Set<String> fieldsToReplace;
+  // Represents the string representation of the element's window
   public static final String WINDOW = "$WINDOW";
   public static final String PANE_INDEX = "$PANE_INDEX";
+  // Represents the element's pane index
   public static final String YYYY = "$YYYY";
   public static final String MM = "$MM";
   public static final String DD = "$DD";
   private static final Set<String> WINDOWING_METADATA =
       Sets.newHashSet(WINDOW, PANE_INDEX, YYYY, MM, DD);
+  private static final Pattern TEMPLATE_PATTERN = Pattern.compile("\\{(.+?)}");
 
+  /**
+   * @param template a String template, potentially with placeholders in the form of curly braces,
+   *     e.g. {@code "my {foo} template"}. During interpolation, these placeholders are replaced
+   *     with values in the Beam Row. For more details and examples, refer to the top-level
+   *     documentation.
+   * @param rowSchema {@link Row}s used for interpolation are expected to be compatible with this
+   *     {@link Schema}.
+   */
   public RowStringInterpolator(String template, Schema rowSchema) {
     this.template = template;
 
-    Matcher m = Pattern.compile("\\{(.+?)}").matcher(template);
+    Matcher m = TEMPLATE_PATTERN.matcher(template);
     fieldsToReplace = new HashSet<>();
     while (m.find()) {
       fieldsToReplace.add(StringUtils.strip(m.group(), "{}"));
