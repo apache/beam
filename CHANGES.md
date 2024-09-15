@@ -68,7 +68,7 @@
 
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
-* Added support for ordering key writes in `PubsubIO.Write` (Java) ([#21162](https://github.com/apache/beam/issues/21162))
+* Added support for writing to Pubsub with ordering keys (Java) ([#21162](https://github.com/apache/beam/issues/21162))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
@@ -78,12 +78,6 @@
   as strings rather than silently coerced (and possibly truncated) to numeric
   values.  To retain the old behavior, pass `dtype=True` (or any other value
   accepted by `pandas.read_json`).
-* In Java, `PubsubIO.Write` used to silently drop the ordering key property.
-  If the ordering key property is set on a message it will now be sent to the
-  bad record handler unless `withOrderingKeys()` is applied to the transform.
-  Dataflow uses a custom Pub/Sub sink by default without support for this and
-  will reject a transform if `withOrderingKeys()` is applied. Users can set
-  `--experiments=enable_custom_pubsub_sink` to use Beam's Pub/Sub sink instead.
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations

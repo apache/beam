@@ -194,16 +194,6 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
           .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
       reportedLineage = topic;
     }
-    // TODO: Remove this check once Dataflow's native sink supports ordering keys.
-    if (!allowOrderingKey && !Strings.isNullOrEmpty(message.getOrderingKey())) {
-      badRecordRouter.route(
-          o,
-          element,
-          inputCoder,
-          null,
-          "The transform was not configured to publish messages with ordering keys");
-      return;
-    }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);
     } catch (SizeLimitExceededException e) {
