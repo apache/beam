@@ -606,6 +606,11 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   }
 
   @Override
+  public boolean isTopicExists(TopicPath topic) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void createSubscription(
       TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException {
     throw new UnsupportedOperationException();

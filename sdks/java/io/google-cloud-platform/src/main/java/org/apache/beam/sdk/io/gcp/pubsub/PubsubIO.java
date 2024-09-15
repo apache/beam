@@ -50,6 +50,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -861,6 +862,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
@@ -872,6 +875,7 @@ public class PubsubIO {
       builder.setNeedsOrderingKey(false);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setValidate(true);
       return builder;
     }
 
@@ -919,6 +923,8 @@ public class PubsubIO {
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      abstract Builder<T> setValidate(boolean validation);
+
       abstract Read<T> build();
     }
 
@@ -944,6 +950,7 @@ public class PubsubIO {
       return toBuilder()
           .setSubscriptionProvider(
               NestedValueProvider.of(subscription, PubsubSubscription::fromPath))
+          .setValidate(true)
           .build();
     }
 
@@ -967,6 +974,7 @@ public class PubsubIO {
       validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
+          .setValidate(true)
           .build();
     }
 
@@ -1010,6 +1018,7 @@ public class PubsubIO {
       return toBuilder()
           .setDeadLetterTopicProvider(
               NestedValueProvider.of(deadLetterTopic, PubsubTopic::fromPath))
+          .setValidate(true)
           .build();
     }
 
@@ -1027,7 +1036,7 @@ public class PubsubIO {
      * PubsubGrpcClientFactory}.
      */
     public Read<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
-      return toBuilder().setPubsubClientFactory(factory).build();
+      return toBuilder().setPubsubClientFactory(factory).setValidate(true).build();
     }
 
     /**
@@ -1059,7 +1068,7 @@ public class PubsubIO {
      * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
     public Read<T> withTimestampAttribute(String timestampAttribute) {
-      return toBuilder().setTimestampAttribute(timestampAttribute).build();
+      return toBuilder().setTimestampAttribute(timestampAttribute).setValidate(true).build();
     }
 
     /**
@@ -1072,7 +1081,7 @@ public class PubsubIO {
      * delivered, and deduplication of the stream will be strictly best effort.
      */
     public Read<T> withIdAttribute(String idAttribute) {
-      return toBuilder().setIdAttribute(idAttribute).build();
+      return toBuilder().setIdAttribute(idAttribute).setValidate(true).build();
     }
 
     /**
@@ -1082,7 +1091,7 @@ public class PubsubIO {
      * PCollection#setCoder(Coder)}.
      */
     public Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
-      return toBuilder().setCoder(coder).setParseFn(parseFn).build();
+      return toBuilder().setCoder(coder).setParseFn(parseFn).setValidate(true).build();
     }
 
     /**
@@ -1095,7 +1104,13 @@ public class PubsubIO {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .setValidate(true)
           .build();
+    }
+
+    /** Disable validation of the existence of the topic. */
+    public Read<T> withoutValidation() {
+      return toBuilder().setValidate(false).build();
     }
 
     @VisibleForTesting
@@ -1256,6 +1271,35 @@ public class PubsubIO {
                     }
                   }));
       return read.setCoder(getCoder());
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     @Override
