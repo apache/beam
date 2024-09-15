@@ -821,6 +821,7 @@ public class SolaceIO {
   public enum SubmissionMode {
     HIGHER_THROUGHPUT,
     LOWER_LATENCY,
+    CUSTOM, // Don't override any property set by the user
     TESTING // Send acks 1 by 1, this will be very slow, never use this in an actual pipeline!
   }
 

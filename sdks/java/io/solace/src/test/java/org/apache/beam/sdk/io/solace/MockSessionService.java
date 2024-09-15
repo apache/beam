@@ -23,7 +23,6 @@ import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
@@ -37,6 +36,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 public abstract class MockSessionService extends SessionService {
+  public static int ackWindowSizeForTesting = 87;
+  public static boolean callbackOnReactor = true;
 
   public abstract @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn();
 
@@ -94,15 +95,14 @@ public abstract class MockSessionService extends SessionService {
   public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
     // Let's override some properties that will be overriden by the connector
     // Opposite of the mode, to test that is overriden
-    baseProperties.setProperty(
-        JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, mode() == SubmissionMode.HIGHER_THROUGHPUT);
+    baseProperties.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, callbackOnReactor);
 
-    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, 87);
+    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, ackWindowSizeForTesting);
 
     return baseProperties;
   }
 
-  public static class MockReceiver implements MessageReceiver, Serializable {
+  public static class MockReceiver implements MessageReceiver {
     private final AtomicInteger counter = new AtomicInteger();
     private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
     private final int minMessagesReceived;

@@ -216,8 +216,6 @@ public abstract class SessionService implements Serializable {
     Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
     Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
 
-    // TODO: Include an additional method to let the user choose all properties and override
-    // nothing.
     switch (mode) {
       case HIGHER_THROUGHPUT:
         // Check if it was set by user, show override warning
@@ -238,6 +236,10 @@ public abstract class SessionService implements Serializable {
         // Use a dedicated thread for callbacks, increase the ack window size
         props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, false);
         props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, BATCHED_PUB_ACK_WINDOW);
+        LOG.info(
+            "SolaceIO.Write: Using HIGHER_THROUGHPUT mode, MESSAGE_CALLBACK_ON_REACTOR is FALSE,"
+                + " PUB_ACK_WINDOW_SIZE is {}",
+            BATCHED_PUB_ACK_WINDOW);
         break;
       case LOWER_LATENCY:
         // Check if it was set by user, show override warning
@@ -260,8 +262,17 @@ public abstract class SessionService implements Serializable {
         // latency, but a low throughput too.
         props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
         props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, STREAMING_PUB_ACK_WINDOW);
+        LOG.info(
+            "SolaceIO.Write: Using LOWER_LATENCY mode, MESSAGE_CALLBACK_ON_REACTOR is TRUE,"
+                + " PUB_ACK_WINDOW_SIZE is {}",
+            STREAMING_PUB_ACK_WINDOW);
 
         break;
+      case CUSTOM:
+        LOG.info(
+            " SolaceIO.Write: Using the custom JCSMP properties set by the user. No property has"
+                + " been overridden by the connector.");
+                break;
       case TESTING:
         LOG.warn(
             "SolaceIO.Write: Overriding JCSMP properties for testing. **IF THIS IS AN"

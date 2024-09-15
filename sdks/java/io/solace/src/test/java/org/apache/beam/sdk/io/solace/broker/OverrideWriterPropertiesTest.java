@@ -33,7 +33,6 @@ public class OverrideWriterPropertiesTest {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
     MockSessionService service = MockSessionService.builder().mode(mode).build();
 
-    // Test HIGHER_THROUGHPUT mode
     JCSMPProperties props = service.initializeWriteSessionProperties(mode);
     assertEquals(false, props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
     assertEquals(
@@ -46,11 +45,24 @@ public class OverrideWriterPropertiesTest {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
     MockSessionService service = MockSessionService.builder().mode(mode).build();
 
-    // Test HIGHER_THROUGHPUT mode
     JCSMPProperties props = service.initializeWriteSessionProperties(mode);
     assertEquals(true, props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
     assertEquals(
         Long.valueOf(50),
+        Long.valueOf(props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE)));
+  }
+
+  @Test
+  public void testDontOverrideForCustom() {
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.CUSTOM;
+    MockSessionService service = MockSessionService.builder().mode(mode).build();
+
+    JCSMPProperties props = service.initializeWriteSessionProperties(mode);
+    assertEquals(
+        MockSessionService.callbackOnReactor,
+        props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
+    assertEquals(
+        Long.valueOf(MockSessionService.ackWindowSizeForTesting),
         Long.valueOf(props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE)));
   }
 }
