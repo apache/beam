@@ -496,7 +496,7 @@ class _TruncatingFileHandle(object):
 
   @property
   def mode(self):
-    return getattr(self._underlying, "mode", None)
+    return getattr(self._underlying, "mode", "r")
 
   def readable(self):
     return True
