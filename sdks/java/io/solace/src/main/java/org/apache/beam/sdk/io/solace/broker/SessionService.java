@@ -212,58 +212,70 @@ public abstract class SessionService implements Serializable {
     // received from Solace. A value of 1 will have the lowest latency, but a very low
     // throughput and a monumental backpressure.
 
-    // This controls how the messages are sent to Solace
-    if (mode == SolaceIO.SubmissionMode.HIGHER_THROUGHPUT) {
-      // Create a parallel thread and a queue to send the messages
+    // Retrieve current values of the properties
+    Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
+    Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
 
-      Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
-      if (msgCbProp != null && msgCbProp) {
-        LOG.warn(
-            "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to false since"
-                + " HIGHER_THROUGHPUT mode was selected");
+    // TODO: Include an additional method to let the user choose all properties and override
+    // nothing.
+    switch (mode) {
+      case HIGHER_THROUGHPUT:
+        // Check if it was set by user, show override warning
+        if (msgCbProp != null && msgCbProp) {
+          LOG.warn(
+              "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to false since"
+                  + " HIGHER_THROUGHPUT mode was selected");
+        }
+        if ((ackWindowSize != null && ackWindowSize != BATCHED_PUB_ACK_WINDOW)) {
+          LOG.warn(
+              String.format(
+                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
+                      + " HIGHER_THROUGHPUT mode was selected",
+                  BATCHED_PUB_ACK_WINDOW));
+        }
+
+        // Override the properties
+        // Use a dedicated thread for callbacks, increase the ack window size
         props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, false);
-      }
-
-      Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
-      if ((ackWindowSize != null && ackWindowSize != BATCHED_PUB_ACK_WINDOW)) {
-        LOG.warn(
-            String.format(
-                "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                    + " HIGHER_THROUGHPUT mode was selected",
-                BATCHED_PUB_ACK_WINDOW));
         props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, BATCHED_PUB_ACK_WINDOW);
-      }
+        break;
+      case LOWER_LATENCY:
+        // Check if it was set by user, show override warning
+        if (msgCbProp != null && !msgCbProp) {
+          LOG.warn(
+              "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to true since"
+                  + " LOWER_LATENCY mode was selected");
+        }
 
-    } else if (mode == SolaceIO.SubmissionMode.LOWER_LATENCY) {
-      // Send from the same thread where the produced is being called. This offers the lowest
-      // latency, but a low throughput too.
-      Boolean msgCbProp = props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR);
-      if (msgCbProp != null && !msgCbProp) {
-        LOG.warn(
-            "SolaceIO.Write: Overriding MESSAGE_CALLBACK_ON_REACTOR to true since"
-                + " LOWER_LATENCY mode was selected");
+        if ((ackWindowSize != null && ackWindowSize != STREAMING_PUB_ACK_WINDOW)) {
+          LOG.warn(
+              String.format(
+                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
+                      + " LOWER_LATENCY mode was selected",
+                  STREAMING_PUB_ACK_WINDOW));
+        }
+
+        // Override the properties
+        // Send from the same thread where the produced is being called. This offers the lowest
+        // latency, but a low throughput too.
         props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
-      }
-
-      Integer ackWindowSize = props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE);
-      if ((ackWindowSize != null && ackWindowSize != STREAMING_PUB_ACK_WINDOW)) {
-        LOG.warn(
-            String.format(
-                "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                    + " LOWER_LATENCY mode was selected",
-                STREAMING_PUB_ACK_WINDOW));
         props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, STREAMING_PUB_ACK_WINDOW);
-      }
-    } else if (mode == SolaceIO.SubmissionMode.TESTING) {
-      LOG.warn(
-          "SolaceIO.Write: Overriding JCSMP properties for testing. **IF THIS IS AN"
-              + " ACTUAL PIPELINE, CHANGE THE SUBMISSION MODE TO HIGHER_THROUGHPUT "
-              + "OR LOWER_LATENCY.**");
-      // Minimize multi-threading for testing
-      props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
-      props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, TESTING_PUB_ACK_WINDOW);
-    }
 
+        break;
+      case TESTING:
+        LOG.warn(
+            "SolaceIO.Write: Overriding JCSMP properties for testing. **IF THIS IS AN"
+                + " ACTUAL PIPELINE, CHANGE THE SUBMISSION MODE TO HIGHER_THROUGHPUT "
+                + "OR LOWER_LATENCY.**");
+        // Minimize multi-threading for testing
+        props.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, true);
+        props.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, TESTING_PUB_ACK_WINDOW);
+        break;
+      default:
+        LOG.error(
+            "SolaceIO.Write: no submission mode is selected. Set the submission mode to"
+                + " HIGHER_THROUGHPUT or LOWER_LATENCY;");
+    }
     return props;
   }
 }
