@@ -280,8 +280,8 @@ class _ReadFromPandas(beam.PTransform):
     first_path = match.metadata_list[0].path
     with io.filesystems.FileSystems.open(first_path) as handle:
       if not self.binary:
-        handle = TextIOWrapper(handle,
-                               encoding=self.kwargs.get("encoding", None))
+        handle = TextIOWrapper(
+            handle, encoding=self.kwargs.get("encoding", None))
       if self.incremental:
         with self.reader(handle, *self.args, **dict(self.kwargs,
                                                     chunksize=100)) as stream:
@@ -635,8 +635,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
             splitter=self.splitter or
             _DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE))
       if not self.binary:
-        handle = TextIOWrapper(handle,
-                               encoding=self.kwargs.get("encoding", None))
+        handle = TextIOWrapper(
+            handle, encoding=self.kwargs.get("encoding", None))
       if self.incremental:
         if 'chunksize' not in self.kwargs:
           self.kwargs['chunksize'] = _DEFAULT_LINES_CHUNKSIZE
@@ -697,8 +697,8 @@ class _WriteToPandasFileSink(fileio.FileSink):
     self.buffer = []
     self.empty = self.header = self.footer = None
     if not self.binary:
-      file_handle = TextIOWrapper(file_handle,
-                                  encoding=self.kwargs.get("encoding", None))
+      file_handle = TextIOWrapper(
+          file_handle, encoding=self.kwargs.get("encoding", None))
     self.file_handle = file_handle
 
   def write_to(self, df, file_handle=None):
