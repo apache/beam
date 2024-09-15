@@ -6096,6 +6096,18 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, ...) {
 }
 {{< /highlight >}}
 
+{{< highlight py>}}
+from apache_beam import metrics
+
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.counter = metrics.Metrics.counter("namespace", "counter1")
+
+  def process(self, element):
+    self.counter.inc()
+    yield element
+{{< /highlight >}}
+
 **Distribution**: A metric that reports information about the distribution of reported values.
 
 {{< highlight java >}}
@@ -6118,6 +6130,16 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
 	distribution.Update(ctx, v)
 	...
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.distribution = metrics.Metrics.distribution("namespace", "distribution1")
+
+  def process(self, element):
+    self.distribution.update(element)
+    yield element
 {{< /highlight >}}
 
 **Gauge**: A metric that reports the latest value out of reported values. Since metrics are
@@ -6145,6 +6167,16 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
 }
 {{< /highlight >}}
 
+{{< highlight py >}}
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.gauge = metrics.Metrics.gauge("namespace", "gauge1")
+
+  def process(self, element):
+    self.gaguge.set(element)
+    yield element
+{{< /highlight >}}
+
 ### 10.3. Querying metrics {#querying-metrics}
 {{< paragraph class="language-java language-python">}}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
@@ -6157,6 +6189,17 @@ matching a given filter.
 accessing metrics. The main method available in `metrics.Results` allows querying for all metrics
 matching a given filter.  It takes in a predicate with a `SingleResult` parameter type, which can
 be used for custom filters.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py">}}
+`PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
+accessing metrics. The main method available in a `MetricResults` object, `query()`, allows
+for querying all metrics matching a given filter. It takes in a `MetricsFilter` object that can
+be constructed to filter by several different criteria. Querying a `MetricResults` object returns
+a dictionary of lists of `MetricResult` objects, with the dictionary organizing them by type
+(e.g., Counter, Distribution, and Gauge). The `MetricResult` object contains a `result()` function
+that gets the value of the metric, and contains a `key` property that contains information on
+the namespace and name of the metric.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -6184,6 +6227,20 @@ public interface MetricResult<T> {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class PipelineResult:
+  def metrics(self) -> MetricResults:
+  """Returns a the metric results from the pipeline."""
+
+class MetricResults:
+  def query(self, filter: MetricsFilter) -> Dict[str, List[MetricResult]]:
+    """Filters the results against the specified filter."""
+
+class MetricResult:
+  def result(self):
+    """Returns the value of the metric."""
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
@@ -6226,6 +6283,28 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_pipeline >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class MyMetricsDoFn(beam.DoFn):
+  def __init__(self):
+    self.counter = metrics.Metrics.counter("namespace", "counter1")
+
+  def process(self, element):
+    counter.inc()
+    yield element
+
+pipeline = beam.Pipeline()
+
+pipeline | beam.ParDo(MyMetricsDoFn())
+
+result = pipeline.run().wait_until_finish()
+
+metrics = result.metrics().query(
+    metrics.MetricsFilter.with_namespace("namespace").with_name("counter1"))
+
+for metric in metrics["counters"]:
+  print(metric)
 {{< /highlight >}}
 
 ### 10.5. Export metrics {#export-metrics}
