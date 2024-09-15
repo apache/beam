@@ -366,6 +366,10 @@ import org.slf4j.LoggerFactory;
  * href="https://cloud.google.com/dataflow/docs/streaming-engine">Streaming Engine</a> to use this
  * connector.
  *
+ * <p>For full control over all the properties, use {@link SubmissionMode#CUSTOM}. The connector
+ * will not override any property that you set, and you will have full control over all the JCSMP
+ * properties.
+ *
  * <h3>Authentication</h3>
  *
  * <p>When writing to Solace, the user must use {@link
@@ -940,15 +944,19 @@ public class SolaceIO {
      * <p>For full details, please check <a
      * href="https://docs.solace.com/API/API-Developer-Guide/Java-API-Best-Practices.htm">https://docs.solace.com/API/API-Developer-Guide/Java-API-Best-Practices.htm</a>.
      *
-     * <p>The Solace JCSMP client libraries can dispatch messages using two different modes:
+     * <p>The Solace JCSMP client libraries can dispatch messages using three different modes:
      *
      * <p>One of the modes dispatches messages directly from the same thread that is doing the rest
      * of I/O work. This mode favors lower latency but lower throughput. Set this to LOWER_LATENCY
      * to use that mode (MESSAGE_CALLBACK_ON_REACTOR set to True).
      *
-     * <p>The other mode uses a parallel thread to accumulate and dispatch messages. This mode
-     * favors higher throughput but also has higher latency. Set this to HIGHER_THROUGHPUT to use
-     * that mode. This is the default mode (MESSAGE_CALLBACK_ON_REACTOR set to False).
+     * <p>Another mode uses a parallel thread to accumulate and dispatch messages. This mode favors
+     * higher throughput but also has higher latency. Set this to HIGHER_THROUGHPUT to use that
+     * mode. This is the default mode (MESSAGE_CALLBACK_ON_REACTOR set to False).
+     *
+     * <p>If you prefer to have full control over all the JCSMP properties, set this to CUSTOM, and
+     * override the classes {@link SessionServiceFactory} and {@link SessionService} to have full
+     * control on how to create the JCSMP sessions and producers used by the connector.
      *
      * <p>This is optional, the default value is HIGHER_THROUGHPUT.
      */
