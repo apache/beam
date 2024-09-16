@@ -6192,14 +6192,14 @@ be used for custom filters.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py">}}
-`PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
-accessing metrics. The main method available in a `MetricResults` object, `query()`, allows
-for querying all metrics matching a given filter. It takes in a `MetricsFilter` object that can
-be constructed to filter by several different criteria. Querying a `MetricResults` object returns
-a dictionary of lists of `MetricResult` objects, with the dictionary organizing them by type
-(e.g., Counter, Distribution, and Gauge). The `MetricResult` object contains a `result()` function
-that gets the value of the metric, and contains a `key` property that contains information on
-the namespace and name of the metric.
+`PipelineResult` has a `metrics` method that returns a `MetricResults` object. The `MetricResults` object  lets you
+access metrics. The main method available in the `MetricResults` object, `query`, lets you
+query all metrics that match a given filter. The `query` method takes in a `MetricsFilter` object that you can
+use to filter by several different criteria. Querying a `MetricResults` object returns
+a dictionary of lists of `MetricResult` objects, with the dictionary organizing them by type,
+for example, `Counter`, `Distribution`, and `Gauge`. The `MetricResult` object contains a `result` function
+that gets the value of the metric and contains a `key` property. The `key` property contains information about
+the namespace and the name of the metric.
 {{< /paragraph >}}
 
 {{< highlight java >}}
