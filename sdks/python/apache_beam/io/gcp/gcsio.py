@@ -249,7 +249,8 @@ class GcsIO(object):
       bucket = self.client.bucket(bucket_name)
       blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
       generation = getattr(blob, "generation", None)
-      bucket.delete_blob(blob_name,
+      bucket.delete_blob(
+          blob_name,
           if_generation_match=generation,
           retry=self._storage_client_retry)
     except NotFound:
@@ -300,7 +301,9 @@ class GcsIO(object):
     dest_bucket = self.client.bucket(dest_bucket_name)
     if not dest_blob_name:
       dest_blob_name = None
-    src_bucket.copy_blob(src_blob, dest_bucket,
+    src_bucket.copy_blob(
+        src_blob,
+        dest_bucket,
         new_name=dest_blob_name,
         source_generation=src_generation,
         retry=self._storage_client_retry)
