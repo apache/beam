@@ -43,6 +43,8 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
+  implementation project(":sdks:java:io:mqtt")
+  permitUnusedDeclared project(":sdks:java:io:mqtt") // BEAM-11761
 
   // **** IcebergIO runtime dependencies ****
   runtimeOnly library.java.hadoop_client

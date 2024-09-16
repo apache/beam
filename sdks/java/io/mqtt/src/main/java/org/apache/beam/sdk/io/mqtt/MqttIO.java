@@ -35,6 +35,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -120,13 +123,17 @@ public class MqttIO {
   private MqttIO() {}
 
   /** A POJO describing a MQTT connection. */
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
+    @SchemaFieldDescription("The MQTT broker URI.")
     abstract String getServerUri();
 
+    @SchemaFieldDescription("The MQTT topic pattern.")
     abstract String getTopic();
 
+    @SchemaFieldDescription("The client ID prefix, which is used to construct a unique client ID.")
     abstract @Nullable String getClientId();
 
     abstract @Nullable String getUsername();
