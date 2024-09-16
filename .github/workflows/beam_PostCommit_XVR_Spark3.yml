@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_XVR_Spark3"]
         job_phrase: ["Run XVR_Spark3 PostCommit"]
-        python_version: ['3.8','3.12']
+        python_version: ['3.9','3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -75,12 +75,12 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.8
+            3.9
             ${{ matrix.python_version }}
       - name: run PostCommit XVR Spark3 script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
-        if: ${{ matrix.python_version != '3.8' }}
+        if: ${{ matrix.python_version != '3.9' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:job-server:validatesCrossLanguageRunner
@@ -90,7 +90,7 @@ jobs:
       - name: run PostCommit XVR Spark3 script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
-        if: ${{ matrix.python_version == '3.8' }}
+        if: ${{ matrix.python_version == '3.9' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:job-server:validatesCrossLanguageRunner
