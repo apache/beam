@@ -445,7 +445,6 @@ public final class StreamingDataflowWorker {
               config ->
                   onPipelineConfig(
                       config,
-                      options,
                       dispatcherClient::consumeWindmillDispatcherEndpoints,
                       operationalLimits::set));
       computationStateCache = computationStateCacheFactory.apply(configFetcher);
@@ -515,7 +514,6 @@ public final class StreamingDataflowWorker {
                 config ->
                     onPipelineConfig(
                         config,
-                        options,
                         windmillServer::setWindmillServiceEndpoints,
                         operationalLimits::set))
             : new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
@@ -598,7 +596,6 @@ public final class StreamingDataflowWorker {
 
   private static void onPipelineConfig(
       StreamingEnginePipelineConfig config,
-      DataflowWorkerHarnessOptions options,
       Consumer<ImmutableSet<HostAndPort>> consumeWindmillServiceEndpoints,
       Consumer<OperationalLimits> operationalLimits) {
 
@@ -607,8 +604,6 @@ public final class StreamingDataflowWorker {
             .setMaxWorkItemCommitBytes(config.maxWorkItemCommitBytes())
             .setMaxOutputKeyBytes(config.maxOutputKeyBytes())
             .setMaxOutputValueBytes(config.maxOutputValueBytes())
-            .setThrowExceptionOnLargeOutput(
-                DataflowRunner.hasExperiment(options, "throw_exceptions_on_large_output"))
             .build());
 
     if (!config.windmillServiceEndpoints().isEmpty()) {

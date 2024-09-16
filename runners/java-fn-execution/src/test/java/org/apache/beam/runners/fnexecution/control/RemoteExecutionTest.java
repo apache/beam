@@ -264,10 +264,12 @@ public class RemoteExecutionTest implements Serializable {
     try {
       sdkHarnessExecutorFuture.get();
     } catch (ExecutionException e) {
-      if (e.getCause() instanceof RuntimeException
-          && e.getCause().getCause() instanceof InterruptedException) {
-        // expected
-      } else {
+      Throwable ex = e.getCause();
+      while (ex instanceof RuntimeException) {
+        ex = ex.getCause();
+      }
+      // InterruptedException at call tree is expected
+      if (!(ex instanceof InterruptedException)) {
         throw e;
       }
     }

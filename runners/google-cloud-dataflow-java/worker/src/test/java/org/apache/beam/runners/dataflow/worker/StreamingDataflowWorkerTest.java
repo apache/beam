@@ -1280,13 +1280,9 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams()
+            defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
                 .setInstructions(instructions)
-                .setOperationalLimits(
-                    OperationalLimits.builder()
-                        .setMaxOutputKeyBytes(15)
-                        .setThrowExceptionOnLargeOutput(true)
-                        .build())
+                .setOperationalLimits(OperationalLimits.builder().setMaxOutputKeyBytes(15).build())
                 .build());
     worker.start();
 
@@ -1317,13 +1313,10 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams()
+            defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
                 .setInstructions(instructions)
                 .setOperationalLimits(
-                    OperationalLimits.builder()
-                        .setMaxOutputValueBytes(15)
-                        .setThrowExceptionOnLargeOutput(true)
-                        .build())
+                    OperationalLimits.builder().setMaxOutputValueBytes(15).build())
                 .build());
     worker.start();
 

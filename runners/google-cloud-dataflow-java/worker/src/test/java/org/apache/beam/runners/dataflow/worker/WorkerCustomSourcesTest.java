@@ -610,7 +610,8 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -978,7 +979,8 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 100;

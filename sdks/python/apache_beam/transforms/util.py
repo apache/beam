@@ -802,6 +802,20 @@ class BatchElements(PTransform):
   corresponding to its contents. Each batch is emitted with a timestamp at
   the end of their window.
 
+  When the max_batch_duration_secs arg is provided, a stateful implementation
+  of BatchElements is used to batch elements across bundles. This is most
+  impactful in streaming applications where many bundles only contain one
+  element. Larger max_batch_duration_secs values `might` reduce the throughput
+  of the transform, while smaller values might improve the throughput but
+  make it more likely that batches are smaller than the target batch size.
+
+  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
+  increase as needed to get the desired tradeoff between target batch size
+  and latency or throughput.
+
+  For more information on tuning parameters to this transform, see
+  https://beam.apache.org/documentation/patterns/batch-elements
+
   Args:
     min_batch_size: (optional) the smallest size of a batch
     max_batch_size: (optional) the largest size of a batch

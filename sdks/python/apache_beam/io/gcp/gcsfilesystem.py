@@ -365,3 +365,11 @@ class GCSFileSystem(FileSystem):
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    try:
+      bucket, blob = gcsio.parse_gcs_path(path)
+    except ValueError:
+      # report lineage is fail-safe
+      return
+    lineage.add('gcs', bucket, blob)

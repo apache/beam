@@ -68,6 +68,10 @@ final class ComputationWorkExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ComputationWorkExecutorFactory.class);
   private static final String DISABLE_SINK_BYTE_LIMIT_EXPERIMENT =
       "disable_limiting_bundle_sink_bytes";
+  // Whether to throw an exception when processing output that violates any of the operational
+  // limits.
+  private static final String THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT =
+      "throw_exceptions_on_large_output";
 
   private final DataflowWorkerHarnessOptions options;
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
@@ -90,6 +94,7 @@ final class ComputationWorkExecutorFactory {
 
   private final long maxSinkBytes;
   private final IdGenerator idGenerator;
+  private final boolean throwExceptionOnLargeOutput;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -113,6 +118,8 @@ final class ComputationWorkExecutorFactory {
         hasExperiment(options, DISABLE_SINK_BYTE_LIMIT_EXPERIMENT)
             ? Long.MAX_VALUE
             : StreamingDataflowWorker.MAX_SINK_BYTES;
+    this.throwExceptionOnLargeOutput =
+        hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -255,7 +262,8 @@ final class ComputationWorkExecutorFactory {
         stageInfo.metricsContainerRegistry(),
         executionStateTracker,
         stageInfo.executionStateRegistry(),
-        maxSinkBytes);
+        maxSinkBytes,
+        throwExceptionOnLargeOutput);
   }
 
   private DataflowMapTaskExecutor createMapTaskExecutor(

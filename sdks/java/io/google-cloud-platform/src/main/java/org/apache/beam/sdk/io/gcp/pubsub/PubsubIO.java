@@ -1148,18 +1148,63 @@ public class PubsubIO {
               getNeedsOrderingKey());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
+      return expandReadContinued(preParse, topicPath, subscriptionPath);
+    }
+
+    /**
+     * Runner agnostic part of the Expansion.
+     *
+     * <p>Common logics (MapElements, SDK metrics, DLQ, etc) live here as PubsubUnboundedSource is
+     * overridden on Dataflow runner.
+     */
+    private PCollection<T> expandReadContinued(
+        PCollection<PubsubMessage> preParse,
+        @Nullable ValueProvider<TopicPath> topicPath,
+        @Nullable ValueProvider<SubscriptionPath> subscriptionPath) {
+
       TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
+      SerializableFunction<PubsubMessage, T> parseFnWrapped =
+          new SerializableFunction<PubsubMessage, T>() {
+            // flag that reported metrics
+            private final SerializableFunction<PubsubMessage, T> underlying =
+                Objects.requireNonNull(getParseFn());
+            private transient boolean reportedMetrics = false;
+
+            // public
+            @Override
+            public T apply(PubsubMessage input) {
+              if (!reportedMetrics) {
+                LOG.info("reportling lineage...");
+                // report Lineage once
+                if (topicPath != null) {
+                  TopicPath topic = topicPath.get();
+                  if (topic != null) {
+                    Lineage.getSources().add("pubsub", "topic", topic.getDataCatalogSegments());
+                  }
+                }
+                if (subscriptionPath != null) {
+                  SubscriptionPath sub = subscriptionPath.get();
+                  if (sub != null) {
+                    Lineage.getSources()
+                        .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                  }
+                }
+                reportedMetrics = true;
+              }
+              return underlying.apply(input);
+            }
+          };
       PCollection<T> read;
       if (getDeadLetterTopicProvider() == null
           && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
-        read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
+        read = preParse.apply(MapElements.into(typeDescriptor).via(parseFnWrapped));
       } else {
         // parse PubSub messages, separating out exceptions
         Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
             preParse.apply(
                 "PubsubIO.Read/Map/Parse-Incoming-Messages",
                 MapElements.into(typeDescriptor)
-                    .via(getParseFn())
+                    .via(parseFnWrapped)
                     .exceptionsVia(new WithFailures.ThrowableHandler<PubsubMessage>() {}));
 
         // Emit parsed records
@@ -1174,7 +1219,7 @@ public class PubsubIO {
                       "Map Failures To BadRecords",
                       ParDo.of(new ParseReadFailuresToBadRecords(preParse.getCoder())));
           getBadRecordErrorHandler()
-              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(input.getPipeline())));
+              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(preParse.getPipeline())));
         } else {
           // Write out failures to the provided dead-letter topic.
           result
@@ -1215,7 +1260,6 @@ public class PubsubIO {
                       .withClientFactory(getPubsubClientFactory()));
         }
       }
-
       return read.setCoder(getCoder());
     }
 
@@ -1622,10 +1666,6 @@ public class PubsubIO {
       public void finishBundle() throws IOException {
         for (Map.Entry<PubsubTopic, OutgoingData> entry : output.entrySet()) {
           publish(entry.getKey(), entry.getValue().messages);
-        }
-        // Report lineage for all topics seen
-        for (PubsubTopic topic : output.keySet()) {
-          Lineage.getSinks().add("pubsub", "topic", topic.dataCatalogSegments());
         }
         output = null;
         pubsubClient.close();
