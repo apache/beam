@@ -24,7 +24,6 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -77,21 +77,17 @@ public class IcebergWriteSchemaTransformProvider
     public abstract String getTable();
 
     @SchemaFieldDescription("Name of the catalog containing the table.")
-    @Nullable
-    public abstract String getCatalogName();
+    public abstract @Nullable String getCatalogName();
 
     @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
-    @Nullable
-    public abstract Map<String, String> getCatalogProperties();
+    public abstract @Nullable Map<String, String> getCatalogProperties();
 
     @SchemaFieldDescription("Properties passed to the Hadoop Configuration.")
-    @Nullable
-    public abstract Map<String, String> getConfigProperties();
+    public abstract @Nullable Map<String, String> getConfigProperties();
 
     @SchemaFieldDescription(
         "For a streaming pipeline, sets the frequency at which snapshots are produced.")
-    @Nullable
-    public abstract Integer getTriggeringFrequencySeconds();
+    public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
     @AutoValue.Builder
     public abstract static class Builder {

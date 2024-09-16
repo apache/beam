@@ -121,18 +121,20 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
 
     PCollection<FileWriteResult> writeUngroupedResultPColl = writeUngroupedResult.getWrittenFiles();
 
-    if (triggeringFrequency != null) {
+    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
       // for streaming pipelines, re-window both outputs to keep Flatten happy
       writeGroupedResult =
           writeGroupedResult.apply(
               "RewindowGroupedRecords",
               Window.<FileWriteResult>into(new GlobalWindows())
-                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))));
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes());
       writeUngroupedResultPColl =
           writeUngroupedResultPColl.apply(
               "RewindowUnGroupedRecords",
               Window.<FileWriteResult>into(new GlobalWindows())
-                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))));
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes());
     }
 
     PCollection<FileWriteResult> allWrittenFiles =
@@ -140,7 +142,9 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
             .and(writeGroupedResult)
             .apply("Flatten Written Files", Flatten.pCollections());
 
-    if (triggeringFrequency != null) {
+    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+      checkArgumentNotNull(
+          triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
       // apply the user's trigger before we start committing and creating snapshots
       allWrittenFiles =
           allWrittenFiles.apply(

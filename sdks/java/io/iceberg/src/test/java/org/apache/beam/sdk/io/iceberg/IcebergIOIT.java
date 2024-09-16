@@ -38,6 +38,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -322,21 +324,52 @@ public class IcebergIOIT implements Serializable {
     Table table = catalog.createTable(tableId, ICEBERG_SCHEMA, partitionSpec);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig());
-    config.put("triggering_frequency_seconds", 10);
+    config.put("triggering_frequency_seconds", 4);
 
-    Instant start = new Instant(0);
-    Instant stop = start.plus(Duration.millis(999));
-
+    // over a span of 10 seconds, create elements from longs in range [0, 1000)
     PCollection<Row> input =
         pipeline
             .apply(
                 PeriodicImpulse.create()
-                    .startAt(start)
-                    .stopAt(stop)
-                    .withInterval(Duration.millis(1)))
+                    .stopAfter(Duration.millis(9_990))
+                    .withInterval(Duration.millis(10)))
             .apply(
                 MapElements.into(TypeDescriptors.rows())
-                    .via(instant -> ROW_FUNC.apply(instant.getMillis())))
+                    .via(instant -> ROW_FUNC.apply((instant.getMillis() / 10) % 1000)))
+            .setRowSchema(BEAM_SCHEMA);
+
+    assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));
+
+    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  @Test
+  public void testStreamingWriteWithPriorWindowing() {
+    PartitionSpec partitionSpec =
+        PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
+    Table table = catalog.createTable(tableId, ICEBERG_SCHEMA, partitionSpec);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig());
+    config.put("triggering_frequency_seconds", 4);
+
+    // over a span of 10 seconds, create elements from longs in range [0, 1000)
+    PCollection<Row> input =
+        pipeline
+            .apply(
+                PeriodicImpulse.create()
+                    .stopAfter(Duration.millis(9_990))
+                    .withInterval(Duration.millis(10)))
+            .apply(
+                Window.<Instant>into(FixedWindows.of(Duration.standardSeconds(1)))
+                    .accumulatingFiredPanes())
+            .apply(
+                MapElements.into(TypeDescriptors.rows())
+                    .via(instant -> ROW_FUNC.apply((instant.getMillis() / 10) % 1000)))
             .setRowSchema(BEAM_SCHEMA);
 
     assertThat(input.isBounded(), equalTo(PCollection.IsBounded.UNBOUNDED));

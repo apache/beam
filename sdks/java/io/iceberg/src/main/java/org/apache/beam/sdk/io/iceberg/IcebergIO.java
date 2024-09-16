@@ -94,9 +94,9 @@ public class IcebergIO {
      * Sets the frequency at which data is committed and a new {@link org.apache.iceberg.Snapshot}
      * is produced.
      *
-     * <p>Every triggeringFrequency duration, all accumulated {@link
-     * org.apache.iceberg.ManifestFile}s are appended and committed to the table. This results in a
-     * new table {@link org.apache.iceberg.Snapshot}.
+     * <p>Roughly every triggeringFrequency duration, this connector will try to accumulate all
+     * {@link org.apache.iceberg.ManifestFile}s and commit them to the table as appended files. Each
+     * commit results in a new table {@link org.apache.iceberg.Snapshot}.
      *
      * <p>This is only applicable when writing an unbounded {@link PCollection} (i.e. a streaming
      * pipeline).
