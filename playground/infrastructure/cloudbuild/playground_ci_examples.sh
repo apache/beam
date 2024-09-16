@@ -84,7 +84,7 @@ export STEP=CI
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
 export GRADLE_VERSION=7.5.1
-export GO_VERSION=1.23
+export GO_VERSION=1.23.1
 
 LogOutput "Installing python java8 and dependencies"
 apt-get update > /dev/null
@@ -99,7 +99,9 @@ apt install --reinstall python3.8-distutils > /dev/null
 pip install --upgrade google-api-python-client > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
-apt install python3.8-venv > /dev/null
+apt install python3.8-venv python3.12-venv > /dev/null
+python3 -m venv /tmp/venv
+source /tmp/venv/bin/activate
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 pip install -r $BEAM_ROOT_DIR/playground/infrastructure/requirements.txt
 
