@@ -96,11 +96,11 @@ apt-get install -y apt-transport-https ca-certificates software-properties-commo
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
 apt install --reinstall python3.8-distutils > /dev/null
-pip install --upgrade google-api-python-client > /dev/null
+apt install -y python3-googleapi > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv python3.12-venv > /dev/null
-python3 -m venv /tmp/venv
+python -m venv /tmp/venv
 source /tmp/venv/bin/activate
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 pip install -r $BEAM_ROOT_DIR/playground/infrastructure/requirements.txt
