@@ -26,6 +26,7 @@ import os
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Type
@@ -185,7 +186,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self, flags=None, **kwargs):
+  def __init__(self, flags: Optional[Iterable[str]] = None, **kwargs):
     # type: (Optional[List[str]], **Any) -> None
 
     """Initialize an options class.
@@ -216,6 +217,12 @@ class PipelineOptions(HasDisplayData):
     # self._flags stores a list of not yet parsed arguments, typically,
     # command-line flags. This list is shared across different views.
     # See: view_as().
+    if isinstance(flags, str):
+      # Unfortunately a single str passes the Iterable[str] test, as it is
+      # an iterable of single characters.  This is almost certainly not the
+      # intent...
+      raise ValueError(
+          "Flags must be an iterable of of strings, not a single string.")
     self._flags = flags
 
     # Build parser that will parse options recognized by the [sub]class of
