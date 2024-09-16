@@ -362,6 +362,9 @@ class PipelineOptions(HasDisplayData):
             'used for internal purposes.' % (','.join(unknown_args)))
       i = 0
       while i < len(unknown_args):
+        # End of argument parsing.
+        if unknown_args[i] == '--':
+          break
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
         if not unknown_args[i].startswith('-'):
