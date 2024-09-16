@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,6 +73,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 
 /**
  * A SplittableDoFn which reads from {@link KafkaSourceDescriptor} and outputs pair of {@link
@@ -228,6 +233,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
 
   private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
+  private @Nullable KafkaMetrics kafkaResults =   null; // initialize only when used, since its not serializable
 
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
@@ -375,7 +381,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       Map<String, Object> updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
 
-      LOG.info("Creating Kafka consumer for offset estimation for {}", topicPartition);
+      LOG.info("xxx Creating Kafka consumer for offset estimation for {}", topicPartition);
 
       Consumer<byte[], byte[]> offsetConsumer =
           consumerFactoryFn.apply(
@@ -446,7 +452,18 @@ abstract class ReadFromKafkaDoFn<K, V>
       final Stopwatch sw = Stopwatch.createStarted();
 
       while (true) {
+        // move kafka metrics handling here
+        // kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+        // final Stopwatch sw = Stopwatch.createStarted();
         rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
+        // java.time.Duration elapsed = sw.elapsed();
+        // Preconditions.checkStateNotNull(kafkaResults);
+        // kafkaResults.updateSuccessfulRpcMetrics(kafkaSourceDescriptor.getTopicPartition().topic(), elapsed);
+        // kafkaResults.recordRpcLatencyMetric(kafkaSourceDescriptor.getTopicPartition().topic(),
+        // elapsed);
+        // update metrics container
+        // Preconditions.checkStateNotNull(kafkaResults);
+        // kafkaResults.updateKafkaMetrics();
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
@@ -569,7 +586,12 @@ abstract class ReadFromKafkaDoFn<K, V>
     java.time.Duration elapsed = java.time.Duration.ZERO;
     java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
     while (true) {
+      kafkaResults = KafkaSinkMetrics.kafkaMetrics();
       final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
+      elapsed = sw.elapsed();
+      Preconditions.checkStateNotNull(kafkaResults);
+      kafkaResults.recordRpcLatencyMetric(topicPartition.topic(), elapsed);
+
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
@@ -578,7 +600,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         // there was no progress on the offset/position, which indicates end of stream
         return rawRecords;
       }
-      elapsed = sw.elapsed();
       if (elapsed.toMillis() >= timeout.toMillis()) {
         // timeout is over
         LOG.warn(

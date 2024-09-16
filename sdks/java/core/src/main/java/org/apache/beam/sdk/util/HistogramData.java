@@ -29,6 +29,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions.Base2Exponent;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions.Linear;
 
 /**
  * A histogram that supports estimated percentile with linear interpolation.
@@ -60,7 +63,7 @@ public class HistogramData implements Serializable {
   /**
    * Create a histogram.
    *
-   * @param bucketType a bucket type for a new histogram instance.
+   * @param bucketType a bucket type for a new histogram instance. does all of this need to be sent?
    */
   public HistogramData(BucketType bucketType) {
     this.bucketType = bucketType;
@@ -73,6 +76,48 @@ public class HistogramData implements Serializable {
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
+
+  public HistogramData(org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram histogramProto) {
+    // HistogramData newHist = null;
+    int numBuckets;
+    if(histogramProto.getBucketOptions().hasLinear()){
+      double start = histogramProto.getBucketOptions().getLinear().getStart();
+      double width = histogramProto.getBucketOptions().getLinear().getWidth();
+      numBuckets = histogramProto.getBucketOptions().getLinear().getNumberOfBuckets();
+      this.bucketType = LinearBuckets.of(start, width, numBuckets);
+      int idx = 0;
+
+      this.buckets = new long[bucketType.getNumBuckets()];
+      // populate with bucket counts with mean type for now, not used to determine equality
+      for (long val: histogramProto.getBucketCountsList()){
+        this.buckets[idx] = val; // is this valid?
+        if (!(idx == 0 || idx == bucketType.getNumBuckets()-1  )){
+          LOG.info("xxx {} {}", val, idx);
+          this.numBoundedBucketRecords+= val;
+        }
+        idx++;
+      }
+      // update with counts
+    } else {
+      // assume exp, add handling for wrong type later
+      int scale = histogramProto.getBucketOptions().getExponential().getScale();
+      numBuckets = histogramProto.getBucketOptions().getExponential().getNumberOfBuckets();
+      int idx = 0;
+      
+      this.bucketType = ExponentialBuckets.of(scale, numBuckets);
+      this.buckets = new long[bucketType.getNumBuckets()];
+      // populate with bucket counts with mean type for now, not used to determine equality
+      for (long val: histogramProto.getBucketCountsList()){
+        this.buckets[idx] = val; // is this valid?
+        if (!(idx == 0 || idx == bucketType.getNumBuckets()-1  )){
+          this.numBoundedBucketRecords+= val;
+        }
+        idx++;
+      }
+    }
+    LOG.info("xxx numBoundedBucketRecords when creating from proto {}", numBoundedBucketRecords);
+  }
+
 
   public BucketType getBucketType() {
     return this.bucketType;
@@ -91,6 +136,8 @@ public class HistogramData implements Serializable {
   public static HistogramData linear(double start, double width, int numBuckets) {
     return new HistogramData(LinearBuckets.of(start, width, numBuckets));
   }
+
+
 
   /**
    * Returns a histogram object with exponential boundaries. The input parameter {@code scale}
@@ -216,7 +263,9 @@ public class HistogramData implements Serializable {
       recordBottomRecordsValue(value);
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
-      numBoundedBucketRecords++;
+      if (!(bucketType.getBucketIndex(value) == 0 || bucketType.getBucketIndex(value) == buckets.length -1 )){
+        numBoundedBucketRecords++;
+      }
     }
     updateStatistics(value);
   }
@@ -266,6 +315,19 @@ public class HistogramData implements Serializable {
 
   public synchronized long getTotalCount() {
     return numBoundedBucketRecords + numTopRecords + numBottomRecords;
+  }
+
+  public HistogramData combine(HistogramData value) {
+    // reutrn new hist for now, ignore the old, though this is incorrect. 
+    
+    return value;
+  }
+
+  // same as HistogramData, but doesn't reset
+  public HistogramData extractResult() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    return other;
   }
 
   public synchronized String getPercentileString(String elemType, String unit) {
@@ -577,6 +639,11 @@ public class HistogramData implements Serializable {
   public synchronized boolean equals(@Nullable Object object) {
     if (object instanceof HistogramData) {
       HistogramData other = (HistogramData) object;
+      LOG.info("xxx {}, {}, {}", numBoundedBucketRecords == other.numBoundedBucketRecords, numBoundedBucketRecords, other.numBoundedBucketRecords);
+      LOG.info("xxx {}", numTopRecords == other.numTopRecords);
+      LOG.info("xxx {}", numBottomRecords == other.numBottomRecords);
+      LOG.info("xxx {}", Arrays.equals(buckets, other.buckets));
+
       synchronized (other) {
         return Objects.equals(bucketType, other.bucketType)
             && numBoundedBucketRecords == other.numBoundedBucketRecords

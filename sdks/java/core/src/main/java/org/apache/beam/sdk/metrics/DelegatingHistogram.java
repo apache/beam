@@ -21,6 +21,9 @@ import java.io.Serializable;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.HistogramData;
+// import org.slf4j.Logger;
+// import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.util.Preconditions;
 
 /** Implementation of {@link Histogram} that delegates to the instance for the current context. */
 @Internal
@@ -29,6 +32,8 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
   private final HistogramData.BucketType bucketType;
   private final boolean processWideContainer;
   private final boolean perWorkerHistogram;
+
+  // private static final Logger LOG = LoggerFactory.getLogger(DelegatingHistogram.class);
 
   /**
    * Create a {@code DelegatingHistogram} with {@code perWorkerHistogram} set to false.
@@ -59,6 +64,14 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
     this.bucketType = bucketType;
     this.processWideContainer = processWideContainer;
     this.perWorkerHistogram = perWorkerHistogram;
+    // What is the container here?
+    MetricsContainer container =
+        processWideContainer
+            ? MetricsEnvironment.getProcessWideContainer()
+            : MetricsEnvironment.getCurrentContainer();
+      if (container == null) {
+      } else {
+      }
   }
 
   private Optional<Histogram> getHistogram() {
@@ -67,23 +80,33 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
             ? MetricsEnvironment.getProcessWideContainer()
             : MetricsEnvironment.getCurrentContainer();
     if (container == null) {
+      // LOG.info("xxx getHistogram container is null {}");
       return Optional.empty();
     }
     if (perWorkerHistogram) {
+      // LOG.info("xxx is this null? perWorkerHistogram {}", container.getPerWorkerHistogram(name, bucketType).toString());
       return Optional.of(container.getPerWorkerHistogram(name, bucketType));
     } else {
+      // LOG.info("xxx is this null? histogram {}", container.getHistogram(name, bucketType).toString());
       return Optional.of(container.getHistogram(name, bucketType));
     }
   }
 
   @Override
   public void update(double value) {
+  // LOG.info("xxx updating histogram in container");// SPAMS logs
     getHistogram().ifPresent(histogram -> histogram.update(value));
   }
 
   @Override
   public void update(double... values) {
-    getHistogram().ifPresent(histogram -> histogram.update(values));
+    MetricsContainer container =
+    this.processWideContainer
+        ? MetricsEnvironment.getProcessWideContainer()
+        : MetricsEnvironment.getCurrentContainer();
+    if (container != null) {
+      getHistogram().ifPresent(histogram -> histogram.update(values));
+    }
   }
 
   @Override

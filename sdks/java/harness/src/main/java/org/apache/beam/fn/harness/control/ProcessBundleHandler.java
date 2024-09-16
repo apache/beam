@@ -682,6 +682,11 @@ public class ProcessBundleHandler {
     if (runnerAcceptsShortIds) {
       response.putAllMonitoringData(monitoringData);
     } else {
+                  // for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
+            //   LOG.info("xxx add monitoring data {} for {}", metric.getKey(), metric.getValue());
+            //   // response.addMonitoringInfos(
+            //   //     shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
+            // }
       for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
         response.addMonitoringInfos(
             shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
@@ -703,6 +708,10 @@ public class ProcessBundleHandler {
             .getStateTracker()
             .getMetricsContainerRegistry()
             .getMonitoringData(shortIds));
+  LOG.info("xxx add intermediateMonitoringData");
+  for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
+    LOG.info("xxx add intermeidate monitoring data {} for {}", metric.getKey(), metric.getValue());
+  }
     // Add any additional monitoring infos that the "runners" report explicitly.
     bundleProcessor
         .getBundleProgressReporterAndRegistrar()
@@ -723,6 +732,11 @@ public class ProcessBundleHandler {
     bundleProcessor
         .getBundleProgressReporterAndRegistrar()
         .updateFinalMonitoringData(monitoringData);
+    // extracted per worker metrics should be done in this path.
+    LOG.info("xxx add finalMonitoringData");
+    for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
+      LOG.info("xxx add monitoring data {} for {}", metric.getKey(), metric.getValue());
+    }
     return monitoringData;
   }
 

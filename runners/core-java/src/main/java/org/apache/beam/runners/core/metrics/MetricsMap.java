@@ -106,4 +106,8 @@ public class MetricsMap<K, T> implements Serializable {
   public int hashCode() {
     return metrics.hashCode();
   }
+
+  public int size() {
+    return metrics.size();
+  }
 }
