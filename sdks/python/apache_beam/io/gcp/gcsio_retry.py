@@ -33,7 +33,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = ['DEFAULT_RETRY_WITH_THROTTLING_COUNTERS']
+__all__ = ['DEFAULT_RETRY_WITH_THROTTLING_COUNTER']
 
 
 class ThrottlingHandler(object):
@@ -60,12 +60,12 @@ class ThrottlingHandler(object):
       ThrottlingHandler._THROTTLED_SECS.inc(math.ceil(sleep_seconds))
 
 
-DEFAULT_RETRY_WITH_THROTTLING_COUNTERS = retry.Retry(
+DEFAULT_RETRY_WITH_THROTTLING_COUNTER = retry.Retry(
     predicate=_should_retry, on_error=ThrottlingHandler())
 
 
 def get_retry(pipeline_options):
-  if pipeline_options.view_as(GoogleCloudOptions).no_gcsio_throttling_counters:
+  if pipeline_options.view_as(GoogleCloudOptions).no_gcsio_throttling_counter:
     return DEFAULT_RETRY
   else:
-    return DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
+    return DEFAULT_RETRY_WITH_THROTTLING_COUNTER

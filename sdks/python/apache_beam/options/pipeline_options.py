@@ -940,11 +940,17 @@ class GoogleCloudOptions(PipelineOptions):
         'Create metrics reporting the approximate number of bytes written per '
         'bucket.')
     parser.add_argument(
-        '--no_gcsio_throttling_counters',
+        '--no_gcsio_throttling_counter',
         default=False,
         action='store_true',
-        help='Throttling counters in GcsIO is enabled by default. Set '
-        '--no_gcsio_throttling_counters to avoid it.')
+        help='Throttling counter in GcsIO is enabled by default. Set '
+        '--no_gcsio_throttling_counter to avoid it.')
+    parser.add_argument(
+        '--enable_gcsio_blob_generation',
+        default=False,
+        action='store_true',
+        help='Use blob generation when mutating blobs in GCSIO to '
+        'overcome race conditions.')
 
   def _create_default_gcs_bucket(self):
     try:

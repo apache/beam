@@ -37,7 +37,7 @@ from apache_beam.utils import counters
 
 try:
   from apache_beam.io.gcp import gcsio
-  from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
+  from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
   from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
@@ -538,7 +538,7 @@ class TestGCSIO(unittest.TestCase):
           blob,
           chunk_size=read_buffer_size,
           enable_read_bucket_metric=False,
-          retry=DEFAULT_RETRY_WITH_THROTTLING_COUNTERS)
+          retry=DEFAULT_RETRY_WITH_THROTTLING_COUNTER)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'

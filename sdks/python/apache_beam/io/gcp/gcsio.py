@@ -156,6 +156,8 @@ class GcsIO(object):
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
     self._storage_client_retry = gcsio_retry.get_retry(pipeline_options)
+    self._use_blob_generation = getattr(
+        google_cloud_options, 'enable_gcsio_blob_generation', False)
 
   def get_project_number(self, bucket):
     if bucket not in self.bucket_to_project_number:
@@ -247,8 +249,11 @@ class GcsIO(object):
     bucket_name, blob_name = parse_gcs_path(path)
     try:
       bucket = self.client.bucket(bucket_name)
-      blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
-      generation = getattr(blob, "generation", None)
+      if self._use_blob_generation:
+        blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
+        generation = getattr(blob, "generation", None)
+      else:
+        generation = None
       bucket.delete_blob(
           blob_name,
           if_generation_match=generation,
@@ -294,10 +299,14 @@ class GcsIO(object):
     src_bucket_name, src_blob_name = parse_gcs_path(src)
     dest_bucket_name, dest_blob_name= parse_gcs_path(dest, object_optional=True)
     src_bucket = self.client.bucket(src_bucket_name)
-    src_blob = src_bucket.get_blob(src_blob_name)
-    if src_blob is None:
-      raise NotFound("source blob %s not found during copying" % src)
-    src_generation = getattr(src_blob, "generation", None)
+    if self._use_blob_generation:
+      src_blob = src_bucket.get_blob(src_blob_name)
+      if src_blob is None:
+        raise NotFound("source blob %s not found during copying" % src)
+      src_generation = getattr(src_blob, "generation", None)
+    else:
+      src_blob = src_bucket.blob(src_blob_name)
+      src_generation = None
     dest_bucket = self.client.bucket(dest_bucket_name)
     if not dest_blob_name:
       dest_blob_name = None
