@@ -277,8 +277,7 @@ public class MqttIOTest {
     }
   }
 
-  @Test(timeout = 30 * 1000)
-  @Ignore("https://github.com/apache/beam/issues/19092 Flake Non-deterministic output.")
+  @Test
   public void testDynamicWrite() throws Exception {
     final int numberOfTopic1Count = 100;
     final int numberOfTopic2Count = 100;
@@ -352,6 +351,11 @@ public class MqttIOTest {
     for (Map.Entry<String, List<String>> entry : messageMap.entrySet()) {
       final List<String> messages = entry.getValue();
       messages.forEach(message -> assertTrue(message.contains("Test")));
+      if (entry.getKey().equals(writeTopic1)) {
+        assertEquals(numberOfTopic1Count, messages.size());
+      } else {
+        assertEquals(numberOfTopic2Count, messages.size());
+      }
     }
   }
 
