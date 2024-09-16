@@ -42,10 +42,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Nested fields can be expressed using dot-notation (e.g. {@code "top.middle.nested"}).
  *
- * <p>Note: Nested fields are only supported for <strong>unnest</strong>.
+ * <p>Note: You can only specify nested fields when the filter is configured to
+ * <strong>unnest</strong>.
  *
  * <p>A configured {@link RowFilter} will naturally produce {@link Row}s with a new Beam {@link
- * Schema}. You can access this new Schema ahead of time via the filter's {@link #outputSchema()}.
+ * Schema}. You can access this new Schema via the filter's {@link #outputSchema()}.
  *
  * <p>Configure a {@link RowFilter} as follows:
  *
