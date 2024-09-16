@@ -80,9 +80,9 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
     public abstract BasicAuthJcsmpSessionService build();
   }
 
-  @Nullable private JCSMPSession jcsmpSession;
-  @Nullable private MessageReceiver messageReceiver;
-  @Nullable private MessageProducer messageProducer;
+  @Nullable private transient JCSMPSession jcsmpSession;
+  @Nullable private transient MessageReceiver messageReceiver;
+  @Nullable private transient MessageProducer messageProducer;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   @Override
