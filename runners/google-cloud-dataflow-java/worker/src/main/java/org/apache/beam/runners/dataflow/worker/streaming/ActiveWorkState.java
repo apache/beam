@@ -240,18 +240,20 @@ public final class ActiveWorkState {
     @Nullable Queue<ExecutableWork> workQueue = activeWork.get(shardedKey);
     if (workQueue == null) {
       // Work may have been completed due to clearing of stuck commits.
-      LOG.warn("Unable to complete inactive work for key {} and token {}.", shardedKey, workId);
+      LOG.warn(
+          "Unable to complete inactive work for key={} and token={}.  Work queue for key does not exist.",
+          shardedKey,
+          workId);
       return Optional.empty();
     }
+
     removeCompletedWorkFromQueue(workQueue, shardedKey, workId);
     return getNextWork(workQueue, shardedKey);
   }
 
   private synchronized void removeCompletedWorkFromQueue(
       Queue<ExecutableWork> workQueue, ShardedKey shardedKey, WorkId workId) {
-    // avoid Preconditions.checkState here to prevent eagerly evaluating the
-    // format string parameters for the error message.
-    ExecutableWork completedWork = workQueue.peek();
+    @Nullable ExecutableWork completedWork = workQueue.peek();
     if (completedWork == null) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn("Active key {} without work, expected token {}", shardedKey, workId);
@@ -347,7 +349,7 @@ public final class ActiveWorkState {
             + "<th>State</th>"
             + "<th>State Active For</th>"
             + "<th>Processing Thread</th>"
-            + "<th>Produced By</th>"
+            + "<th>Backend</th>"
             + "</tr>");
     // Use StringBuilder because we are appending in loop.
     StringBuilder activeWorkStatus = new StringBuilder();

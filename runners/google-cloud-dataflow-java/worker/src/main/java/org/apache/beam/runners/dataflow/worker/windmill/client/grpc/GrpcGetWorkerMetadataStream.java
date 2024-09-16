@@ -19,12 +19,10 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.io.PrintWriter;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
@@ -171,13 +169,9 @@ public final class GrpcGetWorkerMetadataStream
   @Override
   protected void appendSpecificHtml(PrintWriter writer) {
     synchronized (metadataLock) {
-      List<String> backendWorkerTokens =
-          latestResponse.getWorkEndpointsList().stream()
-              .map(WorkerMetadataResponse.Endpoint::getBackendWorkerToken)
-              .collect(Collectors.toList());
       writer.format(
           "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s]",
-          workerMetadataRequest.getHeader(), backendWorkerTokens);
+          workerMetadataRequest.getHeader(), latestResponse);
     }
   }
 }

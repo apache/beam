@@ -85,7 +85,7 @@ public abstract class GetWorkBudget {
   public abstract static class Builder {
     public abstract Builder setBytes(long bytes);
 
-    public abstract Builder setItems(long budget);
+    public abstract Builder setItems(long items);
 
     abstract long items();
 

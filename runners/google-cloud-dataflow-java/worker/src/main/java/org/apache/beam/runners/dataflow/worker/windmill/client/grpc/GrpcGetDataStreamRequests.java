@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
@@ -37,6 +36,7 @@ import org.slf4j.LoggerFactory;
 /** Utility data classes for {@link GrpcGetDataStream}. */
 final class GrpcGetDataStreamRequests {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetDataStreamRequests.class);
+  private static final int STREAM_CANCELLED_ERROR_LOG_LIMIT = 3;
 
   private GrpcGetDataStreamRequests() {}
 
@@ -154,7 +154,7 @@ final class GrpcGetDataStreamRequests {
         LOG.error("Requests failed for the following batches: {}", cancelledRequests);
         throw new WindmillStreamShutdownException(
             "Requests failed for batch containing "
-                + cancelledRequests.stream().limit(3).collect(Collectors.joining(", "))
+                + String.join(", ", cancelledRequests)
                 + " ... requests. This is most likely due to the stream being explicitly closed"
                 + " which happens when the work is marked as invalid on the streaming"
                 + " backend when key ranges shuffle around. This is transient and corresponding"
@@ -186,6 +186,7 @@ final class GrpcGetDataStreamRequests {
                     throw new IllegalStateException();
                 }
               })
+          .limit(STREAM_CANCELLED_ERROR_LOG_LIMIT)
           .collect(toImmutableList());
     }
   }

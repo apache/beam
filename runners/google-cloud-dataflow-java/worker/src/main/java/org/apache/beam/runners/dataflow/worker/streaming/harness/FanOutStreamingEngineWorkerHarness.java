@@ -269,59 +269,53 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     channelCachingStubFactory.shutdown();
   }
 
-  private void consumeWindmillWorkerEndpoints(WindmillEndpoints newWindmillEndpoints) {
-    CompletableFuture<Void> closeStaleStreams;
-
-    synchronized (this) {
-      LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
-      ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
-          createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
-      closeStaleStreams =
-          closeStaleStreams(newWindmillConnections.values(), connections.get().windmillStreams());
-      ImmutableMap<WindmillConnection, WindmillStreamSender> newStreams =
-          createAndStartNewStreams(newWindmillConnections.values()).join();
-      StreamingEngineConnectionState newConnectionsState =
-          StreamingEngineConnectionState.builder()
-              .setWindmillConnections(newWindmillConnections)
-              .setWindmillStreams(newStreams)
-              .setGlobalDataStreams(
-                  createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
-              .build();
-      LOG.info(
-          "Setting new connections: {}. Previous connections: {}.",
-          newConnectionsState,
-          connections.get());
-      connections.set(newConnectionsState);
-      getWorkBudgetDistributor.distributeBudget(newStreams.values(), totalGetWorkBudget);
-    }
-
-    // Close the streams outside the lock.
-    closeStaleStreams.join();
+  private synchronized void consumeWindmillWorkerEndpoints(WindmillEndpoints newWindmillEndpoints) {
+    LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
+    ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
+        createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
+    closeStaleStreams(newWindmillConnections.values(), connections.get().windmillStreams());
+    ImmutableMap<WindmillConnection, WindmillStreamSender> newStreams =
+        createAndStartNewStreams(newWindmillConnections.values()).join();
+    StreamingEngineConnectionState newConnectionsState =
+        StreamingEngineConnectionState.builder()
+            .setWindmillConnections(newWindmillConnections)
+            .setWindmillStreams(newStreams)
+            .setGlobalDataStreams(
+                createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
+            .build();
+    LOG.info(
+        "Setting new connections: {}. Previous connections: {}.",
+        newConnectionsState,
+        connections.get());
+    connections.set(newConnectionsState);
+    getWorkBudgetDistributor.distributeBudget(newStreams.values(), totalGetWorkBudget);
   }
 
   /** Close the streams that are no longer valid asynchronously. */
-  private CompletableFuture<Void> closeStaleStreams(
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private void closeStaleStreams(
       Collection<WindmillConnection> newWindmillConnections,
       ImmutableMap<WindmillConnection, WindmillStreamSender> currentStreams) {
-    return CompletableFuture.allOf(
-        currentStreams.entrySet().stream()
-            .filter(
-                connectionAndStream ->
-                    !newWindmillConnections.contains(connectionAndStream.getKey()))
-            .map(
-                entry ->
-                    CompletableFuture.runAsync(
-                        () -> {
-                          LOG.debug("Closing streams to {}", entry);
-                          entry.getValue().closeAllStreams();
-                          entry
-                              .getKey()
-                              .directEndpoint()
-                              .ifPresent(channelCachingStubFactory::remove);
-                          LOG.debug("Successfully closed streams to {}", entry);
-                        },
-                        windmillStreamManager))
-            .toArray(CompletableFuture[]::new));
+    currentStreams.entrySet().stream()
+        .filter(
+            connectionAndStream -> !newWindmillConnections.contains(connectionAndStream.getKey()))
+        .forEach(
+            entry ->
+                CompletableFuture.runAsync(
+                    () -> {
+                      LOG.debug("Closing streams to {}", entry);
+                      try {
+                        entry.getValue().closeAllStreams();
+                        entry
+                            .getKey()
+                            .directEndpoint()
+                            .ifPresent(channelCachingStubFactory::remove);
+                        LOG.debug("Successfully closed streams to {}", entry);
+                      } catch (Exception e) {
+                        LOG.error("Error closing streams to {}", entry);
+                      }
+                    },
+                    windmillStreamManager));
   }
 
   private synchronized CompletableFuture<ImmutableMap<WindmillConnection, WindmillStreamSender>>

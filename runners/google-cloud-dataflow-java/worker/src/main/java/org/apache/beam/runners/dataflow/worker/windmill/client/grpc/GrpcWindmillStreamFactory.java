@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 import com.google.auto.value.AutoBuilder;
 import java.io.PrintWriter;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.Timer;
@@ -325,7 +324,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   public void appendSummaryHtml(PrintWriter writer) {
     writer.write("Active Streams:<br>");
     streamRegistry.stream()
-        .sorted(Comparator.comparing(AbstractWindmillStream::backendWorkerToken))
         .collect(
             toImmutableListMultimap(
                 AbstractWindmillStream::backendWorkerToken, Function.identity()))

@@ -342,7 +342,7 @@ final class GrpcGetDataStream
       } catch (AppendableInputStream.InvalidInputStreamStateException
           | VerifyException
           | CancellationException e) {
-        handleShutdown(request);
+        handleShutdown(request, e);
         if (!(e instanceof CancellationException)) {
           throw e;
         }
@@ -350,7 +350,7 @@ final class GrpcGetDataStream
         LOG.error("Parsing GetData response failed: ", e);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        handleShutdown(request);
+        handleShutdown(request, e);
         throw new RuntimeException(e);
       } finally {
         pending.remove(request.id());
@@ -363,10 +363,13 @@ final class GrpcGetDataStream
         "Cannot send request=[" + request + "] on closed stream.");
   }
 
-  private void handleShutdown(QueuedRequest request) {
+  private void handleShutdown(QueuedRequest request, Throwable cause) {
     if (isShutdown()) {
-      throw new WindmillStreamShutdownException(
-          "Cannot send request=[" + request + "] on closed stream.");
+      WindmillStreamShutdownException shutdownException =
+          new WindmillStreamShutdownException(
+              "Cannot send request=[" + request + "] on closed stream.");
+      shutdownException.addSuppressed(cause);
+      throw shutdownException;
     }
   }
 

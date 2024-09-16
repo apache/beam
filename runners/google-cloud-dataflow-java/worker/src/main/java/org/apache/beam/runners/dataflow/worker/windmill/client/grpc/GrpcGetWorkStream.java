@@ -194,7 +194,7 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
+  public void setBudget(long itemsDelta, long bytesDelta) {
     // no-op
   }
 

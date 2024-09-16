@@ -92,6 +92,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final String backendWorkerToken;
   private final ResettableRequestObserver<RequestT> requestObserver;
   private final AtomicBoolean isShutdown;
+  private final AtomicReference<DateTime> shutdownTime;
 
   /**
    * Indicates if the current {@link ResettableRequestObserver} was closed by calling {@link
@@ -140,6 +141,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
                     new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()));
     this.sleeper = Sleeper.DEFAULT;
     this.logger = logger;
+    this.shutdownTime = new AtomicReference<>();
   }
 
   private static String createThreadName(String streamType, String backendWorkerToken) {
@@ -293,11 +295,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       writer.format(", %dms backoff remaining", sleepLeft);
     }
     writer.format(
-        ", current stream is %dms old, last send %dms, last response %dms, closed: %s",
+        ", current stream is %dms old, last send %dms, last response %dms, closed: %s, "
+            + "isShutdown: %s, shutdown time: %s",
         debugDuration(nowMs, startTimeMs.get()),
         debugDuration(nowMs, lastSendTimeMs.get()),
         debugDuration(nowMs, lastResponseTimeMs.get()),
-        streamClosed.get());
+        streamClosed.get(),
+        isShutdown.get(),
+        shutdownTime.get());
   }
 
   /**
@@ -307,7 +312,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void appendSpecificHtml(PrintWriter writer);
 
   @Override
-  public final void halfClose() {
+  public final synchronized void halfClose() {
     clientClosed.set(true);
     requestObserver.onCompleted();
     streamClosed.set(true);
@@ -336,6 +341,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       requestObserver()
           .onError(new WindmillStreamShutdownException("Explicit call to shutdown stream."));
       shutdownInternal();
+      shutdownTime.set(DateTime.now());
     }
   }
 
@@ -362,7 +368,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     private final Supplier<StreamObserver<RequestT>> requestObserverSupplier;
 
     @GuardedBy("this")
-    private volatile @Nullable StreamObserver<RequestT> delegateRequestObserver;
+    private @Nullable StreamObserver<RequestT> delegateRequestObserver;
 
     private ResettableRequestObserver(Supplier<StreamObserver<RequestT>> requestObserverSupplier) {
       this.requestObserverSupplier = requestObserverSupplier;

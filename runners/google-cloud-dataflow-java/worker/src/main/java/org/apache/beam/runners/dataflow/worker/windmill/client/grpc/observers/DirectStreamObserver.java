@@ -90,13 +90,13 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
           // buffer periodically. This reduces the overhead of blocking while still restricting
           // memory because there is a limited # of streams, and we have a max messages size of 2MB.
           if (++messagesSinceReady <= messagesBetweenIsReadyChecks) {
-            tryOnNext(value);
+            outboundObserver.onNext(value);
             return;
           }
 
           if (outboundObserver.isReady()) {
             messagesSinceReady = 0;
-            tryOnNext(value);
+            outboundObserver.onNext(value);
             return;
           }
         }
@@ -116,7 +116,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
         synchronized (lock) {
           messagesSinceReady = 0;
-          tryOnNext(value);
+          outboundObserver.onNext(value);
           return;
         }
       } catch (TimeoutException e) {
@@ -141,24 +141,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         waitSeconds = waitSeconds * 2;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        StreamObserverCancelledException ex = new StreamObserverCancelledException(e);
-        LOG.error("Interrupted while waiting for outboundObserver to become ready.", ex);
-        throw ex;
-      }
-    }
-  }
-
-  /**
-   * Only send the next value if the phaser is not terminated by the time we acquire the lock since
-   * the phaser can be terminated at any time.
-   */
-  private void tryOnNext(T value) {
-    if (isReadyNotifier.isTerminated()) {
-      return;
-    }
-    synchronized (lock) {
-      if (!isReadyNotifier.isTerminated()) {
-        outboundObserver.onNext(value);
+        throw new StreamObserverCancelledException(e);
       }
     }
   }

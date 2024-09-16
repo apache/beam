@@ -159,7 +159,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
         GetWorkBudget.builder().setItems(itemsDelta).setBytes(bytesDelta).build();
     getWorkBudget.getAndSet(adjustment);
     if (started.get()) {
-      getWorkStream.get().adjustBudget(adjustment);
+      getWorkStream.get().setBudget(adjustment);
     }
   }
 
