@@ -587,6 +587,14 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       while (!closed.get()) {
         try {
           if (records.isEmpty()) {
+            // Each source has a single unique topic.
+            List<TopicPartition> topicPartitions = source.getSpec().getTopicPartitions();
+            Preconditions.checkStateNotNull(topicPartitions);
+            String topicName = "null"; // value will be overridden
+            for (TopicPartition topicPartition : topicPartitions) {
+              topicName = topicPartition.topic();
+              break;
+            }
 
             stopwatch.start();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
@@ -617,7 +625,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-
     if (checkpointMark != null) {
       LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
       Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
