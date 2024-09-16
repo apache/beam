@@ -43,14 +43,21 @@ import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.BiConsumer;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -1341,6 +1348,8 @@ public class BigtableIO {
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
 
+    private transient Queue<CompletableFuture<?>> outstandingWrites;
+
     BigtableWriterFn(
         BigtableServiceFactory factory,
         BigtableConfig bigtableConfig,
@@ -1376,17 +1385,23 @@ public class BigtableIO {
       }
 
       badRecords = new ConcurrentLinkedQueue<>();
+      outstandingWrites = new ArrayDeque<>();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      drainCompletedElementFutures();
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
       Instant writeStart = Instant.now();
       pendingThrottlingMsecs = 0;
-      bigtableWriter
-          .writeRecord(record)
-          .whenComplete(handleMutationException(record, window, writeStart));
+      CompletableFuture<Void> f =
+          bigtableWriter
+              .writeRecord(record)
+              // transform the next CompletionStage to have its own status
+              // this allows us to capture any unexpected errors in the handler
+              .handle(handleMutationException(record, window, writeStart));
+      outstandingWrites.add(f);
       if (pendingThrottlingMsecs > 0) {
         throttlingMsecs.inc(pendingThrottlingMsecs);
       }
@@ -1394,7 +1409,17 @@ public class BigtableIO {
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
     }
 
-    private BiConsumer<MutateRowResponse, Throwable> handleMutationException(
+    private void drainCompletedElementFutures() throws ExecutionException, InterruptedException {
+      // burn down the completed futures to avoid unbounded memory growth
+      for (Future<?> f = outstandingWrites.peek();
+          f != null && f.isDone();
+          f = outstandingWrites.peek()) {
+        // Also ensure that errors in the handler get bubbled up
+        outstandingWrites.remove().get();
+      }
+    }
+
+    private BiFunction<MutateRowResponse, Throwable, Void> handleMutationException(
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window, Instant writeStart) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
@@ -1429,6 +1454,7 @@ public class BigtableIO {
             }
           }
         }
+        return null;
       };
     }
 
@@ -1476,6 +1502,18 @@ public class BigtableIO {
             throw e;
           }
         }
+
+        // Sanity check: ensure that all element futures are resolved. This should be already be the
+        // case once bigtableWriter.close() finishes.
+        try {
+          CompletableFuture.allOf(outstandingWrites.toArray(new CompletableFuture<?>[0]))
+              .get(1, TimeUnit.MINUTES);
+        } catch (TimeoutException e) {
+          throw new IllegalStateException(
+              "Unexpected timeout waiting for element future to resolve after the writer was closed",
+              e);
+        }
+
         // add the excessive amount to throttling metrics if elapsed time > target latency
         if (throttleReportThresMsecs > 0) {
           long excessTime =
