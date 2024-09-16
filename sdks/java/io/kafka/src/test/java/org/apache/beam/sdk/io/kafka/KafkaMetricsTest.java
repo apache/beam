@@ -1,0 +1,116 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.kafka;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+/** Tests for {@link KafkaSinkMetrics}. */
+// TODO:Naireen - Refactor to remove duplicate code between the two sinks
+@RunWith(JUnit4.class)
+public class KafkaMetricsTest {
+  public static class TestHistogram implements Histogram {
+    public List<Double> values = Lists.newArrayList();
+    private MetricName metricName = MetricName.named("KafkaSink", "name");
+
+    @Override
+    public void update(double value) {
+      values.add(value);
+    }
+
+    @Override
+    public MetricName getName() {
+      return metricName;
+    }
+  }
+
+  public static class TestMetricsContainer extends MetricsContainerImpl {
+    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>
+        perWorkerHistograms =
+            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>();
+
+    public TestMetricsContainer() {
+      super("TestStep");
+    }
+
+    @Override
+    public Histogram getPerWorkerHistogram(
+        MetricName metricName, HistogramData.BucketType bucketType) {
+      System.out.println("xxx metricName " + metricName);
+      perWorkerHistograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogram());
+      return perWorkerHistograms.get(KV.of(metricName, bucketType));
+    }
+
+    @Override
+    public void reset() {
+      perWorkerHistograms.clear();
+    }
+  }
+
+  @Test
+  public void testNoOpKafkaMetrics() throws Exception {
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+
+    Instant t1 = Instant.now();
+    KafkaMetrics results = KafkaMetrics.NoOpKafkaMetrics.getInstance();
+    results.updateSuccessfulRpcMetrics("test-topic", t1, t1.plus(Duration.ofMillis(10)));
+
+    results.updateKafkaMetrics();
+
+    assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
+  }
+
+  @Test
+  public void testKafkaRPCLatencyMetrics() throws Exception {
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+
+    Instant t1 = Instant.now();
+    KafkaMetrics results = KafkaSinkMetrics.kafkaMetrics();
+
+    results.updateSuccessfulRpcMetrics("test-topic", t1, t1.plus(Duration.ofMillis(10)));
+
+    results.updateKafkaMetrics();
+    // RpcLatency*rpc_method:POLL;topic_name:test-topic
+    MetricName histogramName =
+        MetricName.named("KafkaSink", "RpcLatency*rpc_method:POLL;topic_name:test-topic;");
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 17);
+
+    assertThat(testContainer.perWorkerHistograms.size(), equalTo(1));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(10.0)));
+  }
+}
