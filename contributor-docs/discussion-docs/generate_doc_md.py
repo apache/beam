@@ -157,6 +157,33 @@ def extract_s_link(text):
   else:
     return None
 
+def extract_google_doc_id(url):
+  """
+  Extracts the unique ID of a Google Doc or Google Sheet from a given URL.
+
+  Args:
+    url: The URL of the Google Doc or Google Sheet.
+
+  Returns:
+    The unique ID of the Google Doc or Google Sheet, or None if the ID could not be extracted.
+  """
+  pattern = r"/(document|spreadsheets)/d/([a-zA-Z0-9-_]+)"
+  match = re.search(pattern, url)
+  if match:
+    return match.group(2)
+  else:
+    return None
+
+def standardize_url_link(url):
+  g_url = extract_google_doc_id(url)
+  if g_url:
+    if "spreadsheets" in url:
+      return f"https://docs.google.com/spreadsheets/d/{g_url}"
+    else:
+      return f"https://docs.google.com/document/d/{g_url}"
+  else:
+    return url
+
 
 def add_message(messages: list[EmailMessage], new_message: EmailMessage):
   """Adds a new message to the list, ensuring unique subjects and keeping the oldest message."""
@@ -206,6 +233,7 @@ def find_google_docs_links(mbox_file, doc_messages, doc_urls):
         doc_url = s_url.split()[0].split(">")[0]
     if doc_url and not doc_url in doc_urls:
       doc_url = remove_invalid_characters(doc_url)
+      doc_url = standardize_url_link(doc_url)
       doc_urls.append(doc_url)
       title = get_google_doc_title(doc_url)
       try:
@@ -283,7 +311,7 @@ limitations under the License.
       )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   if len(sys.argv) > 1:
     year = sys.argv[1]
     download_mbox_for_one_year(year)
