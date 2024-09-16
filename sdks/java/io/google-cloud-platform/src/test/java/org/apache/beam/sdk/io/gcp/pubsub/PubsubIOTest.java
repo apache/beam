@@ -931,7 +931,7 @@ public class PubsubIOTest {
   }
 
   @Test
-  public void testValidate() throws IOException {
+  public void testReadValidate() throws IOException {
     PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
     TopicPath existingTopic = PubsubClient.topicPathFromName("test-project", "testTopic");
     PubsubClient mockClient = Mockito.mock(PubsubClient.class);
@@ -955,7 +955,7 @@ public class PubsubIOTest {
   }
 
   @Test
-  public void testValidateTopicIsNotExists() throws Exception {
+  public void testReadValidateTopicIsNotExists() throws Exception {
     thrown.expect(IllegalArgumentException.class);
 
     PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
@@ -981,7 +981,7 @@ public class PubsubIOTest {
   }
 
   @Test
-  public void testWithoutValidation() throws IOException {
+  public void testReadWithoutValidation() throws IOException {
     PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
     TopicPath nonExistingTopic = PubsubClient.topicPathFromName("test-project", "nonExistingTopic");
     PubsubClient mockClient = Mockito.mock(PubsubClient.class);
@@ -996,5 +996,115 @@ public class PubsubIOTest {
             .withoutValidation();
 
     read.validate(options);
+  }
+
+  @Test
+  public void testWriteTopicValidationSuccess() throws Exception {
+    PubsubIO.writeStrings().to("projects/my-project/topics/abc");
+    PubsubIO.writeStrings().to("projects/my-project/topics/ABC");
+    PubsubIO.writeStrings().to("projects/my-project/topics/AbC-DeF");
+    PubsubIO.writeStrings().to("projects/my-project/topics/AbC-1234");
+    PubsubIO.writeStrings().to("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
+    PubsubIO.writeStrings()
+        .to(
+            new StringBuilder()
+                .append("projects/my-project/topics/A-really-long-one-")
+                .append(
+                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+                .append(
+                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+                .append(
+                    "11111111111111111111111111111111111111111111111111111111111111111111111111")
+                .toString());
+  }
+
+  @Test
+  public void testWriteTopicValidationBadCharacter() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    PubsubIO.writeStrings().to("projects/my-project/topics/abc-*-abc");
+  }
+
+  @Test
+  public void testWriteValidationTooLong() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    PubsubIO.writeStrings()
+        .to(
+            new StringBuilder()
+                .append("projects/my-project/topics/A-really-long-one-")
+                .append(
+                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+                .append(
+                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+                .append(
+                    "1111111111111111111111111111111111111111111111111111111111111111111111111111")
+                .toString());
+  }
+
+  @Test
+  public void testWriteValidate() throws IOException {
+    PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
+    TopicPath existingTopic = PubsubClient.topicPathFromName("test-project", "testTopic");
+    PubsubClient mockClient = Mockito.mock(PubsubClient.class);
+    Mockito.when(mockClient.isTopicExists(existingTopic)).thenReturn(true);
+    PubsubClient.PubsubClientFactory mockFactory =
+        Mockito.mock(PubsubClient.PubsubClientFactory.class);
+    Mockito.when(mockFactory.newClient("myTimestamp", "myId", options)).thenReturn(mockClient);
+
+    PubsubIO.Write<PubsubMessage> write =
+        PubsubIO.Write.newBuilder()
+            .setTopicProvider(
+                StaticValueProvider.of(
+                    PubsubIO.PubsubTopic.fromPath("projects/test-project/topics/testTopic")))
+            .setTimestampAttribute("myTimestamp")
+            .setIdAttribute("myId")
+            .setDynamicDestinations(false)
+            .setPubsubClientFactory(mockFactory)
+            .build();
+
+    write.validate(options);
+  }
+
+  @Test
+  public void testWriteValidateTopicIsNotExists() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+
+    PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
+    TopicPath nonExistingTopic = PubsubClient.topicPathFromName("test-project", "nonExistingTopic");
+    PubsubClient mockClient = Mockito.mock(PubsubClient.class);
+    Mockito.when(mockClient.isTopicExists(nonExistingTopic)).thenReturn(false);
+    PubsubClient.PubsubClientFactory mockFactory =
+        Mockito.mock(PubsubClient.PubsubClientFactory.class);
+    Mockito.when(mockFactory.newClient("myTimestamp", "myId", options)).thenReturn(mockClient);
+
+    PubsubIO.Write<PubsubMessage> write =
+        PubsubIO.Write.newBuilder()
+            .setTopicProvider(
+                StaticValueProvider.of(
+                    PubsubIO.PubsubTopic.fromPath("projects/test-project/topics/nonExistingTopic")))
+            .setTimestampAttribute("myTimestamp")
+            .setIdAttribute("myId")
+            .setDynamicDestinations(false)
+            .setPubsubClientFactory(mockFactory)
+            .build();
+
+    write.validate(options);
+  }
+
+  @Test
+  public void testWithoutValidation() throws IOException {
+    PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
+    TopicPath nonExistingTopic = PubsubClient.topicPathFromName("test-project", "nonExistingTopic");
+    PubsubClient mockClient = Mockito.mock(PubsubClient.class);
+    Mockito.when(mockClient.isTopicExists(nonExistingTopic)).thenReturn(false);
+    PubsubClient.PubsubClientFactory mockFactory =
+        Mockito.mock(PubsubClient.PubsubClientFactory.class);
+    Mockito.when(mockFactory.newClient("myTimestamp", "myId", options)).thenReturn(mockClient);
+
+    PubsubIO.Write<PubsubMessage> write =
+        PubsubIO.writeMessages()
+            .to("projects/test-project/topics/nonExistingTopic")
+            .withoutValidation();
+
+    write.validate(options);
   }
 }

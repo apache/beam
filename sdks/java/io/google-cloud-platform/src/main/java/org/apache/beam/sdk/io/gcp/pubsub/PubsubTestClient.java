@@ -607,7 +607,8 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
 
   @Override
   public boolean isTopicExists(TopicPath topic) throws IOException {
-    throw new UnsupportedOperationException();
+    // Always return true for testing purposes.
+    return true;
   }
 
   @Override

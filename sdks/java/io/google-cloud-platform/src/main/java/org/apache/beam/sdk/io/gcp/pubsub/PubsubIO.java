@@ -1381,6 +1381,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(
@@ -1390,6 +1392,7 @@ public class PubsubIO {
       builder.setFormatFn(formatFn);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setValidate(true);
       return builder;
     }
 
@@ -1426,6 +1429,8 @@ public class PubsubIO {
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      abstract Builder<T> setValidate(boolean validation);
+
       abstract Write<T> build();
     }
 
@@ -1436,15 +1441,19 @@ public class PubsubIO {
      * {@code topic} string.
      */
     public Write<T> to(String topic) {
-      return to(StaticValueProvider.of(topic));
+      ValueProvider<String> topicProvider = StaticValueProvider.of(topic);
+      validateTopic(topicProvider);
+      return to(topicProvider);
     }
 
     /** Like {@code topic()} but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> topic) {
+      validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .setTopicFunction(null)
           .setDynamicDestinations(false)
+          .setValidate(true)
           .build();
     }
 
@@ -1458,7 +1467,15 @@ public class PubsubIO {
           .setTopicProvider(null)
           .setTopicFunction(v -> PubsubTopic.fromPath(topicFunction.apply(v)))
           .setDynamicDestinations(true)
+          .setValidate(true)
           .build();
+    }
+
+    /** Handles validation of {@code topic}. */
+    private static void validateTopic(ValueProvider<String> topic) {
+      if (topic.isAccessible()) {
+        PubsubTopic.fromPath(topic.get());
+      }
     }
 
     /**
@@ -1468,7 +1485,7 @@ public class PubsubIO {
      * PubsubGrpcClientFactory}.
      */
     public Write<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
-      return toBuilder().setPubsubClientFactory(factory).build();
+      return toBuilder().setPubsubClientFactory(factory).setValidate(true).build();
     }
 
     /**
@@ -1483,7 +1500,7 @@ public class PubsubIO {
      * hit.
      */
     public Write<T> withMaxBatchSize(int batchSize) {
-      return toBuilder().setMaxBatchSize(batchSize).build();
+      return toBuilder().setMaxBatchSize(batchSize).setValidate(true).build();
     }
 
     /**
@@ -1491,7 +1508,7 @@ public class PubsubIO {
      * bytes to be sent to Pub/Sub in a single batched message.
      */
     public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
-      return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
+      return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).setValidate(true).build();
     }
 
     /**
@@ -1505,7 +1522,7 @@ public class PubsubIO {
      * these timestamps from the appropriate attribute.
      */
     public Write<T> withTimestampAttribute(String timestampAttribute) {
-      return toBuilder().setTimestampAttribute(timestampAttribute).build();
+      return toBuilder().setTimestampAttribute(timestampAttribute).setValidate(true).build();
     }
 
     /**
@@ -1517,11 +1534,11 @@ public class PubsubIO {
      * these unique identifiers from the appropriate attribute.
      */
     public Write<T> withIdAttribute(String idAttribute) {
-      return toBuilder().setIdAttribute(idAttribute).build();
+      return toBuilder().setIdAttribute(idAttribute).setValidate(true).build();
     }
 
     public Write<T> withPubsubRootUrl(String pubsubRootUrl) {
-      return toBuilder().setPubsubRootUrl(pubsubRootUrl).build();
+      return toBuilder().setPubsubRootUrl(pubsubRootUrl).setValidate(true).build();
     }
 
     /**
@@ -1534,7 +1551,16 @@ public class PubsubIO {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .setValidate(true)
           .build();
+    }
+
+    /**
+     * Disable validation of the existence of the topic. Validation of the topic works only if the
+     * topic is set statically and not dynamically.
+     */
+    public Write<T> withoutValidation() {
+      return toBuilder().setValidate(false).build();
     }
 
     @Override
@@ -1611,6 +1637,35 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     /**
