@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mqtt;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -26,16 +27,25 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.fusesource.hawtbuf.Buffer;
 import org.fusesource.mqtt.client.BlockingConnection;
@@ -265,6 +275,192 @@ public class MqttIOTest {
     for (int i = 0; i < numberOfTestMessages; i++) {
       assertTrue(messages.contains("Test " + i));
     }
+  }
+
+  @Test(timeout = 30 * 1000)
+  @Ignore("https://github.com/apache/beam/issues/19092 Flake Non-deterministic output.")
+  public void testDynamicWrite() throws Exception {
+    final int numberOfTopic1Count = 100;
+    final int numberOfTopic2Count = 100;
+    final int numberOfTestMessages = numberOfTopic1Count + numberOfTopic2Count;
+
+    MQTT client = new MQTT();
+    client.setHost("tcp://localhost:" + port);
+    final BlockingConnection connection = client.blockingConnection();
+    connection.connect();
+    final String writeTopic1 = "WRITE_TOPIC_1";
+    final String writeTopic2 = "WRITE_TOPIC_2";
+    connection.subscribe(
+        new Topic[] {
+          new Topic(Buffer.utf8(writeTopic1), QoS.EXACTLY_ONCE),
+          new Topic(Buffer.utf8(writeTopic2), QoS.EXACTLY_ONCE)
+        });
+
+    final Map<String, List<String>> messageMap = new ConcurrentSkipListMap<>();
+    final Thread subscriber =
+        new Thread(
+            () -> {
+              try {
+                for (int i = 0; i < numberOfTestMessages; i++) {
+                  Message message = connection.receive();
+                  List<String> messages = messageMap.get(message.getTopic());
+                  if (messages == null) {
+                    messages = new ArrayList<>();
+                  }
+                  messages.add(new String(message.getPayload(), StandardCharsets.UTF_8));
+                  messageMap.put(message.getTopic(), messages);
+                  message.ack();
+                }
+              } catch (Exception e) {
+                LOG.error("Can't receive message", e);
+              }
+            });
+
+    subscriber.start();
+
+    ArrayList<KV<String, byte[]>> data = new ArrayList<>();
+    for (int i = 0; i < numberOfTopic1Count; i++) {
+      data.add(KV.of(writeTopic1, ("Test" + i).getBytes(StandardCharsets.UTF_8)));
+    }
+
+    for (int i = 0; i < numberOfTopic2Count; i++) {
+      data.add(KV.of(writeTopic2, ("Test" + i).getBytes(StandardCharsets.UTF_8)));
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), ByteArrayCoder.of()))
+        .apply(
+            MqttIO.<KV<String, byte[]>>dynamicWrite()
+                .withConnectionConfiguration(
+                    MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port)
+                        .withClientId("READ_PIPELINE"))
+                .withTopicFn(input -> input.getKey())
+                .withPayloadFn(input -> input.getValue()));
+
+    pipeline.run();
+    subscriber.join();
+
+    connection.disconnect();
+
+    assertEquals(
+        numberOfTestMessages, messageMap.values().stream().mapToLong(Collection::size).sum());
+
+    assertEquals(2, messageMap.keySet().size());
+    assertTrue(messageMap.containsKey(writeTopic1));
+    assertTrue(messageMap.containsKey(writeTopic2));
+    for (Map.Entry<String, List<String>> entry : messageMap.entrySet()) {
+      final List<String> messages = entry.getValue();
+      messages.forEach(message -> assertTrue(message.contains("Test")));
+    }
+  }
+
+  @Test
+  public void testReadHaveNoConnectionConfiguration() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> MqttIO.read().expand(PBegin.in(pipeline)));
+
+    assertEquals("connectionConfiguration can not be null", exception.getMessage());
+  }
+
+  @Test
+  public void testReadHaveNoTopic() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MqttIO.read()
+                    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create("serverUri"))
+                    .expand(PBegin.in(pipeline)));
+
+    assertEquals("topic can not be null", exception.getMessage());
+  }
+
+  @Test
+  public void testWriteHaveNoConnectionConfiguration() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> MqttIO.write().expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("connectionConfiguration can not be null", exception.getMessage());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteHaveNoTopic() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MqttIO.write()
+                    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create("serverUri"))
+                    .expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("topic can not be null", exception.getMessage());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testDynamicWriteHaveNoConnectionConfiguration() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> MqttIO.dynamicWrite().expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("connectionConfiguration can not be null", exception.getMessage());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testDynamicWriteHaveNoTopicFn() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MqttIO.dynamicWrite()
+                    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create("serverUri"))
+                    .expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("topicFn can not be null", exception.getMessage());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testDynamicWriteHaveNoPayloadFn() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MqttIO.dynamicWrite()
+                    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create("serverUri"))
+                    .withTopicFn(input -> "topic")
+                    .expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("payloadFn can not be null", exception.getMessage());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testDynamicWriteHaveStaticTopic() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MqttIO.dynamicWrite()
+                    .withConnectionConfiguration(
+                        MqttIO.ConnectionConfiguration.create("serverUri", "topic"))
+                    .expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("DynamicWrite can not have static topic", exception.getMessage());
+
+    pipeline.run();
   }
 
   @Test
