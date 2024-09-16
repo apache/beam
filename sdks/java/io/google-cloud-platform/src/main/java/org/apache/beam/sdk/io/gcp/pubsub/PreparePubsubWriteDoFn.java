@@ -38,10 +38,9 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private static final int PUBSUB_MESSAGE_MAX_ATTRIBUTES = 100;
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_BYTES = 256;
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES = 1024;
-  private static final int ORDERING_KEY_MAX_VALUE_BYTES = 1024;
+  private static final int ORDERING_KEY_MAX_BYTE_SIZE = 1024;
   // The amount of bytes that each attribute entry adds up to the request
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
-  private boolean allowOrderingKey;
   private int maxPublishBatchSize;
 
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
@@ -71,12 +70,12 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
     @Nullable String orderingKey = message.getOrderingKey();
     if (orderingKey != null) {
       int orderingKeySize = orderingKey.getBytes(StandardCharsets.UTF_8).length;
-      if (orderingKeySize > ORDERING_KEY_MAX_VALUE_BYTES) {
+      if (orderingKeySize > ORDERING_KEY_MAX_BYTE_SIZE) {
         throw new SizeLimitExceededException(
             "Pubsub message ordering key of length "
                 + orderingKeySize
                 + " exceeds maximum of "
-                + ORDERING_KEY_MAX_VALUE_BYTES
+                + ORDERING_KEY_MAX_BYTE_SIZE
                 + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
       }
       totalSize += orderingKeySize;
@@ -141,14 +140,12 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
       @Nullable
           SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
-      boolean allowOrderingKey,
       int maxPublishBatchSize,
       BadRecordRouter badRecordRouter,
       Coder<InputT> inputCoder,
       TupleTag<PubsubMessage> outputTag) {
     this.formatFunction = formatFunction;
     this.topicFunction = topicFunction;
-    this.allowOrderingKey = allowOrderingKey;
     this.maxPublishBatchSize = maxPublishBatchSize;
     this.badRecordRouter = badRecordRouter;
     this.inputCoder = inputCoder;
