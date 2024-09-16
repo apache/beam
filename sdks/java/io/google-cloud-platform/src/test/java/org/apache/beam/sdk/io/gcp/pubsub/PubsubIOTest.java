@@ -83,6 +83,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -1010,11 +1011,7 @@ public class PubsubIOTest {
             new StringBuilder()
                 .append("projects/my-project/topics/A-really-long-one-")
                 .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "11111111111111111111111111111111111111111111111111111111111111111111111111")
+                    RandomStringUtils.randomAlphanumeric(100))
                 .toString());
   }
 
@@ -1032,11 +1029,7 @@ public class PubsubIOTest {
             new StringBuilder()
                 .append("projects/my-project/topics/A-really-long-one-")
                 .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "1111111111111111111111111111111111111111111111111111111111111111111111111111")
+                    RandomStringUtils.randomAlphanumeric(1000))
                 .toString());
   }
 
