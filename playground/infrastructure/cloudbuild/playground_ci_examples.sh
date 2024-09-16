@@ -29,7 +29,7 @@
 # SDKS - Array of SDKS to validate (Default: java python go)
 # ORIGIN - examples origin (Default: PG_EXAMPLES)
 # ALLOWLIST - List of paths (relative to the repo root) not in examples (SUBDIRS) that cause reb
-
+#TEST
 for ARGUMENT in "$@"
 do
    KEY=$(echo $ARGUMENT | cut -f1 -d=)
