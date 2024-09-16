@@ -950,7 +950,6 @@ public class PubsubIO {
       return toBuilder()
           .setSubscriptionProvider(
               NestedValueProvider.of(subscription, PubsubSubscription::fromPath))
-          .setValidate(true)
           .build();
     }
 
@@ -974,7 +973,6 @@ public class PubsubIO {
       validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
-          .setValidate(true)
           .build();
     }
 
@@ -1018,7 +1016,6 @@ public class PubsubIO {
       return toBuilder()
           .setDeadLetterTopicProvider(
               NestedValueProvider.of(deadLetterTopic, PubsubTopic::fromPath))
-          .setValidate(true)
           .build();
     }
 
@@ -1036,7 +1033,7 @@ public class PubsubIO {
      * PubsubGrpcClientFactory}.
      */
     public Read<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
-      return toBuilder().setPubsubClientFactory(factory).setValidate(true).build();
+      return toBuilder().setPubsubClientFactory(factory).build();
     }
 
     /**
@@ -1068,7 +1065,7 @@ public class PubsubIO {
      * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
     public Read<T> withTimestampAttribute(String timestampAttribute) {
-      return toBuilder().setTimestampAttribute(timestampAttribute).setValidate(true).build();
+      return toBuilder().setTimestampAttribute(timestampAttribute).build();
     }
 
     /**
@@ -1081,7 +1078,7 @@ public class PubsubIO {
      * delivered, and deduplication of the stream will be strictly best effort.
      */
     public Read<T> withIdAttribute(String idAttribute) {
-      return toBuilder().setIdAttribute(idAttribute).setValidate(true).build();
+      return toBuilder().setIdAttribute(idAttribute).build();
     }
 
     /**
@@ -1091,7 +1088,7 @@ public class PubsubIO {
      * PCollection#setCoder(Coder)}.
      */
     public Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
-      return toBuilder().setCoder(coder).setParseFn(parseFn).setValidate(true).build();
+      return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
     /**
@@ -1104,7 +1101,6 @@ public class PubsubIO {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
-          .setValidate(true)
           .build();
     }
 
@@ -1453,7 +1449,6 @@ public class PubsubIO {
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .setTopicFunction(null)
           .setDynamicDestinations(false)
-          .setValidate(true)
           .build();
     }
 
@@ -1467,7 +1462,6 @@ public class PubsubIO {
           .setTopicProvider(null)
           .setTopicFunction(v -> PubsubTopic.fromPath(topicFunction.apply(v)))
           .setDynamicDestinations(true)
-          .setValidate(true)
           .build();
     }
 
@@ -1485,7 +1479,7 @@ public class PubsubIO {
      * PubsubGrpcClientFactory}.
      */
     public Write<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
-      return toBuilder().setPubsubClientFactory(factory).setValidate(true).build();
+      return toBuilder().setPubsubClientFactory(factory).build();
     }
 
     /**
@@ -1500,7 +1494,7 @@ public class PubsubIO {
      * hit.
      */
     public Write<T> withMaxBatchSize(int batchSize) {
-      return toBuilder().setMaxBatchSize(batchSize).setValidate(true).build();
+      return toBuilder().setMaxBatchSize(batchSize).build();
     }
 
     /**
@@ -1508,7 +1502,7 @@ public class PubsubIO {
      * bytes to be sent to Pub/Sub in a single batched message.
      */
     public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
-      return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).setValidate(true).build();
+      return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
     }
 
     /**
@@ -1522,7 +1516,7 @@ public class PubsubIO {
      * these timestamps from the appropriate attribute.
      */
     public Write<T> withTimestampAttribute(String timestampAttribute) {
-      return toBuilder().setTimestampAttribute(timestampAttribute).setValidate(true).build();
+      return toBuilder().setTimestampAttribute(timestampAttribute).build();
     }
 
     /**
@@ -1534,11 +1528,11 @@ public class PubsubIO {
      * these unique identifiers from the appropriate attribute.
      */
     public Write<T> withIdAttribute(String idAttribute) {
-      return toBuilder().setIdAttribute(idAttribute).setValidate(true).build();
+      return toBuilder().setIdAttribute(idAttribute).build();
     }
 
     public Write<T> withPubsubRootUrl(String pubsubRootUrl) {
-      return toBuilder().setPubsubRootUrl(pubsubRootUrl).setValidate(true).build();
+      return toBuilder().setPubsubRootUrl(pubsubRootUrl).build();
     }
 
     /**
@@ -1551,7 +1545,6 @@ public class PubsubIO {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
-          .setValidate(true)
           .build();
     }
 
