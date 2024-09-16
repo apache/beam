@@ -62,7 +62,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Check Pub/Sub topic is existing before Read/Write (Java) ([#32465](https://github.com/apache/beam/pull/32465))
 
 ## New Features / Improvements
 
