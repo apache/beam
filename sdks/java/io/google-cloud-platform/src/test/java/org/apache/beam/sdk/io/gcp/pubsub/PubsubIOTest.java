@@ -1010,8 +1010,7 @@ public class PubsubIOTest {
         .to(
             new StringBuilder()
                 .append("projects/my-project/topics/A-really-long-one-")
-                .append(
-                    RandomStringUtils.randomAlphanumeric(100))
+                .append(RandomStringUtils.randomAlphanumeric(100))
                 .toString());
   }
 
@@ -1028,8 +1027,7 @@ public class PubsubIOTest {
         .to(
             new StringBuilder()
                 .append("projects/my-project/topics/A-really-long-one-")
-                .append(
-                    RandomStringUtils.randomAlphanumeric(1000))
+                .append(RandomStringUtils.randomAlphanumeric(1000))
                 .toString());
   }
 
