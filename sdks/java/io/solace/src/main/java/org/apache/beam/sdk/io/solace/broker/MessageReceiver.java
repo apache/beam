@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * Interface for receiving messages from a Solace broker.
@@ -27,7 +26,7 @@ import java.io.Serializable;
  * <p>Implementations of this interface are responsible for managing the connection to the broker
  * and for receiving messages from the broker.
  */
-public interface MessageReceiver extends Serializable {
+public interface MessageReceiver {
   /**
    * Starts the message receiver.
    *
