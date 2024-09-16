@@ -20,6 +20,7 @@
 
 import logging
 import os
+import random
 import unittest
 from datetime import datetime
 
@@ -121,7 +122,7 @@ class FakeBucket(object):
   def blob(self, name):
     return self._create_blob(name)
 
-  def copy_blob(self, blob, dest, new_name=None):
+  def copy_blob(self, blob, dest, new_name=None, **kwargs):
     if self.get_blob(blob.name) is None:
       raise NotFound("source blob not found")
     if not new_name:
@@ -147,7 +148,7 @@ class FakeBucket(object):
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
 
-  def delete_blob(self, name):
+  def delete_blob(self, name, **kwargs):
     bucket = self._get_canonical_bucket()
     if name in bucket.blobs:
       del bucket.blobs[name]
@@ -176,6 +177,7 @@ class FakeBlob(object):
     self.updated = updated
     self._fail_when_getting_metadata = fail_when_getting_metadata
     self._fail_when_reading = fail_when_reading
+    self.generation = random.randint(0, (1 << 63) - 1))
 
   def delete(self):
     self.bucket.delete_blob(self.name)

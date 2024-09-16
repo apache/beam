@@ -47,7 +47,6 @@ from apache_beam.io.gcp import gcsio_retry
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
 __all__ = ['GcsIO', 'create_storage_client']
@@ -239,8 +238,6 @@ class GcsIO(object):
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def delete(self, path):
     """Deletes the object at the given GCS path.
 
@@ -250,7 +247,11 @@ class GcsIO(object):
     bucket_name, blob_name = parse_gcs_path(path)
     try:
       bucket = self.client.bucket(bucket_name)
-      bucket.delete_blob(blob_name)
+      blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
+      generation = getattr(blob, "generation", None)
+      bucket.delete_blob(blob_name,
+          if_generation_match=generation,
+          retry=self._storage_client_retry)
     except NotFound:
       return
 
@@ -267,33 +268,18 @@ class GcsIO(object):
              succeeded or the relevant exception if the operation failed.
     """
     final_results = []
-    s = 0
-    if not isinstance(paths, list): paths = list(iter(paths))
-    while s < len(paths):
-      if (s + MAX_BATCH_OPERATION_SIZE) < len(paths):
-        current_paths = paths[s:s + MAX_BATCH_OPERATION_SIZE]
-      else:
-        current_paths = paths[s:]
-      current_batch = self.client.batch(raise_exception=False)
-      with current_batch:
-        for path in current_paths:
-          bucket_name, blob_name = parse_gcs_path(path)
-          bucket = self.client.bucket(bucket_name)
-          bucket.delete_blob(blob_name)
+    for path in paths:
+      error_code = None
+      try:
+        self.delete(path)
+      except Exception as e:
+        error_code = getattr(e, "code", None)
+        if error_code is None:
+          error_code = getattr(e, "status_code", None)
 
-      for i, path in enumerate(current_paths):
-        error_code = None
-        resp = current_batch._responses[i]
-        if resp.status_code >= 400 and resp.status_code != 404:
-          error_code = resp.status_code
-        final_results.append((path, error_code))
-
-      s += MAX_BATCH_OPERATION_SIZE
-
+      final_results.append((path, error_code))
     return final_results
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def copy(self, src, dest):
     """Copies the given GCS object from src to dest.
 
@@ -302,16 +288,22 @@ class GcsIO(object):
       dest: GCS file path pattern in the form gs://<bucket>/<name>.
 
     Raises:
-      TimeoutError: on timeout.
+      Any exceptions during copying
     """
     src_bucket_name, src_blob_name = parse_gcs_path(src)
     dest_bucket_name, dest_blob_name= parse_gcs_path(dest, object_optional=True)
     src_bucket = self.client.bucket(src_bucket_name)
-    src_blob = src_bucket.blob(src_blob_name)
+    src_blob = src_bucket.get_blob(src_blob_name)
+    if src_blob is None:
+      raise NotFound("source blob %s not found during copying" % src)
+    src_generation = getattr(src_blob, "generation", None)
     dest_bucket = self.client.bucket(dest_bucket_name)
     if not dest_blob_name:
       dest_blob_name = None
-    src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_blob_name)
+    src_bucket.copy_blob(src_blob, dest_bucket,
+        new_name=dest_blob_name,
+        source_generation=src_generation,
+        retry=self._storage_client_retry)
 
   def copy_batch(self, src_dest_pairs):
     """Copies the given GCS objects from src to dest.
@@ -326,32 +318,16 @@ class GcsIO(object):
              succeeded or the relevant exception if the operation failed.
     """
     final_results = []
-    s = 0
-    while s < len(src_dest_pairs):
-      if (s + MAX_BATCH_OPERATION_SIZE) < len(src_dest_pairs):
-        current_pairs = src_dest_pairs[s:s + MAX_BATCH_OPERATION_SIZE]
-      else:
-        current_pairs = src_dest_pairs[s:]
-      current_batch = self.client.batch(raise_exception=False)
-      with current_batch:
-        for pair in current_pairs:
-          src_bucket_name, src_blob_name = parse_gcs_path(pair[0])
-          dest_bucket_name, dest_blob_name = parse_gcs_path(pair[1])
-          src_bucket = self.client.bucket(src_bucket_name)
-          src_blob = src_bucket.blob(src_blob_name)
-          dest_bucket = self.client.bucket(dest_bucket_name)
+    for src, dest in src_dest_pairs:
+      error_code = None
+      try:
+        self.copy(src, dest)
+      except Exception as e:
+        error_code = getattr(e, "code", None)
+        if error_code is None:
+          error_code = getattr(e, "status_code", None)
 
-          src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
-
-      for i, pair in enumerate(current_pairs):
-        error_code = None
-        resp = current_batch._responses[i]
-        if resp.status_code >= 400:
-          error_code = resp.status_code
-        final_results.append((pair[0], pair[1], error_code))
-
-      s += MAX_BATCH_OPERATION_SIZE
-
+      final_results.append((src, dest, error_code))
     return final_results
 
   # We intentionally do not decorate this method with a retry, since the
@@ -455,8 +431,6 @@ class GcsIO(object):
       file_status['size'] = gcs_object.size
     return file_status
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _gcs_object(self, path):
     """Returns a gcs object for the given path
 
@@ -552,8 +526,7 @@ class GcsIO(object):
   def is_soft_delete_enabled(self, gcs_path):
     try:
       bucket_name, _ = parse_gcs_path(gcs_path)
-      # set retry timeout to 5 seconds when checking soft delete policy
-      bucket = self.get_bucket(bucket_name, retry=DEFAULT_RETRY.with_timeout(5))
+      bucket = self.get_bucket(bucket_name)
       if (bucket.soft_delete_policy is not None and
           bucket.soft_delete_policy.retention_duration_seconds > 0):
         return True
