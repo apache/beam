@@ -1543,6 +1543,7 @@ public class PubsubIO {
                       new PreparePubsubWriteDoFn<>(
                           getFormatFn(),
                           topicFunction,
+                          getNeedsOrderingKey(),
                           maxMessageSize,
                           getBadRecordRouter(),
                           input.getCoder(),
@@ -1661,9 +1662,9 @@ public class PubsubIO {
         }
 
         // Checking before adding the message stops us from violating max batch size or bytes
+        String orderingKey = getNeedsOrderingKey() ? msg.getMessage().getOrderingKey() : "";
         final OutgoingData currentTopicAndOrderingKeyOutput =
-            output.computeIfAbsent(
-                KV.of(pubsubTopic, msg.getMessage().getOrderingKey()), t -> new OutgoingData());
+            output.computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
         // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
             || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()

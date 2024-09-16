@@ -29,10 +29,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> {
+  private static final Logger LOG = LoggerFactory.getLogger(PreparePubsubWriteDoFn.class);
   // See https://cloud.google.com/pubsub/quotas#resource_limits.
   private static final int PUBSUB_MESSAGE_DATA_MAX_BYTES = 10 << 20;
   private static final int PUBSUB_MESSAGE_MAX_ATTRIBUTES = 100;
@@ -41,8 +45,9 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private static final int ORDERING_KEY_MAX_BYTE_SIZE = 1024;
   // The amount of bytes that each attribute entry adds up to the request
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
+  private final boolean usesOrderingKey;
   private int maxPublishBatchSize;
-
+  private boolean logOrderingKeyUnconfigured = false;
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
   @Nullable SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction;
   /** Last TopicPath that reported Lineage. */
@@ -140,12 +145,14 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
       @Nullable
           SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
+      boolean usesOrderingKey,
       int maxPublishBatchSize,
       BadRecordRouter badRecordRouter,
       Coder<InputT> inputCoder,
       TupleTag<PubsubMessage> outputTag) {
     this.formatFunction = formatFunction;
     this.topicFunction = topicFunction;
+    this.usesOrderingKey = usesOrderingKey;
     this.maxPublishBatchSize = maxPublishBatchSize;
     this.badRecordRouter = badRecordRouter;
     this.inputCoder = inputCoder;
@@ -189,6 +196,14 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       Lineage.getSinks()
           .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
       reportedLineage = topic;
+    }
+    if (!usesOrderingKey
+        && !Strings.isNullOrEmpty(message.getOrderingKey())
+        && !logOrderingKeyUnconfigured) {
+      LOG.warn(
+          "Encountered Pubsub message with ordering key but this sink was not configured to "
+              + "retain ordering keys, so they will be dropped. Please set #withOrderingKeys().");
+      logOrderingKeyUnconfigured = true;
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);
