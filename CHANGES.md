@@ -62,7 +62,7 @@
 
 ## I/Os
 
-* Check Pub/Sub topic is existing before Read/Write (Java) ([#32465](https://github.com/apache/beam/pull/32465))
+* PubsubIO will validate that the Pub/Sub topic exists before running the Read/Write pipeline (Java) ([#32465](https://github.com/apache/beam/pull/32465))
 
 ## New Features / Improvements
 
