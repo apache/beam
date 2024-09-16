@@ -644,7 +644,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testCommitOffsetsInFinalizeAndRedistributeWarningsWithAllowDuplicates() {
+  public void warningsWithAllowDuplicatesEnabledAndCommitOffsets() {
     int numElements = 1000;
 
     PCollection<Long> input =
@@ -666,11 +666,11 @@ public class KafkaIOTest {
     p.run();
 
     kafkaIOExpectedLogs.verifyWarn(
-        "Offsets committed due to usage of commitOffsetsInFinalize() may not capture all work processed due to use of withRedistribute()");
+        "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
   }
 
   @Test
-  public void testCommitOffsetsInFinalizeAndRedistributeNoWarningsWithAllowDuplicates() {
+  public void noWarningsWithNoAllowDuplicatesAndCommitOffsets() {
     int numElements = 1000;
 
     PCollection<Long> input =

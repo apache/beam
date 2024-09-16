@@ -1698,7 +1698,7 @@ public class KafkaIO {
         if (kafkaRead.isRedistributed()) {
           if (kafkaRead.isCommitOffsetsInFinalizeEnabled() && kafkaRead.isAllowDuplicates()) {
             LOG.warn(
-                "Offsets committed due to usage of commitOffsetsInFinalize() may not capture all work processed due to use of withRedistribute()");
+                "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
           }
           PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
 
