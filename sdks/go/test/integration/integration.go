@@ -137,6 +137,9 @@ var portableFilters = []string{
 
 	// The portable runner does not uniquify timers. (data elements re-fired)
 	"TestTimers.*",
+
+	// no support for BundleFinalizer
+	"TestParDoBundleFinalizer.*",
 }
 
 var prismFilters = []string{
