@@ -240,7 +240,7 @@ def _create_parser(
     return (
         beam_schema,
         lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
   else:
     raise ValueError(f'Unknown format: {format}')
 
