@@ -41,7 +41,7 @@ class TestGCSIORetry(unittest.TestCase):
     mock = Mock(side_effect=[
         Exception('Something wrong!'),
     ])
-    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
+    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTER
     with self.assertRaises(Exception):
       retry(mock)()
 
@@ -52,7 +52,7 @@ class TestGCSIORetry(unittest.TestCase):
             api_exceptions.TooManyRequests("Slow down again!"),
             12345
         ])
-    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
+    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTER
 
     sampler = statesampler.StateSampler('', counters.CounterFactory())
     statesampler.set_current_tracker(sampler)
