@@ -263,6 +263,7 @@ class GcsIO(object):
 
   def delete_batch(self, paths):
     """Deletes the objects at the given GCS paths.
+    Warning: any exception during batch delete will NOT be retried.
 
     Args:
       paths: List of GCS file path patterns or Dict with GCS file path patterns
@@ -274,16 +275,29 @@ class GcsIO(object):
              succeeded or the relevant exception if the operation failed.
     """
     final_results = []
-    for path in paths:
-      error_code = None
-      try:
-        self.delete(path)
-      except Exception as e:
-        error_code = getattr(e, "code", None)
-        if error_code is None:
-          error_code = getattr(e, "status_code", None)
+    s = 0
+    if not isinstance(paths, list): paths = list(iter(paths))
+    while s < len(paths):
+      if (s + MAX_BATCH_OPERATION_SIZE) < len(paths):
+        current_paths = paths[s:s + MAX_BATCH_OPERATION_SIZE]
+      else:
+        current_paths = paths[s:]
+      current_batch = self.client.batch(raise_exception=False)
+      with current_batch:
+        for path in current_paths:
+          bucket_name, blob_name = parse_gcs_path(path)
+          bucket = self.client.bucket(bucket_name)
+          bucket.delete_blob(blob_name)
 
-      final_results.append((path, error_code))
+      for i, path in enumerate(current_paths):
+        error_code = None
+        resp = current_batch._responses[i]
+        if resp.status_code >= 400 and resp.status_code != 404:
+          error_code = resp.status_code
+        final_results.append((path, error_code))
+
+      s += MAX_BATCH_OPERATION_SIZE
+
     return final_results
 
   def copy(self, src, dest):
@@ -319,6 +333,7 @@ class GcsIO(object):
 
   def copy_batch(self, src_dest_pairs):
     """Copies the given GCS objects from src to dest.
+    Warning: any exception during batch copy will NOT be retried.
 
     Args:
       src_dest_pairs: list of (src, dest) tuples of gs://<bucket>/<name> files
@@ -330,16 +345,32 @@ class GcsIO(object):
              succeeded or the relevant exception if the operation failed.
     """
     final_results = []
-    for src, dest in src_dest_pairs:
-      error_code = None
-      try:
-        self.copy(src, dest)
-      except Exception as e:
-        error_code = getattr(e, "code", None)
-        if error_code is None:
-          error_code = getattr(e, "status_code", None)
+    s = 0
+    while s < len(src_dest_pairs):
+      if (s + MAX_BATCH_OPERATION_SIZE) < len(src_dest_pairs):
+        current_pairs = src_dest_pairs[s:s + MAX_BATCH_OPERATION_SIZE]
+      else:
+        current_pairs = src_dest_pairs[s:]
+      current_batch = self.client.batch(raise_exception=False)
+      with current_batch:
+        for pair in current_pairs:
+          src_bucket_name, src_blob_name = parse_gcs_path(pair[0])
+          dest_bucket_name, dest_blob_name = parse_gcs_path(pair[1])
+          src_bucket = self.client.bucket(src_bucket_name)
+          src_blob = src_bucket.blob(src_blob_name)
+          dest_bucket = self.client.bucket(dest_bucket_name)
 
-      final_results.append((src, dest, error_code))
+          src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
+
+      for i, pair in enumerate(current_pairs):
+        error_code = None
+        resp = current_batch._responses[i]
+        if resp.status_code >= 400:
+          error_code = resp.status_code
+        final_results.append((pair[0], pair[1], error_code))
+
+      s += MAX_BATCH_OPERATION_SIZE
+
     return final_results
 
   # We intentionally do not decorate this method with a retry, since the
