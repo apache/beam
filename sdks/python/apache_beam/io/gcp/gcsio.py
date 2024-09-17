@@ -247,13 +247,14 @@ class GcsIO(object):
       path: GCS file path pattern in the form gs://<bucket>/<name>.
     """
     bucket_name, blob_name = parse_gcs_path(path)
+    bucket = self.client.bucket(bucket_name)
+    if self._use_blob_generation:
+      # blob can be None if not found
+      blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
+      generation = getattr(blob, "generation", None)
+    else:
+      generation = None
     try:
-      bucket = self.client.bucket(bucket_name)
-      if self._use_blob_generation:
-        blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
-        generation = getattr(blob, "generation", None)
-      else:
-        generation = None
       bucket.delete_blob(
           blob_name,
           if_generation_match=generation,
@@ -317,7 +318,7 @@ class GcsIO(object):
       src_blob = src_bucket.get_blob(src_blob_name)
       if src_blob is None:
         raise NotFound("source blob %s not found during copying" % src)
-      src_generation = getattr(src_blob, "generation", None)
+      src_generation = src_blob.generation
     else:
       src_blob = src_bucket.blob(src_blob_name)
       src_generation = None

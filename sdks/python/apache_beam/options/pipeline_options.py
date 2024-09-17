@@ -950,7 +950,7 @@ class GoogleCloudOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Use blob generation when mutating blobs in GCSIO to '
-        'overcome race conditions.')
+        'mitigate race conditions at the cost of more HTTP requests.')
 
   def _create_default_gcs_bucket(self):
     try:

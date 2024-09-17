@@ -42,7 +42,7 @@ class ThrottlingHandler(object):
   def __call__(self, exc):
     if isinstance(exc, api_exceptions.TooManyRequests):
       _LOGGER.debug('Caught GCS quota error (%s), retrying.', exc.reason)
-      # TODO: revist the logic here when gcs client library supports error
+      # TODO: revisit the logic here when gcs client library supports error
       # callbacks
       frame = inspect.currentframe()
       if frame is None:
