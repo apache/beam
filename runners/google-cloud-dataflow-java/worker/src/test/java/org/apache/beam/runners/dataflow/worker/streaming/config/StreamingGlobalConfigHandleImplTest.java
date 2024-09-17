@@ -147,6 +147,7 @@ public class StreamingGlobalConfigHandleImplTest {
     // call setter again with same config
     globalConfigHandle.setConfig(configToSet.get());
     assertTrue(latch.await(10, TimeUnit.SECONDS));
+    Thread.sleep(TimeUnit.SECONDS.toMillis(10));
     assertEquals(1, callbackCount.get());
   }
 }

@@ -80,7 +80,7 @@ public final class StreamingWorkerStatusPages {
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
 
-  private final AtomicReference<StreamingGlobalConfig> seConfig = new AtomicReference<>();
+  private final AtomicReference<StreamingGlobalConfig> globalConfig = new AtomicReference<>();
 
   StreamingWorkerStatusPages(
       Supplier<Instant> clock,
@@ -110,7 +110,7 @@ public final class StreamingWorkerStatusPages {
     this.getDataStatusProvider = getDataStatusProvider;
     this.workUnitExecutor = workUnitExecutor;
     this.statusPageDumper = statusPageDumper;
-    globalConfigHandle.registerConfigObserver(seConfig::set);
+    globalConfigHandle.registerConfigObserver(globalConfig::set);
   }
 
   public static StreamingWorkerStatusPages.Builder builder() {
@@ -161,11 +161,12 @@ public final class StreamingWorkerStatusPages {
         "jobSettings",
         "User Worker Job Settings",
         writer -> {
-          if (seConfig.get() == null) {
+          StreamingGlobalConfig config = globalConfig.get();
+          if (config == null) {
             writer.println("Job Settings not loaded.");
             return;
           }
-          writer.println(seConfig.get().userWorkerJobSettings().toString());
+          writer.println(config.userWorkerJobSettings().toString());
         });
   }
 

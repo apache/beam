@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
