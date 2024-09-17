@@ -2867,7 +2867,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
       def transformServiceJavaContainerSuffix = 'java11'
-      def transformServicePythonContainerSuffix = '38'
+      def transformServicePythonContainerSuffix = '39'
 
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         // Containers for main SDKs when running tests.
@@ -2958,7 +2958,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // If none of them applied, version set here will be used as default value.
       // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.8'
+          project.pythonVersion : '3.9'
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {
@@ -3145,10 +3145,10 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:3:job-server:shadowJar',
-            ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
+            ':sdks:python:container:py312:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

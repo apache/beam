@@ -257,6 +257,36 @@ class NonInteractiveRunnerTest(unittest.TestCase):
         df_expected['cube'],
         ib.collect(df['cube'], n=10).reset_index(drop=True))
 
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_new_runner_and_options(self):
+    class MyRunner(beam.runners.PipelineRunner):
+      run_count = 0
+
+      @classmethod
+      def run_pipeline(cls, pipeline, options):
+        assert options._all_options['my_option'] == 123
+        cls.run_count += 1
+        return direct_runner.DirectRunner().run_pipeline(pipeline, options)
+
+    clear_side_effect()
+    p = beam.Pipeline(direct_runner.DirectRunner())
+
+    # Initial collection runs the pipeline.
+    pcoll1 = p | beam.Create(['a', 'b', 'c']) | beam.Map(cause_side_effect)
+    collected1 = ib.collect(pcoll1)
+    self.assertEqual(set(collected1[0]), set(['a', 'b', 'c']))
+    self.assertEqual(count_side_effects('a'), 1)
+
+    # Using the PCollection uses the cache with a different runner and options.
+    pcoll2 = pcoll1 | beam.Map(str.upper)
+    collected2 = ib.collect(
+        pcoll2,
+        runner=MyRunner(),
+        options=beam.options.pipeline_options.PipelineOptions(my_option=123))
+    self.assertEqual(set(collected2[0]), set(['A', 'B', 'C']))
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(MyRunner.run_count, 1)
+
 
 if __name__ == '__main__':
   unittest.main()

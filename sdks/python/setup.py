@@ -353,7 +353,8 @@ if __name__ == '__main__':
           'cloudpickle~=2.2.1',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
+          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
@@ -441,7 +442,7 @@ if __name__ == '__main__':
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
-              'google-cloud-spanner>=3.0.0,<3.48',
+              'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
               'google-cloud-language>=2.0,<3',
