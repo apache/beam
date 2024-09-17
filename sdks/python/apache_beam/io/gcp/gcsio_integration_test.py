@@ -33,8 +33,8 @@ import unittest
 import uuid
 
 import mock
-from parameterized import parameterized_class
 import pytest
+from parameterized import parameterized_class
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
