@@ -274,7 +274,7 @@ public final class StreamingWorkerStatusPages {
 
     Builder setStatusPageDumper(ScheduledExecutorService statusPageDumper);
 
-    Builder setglobalConfigHandle(StreamingGlobalConfigHandle globalConfigHandle);
+    Builder setGlobalConfigHandle(StreamingGlobalConfigHandle globalConfigHandle);
 
     StreamingWorkerStatusPages build();
   }

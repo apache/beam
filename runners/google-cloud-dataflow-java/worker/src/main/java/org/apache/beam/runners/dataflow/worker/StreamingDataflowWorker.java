@@ -295,7 +295,7 @@ public final class StreamingDataflowWorker {
             .setCurrentActiveCommitBytes(workCommitter::currentActiveCommitBytes)
             .setGetDataStatusProvider(getDataClient::printHtml)
             .setWorkUnitExecutor(workUnitExecutor)
-            .setglobalConfigHandle(configFetcher.getGlobalConfigHandle())
+            .setGlobalConfigHandle(configFetcher.getGlobalConfigHandle())
             .build();
 
     Windmill.GetWorkRequest request =

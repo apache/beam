@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +28,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 
 @Internal
 @ThreadSafe
