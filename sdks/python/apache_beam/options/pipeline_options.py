@@ -26,9 +26,9 @@ import os
 from typing import Any
 from typing import Callable
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Type
 from typing import TypeVar
 
@@ -186,9 +186,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self, flags: Optional[Iterable[str]] = None, **kwargs):
-    # type: (Optional[List[str]], **Any) -> None
-
+  def __init__(self, flags: Optional[Sequence[str]] = None, **kwargs) -> None:
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
