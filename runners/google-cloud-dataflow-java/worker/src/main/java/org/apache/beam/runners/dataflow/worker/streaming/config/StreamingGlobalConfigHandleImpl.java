@@ -18,11 +18,15 @@
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 
@@ -33,8 +37,13 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
   private final AtomicReference<StreamingGlobalConfig> streamingEngineConfig =
       new AtomicReference<>();
 
-  private final CopyOnWriteArrayList<Consumer<StreamingGlobalConfig>> config_callbacks =
-      new CopyOnWriteArrayList<>();
+  @GuardedBy("this")
+  private final List<Consumer<StreamingGlobalConfig>> config_callbacks = new ArrayList<>();
+
+  // Using a single threaded executor to call callbacks in the scheduled order.
+  private final ExecutorService singleThreadExecutor =
+      Executors.newSingleThreadExecutor(
+          r -> new Thread(r, "StreamingGlobalConfigHandleImpl Executor"));
 
   @Override
   public StreamingGlobalConfig getConfig() {
@@ -46,17 +55,12 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
 
   @Override
   public void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback) {
-    StreamingGlobalConfig config;
     synchronized (this) {
       config_callbacks.add(callback);
-      config = streamingEngineConfig.get();
-    }
-    if (config != null) {
-      // read config from streamingEngineConfig again
-      // to prevent calling callback with stale config.
-      // The cached `config` will be stale if setConfig
-      // ran after the synchronized block.
-      callback.accept(streamingEngineConfig.get());
+      // If the config is already set, schedule a callback
+      if (streamingEngineConfig.get() != null) {
+        scheduleConfigCallback(callback);
+      }
     }
   }
 
@@ -67,12 +71,13 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
         return;
       }
       streamingEngineConfig.set(config);
-      // iterator of CopyOnWriteArrayList provides
-      // snapshot semantics
-      iterator = config_callbacks.iterator();
+      for (Consumer<StreamingGlobalConfig> callback : config_callbacks) {
+        scheduleConfigCallback(callback);
+      }
     }
-    while (iterator.hasNext()) {
-      iterator.next().accept(config);
-    }
+  }
+
+  private void scheduleConfigCallback(Consumer<StreamingGlobalConfig> callback) {
+    singleThreadExecutor.submit(() -> callback.accept(streamingEngineConfig.get()));
   }
 }
