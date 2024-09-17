@@ -322,15 +322,21 @@ public class BigQueryUtils {
       case "BYTES":
         return FieldType.BYTES;
       case "INT64":
+      case "INT":
+      case "SMALLINT":
       case "INTEGER":
+      case "BIGINT":
+      case "TINYINT":
+      case "BYTEINT":
         return FieldType.INT64;
       case "FLOAT64":
-      case "FLOAT":
+      case "FLOAT": // even if not a valid BQ type, it is used in the schema
         return FieldType.DOUBLE;
       case "BOOL":
       case "BOOLEAN":
         return FieldType.BOOLEAN;
       case "NUMERIC":
+      case "BIGNUMERIC":
         return FieldType.DECIMAL;
       case "TIMESTAMP":
         return FieldType.DATETIME;
@@ -355,6 +361,10 @@ public class BigQueryUtils {
 
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
         return FieldType.row(rowSchema);
+      case "GEOGRAPHY":
+      case "JSON":
+        // TODO Add metadata for custom sql types
+        return FieldType.STRING;
       default:
         throw new UnsupportedOperationException(
             "Converting BigQuery type " + typeName + " to Beam type is unsupported");
@@ -446,10 +456,27 @@ public class BigQueryUtils {
     return fromTableFieldSchema(tableSchema.getFields(), options);
   }
 
+  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(TableSchema tableSchema) {
+    return toGenericAvroSchema(tableSchema, false);
+  }
+
+  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      TableSchema tableSchema, Boolean stringLogicalTypes) {
+    return toGenericAvroSchema("root", tableSchema.getFields(), stringLogicalTypes);
+  }
+
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
       String schemaName, List<TableFieldSchema> fieldSchemas) {
-    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas);
+    return toGenericAvroSchema(schemaName, fieldSchemas, false);
+  }
+
+  /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      String schemaName, List<TableFieldSchema> fieldSchemas, Boolean stringLogicalTypes) {
+    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas, stringLogicalTypes);
   }
 
   private static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow>
@@ -514,9 +541,20 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
+  /**
+   * Convert generic record to Bq TableRow.
+   *
+   * @deprecated use {@link #convertGenericRecordToTableRow(GenericRecord)}
+   */
+  @Deprecated
   public static TableRow convertGenericRecordToTableRow(
       GenericRecord record, TableSchema tableSchema) {
-    return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+    return convertGenericRecordToTableRow(record);
+  }
+
+  /** Convert generic record to Bq TableRow. */
+  public static TableRow convertGenericRecordToTableRow(GenericRecord record) {
+    return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
   }
 
   /** Convert a Beam Row to a BigQuery TableRow. */
@@ -1037,6 +1075,21 @@ public class BigQueryUtils {
       tableSpec = String.format("%s.%s", tableReference.getProjectId(), tableSpec);
     }
     return tableSpec;
+  }
+
+  static TableSchema trimSchema(TableSchema schema, @Nullable List<String> selectedFields) {
+    if (selectedFields == null || selectedFields.isEmpty()) {
+      return schema;
+    }
+
+    List<TableFieldSchema> fields = schema.getFields();
+    List<TableFieldSchema> trimmedFields = new ArrayList<>();
+    for (TableFieldSchema field : fields) {
+      if (selectedFields.contains(field.getName())) {
+        trimmedFields.add(field);
+      }
+    }
+    return new TableSchema().setFields(trimmedFields);
   }
 
   private static @Nullable ServiceCallMetric callMetricForMethod(

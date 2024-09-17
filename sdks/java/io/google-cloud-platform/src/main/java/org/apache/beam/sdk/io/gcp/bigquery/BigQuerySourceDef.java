@@ -46,6 +46,15 @@ interface BigQuerySourceDef extends Serializable {
       boolean useAvroLogicalTypes);
 
   /**
+   * Extract the {@link TableSchema} corresponding to this source.
+   *
+   * @param bqOptions BigQueryOptions
+   * @return table schema of the source
+   * @throws BigQuerySchemaRetrievalException if schema retrieval fails
+   */
+  TableSchema getTableSchema(BigQueryOptions bqOptions);
+
+  /**
    * Extract the Beam {@link Schema} corresponding to this source.
    *
    * @param bqOptions BigQueryOptions

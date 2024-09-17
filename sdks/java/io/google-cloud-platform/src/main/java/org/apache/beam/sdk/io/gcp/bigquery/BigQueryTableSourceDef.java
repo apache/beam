@@ -102,16 +102,22 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
 
   /** {@inheritDoc} */
   @Override
-  public Schema getBeamSchema(BigQueryOptions bqOptions) {
+  public TableSchema getTableSchema(BigQueryOptions bqOptions) {
     try {
       try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
         TableReference tableRef = getTableReference(bqOptions);
         Table table = datasetService.getTable(tableRef);
-        TableSchema tableSchema = Preconditions.checkStateNotNull(table).getSchema();
-        return BigQueryUtils.fromTableSchema(tableSchema);
+        return Preconditions.checkStateNotNull(table).getSchema();
       }
     } catch (Exception e) {
       throw new BigQuerySchemaRetrievalException("Exception while trying to retrieve schema", e);
     }
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public Schema getBeamSchema(BigQueryOptions bqOptions) {
+    TableSchema tableSchema = getTableSchema(bqOptions);
+    return BigQueryUtils.fromTableSchema(tableSchema);
   }
 }
