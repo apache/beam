@@ -53,6 +53,11 @@ func TestParDoPipelineOptions(t *testing.T) {
 
 var countInvokeBundleFinalizer atomic.Int32
 
+func init() {
+	beam.RegisterFunction(incrInvokeBF)
+	beam.RegisterFunction(retError)
+}
+
 func TestParDoBundleFinalizer(t *testing.T) {
 	integration.CheckFilters(t)
 	for _, tt := range []struct {
@@ -63,11 +68,8 @@ func TestParDoBundleFinalizer(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "InProcessElement",
-			fn: func() error {
-				countInvokeBundleFinalizer.Add(1)
-				return nil
-			},
+			name:       "InProcessElement",
+			fn:         incrInvokeBF,
 			pipelineFn: ParDoProcessElementBundleFinalizer,
 			want:       1,
 		},
@@ -80,19 +82,14 @@ func TestParDoBundleFinalizer(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name: "InFinishBundle",
-			fn: func() error {
-				countInvokeBundleFinalizer.Add(1)
-				return nil
-			},
+			name:       "InFinishBundle",
+			fn:         incrInvokeBF,
 			pipelineFn: ParDoFinishBundleFinalizer,
 			want:       1,
 		},
 		{
-			name: "InFinishBundle_withError",
-			fn: func() error {
-				return fmt.Errorf("error")
-			},
+			name:       "InFinishBundle_withError",
+			fn:         retError,
 			pipelineFn: ParDoFinishBundleFinalizer,
 			wantErr:    true,
 		},
@@ -142,4 +139,13 @@ func TestParDoBundleFinalizerInAll(t *testing.T) {
 	if got := countInvokeBundleFinalizer.Load(); got != want {
 		t.Errorf("BundleFinalization RegisterCallback not invoked as expected via proxy counts, got: %v, want: %v", got, want)
 	}
+}
+
+func incrInvokeBF() error {
+	countInvokeBundleFinalizer.Add(1)
+	return nil
+}
+
+func retError() error {
+	return fmt.Errorf("error")
 }
