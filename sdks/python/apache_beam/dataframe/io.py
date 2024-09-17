@@ -578,7 +578,7 @@ class _TruncatingFileHandle(object):
     return res
 
   def flush(self):
-    return
+    self._underlying.flush()
 
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):

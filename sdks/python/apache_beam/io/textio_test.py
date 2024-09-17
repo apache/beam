@@ -1737,8 +1737,8 @@ class CsvTest(unittest.TestCase):
       with TestPipeline() as p:
         r1 = (
             p
-            | beam.io.ReadFromCsv(input_fn, encoding="latin1")
-            | beam.Map(lambda x: x._asdict()))
+            | 'Read' >> beam.io.ReadFromCsv(input_fn, encoding="latin1")
+            | 'ToDict' >> beam.Map(lambda x: x._asdict()))
         assert_that(
             r1,
             equal_to([{
@@ -1750,7 +1750,7 @@ class CsvTest(unittest.TestCase):
       with TestPipeline() as p:
         _ = (
             p
-            | beam.io.ReadFromCsv(input_fn, encoding="latin1")
+            | 'Read' >> beam.io.ReadFromCsv(input_fn, encoding="latin1")
             | 'Write' >> beam.io.WriteToCsv(
                 os.path.join(dest, 'out'), encoding="latin1"))
 
