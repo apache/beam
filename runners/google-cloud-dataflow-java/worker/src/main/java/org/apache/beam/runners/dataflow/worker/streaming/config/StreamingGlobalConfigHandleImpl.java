@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -29,10 +30,13 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Internal
 @ThreadSafe
 public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHandle {
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingGlobalConfigHandleImpl.class);
 
   private final AtomicReference<StreamingGlobalConfig> streamingEngineConfig =
       new AtomicReference<>();
@@ -78,6 +82,14 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
   }
 
   private void scheduleConfigCallback(Consumer<StreamingGlobalConfig> callback) {
-    singleThreadExecutor.submit(() -> callback.accept(streamingEngineConfig.get()));
+    Future<?> unusedFuture =
+        singleThreadExecutor.submit(
+            () -> {
+              try {
+                callback.accept(streamingEngineConfig.get());
+              } catch (Exception e) {
+                LOG.error("Exception from StreamingGlobalConfig callback", e);
+              }
+            });
   }
 }
