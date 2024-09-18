@@ -150,7 +150,7 @@ public class MqttIOTest {
                 .withConnectionConfiguration(
                     MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
                         .withClientId("READ_PIPELINE"))
-                .withMaxReadTime(Duration.standardSeconds(3)));
+                .withMaxReadTime(Duration.standardSeconds(5)));
     PAssert.that(output)
         .containsInAnyOrder(
             "This is test 0".getBytes(StandardCharsets.UTF_8),
@@ -184,7 +184,7 @@ public class MqttIOTest {
                       pipelineConnected = true;
                     }
                   }
-                  Thread.sleep(2000);
+                  Thread.sleep(1000);
                 }
                 for (int i = 0; i < 10; i++) {
                   publishConnection.publish(

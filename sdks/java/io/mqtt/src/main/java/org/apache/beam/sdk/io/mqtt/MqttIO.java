@@ -599,7 +599,7 @@ public class MqttIO {
       try {
         connecting.await(1, TimeUnit.MINUTES);
       } catch (TimeoutException e) {
-        LOG.warn("Connection to MQTT broker pending after waiting for 1 minute");
+        LOG.warn("Connection to {} pending after waiting for 1 minute", client.getHost());
         continue;
       }
       break;
