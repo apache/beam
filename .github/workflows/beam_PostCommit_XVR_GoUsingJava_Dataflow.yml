@@ -19,8 +19,8 @@ on:
   # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite.
   # schedule:
   #  - cron: '45 5/6 * * *'
-  pull_request_target:
-    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_XVR_GoUsingJava_Dataflow.json']
+  # pull_request_target:
+  #  paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_XVR_GoUsingJava_Dataflow.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -61,7 +61,7 @@ jobs:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PostCommit_XVR_GoUsingJava_Dataflow(DISABLED)"]
+        job_name: ["beam_PostCommit_XVR_GoUsingJava_Dataflow"]
         job_phrase: ["Run XVR_GoUsingJava_Dataflow PostCommit"]
     steps:
       - uses: actions/checkout@v4
@@ -85,9 +85,8 @@ jobs:
           USER: github-actions
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
-        # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite.
-        # with:
-        #   gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
+        with:
+          gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
