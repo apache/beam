@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -30,24 +26,15 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Internal
 @ThreadSafe
 public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHandle {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingGlobalConfigHandleImpl.class);
 
   private final AtomicReference<StreamingGlobalConfig> streamingEngineConfig =
       new AtomicReference<>();
 
-  @GuardedBy("this")
-  private final List<Consumer<StreamingGlobalConfig>> config_callbacks = new ArrayList<>();
-
-  // Using a single threaded executor to call callbacks in the scheduled order.
-  private final ExecutorService singleThreadExecutor =
-      Executors.newSingleThreadExecutor(
-          r -> new Thread(r, "StreamingGlobalConfigHandleImpl Executor"));
+  private final CopyOnWriteArrayList<ConfigCallback> configCallbacks = new CopyOnWriteArrayList<>();
 
   @Override
   public StreamingGlobalConfig getConfig() {
@@ -59,37 +46,59 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
 
   @Override
   public void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback) {
-    synchronized (this) {
-      config_callbacks.add(callback);
-      // If the config is already set, schedule a callback
-      if (streamingEngineConfig.get() != null) {
-        scheduleConfigCallback(callback);
-      }
+    ConfigCallback configCallback = new ConfigCallback(callback);
+    configCallbacks.add(configCallback);
+    if (streamingEngineConfig.get() != null) {
+      configCallback.run();
     }
   }
 
   void setConfig(@Nonnull StreamingGlobalConfig config) {
-    Iterator<Consumer<StreamingGlobalConfig>> iterator;
-    synchronized (this) {
-      if (config.equals(streamingEngineConfig.get())) {
-        return;
-      }
-      streamingEngineConfig.set(config);
-      for (Consumer<StreamingGlobalConfig> callback : config_callbacks) {
-        scheduleConfigCallback(callback);
-      }
+    if (config.equals(streamingEngineConfig.get())) {
+      return;
+    }
+    streamingEngineConfig.set(config);
+    for (ConfigCallback configCallback : configCallbacks) {
+      configCallback.run();
     }
   }
 
-  private void scheduleConfigCallback(Consumer<StreamingGlobalConfig> callback) {
-    Future<?> unusedFuture =
-        singleThreadExecutor.submit(
-            () -> {
-              try {
-                callback.accept(streamingEngineConfig.get());
-              } catch (Exception e) {
-                LOG.error("Exception from StreamingGlobalConfig callback", e);
-              }
-            });
+
+  private class ConfigCallback {
+
+    private final AtomicInteger queuedOrRunning = new AtomicInteger(0);
+    private final Consumer<StreamingGlobalConfig> configConsumer;
+
+    private ConfigCallback(Consumer<StreamingGlobalConfig> configConsumer) {
+      this.configConsumer = configConsumer;
+    }
+
+    /**
+     * Runs the passed in callback with the latest config. Overlapping `run()` calls will be
+     * collapsed into one. If the callback is already running a new call will be scheduled to run
+     * after the current execution completes, on the same thread which ran the previous run.
+     */
+    private void run() {
+      // If the callback is already running,
+      // Increment queued and return. The thread running
+      // the callback will run it again with the latest config.
+      if (queuedOrRunning.incrementAndGet() > 1) {
+        return;
+      }
+      // Else run the callback
+      while (true) {
+        configConsumer.accept(StreamingGlobalConfigHandleImpl.this.streamingEngineConfig.get());
+        if (queuedOrRunning.updateAndGet(queuedOrRunning -> {
+          if (queuedOrRunning == 1) {
+            // If there are no queued requests stop processing.
+            return 0;
+          }
+          // Else, clear queue, set 1 running and run the callback
+          return 1;
+        }) == 0) {
+          break;
+        }
+      }
+    }
   }
 }
