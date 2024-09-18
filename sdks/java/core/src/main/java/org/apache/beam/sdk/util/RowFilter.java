@@ -42,9 +42,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Nested fields can be expressed using dot-notation (e.g. {@code "top.middle.nested"}).
  *
- * <p>Note: You can only specify nested fields when the filter is configured to
- * <strong>unnest</strong>.
- *
  * <p>A configured {@link RowFilter} will naturally produce {@link Row}s with a new Beam {@link
  * Schema}. You can access this new Schema via the filter's {@link #outputSchema()}.
  *
@@ -61,8 +58,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * // this filter will drop these fields
  * RowFilter droppingFilter = new RowFilter(beamSchema).dropping(fields);
  *
- * // this filter will unnest fields "abc" and "xyz" to the top level
- * List<String> fields = Arrays.asList("foo.abc", "bar.baz.xyz");
+ * // this filter will unnest all fields under "row_a" and "row_b" to the top level
+ * List<String> fields = Arrays.asList("row_a", "row_b");
  * RowFilter unnestingFilter = new RowFilter(beamSchema).unnesting(fields);
  *
  * // produces a filtered row
@@ -107,7 +104,7 @@ public class RowFilter implements Serializable {
   public RowFilter keeping(List<String> fields) {
     checkUnconfigured();
     verifyNoNestedFields(fields, "keep");
-    validateSchemaContainsFields(rowSchema, fields, "\"keep\"");
+    validateSchemaContainsFields(rowSchema, fields, "keep");
     transformedSchema = keepFields(rowSchema, fields);
     return this;
   }
@@ -136,23 +133,23 @@ public class RowFilter implements Serializable {
   public RowFilter dropping(List<String> fields) {
     checkUnconfigured();
     verifyNoNestedFields(fields, "drop");
-    validateSchemaContainsFields(rowSchema, fields, "\"drop\"");
+    validateSchemaContainsFields(rowSchema, fields, "drop");
     transformedSchema = dropFields(rowSchema, fields);
     return this;
   }
 
   /**
-   * Configures this {@link RowFilter} to unnest the specified fields to the top-level and keeping
-   * their leaf names. The unnested fields are kept and everything else is dropped. This will fail
-   * if two fields have identical leaf names. Nested fields can be specified using dot-notation.
+   * Configures this {@link RowFilter} to unnest everything under the specified row fields to the
+   * top-level. The unnested sub-fields are kept with their original names.
    *
-   * <p>For example, if we want to unnest the list of fields {@code ["abc", "foo.bar",
-   * "foo.xyz.baz"]}, for this input {@link Row}:
+   * <p>For example, if we want to unnest the sub-fields of {@code ["abc", "foo"]}, for this input
+   * {@link Row}:
    *
    * <pre>{@code
-   * abc: 123
-   * foo:
+   * wkl: 123
+   * abc:
    *   bar: my_str
+   * foo:
    *   xyz:
    *     baz: 456
    *     qwe: 789
@@ -161,19 +158,34 @@ public class RowFilter implements Serializable {
    * we will get the following output {@link Row}:
    *
    * <pre>{@code
-   * abc: 123
    * bar: my_str
-   * baz: 456
+   * xyz:
+   *   baz: 456
+   *   qwe: 789
    * }</pre>
    *
-   * Note that fields should not have duplicate leaf names. For example, the {@link RowFilter} will
-   * fail when configuring to unnest the list of fields {@code ["abc.bar", "foo.baz.bar"]} because
-   * there is a duplicate leaf name "bar".
+   * <p>Note that this will fail if two specified row fields contain sub-fields with identical
+   * names, as that would result in duplicates. This will also fail if a specified field is not of
+   * type {@link Row}.
+   *
+   * <p>For example, the {@link RowFilter} will fail when configuring to unnest the fields {@code
+   * ["abc", "foo"]} if they look like this:
+   *
+   * <pre>{@code
+   * abc:
+   *   bar: my_str
+   * foo:
+   *   baz: 456
+   *   bar: another_str
+   * }</pre>
+   *
+   * because this will lead to two fields on the same level named "bar".
    */
   public RowFilter unnesting(List<String> fields) {
     checkUnconfigured();
-    validateSchemaContainsFields(rowSchema, fields, "\"unnest\"");
-    transformedSchema = unnestFields(rowSchema, fields);
+    verifyNoNestedFields(fields, "unnest");
+    validateSchemaContainsFields(rowSchema, fields, "unnest");
+    transformedSchema = unnestRowFields(rowSchema, fields);
     List<List<String>> fieldPaths = new ArrayList<>(fields.size());
     for (String fieldPath : fields) {
       fieldPaths.add(Splitter.on(".").splitToList(fieldPath));
@@ -275,7 +287,7 @@ public class RowFilter implements Serializable {
     }
 
     if (!notFound.isEmpty() || !notRowField.isEmpty()) {
-      String message = "Validation failed for " + operation + ".";
+      String message = "Validation failed for '" + operation + "'.";
       if (!notFound.isEmpty()) {
         message += "\nRow Schema does not contain the following specified fields: " + notFound;
       }
@@ -335,17 +347,17 @@ public class RowFilter implements Serializable {
     return Row.withSchema(newSchema).withFieldValues(values).build();
   }
 
-  /** Unnests the specified field values in this Row and outputs a new flattened Row. */
+  /** Unnests the specified Row field values and outputs a new Row. */
   private Row unnestRowValues(Row row) {
     Row.Builder builder = Row.withSchema(checkStateNotNull(transformedSchema));
     for (List<String> fieldPath : checkStateNotNull(fieldPathsToUnnest)) {
       Row traversingRow = row;
       int i = 0;
-      while (i < fieldPath.size() - 1) {
+      while (i < fieldPath.size()) {
         traversingRow = checkStateNotNull(traversingRow.getRow(fieldPath.get(i++)));
       }
 
-      builder.addValue(traversingRow.getValue(fieldPath.get(i)));
+      builder.addValues(traversingRow.getValues());
     }
     return builder.build();
   }
@@ -437,40 +449,43 @@ public class RowFilter implements Serializable {
   }
 
   @VisibleForTesting
-  static Schema.Field getNestedField(Schema schema, List<String> fieldPath) {
+  static Schema.Field getRowFieldToUnnest(Schema schema, List<String> fieldPath) {
     Preconditions.checkState(
         !fieldPath.isEmpty(), "Unexpected call to get nested field without providing a name.");
     Schema.Field field = schema.getField(fieldPath.get(0));
 
+    Preconditions.checkArgument(
+        field.getType().getTypeName().equals(Schema.TypeName.ROW),
+        "Expected type '%s' for field '%s', but instead got type '%s'.",
+        Schema.TypeName.ROW,
+        field.getName(),
+        field.getType().getTypeName());
+
     if (fieldPath.size() == 1) {
       return field;
     }
-    Preconditions.checkState(
-        field.getType().getTypeName().equals(Schema.TypeName.ROW),
-        "Expected type %s for specified nested field '%s', but instead got type %s.",
-        Schema.TypeName.ROW,
-        field,
-        field.getType().getTypeName());
 
-    return getNestedField(
+    return getRowFieldToUnnest(
         checkStateNotNull(field.getType().getRowSchema()), fieldPath.subList(1, fieldPath.size()));
   }
 
   /**
-   * Returns a new {@link Schema} where the specified fields are unnested and placed at the top
-   * level.
+   * Takes a {@link Schema} and a list of field paths that refer to {@link Row} fields.
+   *
+   * <p>For each row field, its sub-fields are unnested and placed at the top level.
    *
    * <p>No guarantee that field ordering will remain the same.
    */
   @VisibleForTesting
-  static Schema unnestFields(Schema schema, List<String> fieldsToUnnest) {
+  static Schema unnestRowFields(Schema schema, List<String> fieldsToUnnest) {
     if (fieldsToUnnest.isEmpty()) {
       return schema;
     }
     List<Schema.Field> newFieldsList = new ArrayList<>(fieldsToUnnest.size());
     for (String fieldPath : fieldsToUnnest) {
-      Schema.Field field = getNestedField(schema, Splitter.on(".").splitToList(fieldPath));
-      newFieldsList.add(field);
+      Schema.Field field = getRowFieldToUnnest(schema, Splitter.on(".").splitToList(fieldPath));
+
+      newFieldsList.addAll(checkStateNotNull(field.getType().getRowSchema()).getFields());
     }
 
     return new Schema(newFieldsList);

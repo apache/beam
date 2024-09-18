@@ -254,21 +254,66 @@ public class RowFilterTest {
   }
 
   @Test
+  public void testDropNestedFieldsFails() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("RowFilter does not support specifying nested fields to drop");
+
+    new RowFilter(ROW_SCHEMA)
+        .dropping(
+            Arrays.asList(
+                "bool",
+                "nullable_int",
+                "row.nested_int",
+                "row.nested_float",
+                "row.nested_row.doubly_nested_int",
+                "nullable_row"));
+  }
+
+  @Test
+  public void testKeepNestedFieldsFails() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("RowFilter does not support specifying nested fields to keep");
+
+    new RowFilter(ROW_SCHEMA)
+        .keeping(
+            Arrays.asList("str", "arr_int", "row.nested_str", "row.nested_row.doubly_nested_str"));
+  }
+
+  @Test
+  public void testUnnestingFailsWhenSpecifyingNonRowField() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Expected type 'ROW' for specified field 'nested_int', but instead got type 'INT32'");
+
+    List<String> invalidFields = Collections.singletonList("row.nested_int");
+
+    new RowFilter(ROW_SCHEMA).unnesting(invalidFields);
+  }
+
+  @Test
+  public void testUnnestFailsOnDuplicateNestedFieldNames() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Duplicate field nested_str");
+
+    // "row" and "nullable_row" have identical schemas. unnesting their
+    // fields will result in duplicate field names
+    List<String> rowFieldsToUnnest = Arrays.asList("row", "nullable_row");
+
+    RowFilter.unnestRowFields(ROW_SCHEMA, rowFieldsToUnnest);
+  }
+
+  @Test
   public void testGetNestedField() {
-    List<String> fieldPaths =
-        Arrays.asList(
-            "str", "row.nested_int", "row.nested_row.doubly_nested_int", "row.nested_row");
+    List<String> fieldPaths = Arrays.asList("row", "nullable_row.nested_row");
     List<Schema.Field> expectedFields =
         Arrays.asList(
-            Schema.Field.of("str", Schema.FieldType.STRING),
-            Schema.Field.of("nested_int", Schema.FieldType.INT32),
-            Schema.Field.of("doubly_nested_int", Schema.FieldType.INT32),
+            Schema.Field.of("row", Schema.FieldType.row(NESTED_ROW_SCHEMA)),
             Schema.Field.of("nested_row", Schema.FieldType.row(DOUBLY_NESTED_ROW_SCHEMA)));
 
     List<Schema.Field> actualFields = new ArrayList<>(fieldPaths.size());
     for (String fieldPath : fieldPaths) {
       actualFields.add(
-          RowFilter.getNestedField(ROW_SCHEMA, Splitter.on(".").splitToList(fieldPath)));
+          RowFilter.getRowFieldToUnnest(ROW_SCHEMA, Splitter.on(".").splitToList(fieldPath)));
     }
 
     assertEquals(expectedFields, actualFields);
@@ -276,31 +321,17 @@ public class RowFilterTest {
 
   @Test
   public void testUnnestSchemaFields() {
-    List<String> fieldsToUnnest =
-        Arrays.asList(
-            "str",
-            "arr_int",
-            "nullable_int",
-            "row.nested_int",
-            "row.nested_float",
-            "row.nested_row.doubly_nested_int",
-            "nullable_row.nested_str",
-            "nullable_row.nested_row");
+    List<String> rowFieldsToUnnest = Arrays.asList("row", "row.nested_row");
 
-    Schema expectedUnnestedSchema =
-        Schema.builder()
-            .addStringField("str")
-            .addArrayField("arr_int", Schema.FieldType.INT32)
-            .addNullableInt32Field("nullable_int")
-            .addInt32Field("nested_int")
-            .addFloatField("nested_float")
-            .addInt32Field("doubly_nested_int")
-            .addStringField("nested_str")
-            .addRowField("nested_row", DOUBLY_NESTED_ROW_SCHEMA)
-            .build();
+    List<Schema.Field> fieldList = new ArrayList<>();
+    fieldList.addAll(NESTED_ROW_SCHEMA.getFields());
+    fieldList.addAll(DOUBLY_NESTED_ROW_SCHEMA.getFields());
+
+    Schema expectedUnnestedSchema = new Schema(fieldList);
 
     assertTrue(
-        expectedUnnestedSchema.equivalent(RowFilter.unnestFields(ROW_SCHEMA, fieldsToUnnest)));
+        expectedUnnestedSchema.equivalent(
+            RowFilter.unnestRowFields(ROW_SCHEMA, rowFieldsToUnnest)));
   }
 
   private static final Row ORIGINAL_ROW =
@@ -357,58 +388,14 @@ public class RowFilterTest {
   }
 
   @Test
-  public void testDropNestedFieldsFails() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("RowFilter does not support specifying nested fields to drop");
-
-    RowFilter rowFilter =
-        new RowFilter(ROW_SCHEMA)
-            .dropping(
-                Arrays.asList(
-                    "bool",
-                    "nullable_int",
-                    "row.nested_int",
-                    "row.nested_float",
-                    "row.nested_row.doubly_nested_int",
-                    "nullable_row"));
-
-    assertEquals(FILTERED_ROW, rowFilter.filter(ORIGINAL_ROW));
-  }
-
-  @Test
-  public void testKeepNestedFieldsFails() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("RowFilter does not support specifying nested fields to keep");
-
-    RowFilter rowFilter =
-        new RowFilter(ROW_SCHEMA)
-            .keeping(
-                Arrays.asList(
-                    "str", "arr_int", "row.nested_str", "row.nested_row.doubly_nested_str"));
-
-    assertEquals(FILTERED_ROW, rowFilter.filter(ORIGINAL_ROW));
-  }
-
-  @Test
   public void testUnnestRowFields() {
-    List<String> unnestFields =
-        Arrays.asList(
-            "str",
-            "arr_int",
-            "row.nested_str",
-            "row.nested_row.doubly_nested_str",
-            "row.nested_row");
+    List<String> unnestFields = Arrays.asList("row", "row.nested_row");
     RowFilter rowFilter = new RowFilter(ROW_SCHEMA).unnesting(unnestFields);
 
-    Schema unnestedSchema = RowFilter.unnestFields(ROW_SCHEMA, unnestFields);
     Row expecedRow =
-        Row.withSchema(unnestedSchema)
-            .addValues(
-                ORIGINAL_ROW.getString("str"),
-                ORIGINAL_ROW.getArray("arr_int"),
-                ORIGINAL_ROW.getRow("row").getString("nested_str"),
-                ORIGINAL_ROW.getRow("row").getRow("nested_row").getString("doubly_nested_str"),
-                ORIGINAL_ROW.getRow("row").getRow("nested_row"))
+        Row.withSchema(rowFilter.outputSchema())
+            .addValues(ORIGINAL_ROW.getRow("row").getValues())
+            .addValues(ORIGINAL_ROW.getRow("row").getRow("nested_row").getValues())
             .build();
 
     assertEquals(expecedRow, rowFilter.filter(ORIGINAL_ROW));
