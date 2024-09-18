@@ -133,6 +133,76 @@ public class StreamingGlobalConfigHandleImplTest {
   }
 
   @Test
+  public void registerConfigObserver_configSetBeforeRegisteringCallback_callbackThrowsException()
+      throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(2);
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    StreamingGlobalConfig configToSet =
+        StreamingGlobalConfig.builder()
+            .setOperationalLimits(
+                OperationalLimits.builder()
+                    .setMaxOutputValueBytes(123)
+                    .setMaxOutputKeyBytes(324)
+                    .setMaxWorkItemCommitBytes(456)
+                    .build())
+            .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
+            .setUserWorkerJobSettings(
+                UserWorkerRunnerV1Settings.newBuilder()
+                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .build())
+            .build();
+    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    globalConfigHandle.setConfig(configToSet);
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          latch.countDown();
+          throw new RuntimeException();
+        });
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          configFromCallback.set(config);
+          latch.countDown();
+        });
+    assertTrue(latch.await(10, TimeUnit.SECONDS));
+    assertEquals(configFromCallback.get(), configToSet);
+  }
+
+  @Test
+  public void registerConfigObserver_configSetAfterRegisteringCallback_callbackThrowsException()
+      throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(2);
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    StreamingGlobalConfig configToSet =
+        StreamingGlobalConfig.builder()
+            .setOperationalLimits(
+                OperationalLimits.builder()
+                    .setMaxOutputValueBytes(123)
+                    .setMaxOutputKeyBytes(324)
+                    .setMaxWorkItemCommitBytes(456)
+                    .build())
+            .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
+            .setUserWorkerJobSettings(
+                UserWorkerRunnerV1Settings.newBuilder()
+                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .build())
+            .build();
+    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          latch.countDown();
+          throw new RuntimeException();
+        });
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          configFromCallback.set(config);
+          latch.countDown();
+        });
+    globalConfigHandle.setConfig(configToSet);
+    assertTrue(latch.await(10, TimeUnit.SECONDS));
+    assertEquals(configFromCallback.get(), configToSet);
+  }
+
+  @Test
   public void registerConfigObserver_shouldNotCallCallbackForIfConfigRemainsSame()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);

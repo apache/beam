@@ -25,10 +25,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Internal
 @ThreadSafe
 public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHandle {
+
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingGlobalConfigHandleImpl.class);
 
   private final AtomicReference<StreamingGlobalConfig> streamingEngineConfig =
       new AtomicReference<>();
@@ -85,7 +89,11 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
       }
       // Else run the callback
       while (true) {
-        configConsumer.accept(StreamingGlobalConfigHandleImpl.this.streamingEngineConfig.get());
+        try {
+          configConsumer.accept(StreamingGlobalConfigHandleImpl.this.streamingEngineConfig.get());
+        } catch (Exception e) {
+          LOG.error("Exception running GlobalConfig callback", e);
+        }
         if (queuedOrRunning.updateAndGet(
                 queuedOrRunning -> {
                   if (queuedOrRunning == 1) {
