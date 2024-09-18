@@ -28,6 +28,7 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Type
 from typing import TypeVar
 
@@ -185,9 +186,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self, flags=None, **kwargs):
-    # type: (Optional[List[str]], **Any) -> None
-
+  def __init__(self, flags: Optional[Sequence[str]] = None, **kwargs) -> None:
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -216,6 +215,12 @@ class PipelineOptions(HasDisplayData):
     # self._flags stores a list of not yet parsed arguments, typically,
     # command-line flags. This list is shared across different views.
     # See: view_as().
+    if isinstance(flags, str):
+      # Unfortunately a single str passes the Iterable[str] test, as it is
+      # an iterable of single characters.  This is almost certainly not the
+      # intent...
+      raise ValueError(
+          "Flags must be an iterable of of strings, not a single string.")
     self._flags = flags
 
     # Build parser that will parse options recognized by the [sub]class of
@@ -355,6 +360,9 @@ class PipelineOptions(HasDisplayData):
             'used for internal purposes.' % (','.join(unknown_args)))
       i = 0
       while i < len(unknown_args):
+        # End of argument parsing.
+        if unknown_args[i] == '--':
+          break
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
         if not unknown_args[i].startswith('-'):
@@ -575,6 +583,14 @@ class StandardOptions(PipelineOptions):
         'Using --auto_unique_labels could cause data loss when '
         'updating a pipeline or reloading the job state. '
         'This is not recommended for streaming jobs.')
+
+    parser.add_argument(
+        '--no_wait_until_finish',
+        default=False,
+        action='store_true',
+        help='By default, the "with" statement waits for the job to '
+        'complete. Set this flag to bypass this behavior and continue '
+        'execution immediately')
 
 
 class StreamingOptions(PipelineOptions):

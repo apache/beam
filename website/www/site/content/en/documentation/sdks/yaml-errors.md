@@ -33,7 +33,7 @@ recording them for later off-line analysis.  This is often called the
 
 Beam YAML has special support for this pattern if the transform supports a
 `error_handling` config parameter with an `output` field.
-The `output` is a name that must referenced in the input to
+The `output` parameter is a name that must referenced as an input to
 another transform that will process the errors (e.g. by writing them out).
 For example,
 the following code will write all "good" processed records to one file and

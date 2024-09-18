@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,7 +41,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,9 +52,12 @@ public class KafkaCommitOffset<K, V>
     extends PTransform<
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>>, PCollection<Void>> {
   private final KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors;
+  private final boolean use259implementation;
 
-  KafkaCommitOffset(KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors) {
+  KafkaCommitOffset(
+      KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors, boolean use259implementation) {
     this.readSourceDescriptors = readSourceDescriptors;
+    this.use259implementation = use259implementation;
   }
 
   static class CommitOffsetDoFn extends DoFn<KV<KafkaSourceDescriptor, Long>, Void> {
@@ -90,7 +96,7 @@ public class KafkaCommitOffset<K, V>
               || description.getBootStrapServers() != null);
       Map<String, Object> config = new HashMap<>(currentConfig);
       if (description.getBootStrapServers() != null
-          && description.getBootStrapServers().size() > 0) {
+          && !description.getBootStrapServers().isEmpty()) {
         config.put(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
             String.join(",", description.getBootStrapServers()));
@@ -99,13 +105,78 @@ public class KafkaCommitOffset<K, V>
     }
   }
 
+  private static final class MaxOffsetFn<K, V>
+      extends DoFn<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>, KV<KafkaSourceDescriptor, Long>> {
+    private static class OffsetAndTimestamp {
+      OffsetAndTimestamp(long offset, Instant timestamp) {
+        this.offset = offset;
+        this.timestamp = timestamp;
+      }
+
+      void merge(long offset, Instant timestamp) {
+        if (this.offset < offset) {
+          this.offset = offset;
+          this.timestamp = timestamp;
+        }
+      }
+
+      long offset;
+      Instant timestamp;
+    }
+
+    private transient @MonotonicNonNull Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved;
+
+    @StartBundle
+    public void startBundle() {
+      if (maxObserved == null) {
+        maxObserved = new HashMap<>();
+      } else {
+        maxObserved.clear();
+      }
+    }
+
+    @RequiresStableInput
+    @ProcessElement
+    @SuppressWarnings("nullness") // startBundle guaranteed to initialize
+    public void processElement(
+        @Element KV<KafkaSourceDescriptor, KafkaRecord<K, V>> element,
+        @Timestamp Instant timestamp) {
+      maxObserved.compute(
+          element.getKey(),
+          (k, v) -> {
+            long offset = element.getValue().getOffset();
+            if (v == null) {
+              return new OffsetAndTimestamp(offset, timestamp);
+            }
+            v.merge(offset, timestamp);
+            return v;
+          });
+    }
+
+    @FinishBundle
+    @SuppressWarnings("nullness") // startBundle guaranteed to initialize
+    public void finishBundle(FinishBundleContext context) {
+      maxObserved.forEach(
+          (k, v) -> context.output(KV.of(k, v.offset), v.timestamp, GlobalWindow.INSTANCE));
+    }
+  }
+
   @Override
   public PCollection<Void> expand(PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> input) {
     try {
-      return input
-          .apply(
-              MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
-                  .via(element -> KV.of(element.getKey(), element.getValue().getOffset())))
+      PCollection<KV<KafkaSourceDescriptor, Long>> offsets;
+      if (use259implementation) {
+        offsets =
+            input.apply(
+                MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
+                    .via(element -> KV.of(element.getKey(), element.getValue().getOffset())));
+      } else {
+        // Reduce the amount of data to combine by calculating a max within the generally dense
+        // bundles of reading
+        // from a Kafka partition.
+        offsets = input.apply(ParDo.of(new MaxOffsetFn<>()));
+      }
+      return offsets
           .setCoder(
               KvCoder.of(
                   input
