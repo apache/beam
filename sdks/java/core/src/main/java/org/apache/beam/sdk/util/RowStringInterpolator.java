@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
@@ -30,9 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -55,7 +55,7 @@ import org.joda.time.Instant;
  * Row inputRow = {foo: "batch", bar: {baz: "streaming"}, ...};
  *
  * RowStringInterpolator interpolator = new RowStringInterpolator(template, beamSchema);
- * String output = interpolator.interpolate(inputRow);
+ * String output = interpolator.interpolate(inputRow, window, paneInfo, timestamp);
  * // output --> "unified batch and streaming!"
  * }</pre>
  *
@@ -71,7 +71,7 @@ import org.joda.time.Instant;
  *   <li>$DD: the element timestamp's day
  * </ul>
  *
- * <p>For example, your Sting template can look like:
+ * <p>For example, your String template can look like:
  *
  * <pre>{@code "unified {foo} and {bar} since {$YYYY}-{$MM}!"}</pre>
  */
@@ -103,7 +103,7 @@ public class RowStringInterpolator implements Serializable {
     Matcher m = TEMPLATE_PATTERN.matcher(template);
     fieldsToReplace = new HashSet<>();
     while (m.find()) {
-      fieldsToReplace.add(StringUtils.strip(m.group(), "{}"));
+      fieldsToReplace.add(checkStateNotNull(m.group(1)));
     }
 
     List<String> rowFields =
@@ -114,20 +114,10 @@ public class RowStringInterpolator implements Serializable {
     RowFilter.validateSchemaContainsFields(rowSchema, rowFields, "string interpolation");
   }
 
-  /** Performs string interpolation on the template using values from the input {@link Row}. */
-  public String interpolate(Row row) {
-    String interpolated = this.template;
-    for (String field : fieldsToReplace) {
-      List<String> levels = Splitter.on(".").splitToList(field);
-
-      Object val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
-
-      interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
-    }
-    return interpolated;
-  }
-
-  /** Like {@link #interpolate(Row)} but also potentially include windowing information. */
+  /**
+   * Performs string interpolation on the template using values from the input {@link Row} and its
+   * windowing metadata.
+   */
   public String interpolate(Row row, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
     String interpolated = this.template;
     for (String field : fieldsToReplace) {
@@ -149,8 +139,7 @@ public class RowStringInterpolator implements Serializable {
           val = timestamp.getChronology().dayOfMonth().get(timestamp.getMillis());
           break;
         default:
-          List<String> levels = Splitter.on(".").splitToList(field);
-          val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
+          val = MoreObjects.firstNonNull(getValue(row, field), "");
           break;
       }
 
@@ -159,34 +148,18 @@ public class RowStringInterpolator implements Serializable {
     return interpolated;
   }
 
-  private @Nullable Object getValue(@Nullable Row row, List<String> fieldLevels, int index) {
-    if (row == null || fieldLevels.isEmpty()) {
+  private @Nullable Object getValue(@Nullable Row row, String fieldPath) {
+    if (row == null) {
       return null;
     }
-    Preconditions.checkState(
-        index < fieldLevels.size(),
-        "'%s' only goes %s levels deep. Invalid attempt to check for depth at level %s",
-        String.join(".", fieldLevels),
-        fieldLevels.size(),
-        index);
+    int dotIndex = fieldPath.indexOf('.');
+    String field = dotIndex == -1 ? fieldPath : fieldPath.substring(0, dotIndex);
+    Preconditions.checkArgument(
+        row.getSchema().hasField(field), "Invalid row does not contain field '%s'.", field);
 
-    String currentField = fieldLevels.get(index);
-    Object val;
-    try {
-      val = row.getValue(currentField);
-    } catch (IllegalArgumentException e) {
-      throw new RuntimeException(
-          String.format(
-              "Invalid row does not contain field '%s'.",
-              String.join(".", fieldLevels.subList(0, index + 1))),
-          e);
+    if (dotIndex == -1) {
+      return row.getValue(field);
     }
-
-    // base case: we've reached the target
-    if (index == fieldLevels.size() - 1) {
-      return val;
-    }
-
-    return getValue((Row) val, fieldLevels, ++index);
+    return getValue(row.getRow(field), fieldPath.substring(dotIndex + 1));
   }
 }

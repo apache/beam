@@ -65,10 +65,10 @@ public class RowStringInterpolatorTest {
 
     Row invalidRow = Row.nullRow(Schema.builder().addNullableStringField("xyz").build());
 
-    thrown.expect(RuntimeException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'str'.");
 
-    interpolator.interpolate(invalidRow);
+    interpolator.interpolate(invalidRow, null, null, null);
   }
 
   @Test
@@ -82,10 +82,10 @@ public class RowStringInterpolatorTest {
             .addValue(Row.nullRow(nestedSchema))
             .build();
 
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Invalid row does not contain field 'row.nested_int'.");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid row does not contain field 'nested_int'.");
 
-    interpolator.interpolate(invalidRow);
+    interpolator.interpolate(invalidRow, null, null, null);
   }
 
   @Test
@@ -102,10 +102,10 @@ public class RowStringInterpolatorTest {
                 Row.withSchema(nestedSchema).addValue(Row.nullRow(doublyNestedSchema)).build())
             .build();
 
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Invalid row does not contain field 'row.nested_row.doubly_nested_int'.");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid row does not contain field 'doubly_nested_int'.");
 
-    interpolator.interpolate(invalidRow);
+    interpolator.interpolate(invalidRow, null, null, null);
   }
 
   private static final Row ROW =
@@ -134,7 +134,7 @@ public class RowStringInterpolatorTest {
     String template = "foo {str}, bar {bool}, baz {int}, xyz {nullable_int}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ROW);
+    String output = interpolator.interpolate(ROW, null, null, null);
 
     assertEquals("foo str_value, bar true, baz 123, xyz ", output);
   }
@@ -144,7 +144,7 @@ public class RowStringInterpolatorTest {
     String template = "foo {str}, bar {row.nested_str}, baz {row.nested_float}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ROW);
+    String output = interpolator.interpolate(ROW, null, null, null);
 
     assertEquals("foo str_value, bar nested_str_value, baz 1.234", output);
   }
@@ -155,7 +155,7 @@ public class RowStringInterpolatorTest {
         "foo {str}, bar {row.nested_row.doubly_nested_str}, baz {row.nested_row.doubly_nested_int}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ROW);
+    String output = interpolator.interpolate(ROW, null, null, null);
 
     assertEquals("foo str_value, bar doubly_nested_str_value, baz 789", output);
   }
