@@ -61,7 +61,7 @@ public class StreamingGlobalConfigHandleImplTest {
   @Test
   public void registerConfigObserver_configSetAfterRegisteringCallback()
       throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+    CountDownLatch latch = new CountDownLatch(2);
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
     StreamingGlobalConfig configToSet =
         StreamingGlobalConfig.builder()
@@ -77,21 +77,28 @@ public class StreamingGlobalConfigHandleImplTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    AtomicReference<StreamingGlobalConfig> configFromCallback1 = new AtomicReference<>();
+    AtomicReference<StreamingGlobalConfig> configFromCallback2 = new AtomicReference<>();
     globalConfigHandle.registerConfigObserver(
         config -> {
-          configFromCallback.set(config);
+          configFromCallback1.set(config);
+          latch.countDown();
+        });
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          configFromCallback2.set(config);
           latch.countDown();
         });
     globalConfigHandle.setConfig(configToSet);
     assertTrue(latch.await(10, TimeUnit.SECONDS));
-    assertEquals(configFromCallback.get(), globalConfigHandle.getConfig());
+    assertEquals(configFromCallback1.get(), globalConfigHandle.getConfig());
+    assertEquals(configFromCallback2.get(), globalConfigHandle.getConfig());
   }
 
   @Test
   public void registerConfigObserver_configSetBeforeRegisteringCallback()
       throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+    CountDownLatch latch = new CountDownLatch(2);
     StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
     StreamingGlobalConfig configToSet =
         StreamingGlobalConfig.builder()
@@ -107,15 +114,22 @@ public class StreamingGlobalConfigHandleImplTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    AtomicReference<StreamingGlobalConfig> configFromCallback1 = new AtomicReference<>();
+    AtomicReference<StreamingGlobalConfig> configFromCallback2 = new AtomicReference<>();
     globalConfigHandle.setConfig(configToSet);
     globalConfigHandle.registerConfigObserver(
         config -> {
-          configFromCallback.set(config);
+          configFromCallback1.set(config);
+          latch.countDown();
+        });
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          configFromCallback2.set(config);
           latch.countDown();
         });
     assertTrue(latch.await(10, TimeUnit.SECONDS));
-    assertEquals(configFromCallback.get(), globalConfigHandle.getConfig());
+    assertEquals(configFromCallback1.get(), globalConfigHandle.getConfig());
+    assertEquals(configFromCallback2.get(), globalConfigHandle.getConfig());
   }
 
   @Test
