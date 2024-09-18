@@ -20,6 +20,7 @@
 
 import logging
 import os
+import random
 import unittest
 from datetime import datetime
 
@@ -36,6 +37,7 @@ from apache_beam.utils import counters
 
 try:
   from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
   from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
@@ -85,7 +87,7 @@ class FakeGcsClient(object):
     holder = folder.get_blob(blob.name)
     return holder
 
-  def list_blobs(self, bucket_or_path, prefix=None):
+  def list_blobs(self, bucket_or_path, prefix=None, **unused_kwargs):
     bucket = self.get_bucket(bucket_or_path.name)
     if not prefix:
       return list(bucket.blobs.values())
@@ -120,7 +122,7 @@ class FakeBucket(object):
   def blob(self, name):
     return self._create_blob(name)
 
-  def copy_blob(self, blob, dest, new_name=None):
+  def copy_blob(self, blob, dest, new_name=None, **kwargs):
     if self.get_blob(blob.name) is None:
       raise NotFound("source blob not found")
     if not new_name:
@@ -129,7 +131,7 @@ class FakeBucket(object):
     dest.add_blob(new_blob)
     return new_blob
 
-  def get_blob(self, blob_name):
+  def get_blob(self, blob_name, **unused_kwargs):
     bucket = self._get_canonical_bucket()
     if blob_name in bucket.blobs:
       return bucket.blobs[blob_name]
@@ -146,7 +148,7 @@ class FakeBucket(object):
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
 
-  def delete_blob(self, name):
+  def delete_blob(self, name, **kwargs):
     bucket = self._get_canonical_bucket()
     if name in bucket.blobs:
       del bucket.blobs[name]
@@ -175,6 +177,7 @@ class FakeBlob(object):
     self.updated = updated
     self._fail_when_getting_metadata = fail_when_getting_metadata
     self._fail_when_reading = fail_when_reading
+    self.generation = random.randint(0, (1 << 63) - 1)
 
   def delete(self):
     self.bucket.delete_blob(self.name)
@@ -532,7 +535,10 @@ class TestGCSIO(unittest.TestCase):
     with mock.patch('apache_beam.io.gcp.gcsio.BeamBlobReader') as reader:
       self.gcs.open(file_name, read_buffer_size=read_buffer_size)
       reader.assert_called_with(
-          blob, chunk_size=read_buffer_size, enable_read_bucket_metric=False)
+          blob,
+          chunk_size=read_buffer_size,
+          enable_read_bucket_metric=False,
+          retry=DEFAULT_RETRY_WITH_THROTTLING_COUNTER)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'
