@@ -504,10 +504,16 @@ public final class StreamingDataflowWorker {
                 executorSupplier)
             : new StreamingApplianceComputationConfigFetcher(
                 windmillServer::getConfig, globalConfigHandle);
-    StreamingGlobalConfig config = configFetcher.getGlobalConfigHandle().getConfig();
-    if (!config.windmillServiceEndpoints().isEmpty()) {
-      windmillServer.setWindmillServiceEndpoints(config.windmillServiceEndpoints());
-    }
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config -> {
+              if (config.windmillServiceEndpoints().isEmpty()) {
+                LOG.warn("Received empty windmill service endpoints");
+                return;
+              }
+              windmillServer.setWindmillServiceEndpoints(config.windmillServiceEndpoints());
+            });
     ConcurrentMap<String, String> stateNameMap =
         new ConcurrentHashMap<>(prePopulatedStateNameMappings);
     ComputationStateCache computationStateCache =

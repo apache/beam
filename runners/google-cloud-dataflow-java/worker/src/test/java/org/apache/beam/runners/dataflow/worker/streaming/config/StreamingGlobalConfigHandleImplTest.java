@@ -56,6 +56,23 @@ public class StreamingGlobalConfigHandleImplTest {
             .build();
     globalConfigHandle.setConfig(config);
     assertEquals(config, globalConfigHandle.getConfig());
+
+    StreamingGlobalConfig updatedConfig =
+        StreamingGlobalConfig.builder()
+            .setOperationalLimits(
+                OperationalLimits.builder()
+                    .setMaxOutputValueBytes(324)
+                    .setMaxOutputKeyBytes(456)
+                    .setMaxWorkItemCommitBytes(123)
+                    .build())
+            .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost1")))
+            .setUserWorkerJobSettings(
+                UserWorkerRunnerV1Settings.newBuilder()
+                    .setUseSeparateWindmillHeartbeatStreams(true)
+                    .build())
+            .build();
+    globalConfigHandle.setConfig(updatedConfig);
+    assertEquals(updatedConfig, globalConfigHandle.getConfig());
   }
 
   @Test
@@ -263,7 +280,7 @@ public class StreamingGlobalConfigHandleImplTest {
     globalConfigHandle.registerConfigObserver(
         config -> {
           configsFromCallback.add(config);
-          if (globalConfigHandle.getConfig().equals(config)) {
+          if (config.equals(initialConfig)) {
             globalConfigHandle.setConfig(updatedConfig);
           }
           latch.countDown();

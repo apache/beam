@@ -150,6 +150,7 @@ public class GrpcDispatcherClient {
 
   public void onJobConfig(StreamingGlobalConfig config) {
     if (config.windmillServiceEndpoints().isEmpty()) {
+      LOG.warn("Dispatcher client received empty windmill service endpoints from global config");
       return;
     }
     consumeWindmillDispatcherEndpoints(config.windmillServiceEndpoints());

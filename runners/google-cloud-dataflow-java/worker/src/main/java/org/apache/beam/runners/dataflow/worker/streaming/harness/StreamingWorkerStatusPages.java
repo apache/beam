@@ -161,7 +161,7 @@ public final class StreamingWorkerStatusPages {
         "jobSettings",
         "User Worker Job Settings",
         writer -> {
-          StreamingGlobalConfig config = globalConfig.get();
+          @Nullable StreamingGlobalConfig config = globalConfig.get();
           if (config == null) {
             writer.println("Job Settings not loaded.");
             return;

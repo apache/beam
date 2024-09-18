@@ -40,6 +40,7 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
   private final CopyOnWriteArrayList<ConfigCallback> configCallbacks = new CopyOnWriteArrayList<>();
 
   @Override
+  @Nonnull
   public StreamingGlobalConfig getConfig() {
     Preconditions.checkState(
         streamingEngineConfig.get() != null,
