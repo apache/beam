@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.config;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -149,5 +150,43 @@ public class StreamingGlobalConfigHandleImplTest {
     assertTrue(latch.await(10, TimeUnit.SECONDS));
     Thread.sleep(TimeUnit.SECONDS.toMillis(10));
     assertEquals(1, callbackCount.get());
+  }
+
+  @Test
+  public void registerConfigObserver_updateConfigWhenCallbackIsRunning()
+      throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(2);
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    StreamingGlobalConfig initialConfig =
+        StreamingGlobalConfig.builder()
+            .setOperationalLimits(OperationalLimits.builder().setMaxOutputValueBytes(4569).build())
+            .build();
+    StreamingGlobalConfig updatedConfig =
+        StreamingGlobalConfig.builder()
+            .setOperationalLimits(
+                OperationalLimits.builder()
+                    .setMaxOutputValueBytes(123)
+                    .setMaxOutputKeyBytes(324)
+                    .setMaxWorkItemCommitBytes(456)
+                    .build())
+            .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
+            .setUserWorkerJobSettings(
+                UserWorkerRunnerV1Settings.newBuilder()
+                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .build())
+            .build();
+    CopyOnWriteArrayList<StreamingGlobalConfig> configsFromCallback = new CopyOnWriteArrayList<>();
+    globalConfigHandle.registerConfigObserver(
+        config -> {
+          configsFromCallback.add(config);
+          if (globalConfigHandle.getConfig().equals(config)) {
+            globalConfigHandle.setConfig(updatedConfig);
+          }
+          latch.countDown();
+        });
+    globalConfigHandle.setConfig(initialConfig);
+    assertTrue(latch.await(10, TimeUnit.SECONDS));
+    assertEquals(configsFromCallback.get(0), initialConfig);
+    assertEquals(configsFromCallback.get(1), updatedConfig);
   }
 }

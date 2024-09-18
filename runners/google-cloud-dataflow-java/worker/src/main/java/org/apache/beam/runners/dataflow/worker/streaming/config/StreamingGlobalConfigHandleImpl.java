@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
@@ -63,7 +62,6 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
     }
   }
 
-
   private class ConfigCallback {
 
     private final AtomicInteger queuedOrRunning = new AtomicInteger(0);
@@ -88,14 +86,16 @@ public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHan
       // Else run the callback
       while (true) {
         configConsumer.accept(StreamingGlobalConfigHandleImpl.this.streamingEngineConfig.get());
-        if (queuedOrRunning.updateAndGet(queuedOrRunning -> {
-          if (queuedOrRunning == 1) {
-            // If there are no queued requests stop processing.
-            return 0;
-          }
-          // Else, clear queue, set 1 running and run the callback
-          return 1;
-        }) == 0) {
+        if (queuedOrRunning.updateAndGet(
+                queuedOrRunning -> {
+                  if (queuedOrRunning == 1) {
+                    // If there are no queued requests stop processing.
+                    return 0;
+                  }
+                  // Else, clear queue, set 1 running and run the callback
+                  return 1;
+                })
+            == 0) {
           break;
         }
       }

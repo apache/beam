@@ -31,7 +31,7 @@ public interface StreamingGlobalConfigHandle {
 
   /**
    * Subscribe to config updates by registering a callback. Callback should be called the first time
-   * with settings, if any.
+   * with settings, if any. The callback could execute inline before the method returns.
    */
   void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback);
 }
