@@ -75,6 +75,12 @@ if sys.version_info.major == 3:
         'This version of Apache Beam has not been sufficiently tested on '
         'Python %s.%s. You may encounter bugs or missing features.' %
         (sys.version_info.major, sys.version_info.minor))
+  elif sys.version_info.minor == 8:
+    warnings.warn(
+        'Python 3.8 reaches EOL in October 2024 and support will '
+        'be removed from Apache Beam in version 2.61.0. See '
+        'https://github.com/apache/beam/issues/31192 for more '
+        'information.')
   pass
 else:
   raise RuntimeError(

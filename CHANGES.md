@@ -82,6 +82,8 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Python 3.8 is reaching EOL and support is being removed in Beam 2.61.0. The 2.60.0 release will warn users
+when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 ## Bugfixes
 
