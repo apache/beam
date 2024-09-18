@@ -16,11 +16,12 @@
 name: PostCommit XVR GoUsingJava Dataflow
 
 on:
-  # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite.
+  # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite
+  # on cron and add release/trigger_all_tests.json to trigger path once fixed.
   # schedule:
   #  - cron: '45 5/6 * * *'
-  # pull_request_target:
-  #  paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_XVR_GoUsingJava_Dataflow.json']
+  pull_request_target:
+    paths: ['.github/trigger_files/beam_PostCommit_XVR_GoUsingJava_Dataflow.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
