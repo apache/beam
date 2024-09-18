@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit XVR GoUsingJava Dataflow
+name: PostCommit XVR GoUsingJava Dataflow (currently in sickbay)
 
 on:
   # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite
