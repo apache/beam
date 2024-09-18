@@ -283,7 +283,7 @@ progress:
 	if s.finalize {
 		_, err := b.Finalize(ctx, wk)
 		if err != nil {
-			slog.Debug("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
+			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
 			panic(err)
 		}
 		slog.Info("finalized bundle", "bundle", rb)

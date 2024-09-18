@@ -21,6 +21,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"sync/atomic"
 	"time"
 )
 
@@ -196,45 +197,47 @@ func emitPipelineOptions(_ []byte, emit func(string)) {
 	emit(fmt.Sprintf("%s: %s", "C", beam.PipelineOptions.Get("C")))
 }
 
+var CountInvokeBundleFinalizer atomic.Int32
+
+const (
+	BundleFinalizerStart   = 1
+	BundleFinalizerProcess = 2
+	BundleFinalizerFinish  = 4
+)
+
 // ParDoProcessElementBundleFinalizer creates a beam.Pipeline with a beam.ParDo0 that processes a DoFn with a
 // beam.BundleFinalization in its ProcessElement method.
-func ParDoProcessElementBundleFinalizer(fn beam.EncodedFunc) *beam.Pipeline {
+func ParDoProcessElementBundleFinalizer() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	imp := beam.Impulse(s)
-	beam.ParDo0(s, &processElemBundleFinalizer{fn}, imp)
+	beam.ParDo0(s, &processElemBundleFinalizer{}, imp)
 
 	return p
 }
 
 type processElemBundleFinalizer struct {
-	Callback beam.EncodedFunc
 }
 
 func (fn *processElemBundleFinalizer) ProcessElement(bf beam.BundleFinalization, _ []byte) {
 	bf.RegisterCallback(time.Second, func() error {
-		ret := fn.Callback.Fn.Call([]any{})[0]
-		if ret != nil {
-			return ret.(error)
-		}
+		CountInvokeBundleFinalizer.Add(BundleFinalizerProcess)
 		return nil
 	})
 }
 
 // ParDoFinishBundleFinalizer creates a beam.Pipeline with a beam.ParDo0 that processes a DoFn containing a noop
 // beam.BundleFinalization in its ProcessElement method and a beam.BundleFinalization in its FinishBundle method.
-func ParDoFinishBundleFinalizer(fn beam.EncodedFunc) *beam.Pipeline {
+func ParDoFinishBundleFinalizer() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	imp := beam.Impulse(s)
-	beam.ParDo0(s, &finalizerInFinishBundle{fn}, imp)
+	beam.ParDo0(s, &finalizerInFinishBundle{}, imp)
 
 	return p
 }
 
-type finalizerInFinishBundle struct {
-	Callback beam.EncodedFunc
-}
+type finalizerInFinishBundle struct{}
 
 // ProcessElement requires beam.BundleFinalization in its method signature in order for FinishBundle's
 // beam.BundleFinalization to be invoked.
@@ -242,52 +245,41 @@ func (fn *finalizerInFinishBundle) ProcessElement(_ beam.BundleFinalization, _ [
 
 func (fn *finalizerInFinishBundle) FinishBundle(bf beam.BundleFinalization) {
 	bf.RegisterCallback(time.Second, func() error {
-		ret := fn.Callback.Fn.Call([]any{})[0]
-		if ret != nil {
-			return ret.(error)
-		}
+		CountInvokeBundleFinalizer.Add(BundleFinalizerFinish)
 		return nil
 	})
 }
 
 // ParDoFinalizerInAll creates a beam.Pipeline with a beam.ParDo0 that processes a DoFn containing a beam.BundleFinalization
 // in all three lifecycle methods StartBundle, ProcessElement, FinishBundle.
-func ParDoFinalizerInAll(start, process, finish beam.EncodedFunc) *beam.Pipeline {
+func ParDoFinalizerInAll() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
 	imp := beam.Impulse(s)
-	beam.ParDo0(s, &finalizerInAll{
-		Start:   start,
-		Process: process,
-		Finish:  finish,
-	}, imp)
+	beam.ParDo0(s, &finalizerInAll{}, imp)
 
 	return p
 }
 
-type finalizerInAll struct {
-	Start   beam.EncodedFunc
-	Process beam.EncodedFunc
-	Finish  beam.EncodedFunc
-}
+type finalizerInAll struct{}
 
 func (fn *finalizerInAll) StartBundle(bf beam.BundleFinalization) {
 	bf.RegisterCallback(time.Second, func() error {
-		fn.Start.Fn.Call([]any{})
+		CountInvokeBundleFinalizer.Add(BundleFinalizerStart)
 		return nil
 	})
 }
 
 func (fn *finalizerInAll) ProcessElement(bf beam.BundleFinalization, _ []byte) {
 	bf.RegisterCallback(time.Second, func() error {
-		fn.Process.Fn.Call([]any{})
+		CountInvokeBundleFinalizer.Add(BundleFinalizerProcess)
 		return nil
 	})
 }
 
 func (fn *finalizerInAll) FinishBundle(bf beam.BundleFinalization) {
 	bf.RegisterCallback(time.Second, func() error {
-		fn.Finish.Fn.Call([]any{})
+		CountInvokeBundleFinalizer.Add(BundleFinalizerFinish)
 		return nil
 	})
 }

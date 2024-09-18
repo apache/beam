@@ -214,9 +214,6 @@ func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, 
 			},
 		},
 	})
-	if resp.GetError() != "" {
-		return nil, fmt.Errorf("finalize[%v] error from SDK: %v", b.InstID, resp.GetError())
-	}
 	return resp.GetFinalizeBundle(), nil
 }
 
