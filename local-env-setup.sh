@@ -55,7 +55,7 @@ if [ "$kernelname" = "Linux" ]; then
         exit
     fi
 
-    for ver in 3.9 3.10 3.11 3.12 3; do
+    for ver in 3.8 3.9 3.10 3.11 3.12 3; do
         apt install --yes python$ver-venv
     done
 
@@ -89,7 +89,7 @@ elif [ "$kernelname" = "Darwin" ]; then
         echo "Installing openjdk@8"
         brew install openjdk@8
     fi
-    for ver in 3.9 3.10 3.11 3.12; do
+    for ver in 3.8 3.9 3.10 3.11 3.12; do
       if brew ls --versions python@$ver > /dev/null; then
           echo "python@$ver already installed. Skipping"
           brew info python@$ver

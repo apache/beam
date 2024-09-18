@@ -49,7 +49,7 @@ jobs:
     env:
       EVENT_NAME: ${{ github.event_name }}
       # Keep in sync with py_version matrix value below - if changed, change that as well.
-      PY_VERSIONS_FULL: "cp39-* cp310-* cp311-* cp312-*"
+      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-* cp312-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -230,7 +230,7 @@ jobs:
           {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
         # Keep in sync with PY_VERSIONS_FULL env var abvove - if changed, change that as well.
-        py_version: ["cp39-*", "cp310-*", "cp311-*", "cp312-*"]
+        py_version: ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
     steps:
     - name: Download python source distribution from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
