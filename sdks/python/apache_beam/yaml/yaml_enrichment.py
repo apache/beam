@@ -15,14 +15,16 @@
 # limitations under the License.
 #
 
-from typing import Any, Dict
+from typing import Any
+from typing import Dict
+from typing import Optional
+
 import apache_beam as beam
+from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
 from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
 from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
 from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
-from apache_beam.transforms.enrichment import Enrichment
-from typing import Optional
 
 
 @beam.ptransform.ptransform_fn
