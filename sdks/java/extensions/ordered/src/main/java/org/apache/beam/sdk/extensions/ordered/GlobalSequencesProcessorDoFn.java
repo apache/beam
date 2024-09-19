@@ -93,7 +93,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   }
 
   @Override
-  boolean checkForInitialEvent() {
+  boolean checkForFirstOrLastEvent() {
     return false;
   }
 

@@ -17,9 +17,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableState<EventT, ?>> extends
     CombineFn<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, SequenceRangeAccumulator, CompletedSequenceRange> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultSequenceCombiner.class);
 
   public static final BiFunction<@NonNull Instant, @Nullable Instant, @Nullable Instant> OLDEST_TIMESTAMP_SELECTOR = (instant1, instant2) -> {
     if (instant2 == null) {
@@ -64,7 +68,11 @@ public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableSt
 
   @Override
   public CompletedSequenceRange extractOutput(SequenceRangeAccumulator accum) {
-    return accum.largestContinuousRange();
+    CompletedSequenceRange result = accum.largestContinuousRange();
+    if(LOG.isTraceEnabled()) {
+      LOG.trace("Returning completed sequence range: " + result);
+    }
+    return result;
   }
 
   @Override

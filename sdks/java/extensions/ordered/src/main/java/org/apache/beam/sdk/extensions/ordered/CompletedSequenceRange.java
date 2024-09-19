@@ -4,6 +4,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -19,6 +20,7 @@ import org.joda.time.Instant;
 
 @AutoValue
 public abstract class CompletedSequenceRange {
+//  private static final long serialVersionUID = 1L;
   public static final CompletedSequenceRange EMPTY =
       CompletedSequenceRange.of(Long.MIN_VALUE, Long.MIN_VALUE, Instant.ofEpochMilli(
           Long.MIN_VALUE));
@@ -26,10 +28,6 @@ public abstract class CompletedSequenceRange {
   public abstract long getStart();
   public abstract long getEnd();
   public abstract Instant getTimestamp();
-
-  public boolean isEmpty() {
-    return this.equals(EMPTY);
-  }
 
   public static CompletedSequenceRange of(long start, long end, Instant timestamp) {
     return new AutoValue_CompletedSequenceRange(start, end, timestamp);

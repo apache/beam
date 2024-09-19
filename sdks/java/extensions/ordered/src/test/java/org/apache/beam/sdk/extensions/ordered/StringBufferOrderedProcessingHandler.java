@@ -27,6 +27,24 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 public class StringBufferOrderedProcessingHandler
     extends OrderedProcessingHandler<String, String, StringBuilderState, String> {
 
+  public static class StringBufferOrderedProcessingWithGlobalSequenceHandler
+      extends OrderedProcessingGlobalSequenceHandler<String, String, StringBuilderState, String> {
+
+    private final EventExaminer<String, StringBuilderState> eventExaminer;
+
+    public StringBufferOrderedProcessingWithGlobalSequenceHandler(int emissionFrequency,
+        long initialSequence) {
+      super(String.class, String.class, StringBuilderState.class, String.class);
+      this.eventExaminer = new StringEventExaminer(initialSequence, emissionFrequency);
+    }
+
+    @Override
+    @NonNull
+    public EventExaminer<String, StringBuilderState> getEventExaminer() {
+      return eventExaminer;
+    }
+  }
+
   private final EventExaminer<String, StringBuilderState> eventExaminer;
 
   public StringBufferOrderedProcessingHandler(int emissionFrequency, long initialSequence) {

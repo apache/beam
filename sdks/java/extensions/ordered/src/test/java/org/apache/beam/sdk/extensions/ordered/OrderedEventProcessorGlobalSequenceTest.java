@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.extensions.ordered.StringBufferOrderedProcessingHandler.StringBufferOrderedProcessingWithGlobalSequenceHandler;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
@@ -21,6 +22,8 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcessorTestBase {
+
+  public static final boolean GLOBAL_SEQUENCE = true;
 
   @org.junit.Test
   public void testPerfectOrderingProcessing() throws CannotProvideCoderException {
@@ -46,7 +49,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         expectedOutput,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0,5, new Instant()));
   }
 
   @Test
@@ -79,7 +83,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         expectedOutput,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0,8, new Instant()));
   }
 
   @Test
@@ -118,7 +123,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         duplicates,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0,3, new Instant()));
   }
 
   @Test
@@ -151,7 +157,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         duplicates,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0,3, new Instant()));
   }
 
   @Test
@@ -185,7 +192,11 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         failedEvents,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        // Sequence matcher doesn't know if the element is valid or not.
+        // That's why the elements that are get rejected in the processor still count  when
+        // calculating the global sequence
+        CompletedSequenceRange.of(0,3, new Instant()));
   }
 
   @Test
@@ -211,7 +222,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         expectedOutput,
         EMISSION_FREQUENCY_ON_EVERY_OTHER_EVENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0,5, new Instant()));
   }
 
   @Test
@@ -245,7 +257,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         expectedOutput,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
-        maxResultsPerOutput);
+        maxResultsPerOutput,
+        CompletedSequenceRange.of(1, sequences.length, new Instant()));
   }
 
   @Test
@@ -275,20 +288,23 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         expectedOutput,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
-        maxResultsPerOutput);
+        maxResultsPerOutput,
+        CompletedSequenceRange.of(1,10, new Instant()));
   }
 
   @Test
   public void testHandlingOfMaxSequenceNumber() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
         Event.create(1, "id-1", "b"),
-        Event.create(Long.MAX_VALUE, "id-1", "c")
+        Event.create(0, "id-1", "a"),
+        Event.create(Long.MAX_VALUE, "id-1", "d"),
+        Event.create(2, "id-1", "c")
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
     expectedOutput.add(KV.of("id-1", "a"));
     expectedOutput.add(KV.of("id-1", "ab"));
+    expectedOutput.add(KV.of("id-1", "abc"));
 
     Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> unprocessedEvents =
         new ArrayList<>();
@@ -297,7 +313,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
             "id-1",
             KV.of(
                 Long.MAX_VALUE,
-                UnprocessedEvent.create("c", Reason.sequence_id_outside_valid_range))));
+                UnprocessedEvent.create("d", Reason.sequence_id_outside_valid_range))));
 
     testGlobalSequenceProcessing(
         events,
@@ -305,7 +321,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         unprocessedEvents,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0, 2, Instant.now()));
   }
 
   @Test
@@ -327,7 +344,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         expectedOutput,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
-        LARGE_MAX_RESULTS_PER_OUTPUT);
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        CompletedSequenceRange.of(0,2, new Instant()));
   }
 
 
@@ -336,7 +354,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
       Collection<KV<String, String>> expectedOutput,
       int emissionFrequency,
       long initialSequence,
-      int maxResultsPerOutput)
+      int maxResultsPerOutput,
+      CompletedSequenceRange expectedLastCompleteRange)
       throws CannotProvideCoderException {
     testGlobalSequenceProcessing(
         events,
@@ -344,7 +363,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         NO_EXPECTED_DLQ_EVENTS,
         emissionFrequency,
         initialSequence,
-        maxResultsPerOutput);
+        maxResultsPerOutput, expectedLastCompleteRange);
   }
 
   private void testGlobalSequenceProcessing(
@@ -353,7 +372,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
       Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> expectedUnprocessedEvents,
       int emissionFrequency,
       long initialSequence,
-      int maxResultsPerOutput)
+      int maxResultsPerOutput,
+      CompletedSequenceRange expectedLastCompleteRange)
       throws CannotProvideCoderException {
     // Test a streaming pipeline
     doTest(
@@ -366,7 +386,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         maxResultsPerOutput,
         false /* produceStatusOnEveryEvent */,
         STREAMING,
-        SequenceType.GLOBAL);
+        GLOBAL_SEQUENCE, expectedLastCompleteRange);
 
     if (true) {
       // TODO: Test batch processing
@@ -383,7 +403,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         maxResultsPerOutput,
         false /* produceStatusOnEveryEvent */,
         BATCH,
-        SequenceType.GLOBAL);
+        GLOBAL_SEQUENCE,
+        expectedLastCompleteRange);
   }
 
 
@@ -423,13 +444,12 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
 
     input = input.apply("Window input", Window.into(FixedWindows.of(Duration.standardSeconds(5))));
 
-    StringBufferOrderedProcessingHandler handler =
-        new StringBufferOrderedProcessingHandler(
+    StringBufferOrderedProcessingWithGlobalSequenceHandler handler =
+        new StringBufferOrderedProcessingWithGlobalSequenceHandler(
             EMISSION_FREQUENCY_ON_EVERY_ELEMENT, INITIAL_SEQUENCE_OF_0);
     handler.setMaxOutputElementsPerBundle(LARGE_MAX_RESULTS_PER_OUTPUT);
     handler.setStatusUpdateFrequency(null);
     handler.setProduceStatusUpdateOnEveryEvent(false);
-    handler.setSequenceType(SequenceType.GLOBAL);
 
     OrderedEventProcessor<String, String, String, StringBuilderState> orderedEventProcessor =
         OrderedEventProcessor.create(handler);

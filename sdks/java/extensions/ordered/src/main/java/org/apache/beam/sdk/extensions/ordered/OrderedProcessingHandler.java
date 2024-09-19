@@ -27,10 +27,8 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /**
@@ -59,9 +57,6 @@ public abstract class OrderedProcessingHandler<
       Duration.standardSeconds(DEFAULT_STATUS_UPDATE_FREQUENCY_SECONDS);
   private boolean produceStatusUpdateOnEveryEvent = DEFAULT_PRODUCE_STATUS_UPDATE_ON_EVERY_EVENT;
 
-  private SequenceType sequenceType = SequenceType.PER_KEY;
-  private @Nullable GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> globalSequenceCombiner;
-
   /**
    * Provide concrete classes which will be used by the ordered processing transform.
    *
@@ -79,7 +74,6 @@ public abstract class OrderedProcessingHandler<
     this.keyTClass = keyTClass;
     this.stateTClass = stateTClass;
     this.resultTClass = resultTClass;
-    this.globalSequenceCombiner = null;
   }
 
   /**
@@ -230,29 +224,25 @@ public abstract class OrderedProcessingHandler<
     this.maxOutputElementsPerBundle = maxOutputElementsPerBundle;
   }
 
-  public SequenceType getSequenceType() {
-    return sequenceType;
-  }
+  public abstract static class OrderedProcessingGlobalSequenceHandler<
+      EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT> extends
+      OrderedProcessingHandler<EventT, KeyT, StateT, ResultT> {
 
-  public void setSequenceType(SequenceType sequenceType) {
-    this.sequenceType = sequenceType;
-  }
-
-  public GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> getGlobalSequenceCombiner() {
-    if (getSequenceType() != SequenceType.GLOBAL) {
-      throw new IllegalStateException(
-          "Global Sequence Combiner is only useful when the sequence is global. Current sequence type: "
-              + getSequenceType());
+    public OrderedProcessingGlobalSequenceHandler(
+        Class<EventT> eventTClass,
+        Class<KeyT> keyTClass,
+        Class<StateT> stateTClass,
+        Class<ResultT> resultTClass) {
+      super(eventTClass, keyTClass, stateTClass, resultTClass);
     }
-    if (globalSequenceCombiner == null) {
-      globalSequenceCombiner = Combine.globally(
+
+    public GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> getGlobalSequenceCombiner() {
+      return Combine.globally(
           new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer())).asSingletonView();
     }
-    return globalSequenceCombiner;
-  }
 
-  public void setGlobalSequenceCombiner(
-      GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> globalSequenceCombiner) {
-    this.globalSequenceCombiner = globalSequenceCombiner;
+    public Duration getFrequencyOfCheckingForNewGlobalSequence() {
+      return Duration.standardSeconds(1);
+    }
   }
 }

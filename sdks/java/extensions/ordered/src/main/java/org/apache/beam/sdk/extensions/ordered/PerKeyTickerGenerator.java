@@ -75,11 +75,9 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
     @ProcessElement
     public void process(
         @Element KV<EventKeyT, KV<Long, EventT>> element,
+        @AlwaysFetched
         @StateId(STATE) ValueState<EventKeyT> state,
         @TimerId(TIMER) Timer tickerTimer) {
-      // Keys are usually simple types. The difference in cost of reading those types from
-      // state storage of those types comparing to the cost of reading a Boolean should be
-      // negligible.
       @Nullable EventKeyT keyValue = state.read();
       if (keyValue != null) {
         return;
@@ -102,9 +100,9 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
         return;
       }
 
+      //  null value will be an indicator to the main transform that the element is a ticker
       outputReceiver.output(KV.of(key, KV.of(0L, null)));
       tickerTimer.offset(tickerFrequency).setRelative();
     }
-
   }
 }

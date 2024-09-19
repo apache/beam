@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.ordered.OrderedProcessingHandler.OrderedProcessingGlobalSequenceHandler;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.UnprocessedEventCoder;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -122,86 +123,92 @@ public abstract class OrderedEventProcessor<
       throw new RuntimeException("Unable to get result coder", e);
     }
 
-    PCollectionTuple processingResult;
-
-    switch (handler.getSequenceType()) {
-      case GLOBAL:
-        final PCollectionView<CompletedSequenceRange> latestContinuousSequence =
-            input
-                .apply("Convert to SequenceAndTimestamp",
-                    ParDo.of(new ToTimestampedEventConverter<>()))
-                .apply("Global Sequence Tracker",
-                    new GlobalSequenceTracker<>(handler.getGlobalSequenceCombiner()));
-
-        PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
-            new PerKeyTickerGenerator<>(keyCoder, eventCoder, Duration.standardSeconds(5)));
-
-        PCollection<KV<EventKeyT, KV<Long, EventT>>> eventsAndTickers =
-            PCollectionList.of(input).and(tickers)
-                .apply("Combine Events and Tickers", Flatten.pCollections())
-                .setCoder(tickers.getCoder());
-        processingResult =
-            eventsAndTickers
-                .apply(
-                    ParDo.of(
-                            new GlobalSequencesProcessorDoFn<>(
-                                handler.getEventExaminer(),
-                                eventCoder,
-                                stateCoder,
-                                keyCoder,
-                                mainOutput,
-                                statusOutput,
-                                handler.getStatusUpdateFrequency(),
-                                unprocessedEventOutput,
-                                handler.isProduceStatusUpdateOnEveryEvent(),
-                                handler.getMaxOutputElementsPerBundle(),
-                                latestContinuousSequence)
-                        )
-                        .withOutputTags(
-                            mainOutput,
-                            TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
-                        .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContinuousSequence)
-                );
-        break;
-
-      case PER_KEY:
-        processingResult =
-            input.apply(
-                ParDo.of(
-                        new SequencePerKeyProcessorDoFn<EventT, EventKeyT, ResultT, StateT>(
-                            handler.getEventExaminer(),
-                            eventCoder,
-                            stateCoder,
-                            keyCoder,
-                            mainOutput,
-                            statusOutput,
-                            handler.getStatusUpdateFrequency(),
-                            unprocessedEventOutput,
-                            handler.isProduceStatusUpdateOnEveryEvent(),
-                            handler.getMaxOutputElementsPerBundle()))
-                    .withOutputTags(
-                        mainOutput,
-                        TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
-        break;
-
-      default:
-        throw new IllegalStateException("Unprocessed sequence type: " + handler.getSequenceType());
-    }
-
     KvCoder<EventKeyT, ResultT> mainOutputCoder = KvCoder.of(keyCoder, resultCoder);
     KvCoder<EventKeyT, OrderedProcessingStatus> processingStatusCoder =
         KvCoder.of(keyCoder, getOrderedProcessingStatusCoder(pipeline));
     KvCoder<EventKeyT, KV<Long, UnprocessedEvent<EventT>>> unprocessedEventsCoder =
         KvCoder.of(
             keyCoder, KvCoder.of(VarLongCoder.of(), new UnprocessedEventCoder<>(eventCoder)));
-    return new OrderedEventProcessorResult<>(
-        pipeline,
-        processingResult.get(mainOutput).setCoder(mainOutputCoder),
-        mainOutput,
-        processingResult.get(statusOutput).setCoder(processingStatusCoder),
-        statusOutput,
-        processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
-        unprocessedEventOutput);
+
+    PCollectionTuple processingResult;
+
+    if (handler instanceof OrderedProcessingGlobalSequenceHandler) {
+      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler = (OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>) handler;
+      final PCollectionView<CompletedSequenceRange> latestContinuousSequence =
+          input
+              .apply("Convert to SequenceAndTimestamp",
+                  ParDo.of(new ToTimestampedEventConverter<>()))
+              .apply("Global Sequence Tracker",
+                  new GlobalSequenceTracker<>(globalSequenceHandler.getGlobalSequenceCombiner()));
+
+      PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
+          new PerKeyTickerGenerator<>(keyCoder, eventCoder,
+              globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
+
+      PCollection<KV<EventKeyT, KV<Long, EventT>>> eventsAndTickers =
+          PCollectionList.of(input).and(tickers)
+              .apply("Combine Events and Tickers", Flatten.pCollections())
+              .setCoder(tickers.getCoder());
+      processingResult =
+          eventsAndTickers
+              .apply(
+                  ParDo.of(
+                          new GlobalSequencesProcessorDoFn<>(
+                              handler.getEventExaminer(),
+                              eventCoder,
+                              stateCoder,
+                              keyCoder,
+                              mainOutput,
+                              statusOutput,
+                              handler.getStatusUpdateFrequency(),
+                              unprocessedEventOutput,
+                              handler.isProduceStatusUpdateOnEveryEvent(),
+                              handler.getMaxOutputElementsPerBundle(),
+                              latestContinuousSequence)
+                      )
+                      .withOutputTags(
+                          mainOutput,
+                          TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
+                      .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContinuousSequence)
+              );
+      return new OrderedEventProcessorResult<>(
+          pipeline,
+          processingResult.get(mainOutput).setCoder(mainOutputCoder),
+          mainOutput,
+          processingResult.get(statusOutput).setCoder(processingStatusCoder),
+          statusOutput,
+          processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
+          unprocessedEventOutput,
+          latestContinuousSequence);
+    } else {
+      // Per key sequence handler
+      processingResult =
+          input.apply(
+              ParDo.of(
+                      new SequencePerKeyProcessorDoFn<>(
+                          handler.getEventExaminer(),
+                          eventCoder,
+                          stateCoder,
+                          keyCoder,
+                          mainOutput,
+                          statusOutput,
+                          handler.getStatusUpdateFrequency(),
+                          unprocessedEventOutput,
+                          handler.isProduceStatusUpdateOnEveryEvent(),
+                          handler.getMaxOutputElementsPerBundle()))
+                  .withOutputTags(
+                      mainOutput,
+                      TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
+      return new OrderedEventProcessorResult<>(
+          pipeline,
+          processingResult.get(mainOutput).setCoder(mainOutputCoder),
+          mainOutput,
+          processingResult.get(statusOutput).setCoder(processingStatusCoder),
+          statusOutput,
+          processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
+          unprocessedEventOutput);
+
+    }
   }
 
   private static Coder<OrderedProcessingStatus> getOrderedProcessingStatusCoder(Pipeline pipeline) {

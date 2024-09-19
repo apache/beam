@@ -17,13 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.ordered;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.ordered.StringBufferOrderedProcessingHandler.StringBufferOrderedProcessingWithGlobalSequenceHandler;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
@@ -32,14 +37,17 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -48,15 +56,13 @@ import org.hamcrest.Description;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /**
  * Ordered Processing tests use the same testing scenario. Events are sent in or out of sequence.
  * Each event is a string for a particular key. The output is a concatenation of all strings.
  */
-@RunWith(JUnit4.class)
 public class OrderedEventProcessorTestBase {
+
   public static final boolean LAST_EVENT_RECEIVED = true;
   public static final int EMISSION_FREQUENCY_ON_EVERY_ELEMENT = 1;
   public static final int INITIAL_SEQUENCE_OF_0 = 0;
@@ -96,16 +102,6 @@ public class OrderedEventProcessorTestBase {
   /**
    * The majority of the tests use this method. Testing is done in the global window.
    *
-   * @param events
-   * @param expectedStatuses
-   * @param expectedOutput
-   * @param expectedUnprocessedEvents
-   * @param emissionFrequency
-   * @param initialSequence
-   * @param maxResultsPerOutput
-   * @param produceStatusOnEveryEvent
-   * @param streaming
-   * @param sequenceType
    * @throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException
    */
   protected void doTest(
@@ -118,7 +114,8 @@ public class OrderedEventProcessorTestBase {
       int maxResultsPerOutput,
       boolean produceStatusOnEveryEvent,
       boolean streaming,
-      SequenceType sequenceType)
+      boolean isGlobalSequence,
+      @Nullable CompletedSequenceRange expectedLastCompletedSequence)
       throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException {
 
     Pipeline pipeline = streaming ? streamingPipeline : batchPipeline;
@@ -130,8 +127,11 @@ public class OrderedEventProcessorTestBase {
     PCollection<KV<String, KV<Long, String>>> input =
         rawInput.apply("To KV", ParDo.of(new MapEventsToKV()));
 
-    StringBufferOrderedProcessingHandler handler =
-        new StringBufferOrderedProcessingHandler(emissionFrequency, initialSequence);
+    OrderedProcessingHandler<String, String, StringBuilderState, String> handler =
+        isGlobalSequence ?
+            new StringBufferOrderedProcessingWithGlobalSequenceHandler(emissionFrequency,
+                initialSequence) :
+            new StringBufferOrderedProcessingHandler(emissionFrequency, initialSequence);
     handler.setMaxOutputElementsPerBundle(maxResultsPerOutput);
     if (produceStatusOnEveryEvent) {
       handler.setProduceStatusUpdateOnEveryEvent(true);
@@ -141,8 +141,6 @@ public class OrderedEventProcessorTestBase {
       handler.setStatusUpdateFrequency(
           streaming ? Duration.standardMinutes(5) : Duration.standardSeconds(1));
     }
-
-    handler.setSequenceType(sequenceType);
 
     OrderedEventProcessor<String, String, String, StringBuilderState> orderedEventProcessor =
         OrderedEventProcessor.create(handler);
@@ -186,7 +184,54 @@ public class OrderedEventProcessorTestBase {
       PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
           .containsInAnyOrder(expectedUnprocessedEvents);
     }
+
+    if (expectedLastCompletedSequence != null
+        && processingResult.latestCompletedSequenceRange() != null) {
+      PCollection<CompletedSequenceRange> globalSequences = rawInput
+          .apply("Publish Global Sequences",
+              new GlobalSequenceRangePublisher(processingResult.latestCompletedSequenceRange(),
+                  handler.getKeyCoder(pipeline, input.getCoder()),
+                  handler.getEventCoder(pipeline, input.getCoder())));
+      PAssert.that("CompletedSequenceRange verification", globalSequences).satisfies(
+          new LastExpectedGlobalSequenceRangeMatcher(expectedLastCompletedSequence)
+      );
+    }
     pipeline.run();
+  }
+
+  static class LastExpectedGlobalSequenceRangeMatcher implements
+      SerializableFunction<Iterable<CompletedSequenceRange>, Void> {
+
+    private final long expectedStart;
+    private final long expectedEnd;
+
+    LastExpectedGlobalSequenceRangeMatcher(CompletedSequenceRange expected) {
+      this.expectedStart = expected.getStart();
+      this.expectedEnd = expected.getEnd();
+    }
+
+    @Override
+    public Void apply(Iterable<CompletedSequenceRange> input) {
+      StringBuilder listOfRanges = new StringBuilder("[");
+      Iterator<CompletedSequenceRange> iterator = input.iterator();
+      CompletedSequenceRange lastRange = null;
+      while (iterator.hasNext()) {
+        lastRange = iterator.next();
+
+        if (listOfRanges.length() > 1) {
+          listOfRanges.append(", ");
+        }
+        listOfRanges.append(lastRange);
+      }
+      listOfRanges.append(']');
+      boolean foundExpectedRange = lastRange != null &&
+          lastRange.getStart() == expectedStart && lastRange.getEnd() == expectedEnd;
+
+      assertThat(
+          "Expected range not found: [" + expectedStart + '-' + expectedEnd + "], received ranges: "
+              + listOfRanges, foundExpectedRange);
+      return null;
+    }
   }
 
   private @UnknownKeyFor @NonNull @Initialized PCollection<Event> createBatchPCollection(
@@ -262,6 +307,49 @@ public class OrderedEventProcessorTestBase {
         return firstLine;
       }
       return value;
+    }
+  }
+
+  static class GlobalSequenceRangePublisher extends
+      PTransform<PCollection<Event>, PCollection<CompletedSequenceRange>> {
+
+    private final PCollectionView<CompletedSequenceRange> lastCompletedSequenceRangeView;
+    private final Coder<String> keyCoder;
+    private final Coder<String> eventCoder;
+
+    public GlobalSequenceRangePublisher(
+        PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange,
+        Coder<String> keyCoder, Coder<String> eventCoder) {
+      this.lastCompletedSequenceRangeView = latestCompletedSequenceRange;
+      this.keyCoder = keyCoder;
+      this.eventCoder = eventCoder;
+    }
+
+    @Override
+    public PCollection<CompletedSequenceRange> expand(PCollection<Event> input) {
+      return
+          input
+              // In production pipelines the global sequence will typically be obtained
+              // by using GenerateSequence. But GenerateSequence doesn't work well with TestStream,
+              // That's why we use the input events here.
+//              .apply("Create Ticker",
+//                  GenerateSequence.from(0).to(2).withRate(1, Duration.standardSeconds(5)))
+              .apply("To KV", ParDo.of(new MapEventsToKV()))
+              .apply("Create Tickers",
+                  new PerKeyTickerGenerator<>(keyCoder, eventCoder,
+                      Duration.standardSeconds(1)))
+              .apply("Emit SideInput", ParDo.of(new SideInputEmitter())
+                  .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
+    }
+  }
+
+  static class SideInputEmitter extends DoFn<KV<String, KV<Long,String>>, CompletedSequenceRange> {
+
+    @ProcessElement
+    public void produceCompletedRange(
+        @SideInput("lastCompletedSequence") CompletedSequenceRange sideInput,
+        OutputReceiver<CompletedSequenceRange> outputReceiver) {
+      outputReceiver.output(sideInput);
     }
   }
 }

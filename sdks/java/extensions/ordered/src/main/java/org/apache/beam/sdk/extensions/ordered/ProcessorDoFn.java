@@ -81,7 +81,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
   /**
    * @return true if each event needs to be examined.
    */
-  abstract boolean checkForInitialEvent();
+  abstract boolean checkForFirstOrLastEvent();
 
   /**
    * Process the just received event.
@@ -122,8 +122,9 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
     }
 
     StateT state;
-    boolean thisIsTheLastEvent = eventExaminer.isLastEvent(currentSequence, currentEvent);
-    if (checkForInitialEvent() && eventExaminer.isInitialEvent(currentSequence, currentEvent)) {
+    boolean thisIsTheLastEvent = checkForFirstOrLastEvent()
+        && eventExaminer.isLastEvent(currentSequence, currentEvent);
+    if (checkForFirstOrLastEvent() && eventExaminer.isInitialEvent(currentSequence, currentEvent)) {
       // First event of the key/window
       // What if it's a duplicate event - it will reset everything. Shall we drop/DLQ anything
       // that's before the processingState.lastOutputSequence?

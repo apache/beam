@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.extensions.ordered;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -29,8 +31,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * The result of the ordered processing. Two PCollections are returned:
+ * The result of the ordered processing. Three PCollections are returned:
  * <li>output - the key/value of the mutated states
+ * <li>unprocessedEvents - the key/value of the events that failed to be processed and the failure
+ * reason
  * <li>processingStatuses - the key/value of the status of processing for a particular key
  *
  * @param <KeyT>
@@ -48,6 +52,8 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       unprocessedEventPCollection;
   private final TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag;
 
+  private final @Nullable PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange;
+
   OrderedEventProcessorResult(
       Pipeline pipeline,
       PCollection<KV<KeyT, ResultT>> outputPCollection,
@@ -57,6 +63,20 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
       TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag) {
 
+    this(pipeline, outputPCollection, outputPCollectionTupleTag, eventProcessingStatusPCollection,
+        eventProcessingStatusTupleTag, unprocessedEventPCollection, unprocessedEventTupleTag, null);
+  }
+
+  OrderedEventProcessorResult(
+      Pipeline pipeline,
+      PCollection<KV<KeyT, ResultT>> outputPCollection,
+      TupleTag<KV<KeyT, ResultT>> outputPCollectionTupleTag,
+      PCollection<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusPCollection,
+      TupleTag<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusTupleTag,
+      PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
+      TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
+      @Nullable PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange) {
+
     this.pipeline = pipeline;
     this.outputPCollection = outputPCollection;
     this.outputPCollectionTupleTag = outputPCollectionTupleTag;
@@ -64,6 +84,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     this.eventProcessingStatusTupleTag = eventProcessingStatusTupleTag;
     this.unprocessedEventPCollection = unprocessedEventPCollection;
     this.unprocessedEventTupleTag = unprocessedEventTupleTag;
+    this.latestCompletedSequenceRange = latestCompletedSequenceRange;
   }
 
   private final Pipeline pipeline;
@@ -86,22 +107,29 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
 
   @Override
   public void finishSpecifyingOutput(
-      String transformName, PInput input, PTransform<?, ?> transform) {}
+      String transformName, PInput input, PTransform<?, ?> transform) {
+  }
 
   /**
    * @return processing status for a particular key. The elements will have the timestamp of the
-   *     instant the status was emitted.
+   * instant the status was emitted.
    */
   public PCollection<KV<KeyT, OrderedProcessingStatus>> processingStatuses() {
     return eventProcessingStatusPCollection;
   }
 
-  /** @return processed states keyed by the original key */
+  /**
+   * @return processed states keyed by the original key
+   */
   public PCollection<KV<KeyT, ResultT>> output() {
     return outputPCollection;
   }
 
   public PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEvents() {
     return unprocessedEventPCollection;
+  }
+
+  public @Nullable PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange() {
+    return latestCompletedSequenceRange;
   }
 }

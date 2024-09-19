@@ -83,7 +83,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
   }
 
   @Override
-  boolean checkForInitialEvent() {
+  boolean checkForFirstOrLastEvent() {
     return true;
   }
 
