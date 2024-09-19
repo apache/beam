@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,7 +43,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -51,8 +51,6 @@ import org.junit.runners.JUnit4;
 /** Tests for PeriodicSequence. */
 @RunWith(JUnit4.class)
 public class PeriodicSequenceTest {
-  @Rule public transient TestPipeline p = TestPipeline.create();
-
   public static class ExtractTsDoFn<InputT>
       extends DoFn<InputT, TimestampedValue<KV<InputT, Instant>>> {
 
@@ -76,6 +74,7 @@ public class PeriodicSequenceTest {
     UsesUnboundedSplittableParDo.class
   })
   public void testOutputsProperElements() {
+    TestPipeline p = TestPipeline.create();
     Instant startTime = Instant.now().plus(Duration.standardSeconds(2));
     Duration interval = Duration.millis(250);
     long intervalMillis = interval.getMillis();
@@ -135,5 +134,26 @@ public class PeriodicSequenceTest {
             });
 
     p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testBacklogBytes() {
+    assertEquals(
+        0, PeriodicSequence.sequenceBacklogBytes(10, 100, new OffsetRange(100, Long.MAX_VALUE)));
+    assertEquals(
+        8, PeriodicSequence.sequenceBacklogBytes(10, 100, new OffsetRange(90, Long.MAX_VALUE)));
+    assertEquals(
+        0, PeriodicSequence.sequenceBacklogBytes(10, 100, new OffsetRange(91, Long.MAX_VALUE)));
+    assertEquals(
+        8, PeriodicSequence.sequenceBacklogBytes(10, 100, new OffsetRange(89, Long.MAX_VALUE)));
+    assertEquals(
+        16, PeriodicSequence.sequenceBacklogBytes(10, 101, new OffsetRange(81, Long.MAX_VALUE)));
+    assertEquals(
+        8 * 10000 / 100,
+        PeriodicSequence.sequenceBacklogBytes(100, 10000, new OffsetRange(0, Long.MAX_VALUE)));
+    assertEquals(
+        0, PeriodicSequence.sequenceBacklogBytes(10, 10000, new OffsetRange(10011, 10025)));
+    assertEquals(
+        8, PeriodicSequence.sequenceBacklogBytes(10, 10100, new OffsetRange(10011, 10025)));
   }
 }
