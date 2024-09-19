@@ -43,6 +43,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -51,6 +52,8 @@ import org.junit.runners.JUnit4;
 /** Tests for PeriodicSequence. */
 @RunWith(JUnit4.class)
 public class PeriodicSequenceTest {
+  @Rule public transient TestPipeline p = TestPipeline.create();
+
   public static class ExtractTsDoFn<InputT>
       extends DoFn<InputT, TimestampedValue<KV<InputT, Instant>>> {
 
@@ -74,7 +77,6 @@ public class PeriodicSequenceTest {
     UsesUnboundedSplittableParDo.class
   })
   public void testOutputsProperElements() {
-    TestPipeline p = TestPipeline.create();
     Instant startTime = Instant.now().plus(Duration.standardSeconds(2));
     Duration interval = Duration.millis(250);
     long intervalMillis = interval.getMillis();
