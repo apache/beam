@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_TransformService_Direct"]
         job_phrase: ["Run TransformService_Direct PostCommit"]
-        python_version: ['3.8','3.12']
+        python_version: ['3.9','3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -76,7 +76,7 @@ jobs:
         with:
           java-version: 11
           python-version: |
-            3.8
+            3.9
             ${{ matrix.python_version }}
       - name: run TransformService Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action

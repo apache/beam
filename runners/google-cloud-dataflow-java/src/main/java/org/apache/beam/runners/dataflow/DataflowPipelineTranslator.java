@@ -423,7 +423,7 @@ public class DataflowPipelineTranslator {
       if (options.getDataflowKmsKey() != null) {
         environment.setServiceKmsKeyName(options.getDataflowKmsKey());
       }
-      if (options.isHotKeyLoggingEnabled()) {
+      if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
         DebugOptions debugOptions = new DebugOptions();
         debugOptions.setEnableHotKeyLogging(true);
         environment.setDebugOptions(debugOptions);

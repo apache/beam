@@ -126,6 +126,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link BigQueryServicesImpl}. */
 @RunWith(JUnit4.class)
 public class BigQueryServicesImplTest {
+
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BigQueryServicesImpl.class);
   // A test can make mock responses through setupMockResponses
@@ -171,6 +172,7 @@ public class BigQueryServicesImplTest {
 
   @FunctionalInterface
   private interface MockSetupFunction {
+
     void apply(LowLevelHttpResponse t) throws IOException;
   }
 
@@ -2091,5 +2093,30 @@ public class BigQueryServicesImplTest {
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
     impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+  }
+
+  @Test
+  public void testEndpointOverrides() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryEndpoint("http://example.com:80");
+
+    assertEquals(
+        "http://example.com:80/bigquery/v2/",
+        new BigQueryServicesImpl.JobServiceImpl(options).getClient().getBaseUrl());
+    assertEquals(
+        "http://example.com:80/bigquery/v2/",
+        new BigQueryServicesImpl.DatasetServiceImpl(options).getClient().getBaseUrl());
+    assertEquals(
+        "example.com:80",
+        new BigQueryServicesImpl.WriteStreamServiceImpl(options)
+            .getClient()
+            .getSettings()
+            .getEndpoint());
+    assertEquals(
+        "example.com:80",
+        new BigQueryServicesImpl.StorageClientImpl(options)
+            .getClient()
+            .getSettings()
+            .getEndpoint());
   }
 }

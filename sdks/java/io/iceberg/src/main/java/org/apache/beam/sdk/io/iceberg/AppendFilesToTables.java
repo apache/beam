@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.iceberg;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,14 +31,17 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class AppendFilesToTables
     extends PTransform<PCollection<FileWriteResult>, PCollection<KV<String, SnapshotInfo>>> {
-
+  private static final Logger LOG = LoggerFactory.getLogger(AppendFilesToTables.class);
   private final IcebergCatalogConfig catalogConfig;
 
   AppendFilesToTables(IcebergCatalogConfig catalogConfig) {
@@ -66,6 +71,8 @@ class AppendFilesToTables
 
   private static class AppendFilesToTablesDoFn
       extends DoFn<KV<String, Iterable<FileWriteResult>>, KV<String, SnapshotInfo>> {
+    private final Counter snapshotsCreated =
+        Metrics.counter(AppendFilesToTables.class, "snapshotsCreated");
 
     private final IcebergCatalogConfig catalogConfig;
 
@@ -87,15 +94,21 @@ class AppendFilesToTables
         @Element KV<String, Iterable<FileWriteResult>> element,
         OutputReceiver<KV<String, SnapshotInfo>> out,
         BoundedWindow window) {
+      if (!element.getValue().iterator().hasNext()) {
+        return;
+      }
+
       Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
       AppendFiles update = table.newAppend();
       for (FileWriteResult writtenFile : element.getValue()) {
         update.appendManifest(writtenFile.getManifestFile());
       }
       update.commit();
+      Snapshot snapshot = table.currentSnapshot();
+      LOG.info("Created new snapshot for table '{}': {}.", element.getKey(), snapshot);
+      snapshotsCreated.inc();
       out.outputWithTimestamp(
-          KV.of(element.getKey(), SnapshotInfo.fromSnapshot(table.currentSnapshot())),
-          window.maxTimestamp());
+          KV.of(element.getKey(), SnapshotInfo.fromSnapshot(snapshot)), window.maxTimestamp());
     }
   }
 }

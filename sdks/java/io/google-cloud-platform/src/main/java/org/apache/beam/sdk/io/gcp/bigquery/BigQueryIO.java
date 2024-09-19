@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericDatumReader;
@@ -574,11 +575,12 @@ public class BigQueryIO {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
 
   /**
-   * Project IDs must contain 6-63 lowercase letters, digits, or dashes. IDs must start with a
-   * letter and may not end with a dash. This regex isn't exact - this allows for patterns that
-   * would be rejected by the service, but this is sufficient for basic parsing of table references.
+   * Formally, project IDs must contain 6-63 lowercase letters, digits, or dashes, must start with a
+   * letter and may not end with a dash. This regex is used for basic parsing of table references
+   * rather than validation purpose, e.g. it allows looser restriction for testing on mock
+   * resources. It may allow for patterns that would be rejected by the service
    */
-  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{4,61}[a-z0-9]";
+  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{0,61}[a-z0-9]";
 
   /** Regular expression that matches Dataset IDs. */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
@@ -2237,6 +2239,7 @@ public class BigQueryIO {
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
+        .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
         .setDirectWriteProtos(true)
         .setDefaultMissingValueInterpretation(
             AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
@@ -2299,7 +2302,8 @@ public class BigQueryIO {
       throw new IllegalArgumentException("DynamicMessage is not supported.");
     }
     return BigQueryIO.<T>write()
-        .withFormatFunction(m -> TableRowToStorageApiProto.tableRowFromMessage(m, false))
+        .withFormatFunction(
+            m -> TableRowToStorageApiProto.tableRowFromMessage(m, false, Predicates.alwaysTrue()))
         .withWriteProtosClass(protoMessageClass);
   }
 
@@ -2396,6 +2400,8 @@ public class BigQueryIO {
     abstract int getNumStorageWriteApiStreams();
 
     abstract boolean getPropagateSuccessfulStorageApiWrites();
+
+    abstract Predicate<String> getPropagateSuccessfulStorageApiWritesPredicate();
 
     abstract int getMaxFilesPerPartition();
 
@@ -2506,6 +2512,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setPropagateSuccessfulStorageApiWrites(
           boolean propagateSuccessfulStorageApiWrites);
+
+      abstract Builder<T> setPropagateSuccessfulStorageApiWritesPredicate(
+          Predicate<String> columnsToPropagate);
 
       abstract Builder<T> setMaxFilesPerPartition(int maxFilesPerPartition);
 
@@ -3029,6 +3038,26 @@ public class BigQueryIO {
         boolean propagateSuccessfulStorageApiWrites) {
       return toBuilder()
           .setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites)
+          .build();
+    }
+
+    /**
+     * If called, then all successful writes will be propagated to {@link WriteResult} and
+     * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method. The predicate
+     * allows filtering out columns from appearing in the resulting PCollection. The argument to the
+     * predicate is the name of the field to potentially be included in the output. Nested fields
+     * will be presented using . notation - e.g. a.b.c. If you want a nested field included, you
+     * must ensure that the predicate returns true for every parent field. e.g. if you want field
+     * "a.b.c" included, the predicate must return true for "a" for "a.b" and for "a.b.c".
+     *
+     * <p>The predicate will be invoked repeatedly for every field in every message, so it is
+     * recommended that it be as lightweight as possible. e.g. looking up fields in a hash table
+     * instead of searching a list of field names.
+     */
+    public Write<T> withPropagateSuccessfulStorageApiWrites(Predicate<String> columnsToPropagate) {
+      return toBuilder()
+          .setPropagateSuccessfulStorageApiWrites(true)
+          .setPropagateSuccessfulStorageApiWritesPredicate(columnsToPropagate)
           .build();
     }
 
@@ -3884,6 +3913,7 @@ public class BigQueryIO {
                 getAutoSchemaUpdate(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
+                getPropagateSuccessfulStorageApiWritesPredicate(),
                 getRowMutationInformationFn() != null,
                 getDefaultMissingValueInterpretation(),
                 getBadRecordRouter(),
@@ -3994,7 +4024,12 @@ public class BigQueryIO {
     }
   }
 
-  /** Clear the cached map of created tables. Used for testing. */
+  /**
+   * Clear the cached map of created tables. Used for testing only.
+   *
+   * <p>Should not be used in any PTransform as cache is a static member shared by different
+   * BigQueryIO.write.
+   */
   @VisibleForTesting
   static void clearStaticCaches() throws ExecutionException, InterruptedException {
     CreateTables.clearCreatedTables();

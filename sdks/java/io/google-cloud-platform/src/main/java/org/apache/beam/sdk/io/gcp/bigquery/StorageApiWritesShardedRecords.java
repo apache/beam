@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
@@ -93,6 +94,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -133,6 +135,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
+
+  private final Predicate<String> successfulRowsPredicate;
   private final Coder<TableRow> succussfulRowsCoder;
 
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
@@ -225,6 +229,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Coder<TableRow> successfulRowsCoder,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag,
+      Predicate<String> successfulRowsPredicate,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
@@ -236,6 +241,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.failedRowsCoder = failedRowsCoder;
     this.failedRowsTag = failedRowsTag;
     this.successfulRowsTag = successfulRowsTag;
+    this.successfulRowsPredicate = successfulRowsPredicate;
     this.succussfulRowsCoder = successfulRowsCoder;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
@@ -577,7 +583,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               element.getValue(),
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
-              bytes -> appendClientInfo.get().toTableRow(bytes),
+              bytes -> appendClientInfo.get().toTableRow(bytes, Predicates.alwaysTrue()),
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
@@ -694,7 +700,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 TableRow failedRow = failedContext.failsafeTableRows.get(failedIndex);
                 if (failedRow == null) {
                   ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
-                  failedRow = appendClientInfo.get().toTableRow(protoBytes);
+                  failedRow =
+                      appendClientInfo.get().toTableRow(protoBytes, Predicates.alwaysTrue());
                 }
                 org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                 o.get(failedRowsTag)
@@ -833,7 +840,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 ByteString protoBytes = context.protoRows.getSerializedRows(i);
                 org.joda.time.Instant timestamp = context.timestamps.get(i);
                 o.get(successfulRowsTag)
-                    .outputWithTimestamp(appendClientInfo.get().toTableRow(protoBytes), timestamp);
+                    .outputWithTimestamp(
+                        appendClientInfo.get().toTableRow(protoBytes, successfulRowsPredicate),
+                        timestamp);
               }
             }
           };
@@ -864,7 +873,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             TableRow failedRow = splitValue.getFailsafeTableRows().get(i);
             if (failedRow == null) {
               ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
-              failedRow = appendClientInfo.get().toTableRow(rowBytes);
+              failedRow = appendClientInfo.get().toTableRow(rowBytes, Predicates.alwaysTrue());
             }
             o.get(failedRowsTag)
                 .outputWithTimestamp(

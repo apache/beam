@@ -17,6 +17,12 @@
  */
 package org.apache.beam.runners.prism;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.Arrays;
 import org.apache.beam.runners.portability.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -34,23 +40,21 @@ import org.slf4j.LoggerFactory;
  * submit to an already running Prism service, use the {@link PortableRunner} with the {@link
  * PortablePipelineOptions#getJobEndpoint()} option instead. Prism is a {@link
  * org.apache.beam.runners.portability.PortableRunner} maintained at <a
- * href="https://github.com/apache/beam/tree/master/sdks/go/cmd/prism">sdks/go/cmd/prism</a>.
+ * href="https://github.com/apache/beam/tree/master/sdks/go/cmd/prism">sdks/go/cmd/prism</a>. For
+ * testing, use {@link TestPrismRunner}.
  */
-// TODO(https://github.com/apache/beam/issues/31793): add public modifier after finalizing
-//  PrismRunner. Depends on: https://github.com/apache/beam/issues/31402 and
-//  https://github.com/apache/beam/issues/31792.
-class PrismRunner extends PipelineRunner<PipelineResult> {
+public class PrismRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrismRunner.class);
 
-  private static final String DEFAULT_PRISM_ENDPOINT = "localhost:8073";
-
-  private final PortableRunner internal;
   private final PrismPipelineOptions prismPipelineOptions;
 
-  private PrismRunner(PortableRunner internal, PrismPipelineOptions prismPipelineOptions) {
-    this.internal = internal;
+  protected PrismRunner(PrismPipelineOptions prismPipelineOptions) {
     this.prismPipelineOptions = prismPipelineOptions;
+  }
+
+  PrismPipelineOptions getPrismPipelineOptions() {
+    return prismPipelineOptions;
   }
 
   /**
@@ -59,9 +63,15 @@ class PrismRunner extends PipelineRunner<PipelineResult> {
    */
   public static PrismRunner fromOptions(PipelineOptions options) {
     PrismPipelineOptions prismPipelineOptions = options.as(PrismPipelineOptions.class);
+    validate(prismPipelineOptions);
     assignDefaultsIfNeeded(prismPipelineOptions);
-    PortableRunner internal = PortableRunner.fromOptions(options);
-    return new PrismRunner(internal, prismPipelineOptions);
+    return new PrismRunner(prismPipelineOptions);
+  }
+
+  private static void validate(PrismPipelineOptions options) {
+    checkArgument(
+        Strings.isNullOrEmpty(options.getJobEndpoint()),
+        "when specifying --jobEndpoint, use --runner=PortableRunner instead");
   }
 
   @Override
@@ -72,15 +82,47 @@ class PrismRunner extends PipelineRunner<PipelineResult> {
         prismPipelineOptions.getDefaultEnvironmentType(),
         prismPipelineOptions.getJobEndpoint());
 
-    return internal.run(pipeline);
+    try {
+      PrismExecutor executor = startPrism();
+      PortableRunner delegate = PortableRunner.fromOptions(prismPipelineOptions);
+      return new PrismPipelineResult(delegate.run(pipeline), executor::stop);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  PrismExecutor startPrism() throws IOException {
+    PrismLocator locator = new PrismLocator(prismPipelineOptions);
+    int port = findAvailablePort();
+    String portFlag = String.format(PrismExecutor.JOB_PORT_FLAG_TEMPLATE, port);
+    String serveHttpFlag =
+        String.format(
+            PrismExecutor.SERVE_HTTP_FLAG_TEMPLATE, prismPipelineOptions.getEnableWebUI());
+    String idleShutdownTimeoutFlag =
+        String.format(
+            PrismExecutor.IDLE_SHUTDOWN_TIMEOUT, prismPipelineOptions.getIdleShutdownTimeout());
+    String endpoint = "localhost:" + port;
+    prismPipelineOptions.setJobEndpoint(endpoint);
+    String command = locator.resolve();
+    PrismExecutor executor =
+        PrismExecutor.builder()
+            .setCommand(command)
+            .setArguments(Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag))
+            .build();
+    executor.execute();
+    checkState(executor.isAlive());
+    return executor;
   }
 
   private static void assignDefaultsIfNeeded(PrismPipelineOptions prismPipelineOptions) {
     if (Strings.isNullOrEmpty(prismPipelineOptions.getDefaultEnvironmentType())) {
       prismPipelineOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_LOOPBACK);
     }
-    if (Strings.isNullOrEmpty(prismPipelineOptions.getJobEndpoint())) {
-      prismPipelineOptions.setJobEndpoint(DEFAULT_PRISM_ENDPOINT);
+  }
+
+  private static int findAvailablePort() throws IOException {
+    try (ServerSocket socket = new ServerSocket(0)) {
+      return socket.getLocalPort();
     }
   }
 }

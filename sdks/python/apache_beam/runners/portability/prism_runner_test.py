@@ -35,7 +35,6 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
 
@@ -194,37 +193,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(
           res, equal_to([('k', [1, 2]), ('k', [100, 101, 102]), ('k', [123])]))
-
-  # The fn_runner_test.py version of this test doesn't execute the process
-  # method for some reason. Overridden here to validate that the cleared
-  # timer won't re-fire.
-  def test_pardo_timers_clear(self):
-    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
-
-    class TimerDoFn(beam.DoFn):
-      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
-        unused_key, ts = element
-        timer.set(ts)
-        timer.set(2 * ts)
-
-      @userstate.on_timer(timer_spec)
-      def process_timer(
-          self,
-          ts=beam.DoFn.TimestampParam,
-          timer=beam.DoFn.TimerParam(timer_spec)):
-        timer.set(timestamp.Timestamp(micros=2 * ts.micros))
-        timer.clear()  # Shouldn't fire again
-        yield 'fired'
-
-    with self.create_pipeline() as p:
-      actual = (
-          p
-          | beam.Create([('k1', 10), ('k2', 100)])
-          | beam.ParDo(TimerDoFn())
-          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
-
-      expected = [('fired', ts) for ts in (20, 200)]
-      assert_that(actual, equal_to(expected))
 
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):

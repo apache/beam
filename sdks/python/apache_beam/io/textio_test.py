@@ -1726,6 +1726,48 @@ class CsvTest(unittest.TestCase):
 
         assert_that(pcoll, equal_to(records))
 
+  def test_non_utf8_csv_read_write(self):
+    content = b"\xe0,\xe1,\xe2\n0,1,2\n1,2,3\n"
+
+    with tempfile.TemporaryDirectory() as dest:
+      input_fn = os.path.join(dest, 'input.csv')
+      with open(input_fn, 'wb') as f:
+        f.write(content)
+
+      with TestPipeline() as p:
+        r1 = (
+            p
+            | 'Read' >> beam.io.ReadFromCsv(input_fn, encoding="latin1")
+            | 'ToDict' >> beam.Map(lambda x: x._asdict()))
+        assert_that(
+            r1,
+            equal_to([{
+                "\u00e0": 0, "\u00e1": 1, "\u00e2": 2
+            }, {
+                "\u00e0": 1, "\u00e1": 2, "\u00e2": 3
+            }]))
+
+      with TestPipeline() as p:
+        _ = (
+            p
+            | 'Read' >> beam.io.ReadFromCsv(input_fn, encoding="latin1")
+            | 'Write' >> beam.io.WriteToCsv(
+                os.path.join(dest, 'out'), encoding="latin1"))
+
+      with TestPipeline() as p:
+        r2 = (
+            p
+            | 'Read' >> beam.io.ReadFromCsv(
+                os.path.join(dest, 'out*'), encoding="latin1")
+            | 'ToDict' >> beam.Map(lambda x: x._asdict()))
+        assert_that(
+            r2,
+            equal_to([{
+                "\u00e0": 0, "\u00e1": 1, "\u00e2": 2
+            }, {
+                "\u00e0": 1, "\u00e1": 2, "\u00e2": 3
+            }]))
+
 
 class JsonTest(unittest.TestCase):
   def test_json_read_write(self):
@@ -1742,6 +1784,36 @@ class JsonTest(unittest.TestCase):
             | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
 
         assert_that(pcoll, equal_to(records))
+
+  def test_numeric_strings_preserved(self):
+    records = [
+        beam.Row(
+            as_string=str(ix),
+            as_float_string=str(float(ix)),
+            as_int=ix,
+            as_float=float(ix)) for ix in range(3)
+    ]
+    with tempfile.TemporaryDirectory() as dest:
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToJson(
+            os.path.join(dest, 'out'))
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.io.ReadFromJson(os.path.join(dest, 'out*'))
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+
+        assert_that(pcoll, equal_to(records))
+
+        # This test should be redundant as Python equality does not equate
+        # numeric values with their string representations, but this is much
+        # more explicit about what we're asserting here.
+        def check_types(element):
+          for a, b in zip(element, records[0]):
+            assert type(a) == type(b), (a, b, type(a), type(b))
+
+        _ = pcoll | beam.Map(check_types)
 
 
 if __name__ == '__main__':

@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -178,12 +179,16 @@ public class ClickHouseIO {
         tableSchema = getTableSchema(jdbcUrl(), table());
       }
 
+      String sdkVersion = ReleaseInfo.getReleaseInfo().getSdkVersion();
+      String userAgent = String.format("Apache Beam/%s", sdkVersion);
+
       Properties properties = properties();
 
       set(properties, "max_insert_block_size", maxInsertBlockSize());
       set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
+      set(properties, "product_name", userAgent);
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()

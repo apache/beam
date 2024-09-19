@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -32,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
@@ -121,8 +124,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     @Override
     public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
-      throw new UnsupportedOperationException(
-          String.format("%s is not supported", SetState.class.getSimpleName()));
+      return new SparkSetState<>(namespace, id, elemCoder);
     }
 
     @Override
@@ -496,6 +498,78 @@ class SparkStateInternals<K> implements StateInternals {
           return this;
         }
       };
+    }
+  }
+
+  private final class SparkSetState<InputT> extends AbstractState<Set<InputT>>
+      implements SetState<InputT> {
+
+    private SparkSetState(StateNamespace namespace, String id, Coder<InputT> coder) {
+      super(namespace, id, SetCoder.of(coder));
+    }
+
+    @Override
+    public ReadableState<Boolean> contains(InputT input) {
+      Set<InputT> sparkSetState = readAsSet();
+      return ReadableStates.immediate(sparkSetState.contains(input));
+    }
+
+    @Override
+    public ReadableState<Boolean> addIfAbsent(InputT input) {
+      Set<InputT> sparkSetState = readAsSet();
+      boolean alreadyContained = sparkSetState.contains(input);
+      if (!alreadyContained) {
+        sparkSetState.add(input);
+      }
+      writeValue(sparkSetState);
+      return ReadableStates.immediate(!alreadyContained);
+    }
+
+    @Override
+    public void remove(InputT input) {
+      Set<InputT> sparkSetState = readAsSet();
+      sparkSetState.remove(input);
+      writeValue(sparkSetState);
+    }
+
+    @Override
+    public SetState<InputT> readLater() {
+      return this;
+    }
+
+    @Override
+    public void add(InputT value) {
+      final Set<InputT> sparkSetState = readAsSet();
+      sparkSetState.add(value);
+      writeValue(sparkSetState);
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          return stateTable.get(namespace.stringKey(), id) == null;
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public Iterable<InputT> read() {
+      Set<InputT> value = readValue();
+      if (value == null) {
+        value = new HashSet<>();
+      }
+      return value;
+    }
+
+    private Set<InputT> readAsSet() {
+      return (Set<InputT>) read();
     }
   }
 

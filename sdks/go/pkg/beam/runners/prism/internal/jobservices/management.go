@@ -73,12 +73,14 @@ func (e *joinError) Error() string {
 	return string(b)
 }
 
-func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jobpb.PrepareJobResponse, error) {
+func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *jobpb.PrepareJobResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Since jobs execute in the background, they should not be tied to a request's context.
 	rootCtx, cancelFn := context.WithCancelCause(context.Background())
+	// Wrap in a Once so it will only be invoked a single time for the job.
+	terminalOnceWrap := sync.OnceFunc(s.jobTerminated)
 	job := &Job{
 		key:        s.nextId(),
 		Pipeline:   req.GetPipeline(),
@@ -86,9 +88,15 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		options:    req.GetPipelineOptions(),
 		streamCond: sync.NewCond(&sync.Mutex{}),
 		RootCtx:    rootCtx,
-		CancelFn:   cancelFn,
-
+		CancelFn: func(err error) {
+			cancelFn(err)
+			terminalOnceWrap()
+		},
 		artifactEndpoint: s.Endpoint(),
+	}
+	// Stop the idle timer when a new job appears.
+	if idleTimer := s.idleTimer.Load(); idleTimer != nil {
+		idleTimer.Stop()
 	}
 
 	// Queue initial state of the job.
@@ -155,7 +163,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		case urns.TransformParDo:
 			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pardo); err != nil {
-				return nil, fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				wrapped := fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				job.Failed(wrapped)
+				return nil, wrapped
 			}
 
 			isStateful := false
@@ -181,7 +191,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		case urns.TransformTestStream:
 			var testStream pipepb.TestStreamPayload
 			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &testStream); err != nil {
-				return nil, fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				wrapped := fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				job.Failed(wrapped)
+				return nil, wrapped
 			}
 
 			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.

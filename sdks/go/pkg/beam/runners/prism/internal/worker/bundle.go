@@ -42,7 +42,7 @@ type B struct {
 	InputTransformID       string
 	Input                  []*engine.Block // Data and Timers for this bundle.
 	EstimatedInputElements int
-	HasTimers              []string
+	HasTimers              []struct{ Transform, TimerFamily string } // Timer streams to terminate.
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
@@ -175,7 +175,8 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	for _, tid := range b.HasTimers {
 		timers = append(timers, &fnpb.Elements_Timers{
 			InstructionId: b.InstID,
-			TransformId:   tid,
+			TransformId:   tid.Transform,
+			TimerFamilyId: tid.TimerFamily,
 			IsLast:        true,
 		})
 	}

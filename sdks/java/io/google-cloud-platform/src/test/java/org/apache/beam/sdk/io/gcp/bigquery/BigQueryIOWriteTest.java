@@ -35,6 +35,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.api.core.ApiFuture;
@@ -80,6 +81,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.LongFunction;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -1591,6 +1593,107 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
     storageWriteWithErrorHandling(true);
+  }
+
+  private void storageWriteWithSuccessHandling(boolean columnSubset) throws Exception {
+    assumeTrue(useStorageApi);
+    if (!useStreaming) {
+      assumeFalse(useStorageApiApproximate);
+    }
+    List<TableRow> elements =
+        IntStream.range(0, 30)
+            .mapToObj(Integer::toString)
+            .map(
+                i ->
+                    new TableRow()
+                        .set("number", i)
+                        .set("string", i)
+                        .set("nested", new TableRow().set("number", i)))
+            .collect(Collectors.toList());
+
+    List<TableRow> expectedSuccessElements = elements;
+    if (columnSubset) {
+      expectedSuccessElements =
+          elements.stream()
+              .map(
+                  tr ->
+                      new TableRow()
+                          .set("number", tr.get("number"))
+                          .set("nested", new TableRow().set("number", tr.get("number"))))
+              .collect(Collectors.toList());
+    }
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("string").setType("STRING"),
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("RECORD")
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER")))));
+
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceWatermarkToInfinity();
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withTestServices(fakeBqServices)
+            .withPropagateSuccessfulStorageApiWrites(true)
+            .withoutValidation();
+    if (columnSubset) {
+      write =
+          write.withPropagateSuccessfulStorageApiWrites(
+              (Serializable & Predicate<String>)
+                  s -> s.equals("number") || s.equals("nested") || s.equals("nested.number"));
+    }
+    if (useStreaming) {
+      if (useStorageApiApproximate) {
+        write = write.withMethod(Method.STORAGE_API_AT_LEAST_ONCE);
+      } else {
+        write = write.withAutoSharding();
+      }
+    }
+
+    PTransform<PBegin, PCollection<TableRow>> source =
+        useStreaming ? testStream : Create.of(elements).withCoder(TableRowJsonCoder.of());
+    PCollection<TableRow> success =
+        p.apply(source).apply("WriteToBQ", write).getSuccessfulStorageApiInserts();
+
+    PAssert.that(success)
+        .containsInAnyOrder(Iterables.toArray(expectedSuccessElements, TableRow.class));
+
+    p.run().waitUntilFinish();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testStorageApiWriteWithSuccessfulRows() throws Exception {
+    storageWriteWithSuccessHandling(false);
+  }
+
+  @Test
+  public void testStorageApiWriteWithSuccessfulRowsColumnSubset() throws Exception {
+    storageWriteWithSuccessHandling(true);
   }
 
   @DefaultSchema(JavaFieldSchema.class)

@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -68,6 +69,10 @@ final class ComputationWorkExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ComputationWorkExecutorFactory.class);
   private static final String DISABLE_SINK_BYTE_LIMIT_EXPERIMENT =
       "disable_limiting_bundle_sink_bytes";
+  // Whether to throw an exception when processing output that violates any of the operational
+  // limits.
+  private static final String THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT =
+      "throw_exceptions_on_large_output";
 
   private final DataflowWorkerHarnessOptions options;
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
@@ -90,6 +95,8 @@ final class ComputationWorkExecutorFactory {
 
   private final long maxSinkBytes;
   private final IdGenerator idGenerator;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
+  private final boolean throwExceptionOnLargeOutput;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -98,12 +105,14 @@ final class ComputationWorkExecutorFactory {
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
       DataflowExecutionStateSampler sampler,
       CounterSet pendingDeltaCounters,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
     this.stateCacheFactory = stateCacheFactory;
     this.idGenerator = idGenerator;
+    this.globalConfigHandle = globalConfigHandle;
     this.readerRegistry = ReaderRegistry.defaultRegistry();
     this.sinkRegistry = SinkRegistry.defaultRegistry();
     this.sampler = sampler;
@@ -113,6 +122,8 @@ final class ComputationWorkExecutorFactory {
         hasExperiment(options, DISABLE_SINK_BYTE_LIMIT_EXPERIMENT)
             ? Long.MAX_VALUE
             : StreamingDataflowWorker.MAX_SINK_BYTES;
+    this.throwExceptionOnLargeOutput =
+        hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -255,7 +266,9 @@ final class ComputationWorkExecutorFactory {
         stageInfo.metricsContainerRegistry(),
         executionStateTracker,
         stageInfo.executionStateRegistry(),
-        maxSinkBytes);
+        globalConfigHandle,
+        maxSinkBytes,
+        throwExceptionOnLargeOutput);
   }
 
   private DataflowMapTaskExecutor createMapTaskExecutor(

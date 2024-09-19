@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.prism;
 
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 
@@ -25,6 +26,9 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
  * org.apache.beam.sdk.Pipeline} on the {@link PrismRunner}.
  */
 public interface PrismPipelineOptions extends PortablePipelineOptions {
+
+  String JOB_PORT_FLAG_NAME = "job_port";
+
   @Description(
       "Path or URL to a prism binary, or zipped binary for the current "
           + "platform (Operating System and Architecture). May also be an Apache "
@@ -41,4 +45,17 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   String getPrismVersionOverride();
 
   void setPrismVersionOverride(String prismVersionOverride);
+
+  @Description("Enable or disable Prism Web UI")
+  @Default.Boolean(true)
+  Boolean getEnableWebUI();
+
+  void setEnableWebUI(Boolean enableWebUI);
+
+  @Description(
+      "Duration, represented as a String, that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\".")
+  @Default.String("5m")
+  String getIdleShutdownTimeout();
+
+  void setIdleShutdownTimeout(String idleShutdownTimeout);
 }

@@ -45,6 +45,9 @@ import org.slf4j.LoggerFactory;
 abstract class PrismExecutor {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrismExecutor.class);
+  static final String IDLE_SHUTDOWN_TIMEOUT = "-idle_shutdown_timeout=%s";
+  static final String JOB_PORT_FLAG_TEMPLATE = "-job_port=%s";
+  static final String SERVE_HTTP_FLAG_TEMPLATE = "-serve_http=%s";
 
   protected @MonotonicNonNull Process process;
   protected ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -71,7 +74,7 @@ abstract class PrismExecutor {
     }
     executorService.shutdown();
     try {
-      boolean ignored = executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+      boolean ignored = executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
     } catch (InterruptedException ignored) {
     }
     if (process == null) {
