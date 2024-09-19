@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.value.AutoValue;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.util.Preconditions;
 /** Stores and exports metrics for a batch of Kafka Client RPCs. */
 public interface KafkaMetrics {
 
-  void updateSuccessfulRpcMetrics(String topic, Instant start, Instant end);
+  void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime);
 
   void updateKafkaMetrics();
 
@@ -39,7 +38,7 @@ public interface KafkaMetrics {
     private NoOpKafkaMetrics() {}
 
     @Override
-    public void updateSuccessfulRpcMetrics(String topic, Instant start, Instant end) {}
+    public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {}
 
     @Override
     public void updateKafkaMetrics() {}
@@ -77,15 +76,15 @@ public interface KafkaMetrics {
 
     /** Record the rpc status and latency of a successful Kafka poll RPC call. */
     @Override
-    public void updateSuccessfulRpcMetrics(String topic, Instant start, Instant end) {
+    public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {
       if (isWritable().get()) {
         ConcurrentLinkedQueue<Duration> latencies = perTopicRpcLatencies().get(topic);
         if (latencies == null) {
           latencies = new ConcurrentLinkedQueue<Duration>();
-          latencies.add(Duration.between(start, end));
+          latencies.add(elapsedTime);
           perTopicRpcLatencies().put(topic, latencies);
         } else {
-          latencies.add(Duration.between(start, end));
+          latencies.add(elapsedTime);
         }
       }
     }

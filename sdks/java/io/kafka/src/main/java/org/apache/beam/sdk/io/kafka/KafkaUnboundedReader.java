@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
@@ -407,6 +408,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   // Created in each next batch, and updated at the end.
   public KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+  private Stopwatch stopwatch = Stopwatch.createUnstarted();
+  private String kafkaTopic = "";
 
   @Override
   public String toString() {
@@ -518,6 +521,13 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     List<TopicPartition> partitions =
         Preconditions.checkArgumentNotNull(source.getSpec().getTopicPartitions());
+
+    // Each source has a single unique topic.
+    for (TopicPartition topicPartition : partitions) {
+      this.kafkaTopic = topicPartition.topic();
+      break;
+    }
+
     List<PartitionState<K, V>> states = new ArrayList<>(partitions.size());
 
     if (checkpointMark != null) {
@@ -577,21 +587,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       while (!closed.get()) {
         try {
           if (records.isEmpty()) {
-            // Each source has a single unique topic.
-            List<TopicPartition> topicPartitions = source.getSpec().getTopicPartitions();
-            Preconditions.checkStateNotNull(topicPartitions);
-            String topicName = "null"; // value will be overridden
-            for (TopicPartition topicPartition : topicPartitions) {
-              topicName = topicPartition.topic();
-              break;
-            }
 
-            java.time.Instant operationStartTime = java.time.Instant.now();
+            stopwatch.start();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-            java.time.Instant operationEndTime = java.time.Instant.now();
-
+            stopwatch.stop();
             kafkaResults.updateSuccessfulRpcMetrics(
-                topicName, operationStartTime, operationEndTime);
+                kafkaTopic, java.time.Duration.ofMillis(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
 
           } else if (availableRecordsQueue.offer(
               records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
@@ -616,6 +617,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
+
     if (checkpointMark != null) {
       LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
       Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);

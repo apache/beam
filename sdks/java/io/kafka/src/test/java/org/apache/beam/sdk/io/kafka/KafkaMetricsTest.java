@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -67,7 +66,6 @@ public class KafkaMetricsTest {
     @Override
     public Histogram getPerWorkerHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
-      System.out.println("xxx metricName " + metricName);
       perWorkerHistograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogram());
       return perWorkerHistograms.get(KV.of(metricName, bucketType));
     }
@@ -83,9 +81,8 @@ public class KafkaMetricsTest {
     TestMetricsContainer testContainer = new TestMetricsContainer();
     MetricsEnvironment.setCurrentContainer(testContainer);
 
-    Instant t1 = Instant.now();
     KafkaMetrics results = KafkaMetrics.NoOpKafkaMetrics.getInstance();
-    results.updateSuccessfulRpcMetrics("test-topic", t1, t1.plus(Duration.ofMillis(10)));
+    results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
 
     results.updateKafkaMetrics();
 
@@ -97,10 +94,9 @@ public class KafkaMetricsTest {
     TestMetricsContainer testContainer = new TestMetricsContainer();
     MetricsEnvironment.setCurrentContainer(testContainer);
 
-    Instant t1 = Instant.now();
     KafkaMetrics results = KafkaSinkMetrics.kafkaMetrics();
 
-    results.updateSuccessfulRpcMetrics("test-topic", t1, t1.plus(Duration.ofMillis(10)));
+    results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
 
     results.updateKafkaMetrics();
     // RpcLatency*rpc_method:POLL;topic_name:test-topic
