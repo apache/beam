@@ -146,6 +146,8 @@ public final class StreamingDataflowWorker {
   private static final int DEFAULT_STATUS_PORT = 8081;
   private static final Random CLIENT_ID_GENERATOR = new Random();
   private static final String CHANNELZ_PATH = "/channelz";
+  public static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL =
+      "streaming_engine_use_job_settings_for_heartbeat_pool";
 
   private final WindmillStateCache stateCache;
   private final StreamingWorkerStatusPages statusPages;
@@ -253,12 +255,29 @@ public final class StreamingDataflowWorker {
               GET_DATA_STREAM_TIMEOUT,
               windmillServer::getDataStream);
       getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
-      heartbeatSender =
-          new StreamPoolHeartbeatSender(
-              options.getUseSeparateWindmillHeartbeatStreams()
-                  ? WindmillStreamPool.create(
-                      1, GET_DATA_STREAM_TIMEOUT, windmillServer::getDataStream)
-                  : getDataStreamPool);
+      // Experiment gates the logic till backend changes are rollback safe
+      if (DataflowRunner.hasExperiment(
+          options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL)) {
+        heartbeatSender =
+            // If the setting is explicitly passed in via PipelineOptions use it,
+            // else rely on the global config
+            options.getUseSeparateWindmillHeartbeatStreams() != null
+                ? StreamPoolHeartbeatSender.Create(
+                    options.getUseSeparateWindmillHeartbeatStreams()
+                        ? separateHeartbeatPool(windmillServer)
+                        : getDataStreamPool)
+                : StreamPoolHeartbeatSender.Create(
+                    separateHeartbeatPool(windmillServer),
+                    getDataStreamPool,
+                    configFetcher.getGlobalConfigHandle());
+      } else {
+        heartbeatSender =
+            StreamPoolHeartbeatSender.Create(
+                Boolean.TRUE.equals(options.getUseSeparateWindmillHeartbeatStreams())
+                    ? separateHeartbeatPool(windmillServer)
+                    : getDataStreamPool);
+      }
+
       stuckCommitDurationMillis =
           options.getStuckCommitDurationMillis() > 0 ? options.getStuckCommitDurationMillis() : 0;
       statusPagesBuilder
@@ -324,6 +343,11 @@ public final class StreamingDataflowWorker {
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
+  }
+
+  private static WindmillStreamPool<GetDataStream> separateHeartbeatPool(
+      WindmillServerStub windmillServer) {
+    return WindmillStreamPool.create(1, GET_DATA_STREAM_TIMEOUT, windmillServer::getDataStream);
   }
 
   public static StreamingDataflowWorker fromOptions(DataflowWorkerHarnessOptions options) {
@@ -834,6 +858,7 @@ public final class StreamingDataflowWorker {
    */
   @AutoValue
   abstract static class BackgroundMemoryMonitor {
+
     private static BackgroundMemoryMonitor create(MemoryMonitor memoryMonitor) {
       return new AutoValue_StreamingDataflowWorker_BackgroundMemoryMonitor(
           memoryMonitor,
