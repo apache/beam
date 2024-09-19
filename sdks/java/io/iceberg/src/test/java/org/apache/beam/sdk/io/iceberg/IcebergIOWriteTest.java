@@ -25,8 +25,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -47,6 +52,8 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -302,5 +309,60 @@ public class IcebergIOWriteTest implements Serializable {
     AppendFiles secondUpdate = table.newAppend();
     secondUpdate.appendFile(dataFile);
     secondUpdate.commit();
+  }
+
+  @Test
+  public void testStreamingWrite() {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "streaming_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    // Create a table and add records to it.
+    Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    List<Row> inputRows = TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1);
+    TestStream<Row> stream =
+        TestStream.create(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            // the first two rows are written within the same triggering interval,
+            // so they should both be in the first snapshot
+            .addElements(inputRows.get(0))
+            .advanceProcessingTime(Duration.standardSeconds(1))
+            .addElements(inputRows.get(1))
+            .advanceProcessingTime(Duration.standardSeconds(5))
+            // the third row is written in a new triggering interval,
+            // so we create a new snapshot for it.
+            .addElements(inputRows.get(2))
+            .advanceProcessingTime(Duration.standardSeconds(5))
+            .advanceWatermarkToInfinity();
+
+    PCollection<KV<String, SnapshotInfo>> output =
+        testPipeline
+            .apply("Stream Records", stream)
+            .apply(
+                "Append To Table",
+                IcebergIO.writeRows(catalog)
+                    .to(tableId)
+                    .withTriggeringFrequency(Duration.standardSeconds(3)))
+            .getSnapshots();
+    // verify that 2 snapshots are created (one per triggering interval)
+    PCollection<Long> snapshots = output.apply(Count.globally());
+    PAssert.that(snapshots).containsInAnyOrder(1L, 1L);
+    testPipeline.run().waitUntilFinish();
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
 }
