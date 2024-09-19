@@ -17,6 +17,7 @@ package primitives
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -50,6 +51,9 @@ func TestParDoPipelineOptions(t *testing.T) {
 
 func TestParDoBundleFinalizer(t *testing.T) {
 	integration.CheckFilters(t)
+	if !jobopts.IsLoopback() {
+		t.Skip("Only Loopback mode is supported")
+	}
 	for _, tt := range []struct {
 		name       string
 		pipelineFn func() *beam.Pipeline
