@@ -45,6 +45,6 @@ dependencies {
 }
 
 tasks.test {
-    evaluationDependsOn(":runners:prism")
-    systemProperty 'prism.buildTarget', project(":runners:prism").property('buildTarget').toString()
+    var prismBuildTask = dependsOn(':runners:prism:build')
+    systemProperty 'prism.buildTarget', prismBuildTask.project.property('buildTarget').toString()
 }
