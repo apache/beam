@@ -167,12 +167,12 @@ class AnyTypeConstraintTestCase(TypeHintTestCase):
     self.assertCompatible(typehints.Any, object)
 
   def test_int_float_complex_compatibility(self):
-    self.assertCompatible(int, float)
-    self.assertCompatible(int, complex)
-    self.assertCompatible(float, complex)
-    self.assertNotCompatible(float, int)
-    self.assertNotCompatible(complex, int)
-    self.assertNotCompatible(complex, float)
+    self.assertCompatible(float, int)
+    self.assertCompatible(complex, int)
+    self.assertCompatible(complex, float)
+    self.assertNotCompatible(int, float)
+    self.assertNotCompatible(int, complex)
+    self.assertNotCompatible(float, complex)
 
   def test_repr(self):
     self.assertEqual('Any', repr(typehints.Any))
