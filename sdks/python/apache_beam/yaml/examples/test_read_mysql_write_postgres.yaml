@@ -15,13 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This examples reads from a public file stored on Google Cloud. This
-# requires authenticating with Google Cloud, or setting the file in
-#`ReadFromText` to a local file.
-#
-# To set up Application Default Credentials,
-# see https://cloud.google.com/docs/authentication/external/set-up-adc for more
-# information
 #
 # The following example reads data from a Mysql database
 # then load the results back to a Postgre database
