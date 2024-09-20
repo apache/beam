@@ -226,7 +226,7 @@ class UnionHintTestCase(TypeHintTestCase):
         typehints.Union[int, str],
         typehints.Union[str, typehints.Union[int, str]])
 
-    self.assertNotCompatible(
+    self.assertCompatible(
         typehints.Union[float, bool], typehints.Union[int, bool])
     self.assertNotCompatible(
         typehints.Union[bool, str], typehints.Union[float, bool, int])
