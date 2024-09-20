@@ -27,15 +27,12 @@
 # then load the results back to a Postgre database
 pipeline:
   transforms:
-    - type: ReadFromJdbc
-      name: ReadFromMysql
+    - type: ReadFromMySql
       config:
-        driver_class_name: 'com.mysql.cj.jdbc.Driver'
-        jdbc_url: 'jdbc:mysql://database_ip:3306/database_name'
+        url: 'jdbc:mysql://database_ip:3306/database_name'
         username: 'username'
         password: 'password'
-        read_query: 'select * from table;'
-        driver_jars: 'mysql-connector-j-9.0.0.jar'
+        query: 'select * from table;'
     - type: WriteToJdbc
       name: WriteToJdbc
       input: ReadFromMysql
