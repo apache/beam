@@ -256,26 +256,21 @@ public final class StreamingDataflowWorker {
               windmillServer::getDataStream);
       getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
       // Experiment gates the logic till backend changes are rollback safe
-      if (DataflowRunner.hasExperiment(
-          options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL)) {
-        heartbeatSender =
-            // If the setting is explicitly passed in via PipelineOptions use it,
-            // else rely on the global config
-            options.getUseSeparateWindmillHeartbeatStreams() != null
-                ? StreamPoolHeartbeatSender.Create(
-                    options.getUseSeparateWindmillHeartbeatStreams()
-                        ? separateHeartbeatPool(windmillServer)
-                        : getDataStreamPool)
-                : StreamPoolHeartbeatSender.Create(
-                    separateHeartbeatPool(windmillServer),
-                    getDataStreamPool,
-                    configFetcher.getGlobalConfigHandle());
-      } else {
+      if (!DataflowRunner.hasExperiment(
+              options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL)
+          || options.getUseSeparateWindmillHeartbeatStreams() != null) {
         heartbeatSender =
             StreamPoolHeartbeatSender.Create(
                 Boolean.TRUE.equals(options.getUseSeparateWindmillHeartbeatStreams())
                     ? separateHeartbeatPool(windmillServer)
                     : getDataStreamPool);
+
+      } else {
+        heartbeatSender =
+            StreamPoolHeartbeatSender.Create(
+                separateHeartbeatPool(windmillServer),
+                getDataStreamPool,
+                configFetcher.getGlobalConfigHandle());
       }
 
       stuckCommitDurationMillis =

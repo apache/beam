@@ -51,23 +51,24 @@ public final class StreamPoolHeartbeatSender implements HeartbeatSender {
    * Creates StreamPoolHeartbeatSender that switches between the passed in stream pools depending on
    * global config.
    *
-   * @param heartbeatStreamPool stream to use when using separate streams for heartbeat is enabled.
+   * @param dedicatedHeartbeatPool stream to use when using separate streams for heartbeat is
+   *     enabled.
    * @param getDataPool stream to use when using separate streams for heartbeat is disabled.
    */
   public static StreamPoolHeartbeatSender Create(
-      @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool,
+      @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> dedicatedHeartbeatPool,
       @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> getDataPool,
       @Nonnull StreamingGlobalConfigHandle configHandle) {
     // Use getDataPool as the default, settings callback will
     // switch to the separate pool if enabled before processing any elements are processed.
-    StreamPoolHeartbeatSender heartbeatSender = new StreamPoolHeartbeatSender(heartbeatStreamPool);
+    StreamPoolHeartbeatSender heartbeatSender = new StreamPoolHeartbeatSender(getDataPool);
     configHandle.registerConfigObserver(
         streamingGlobalConfig ->
             heartbeatSender.heartbeatStreamPool.set(
                 streamingGlobalConfig
                         .userWorkerJobSettings()
                         .getUseSeparateWindmillHeartbeatStreams()
-                    ? heartbeatStreamPool
+                    ? dedicatedHeartbeatPool
                     : getDataPool));
     return heartbeatSender;
   }
