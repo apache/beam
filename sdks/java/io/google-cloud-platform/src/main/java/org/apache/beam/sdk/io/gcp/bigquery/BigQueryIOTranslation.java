@@ -290,7 +290,7 @@ public class BigQueryIOTranslation {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
         }
         byte[] formatBytes = configRow.getBytes("format");
-        if (methodBytes != null) {
+        if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
@@ -640,7 +640,7 @@ public class BigQueryIOTranslation {
         }
         byte[] formatRecordOnFailureFunctionBytes =
             configRow.getBytes("format_record_on_failure_function");
-        if (tableFunctionBytes != null) {
+        if (formatRecordOnFailureFunctionBytes != null) {
           builder =
               builder.setFormatRecordOnFailureFunction(
                   (SerializableFunction<?, TableRow>)
@@ -653,7 +653,7 @@ public class BigQueryIOTranslation {
                   (AvroRowWriterFactory) fromByteArray(avroRowWriterFactoryBytes));
         }
         byte[] avroSchemaFactoryBytes = configRow.getBytes("avro_schema_factory");
-        if (tableFunctionBytes != null) {
+        if (avroSchemaFactoryBytes != null) {
           builder =
               builder.setAvroSchemaFactory(
                   (SerializableFunction) fromByteArray(avroSchemaFactoryBytes));
