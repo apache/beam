@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryStorageApiInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.RowMutationInformation;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
@@ -257,6 +258,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
+    @SchemaFieldDescription(
+        "This option enables the use of BigQuery CDC functionality. It expects a Row schema wrapping the record to be inserted and adding the CDC info similar to: {cdc_info: {...}, record: {...}}")
+    @Nullable
+    public abstract Boolean getUseCDCWrites();
+
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -276,6 +282,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setNumStreams(Integer numStreams);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+
+      public abstract Builder setUseCDCWrites(Boolean useCDCWrites);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -468,15 +476,25 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
         checkArgument(
-            schema.getFieldNames().equals(Arrays.asList("destination", "record")),
+            schema.getFieldNames().containsAll(Arrays.asList("destination", "record")),
             "When writing to dynamic destinations, we expect Row Schema with a "
                 + "\"destination\" string field and a \"record\" Row field.");
         write =
             write
                 .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
                 .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
+
+        if (configuration.getUseCDCWrites()) {
+          write = validateAndIncludeCDCInformation(write, schema);
+        }
       } else {
-        write = write.to(configuration.getTable()).useBeamSchema();
+        if (configuration.getUseCDCWrites()) {
+          write =
+              validateAndIncludeCDCInformation(write, schema)
+                  .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
+        } else {
+          write = write.to(configuration.getTable()).useBeamSchema();
+        }
       }
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
@@ -497,6 +515,32 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       return write;
+    }
+
+    BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
+        BigQueryIO.Write<Row> write, Schema schema) {
+      checkArgument(
+          schema.getFieldNames().containsAll(Arrays.asList("cdc_info", "record")),
+          "When writing using CDC functionality, we expect Row Schema with a "
+              + "\"cdc_info\" Row field and a \"record\" Row field.");
+      checkArgument(
+          schema
+              .getField("cdc_info")
+              .getType()
+              .equals(
+                  Schema.FieldType.row(
+                      Schema.builder()
+                          .addStringField("mutation_type")
+                          .addStringField("change_sequence_number")
+                          .build())),
+          "When writing using CDC functionality, we expect a \"cdc_info\" field with Row Schema "
+              + "with fields \"mutation_type\" and \"change_sequence_number\" of type string.");
+      return write.withRowMutationInformationFn(
+          row ->
+              RowMutationInformation.of(
+                  RowMutationInformation.MutationType.valueOf(
+                      row.getRow("cdc_info").getString("mutation_type")),
+                  row.getRow("cdc_info").getString("change_sequence_number")));
     }
   }
 }
