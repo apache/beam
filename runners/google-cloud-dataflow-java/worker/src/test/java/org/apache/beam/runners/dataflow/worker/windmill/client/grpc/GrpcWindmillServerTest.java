@@ -72,7 +72,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
@@ -145,8 +148,9 @@ public class GrpcWindmillServerTest {
             name,
             experiments,
             clientId,
-            new FakeWindmillStubFactory(
-                () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name))));
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(
+                    () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name)))));
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
@@ -212,7 +216,16 @@ public class GrpcWindmillServerTest {
 
     this.client =
         GrpcWindmillServer.newApplianceTestInstance(
-            inprocessChannel, new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel));
+            inprocessChannel,
+            new WindmillStubFactoryFactory() {
+              private final WindmillStubFactory windmillStubFactory =
+                  new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel);
+
+              @Override
+              public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
+                return windmillStubFactory;
+              }
+            });
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());

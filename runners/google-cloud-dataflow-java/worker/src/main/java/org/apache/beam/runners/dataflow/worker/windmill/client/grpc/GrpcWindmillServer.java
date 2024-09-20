@@ -53,7 +53,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -154,7 +154,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       String name,
       List<String> experiments,
       long clientId,
-      WindmillStubFactory windmillStubFactory) {
+      WindmillStubFactoryFactory windmillStubFactoryFactory) {
     ManagedChannel inProcessChannel = inProcessChannel(name);
     CloudWindmillServiceV1Alpha1Stub stub =
         CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel);
@@ -164,16 +164,18 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         Lists.newArrayList(metadataStub);
 
+    DataflowWorkerHarnessOptions testOptions =
+        testOptions(/* enableStreamingEngine= */ true, experiments);
+
     Set<HostAndPort> dispatcherEndpoints = Sets.newHashSet(HostAndPort.fromHost(name));
     GrpcDispatcherClient dispatcherClient =
         GrpcDispatcherClient.forTesting(
-            windmillStubFactory,
+            testOptions,
+            windmillStubFactoryFactory,
             windmillServiceStubs,
             windmillMetadataServiceStubs,
             dispatcherEndpoints);
 
-    DataflowWorkerHarnessOptions testOptions =
-        testOptions(/* enableStreamingEngine= */ true, experiments);
     boolean sendKeyedGetDataRequests =
         !testOptions.isEnableStreamingEngine()
             || DataflowRunner.hasExperiment(
@@ -190,7 +192,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
   @VisibleForTesting
   static GrpcWindmillServer newApplianceTestInstance(
-      Channel channel, WindmillStubFactory windmillStubFactory) {
+      Channel channel, WindmillStubFactoryFactory windmillStubFactoryFactory) {
     DataflowWorkerHarnessOptions options =
         testOptions(/* enableStreamingEngine= */ false, new ArrayList<>());
     GrpcWindmillServer testServer =
@@ -198,7 +200,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             options,
             GrpcWindmillStreamFactory.of(createJobHeader(options, 1)).build(),
             // No-op, Appliance does not use Dispatcher to call Streaming Engine.
-            GrpcDispatcherClient.create(windmillStubFactory));
+            GrpcDispatcherClient.create(options, windmillStubFactoryFactory));
     testServer.syncApplianceStub = createWindmillApplianceStubWithDeadlineInterceptor(channel);
     return testServer;
   }
