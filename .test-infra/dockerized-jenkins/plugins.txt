@@ -54,7 +54,7 @@ github-branch-source
 gradle
 handlebars
 handy-uri-templates-2-api
-jackson2-api
+gson-api
 jacoco
 javadoc
 jaxb

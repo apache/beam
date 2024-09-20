@@ -19,7 +19,6 @@ package org.apache.beam.it.gcp;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -116,10 +115,15 @@ public class IOLoadTestBase extends LoadTestBase {
       PipelineLauncher.LaunchInfo launchInfo,
       MetricsConfiguration metricsConfig,
       boolean exportToInfluxDB,
-      InfluxDBSettings influxDBSettings)
-      throws IOException, ParseException, InterruptedException {
+      InfluxDBSettings influxDBSettings) {
 
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
+    Map<String, Double> metrics;
+    try {
+      metrics = getMetrics(launchInfo, metricsConfig);
+    } catch (Exception e) {
+      LOG.warn("Unable to get metrics due to error: {}", e.getMessage());
+      return;
+    }
     String testId = UUID.randomUUID().toString();
     String testTimestamp = Timestamp.now().toString();
 

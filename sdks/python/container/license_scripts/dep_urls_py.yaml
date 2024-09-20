@@ -133,12 +133,16 @@ pip_dependencies:
     license: "https://github.com/PiotrDabkowski/pyjsparser/blob/master/LICENSE"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
+  pyproject_hooks:
+    license: "https://raw.githubusercontent.com/pypa/pyproject-hooks/main/LICENSE"
   python-gflags:
     license: "https://raw.githubusercontent.com/google/python-gflags/master/COPYING"
   pyvcf:
     license: "https://raw.githubusercontent.com/jamescasbon/PyVCF/master/LICENSE"
   singledispatch:
     license: "file:///tmp/license_scripts/manual_licenses/singledispatch/LICENSE"
+  scikit-learn:
+    license: "https://raw.githubusercontent.com/scikit-learn/scikit-learn/master/COPYING"
   scipy:
     license: "https://raw.githubusercontent.com/scipy/scipy/master/LICENSE.txt"
   soupsieve:

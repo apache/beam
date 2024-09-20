@@ -19,6 +19,7 @@ package org.apache.beam.io.requestresponse;
 
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.util.SerializableUtils;
 
 /**

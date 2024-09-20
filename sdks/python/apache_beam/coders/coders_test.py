@@ -236,6 +236,12 @@ class NullableCoderTest(unittest.TestCase):
       nondeterministic.as_deterministic_coder('label')
 
 
+class LengthPrefixCoderTest(unittest.TestCase):
+  def test_to_type_hint(self):
+    coder = coders.LengthPrefixCoder(coders.BytesCoder())
+    assert coder.to_type_hint() is bytes
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

@@ -30,15 +30,12 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.FileWriteSchemaTransform;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,11 +44,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link FileWriteSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
 public class FileWriteSchemaTransformProviderTest {
-  private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<FileWriteSchemaTransformConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(FileWriteSchemaTransformConfiguration.class);
-  private static final SerializableFunction<FileWriteSchemaTransformConfiguration, Row> TO_ROW_FN =
-      AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
   private static final FileWriteSchemaTransformProvider PROVIDER =
       new FileWriteSchemaTransformProvider();
 
@@ -60,8 +52,7 @@ public class FileWriteSchemaTransformProviderTest {
 
   @Test
   public void receivedUnexpectedInputTagsThrowsAnError() {
-    SchemaTransform transform =
-        PROVIDER.from(rowConfiguration(defaultConfiguration().setFormat(JSON).build()));
+    SchemaTransform transform = PROVIDER.from(defaultConfiguration().setFormat(JSON).build());
     PCollectionRowTuple empty = PCollectionRowTuple.empty(errorPipeline);
     IllegalArgumentException emptyInputError =
         assertThrows(IllegalArgumentException.class, () -> empty.apply(transform));
@@ -94,29 +85,26 @@ public class FileWriteSchemaTransformProviderTest {
 
   @Test
   public void formatMapsToFileWriteSchemaFormatTransform() {
-    Row avro = rowConfiguration(defaultConfiguration().setFormat(AVRO).build());
     FileWriteSchemaTransformFormatProvider avroFormatProvider =
-        ((FileWriteSchemaTransform) PROVIDER.from(avro)).getProvider();
+        ((FileWriteSchemaTransform) PROVIDER.from(defaultConfiguration().setFormat(AVRO).build()))
+            .getProvider();
     assertTrue(avroFormatProvider instanceof AvroWriteSchemaTransformFormatProvider);
 
-    Row json = rowConfiguration(defaultConfiguration().setFormat(JSON).build());
     FileWriteSchemaTransformFormatProvider jsonFormatProvider =
-        ((FileWriteSchemaTransform) PROVIDER.from(json)).getProvider();
+        ((FileWriteSchemaTransform) PROVIDER.from(defaultConfiguration().setFormat(JSON).build()))
+            .getProvider();
     assertTrue(jsonFormatProvider instanceof JsonWriteSchemaTransformFormatProvider);
 
-    Row parquet = rowConfiguration(defaultConfiguration().setFormat(PARQUET).build());
     FileWriteSchemaTransformFormatProvider parquetFormatProvider =
-        ((FileWriteSchemaTransform) PROVIDER.from(parquet)).getProvider();
+        ((FileWriteSchemaTransform)
+                PROVIDER.from(defaultConfiguration().setFormat(PARQUET).build()))
+            .getProvider();
     assertTrue(parquetFormatProvider instanceof ParquetWriteSchemaTransformFormatProvider);
 
-    Row xml = rowConfiguration(defaultConfiguration().setFormat(XML).build());
     FileWriteSchemaTransformFormatProvider xmlFormatProvider =
-        ((FileWriteSchemaTransform) PROVIDER.from(xml)).getProvider();
+        ((FileWriteSchemaTransform) PROVIDER.from(defaultConfiguration().setFormat(XML).build()))
+            .getProvider();
     assertTrue(xmlFormatProvider instanceof XmlWriteSchemaTransformFormatProvider);
-  }
-
-  private static Row rowConfiguration(FileWriteSchemaTransformConfiguration configuration) {
-    return TO_ROW_FN.apply(configuration);
   }
 
   private static FileWriteSchemaTransformConfiguration.Builder defaultConfiguration() {

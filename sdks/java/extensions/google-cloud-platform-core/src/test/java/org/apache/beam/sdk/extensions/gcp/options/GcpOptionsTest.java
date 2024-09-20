@@ -19,12 +19,17 @@ package org.apache.beam.sdk.extensions.gcp.options;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
@@ -32,6 +37,7 @@ import com.google.api.services.cloudresourcemanager.CloudResourceManager.Project
 import com.google.api.services.cloudresourcemanager.CloudResourceManager.Projects.Get;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Bucket.SoftDeletePolicy;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -56,6 +62,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -230,6 +237,46 @@ public class GcpOptionsTest {
 
       String bucket = GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
       assertEquals("gs://dataflow-staging-us-north1-1/temp/", bucket);
+
+      ArgumentCaptor<Bucket> bucketArg = ArgumentCaptor.forClass(Bucket.class);
+      verify(mockGcsUtil, times(1)).createBucket(anyString(), bucketArg.capture());
+
+      // verify that the soft delete policy is disabled in the default bucket
+      assertEquals(
+          bucketArg.getValue().getSoftDeletePolicy().getRetentionDurationSeconds(),
+          Long.valueOf(0L));
+    }
+
+    @Test
+    public void testTempLocationWithSoftDeletePolicy() throws IOException {
+      Bucket bucket = new Bucket();
+      bucket.setSoftDeletePolicy(new SoftDeletePolicy().setRetentionDurationSeconds(1L));
+      when(mockGcsUtil.getBucket(any(GcsPath.class))).thenReturn(bucket);
+
+      String tempLocation = "gs://bucket_with_soft_delete";
+      options.setTempLocation(tempLocation);
+      options.as(GcsOptions.class).setPathValidatorClass(NoopPathValidator.class);
+
+      GcpOptions gcpOptions = options.as(GcpOptions.class);
+      assertEquals(tempLocation, gcpOptions.getGcpTempLocation());
+
+      assertTrue(GcpTempLocationFactory.isSoftDeletePolicyEnabled(options, tempLocation));
+    }
+
+    @Test
+    public void testTempLocationWithoutSoftDeletePolicy() throws IOException {
+      Bucket bucket = new Bucket();
+      bucket.setSoftDeletePolicy(new SoftDeletePolicy().setRetentionDurationSeconds(0L));
+      when(mockGcsUtil.getBucket(any(GcsPath.class))).thenReturn(bucket);
+
+      String tempLocation = "gs://bucket_without_soft_delete";
+      options.setTempLocation(tempLocation);
+      options.as(GcsOptions.class).setPathValidatorClass(NoopPathValidator.class);
+
+      GcpOptions gcpOptions = options.as(GcpOptions.class);
+      assertEquals(tempLocation, gcpOptions.getGcpTempLocation());
+
+      assertFalse(GcpTempLocationFactory.isSoftDeletePolicyEnabled(options, tempLocation));
     }
 
     @Test

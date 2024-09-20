@@ -18,8 +18,6 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.bounded;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,17 +27,13 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderBase;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -61,8 +55,6 @@ import org.slf4j.LoggerFactory;
  */
 public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, WindowedValue<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkBoundedSourceReader.class);
-  private static final VarLongCoder LONG_CODER = VarLongCoder.of();
-  private final Map<Integer, Long> consumedFromSplit = new HashMap<>();
   private @Nullable Source.Reader<T> currentReader;
   private int currentSplitId;
 
@@ -71,6 +63,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<WindowedValue<T>, Long> timestampExtractor) {
+
     super(stepName, context, pipelineOptions, timestampExtractor);
     currentSplitId = -1;
   }
@@ -82,31 +75,14 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
     // stream."
     // For bounded source, the checkpoint granularity is the entire source split.
     // So, in case of failure, all the data from this split will be consumed again.
-    return new FlinkSourceSplit<>(
-        splitId, readerAndOutput.reader.getCurrentSource(), asBytes(consumedFromSplit(splitId)));
+    return new FlinkSourceSplit<>(splitId, readerAndOutput.reader.getCurrentSource());
   }
 
   @Override
   protected Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
       throws IOException {
     Source<T> beamSource = sourceSplit.getBeamSplitSource();
-    byte[] state = sourceSplit.getSplitState();
-    if (state != null) {
-      consumedFromSplit.put(Integer.parseInt(sourceSplit.splitId()), fromBytes(state));
-    }
     return ((BoundedSource<T>) beamSource).createReader(pipelineOptions);
-  }
-
-  private byte[] asBytes(long l) throws CoderException {
-    return CoderUtils.encodeToByteArray(LONG_CODER, l);
-  }
-
-  private long fromBytes(byte[] b) throws CoderException {
-    return CoderUtils.decodeFromByteArray(LONG_CODER, b);
-  }
-
-  private long consumedFromSplit(int splitId) {
-    return consumedFromSplit.getOrDefault(splitId, 0L);
   }
 
   @VisibleForTesting
@@ -116,6 +92,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       PipelineOptions pipelineOptions,
       ScheduledExecutorService executor,
       @Nullable Function<WindowedValue<T>, Long> timestampExtractor) {
+
     super(stepName, executor, context, pipelineOptions, timestampExtractor);
     currentSplitId = -1;
   }
@@ -141,12 +118,11 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
     if (currentReader != null) {
       // make null checks happy
       final @Nonnull Source.Reader<T> splitReader = currentReader;
-      // store number of processed elements from this split
-      consumedFromSplit.compute(currentSplitId, (k, v) -> v == null ? 1 : v + 1);
       T record = splitReader.getCurrent();
       WindowedValue<T> windowedValue =
           WindowedValue.of(
               record, splitReader.getCurrentTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+
       if (timestampExtractor == null) {
         output.collect(windowedValue);
       } else {
@@ -158,7 +134,6 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       // the beginning. So the failover granularity is the entire Flink job.
       if (!invocationUtil.invokeAdvance(splitReader)) {
         finishSplit(currentSplitId);
-        consumedFromSplit.remove(currentSplitId);
         LOG.debug("Finished reading from {}", currentSplitId);
         currentReader = null;
         currentSplitId = -1;
@@ -188,12 +163,6 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       if (invocationUtil.invokeStart(rao.reader)) {
         currentSplitId = Integer.parseInt(rao.splitId);
         currentReader = rao.reader;
-        long toSkipAfterStart =
-            MoreObjects.firstNonNull(consumedFromSplit.remove(currentSplitId), 0L);
-        @Nonnull Source.Reader<T> reader = Preconditions.checkArgumentNotNull(currentReader);
-        while (toSkipAfterStart > 0 && reader.advance()) {
-          toSkipAfterStart--;
-        }
         return true;
       } else {
         finishSplit(Integer.parseInt(rao.splitId));

@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.metrics.Lineage;
 
 /**
  * File system interface in Beam.
@@ -155,4 +156,11 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * @see <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
   protected abstract String getScheme();
+
+  /**
+   * Report {@link Lineage} metrics for resource id.
+   *
+   * <p>Unless override by FileSystem implementations, default to no-op.
+   */
+  protected void reportLineage(ResourceIdT unusedId, Lineage unusedLineage) {}
 }

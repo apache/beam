@@ -29,9 +29,10 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 from apache_beam.ml.inference.tensorflow_inference import default_tensor_inference_fn
 from apache_beam.ml.transforms.base import EmbeddingsManager
+from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
-__all__ = ['TensorflowHubTextEmbeddings']
+__all__ = ['TensorflowHubTextEmbeddings', 'TensorflowHubImageEmbeddings']
 
 
 # TODO: https://github.com/apache/beam/issues/30288
@@ -130,5 +131,44 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     return (
         RunInference(
             model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args,
+        ))
+
+
+class TensorflowHubImageEmbeddings(EmbeddingsManager):
+  def __init__(self, columns: List[str], hub_url: str, **kwargs):
+    """
+    Embedding config for tensorflow hub models. This config can be used with
+    MLTransform to embed image data. Models are loaded using the RunInference
+    PTransform with the help of a ModelHandler.
+
+    Args:
+      columns: The columns containing the images to be embedded.
+      hub_url: The url of the tensorflow hub model.
+      min_batch_size: The minimum batch size to be used for inference.
+      max_batch_size: The maximum batch size to be used for inference.
+      large_model: Whether to share the model across processes.
+    """
+    super().__init__(columns=columns, **kwargs)
+    self.model_uri = hub_url
+
+  def get_model_handler(self) -> ModelHandler:
+    # override the default inference function
+    return _TensorflowHubModelHandler(
+        model_uri=self.model_uri,
+        preprocessing_url=None,
+        min_batch_size=self.min_batch_size,
+        max_batch_size=self.max_batch_size,
+        large_model=self.large_model,
+    )
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    """
+    Returns a RunInference object that is used to run inference on the text 
+    input using _ImageEmbeddingHandler.
+    """
+    return (
+        RunInference(
+            model_handler=_ImageEmbeddingHandler(self),
             inference_args=self.inference_args,
         ))

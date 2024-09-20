@@ -18,15 +18,16 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 
 @AutoValue
 public abstract class ActiveMessageMetadata {
 
   public abstract String userStepName();
 
-  public abstract long startTime();
+  public abstract Stopwatch stopwatch();
 
-  static ActiveMessageMetadata create(String userStepName, Long startTime) {
-    return new AutoValue_ActiveMessageMetadata(userStepName, startTime);
+  static ActiveMessageMetadata create(String userStepName, Stopwatch stopWatch) {
+    return new AutoValue_ActiveMessageMetadata(userStepName, stopWatch);
   }
 }

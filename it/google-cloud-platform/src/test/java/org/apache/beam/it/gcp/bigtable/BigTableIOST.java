@@ -18,14 +18,15 @@
 package org.apache.beam.it.gcp.bigtable;
 
 import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.generateTableId;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.time.Duration;
 import java.util.List;
@@ -39,15 +40,16 @@ import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -121,6 +123,15 @@ public final class BigTableIOST extends IOStressTestBase {
     }
     // Use streaming pipeline to write records
     writePipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+    }
   }
 
   @After
@@ -136,11 +147,11 @@ public final class BigTableIOST extends IOStressTestBase {
           ImmutableMap.of(
               "medium",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":25000,\"minutes\":40,\"pipelineTimeout\":120,\"valueSizeBytes\":100,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":10000,\"minutes\":40,\"pipelineTimeout\":80,\"numRecords\":1000000,\"valueSizeBytes\":100,\"runner\":\"DataflowRunner\"}",
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":25000,\"minutes\":130,\"pipelineTimeout\":200,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":50000,\"minutes\":60,\"pipelineTimeout\":120,\"numRecords\":10000000,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -186,7 +197,9 @@ public final class BigTableIOST extends IOStressTestBase {
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 
-      assertEquals(writeNumRecords, readNumRecords, 0);
+      // Assert that readNumRecords equals or greater than writeNumRecords since there might be
+      // duplicates when testing big amount of data
+      assertTrue(readNumRecords >= writeNumRecords);
     } finally {
       // clean up write streaming pipeline
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
@@ -220,22 +233,14 @@ public final class BigTableIOST extends IOStressTestBase {
    * dynamically over time, with options to use configurable parameters.
    */
   private PipelineLauncher.LaunchInfo generateDataAndWrite() throws IOException {
-    // The PeriodicImpulse source will generate an element every this many millis:
-    int fireInterval = 1;
-    // Each element from PeriodicImpulse will fan out to this many elements:
     int startMultiplier =
         Math.max(configuration.rowsPerSecond, DEFAULT_ROWS_PER_SECOND) / DEFAULT_ROWS_PER_SECOND;
-    long stopAfterMillis =
-        org.joda.time.Duration.standardMinutes(configuration.minutes).getMillis();
-    long totalRows = startMultiplier * stopAfterMillis / fireInterval;
     List<LoadPeriod> loadPeriods =
         getLoadPeriods(configuration.minutes, DEFAULT_LOAD_INCREASE_ARRAY);
 
-    PCollection<org.joda.time.Instant> source =
-        writePipeline.apply(
-            PeriodicImpulse.create()
-                .stopAfter(org.joda.time.Duration.millis(stopAfterMillis - 1))
-                .withInterval(org.joda.time.Duration.millis(fireInterval)));
+    PCollection<KV<byte[], byte[]>> source =
+        writePipeline.apply(Read.from(new SyntheticUnboundedSource(configuration)));
+
     if (startMultiplier > 1) {
       source =
           source
@@ -247,7 +252,7 @@ public final class BigTableIOST extends IOStressTestBase {
     source
         .apply(
             "Map records to BigTable format",
-            ParDo.of(new MapToBigTableFormat((int) configuration.valueSizeBytes, (int) totalRows)))
+            ParDo.of(new MapToBigTableFormat((int) configuration.valueSizeBytes)))
         .apply(
             "Write to BigTable",
             BigtableIO.write()
@@ -329,7 +334,7 @@ public final class BigTableIOST extends IOStressTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement = BigTableIOST.class.getName();
@@ -343,20 +348,18 @@ public final class BigTableIOST extends IOStressTestBase {
 
   /** Maps Instant to the BigTable format record. */
   private static class MapToBigTableFormat
-      extends DoFn<org.joda.time.Instant, KV<ByteString, Iterable<Mutation>>>
-      implements Serializable {
+      extends DoFn<KV<byte[], byte[]>, KV<ByteString, Iterable<Mutation>>> implements Serializable {
 
     private final int valueSizeBytes;
-    private final int totalRows;
 
-    public MapToBigTableFormat(int valueSizeBytes, int totalRows) {
+    public MapToBigTableFormat(int valueSizeBytes) {
       this.valueSizeBytes = valueSizeBytes;
-      this.totalRows = totalRows;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      long index = Objects.requireNonNull(c.element()).getMillis() % totalRows;
+      ByteBuffer byteBuffer = ByteBuffer.wrap(Objects.requireNonNull(c.element()).getValue());
+      int index = byteBuffer.getInt();
 
       ByteString key =
           ByteString.copyFromUtf8(

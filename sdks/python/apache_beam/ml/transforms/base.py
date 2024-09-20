@@ -587,9 +587,9 @@ class _MLTransformToPTransformMapper:
     return _transform_attribute_manager.load_attributes(artifact_location)
 
 
-class _TextEmbeddingHandler(ModelHandler):
+class _EmbeddingHandler(ModelHandler):
   """
-  A ModelHandler intended to be work on list[dict[str, str]] inputs.
+  A ModelHandler intended to be work on list[dict[str, Any]] inputs.
 
   The inputs to the model handler are expected to be a list of dicts.
 
@@ -597,12 +597,10 @@ class _TextEmbeddingHandler(ModelHandler):
   PCollection[E] to a PCollection[P], this ModelHandler would take a
   PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
 
-  _TextEmbeddingHandler will accept an EmbeddingsManager instance, which
+  _EmbeddingHandler will accept an EmbeddingsManager instance, which
   contains the details of the model to be loaded and the inference_fn to be
-  used. The purpose of _TextEmbeddingHandler is to generate embeddings for
-  text inputs using the EmbeddingsManager instance.
-
-  If the input is not a text column, a RuntimeError will be raised.
+  used. The purpose of _EmbeddingHandler is to generate embeddings for
+  general inputs using the EmbeddingsManager instance.
 
   This is an internal class and offers no backwards compatibility guarantees.
 
@@ -619,12 +617,9 @@ class _TextEmbeddingHandler(ModelHandler):
     return model
 
   def _validate_column_data(self, batch):
-    if not isinstance(batch[0], (str, bytes)):
-      raise TypeError(
-          'Embeddings can only be generated on Dict[str, str].'
-          f'Got Dict[str, {type(batch[0])}] instead.')
+    pass
 
-  def _validate_batch(self, batch: Sequence[Dict[str, List[str]]]):
+  def _validate_batch(self, batch: Sequence[Dict[str, Any]]):
     if not batch or not isinstance(batch[0], dict):
       raise TypeError(
           'Expected data to be dicts, got '
@@ -676,8 +671,7 @@ class _TextEmbeddingHandler(ModelHandler):
 
   def get_metrics_namespace(self) -> str:
     return (
-        self._underlying.get_metrics_namespace() or
-        'BeamML_TextEmbeddingHandler')
+        self._underlying.get_metrics_namespace() or 'BeamML_EmbeddingHandler')
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     batch_sizes_map = {}
@@ -692,3 +686,74 @@ class _TextEmbeddingHandler(ModelHandler):
 
   def validate_inference_args(self, _):
     pass
+
+
+class _TextEmbeddingHandler(_EmbeddingHandler):
+  """
+  A ModelHandler intended to be work on list[dict[str, str]] inputs.
+
+  The inputs to the model handler are expected to be a list of dicts.
+
+  For example, if the original mode is used with RunInference to take a
+  PCollection[E] to a PCollection[P], this ModelHandler would take a
+  PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
+
+  _TextEmbeddingHandler will accept an EmbeddingsManager instance, which
+  contains the details of the model to be loaded and the inference_fn to be
+  used. The purpose of _TextEmbeddingHandler is to generate embeddings for
+  text inputs using the EmbeddingsManager instance.
+
+  If the input is not a text column, a RuntimeError will be raised.
+
+  This is an internal class and offers no backwards compatibility guarantees.
+
+  Args:
+    embeddings_manager: An EmbeddingsManager instance.
+  """
+  def _validate_column_data(self, batch):
+    if not isinstance(batch[0], (str, bytes)):
+      raise TypeError(
+          'Embeddings can only be generated on Dict[str, str].'
+          f'Got Dict[str, {type(batch[0])}] instead.')
+
+  def get_metrics_namespace(self) -> str:
+    return (
+        self._underlying.get_metrics_namespace() or
+        'BeamML_TextEmbeddingHandler')
+
+
+class _ImageEmbeddingHandler(_EmbeddingHandler):
+  """
+  A ModelHandler intended to be work on list[dict[str, Image]] inputs.
+
+  The inputs to the model handler are expected to be a list of dicts.
+
+  For example, if the original mode is used with RunInference to take a
+  PCollection[E] to a PCollection[P], this ModelHandler would take a
+  PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
+
+  _ImageEmbeddingHandler will accept an EmbeddingsManager instance, which
+  contains the details of the model to be loaded and the inference_fn to be
+  used. The purpose of _ImageEmbeddingHandler is to generate embeddings for
+  image inputs using the EmbeddingsManager instance.
+
+  If the input is not an Image representation column, a RuntimeError will be
+  raised.
+
+  This is an internal class and offers no backwards compatibility guarantees.
+
+  Args:
+    embeddings_manager: An EmbeddingsManager instance.
+  """
+  def _validate_column_data(self, batch):
+    # Don't want to require framework-specific imports
+    # here, so just catch columns of primatives for now.
+    if isinstance(batch[0], (int, str, float, bool)):
+      raise TypeError(
+          'Embeddings can only be generated on Dict[str, Image].'
+          f'Got Dict[str, {type(batch[0])}] instead.')
+
+  def get_metrics_namespace(self) -> str:
+    return (
+        self._underlying.get_metrics_namespace() or
+        'BeamML_ImageEmbeddingHandler')

@@ -21,14 +21,18 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeStringSet;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleDistribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.junit.Assert.assertEquals;
 
+import java.util.Collections;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,6 +66,30 @@ public class MonitoringInfoEncodingsTest {
     ByteString payload = encodeInt64Gauge(data);
     assertEquals(ByteString.copyFrom(new byte[] {2, 1}), payload);
     assertEquals(data, decodeInt64Gauge(payload));
+  }
+
+  @Test
+  public void testStringSetEncoding() {
+
+    // test empty string set encoding
+    StringSetData data = StringSetData.create(Collections.emptySet());
+    ByteString payload = encodeStringSet(data);
+    assertEquals(data, decodeStringSet(payload));
+
+    // test single element string set encoding
+    data = StringSetData.create(ImmutableSet.of("ab"));
+    payload = encodeStringSet(data);
+    assertEquals(data, decodeStringSet(payload));
+
+    // test multiple element string set encoding
+    data = StringSetData.create(ImmutableSet.of("ab", "cd", "ef"));
+    payload = encodeStringSet(data);
+    assertEquals(data, decodeStringSet(payload));
+
+    // test empty string encoding
+    data = StringSetData.create(ImmutableSet.of("ab", "", "ef"));
+    payload = encodeStringSet(data);
+    assertEquals(data, decodeStringSet(payload));
   }
 
   @Test

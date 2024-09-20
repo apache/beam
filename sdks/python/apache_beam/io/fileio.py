@@ -90,7 +90,6 @@ parameter can be anything, as long as elements can be grouped by it.
 
 import collections
 import logging
-import os
 import random
 import uuid
 from collections import namedtuple
@@ -702,11 +701,20 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
     move_from = [f.file_name for f in temp_file_results]
     move_to = [f.file_name for f in final_file_results]
+
     _LOGGER.info(
-        'Moving temporary files %s to dir: %s as %s',
-        map(os.path.basename, move_from),
+        'Moving %d temporary files to dir: %s as %s',
+        len(move_from),
         self.path.get(),
         move_to)
+
+    try:
+      filesystems.FileSystems.mkdirs(self.path.get())
+    except IOError as e:
+      cause = repr(e)
+      if 'FileExistsError' not in cause:
+        # Usually harmless. Especially if see FileExistsError so no need to log
+        _LOGGER.debug('Fail to create dir for final destination: %s', cause)
 
     try:
       filesystems.FileSystems.rename(
@@ -737,13 +745,13 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
       if len(orphaned_files) > 0:
-        _LOGGER.info(
+        _LOGGER.warning(
             'Some files may be left orphaned in the temporary folder: %s. '
-            'This may be a result of insufficient permissions to delete'
-            'these temp files.',
+            'This may be a result of retried work items or insufficient'
+            'permissions to delete these temp files.',
             orphaned_files)
     except BeamIOError as e:
-      _LOGGER.info('Exceptions when checking orphaned files: %s', e)
+      _LOGGER.warning('Exceptions when checking orphaned files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):

@@ -23,9 +23,9 @@ resource "random_string" "postfix" {
 }
 
 resource "google_container_cluster" "default" {
-  depends_on          = [google_project_service.required]
+  depends_on          = [google_project_service.required, google_project_iam_member.assign_gke_iam]
   deletion_protection = false
-  name                = "${var.cluster_name_prefix}-${random_string.postfix.result}"
+  name                = coalesce(var.cluster_name_override,"${var.cluster_name_prefix}-${random_string.postfix.result}")
   location            = var.region
   enable_autopilot    = true
   network             = data.google_compute_network.default.id
@@ -34,7 +34,14 @@ resource "google_container_cluster" "default" {
     enable_private_nodes    = true
     enable_private_endpoint = false
   }
-  node_config {
-    service_account = data.google_service_account.default.email
+
+  cluster_autoscaling {
+    auto_provisioning_defaults {
+      service_account = data.google_service_account.default.email
+      oauth_scopes    = [
+        "https://www.googleapis.com/auth/cloud-platform"
+      ]
+
+    }
   }
 }

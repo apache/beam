@@ -151,8 +151,6 @@ class BlobStorageFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO # noqa: F821
-
     """Returns a write channel for the given file path.
 
     Args:
@@ -169,8 +167,6 @@ class BlobStorageFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO # noqa: F821
-
     """Returns a read channel for the given file path.
 
     Args:
@@ -320,3 +316,11 @@ class BlobStorageFileSystem(FileSystem):
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    try:
+      components = blobstorageio.parse_azfs_path(path, get_account=True)
+    except ValueError:
+      # report lineage is fail-safe
+      return
+    lineage.add('abs', *components)

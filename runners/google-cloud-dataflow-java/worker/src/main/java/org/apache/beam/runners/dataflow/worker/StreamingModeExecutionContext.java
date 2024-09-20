@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -47,6 +48,9 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Ste
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
@@ -57,8 +61,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateInternals;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -83,19 +89,35 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link DataflowExecutionContext} for use in streaming mode. */
+/**
+ * {@link DataflowExecutionContext} for use in streaming mode. Contains cached readers and Beam
+ * state pertaining to a processing its owning computation. Can be reused across processing
+ * different WorkItems for the same computation.
+ */
 @SuppressWarnings({
+  "deprecation",
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+// TODO(m-trieu) fix nullability issues in StreamingModeExecutionContext.java
+@NotThreadSafe
+@Internal
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
-
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
+
   private final String computationId;
-  private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
-  // Per-key cache of active Reader objects in use by this process.
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
+  private final boolean throwExceptionOnLargeOutput;
+  private volatile long backlogBytes;
+
+  /**
+   * Used to fetched cache side inputs for processing a single WorkItem. Cleared before processing a
+   * different WorkItem.
+   */
+  private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
+
   /**
    * The current user-facing key for this execution context.
    *
@@ -107,13 +129,22 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable Object key = null;
 
-  private Windmill.WorkItem work;
+  private Work work;
   private WindmillComputationKey computationKey;
   private SideInputStateFetcher sideInputStateFetcher;
+  // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
+  // be used for processing many work items and these values can change during the context's
+  // lifetime. start() is called for each work item.
+  private OperationalLimits operationalLimits;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
-  private UnboundedSource.UnboundedReader<?> activeReader;
-  private volatile long backlogBytes;
-  private Supplier<Boolean> workIsFailed;
+
+  /**
+   * Current reader used for processing {@link Work}. Set by calling {@link
+   * #setActiveReader(UnboundedReader)}, reset to null and cached when state is persisted {@link
+   * #flushState()}, or set to null and closed when {@link StreamingModeExecutionContext} is
+   * invalidated.
+   */
+  private @Nullable UnboundedReader<?> activeReader;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -124,7 +155,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
-      long sinkByteLimit) {
+      StreamingGlobalConfigHandle globalConfigHandle,
+      long sinkByteLimit,
+      boolean throwExceptionOnLargeOutput) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -133,46 +166,72 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         sinkByteLimit);
     this.computationId = computationId;
     this.readerCache = readerCache;
+    this.globalConfigHandle = globalConfigHandle;
     this.sideInputCache = new HashMap<>();
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
-    this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    this.workIsFailed = () -> Boolean.FALSE;
+    this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
+    this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
   }
 
   @VisibleForTesting
-  public long getBacklogBytes() {
+  public final long getBacklogBytes() {
     return backlogBytes;
   }
 
+  public long getMaxOutputKeyBytes() {
+    return operationalLimits.getMaxOutputKeyBytes();
+  }
+
+  public long getMaxOutputValueBytes() {
+    return operationalLimits.getMaxOutputValueBytes();
+  }
+
+  public boolean throwExceptionsForLargeOutput() {
+    return throwExceptionOnLargeOutput;
+  }
+
   public boolean workIsFailed() {
-    return workIsFailed.get();
+    return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
   }
 
   public void start(
       @Nullable Object key,
-      Windmill.WorkItem work,
-      Instant inputDataWatermark,
-      @Nullable Instant outputDataWatermark,
-      @Nullable Instant synchronizedProcessingTime,
+      Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
-      @Nullable Supplier<Boolean> workFailed) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
-    this.workIsFailed = (workFailed != null) ? workFailed : () -> Boolean.FALSE;
-    this.computationKey =
-        WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
+    this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
+    // Snapshot the limits for entire bundle processing.
+    this.operationalLimits = globalConfigHandle.getConfig().operationalLimits();
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();
 
+    Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
+
+    Collection<? extends StepContext> stepContexts = getAllStepContexts();
+    if (!stepContexts.isEmpty()) {
+      // This must be only created once for the workItem as token validation will fail if the same
+      // work token is reused.
+      WindmillStateCache.ForKey cacheForKey =
+          stateCache.forKey(getComputationKey(), getWorkItem().getCacheToken(), getWorkToken());
+      for (StepContext stepContext : stepContexts) {
+        stepContext.start(stateReader, processingTime, cacheForKey, work.watermarks());
+      }
+    }
+  }
+
+  /**
+   * Ensure that the processing time is greater than any fired processing time timers. Otherwise, a
+   * trigger could ignore the timer and orphan the window.
+   */
+  private static Instant computeProcessingTime(List<Windmill.Timer> timers) {
     Instant processingTime = Instant.now();
-    // Ensure that the processing time is greater than any fired processing time
-    // timers.  Otherwise, a trigger could ignore the timer and orphan the window.
-    for (Windmill.Timer timer : work.getTimers().getTimersList()) {
+    for (Windmill.Timer timer : timers) {
       if (timer.getType() == Windmill.Timer.Type.REALTIME) {
         Instant inferredFiringTime =
             WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp())
@@ -183,22 +242,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       }
     }
 
-    Collection<? extends StepContext> stepContexts = getAllStepContexts();
-    if (!stepContexts.isEmpty()) {
-      // This must be only created once for the workItem as token validation will fail if the same
-      // work token is reused.
-      WindmillStateCache.ForKey cacheForKey =
-          stateCache.forKey(getComputationKey(), getWork().getCacheToken(), getWorkToken());
-      for (StepContext stepContext : stepContexts) {
-        stepContext.start(
-            stateReader,
-            inputDataWatermark,
-            processingTime,
-            cacheForKey,
-            outputDataWatermark,
-            synchronizedProcessingTime);
-      }
-    }
+    return processingTime;
   }
 
   @Override
@@ -208,7 +252,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   @Override
   protected SideInputReader getSideInputReader(
-      Iterable<? extends SideInputInfo> sideInputInfos, DataflowOperationContext operationContext) {
+      Iterable<? extends SideInputInfo> sideInputInfo, DataflowOperationContext operationContext) {
     throw new UnsupportedOperationException(
         "Cannot call getSideInputReader for StreamingDataflowWorker: "
             + "the MapTask specification should not have had any SideInputInfo descriptors "
@@ -231,8 +275,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * until the active work item is finished.
    *
    * <p>If the side input was not cached, throws {@code IllegalStateException} if the state is
-   * {@literal CACHED_IN_WORK_ITEM} or returns {@link SideInput<T>} which contains {@link
-   * Optional<T>}.
+   * {@link SideInputState#CACHED_IN_WORK_ITEM} or returns {@link SideInput<T>} which contains
+   * {@link Optional<T>}.
    */
   private <T> SideInput<T> fetchSideInput(
       PCollectionView<T> view,
@@ -285,15 +329,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
-    return work.getGlobalDataIdNotificationsList();
+    return work.getWorkItem().getGlobalDataIdNotificationsList();
   }
 
   private List<Timer> getFiredTimers() {
-    return work.getTimers().getTimersList();
+    return work.getWorkItem().getTimers().getTimersList();
   }
 
   public @Nullable ByteString getSerializedKey() {
-    return work == null ? null : work.getKey();
+    return work.getWorkItem().getKey();
   }
 
   public WindmillComputationKey getComputationKey() {
@@ -301,11 +345,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public long getWorkToken() {
-    return work.getWorkToken();
+    return work.getWorkItem().getWorkToken();
   }
 
-  public Windmill.WorkItem getWork() {
-    return work;
+  public Windmill.WorkItem getWorkItem() {
+    return work.getWorkItem();
   }
 
   public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
@@ -316,12 +360,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * Returns cached reader for this key if one exists. The reader is removed from the cache. NOTE:
    * The caller is responsible for the reader and should appropriately close it as required.
    */
-  public UnboundedSource.UnboundedReader<?> getCachedReader() {
+  public UnboundedReader<?> getCachedReader() {
     return readerCache.acquireReader(
-        getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken());
+        getComputationKey(), getWorkItem().getCacheToken(), getWorkItem().getWorkToken());
   }
 
-  public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
+  public void setActiveReader(UnboundedReader<?> reader) {
     checkState(activeReader == null, "not expected to be overwritten");
     activeReader = reader;
   }
@@ -339,18 +383,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         }
       }
       activeReader = null;
-      stateCache.invalidate(key, getWork().getShardingKey());
+      stateCache.invalidate(key, getWorkItem().getShardingKey());
     }
   }
 
-  public UnboundedSource.CheckpointMark getReaderCheckpoint(
+  public UnboundedSource.@Nullable CheckpointMark getReaderCheckpoint(
       Coder<? extends UnboundedSource.CheckpointMark> coder) {
     try {
-      ByteString state = work.getSourceState().getState();
-      if (state.isEmpty()) {
+      ByteString sourceStateState = work.getWorkItem().getSourceState().getState();
+      if (sourceStateState.isEmpty()) {
         return null;
       }
-      return coder.decode(state.newInput(), Coder.Context.OUTER);
+      return coder.decode(sourceStateState.newInput(), Coder.Context.OUTER);
     } catch (IOException e) {
       throw new RuntimeException("Exception while decoding checkpoint", e);
     }
@@ -396,7 +440,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       outputBuilder.setSourceWatermark(WindmillTimeUtils.harnessToWindmillTimestamp(watermark));
 
       backlogBytes = activeReader.getSplitBacklogBytes();
-      if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN
+      if (backlogBytes == UnboundedReader.BACKLOG_UNKNOWN
           && WorkerCustomSources.isFirstUnboundedSourceSplit(getSerializedKey())) {
         // Only call getTotalBacklogBytes() on the first split.
         backlogBytes = activeReader.getTotalBacklogBytes();
@@ -404,7 +448,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       outputBuilder.setSourceBacklogBytes(backlogBytes);
 
       readerCache.cacheReader(
-          getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken(), activeReader);
+          getComputationKey(),
+          getWorkItem().getCacheToken(),
+          getWorkItem().getWorkToken(),
+          activeReader);
       activeReader = null;
     }
     return callbacks;
@@ -437,7 +484,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   /**
-   * Execution states in Streaming are shared between multiple map-task executors. Thus this class
+   * Execution states in Streaming are shared between multiple map-task executors. Thus, this class
    * needs to be thread safe for multiple writers. A single stage could have multiple executors
    * running concurrently.
    */
@@ -566,8 +613,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Iterable<T> data,
         Coder<Iterable<T>> dataCoder,
         W window,
-        Coder<W> windowCoder)
-        throws IOException {
+        Coder<W> windowCoder) {
       throw new IllegalStateException("User DoFns cannot write PCollectionView data");
     }
 
@@ -648,6 +694,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
+  @NotThreadSafe
   class StepContext extends DataflowExecutionContext.DataflowStepContext
       implements StreamingModeStepContext {
 
@@ -668,8 +715,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private NavigableSet<TimerData> modifiedUserProcessingTimersOrdered = null;
     private NavigableSet<TimerData> modifiedUserSynchronizedProcessingTimersOrdered = null;
     // A list of timer keys that were modified by user processing earlier in this bundle. This
-    // serves a tombstone, so
-    // that we know not to fire any bundle timers that were modified.
+    // serves a tombstone, so that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
 
     public StepContext(DataflowOperationContext operationContext) {
@@ -683,17 +729,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Update the {@code stateReader} used by this {@code StepContext}. */
     public void start(
         WindmillStateReader stateReader,
-        Instant inputDataWatermark,
         Instant processingTime,
         WindmillStateCache.ForKey cacheForKey,
-        @Nullable Instant outputDataWatermark,
-        @Nullable Instant synchronizedProcessingTime) {
+        Watermarks watermarks) {
       this.stateInternals =
           new WindmillStateInternals<>(
               key,
               stateFamily,
               stateReader,
-              work.getIsNewKey(),
+              work.getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
               scopedReadStateSupplier);
 
@@ -701,20 +745,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           new WindmillTimerInternals(
               stateFamily,
               WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-              inputDataWatermark,
               processingTime,
-              outputDataWatermark,
-              synchronizedProcessingTime,
+              watermarks,
               td -> {});
 
       this.userTimerInternals =
           new WindmillTimerInternals(
               stateFamily,
               WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
-              inputDataWatermark,
               processingTime,
-              outputDataWatermark,
-              synchronizedProcessingTime,
+              watermarks,
               this::onUserTimerModified);
 
       this.cachedFiredSystemTimers = null;
@@ -780,11 +820,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           WindmillTimerInternals.getTimerDataKey(timerData), timerData.getNamespace(), timerData);
     }
 
-    private boolean timerModified(TimerData timerData) {
-      String timerKey = WindmillTimerInternals.getTimerDataKey(timerData);
+    private boolean isTimerUnmodified(TimerData timerData) {
       @Nullable
-      TimerData updatedTimer = modifiedUserTimerKeys.get(timerKey, timerData.getNamespace());
-      return updatedTimer != null && !updatedTimer.equals(timerData);
+      TimerData updatedTimer =
+          modifiedUserTimerKeys.get(
+              WindmillTimerInternals.getTimerDataKey(timerData), timerData.getNamespace());
+      return updatedTimer == null || updatedTimer.equals(timerData);
     }
 
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
@@ -815,7 +856,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         while (!modifiedUserTimersOrdered.isEmpty()
             && modifiedUserTimersOrdered.first().compareTo(nextInBundle) <= 0) {
           TimerData earlierTimer = modifiedUserTimersOrdered.pollFirst();
-          if (!timerModified(earlierTimer)) {
+          if (isTimerUnmodified(earlierTimer)) {
             // We must delete the timer. This prevents it from being committed to the backing store.
             // It also handles the
             // case where the timer had been set to the far future and then modified in bundle;
@@ -828,7 +869,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         }
         // There is no earlier timer to fire, so return the next timer in the bundle.
         nextInBundle = cachedFiredUserTimers.next();
-        if (!timerModified(nextInBundle)) {
+        if (isTimerUnmodified(nextInBundle)) {
           // User timers must be explicitly deleted when delivered, to release the implied hold.
           userTimerInternals.deleteTimer(nextInBundle);
           return nextInBundle;

@@ -54,6 +54,9 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
+// Set using -PjobEndpoint=, for example: -PjobEndpoint=localhost:8073
+def jobEndpointPropertyName = "jobEndpoint"
+
 project.evaluationDependsOn(":sdks:java:core")
 project.evaluationDependsOn(":sdks:python")
 project.evaluationDependsOn(":runners:core-java")
@@ -61,7 +64,7 @@ project.evaluationDependsOn(":runners:core-java")
 ext.pythonSdkDir = project.findProject(":sdks:python").getProjectDir().getAbsoluteFile().toString()
 
 // If this is set via -P then we assume it is already running and will not start it
-def needsLocalJobService = !project.hasProperty("localJobServicePortFile")
+def needsLocalJobService = !project.hasProperty("localJobServicePortFile") && !project.hasProperty(jobEndpointPropertyName)
 
 ext.localJobServicePortFile = project.hasProperty("localJobServicePortFile") ? project.property("localJobServicePortFile") : "${project.buildDir}/local_job_service_port"
 
@@ -139,11 +142,15 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
   Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
     description "PortableRunner Java docker ValidatesRunner suite"
     classpath = configurations.validatesRunner
+    var jobEndpointOption = "--localJobServicePortFile=$localJobServicePortFile"
+    if (project.hasProperty(jobEndpointPropertyName)) {
+      jobEndpointOption = "--$jobEndpointPropertyName=${project.findProperty(jobEndpointPropertyName)}"
+    }
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
         "--runner=TestUniversalRunner",
         "--experiments=beam_fn_api",
         "--defaultEnvironmentType=${environmentType}",
-        "--localJobServicePortFile=${localJobServicePortFile}"
+        jobEndpointOption
     ])
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
@@ -152,6 +159,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStringSetMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
@@ -202,6 +210,8 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
 
       // TODO(https://github.com/apache/beam/issues/29973)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/31231)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
 
       for (String test : sickbayTests) {
         excludeTestsMatching test

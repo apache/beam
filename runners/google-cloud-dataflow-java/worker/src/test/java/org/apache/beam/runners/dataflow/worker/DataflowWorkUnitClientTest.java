@@ -34,10 +34,13 @@ import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
 import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
 import com.google.api.services.dataflow.model.SeqMapTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
+import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
@@ -253,6 +256,12 @@ public class DataflowWorkUnitClientTest {
     MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
     response.setContentType(Json.MEDIA_TYPE);
     SendWorkerMessagesResponse workerMessage = new SendWorkerMessagesResponse();
+    StreamingScalingReportResponse streamingScalingReportResponse =
+        new StreamingScalingReportResponse().setMaximumThreadCount(10);
+    WorkerMessageResponse workerMessageResponse =
+        new WorkerMessageResponse()
+            .setStreamingScalingReportResponse(streamingScalingReportResponse);
+    workerMessage.setWorkerMessageResponses(Collections.singletonList(workerMessageResponse));
     workerMessage.setFactory(Transport.getJsonFactory());
     response.setContent(workerMessage.toPrettyString());
 
@@ -271,12 +280,14 @@ public class DataflowWorkUnitClientTest {
             .setMaximumBundleCount(5)
             .setMaximumBytes(6L);
     WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
-    client.reportWorkerMessage(Collections.singletonList(msg));
+    List<WorkerMessageResponse> responses =
+        client.reportWorkerMessage(Collections.singletonList(msg));
 
     SendWorkerMessagesRequest actualRequest =
         Transport.getJsonFactory()
             .fromString(request.getContentAsString(), SendWorkerMessagesRequest.class);
     assertEquals(ImmutableList.of(msg), actualRequest.getWorkerMessages());
+    assertEquals(ImmutableList.of(workerMessageResponse), responses);
   }
 
   @Test

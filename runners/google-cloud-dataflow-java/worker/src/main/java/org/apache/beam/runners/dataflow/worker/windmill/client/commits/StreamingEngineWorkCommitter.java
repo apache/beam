@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
+import com.google.auto.value.AutoBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -45,6 +47,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int TARGET_COMMIT_BATCH_KEYS = 5;
   private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
+  private static final String NO_BACKEND_WORKER_TOKEN = "";
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -52,11 +55,13 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final AtomicLong activeCommitBytes;
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;
+  private final AtomicBoolean isRunning;
 
-  private StreamingEngineWorkCommitter(
+  StreamingEngineWorkCommitter(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
-      Consumer<CompleteCommit> onCommitComplete) {
+      Consumer<CompleteCommit> onCommitComplete,
+      String backendWorkerToken) {
     this.commitWorkStreamFactory = commitWorkStreamFactory;
     this.commitQueue =
         WeightedBoundedQueue.create(
@@ -67,34 +72,48 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MAX_PRIORITY)
-                .setNameFormat("CommitThread-%d")
+                .setNameFormat(
+                    backendWorkerToken.isEmpty()
+                        ? "CommitThread-%d"
+                        : "CommitThread-" + backendWorkerToken + "-%d")
                 .build());
     this.activeCommitBytes = new AtomicLong();
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;
+    this.isRunning = new AtomicBoolean(false);
   }
 
-  public static StreamingEngineWorkCommitter create(
-      Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
-      int numCommitSenders,
-      Consumer<CompleteCommit> onCommitComplete) {
-    return new StreamingEngineWorkCommitter(
-        commitWorkStreamFactory, numCommitSenders, onCommitComplete);
+  public static Builder builder() {
+    return new AutoBuilder_StreamingEngineWorkCommitter_Builder()
+        .setBackendWorkerToken(NO_BACKEND_WORKER_TOKEN)
+        .setNumCommitSenders(1);
   }
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
-    if (!commitSenders.isShutdown()) {
-      for (int i = 0; i < numCommitSenders; i++) {
-        commitSenders.submit(this::streamingCommitLoop);
-      }
+    Preconditions.checkState(
+        isRunning.compareAndSet(false, true), "Multiple calls to WorkCommitter.start().");
+    for (int i = 0; i < numCommitSenders; i++) {
+      commitSenders.submit(this::streamingCommitLoop);
     }
   }
 
   @Override
   public void commit(Commit commit) {
-    commitQueue.put(commit);
+    boolean isShutdown = !this.isRunning.get();
+    if (commit.work().isFailed() || isShutdown) {
+      if (isShutdown) {
+        LOG.debug(
+            "Trying to queue commit on shutdown, failing commit=[computationId={}, shardingKey={}, workId={} ].",
+            commit.computationId(),
+            commit.work().getShardedKey(),
+            commit.work().id());
+      }
+      failCommit(commit);
+    } else {
+      commitQueue.put(commit);
+    }
   }
 
   @Override
@@ -104,14 +123,14 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void stop() {
-    if (!commitSenders.isTerminated() || !commitSenders.isShutdown()) {
-      commitSenders.shutdown();
-      try {
-        commitSenders.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        LOG.warn("Could not shut down commitSenders gracefully, forcing shutdown.", e);
-      }
-      commitSenders.shutdownNow();
+    Preconditions.checkState(isRunning.compareAndSet(true, false));
+    commitSenders.shutdownNow();
+    try {
+      commitSenders.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      LOG.warn(
+          "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue.",
+          e);
     }
     drainCommitQueue();
   }
@@ -137,15 +156,17 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private void streamingCommitLoop() {
     @Nullable Commit initialCommit = null;
     try {
-      while (true) {
+      while (isRunning.get()) {
         if (initialCommit == null) {
           try {
             // Block until we have a commit or are shutting down.
             initialCommit = commitQueue.take();
           } catch (InterruptedException e) {
-            continue;
+            Thread.currentThread().interrupt();
+            return;
           }
         }
+        Preconditions.checkNotNull(initialCommit);
 
         if (initialCommit.work().isFailed()) {
           onCommitComplete.accept(CompleteCommit.forFailedWork(initialCommit));
@@ -154,17 +175,16 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         }
 
         try (CloseableStream<CommitWorkStream> closeableCommitStream =
-            commitWorkStreamFactory.get()) {
-          CommitWorkStream commitStream = closeableCommitStream.stream();
-          if (!tryAddToCommitStream(initialCommit, commitStream)) {
+                commitWorkStreamFactory.get();
+            CommitWorkStream.RequestBatcher batcher = closeableCommitStream.stream().batcher()) {
+          if (!tryAddToCommitBatch(initialCommit, batcher)) {
             throw new AssertionError("Initial commit on flushed stream should always be accepted.");
           }
-          // Batch additional commits to the stream and possibly make an un-batched commit the next
-          // initial commit.
-          initialCommit = batchCommitsToStream(commitStream);
-          commitStream.flush();
+          // Batch additional commits to the stream and possibly make an un-batched commit the
+          // next initial commit.
+          initialCommit = expandBatch(batcher);
         } catch (Exception e) {
-          LOG.error("Error occurred fetching a CommitWorkStream.", e);
+          LOG.error("Error occurred sending commits.", e);
         }
       }
     } finally {
@@ -174,16 +194,16 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     }
   }
 
-  /** Adds the commit to the commitStream if it fits, returning true if it is consumed. */
-  private boolean tryAddToCommitStream(Commit commit, CommitWorkStream commitStream) {
+  /** Adds the commit to the batch if it fits, returning true if it is consumed. */
+  private boolean tryAddToCommitBatch(Commit commit, CommitWorkStream.RequestBatcher batcher) {
     Preconditions.checkNotNull(commit);
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(commit.getSize());
     boolean isCommitAccepted =
-        commitStream.commitWorkItem(
+        batcher.commitWorkItem(
             commit.computationId(),
             commit.request(),
-            (commitStatus) -> {
+            commitStatus -> {
               onCommitComplete.accept(CompleteCommit.create(commit, commitStatus));
               activeCommitBytes.addAndGet(-commit.getSize());
             });
@@ -197,9 +217,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     return isCommitAccepted;
   }
 
-  // Helper to batch additional commits into the commit stream as long as they fit.
-  // Returns a commit that was removed from the queue but not consumed or null.
-  private Commit batchCommitsToStream(CommitWorkStream commitStream) {
+  /**
+   * Helper to batch additional commits into the commit batch as long as they fit. Returns a commit
+   * that was removed from the queue but not consumed or null.
+   */
+  private @Nullable Commit expandBatch(CommitWorkStream.RequestBatcher batcher) {
     int commits = 1;
     while (true) {
       Commit commit;
@@ -210,8 +232,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           commit = commitQueue.poll();
         }
       } catch (InterruptedException e) {
-        // Continue processing until !running.get()
-        continue;
+        Thread.currentThread().interrupt();
+        return null;
       }
 
       if (commit == null) {
@@ -224,10 +246,28 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         continue;
       }
 
-      if (!tryAddToCommitStream(commit, commitStream)) {
+      if (!tryAddToCommitBatch(commit, batcher)) {
         return commit;
       }
       commits++;
+    }
+  }
+
+  @AutoBuilder
+  public interface Builder {
+    Builder setCommitWorkStreamFactory(
+        Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory);
+
+    Builder setNumCommitSenders(int numCommitSenders);
+
+    Builder setOnCommitComplete(Consumer<CompleteCommit> onCommitComplete);
+
+    Builder setBackendWorkerToken(String backendWorkerToken);
+
+    StreamingEngineWorkCommitter autoBuild();
+
+    default WorkCommitter build() {
+      return autoBuild();
     }
   }
 }

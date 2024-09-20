@@ -26,8 +26,11 @@ import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -207,12 +210,7 @@ final class MutationUtils {
         mutationBuilder.set(columnName).to(row.getInt64(columnName));
         break;
       case FLOAT:
-        @Nullable Float floatValue = row.getFloat(columnName);
-        if (floatValue == null) {
-          mutationBuilder.set(columnName).to(((Double) null));
-        } else {
-          mutationBuilder.set(columnName).to(floatValue);
-        }
+        mutationBuilder.set(columnName).to(row.getFloat(columnName));
         break;
       case DOUBLE:
         mutationBuilder.set(columnName).to(row.getDouble(columnName));
@@ -311,6 +309,8 @@ final class MutationUtils {
         mutationBuilder.set(column).toInt64Array((Iterable<Long>) ((Object) iterable));
         break;
       case FLOAT:
+        mutationBuilder.set(column).toFloat32Array((Iterable<Float>) ((Object) iterable));
+        break;
       case DOUBLE:
         mutationBuilder.set(column).toFloat64Array((Iterable<Double>) ((Object) iterable));
         break;
@@ -352,6 +352,63 @@ final class MutationUtils {
             String.format(
                 "Unsupported iterable type '%s' while translating row to struct.",
                 beamIterableType.getTypeName()));
+    }
+  }
+
+  public static Row createRowFromMutation(Schema schema, Mutation mutation) {
+    Map<String, Object> mutationHashMap = new HashMap<>();
+    mutation
+        .asMap()
+        .forEach(
+            (column, value) -> mutationHashMap.put(column, convertValueToBeamFieldType(value)));
+    return Row.withSchema(schema).withFieldValues(mutationHashMap).build();
+  }
+
+  public static Object convertValueToBeamFieldType(Value value) {
+    switch (value.getType().getCode()) {
+      case BOOL:
+        return value.getBool();
+      case BYTES:
+        return value.getBytes();
+      case DATE:
+        return value.getDate();
+      case INT64:
+        return value.getInt64();
+      case FLOAT64:
+        return value.getFloat64();
+      case NUMERIC:
+        return value.getNumeric();
+      case TIMESTAMP:
+        return value.getTimestamp();
+      case STRING:
+        return value.getString();
+      case JSON:
+        return value.getJson();
+      case ARRAY:
+        switch (value.getType().getArrayElementType().getCode()) {
+          case BOOL:
+            return value.getBoolArray();
+          case BYTES:
+            return value.getBytesArray();
+          case DATE:
+            return value.getDateArray();
+          case INT64:
+            return value.getInt64Array();
+          case FLOAT64:
+            return value.getFloat64Array();
+          case NUMERIC:
+            return value.getNumericArray();
+          case TIMESTAMP:
+            return value.getTimestampArray();
+          case STRING:
+            return value.getStringArray();
+          case JSON:
+            return value.getJsonArray();
+          default:
+            return value.toString();
+        }
+      default:
+        return value.toString();
     }
   }
 }

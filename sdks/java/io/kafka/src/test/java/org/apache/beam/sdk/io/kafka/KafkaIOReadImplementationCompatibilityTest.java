@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaIOTest.mkKafkaReadTransform;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -29,8 +30,10 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadProperties;
 import org.apache.beam.sdk.io.kafka.KafkaIOTest.ValueAsTimestampFn;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -92,7 +95,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
   @Test
   public void testPrimitiveKafkaIOReadPropertiesDefaultValueExistence() {
     for (KafkaIOReadProperties properties : KafkaIOReadProperties.values()) {
-      if (properties.getGetterMethod().getReturnType().isPrimitive()) {
+      if (KafkaIOReadProperties.findGetterMethod(properties).getReturnType().isPrimitive()) {
         assertThat(
             "KafkaIOReadProperties." + properties + " should have a default value!",
             properties.getDefaultValue(),
@@ -101,10 +104,18 @@ public class KafkaIOReadImplementationCompatibilityTest {
     }
   }
 
-  private void testReadTransformCreationWithImplementationBoundProperties(
+  private PipelineResult testReadTransformCreationWithImplementationBoundProperties(
       Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>> kafkaReadDecorator) {
-    p.apply(kafkaReadDecorator.apply(mkKafkaReadTransform(1000, null, new ValueAsTimestampFn())));
-    p.run();
+    p.apply(
+        kafkaReadDecorator.apply(
+            mkKafkaReadTransform(
+                1000,
+                null,
+                new ValueAsTimestampFn(),
+                false, /*redistribute*/
+                false, /*allowDuplicates*/
+                0)));
+    return p.run();
   }
 
   private Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>>
@@ -119,12 +130,24 @@ public class KafkaIOReadImplementationCompatibilityTest {
 
   @Test
   public void testReadTransformCreationWithLegacyImplementationBoundProperty() {
-    testReadTransformCreationWithImplementationBoundProperties(legacyDecoratorFunction());
+    PipelineResult r =
+        testReadTransformCreationWithImplementationBoundProperties(legacyDecoratorFunction());
+    String[] expect =
+        KafkaIOTest.mkKafkaTopics.stream()
+            .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
+            .toArray(String[]::new);
+    assertThat(Lineage.query(r.metrics(), Lineage.Type.SOURCE), containsInAnyOrder(expect));
   }
 
   @Test
   public void testReadTransformCreationWithSdfImplementationBoundProperty() {
-    testReadTransformCreationWithImplementationBoundProperties(sdfDecoratorFunction());
+    PipelineResult r =
+        testReadTransformCreationWithImplementationBoundProperties(sdfDecoratorFunction());
+    String[] expect =
+        KafkaIOTest.mkKafkaTopics.stream()
+            .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
+            .toArray(String[]::new);
+    assertThat(Lineage.query(r.metrics(), Lineage.Type.SOURCE), containsInAnyOrder(expect));
   }
 
   @Test

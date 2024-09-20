@@ -113,7 +113,7 @@ public class MorePipelineTest {
                       PCollectionViews.ValueOrMetadataCoder.create(
                           inputCoder, OffsetRange.Coder.of())));
       PCollectionView<List<T>> view =
-          PCollectionViews.listView(
+          PCollectionViews.listViewWithRandomAccess(
               materializationInput,
               (TupleTag<
                       Materializations.MultimapView<
@@ -156,7 +156,7 @@ public class MorePipelineTest {
                   checkState(
                       viewRef.compareAndSet(null, createViewTransform.getView()),
                       "Found more than one instance of a CreatePCollectionView when"
-                          + "attempting to replace %s, found [%s, %s]",
+                          + " attempting to replace %s, found [%s, %s]",
                       transform.getTransform(),
                       viewRef.get(),
                       createViewTransform.getView());

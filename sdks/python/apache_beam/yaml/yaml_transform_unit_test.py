@@ -256,7 +256,8 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
         input: {spec['transforms'][0]['__uuid__']}
-      output: {spec['transforms'][1]['__uuid__']}
+      output:
+        '__implicit_outputs__': {spec['transforms'][1]['__uuid__']}
     '''
     self.assertYaml(expected, result)
 
@@ -900,7 +901,8 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    with self.assertRaisesRegex(ValueError, r"Unconsumed error.*"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Unconsumed error.*MyTransform.errors"):
       ensure_errors_consumed(spec)
 
   def test_ensure_errors_consumed_in_transform(self):

@@ -74,6 +74,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
 
+  public abstract @Nullable ValueProvider<Duration> getMaxCommitDelay();
+
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
 
   public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
@@ -155,6 +157,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
+
+    abstract Builder setMaxCommitDelay(ValueProvider<Duration> maxCommitDelay);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
 
@@ -276,6 +280,22 @@ public abstract class SpannerConfig implements Serializable {
   public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
     checkNotNull(rpcPriority, "withRpcPriority(rpcPriority) called with null input.");
     return toBuilder().setRpcPriority(rpcPriority).build();
+  }
+
+  /* Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(long millis) {
+    return withMaxCommitDelay(Duration.millis(millis));
+  }
+
+  /** Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(Duration maxCommitDelay) {
+    return withMaxCommitDelay(ValueProvider.StaticValueProvider.of(maxCommitDelay));
+  }
+
+  /** Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(ValueProvider<Duration> maxCommitDelay) {
+    checkNotNull(maxCommitDelay, "withMaxCommitTimeout(maxCommitDelay) called with null input.");
+    return toBuilder().setMaxCommitDelay(maxCommitDelay).build();
   }
 
   /** Specifies the Cloud Spanner database role. */

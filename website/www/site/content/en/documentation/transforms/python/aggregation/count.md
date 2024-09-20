@@ -46,7 +46,7 @@ We use `Count.PerKey()` to count the elements for each unique key in a `PCollect
 
 ### Example 3: Counting all unique elements
 
-We use `Count.PerElement()` to count the only the unique elements in a `PCollection`.
+We use `Count.PerElement()` to count only the unique elements in a `PCollection`.
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="py" path="SDK_PYTHON_CountPerElement" show="count_per_element" >}}

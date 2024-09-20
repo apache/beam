@@ -65,8 +65,7 @@ class ProgrammingGuideTest(unittest.TestCase):
 
   def test_group_by(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -87,8 +86,7 @@ class ProgrammingGuideTest(unittest.TestCase):
 
   def test_co_group_by(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
           '''
           type: composite
@@ -168,8 +166,7 @@ class ProgrammingGuideTest(unittest.TestCase):
 
   def test_combine_ref(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -196,8 +193,7 @@ class ProgrammingGuideTest(unittest.TestCase):
 
   def test_combine_globally(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -217,8 +213,7 @@ class ProgrammingGuideTest(unittest.TestCase):
 
   def test_combine_per_key(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''

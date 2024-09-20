@@ -34,7 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -69,11 +69,12 @@ const (
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 
-	URNProgressReporting     = "beam:protocol:progress_reporting:v1"
-	URNMultiCore             = "beam:protocol:multi_core_bundle_processing:v1"
-	URNWorkerStatus          = "beam:protocol:worker_status:v1"
-	URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
-	URNDataSampling          = "beam:protocol:data_sampling:v1"
+	URNProgressReporting        = "beam:protocol:progress_reporting:v1"
+	URNMultiCore                = "beam:protocol:multi_core_bundle_processing:v1"
+	URNWorkerStatus             = "beam:protocol:worker_status:v1"
+	URNMonitoringInfoShortID    = "beam:protocol:monitoring_info_short_ids:v1"
+	URNDataSampling             = "beam:protocol:data_sampling:v1"
+	URNSDKConsumingReceivedData = "beam:protocol:sdk_consuming_received_data:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -111,6 +112,7 @@ func goCapabilities() []string {
 		URNBaseVersionGo,
 		URNToString,
 		URNDataSampling,
+		URNSDKConsumingReceivedData,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
@@ -1207,13 +1209,13 @@ func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, 
 }
 
 func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string {
-	key := proto.MarshalTextString(w)
-	if id, exists := m.windowing2id[key]; exists {
+	key := w.String()
+	if id, exists := m.windowing2id[(key)]; exists {
 		return id
 	}
 
 	id := fmt.Sprintf("w%v", len(m.windowing2id))
-	m.windowing2id[key] = id
+	m.windowing2id[string(key)] = id
 	m.windowing[id] = w
 	return id
 }

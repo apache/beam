@@ -43,12 +43,13 @@ public class TypedSchemaTransformProviderTest {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class Configuration {
-    abstract String getField1();
+    abstract String getStringField();
 
-    abstract Integer getField2();
+    abstract Integer getIntegerField();
 
-    static Configuration create(String field1, int field2) {
-      return new AutoValue_TypedSchemaTransformProviderTest_Configuration(field1, field2);
+    static Configuration create(String stringField, int integerField) {
+      return new AutoValue_TypedSchemaTransformProviderTest_Configuration(
+          stringField, integerField);
     }
   };
 
@@ -90,7 +91,8 @@ public class TypedSchemaTransformProviderTest {
     public Optional<List<String>> dependencies(
         Configuration configuration, PipelineOptions options) {
       return Optional.of(
-          Arrays.asList(configuration.getField1(), String.valueOf(configuration.getField2())));
+          Arrays.asList(
+              configuration.getStringField(), String.valueOf(configuration.getIntegerField())));
     }
   }
 
@@ -128,8 +130,8 @@ public class TypedSchemaTransformProviderTest {
 
     Row inputConfig =
         Row.withSchema(provider.configurationSchema())
-            .withFieldValue("field1", "field1")
-            .withFieldValue("field2", Integer.valueOf(13))
+            .withFieldValue("string_field", "field1")
+            .withFieldValue("integer_field", Integer.valueOf(13))
             .build();
 
     Configuration outputConfig = ((FakeSchemaTransform) provider.from(inputConfig)).config;
@@ -137,8 +139,8 @@ public class TypedSchemaTransformProviderTest {
         ((FakeSchemaTransform) minimalProvider.from(inputConfig)).config;
 
     for (Configuration config : Arrays.asList(outputConfig, minimalOutputConfig)) {
-      assertEquals("field1", config.getField1());
-      assertEquals(13, config.getField2().intValue());
+      assertEquals("field1", config.getStringField());
+      assertEquals(13, config.getIntegerField().intValue());
     }
     assertEquals("Description of fake provider", provider.description());
   }
@@ -148,8 +150,8 @@ public class TypedSchemaTransformProviderTest {
     SchemaTransformProvider provider = new FakeTypedSchemaIOProvider();
     Row inputConfig =
         Row.withSchema(provider.configurationSchema())
-            .withFieldValue("field1", "field1")
-            .withFieldValue("field2", Integer.valueOf(13))
+            .withFieldValue("string_field", "field1")
+            .withFieldValue("integer_field", Integer.valueOf(13))
             .build();
 
     assertEquals(Arrays.asList("field1", "13"), provider.dependencies(inputConfig, null).get());

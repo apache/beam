@@ -17,24 +17,21 @@
  */
 package org.apache.beam.it.gcp.bigquery;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,26 +45,24 @@ import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -87,10 +82,11 @@ import org.junit.Test;
 public final class BigQueryIOST extends IOStressTestBase {
 
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
-  private static final String TEST_ID = UUID.randomUUID().toString();
-  private static final String TEST_TIMESTAMP = Timestamp.now().toString();
+  private static final String STORAGE_WRITE_API_METHOD = "STORAGE_WRITE_API";
+  private static final String STORAGE_API_AT_LEAST_ONCE_METHOD = "STORAGE_API_AT_LEAST_ONCE";
 
   private static BigQueryResourceManager resourceManager;
+  private static String tableName;
   private static String tableQualifier;
   private static InfluxDBSettings influxDBSettings;
 
@@ -110,15 +106,14 @@ public final class BigQueryIOST extends IOStressTestBase {
 
   @Before
   public void setup() {
-    // generate a random table names
-    String sourceTableName =
+    // generate a random table name
+    tableName =
         "io-bq-source-table-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
                 .withZone(ZoneId.of("UTC"))
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
-    tableQualifier =
-        String.format("%s:%s.%s", project, resourceManager.getDatasetId(), sourceTableName);
+    tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);
 
     // parse configuration
     testConfigName =
@@ -149,6 +144,14 @@ public final class BigQueryIOST extends IOStressTestBase {
       writePipeline.getOptions().as(TestPipelineOptions.class).setTempRoot(tempLocation);
       writePipeline.getOptions().setTempLocation(tempLocation);
     }
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+    }
   }
 
   @AfterClass
@@ -164,11 +167,11 @@ public final class BigQueryIOST extends IOStressTestBase {
           ImmutableMap.of(
               "medium",
               Configuration.fromJsonString(
-                  "{\"numColumns\":10,\"rowsPerSecond\":25000,\"minutes\":30,\"numRecords\":90000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":60,\"runner\":\"DataflowRunner\"}",
+                  "{\"numColumns\":5,\"rowsPerSecond\":25000,\"minutes\":30,\"numRecords\":2500000,\"valueSizeBytes\":1000,\"pipelineTimeout\":60,\"runner\":\"DataflowRunner\"}",
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"numColumns\":20,\"rowsPerSecond\":25000,\"minutes\":240,\"numRecords\":720000000,\"valueSizeBytes\":10000,\"pipelineTimeout\":300,\"runner\":\"DataflowRunner\"}",
+                  "{\"numColumns\":10,\"rowsPerSecond\":50000,\"minutes\":60,\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":120,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -176,37 +179,30 @@ public final class BigQueryIOST extends IOStressTestBase {
   }
 
   @Test
-  public void testJsonStreamingWriteThenRead() throws IOException {
-    configuration.writeFormat = "JSON";
-    configuration.writeMethod = "STREAMING_INSERTS";
-    runTest();
-  }
-
-  @Test
   public void testAvroStorageAPIWrite() throws IOException {
-    configuration.writeFormat = "AVRO";
-    configuration.writeMethod = "STORAGE_WRITE_API";
+    configuration.writeFormat = WriteFormat.AVRO.name();
+    configuration.writeMethod = STORAGE_WRITE_API_METHOD;
     runTest();
   }
 
   @Test
   public void testJsonStorageAPIWrite() throws IOException {
-    configuration.writeFormat = "JSON";
-    configuration.writeMethod = "STORAGE_WRITE_API";
+    configuration.writeFormat = WriteFormat.JSON.name();
+    configuration.writeMethod = STORAGE_WRITE_API_METHOD;
     runTest();
   }
 
   @Test
-  public void testAvroStorageAPIWriteAtLeastOnce() throws IOException {
-    configuration.writeFormat = "AVRO";
-    configuration.writeMethod = "STORAGE_API_AT_LEAST_ONCE";
+  public void testAvroStorageAPIAtLeastOnce() throws IOException {
+    configuration.writeFormat = WriteFormat.AVRO.name();
+    configuration.writeMethod = STORAGE_API_AT_LEAST_ONCE_METHOD;
     runTest();
   }
 
   @Test
-  public void testJsonStorageAPIWriteAtLeastOnce() throws IOException {
-    configuration.writeFormat = "JSON";
-    configuration.writeMethod = "STORAGE_API_AT_LEAST_ONCE";
+  public void testJsonStorageAPIAtLeastOnce() throws IOException {
+    configuration.writeFormat = WriteFormat.JSON.name();
+    configuration.writeMethod = STORAGE_API_AT_LEAST_ONCE_METHOD;
     runTest();
   }
 
@@ -237,21 +233,29 @@ public final class BigQueryIOST extends IOStressTestBase {
       case AVRO:
         writeIO =
             BigQueryIO.<byte[]>write()
-                .withTriggeringFrequency(org.joda.time.Duration.standardSeconds(30))
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withSuccessfulInsertsPropagation(false)
+                .withoutValidation()
+                .optimizedWrites()
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
-                        !("STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod))));
+                        !(STORAGE_WRITE_API_METHOD.equalsIgnoreCase(configuration.writeMethod)
+                            || STORAGE_API_AT_LEAST_ONCE_METHOD.equalsIgnoreCase(
+                                configuration.writeMethod))));
         break;
       case JSON:
         writeIO =
             BigQueryIO.<byte[]>write()
-                .withTriggeringFrequency(org.joda.time.Duration.standardSeconds(30))
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withSuccessfulInsertsPropagation(false)
+                .withoutValidation()
+                .optimizedWrites()
                 .withFormatFunction(new JsonFormatFn(configuration.numColumns));
         break;
+    }
+    if (configuration.writeMethod.equals(STORAGE_WRITE_API_METHOD)) {
+      writeIO = writeIO.withTriggeringFrequency(org.joda.time.Duration.standardSeconds(60));
     }
     generateDataAndWrite(writeIO);
   }
@@ -265,43 +269,37 @@ public final class BigQueryIOST extends IOStressTestBase {
     BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(configuration.writeMethod);
     writePipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
 
-    // The PeriodicImpulse source will generate an element every this many millis:
-    int fireInterval = 1;
     // Each element from PeriodicImpulse will fan out to this many elements:
     int startMultiplier =
         Math.max(configuration.rowsPerSecond, DEFAULT_ROWS_PER_SECOND) / DEFAULT_ROWS_PER_SECOND;
-    long stopAfterMillis =
-        org.joda.time.Duration.standardMinutes(configuration.minutes).getMillis();
-    long totalRows = startMultiplier * stopAfterMillis / fireInterval;
     List<LoadPeriod> loadPeriods =
         getLoadPeriods(configuration.minutes, DEFAULT_LOAD_INCREASE_ARRAY);
 
-    PCollection<byte[]> source =
-        writePipeline
-            .apply(
-                PeriodicImpulse.create()
-                    .stopAfter(org.joda.time.Duration.millis(stopAfterMillis - 1))
-                    .withInterval(org.joda.time.Duration.millis(fireInterval)))
-            .apply(
-                "Extract row IDs",
-                MapElements.into(TypeDescriptor.of(byte[].class))
-                    .via(instant -> Longs.toByteArray(instant.getMillis() % totalRows)));
+    PCollection<KV<byte[], byte[]>> source =
+        writePipeline.apply(Read.from(new SyntheticUnboundedSource(configuration)));
     if (startMultiplier > 1) {
       source =
           source
               .apply(
                   "One input to multiple outputs",
                   ParDo.of(new MultiplierDoFn<>(startMultiplier, loadPeriods)))
-              .apply("Reshuffle fanout", Reshuffle.viaRandomKey())
-              .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
+              .apply("Reshuffle fanout", Reshuffle.of());
     }
-    source.apply(
-        "Write to BQ",
-        writeIO
-            .to(tableQualifier)
-            .withMethod(method)
-            .withSchema(schema)
-            .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempLocation)));
+    source
+        .apply("Extract values", Values.create())
+        .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)))
+        .apply(
+            "Write to BQ",
+            writeIO
+                .to(tableQualifier)
+                .withMethod(method)
+                .withSchema(schema)
+                .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempLocation)));
+
+    String experiments =
+        configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)
+            ? GcpOptions.STREAMING_ENGINE_EXPERIMENT + ",streaming_mode_at_least_once"
+            : GcpOptions.STREAMING_ENGINE_EXPERIMENT;
 
     PipelineLauncher.LaunchConfig options =
         PipelineLauncher.LaunchConfig.builder("write-bigquery")
@@ -314,7 +312,7 @@ public final class BigQueryIOST extends IOStressTestBase {
                     .toString())
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
-            .addParameter("experiments", GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+            .addParameter("experiments", experiments)
             .build();
 
     PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
@@ -332,33 +330,31 @@ public final class BigQueryIOST extends IOStressTestBase {
             region,
             launchInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-    Long rowCount = resourceManager.getRowCount(tableQualifier);
-    assertEquals(rowCount, numRecords, 0.5);
+    Long rowCount = resourceManager.getRowCount(tableName);
+
+    // Depending on writing method there might be duplicates on different sides (read or write).
+    if (configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)) {
+      assertTrue(
+          String.format(
+              "Number of rows in the table (%d) is less than the expected number (%d). Missing records: %d",
+              rowCount, (long) numRecords, (long) numRecords - rowCount),
+          rowCount >= numRecords);
+    } else {
+      assertTrue(
+          String.format(
+              "Number of rows in the table (%d) is greater than the expected number (%d).",
+              rowCount, (long) numRecords),
+          numRecords >= rowCount);
+    }
 
     // export metrics
     MetricsConfiguration metricsConfig =
         MetricsConfiguration.builder()
-            .setInputPCollection("Reshuffle fanout/Values/Values/Map.out0")
-            .setInputPCollectionV2("Reshuffle fanout/Values/Values/Map/ParMultiDo(Anonymous).out0")
+            .setInputPCollection("Reshuffle fanout/ExpandIterable.out0")
             .setOutputPCollection("Counting element.out0")
-            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
-    try {
-      Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-      if (configuration.exportMetricsToInfluxDB) {
-        Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-          NamedTestResult metricResult =
-              NamedTestResult.create(TEST_ID, TEST_TIMESTAMP, entry.getKey(), entry.getValue());
-          namedTestResults.add(metricResult);
-        }
-        IOITMetrics.publishToInflux(TEST_ID, TEST_TIMESTAMP, namedTestResults, influxDBSettings);
-      } else {
-        exportMetricsToBigQuery(launchInfo, metrics);
-      }
-    } catch (ParseException | InterruptedException e) {
-      throw new RuntimeException(e);
-    }
+    exportMetrics(
+        launchInfo, metricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   abstract static class FormatFn<InputT, OutputT> implements SerializableFunction<InputT, OutputT> {
@@ -475,7 +471,7 @@ public final class BigQueryIOST extends IOStressTestBase {
     @JsonProperty public String writeMethod = "DEFAULT";
 
     /** BigQuery write format: AVRO/JSON. */
-    @JsonProperty public String writeFormat = "AVRO";
+    @JsonProperty public String writeFormat = WriteFormat.AVRO.name();
 
     /**
      * Rate of generated elements sent to the source table. Will run with a minimum of 1k rows per
@@ -491,7 +487,7 @@ public final class BigQueryIOST extends IOStressTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement = BigQueryIOST.class.getName();

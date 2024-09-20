@@ -23,10 +23,8 @@ title: "Apache Beam YAML Aggregations"
 
 # Beam YAML Aggregations
 
-Beam YAML has EXPERIMENTAL ability to do aggregations to group and combine
+Beam YAML has the ability to do aggregations to group and combine
 values across records. The is accomplished via the `Combine` transform type.
-Currently `Combine` needs to be in the `yaml_experimental_features`
-option to use this transform.
 
 For example, one can write
 
@@ -65,7 +63,7 @@ field name
       col2: sum
 ```
 
-One can aggregate over may fields at once
+One can aggregate over many fields at once
 
 ```
 - type: Combine
@@ -105,7 +103,7 @@ As with all transforms, `Combine` can take a windowing parameter
 - type: Combine
   windowing:
     type: fixed
-    size: 60
+    size: 60s
   config:
     group_by: col1
     combine:
@@ -120,7 +118,7 @@ parameters from upstream, e.g.
 - type: WindowInto
   windowing:
     type: fixed
-    size: 60
+    size: 60s
 - type: Combine
   config:
     group_by: col1

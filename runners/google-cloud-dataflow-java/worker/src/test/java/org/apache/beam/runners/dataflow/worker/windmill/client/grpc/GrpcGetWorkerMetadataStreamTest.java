@@ -261,7 +261,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .build());
 
     assertTrue(streamRegistry.contains(stream));
-    stream.close();
+    stream.halfClose();
     assertFalse(streamRegistry.contains(stream));
   }
 

@@ -120,6 +120,13 @@ public class JmsIOIT implements Serializable {
     Integer getReadTimeout();
 
     void setReadTimeout(Integer timeout);
+
+    @Description(
+        "Use ConnectionFactory provider function instead of pre-instantiated ConnectionFactory object")
+    @Default.Boolean(false)
+    boolean getUseConnectionFactoryProviderFn();
+
+    void setUseConnectionFactoryProviderFn(boolean value);
   }
 
   private static final JmsIOITOptions OPTIONS =
@@ -169,7 +176,7 @@ public class JmsIOIT implements Serializable {
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
       this.commonJms.startBroker();
-      connectionFactory = this.commonJms.getConnectionFactory();
+      connectionFactory = this.commonJms.createConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
       OPTIONS.setNumberOfRecords(10000);
@@ -229,15 +236,22 @@ public class JmsIOIT implements Serializable {
   private PipelineResult readMessages() {
     pipelineRead.getOptions().as(JmsIOITOptions.class).setStreaming(true);
     pipelineRead.getOptions().as(JmsIOITOptions.class).setBlockOnRun(false);
+    JmsIO.Read<String> jmsIORead = JmsIO.readMessage();
+    if (pipelineRead.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
+      jmsIORead =
+          jmsIORead.withConnectionFactoryProviderFn(
+              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+    } else {
+      jmsIORead = jmsIORead.withConnectionFactory(connectionFactory);
+    }
     pipelineRead
         .apply(
             "Read Messages",
-            JmsIO.<String>readMessage()
+            jmsIORead
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withCoder(SerializableCoder.of(String.class))
-                .withConnectionFactory(connectionFactory)
                 .withMessageMapper(getJmsMessageMapper()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
@@ -245,18 +259,27 @@ public class JmsIOIT implements Serializable {
   }
 
   private PipelineResult publishingMessages() {
+
+    JmsIO.Write<String> jmsIOWrite = JmsIO.write();
+    if (pipelineWrite.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
+      jmsIOWrite =
+          jmsIOWrite.withConnectionFactoryProviderFn(
+              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+    } else {
+      jmsIOWrite = jmsIOWrite.withConnectionFactory(connectionFactory);
+    }
+
     pipelineWrite
         .apply("Generate Sequence Data", GenerateSequence.from(0).to(OPTIONS.getNumberOfRecords()))
         .apply("Convert to String", ParDo.of(new ToString()))
         .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC)))
         .apply(
             "Publish to Jms Broker",
-            JmsIO.<String>write()
+            jmsIOWrite
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
-                .withValueMapper(new TextMessageMapper())
-                .withConnectionFactory(connectionFactory));
+                .withValueMapper(new TextMessageMapper()));
     return pipelineWrite.run();
   }
 

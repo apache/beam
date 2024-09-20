@@ -33,9 +33,9 @@ RUN apt-get update && \
 RUN apt-get install -y build-essential libssl-dev zlib1g-dev \
     libbz2-dev libreadline-dev libsqlite3-dev llvm \
     libncurses5-dev libncursesw5-dev xz-utils tk-dev \
-    libffi-dev liblzma-dev python3-openssl 
+    libffi-dev liblzma-dev python3-openssl
 
-# Install pyenv and install all of the Python versions 
+# Install pyenv and install all of the Python versions
 # needed to build containers
 RUN curl https://pyenv.run | bash && \
     echo 'export PYENV_ROOT="$HOME/.pyenv"' >> /root/.bashrc && \
@@ -46,7 +46,8 @@ RUN curl https://pyenv.run | bash && \
     pyenv install 3.9.4 && \
     pyenv install 3.10.7 && \
     pyenv install 3.11.3 && \
-    pyenv global 3.8.9 3.9.4 3.10.7 3.11.3
+    pyenv install 3.12.3 && \
+    pyenv global 3.8.9 3.9.4 3.10.7 3.11.3 3.12.3
 
 # Install a Go version >= 1.16 so we can bootstrap higher
 # Go versions

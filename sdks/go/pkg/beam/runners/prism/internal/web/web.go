@@ -22,12 +22,17 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/metricsx"
@@ -38,6 +43,11 @@ import (
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
+)
+
+const (
+	kApplicationJson = "application/json"
+	kContentType     = "Content-Type"
 )
 
 //go:embed index.html
@@ -343,12 +353,82 @@ func (h *debugzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	renderPage(debugzPage, &data, w)
 }
 
+var grpcToHttpCodes = map[codes.Code]int{
+	codes.OK:                http.StatusOK,
+	codes.Canceled:          http.StatusRequestTimeout,
+	codes.Unknown:           http.StatusInternalServerError,
+	codes.InvalidArgument:   http.StatusBadRequest,
+	codes.DeadlineExceeded:  http.StatusRequestTimeout,
+	codes.NotFound:          http.StatusNotFound,
+	codes.PermissionDenied:  http.StatusForbidden,
+	codes.ResourceExhausted: http.StatusTooManyRequests,
+	codes.Aborted:           http.StatusConflict,
+	codes.Unimplemented:     http.StatusNotImplemented,
+	codes.OutOfRange:        http.StatusBadRequest,
+	codes.Internal:          http.StatusInternalServerError,
+	codes.Unavailable:       http.StatusServiceUnavailable,
+	codes.DataLoss:          http.StatusInternalServerError,
+}
+
+type jobCancelHandler struct {
+	Jobcli jobpb.JobServiceClient
+}
+
+type cancelJobRequest struct {
+	JobID string `json:"job_id"`
+}
+
+func (h *jobCancelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var cancelRequest *cancelJobRequest
+	if r.Method != http.MethodPost {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		err = fmt.Errorf("could not read request body: %w", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(w, "empty request body", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal(body, &cancelRequest); err != nil {
+		err = fmt.Errorf("error parsing JSON: %s of request: %w", body, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Forward JobId from POST body avoids direct json Unmarshall on composite types containing protobuf message types.
+	resp, err := h.Jobcli.Cancel(r.Context(), &jobpb.CancelJobRequest{
+		JobId: cancelRequest.JobID,
+	})
+	if err != nil {
+		statusCode := status.Code(err)
+		httpCode := http.StatusInternalServerError
+		if c, ok := grpcToHttpCodes[statusCode]; ok {
+			httpCode = c
+		}
+		err = fmt.Errorf("error Cancel(%+v) = %w", cancelRequest, err)
+		http.Error(w, err.Error(), httpCode)
+	}
+
+	w.Header().Add(kContentType, kApplicationJson)
+
+	if err = json.NewEncoder(w).Encode(resp); err != nil {
+		err = fmt.Errorf("error encoding response: %w", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // Initialize the web client to talk to the given Job Management Client.
 func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) error {
 	assetsFs := http.FileServer(http.FS(assets))
 	mux := http.NewServeMux()
 
 	mux.Handle("/assets/", assetsFs)
+	mux.Handle("/job/cancel/", &jobCancelHandler{Jobcli: jobcli})
 	mux.Handle("/job/", &jobDetailsHandler{Jobcli: jobcli})
 	mux.Handle("/debugz", &debugzHandler{})
 	mux.Handle("/", &jobsConsoleHandler{Jobcli: jobcli})
@@ -356,5 +436,6 @@ func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) er
 	endpoint := fmt.Sprintf("localhost:%d", port)
 
 	slog.Info("Serving WebUI", slog.String("endpoint", "http://"+endpoint))
-	return http.ListenAndServe(endpoint, mux)
+	go http.ListenAndServe(endpoint, mux)
+	return nil
 }

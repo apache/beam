@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -72,7 +72,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -96,7 +96,7 @@ jobs:
             --info \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-cogbk-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK 2GB of 100B records with multiple keys
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -105,7 +105,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-cogbk-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK reiterate 4 times 10kB values
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -114,7 +114,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-cogbk-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK reiterate 4 times 2MB values
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -123,5 +123,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_4 }} --job_name=load-tests-python-dataflow-batch-cogbk-4-${{ steps.datetime.outputs.datetime }}'

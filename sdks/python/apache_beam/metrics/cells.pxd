@@ -44,6 +44,12 @@ cdef class GaugeCell(MetricCell):
   cdef readonly object data
 
 
+cdef class StringSetCell(MetricCell):
+  cdef readonly set data
+
+  cdef inline bint _update(self, value) except -1
+
+
 cdef class DistributionData(object):
   cdef readonly libc.stdint.int64_t sum
   cdef readonly libc.stdint.int64_t count

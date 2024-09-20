@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_R
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -39,6 +41,9 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,11 +62,11 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.MockConsumer;
@@ -257,8 +262,8 @@ public class ReadFromKafkaDoFnTest {
                 topicPartition.topic(),
                 topicPartition.partition(),
                 startOffset + i,
-                key.getBytes(Charsets.UTF_8),
-                value.getBytes(Charsets.UTF_8)));
+                key.getBytes(StandardCharsets.UTF_8),
+                value.getBytes(StandardCharsets.UTF_8)));
       }
       if (records.isEmpty()) {
         return ConsumerRecords.empty();
@@ -515,7 +520,7 @@ public class ReadFromKafkaDoFnTest {
   public void testProcessElementWhenTopicPartitionIsRemoved() throws Exception {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setRemoved();
-    consumer.setNumOfRecordsPerPoll(10);
+    consumer.setNumOfRecordsPerPoll(-1);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
@@ -524,6 +529,18 @@ public class ReadFromKafkaDoFnTest {
             null,
             receiver);
     assertEquals(ProcessContinuation.stop(), result);
+  }
+
+  @Test
+  public void testSDFCommitOffsetEnabled() {
+    OffSetsVisitor visitor = testCommittingOffsets(true);
+    Assert.assertEquals(true, visitor.foundOffsetTransform);
+  }
+
+  @Test
+  public void testSDFCommitOffsetNotEnabled() {
+    OffSetsVisitor visitor = testCommittingOffsets(false);
+    Assert.assertNotEquals(true, visitor.foundOffsetTransform);
   }
 
   @Test
@@ -641,6 +658,19 @@ public class ReadFromKafkaDoFnTest {
     Assert.assertNotEquals(0, visitor.unboundedPCollections.size());
   }
 
+  @Test
+  public void testConstructorWithPollTimeout() {
+    ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
+    // default poll timeout = 1 scond
+    ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    // updated timeout = 5 seconds
+    descriptors = descriptors.withConsumerPollingTimeout(5L);
+    ReadFromKafkaDoFn<String, String> dofnInstanceNew =
+        ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
+  }
+
   private BoundednessVisitor testBoundedness(
       Function<ReadSourceDescriptors<String, String>, ReadSourceDescriptors<String, String>>
           readSourceDescriptorsDecorator) {
@@ -671,6 +701,49 @@ public class ReadFromKafkaDoFnTest {
         PCollection<?> pc = (PCollection<?>) value;
         if (pc.isBounded() == IsBounded.UNBOUNDED) {
           unboundedPCollections.add(pc);
+        }
+      }
+    }
+  }
+
+  private OffSetsVisitor testCommittingOffsets(boolean enableOffsets) {
+
+    // Force Kafka read to use SDF implementation
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    ExperimentalOptions.addExperiment(
+        pipelineOptions.as(ExperimentalOptions.class), "use_sdf_read");
+
+    Pipeline p = Pipeline.create(pipelineOptions);
+    KafkaIO.Read<String, String> read =
+        KafkaIO.<String, String>read()
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(StringDeserializer.class)
+            .withConsumerConfigUpdates(
+                new ImmutableMap.Builder<String, Object>()
+                    .put(ConsumerConfig.GROUP_ID_CONFIG, "group_id_1")
+                    .build())
+            .withBootstrapServers("bootstrap_server")
+            .withTopic("test-topic");
+
+    if (enableOffsets) {
+      read = read.commitOffsetsInFinalize();
+    }
+
+    p.apply(read.withoutMetadata());
+    OffSetsVisitor visitor = new OffSetsVisitor();
+    p.traverseTopologically(visitor);
+    return visitor;
+  }
+
+  static class OffSetsVisitor extends PipelineVisitor.Defaults {
+    boolean foundOffsetTransform = false;
+
+    @Override
+    public void visitValue(PValue value, Node producer) {
+      if (value instanceof PCollection) {
+        PCollection<?> pc = (PCollection<?>) value;
+        if (pc.getName().contains("KafkaCommitOffset")) {
+          foundOffsetTransform = true;
         }
       }
     }

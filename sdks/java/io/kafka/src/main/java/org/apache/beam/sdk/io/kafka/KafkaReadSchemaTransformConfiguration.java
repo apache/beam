@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import java.util.Set;
@@ -46,11 +49,13 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
   public void validate() {
     final String startOffset = this.getAutoOffsetResetConfig();
-    assert startOffset == null || VALID_START_OFFSET_VALUES.contains(startOffset)
-        : "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES;
+    checkArgument(
+        startOffset == null || VALID_START_OFFSET_VALUES.contains(startOffset),
+        "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES);
     final String dataFormat = this.getFormat();
-    assert dataFormat == null || VALID_DATA_FORMATS.contains(dataFormat)
-        : "Valid data formats are " + VALID_DATA_FORMATS;
+    checkArgument(
+        dataFormat == null || VALID_DATA_FORMATS.contains(dataFormat),
+        "Valid data formats are " + VALID_DATA_FORMATS);
 
     final String inputSchema = this.getSchema();
     final String messageName = this.getMessageName();
@@ -59,20 +64,23 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     final String confluentSchemaRegSubject = this.getConfluentSchemaRegistrySubject();
 
     if (confluentSchemaRegUrl != null) {
-      assert confluentSchemaRegSubject != null
-          : "To read from Kafka, a schema must be provided directly or though Confluent "
-              + "Schema Registry. Make sure you are providing one of these parameters.";
+      checkNotNull(
+          confluentSchemaRegSubject,
+          "To read from Kafka, a schema must be provided directly or though Confluent "
+              + "Schema Registry. Make sure you are providing one of these parameters.");
     } else if (dataFormat != null && dataFormat.equals("RAW")) {
-      assert inputSchema == null : "To read from Kafka in RAW format, you can't provide a schema.";
+      checkArgument(
+          inputSchema == null, "To read from Kafka in RAW format, you can't provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("JSON")) {
-      assert inputSchema != null : "To read from Kafka in JSON format, you must provide a schema.";
+      checkNotNull(inputSchema, "To read from Kafka in JSON format, you must provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("PROTO")) {
-      assert messageName != null
-          : "To read from Kafka in PROTO format, messageName must be provided.";
-      assert fileDescriptorPath != null || inputSchema != null
-          : "To read from Kafka in PROTO format, fileDescriptorPath or schema must be provided.";
+      checkNotNull(
+          messageName, "To read from Kafka in PROTO format, messageName must be provided.");
+      checkArgument(
+          fileDescriptorPath != null || inputSchema != null,
+          "To read from Kafka in PROTO format, fileDescriptorPath or schema must be provided.");
     } else {
-      assert inputSchema != null : "To read from Kafka in AVRO format, you must provide a schema.";
+      checkNotNull(inputSchema, "To read from Kafka in AVRO format, you must provide a schema.");
     }
   }
 
@@ -141,6 +149,10 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
+  @SchemaFieldDescription("Upper bound of how long to read from Kafka.")
+  @Nullable
+  public abstract Integer getMaxReadTimeSeconds();
+
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
   @Nullable
   public abstract ErrorHandling getErrorHandling();
@@ -170,6 +182,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
+
+    public abstract Builder setMaxReadTimeSeconds(Integer maxReadTimeSeconds);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 

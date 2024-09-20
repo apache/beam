@@ -147,12 +147,7 @@ class _ConvertNamedTupleToDict(
     Returns:
       A PCollection of dictionaries.
     """
-    if isinstance(pcoll.element_type, RowTypeConstraint):
-      # Row instance
-      return pcoll | beam.Map(lambda x: x.as_dict())
-    else:
-      # named tuple
-      return pcoll | beam.Map(lambda x: x._asdict())
+    return pcoll | beam.Map(lambda x: x._asdict())
 
 
 class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
@@ -403,6 +398,17 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
             os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
+
+      element_type = raw_data.element_type
+      if (isinstance(element_type, RowTypeConstraint) or
+          native_type_compatibility.match_is_named_tuple(element_type)):
+        # convert Row or NamedTuple to Dict
+        column_type_mapping = self._map_column_names_to_types(
+            row_type=element_type)
+        raw_data = (
+            raw_data
+            | _ConvertNamedTupleToDict().with_output_types(
+                Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
 

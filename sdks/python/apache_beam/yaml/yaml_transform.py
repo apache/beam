@@ -29,15 +29,18 @@ from typing import List
 from typing import Mapping
 from typing import Set
 
+import jinja2
 import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
+from apache_beam.yaml.yaml_mapping import validate_generic_expressions
 
 __all__ = ["YamlTransform"]
 
@@ -159,9 +162,10 @@ class SafeLineLoader(SafeLoader):
   def strip_metadata(cls, spec, tagged_str=True):
     if isinstance(spec, Mapping):
       return {
-          key: cls.strip_metadata(value, tagged_str)
-          for key,
-          value in spec.items() if key not in ('__line__', '__uuid__')
+          cls.strip_metadata(key, tagged_str):
+          cls.strip_metadata(value, tagged_str)
+          for (key, value) in spec.items()
+          if key not in ('__line__', '__uuid__')
       }
     elif isinstance(spec, Iterable) and not isinstance(spec, (str, bytes)):
       return [cls.strip_metadata(value, tagged_str) for value in spec]
@@ -384,6 +388,12 @@ class Scope(LightweightScope):
           f'Missing inputs for transform at {identify_object(spec)}')
 
     try:
+      if spec['type'].endswith('-generic'):
+        # Centralize the validation rather than require every implementation
+        # to do it.
+        validate_generic_expressions(
+            spec['type'].rsplit('-', 1)[0], config, input_pcolls)
+
       # pylint: disable=undefined-loop-variable
       ptransform = provider.create_transform(
           spec['type'], config, self.create_ptransform)
@@ -491,7 +501,7 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
-  elif outputs is None:
+  elif outputs is None or isinstance(outputs, beam.pvalue.PDone):
     return {}
   else:
     raise ValueError(
@@ -518,10 +528,13 @@ def expand_composite_transform(spec, scope):
     @staticmethod
     def expand(inputs):
       inner_scope.compute_all()
-      return {
-          key: inner_scope.get_pcollection(value)
-          for (key, value) in spec['output'].items()
-      }
+      if '__implicit_outputs__' in spec['output']:
+        return inner_scope.get_outputs(spec['output']['__implicit_outputs__'])
+      else:
+        return {
+            key: inner_scope.get_pcollection(value)
+            for (key, value) in spec['output'].items()
+        }
 
   if 'name' not in spec:
     spec['name'] = 'Composite'
@@ -596,7 +609,7 @@ def chain_as_composite(spec):
         for (key, value) in composite_spec['output'].items()
     }
   else:
-    composite_spec['output'] = last_transform
+    composite_spec['output'] = {'__implicit_outputs__': last_transform}
   if 'name' not in composite_spec:
     composite_spec['name'] = 'Chain'
   composite_spec['type'] = 'composite'
@@ -869,7 +882,14 @@ def ensure_errors_consumed(spec):
           consumed.add(scope.get_transform_id_and_output_name(input))
     for error_pcoll, t in to_handle.items():
       if error_pcoll not in consumed:
-        raise ValueError(f'Unconsumed error output for {identify_object(t)}.')
+        config = t.get('config', t)
+        transform_name = t.get('name', t.get('type'))
+        error_output_name = config['error_handling']['output']
+        raise ValueError(
+            f'Unconsumed error output for {identify_object(t)}. '
+            f'The output named {transform_name}.{error_output_name} '
+            'must be used as an input to some other transform. '
+            'See https://beam.apache.org/documentation/sdks/yaml-errors')
   return spec
 
 
@@ -917,7 +937,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
             f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
 
-  def preprocess_langauges(spec):
+  def preprocess_languages(spec):
     if spec['type'] in ('AssignTimestamps',
                         'Combine',
                         'Filter',
@@ -939,7 +959,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
-      preprocess_langauges,
+      preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
@@ -957,6 +977,22 @@ def preprocess(spec, verbose=False, known_transforms=None):
       print('=' * 20, phase, '=' * 20)
       pprint.pprint(spec)
   return spec
+
+
+class _BeamFileIOLoader(jinja2.BaseLoader):
+  def get_source(self, environment, path):
+    with FileSystems.open(path) as fin:
+      source = fin.read().decode()
+    return source, path, lambda: True
+
+
+def expand_jinja(
+    jinja_template: str, jinja_variables: Mapping[str, Any]) -> str:
+  return (  # keep formatting
+      jinja2.Environment(
+          undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
+      .from_string(jinja_template)
+      .render(**jinja_variables))
 
 
 class YamlTransform(beam.PTransform):
@@ -1034,10 +1070,6 @@ def expand_pipeline(
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
-      {
-          **yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
-          **{
-              key: yaml_provider.as_provider_list(key, value)
-              for (key, value) in (providers or {}).items()
-          }
-      }).expand(beam.pvalue.PBegin(pipeline))
+      yaml_provider.merge_providers(
+          yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
+          providers or {})).expand(beam.pvalue.PBegin(pipeline))

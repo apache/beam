@@ -42,6 +42,7 @@ from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
@@ -426,6 +427,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
 
@@ -481,6 +483,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
 
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
@@ -508,6 +511,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
              | "GetJobs" >> beam.Map(lambda x: x[1])
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobProjectIds')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   def test_load_job_id_use_for_copy_job(self):
     destination = 'project1:dataset1.table1'
@@ -515,6 +521,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -560,6 +567,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               job_reference
           ]),
           label='CheckCopyJobProjectIds')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   @mock.patch('time.sleep')
   def test_wait_for_load_job_completion(self, sleep_mock):
@@ -567,10 +577,12 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_1.jobReference = bigquery_api.JobReference()
     job_1.jobReference.projectId = 'project1'
     job_1.jobReference.jobId = 'jobId1'
+    job_1.jobReference.location = 'US'
     job_2 = bigquery_api.Job()
     job_2.jobReference = bigquery_api.JobReference()
     job_2.jobReference.projectId = 'project1'
     job_2.jobReference.jobId = 'jobId2'
+    job_2.jobReference.location = 'US'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -610,10 +622,12 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_1.jobReference = bigquery_api.JobReference()
     job_1.jobReference.projectId = 'project1'
     job_1.jobReference.jobId = 'jobId1'
+    job_1.jobReference.location = 'US'
     job_2 = bigquery_api.Job()
     job_2.jobReference = bigquery_api.JobReference()
     job_2.jobReference.projectId = 'project1'
     job_2.jobReference.jobId = 'jobId2'
+    job_2.jobReference.location = 'US'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -650,6 +664,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -717,6 +732,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
           equal_to([6]),
           label='CheckCopyJobCount')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   @parameterized.expand([
       param(write_disposition=BigQueryDisposition.WRITE_TRUNCATE),
@@ -732,6 +750,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -774,6 +793,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
 

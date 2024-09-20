@@ -30,7 +30,7 @@ class MobileGamingCommands {
     SparkRunner: "spark-runner",
     FlinkRunner: "flink-runner"]
 
-  public static final EXECUTION_TIMEOUT_IN_MINUTES = 20
+  public static final EXECUTION_TIMEOUT_IN_MINUTES = 40
 
   // Lists used to verify team names generated in the LeaderBoard example.
   // This list should be kept sync with COLORS in org.apache.beam.examples.complete.game.injector.Injector.

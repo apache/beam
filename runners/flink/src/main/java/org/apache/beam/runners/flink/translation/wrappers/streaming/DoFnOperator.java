@@ -93,6 +93,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -106,8 +107,10 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
@@ -116,6 +119,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeService;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -140,8 +144,7 @@ import org.slf4j.LoggerFactory;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-public class DoFnOperator<InputT, OutputT>
-    extends AbstractStreamOperatorCompat<WindowedValue<OutputT>>
+public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
         TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
         Triggerable<ByteBuffer, TimerData> {
@@ -225,7 +228,7 @@ public class DoFnOperator<InputT, OutputT>
   private static final int MAX_NUMBER_PENDING_BUNDLE_FINALIZATIONS = 32;
 
   protected transient InternalTimerService<TimerData> timerService;
-  private transient InternalTimeServiceManager<?> timeServiceManagerCompat;
+  private transient InternalTimeServiceManager<?> timeServiceManager;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
@@ -471,7 +474,9 @@ public class DoFnOperator<InputT, OutputT>
       }
 
       timerInternals = new FlinkTimerInternals(timerService);
-      timeServiceManagerCompat = getTimeServiceManagerCompat();
+      timeServiceManager =
+          getTimeServiceManager()
+              .orElseThrow(() -> new IllegalStateException("Time service manager is not set."));
     }
 
     outputManager =
@@ -605,7 +610,6 @@ public class DoFnOperator<InputT, OutputT>
     }
   }
 
-  @Override
   void cleanUp() throws Exception {
     Optional.ofNullable(flinkMetricContainer)
         .ifPresent(FlinkMetricContainer::registerMetricsForPipelineResult);
@@ -614,7 +618,6 @@ public class DoFnOperator<InputT, OutputT>
     Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
   }
 
-  @Override
   void flushData() throws Exception {
     // This is our last change to block shutdown of this operator while
     // there are still remaining processing-time timers. Flink will ignore pending
@@ -661,6 +664,44 @@ public class DoFnOperator<InputT, OutputT>
             "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
       }
     }
+  }
+
+  @Override
+  public void finish() throws Exception {
+    try {
+      flushData();
+    } finally {
+      super.finish();
+    }
+  }
+
+  @Override
+  public void close() throws Exception {
+    try {
+      cleanUp();
+    } finally {
+      super.close();
+    }
+  }
+
+  protected int numProcessingTimeTimers() {
+    return getTimeServiceManager()
+        .map(
+            manager -> {
+              if (timeServiceManager instanceof InternalTimeServiceManagerImpl) {
+                final InternalTimeServiceManagerImpl<?> cast =
+                    (InternalTimeServiceManagerImpl<?>) timeServiceManager;
+                return cast.numProcessingTimeTimers();
+              } else if (timeServiceManager instanceof BatchExecutionInternalTimeServiceManager) {
+                return 0;
+              } else {
+                throw new IllegalStateException(
+                    String.format(
+                        "Unknown implementation of InternalTimerServiceManager. %s",
+                        timeServiceManager));
+              }
+            })
+        .orElse(0);
   }
 
   public long getEffectiveInputWatermark() {
@@ -796,7 +837,7 @@ public class DoFnOperator<InputT, OutputT>
   private void processInputWatermark(boolean advanceInputWatermark) throws Exception {
     long inputWatermarkHold = applyInputWatermarkHold(getEffectiveInputWatermark());
     if (keyCoder != null && advanceInputWatermark) {
-      timeServiceManagerCompat.advanceWatermark(new Watermark(inputWatermarkHold));
+      timeServiceManager.advanceWatermark(new Watermark(inputWatermarkHold));
     }
 
     long potentialOutputWatermark =
@@ -949,7 +990,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  protected void scheduleForCurrentProcessingTime(ProcessingTimeCallbackCompat callback) {
+  protected void scheduleForCurrentProcessingTime(ProcessingTimeCallback callback) {
     // We are scheduling a timer for advancing the watermark, to not delay finishing the bundle
     // and temporarily release the checkpoint lock. Otherwise, we could potentially loop when a
     // timer keeps scheduling a timer for the same timestamp.

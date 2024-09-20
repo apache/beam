@@ -286,6 +286,13 @@ def applyBatchValidatesRunnerSetup = { Test it ->
 def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   applyBatchValidatesRunnerSetup(it)
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
+
+  // TODO(https://github.com/apache/beam/issues/31231
+  it.filter {
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
+  }
 }
 
 def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWithBoundedSDFExperiment", Test) {
@@ -322,6 +329,10 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
       // TODO(https://github.com/apache/beam/issues/29973)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/31231
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/32021)
+      excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
     }
 
     // TestStream using processing time is not supported in Spark
@@ -421,6 +432,8 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
     // https://github.com/apache/beam/issues/29972
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testHotKeyCombineWithSideInputs'
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
   }
 }
 

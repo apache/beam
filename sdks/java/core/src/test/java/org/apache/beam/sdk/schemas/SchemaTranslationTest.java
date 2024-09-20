@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -243,7 +243,8 @@ public class SchemaTranslationTest {
                               .setUrn("pythonsdk:value")
                               .setPayload(
                                   ByteString.copyFrom(
-                                      "some payload describing a python type", Charsets.UTF_8))
+                                      "some payload describing a python type",
+                                      StandardCharsets.UTF_8))
                               .setRepresentation(
                                   SchemaApi.FieldType.newBuilder()
                                       .setAtomicType(SchemaApi.AtomicType.BYTES))

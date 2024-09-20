@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   docker_registry: gcr.io
@@ -53,7 +53,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 100
+    timeout-minutes: 160
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:
       fail-fast: false
@@ -70,6 +70,8 @@ jobs:
           - "python:container:py39"
           - "python:container:py310"
           - "python:container:py311"
+          - "python:container:py312"
+          - "java:expansion-service:container"
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -80,13 +82,6 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
@@ -99,7 +94,7 @@ jobs:
         if: ${{ startsWith(matrix.container_task, 'python') }}
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.8'
+          python-version: default
       - name: run Publish Beam SDK Snapshots script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

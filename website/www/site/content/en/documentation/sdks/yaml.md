@@ -23,80 +23,129 @@ title: "Apache Beam YAML API"
 
 # Beam YAML API
 
-While Beam provides powerful APIs for authoring sophisticated data
-processing pipelines, it often still has too high a barrier for
-getting started and authoring simple pipelines. Even setting up the
-environment, installing the dependencies, and setting up the project
-can be an overwhelming amount of boilerplate for some (though
-https://beam.apache.org/blog/beam-starter-projects/ has gone a long
-way in making this easier).
+Beam YAML is a declarative syntax for describing Apache Beam pipelines by using
+YAML files. You can use Beam YAML to author and run a Beam pipeline without
+writing any code.
 
-Here we provide a simple declarative syntax for describing pipelines
-that does not require coding experience or learning how to use an
-SDK&mdash;any text editor will do.
-Some installation may be required to actually *execute* a pipeline, but
-we envision various services (such as Dataflow) to accept yaml pipelines
-directly obviating the need for even that in the future.
-We also anticipate the ability to generate code directly from these
-higher-level yaml descriptions, should one want to graduate to a full
-Beam SDK (and possibly the other direction as well as far as possible).
+## Overview
 
-Though we intend this syntax to be easily authored (and read) directly by
-humans, this may also prove a useful intermediate representation for
-tools to use as well, either as output (e.g. a pipeline authoring GUI)
-or consumption (e.g. a lineage analysis tool) and expect it to be more
-easily manipulated and semantically meaningful than the Beam protos
-themselves (which concern themselves more with execution).
+Beam provides a powerful model for creating sophisticated data processing
+pipelines. However, getting started with Beam programming can be challenging
+because it requires writing code in one of the supported Beam SDK languages.
+You need to understand the APIs, set up a project, manage dependencies, and
+perform other programming tasks.
 
-It should be noted that everything here is still under development, but any
-features already included are considered stable. Feedback is welcome at
-dev@apache.beam.org.
+Beam YAML makes it easier to get started with creating Beam pipelines. Instead
+of writing code, you create a YAML file using any text editor. Then you submit
+the YAML file to be executed by a runner.
 
-## Running pipelines
+The Beam YAML syntax is designed to be human-readable but also suitable as an
+intermediate representation for tools. For example, a pipeline authoring GUI
+could output YAML, or a lineage analysis tool could consume the YAML pipeline
+specifications.
 
-The Beam yaml parser is currently included as part of the Apache Beam Python SDK.
-This can be installed (e.g. within a virtual environment) as
+Beam YAML is still under development, but any features already included are
+considered stable. Feedback is welcome at dev@apache.beam.org.
+
+## Prerequisites
+
+The Beam YAML parser is currently included as part of the
+[Apache Beam Python SDK](../python/). You don't need to write Python code to use
+Beam YAML, but you need the SDK to run pipelines locally.
+
+We recommend creating a
+[virtual environment](../../../get-started/quickstart/python/#create-and-activate-a-virtual-environment)
+so that all packages are installed in an isolated and self-contained
+environment. After you set up your Python environment, install the SDK as
+follows:
 
 ```
 pip install apache_beam[yaml,gcp]
 ```
 
-In addition, several of the provided transforms (such as SQL) are implemented
-in Java and their expansion will require a working Java interpeter. (The
-requisite artifacts will be automatically downloaded from the apache maven
-repositories, so no further installs will be required.)
-Docker is also currently required for local execution of these
-cross-language-requiring transforms, but not for submission to a non-local
-runner such as Flink or Dataflow.
+In addition, several of the provided transforms, such as the SQL transform, are
+implemented in Java and require a working Java interpeter. When you a run a
+pipeline with these transforms, the required artifacts are automatically
+downloaded from the Apache Maven repositories.
 
-Once the prerequisites are installed, you can execute a pipeline defined
-in a yaml file as
+## Getting started
 
-```
-python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
-```
+Use a text editor to create a file named `pipeline.yaml`. Paste the following
+text into the file and save:
 
-You can do a dry-run of your pipeline using the render runner to see what the
-execution graph is, e.g.
-
-```
-python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --runner=apache_beam.runners.render.RenderRunner --render_output=out.png [--render_port=0]
+```yaml
+pipeline:
+  transforms:
+    - type: Create
+      config:
+        elements: [1, 2, 3]
+    - type: LogForTesting
+      input: Create
 ```
 
-(This requires [Graphviz](https://graphviz.org/download/) to be installed to render the pipeline.)
+This file defines a simple pipeline with two transforms:
 
-You can also submit a YAML pipeline directly by using the Dataflow CLI command
-[`gcloud beta dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run).
+- The `Create` transform creates a collection. The value of `config` is a
+  dictionary of configuration settings. In this case, `elements` specifies the
+  members of the collection. Other transform types have other configuration
+  settings.
+- The `LogForTesting` transform logs each input element. This transform doesn't
+  require a `config` setting. The `input` key specifies that `LogForTesting`
+  receives input from the `Create` transform.
+
+### Run the pipeline
+
+To execute the pipeline, run the following Python command:
+
+```sh
+python -m apache_beam.yaml.main --yaml_pipeline_file=pipeline.yaml
+```
+
+The output should contain log statements similar to the following:
+
+```sh
+INFO:root:{"element": 1}
+INFO:root:{"element": 2}
+INFO:root:{"element": 3}
+```
+
+### Run the pipeline in Dataflow
+
+You can submit a YAML pipeline to Dataflow by using the
+[gcloud CLI](https://cloud.google.com/sdk/gcloud). To create a Dataflow job
+from the YAML file, use the
+[`gcloud dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run)
+command:
+
+```
+gcloud dataflow yaml run $JOB_NAME \
+  --yaml-pipeline-file=pipeline.yaml \
+  --region=$REGION
+```
+
 When you use the `gcloud` CLI, you don't need to install the Beam SDKs locally.
 
-```
-gcloud beta dataflow yaml run job_name --yaml-pipeline-file=/path/to/pipeline.yaml --region=europe-west1
-```
 
-## Example pipelines
+### Visualize the pipeline
 
-Here is a simple pipeline that reads some data from csv files and
-writes it out in json format.
+You can use the
+[`apache_beam.runners.render`](https://beam.apache.org/releases/pydoc/current/apache_beam.runners.render.html)
+module to render the pipeline execution graph as a PNG file, as follows:
+
+1. Install [Graphviz](https://graphviz.org/download/).
+1. Run the following command:
+
+   ```
+   python -m apache_beam.yaml.main --yaml_pipeline_file=pipeline.yaml \
+     --runner=apache_beam.runners.render.RenderRunner \
+     --render_output=out.png
+   ```
+
+## Example: Reading CSV data
+
+The following pipeline reads data from a set of CSV files and writes the data in
+JSON format. This pipeline assumes the CSV files have a header row. The column
+names become JSON field names.
 
 ```
 pipeline:
@@ -110,7 +159,12 @@ pipeline:
       input: ReadFromCsv
 ```
 
-We can also add a transformation
+### Add a filter
+
+The [`Filter`](../yaml-udf/#filtering) transform filters records. It keeps input
+records that satisfy a Boolean predicate and discards records that don't
+satisify the predicate. The following example keeps records where the value of
+`col3` is greater than 100:
 
 ```
 pipeline:
@@ -129,7 +183,11 @@ pipeline:
       input: Filter
 ```
 
-or two.
+### Add a mapping function
+
+Beam YAML supports various [mapping functions](../yaml-udf/#mapping-functions).
+The following example uses the `Sql` transform to group by `col1` and output the
+counts for each key.
 
 ```
 pipeline:
@@ -152,7 +210,15 @@ pipeline:
       input: Sql
 ```
 
-Transforms can be named to help with monitoring and debugging.
+## Patterns
+
+This section describes some common patterns in Beam YAML.
+
+### Named transforms
+
+You can name the transforms in your pipeline to help with monitoring and
+debugging. Names are also used to disambiguate transforms if the pipeline
+contains more than one transform of the same type.
 
 ```
 pipeline:
@@ -179,11 +245,12 @@ pipeline:
       input: MySqlTransform
 ```
 
-(This is also needed to disambiguate if more than one transform of the same
-type is used.)
+### Chaining transforms
 
-If the pipeline is linear, we can let the inputs be implicit by designating
-the pipeline as a `chain` type.
+If a pipeline is linear (no branching or merging), you can designate the
+pipeline as a `chain` type. In a `chain`-type pipeline, you don't need to
+specify the inputs. The inputs are implicit from the order they appear in the
+YAML file:
 
 ```
 pipeline:
@@ -206,8 +273,11 @@ pipeline:
         path: /path/to/output.json
 ```
 
-As syntactic sugar, we can name the first and last transforms in our pipeline
-as `source` and `sink`.
+### Source and sink transforms
+
+As syntactic sugar, you can name the first and last transforms in your pipeline
+as `source` and `sink`. This convention does not change the resulting pipeline,
+but it signals the intent of the source and sink transforms.
 
 ```
 pipeline:
@@ -235,9 +305,10 @@ pipeline:
       path: /path/to/output.json
 ```
 
-Arbitrary non-linear pipelines are supported as well, though in this case
-inputs must be explicitly named.
-Here we read two sources, join them, and write two outputs.
+### Non-linear pipelines
+
+Beam YAML supports arbitrary non-linear pipelines. The following pipeline reads
+two sources, joins them, and writes two outputs:
 
 ```
 pipeline:
@@ -279,9 +350,14 @@ pipeline:
         path: /path/to/big.csv
 ```
 
-One can, however, nest `chains` within a non-linear pipeline.
-For example, here `ExtraProcessingForBigRows` is itself a "chain" transform
-that has a single input and contains its own sink.
+Because the pipeline is not linear, you must explicitly declare the inputs for
+each transform. However, you can nest a `chain` within a non-linear pipeline.
+The chain is a linear sub-path within the pipeline.
+
+The following example creates a chain named `ExtraProcessingForBigRows`. The
+chain takes input from the `Sql` transform and applies several additional
+filters plus a sink. Notice that within the chain, the inputs don't need to be
+specified.
 
 ```
 pipeline:
@@ -338,8 +414,8 @@ In order to meaningfully aggregate elements in a streaming pipeline,
 some kind of windowing is typically required. Beam's
 [windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
 and [triggering](https://beam.apache.org/documentation/programming-guide/#triggers)
-can be declared using the same WindowInto transform available in all other
-SDKs.
+can be declared using the same `WindowInto` transform available in all other
+Beam SDKs.
 
 ```
 pipeline:
@@ -348,7 +424,7 @@ pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
-        format: json
+        format: JSON
         schema:
           type: object
           properties:
@@ -365,14 +441,14 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
 
-Rather than using an explicit `WindowInto` operation, one may instead tag a
-transform itself with a specified windowing which will cause its inputs
-(and hence the transform itself) to be applied with that windowing.
+Rather than using an explicit `WindowInto` operation, you can tag a transform
+with a specified windowing, which causes its inputs (and hence the transform
+itself) to be applied with that windowing.
 
 ```
 pipeline:
@@ -393,13 +469,13 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
 
 Note that the `Sql` operation itself is often a from of aggregation, and
-applying a windowing (or consuming an already windowed input) will cause all
+applying a windowing (or consuming an already windowed input) causes all
 grouping to be done per window.
 
 ```
@@ -420,7 +496,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
@@ -480,15 +556,15 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
 
 One can also specify windowing at the top level of a pipeline (or composite),
-which is a shorthand to simply applying this same windowing to all root
-operations (that don't otherwise specify their own windowing),
-and can be an effective way to apply it everywhere.
+which is a shorthand for applying this same windowing to all root
+operations that don't otherwise specify their own windowing. This approach is
+effective way to apply a window everywhere in the pipeline.
 
 ```
 pipeline:
@@ -505,7 +581,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
   windowing:
     type: fixed
     size: 60
@@ -514,7 +590,7 @@ options:
 ```
 
 Note that all these windowing specifications are compatible with the `source`
-and `sink` syntax as well
+and `sink` syntax as well:
 
 ```
 pipeline:
@@ -551,11 +627,11 @@ options:
 ## Providers
 
 Though we aim to offer a large suite of built-in transforms, it is inevitable
-that people will want to be able to author their own. This is made possible
+that people will want to author their own. This is made possible
 through the notion of Providers which leverage expansion services and
 schema transforms.
 
-For example, one could build a jar that vends a
+For example, you could build a jar that vends a
 [cross language transform](https://beam.apache.org/documentation/sdks/python-multi-language-pipelines/)
 or [schema transform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/transforms/SchemaTransformProvider.html)
 and then use it in a transform as follows
@@ -599,7 +675,7 @@ providers:
        MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
 ```
 
-## Pipeline Options
+## Pipeline options
 
 [Pipeline options](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options)
 are used to configure different aspects of your pipeline, such as the pipeline runner that will execute
@@ -624,7 +700,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```

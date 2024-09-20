@@ -45,20 +45,20 @@ permissions:
   statuses: read
 
 env:
-    GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+    DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
     GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   beam_PostRelease_NightlySnapshot:
     name: beam_PostRelease_NightlySnapshot
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     steps:
       - uses: actions/checkout@v4
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: default
       - name: run PostRelease validation script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

@@ -22,6 +22,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,7 +57,6 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -192,7 +192,7 @@ public class ArtifactStagingService
       private ResourceId stagingDir(String stagingToken) {
         return FileSystems.matchNewResource(root, true)
             .resolve(
-                Hashing.sha256().hashString(stagingToken, Charsets.UTF_8).toString(),
+                Hashing.sha256().hashString(stagingToken, StandardCharsets.UTF_8).toString(),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY);
       }
     };

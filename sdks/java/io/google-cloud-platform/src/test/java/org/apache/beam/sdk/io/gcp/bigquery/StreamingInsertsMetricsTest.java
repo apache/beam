@@ -44,7 +44,7 @@ public class StreamingInsertsMetricsTest {
     results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
     TableReference ref = new TableReference().setTableId("t").setDatasetId("d");
 
-    results.updateStreamingInsertsMetrics(ref);
+    results.updateStreamingInsertsMetrics(ref, 5, 0);
 
     assertThat(testContainer.perWorkerCounters.size(), equalTo(0));
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
@@ -62,7 +62,7 @@ public class StreamingInsertsMetricsTest {
     Instant t1 = Instant.now();
     results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
 
-    results.updateStreamingInsertsMetrics(null);
+    results.updateStreamingInsertsMetrics(null, 0, 0);
 
     assertThat(testContainer.perWorkerCounters.size(), equalTo(0));
     assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
@@ -88,12 +88,11 @@ public class StreamingInsertsMetricsTest {
 
     StreamingInsertsMetrics results = StreamingInsertsMetrics.StreamingInsertsMetricsImpl.create();
     results.updateRetriedRowsWithStatus("INTERNAL", 10);
-    results.updateSuccessfulAndFailedRows(50, 30);
     results.updateRetriedRowsWithStatus("QuotaLimits", 10);
     results.updateRetriedRowsWithStatus("QuotaLimits", 5);
     results.updateRetriedRowsWithStatus("ServiceUnavailable", 5);
 
-    results.updateStreamingInsertsMetrics(ref);
+    results.updateStreamingInsertsMetrics(ref, 50, 30);
 
     String tableId = "datasets/d/tables/t";
     MetricName internalErrorRetriedMetricName =
@@ -129,12 +128,12 @@ public class StreamingInsertsMetricsTest {
     results.updateFailedRpcMetrics(t1, t1.plus(Duration.ofMillis(30)), "PermissionDenied");
     results.updateFailedRpcMetrics(t1, t1.plus(Duration.ofMillis(40)), "Unavailable");
 
-    results.updateStreamingInsertsMetrics(ref);
+    results.updateStreamingInsertsMetrics(ref, 5, 0);
 
     // Validate RPC latency metric.
     MetricName histogramName =
         MetricName.named("BigQuerySink", "RpcLatency*rpc_method:STREAMING_INSERTS;");
-    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
     testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 10.0, 20.0, 30.0, 40.0);
 
     // Validate RPC Status metric.
@@ -162,7 +161,7 @@ public class StreamingInsertsMetricsTest {
     StreamingInsertsMetrics results = StreamingInsertsMetrics.StreamingInsertsMetricsImpl.create();
     results.updateRetriedRowsWithStatus("INTERNAL", 10);
 
-    results.updateStreamingInsertsMetrics(ref);
+    results.updateStreamingInsertsMetrics(ref, 5, 0);
 
     String tableId = "datasets/d/tables/t";
     MetricName internalErrorRetriedMetricName =
@@ -172,7 +171,7 @@ public class StreamingInsertsMetricsTest {
 
     // Subsequent updates to this object should update the underyling metrics.
     results.updateRetriedRowsWithStatus("INTERNAL", 10);
-    results.updateStreamingInsertsMetrics(ref);
+    results.updateStreamingInsertsMetrics(ref, 5, 0);
 
     testContainer.assertPerWorkerCounterValue(internalErrorRetriedMetricName, 10L);
   }

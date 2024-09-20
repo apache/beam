@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Assert;
 import org.junit.Before;
@@ -59,7 +60,7 @@ public class DataflowExecutionStateSamplerTest {
   public void testAddTrackerRemoveTrackerActiveMessageMetadataGetsUpdated() {
     String workId = "work-item-id1";
     ActiveMessageMetadata testMetadata =
-        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), Stopwatch.createStarted());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
 
@@ -95,7 +96,7 @@ public class DataflowExecutionStateSamplerTest {
     testSummaryStats.accept(5);
     testCompletedProcessingTimes.put("some-step", testSummaryStats);
     ActiveMessageMetadata testMetadata =
-        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), Stopwatch.createStarted());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
     when(trackerMock.getProcessingTimesByStepCopy()).thenReturn(testCompletedProcessingTimes);
@@ -103,6 +104,9 @@ public class DataflowExecutionStateSamplerTest {
     sampler.addTracker(trackerMock);
 
     assertThat(sampler.getActiveMessageMetadataForWorkId(workId).get(), equalTo(testMetadata));
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
+    // Repeated calls should not modify the result.
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
   }

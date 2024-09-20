@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -64,7 +64,7 @@ jobs:
         job_name: ["beam_PerformanceTests_WordCountIT_PythonVersions"]
         job_phrase_1: [Run Python]
         job_phrase_2: [WordCountIT Performance Test]
-        python_version: ['3.8']
+        python_version: ['3.9']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository

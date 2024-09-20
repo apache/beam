@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
 /**
  * A composite key used to identify a unit of {@link Work}. If multiple units of {@link Work} have
@@ -33,9 +34,16 @@ public abstract class WorkId {
     return new AutoValue_WorkId.Builder();
   }
 
-  abstract long cacheToken();
+  public static WorkId of(Windmill.WorkItem workItem) {
+    return WorkId.builder()
+        .setCacheToken(workItem.getCacheToken())
+        .setWorkToken(workItem.getWorkToken())
+        .build();
+  }
 
-  abstract long workToken();
+  public abstract long cacheToken();
+
+  public abstract long workToken();
 
   @AutoValue.Builder
   public abstract static class Builder {

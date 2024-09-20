@@ -19,6 +19,8 @@
 # pytype: skip-file
 
 import logging
+import os
+import tempfile
 import unittest
 
 import pytest
@@ -85,6 +87,13 @@ class TestDoFn8(beam.DoFn):
       yield from [1, 2, 3]
     else:
       yield element
+
+
+class TestDoFn9(beam.DoFn):
+  def process(self, element):
+    if len(element) > 3:
+      raise ValueError('Not allowed to have long elements')
+    yield element
 
 
 class CreateTest(unittest.TestCase):
@@ -168,6 +177,79 @@ class FlattenTest(unittest.TestCase):
       source3 = p | "c3" >> beam.Create([9, 10]) | "w3" >> beam.WindowInto(
           FixedWindows(100))
       _ = (source1, source2, source3) | "flatten" >> beam.Flatten()
+
+
+class ExceptionHandlingTest(unittest.TestCase):
+  def test_routes_failures(self):
+    with beam.Pipeline() as pipeline:
+      good, bad = (
+        pipeline | beam.Create(['abc', 'long_word', 'foo', 'bar', 'foobar'])
+        | beam.ParDo(TestDoFn9()).with_exception_handling()
+      )
+      bad_elements = bad | beam.Keys()
+      assert_that(good, equal_to(['abc', 'foo', 'bar']), 'good')
+      assert_that(bad_elements, equal_to(['long_word', 'foobar']), 'bad')
+
+  def test_handles_callbacks(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
+      file_contents = 'random content'
+
+      def failure_callback(e, el):
+        if type(e) is not ValueError:
+          raise Exception(f'Failed to pass in correct exception, received {e}')
+        if el != 'foobar':
+          raise Exception(f'Failed to pass in correct element, received {el}')
+        f = open(tmp_path, "a")
+        logging.warning(tmp_path)
+        f.write(file_contents)
+        f.close()
+
+      with beam.Pipeline() as pipeline:
+        good, bad = (
+          pipeline | beam.Create(['abc', 'bcd', 'foo', 'bar', 'foobar'])
+          | beam.ParDo(TestDoFn9()).with_exception_handling(
+            on_failure_callback=failure_callback)
+        )
+        bad_elements = bad | beam.Keys()
+        assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
+        assert_that(bad_elements, equal_to(['foobar']), 'bad')
+      with open(tmp_path) as f:
+        s = f.read()
+        self.assertEqual(s, file_contents)
+
+  def test_handles_no_callback_triggered(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
+      file_contents = 'random content'
+
+      def failure_callback(e, el):
+        f = open(tmp_path, "a")
+        logging.warning(tmp_path)
+        f.write(file_contents)
+        f.close()
+
+      with beam.Pipeline() as pipeline:
+        good, bad = (
+          pipeline | beam.Create(['abc', 'bcd', 'foo', 'bar'])
+          | beam.ParDo(TestDoFn9()).with_exception_handling(
+            on_failure_callback=failure_callback)
+        )
+        bad_elements = bad | beam.Keys()
+        assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
+        assert_that(bad_elements, equal_to([]), 'bad')
+      self.assertFalse(os.path.isfile(tmp_path))
+
+
+class FlatMapTest(unittest.TestCase):
+  def test_default(self):
+
+    with beam.Pipeline() as pipeline:
+      letters = (
+          pipeline
+          | beam.Create(['abc', 'def'], reshuffle=False)
+          | beam.FlatMap())
+      assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
 
 
 if __name__ == '__main__':

@@ -42,7 +42,7 @@ type B struct {
 	InputTransformID       string
 	Input                  []*engine.Block // Data and Timers for this bundle.
 	EstimatedInputElements int
-	HasTimers              []string
+	HasTimers              []struct{ Transform, TimerFamily string } // Timer streams to terminate.
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
@@ -73,9 +73,10 @@ type B struct {
 func (b *B) Init() {
 	// We need to see final data and timer signals that match the number of
 	// outputs the stage this bundle executes posesses
-	b.dataSema.Store(int32(b.OutputCount + len(b.HasTimers)))
+	outCap := int32(b.OutputCount + len(b.HasTimers))
+	b.dataSema.Store(outCap)
 	b.DataWait = make(chan struct{})
-	if b.OutputCount == 0 {
+	if outCap == 0 {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
@@ -174,7 +175,8 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	for _, tid := range b.HasTimers {
 		timers = append(timers, &fnpb.Elements_Timers{
 			InstructionId: b.InstID,
-			TransformId:   tid,
+			TransformId:   tid.Transform,
+			TimerFamilyId: tid.TimerFamily,
 			IsLast:        true,
 		})
 	}

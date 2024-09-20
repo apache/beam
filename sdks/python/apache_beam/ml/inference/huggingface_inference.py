@@ -225,6 +225,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for HuggingFace with
@@ -257,6 +258,9 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine. This can be useful if you exactly know your CPU or
+        GPU capacity and want to maximize resource utilization.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -276,7 +280,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
     self._framework = framework
 
     _validate_constructor_args(
@@ -350,7 +355,10 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
   def get_metrics_namespace(self) -> str:
     """
@@ -405,6 +413,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for HuggingFace with
@@ -437,6 +446,9 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine. This can be useful if you exactly know your CPU or
+        GPU capacity and want to maximize resource utilization.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -456,7 +468,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
     self._framework = ""
 
     _validate_constructor_args(
@@ -537,7 +550,10 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
   def get_metrics_namespace(self) -> str:
     """
@@ -578,6 +594,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
@@ -618,6 +635,9 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine. This can be useful if you exactly know your CPU or
+        GPU capacity and want to maximize resource utilization.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -629,7 +649,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
     self._batching_kwargs = {}
-    self._framework = "torch"
+    self._framework = "pt"
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
@@ -637,7 +657,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
     # Check if the device is specified twice. If true then the device parameter
     # of model handler is overridden.
@@ -656,7 +677,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         self._load_pipeline_args['device'] = 'cpu'
       else:
         if is_gpu_available_torch():
-          self._load_pipeline_args['device'] = 'cuda:1'
+          self._load_pipeline_args['device'] = 'cuda:0'
         else:
           _LOGGER.warning(
               "HuggingFaceModelHandler specified a 'GPU' device, "
@@ -718,7 +739,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
   def get_metrics_namespace(self) -> str:
     """

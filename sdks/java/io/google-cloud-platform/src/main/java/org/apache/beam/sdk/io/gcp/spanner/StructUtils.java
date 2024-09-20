@@ -24,6 +24,7 @@ import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
+import com.google.spanner.v1.StructType;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,20 @@ import org.joda.time.ReadableDateTime;
 
 final class StructUtils {
 
+  private static final SpannerIO.Read.ToBeamRowFunction STRUCT_TO_BEAM_ROW_FUNCTION =
+      schema -> (Struct struct) -> structToBeamRow(struct, schema);
+
+  public static SpannerIO.Read.ToBeamRowFunction structToBeamRow() {
+    return STRUCT_TO_BEAM_ROW_FUNCTION;
+  }
+
+  private static final SpannerIO.Read.FromBeamRowFunction STRUCT_FROM_BEAM_ROW_FUNCTION =
+      ignored -> StructUtils::beamRowToStruct;
+
+  public static SpannerIO.Read.FromBeamRowFunction structFromBeamRow() {
+    return STRUCT_FROM_BEAM_ROW_FUNCTION;
+  }
+
   // It's not possible to pass nulls as values even with a field is nullable
   @SuppressWarnings({
     "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -50,6 +65,58 @@ final class StructUtils {
                 (map, field) -> map.put(field.getName(), getStructValue(struct, field)),
                 Map::putAll);
     return Row.withSchema(schema).withFieldValues(structValues).build();
+  }
+
+  public static Schema structTypeToBeamRowSchema(StructType structType, boolean isRead) {
+    Schema.Builder beamSchema = Schema.builder();
+    structType
+        .getFieldsList()
+        .forEach(
+            field -> {
+              Schema.FieldType fieldType;
+              try {
+                fieldType = convertSpannerTypeToBeamFieldType(field.getType());
+              } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                    "Error processing struct to row: " + e.getMessage());
+              }
+              // Treat reads from Spanner as Nullable and leave Null handling to Spanner
+              if (isRead) {
+                beamSchema.addNullableField(field.getName(), fieldType);
+              } else {
+                beamSchema.addField(field.getName(), fieldType);
+              }
+            });
+    return beamSchema.build();
+  }
+
+  public static Schema.FieldType convertSpannerTypeToBeamFieldType(
+      com.google.spanner.v1.Type spannerType) {
+    switch (spannerType.getCode()) {
+      case BOOL:
+        return Schema.FieldType.BOOLEAN;
+      case BYTES:
+        return Schema.FieldType.BYTES;
+      case TIMESTAMP:
+      case DATE:
+        return Schema.FieldType.DATETIME;
+      case INT64:
+        return Schema.FieldType.INT64;
+      case FLOAT32:
+        return Schema.FieldType.FLOAT;
+      case FLOAT64:
+        return Schema.FieldType.DOUBLE;
+      case NUMERIC:
+        return Schema.FieldType.DECIMAL;
+      case ARRAY:
+        return Schema.FieldType.array(
+            convertSpannerTypeToBeamFieldType(spannerType.getArrayElementType()));
+      case STRUCT:
+        throw new IllegalArgumentException(
+            String.format("Unsupported type '%s'.", spannerType.getCode()));
+      default:
+        return Schema.FieldType.STRING;
+    }
   }
 
   public static Struct beamRowToStruct(Row row) {
@@ -76,12 +143,7 @@ final class StructUtils {
               addIterableToStructBuilder(structBuilder, row.getIterable(column), field);
               break;
             case FLOAT:
-              @Nullable Float floatValue = row.getFloat(column);
-              if (floatValue == null) {
-                structBuilder.set(column).to((Double) null);
-              } else {
-                structBuilder.set(column).to(floatValue);
-              }
+              structBuilder.set(column).to(row.getFloat(column));
               break;
             case DOUBLE:
               structBuilder.set(column).to(row.getDouble(column));
@@ -187,8 +249,9 @@ final class StructUtils {
       case INT16:
         return Type.int64();
       case DOUBLE:
-      case FLOAT:
         return Type.float64();
+      case FLOAT:
+        return Type.float32();
       case DECIMAL:
         return Type.numeric();
       case STRING:
@@ -242,6 +305,8 @@ final class StructUtils {
         structBuilder.set(column).toInt64Array((Iterable<Long>) ((Object) iterable));
         break;
       case FLOAT:
+        structBuilder.set(column).toFloat32Array((Iterable<Float>) ((Object) iterable));
+        break;
       case DOUBLE:
         structBuilder.set(column).toFloat64Array((Iterable<Double>) ((Object) iterable));
         break;
@@ -306,6 +371,8 @@ final class StructUtils {
         return DateTime.parse(struct.getDate(column).toString());
       case INT64:
         return struct.getLong(column);
+      case FLOAT32:
+        return struct.getFloat(column);
       case FLOAT64:
         return struct.getDouble(column);
       case NUMERIC:
@@ -352,6 +419,8 @@ final class StructUtils {
             .collect(toList());
       case INT64:
         return struct.getLongList(column);
+      case FLOAT32:
+        return struct.getFloatList(column);
       case FLOAT64:
         return struct.getDoubleList(column);
       case STRING:

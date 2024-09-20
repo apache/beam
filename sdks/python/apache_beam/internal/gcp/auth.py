@@ -66,7 +66,7 @@ def set_running_in_gce(worker_executing_project):
 
 
 def get_service_credentials(pipeline_options):
-  # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+  # type: (PipelineOptions) -> Optional[_ApitoolsCredentialsAdapter]
 
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -76,7 +76,7 @@ def get_service_credentials(pipeline_options):
       like impersonated credentials.
 
   Returns:
-    A ``google.auth.credentials.Credentials`` object or None if credentials
+    A ``_ApitoolsCredentialsAdapter`` object or None if credentials
     not found. Returned object is thread-safe.
   """
   return _Credentials.get_service_credentials(pipeline_options)
@@ -131,9 +131,9 @@ class _Credentials(object):
       # apitools use urllib with the global timeout. Set it to 60 seconds
       # to prevent network related stuckness issues.
       if not socket.getdefaulttimeout():
-        _LOGGER.info("Setting socket default timeout to 60 seconds.")
+        _LOGGER.debug("Setting socket default timeout to 60 seconds.")
         socket.setdefaulttimeout(60)
-      _LOGGER.info(
+      _LOGGER.debug(
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials(pipeline_options)

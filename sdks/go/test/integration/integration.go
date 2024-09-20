@@ -154,9 +154,6 @@ var prismFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-
-	// The prism runner does not support processing time timers https://github.com/apache/beam/issues/29772.
-	"TestTimers_ProcessingTime.*",
 }
 
 var flinkFilters = []string{
@@ -186,8 +183,13 @@ var flinkFilters = []string{
 	"TestTestStreamByteSliceSequence",
 	"TestTestStreamTwoUserTypeSequences",
 	"TestTestStreamInt16Sequence",
+	"TestTestStreamSimple",
+	"TestTestStreamSimple_InfinityDefault",
+	"TestTestStreamToGBK",
+	"TestTestStreamTimersEventTime",
 
 	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
+	"TestTimers_ProcessingTime.*",    // Flink doesn't support processing time timers.
 }
 
 var samzaFilters = []string{
@@ -261,7 +263,8 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	"TestTimers_EventTime_Unbounded", // Side inputs in executable stage not supported.
+	"TestTimers_EventTime_Unbounded",     // Side inputs in executable stage not supported.
+	"TestTimers_ProcessingTime_Infinity", // Spark doesn't support test stream.
 }
 
 var dataflowFilters = []string{
@@ -292,6 +295,9 @@ var dataflowFilters = []string{
 	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
+	// Timers
+	"TestTimers_ProcessingTime_Infinity", // Uses test stream.
+	"TestTimers_ProcessingTime_Bounded",  // Dataflow ignores processing time timers in batch.
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

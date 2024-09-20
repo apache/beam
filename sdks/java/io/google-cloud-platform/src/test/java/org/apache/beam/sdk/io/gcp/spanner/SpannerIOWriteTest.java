@@ -44,8 +44,10 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
 import com.google.cloud.spanner.Options.RpcPriority;
+import com.google.cloud.spanner.OptionsImposter;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -277,6 +279,32 @@ public class SpannerIOWriteTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires database id to be set with");
     write.expand(null);
+  }
+
+  @Test
+  public void runBatchQueryTestWithMaxCommitDelay() {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withMaxCommitDelay(100L);
+    assertEquals(100L, write.getSpannerConfig().getMaxCommitDelay().get().getMillis());
+
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    mutations.apply(write);
+    pipeline.run();
+
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(mutation)),
+            any(ReadQueryUpdateTransactionOption.class),
+            argThat(
+                opts -> {
+                  Options options = OptionsImposter.fromTransactionOptions(opts);
+                  return java.time.Duration.ofMillis(100L)
+                      .equals(OptionsImposter.maxCommitDelay(options));
+                }));
   }
 
   @Test

@@ -18,9 +18,13 @@
 import logging
 import unittest
 
+import numpy as np
+
 import apache_beam as beam
+from apache_beam import schema_pb2
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints import schemas
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 DATA = [
@@ -389,6 +393,32 @@ class YamlMappingTest(unittest.TestCase):
               outputs: [bumpy, smooth]
               language: python
             ''')
+
+  def test_append_type_inference(self):
+    p = beam.Pipeline(
+        options=beam.options.pipeline_options.PipelineOptions(
+            pickle_library='cloudpickle'))
+    elements = p | beam.Create(DATA)
+    elements.element_type = schemas.named_tuple_from_schema(
+        schema_pb2.Schema(
+            fields=[
+                schemas.schema_field('label', str),
+                schemas.schema_field('conductor', int),
+                schemas.schema_field('rank', int)
+            ]))
+    result = elements | YamlTransform(
+        '''
+        type: MapToFields
+        config:
+            language: python
+            append: true
+            fields:
+              new_label: label
+        ''')
+    self.assertSequenceEqual(
+        result.element_type._fields,
+        (('label', str), ('conductor', np.int64), ('rank', np.int64),
+         ('new_label', str)))
 
 
 if __name__ == '__main__':

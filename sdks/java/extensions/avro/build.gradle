@@ -35,10 +35,11 @@ avro {
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 
+// additional avro version (other than library.java.avro) to be tested
 def avroVersions = [
+    '182' : "1.8.2",
     '192' : "1.9.2",
     '1102': "1.10.2",
-    '1111': "1.11.1",
 ]
 
 avroVersions.each { k, v ->
@@ -85,6 +86,7 @@ dependencies {
     "avroVersion$k" library.java.slf4j_jdk14
     "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
+    "avroVersion$k" "org.apache.avro:avro:$v:tests"
     "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
 }

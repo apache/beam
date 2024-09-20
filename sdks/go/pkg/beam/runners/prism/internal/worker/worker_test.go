@@ -19,11 +19,16 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"sort"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
@@ -95,6 +100,23 @@ func serveTestWorker(t *testing.T) (context.Context, *W, *grpc.ClientConn) {
 		t.Fatal("couldn't create bufconn grpc connection:", err)
 	}
 	return ctx, w, clientConn
+}
+
+type closeSend func()
+
+func serveTestWorkerStateStream(t *testing.T) (*W, fnpb.BeamFnState_StateClient, closeSend) {
+	ctx, wk, clientConn := serveTestWorker(t)
+
+	stateCli := fnpb.NewBeamFnStateClient(clientConn)
+	stateStream, err := stateCli.State(ctx)
+	if err != nil {
+		t.Fatal("couldn't create state client:", err)
+	}
+	return wk, stateStream, func() {
+		if err := stateStream.CloseSend(); err != nil {
+			t.Errorf("stateStream.CloseSend() = %v", err)
+		}
+	}
 }
 
 func TestWorker_Logging(t *testing.T) {
@@ -289,5 +311,157 @@ func TestWorker_State_Iterable(t *testing.T) {
 
 	if err := stateStream.CloseSend(); err != nil {
 		t.Errorf("stateStream.CloseSend() = %v", err)
+	}
+}
+
+func TestWorker_State_MultimapKeysSideInput(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		w    typex.Window
+	}{
+		{
+			name: "global window",
+			w:    window.GlobalWindow{},
+		},
+		{
+			name: "interval window",
+			w: window.IntervalWindow{
+				Start: 1000,
+				End:   2000,
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var encW []byte
+			if !tt.w.Equals(window.GlobalWindow{}) {
+				buf := bytes.Buffer{}
+				if err := exec.MakeWindowEncoder(coder.NewIntervalWindow()).EncodeSingle(tt.w, &buf); err != nil {
+					t.Fatalf("error encoding window: %v, err: %v", tt.w, err)
+				}
+				encW = buf.Bytes()
+			}
+			wk, stateStream, done := serveTestWorkerStateStream(t)
+			defer done()
+			instID := wk.NextInst()
+			wk.activeInstructions[instID] = &B{
+				MultiMapSideInputData: map[SideInputKey]map[typex.Window]map[string][][]byte{
+					SideInputKey{
+						TransformID: "transformID",
+						Local:       "i1",
+					}: {
+						tt.w: map[string][][]byte{"a": {{1}}, "b": {{2}}},
+					},
+				},
+			}
+
+			stateStream.Send(&fnpb.StateRequest{
+				Id:            "first",
+				InstructionId: instID,
+				Request: &fnpb.StateRequest_Get{
+					Get: &fnpb.StateGetRequest{},
+				},
+				StateKey: &fnpb.StateKey{Type: &fnpb.StateKey_MultimapKeysSideInput_{
+					MultimapKeysSideInput: &fnpb.StateKey_MultimapKeysSideInput{
+						TransformId: "transformID",
+						SideInputId: "i1",
+						Window:      encW,
+					},
+				}},
+			})
+
+			resp, err := stateStream.Recv()
+			if err != nil {
+				t.Fatal("couldn't receive state response:", err)
+			}
+
+			want := []int{97, 98}
+			var got []int
+			for _, b := range resp.GetGet().GetData() {
+				got = append(got, int(b))
+			}
+			sort.Ints(got)
+
+			if !cmp.Equal(got, want) {
+				t.Errorf("didn't receive expected state response data: got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestWorker_State_MultimapSideInput(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		w    typex.Window
+	}{
+		{
+			name: "global window",
+			w:    window.GlobalWindow{},
+		},
+		{
+			name: "interval window",
+			w: window.IntervalWindow{
+				Start: 1000,
+				End:   2000,
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var encW []byte
+			if !tt.w.Equals(window.GlobalWindow{}) {
+				buf := bytes.Buffer{}
+				if err := exec.MakeWindowEncoder(coder.NewIntervalWindow()).EncodeSingle(tt.w, &buf); err != nil {
+					t.Fatalf("error encoding window: %v, err: %v", tt.w, err)
+				}
+				encW = buf.Bytes()
+			}
+			wk, stateStream, done := serveTestWorkerStateStream(t)
+			defer done()
+			instID := wk.NextInst()
+			wk.activeInstructions[instID] = &B{
+				MultiMapSideInputData: map[SideInputKey]map[typex.Window]map[string][][]byte{
+					SideInputKey{
+						TransformID: "transformID",
+						Local:       "i1",
+					}: {
+						tt.w: map[string][][]byte{"a": {{5}}, "b": {{12}}},
+					},
+				},
+			}
+			var testKey = []string{"a", "b", "x"}
+			expectedResult := map[string][]int{
+				"a": {5},
+				"b": {12},
+			}
+			for _, key := range testKey {
+				stateStream.Send(&fnpb.StateRequest{
+					Id:            "first",
+					InstructionId: instID,
+					Request: &fnpb.StateRequest_Get{
+						Get: &fnpb.StateGetRequest{},
+					},
+					StateKey: &fnpb.StateKey{Type: &fnpb.StateKey_MultimapSideInput_{
+						MultimapSideInput: &fnpb.StateKey_MultimapSideInput{
+							TransformId: "transformID",
+							SideInputId: "i1",
+							Window:      encW,
+							Key:         []byte(key),
+						},
+					}},
+				})
+
+				resp, err := stateStream.Recv()
+				if err != nil {
+					t.Fatal("Couldn't receive state response:", err)
+				}
+
+				var got []int
+				for _, b := range resp.GetGet().GetData() {
+					got = append(got, int(b))
+				}
+				if !cmp.Equal(got, expectedResult[key]) {
+					t.Errorf("For test key: %v, didn't receive expected state response data: got %v, want %v", key, got, expectedResult[key])
+				}
+			}
+		})
 	}
 }

@@ -103,8 +103,6 @@ is interpreted as the Python code. For example
     constructor: __constructor__
     kwargs:
       source: |
-        import apache_beam as beam
-
         def create_my_transform(inc):
           return beam.Map(lambda x: beam.Row(a=x.col2 + inc))
 

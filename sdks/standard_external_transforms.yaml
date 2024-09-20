@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2024-02-22
+# Last updated on: 2024-08-27
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
@@ -43,7 +43,7 @@
       description: Specifies the rate to generate a given number of elements per a
         given number of seconds. Applicable only to unbounded sequences.
       nullable: true
-      type: Row(seconds=typing.Union[numpy.int64, NoneType], elements=<class 'numpy.int64'>)
+      type: Row(elements=<class 'numpy.int64'>, seconds=typing.Optional[numpy.int64])
     start:
       description: The minimum number to generate (inclusive).
       nullable: false

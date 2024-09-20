@@ -17,13 +17,26 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
+
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -37,29 +50,39 @@ import org.slf4j.LoggerFactory;
  * threshold is determined by {@link #activeWorkRefreshPeriodMillis}
  */
 @ThreadSafe
-public abstract class ActiveWorkRefresher {
+@Internal
+public final class ActiveWorkRefresher {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkRefresher.class);
+  private static final String FAN_OUT_REFRESH_WORK_EXECUTOR_NAME =
+      "FanOutActiveWorkRefreshExecutor-%d";
 
-  protected final Supplier<Instant> clock;
-  protected final int activeWorkRefreshPeriodMillis;
-  protected final Supplier<Collection<ComputationState>> computations;
-  protected final DataflowExecutionStateSampler sampler;
+  private final Supplier<Instant> clock;
+  private final int activeWorkRefreshPeriodMillis;
+  private final Supplier<Collection<ComputationState>> computations;
+  private final DataflowExecutionStateSampler sampler;
   private final int stuckCommitDurationMillis;
+  private final HeartbeatTracker heartbeatTracker;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
+  private final ExecutorService fanOutActiveWorkRefreshExecutor;
 
-  protected ActiveWorkRefresher(
+  public ActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
-      ScheduledExecutorService activeWorkRefreshExecutor) {
+      ScheduledExecutorService activeWorkRefreshExecutor,
+      HeartbeatTracker heartbeatTracker) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
+    this.heartbeatTracker = heartbeatTracker;
+    this.fanOutActiveWorkRefreshExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME).build());
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -103,5 +126,70 @@ public abstract class ActiveWorkRefresher {
     }
   }
 
-  protected abstract void refreshActiveWork();
+  private void refreshActiveWork() {
+    Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
+    Map<HeartbeatSender, Heartbeats> heartbeatsBySender =
+        aggregateHeartbeatsBySender(refreshDeadline);
+    if (heartbeatsBySender.isEmpty()) {
+      return;
+    }
+
+    List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
+
+    // Send the first heartbeat on the calling thread, and fan out the rest via the
+    // fanOutActiveWorkRefreshExecutor.
+    @Nullable Map.Entry<HeartbeatSender, Heartbeats> firstHeartbeat = null;
+    for (Map.Entry<HeartbeatSender, Heartbeats> heartbeat : heartbeatsBySender.entrySet()) {
+      if (firstHeartbeat == null) {
+        firstHeartbeat = heartbeat;
+      } else {
+        fanOutRefreshActiveWork.add(
+            CompletableFuture.runAsync(
+                () -> sendHeartbeatSafely(heartbeat), fanOutActiveWorkRefreshExecutor));
+      }
+    }
+
+    sendHeartbeatSafely(firstHeartbeat);
+    fanOutRefreshActiveWork.forEach(CompletableFuture::join);
+  }
+
+  /** Aggregate the heartbeats across computations by HeartbeatSender for correct fan out. */
+  private Map<HeartbeatSender, Heartbeats> aggregateHeartbeatsBySender(Instant refreshDeadline) {
+    Map<HeartbeatSender, Heartbeats.Builder> heartbeatsBySender = new HashMap<>();
+
+    // Aggregate the heartbeats across computations by HeartbeatSender for correct fan out.
+    for (ComputationState computationState : computations.get()) {
+      for (RefreshableWork work : computationState.getRefreshableWork(refreshDeadline)) {
+        heartbeatsBySender
+            .computeIfAbsent(work.heartbeatSender(), ignored -> Heartbeats.builder())
+            .add(computationState.getComputationId(), work, sampler);
+      }
+    }
+
+    return heartbeatsBySender.entrySet().stream()
+        .collect(toImmutableMap(Map.Entry::getKey, e -> e.getValue().build()));
+  }
+
+  /**
+   * Send the {@link Heartbeats} using the {@link HeartbeatSender}. Safe since exceptions are caught
+   * and logged.
+   */
+  private void sendHeartbeatSafely(Map.Entry<HeartbeatSender, Heartbeats> heartbeat) {
+    try (AutoCloseable ignored = heartbeatTracker.trackHeartbeats(heartbeat.getValue().size())) {
+      HeartbeatSender sender = heartbeat.getKey();
+      Heartbeats heartbeats = heartbeat.getValue();
+      sender.sendHeartbeats(heartbeats);
+    } catch (Exception e) {
+      LOG.error(
+          "Unable to send {} heartbeats to {}.",
+          heartbeat.getValue().size(),
+          heartbeat.getKey(),
+          e);
+    }
+  }
+
+  @FunctionalInterface
+  public interface HeartbeatTracker {
+    AutoCloseable trackHeartbeats(int numHeartbeats);
+  }
 }

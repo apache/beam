@@ -157,7 +157,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     try (ResultSet rs = executeQuery("SELECT * FROM test_named_tuples")) {
       rs.next();
-      assertEquals("('tuple',true)", rs.getString("t0"));
+      assertEquals("[tuple, true]", rs.getString("t0"));
     }
 
     try (ResultSet rs = executeQuery("SELECT t0.f0 as f0, t0.f1 as f1 FROM test_named_tuples")) {
@@ -204,7 +204,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     try (ResultSet rs = executeQuery("SELECT * FROM test_named_complex_tuples")) {
       rs.next();
-      assertEquals("(('test',(10,20),'1.0.0'),'mobile')", rs.getString("prop"));
+      assertEquals("[[test, [10, 20], 1.0.0], mobile]", rs.getString("prop"));
     }
 
     try (ResultSet rs =
@@ -212,7 +212,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             "SELECT prop.browser.name as name, prop.browser.size as size FROM test_named_complex_tuples")) {
       rs.next();
       assertEquals("test", rs.getString("name"));
-      assertEquals("(10,20)", rs.getString("size"));
+      assertEquals("[10, 20]", rs.getString("size"));
     }
   }
 
@@ -391,22 +391,23 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     try (ResultSet rs = executeQuery("SELECT * FROM test_array_of_primitive_types")) {
       rs.next();
 
-      assertEquals("['2030-10-01','2031-10-01']", rs.getString("f0"));
-      assertEquals("['2030-10-09 08:07:06','2031-10-09 08:07:06']", rs.getString("f1"));
+      assertEquals("[2030-10-01, 2031-10-01]", rs.getString("f0"));
+      assertEquals("[2030-10-09T08:07:06, 2031-10-09T08:07:06]", rs.getString("f1"));
+      // Since comparing float/double values is not precise, we compare the string representation
       assertEquals("[2.2,3.3]", rs.getString("f2"));
       assertEquals("[3.3,4.4]", rs.getString("f3"));
-      assertEquals("[4,5]", rs.getString("f4"));
-      assertEquals("[5,6]", rs.getString("f5"));
-      assertEquals("[6,7]", rs.getString("f6"));
-      assertEquals("[7,8]", rs.getString("f7"));
-      assertEquals("['eight','nine']", rs.getString("f8"));
-      assertEquals("[9,10]", rs.getString("f9"));
-      assertEquals("[10,11]", rs.getString("f10"));
-      assertEquals("[11,12]", rs.getString("f11"));
-      assertEquals("[12,13]", rs.getString("f12"));
-      assertEquals("['abc','cde']", rs.getString("f13"));
-      assertEquals("['cde','abc']", rs.getString("f14"));
-      assertEquals("[true,false]", rs.getString("f15"));
+      assertArrayEquals(new byte[] {4, 5}, (byte[]) rs.getArray("f4").getArray());
+      assertArrayEquals(new short[] {5, 6}, (short[]) rs.getArray("f5").getArray());
+      assertArrayEquals(new int[] {6, 7}, (int[]) rs.getArray("f6").getArray());
+      assertArrayEquals(new long[] {7L, 8L}, (long[]) rs.getArray("f7").getArray());
+      assertArrayEquals(new String[] {"eight", "nine"}, (String[]) rs.getArray("f8").getArray());
+      assertArrayEquals(new byte[] {9, 10}, (byte[]) rs.getArray("f9").getArray());
+      assertArrayEquals(new short[] {10, 11}, (short[]) rs.getArray("f10").getArray());
+      assertArrayEquals(new int[] {11, 12}, (int[]) rs.getArray("f11").getArray());
+      assertArrayEquals(new long[] {12L, 13L}, (long[]) rs.getArray("f12").getArray());
+      assertArrayEquals(new String[] {"abc", "cde"}, (String[]) rs.getArray("f13").getArray());
+      assertArrayEquals(new String[] {"cde", "abc"}, (String[]) rs.getArray("f14").getArray());
+      assertArrayEquals(new boolean[] {true, false}, (boolean[]) rs.getArray("f15").getArray());
     }
   }
 

@@ -28,8 +28,11 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
@@ -38,6 +41,9 @@ import javax.annotation.Nullable;
  */
 @AutoValue
 abstract class AppendClientInfo {
+  private final Counter activeStreamAppendClients =
+      Metrics.counter(AppendClientInfo.class, "activeStreamAppendClients");
+
   abstract @Nullable BigQueryServices.StreamAppendClient getStreamAppendClient();
 
   abstract TableSchema getTableSchema();
@@ -114,12 +120,13 @@ abstract class AppendClientInfo {
       return this;
     } else {
       String streamName = getStreamName.get();
-      return toBuilder()
-          .setStreamName(streamName)
-          .setStreamAppendClient(
-              writeStreamService.getStreamAppendClient(
-                  streamName, getDescriptor(), useConnectionPool, missingValueInterpretation))
-          .build();
+      BigQueryServices.StreamAppendClient client =
+          writeStreamService.getStreamAppendClient(
+              streamName, getDescriptor(), useConnectionPool, missingValueInterpretation);
+
+      activeStreamAppendClients.inc();
+
+      return toBuilder().setStreamName(streamName).setStreamAppendClient(client).build();
     }
   }
 
@@ -127,6 +134,7 @@ abstract class AppendClientInfo {
     BigQueryServices.StreamAppendClient client = getStreamAppendClient();
     if (client != null) {
       getCloseAppendClient().accept(client);
+      activeStreamAppendClients.dec();
     }
   }
 
@@ -145,7 +153,7 @@ abstract class AppendClientInfo {
             true,
             null,
             null,
-            -1);
+            null);
     return msg.toByteString();
   }
 
@@ -159,12 +167,13 @@ abstract class AppendClientInfo {
     }
   }
 
-  public TableRow toTableRow(ByteString protoBytes) {
+  public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
           DynamicMessage.parseFrom(
               TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
-          true);
+          true,
+          includeField);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

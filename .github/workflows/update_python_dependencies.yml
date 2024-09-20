@@ -16,7 +16,7 @@
 # under the License.
 
 # This workflow will update python dependencies as part of the release process
-# And commit the changes into the branch release, creating a PR into the branch 
+# And commit the changes into the branch release, creating a PR into the branch
 
 name: Update Python Depedencies
 
@@ -31,12 +31,8 @@ permissions:
   issues: read
   statuses: read
 
-
-
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 jobs:
   set-properties:
@@ -45,7 +41,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4        
+        uses: actions/checkout@v4
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -64,8 +60,11 @@ jobs:
             3.9
             3.10
             3.11
-          java-version: 8
-          go-version: 1.21
+            3.12
+          java-version: default
+          go-version: default
+          disable-cache: true
+          
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -80,15 +79,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Take the current date, subtract from a release cut date in the past (Mar 6, 2024),
+          # then get the num days % 42 (our release cadence is 42 days).
+          # This will ensure it only runs the week after a release branch has been cut.
+          days_diff=$(( ($(date +%s) - $(date --date="240306" +%s) )/(60*60*24)%42 ))
+          if [[ $days_diff -gt 6 ]]; then
+            echo "Exiting early. We only update dependencies the week after we cut the release"
+            exit 0
+          fi
           branchName=weekly_update_python_dependencies_$(date +%s)
           git checkout -b $branchName
-          git add -A 
-          git diff-index --quiet HEAD || gitdiff=$? || echo $? 
+          git add -A
+          git diff-index --quiet HEAD || gitdiff=$? || echo $?
           if [[ $gitDiff != 0 ]]; then
             echo "Changes are ready to commit"
             git commit -m "Update Python Dependencies" --quiet
             git push origin $branchName --quiet
-            GITHUB_PR_URL=$(gh pr create --title "Update Python Dependencies from BRANCH $branchName" --body "This PR was create using the update python dependencies from branch $branchName - by default this does not execute tests due to a limitation in GitHub Actions. To review this PR, please (1) review the contents to make sure all dependency upgrades are formatted correctly, (2) close and reopen the PR (3) Approve/merge if tests pass successfully.")
+            GITHUB_PR_URL=$(gh pr create --title "Update Python Dependencies" --label "python" --body "This PR was created by automation - by default this does not execute tests due to a limitation in GitHub Actions. To review this PR, please (1) review the contents to make sure all dependency upgrades are formatted correctly, (2) close and reopen the PR (3) Approve/merge if tests pass successfully.")
             echo "Link of the new PR  $GITHUB_PR_URL"
           else
             echo "No changes on the files"

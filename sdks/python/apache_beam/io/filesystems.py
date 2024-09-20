@@ -19,13 +19,17 @@
 
 # pytype: skip-file
 
+import logging
 import re
 from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.value_provider import RuntimeValueProvider
+
+_LOGGER = logging.getLogger(__name__)
 
 # All filesystem implements should be added here as
 # best effort imports. We don't want to force loading
@@ -35,28 +39,60 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 # pylint: disable=wrong-import-position, unused-import
 try:
   from apache_beam.io.hadoopfilesystem import HadoopFileSystem
-except ImportError:
+except ModuleNotFoundError:
+  # optional file system packages are not installed.
   pass
+except ImportError as e:
+  _LOGGER.warning(
+      'Failed to import HadoopFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
+      e)
 
 try:
   from apache_beam.io.localfilesystem import LocalFileSystem
-except ImportError:
+except ModuleNotFoundError:
   pass
+except ImportError as e:
+  # optional file system packages are installed but failed to load.
+  _LOGGER.warning(
+      'Failed to import LocalFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
+      e)
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
-except ImportError:
+except ModuleNotFoundError:
   pass
+except ImportError as e:
+  _LOGGER.warning(
+      'Failed to import GCSFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
+      e)
 
 try:
   from apache_beam.io.aws.s3filesystem import S3FileSystem
-except ImportError:
+except ModuleNotFoundError:
   pass
+except ImportError as e:
+  _LOGGER.warning(
+      'Failed to import S3FileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
+      e)
 
 try:
   from apache_beam.io.azure.blobstoragefilesystem import BlobStorageFileSystem
-except ImportError:
+except ModuleNotFoundError:
   pass
+except ImportError as e:
+  _LOGGER.warning(
+      'Failed to import BlobStorageFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
+      e)
 
 # pylint: enable=wrong-import-position, unused-import
 
@@ -353,3 +389,15 @@ class FileSystems(object):
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.CHUNK_SIZE
+
+  @staticmethod
+  def report_source_lineage(path):
+    """Report source :class:`~apache_beam.metrics.metric.Lineage`."""
+    filesystem = FileSystems.get_filesystem(path)
+    filesystem.report_lineage(path, Lineage.sources())
+
+  @staticmethod
+  def report_sink_lineage(path):
+    """Report sink :class:`~apache_beam.metrics.metric.Lineage`."""
+    filesystem = FileSystems.get_filesystem(path)
+    filesystem.report_lineage(path, Lineage.sinks())

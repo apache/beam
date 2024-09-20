@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.state;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -655,7 +655,8 @@ public class StateRequestHandlers {
     }
 
     private static BeamFnApi.ProcessBundleRequest.CacheToken createCacheToken() {
-      ByteString token = ByteString.copyFrom(UUID.randomUUID().toString().getBytes(Charsets.UTF_8));
+      ByteString token =
+          ByteString.copyFrom(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
       return BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
           .setUserState(BeamFnApi.ProcessBundleRequest.CacheToken.UserState.getDefaultInstance())
           .setToken(token)

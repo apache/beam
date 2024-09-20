@@ -16,19 +16,10 @@
  * limitations under the License.
  */
 
-def basePath = '..'
-
-/* All properties required for loading the Flink build script */
 project.ext {
-  // Set the version of all Flink-related dependencies here.
+  flink_major = '1.16'
   flink_version = '1.16.0'
-  // Version specific code overrides.
-  main_source_overrides = ["${basePath}/1.12/src/main/java", "${basePath}/1.13/src/main/java", "${basePath}/1.14/src/main/java", "${basePath}/1.15/src/main/java", './src/main/java']
-  test_source_overrides = ["${basePath}/1.12/src/test/java", "${basePath}/1.13/src/test/java", "${basePath}/1.14/src/test/java", "${basePath}/1.15/src/test/java", './src/test/java']
-  main_resources_overrides = []
-  test_resources_overrides = []
-  archives_base_name = 'beam-runners-flink-1.16'
 }
 
 // Load the main build script which contains all build logic.
-apply from: "$basePath/flink_runner.gradle"
+apply from: "../flink_runner.gradle"

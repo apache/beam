@@ -404,6 +404,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   public void testNoOldTransformByDefault() {
+    pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.apply(Create.of(KV.of("arbitrary", "kv"))).apply(Reshuffle.of());
 
     OldTransformSeeker seeker = new OldTransformSeeker();
@@ -413,6 +414,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   public void testRequestOldUpdateCompatibility() {
+    pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.getOptions().as(StreamingOptions.class).setUpdateCompatibilityVersion("2.53.0");
     pipeline.apply(Create.of(KV.of("arbitrary", "kv"))).apply(Reshuffle.of());
 
@@ -423,6 +425,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   public void testRequestVeryOldUpdateCompatibility() {
+    pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.getOptions().as(StreamingOptions.class).setUpdateCompatibilityVersion("2.46.0");
     pipeline.apply(Create.of(KV.of("arbitrary", "kv"))).apply(Reshuffle.of());
 
@@ -433,6 +436,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   public void testNoOldTransformInRecentVersion() {
+    pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.getOptions().as(StreamingOptions.class).setUpdateCompatibilityVersion("2.54.0");
     pipeline.apply(Create.of(KV.of("arbitrary", "kv"))).apply(Reshuffle.of());
 

@@ -989,6 +989,19 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
+  <tr>
+    <td>
+      Iceberg (Managed I/O)
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/2.56.0/org/apache/beam/sdk/managed/Managed.html">native</a></td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
 </table>
 </div>
 
@@ -1182,6 +1195,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/beam-pyio">Beam PyIO (Collection of Python IO connectors)</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
   </tr>
 </table>
 </div>

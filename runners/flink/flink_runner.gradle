@@ -25,11 +25,29 @@
 
 import groovy.json.JsonOutput
 
+def base_path = ".."
+
+def overrides(versions, type, base_path) {
+  versions.collect { "${base_path}/${it}/src/${type}/java" } + ["./src/${type}/java"]
+}
+
+def all_versions = flink_versions.split(",")
+
+def previous_versions = all_versions.findAll { it < flink_major }
+
+// Version specific code overrides.
+def main_source_overrides = overrides(previous_versions, "main", base_path)
+def test_source_overrides = overrides(previous_versions, "test", base_path)
+def main_resources_overrides = []
+def test_resources_overrides = []
+
+def archivesBaseName = "beam-runners-flink-${flink_major}"
+
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
-    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
+    archivesBaseName: archivesBaseName,
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -190,15 +208,10 @@ dependencies {
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
   implementation "org.apache.flink:flink-java:$flink_version"
 
-  if (flink_version.compareTo("1.14") >= 0) {
-    implementation "org.apache.flink:flink-runtime:$flink_version"
-    implementation "org.apache.flink:flink-metrics-core:$flink_version"
-    testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
-    testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
-  } else {
-    implementation "org.apache.flink:flink-runtime_2.12:$flink_version"
-    testImplementation "org.apache.flink:flink-runtime_2.12:$flink_version:tests"
-  }
+  implementation "org.apache.flink:flink-runtime:$flink_version"
+  implementation "org.apache.flink:flink-metrics-core:$flink_version"
+  testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -319,6 +332,11 @@ def createValidatesRunnerTask(Map m) {
           // FlinkBatchExecutionInternalTimeService does not support timer registration on timer firing.
           excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnTimerTimestampSkew'
         }
+        // Extremely flaky: https://github.com/apache/beam/issues/19814
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
+        // TODO(https://github.com/apache/beam/issues/29972) due to runtimeContext initialized after initial split
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
       }
     }
   }
@@ -360,8 +378,12 @@ tasks.register("validatesRunnerSickbay", Test) {
   }
 }
 
-// Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+if (project.ext.flink_major == project.ext.latestFlinkVersion) {
+  // TODO(yathu) support running validation on all supported Flink versions
+  // currently maven-archetype Flink profile pinned to single Flink version
+  // Generates :runners:flink:<latestFlinkVersion>:runQuickstartJavaFlinkLocal
+  createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+}
 
 tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"

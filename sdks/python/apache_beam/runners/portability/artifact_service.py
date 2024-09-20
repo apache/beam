@@ -57,7 +57,7 @@ class ArtifactRetrievalService(
 
   def __init__(
       self,
-      file_reader,  # type: Callable[[str], BinaryIO]
+      file_reader: Callable[[str], BinaryIO],
       chunk_size=None,
   ):
     self._file_reader = file_reader
@@ -97,18 +97,20 @@ class ArtifactStagingService(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
   def __init__(
       self,
-      file_writer,  # type: Callable[[str, Optional[str]], Tuple[BinaryIO, str]]
-    ):
+      file_writer: Callable[[str, Optional[str]], Tuple[BinaryIO, str]],
+  ):
     self._lock = threading.Lock()
-    self._jobs_to_stage = {
-    }  # type: Dict[str, Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]], threading.Event]]
+    self._jobs_to_stage: Dict[
+        str,
+        Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]],
+              threading.Event]] = {}
     self._file_writer = file_writer
 
   def register_job(
       self,
-      staging_token,  # type: str
-      dependency_sets  # type: MutableMapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]
-    ):
+      staging_token: str,
+      dependency_sets: MutableMapping[
+          Any, List[beam_runner_api_pb2.ArtifactInformation]]):
     if staging_token in self._jobs_to_stage:
       raise ValueError('Already staging %s' % staging_token)
     with self._lock:

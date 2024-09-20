@@ -36,7 +36,7 @@ import uuid
 from psycopg2 import extras
 from ruamel.yaml import YAML
 from github import GithubIntegration
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
@@ -53,7 +53,9 @@ GIT_FILESYSTEM_PATH = "/tmp/git"
 
 
 class Workflow:
-    def __init__(self, id, name, filename, url, category=None, threshold=0.5, is_flaky=False):
+    def __init__(
+        self, id, name, filename, url, category=None, threshold=0.5, is_flaky=False
+    ):
         self.id = id
         self.name = name
         self.filename = filename
@@ -78,7 +80,9 @@ def clone_git_beam_repo(dest_path):
     if not os.path.exists(filesystem_path):
         os.mkdir(filesystem_path)
     os.chdir(filesystem_path)
-    os.system(f"git clone --filter=blob:none --sparse https://github.com/{GIT_ORG}/beam")
+    os.system(
+        f"git clone --filter=blob:none --sparse https://github.com/{GIT_ORG}/beam"
+    )
     os.chdir("beam")
     os.system("git sparse-checkout init --cone")
     os.system(f"git sparse-checkout  set {dest_path}")
@@ -154,10 +158,12 @@ async def check_workflow_flakiness(workflow):
     if not len(workflow.runs):
         return False
 
+    three_months_ago_datetime = datetime.now() - timedelta(days=90)
+    workflow_runs = [run for run in workflow.runs if run.started_at > three_months_ago_datetime]
+
     url = f"https://api.github.com/repos/{GIT_ORG}/beam/issues"
     headers = {"Authorization": get_token()}
     semaphore = asyncio.Semaphore(5)
-    workflow_runs = workflow.runs
     params = {
         "state": "closed",
         "labels": f"flaky_test,workflow_id: {workflow.id}",
@@ -165,7 +171,9 @@ async def check_workflow_flakiness(workflow):
     response = await fetch(url, semaphore, params, headers)
     if len(response):
         print(f"Found a recently closed issue for the {workflow.name} workflow")
-        workflow_runs = [run for run in workflow_runs if filter_workflow_runs(run, response[0])]
+        workflow_runs = [
+            run for run in workflow_runs if filter_workflow_runs(run, response[0])
+        ]
 
     print(f"Number of workflow runs to consider: {len(workflow_runs)}")
     if len(workflow_runs) < 3:
@@ -176,7 +184,7 @@ async def check_workflow_flakiness(workflow):
     if len(workflow_runs):
         failed_runs = list(filter(lambda r: r.status == "failure", workflow_runs))
         print(f"Number of failed workflow runs: {len(failed_runs)}")
-        success_rate -= (len(failed_runs) / len(workflow_runs))
+        success_rate -= len(failed_runs) / len(workflow_runs)
 
     print(f"Success rate: {success_rate}")
     return True if success_rate < workflow.threshold else False
@@ -287,7 +295,9 @@ async def fetch_workflow_runs():
                     datetime.strptime(run["run_started_at"], "%Y-%m-%dT%H:%M:%SZ"),
                 )
                 if workflow_runs.get(workflow_run.id):
-                    print(f"Duplicate run for {workflow.id} workflow: {workflow_run.id}")
+                    print(
+                        f"Duplicate run for {workflow.id} workflow: {workflow_run.id}"
+                    )
                 workflow_runs[workflow_run.id] = workflow_run
         workflow.runs.extend(workflow_runs.values())
 
@@ -297,6 +307,8 @@ async def fetch_workflow_runs():
     number_of_entries_per_page = 100  # The number of results per page (max 100)
     params = {"branch": "master", "page": page, "per_page": number_of_entries_per_page}
     concurrent_requests = 30  # Number of requests to send simultaneously
+    start = datetime.now() - timedelta(days=90)
+    earliest_run_creation_date = start.strftime('%Y-%m-%d')
     semaphore = asyncio.Semaphore(concurrent_requests)
 
     print("Start fetching recent workflow runs")
@@ -328,6 +340,7 @@ async def fetch_workflow_runs():
                     "page": page,
                     "per_page": number_of_entries_per_page,
                     "exclude_pull_requests": "true",
+                    "created": f'>={earliest_run_creation_date}',
                 }
                 workflow_run_tasks.append(fetch(runs_url, semaphore, params, headers))
                 page += 1
@@ -397,7 +410,9 @@ async def fetch_workflow_runs():
                             "None",
                             "None",
                             workflow.id,
-                            datetime.strptime("0001-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ"),
+                            datetime.strptime(
+                                "0001-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ"
+                            ),
                         )
                     )
             if len(workflow.runs) >= int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
@@ -408,7 +423,7 @@ async def fetch_workflow_runs():
 
     for workflow in list(workflows.values()):
         runs = sorted(workflow.runs, key=lambda r: r.started_at, reverse=True)
-        workflow.runs = runs[:int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
+        workflow.runs = runs[: int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
 
     return list(workflows.values())
 
@@ -444,6 +459,12 @@ def save_workflows(workflows):
         CONSTRAINT fk_workflow FOREIGN KEY(workflow_id) REFERENCES {workflows_table_name}(workflow_id))\n"""
     cursor.execute(create_workflows_table_query)
     cursor.execute(create_workflow_runs_table_query)
+    grant_workflows_query = f"""
+    GRANT SELECT ON github_workflows TO kubeproxyuser_ro;"""
+    grant_workflow_runs_query = f"""
+    GRANT SELECT ON github_workflow_runs TO kubeproxyuser_ro;"""
+    cursor.execute(grant_workflows_query)
+    cursor.execute(grant_workflow_runs_query)
     insert_workflows_query = f"""
     INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky, retrieved_at)
     VALUES %s"""
@@ -467,7 +488,9 @@ def save_workflows(workflows):
             )
         )
         for idx, run in enumerate(workflow.runs):
-            insert_workflow_runs.append((run.id, idx+1, run.status, run.url, run.workflow_id, run.started_at))
+            insert_workflow_runs.append(
+                (run.id, idx + 1, run.status, run.url, run.workflow_id, run.started_at)
+            )
     psycopg2.extras.execute_values(cursor, insert_workflows_query, insert_workflows)
     psycopg2.extras.execute_values(
         cursor, insert_workflow_runs_query, insert_workflow_runs

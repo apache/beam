@@ -62,12 +62,12 @@ spec:
         - name: PSQL_DB_DBUSERNAME
           valueFrom:
             secretKeyRef:
-              name: beammetrics-psql-db-credentials
+              name: beammetrics-psql-db-credentials-ro
               key: username
         - name: PSQL_DB_DBPWD
           valueFrom:
             secretKeyRef:
-              name: beammetrics-psql-db-credentials
+              name: beammetrics-psql-db-credentials-ro
               key: password
         - name: INFLUX_DB_HOST
           value: influxdb

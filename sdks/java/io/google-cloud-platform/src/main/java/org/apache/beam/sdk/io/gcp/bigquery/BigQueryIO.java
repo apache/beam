@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericDatumReader;
@@ -574,11 +575,12 @@ public class BigQueryIO {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
 
   /**
-   * Project IDs must contain 6-63 lowercase letters, digits, or dashes. IDs must start with a
-   * letter and may not end with a dash. This regex isn't exact - this allows for patterns that
-   * would be rejected by the service, but this is sufficient for basic parsing of table references.
+   * Formally, project IDs must contain 6-63 lowercase letters, digits, or dashes, must start with a
+   * letter and may not end with a dash. This regex is used for basic parsing of table references
+   * rather than validation purpose, e.g. it allows looser restriction for testing on mock
+   * resources. It may allow for patterns that would be rejected by the service
    */
-  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{4,61}[a-z0-9]";
+  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{0,61}[a-z0-9]";
 
   /** Regular expression that matches Dataset IDs. */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
@@ -969,6 +971,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
+      abstract Builder<T> setQueryTempProject(String queryTempProject);
+
       abstract Builder<T> setMethod(TypedRead.Method method);
 
       abstract Builder<T> setFormat(DataFormat method);
@@ -1028,6 +1032,8 @@ public class BigQueryIO {
     abstract @Nullable String getQueryLocation();
 
     abstract @Nullable String getQueryTempDataset();
+
+    abstract @Nullable String getQueryTempProject();
 
     public abstract TypedRead.Method getMethod();
 
@@ -1109,6 +1115,7 @@ public class BigQueryIO {
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
                 getQueryTempDataset(),
+                getQueryTempProject(),
                 getKmsKey());
       }
       return sourceDef;
@@ -1124,6 +1131,7 @@ public class BigQueryIO {
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
           getQueryTempDataset(),
+          getQueryTempProject(),
           getKmsKey(),
           getFormat(),
           getParseFn(),
@@ -1203,12 +1211,16 @@ public class BigQueryIO {
               // The temp table is only used for dataset and project id validation, not for table
               // name
               // validation
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
+                        : bqOptions.getBigQueryProject();
+              }
               TableReference tempTable =
                   new TableReference()
-                      .setProjectId(
-                          bqOptions.getBigQueryProject() == null
-                              ? bqOptions.getProject()
-                              : bqOptions.getBigQueryProject())
+                      .setProjectId(project)
                       .setDatasetId(getQueryTempDataset())
                       .setTableId("dummy table");
               BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
@@ -1602,12 +1614,16 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
 
               Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
-
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    options.getBigQueryProject() == null
+                        ? options.getProject()
+                        : options.getBigQueryProject();
+              }
               TableReference tempTable =
                   createTempTableReference(
-                      options.getBigQueryProject() == null
-                          ? options.getProject()
-                          : options.getBigQueryProject(),
+                      project,
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
@@ -2032,6 +2048,15 @@ public class BigQueryIO {
       return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
     }
 
+    /** See {@link #withQueryTempDataset(String)}. */
+    public TypedRead<T> withQueryTempProjectAndDataset(
+        String queryTempProjectRef, String queryTempDatasetRef) {
+      return toBuilder()
+          .setQueryTempProject(queryTempProjectRef)
+          .setQueryTempDataset(queryTempDatasetRef)
+          .build();
+    }
+
     /** See {@link Method}. */
     public TypedRead<T> withMethod(TypedRead.Method method) {
       return toBuilder().setMethod(method).build();
@@ -2214,6 +2239,7 @@ public class BigQueryIO {
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
+        .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
         .setDirectWriteProtos(true)
         .setDefaultMissingValueInterpretation(
             AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
@@ -2276,7 +2302,8 @@ public class BigQueryIO {
       throw new IllegalArgumentException("DynamicMessage is not supported.");
     }
     return BigQueryIO.<T>write()
-        .withFormatFunction(m -> TableRowToStorageApiProto.tableRowFromMessage(m, false))
+        .withFormatFunction(
+            m -> TableRowToStorageApiProto.tableRowFromMessage(m, false, Predicates.alwaysTrue()))
         .withWriteProtosClass(protoMessageClass);
   }
 
@@ -2350,7 +2377,7 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    abstract @Nullable Clustering getClustering();
+    abstract @Nullable ValueProvider<String> getJsonClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -2373,6 +2400,8 @@ public class BigQueryIO {
     abstract int getNumStorageWriteApiStreams();
 
     abstract boolean getPropagateSuccessfulStorageApiWrites();
+
+    abstract Predicate<String> getPropagateSuccessfulStorageApiWritesPredicate();
 
     abstract int getMaxFilesPerPartition();
 
@@ -2459,7 +2488,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setClustering(Clustering clustering);
+      abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -2483,6 +2512,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setPropagateSuccessfulStorageApiWrites(
           boolean propagateSuccessfulStorageApiWrites);
+
+      abstract Builder<T> setPropagateSuccessfulStorageApiWritesPredicate(
+          Predicate<String> columnsToPropagate);
 
       abstract Builder<T> setMaxFilesPerPartition(int maxFilesPerPartition);
 
@@ -2688,9 +2720,14 @@ public class BigQueryIO {
     }
 
     /**
-     * If an insert failure occurs, this function is applied to the originally supplied row T. The
-     * resulting {@link TableRow} will be accessed via {@link
-     * WriteResult#getFailedInsertsWithErr()}.
+     * If an insert failure occurs, this function is applied to the originally supplied T element.
+     *
+     * <p>For {@link Method#STREAMING_INSERTS} method, the resulting {@link TableRow} will be
+     * accessed via {@link WriteResult#getFailedInsertsWithErr()}.
+     *
+     * <p>For {@link Method#STORAGE_WRITE_API} and {@link Method#STORAGE_API_AT_LEAST_ONCE} methods,
+     * the resulting {@link TableRow} will be accessed via {@link
+     * WriteResult#getFailedStorageApiInserts()}.
      */
     public Write<T> withFormatRecordOnFailureFunction(
         SerializableFunction<T, TableRow> formatFunction) {
@@ -2826,8 +2863,18 @@ public class BigQueryIO {
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
-      checkArgument(clustering != null, "clustering can not be null");
-      return toBuilder().setClustering(clustering).build();
+      checkArgument(clustering != null, "clustering cannot be null");
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
+    }
+
+    /**
+     * The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized Clustering
+     * object in a deferred {@link ValueProvider}. For example: `"{"fields": ["column1", "column2",
+     * "column3"]}"`
+     */
+    public Write<T> withJsonClustering(ValueProvider<String> jsonClustering) {
+      checkArgument(jsonClustering != null, "clustering cannot be null");
+      return toBuilder().setJsonClustering(jsonClustering).build();
     }
 
     /**
@@ -2844,7 +2891,7 @@ public class BigQueryIO {
      * read state written with a previous version.
      */
     public Write<T> withClustering() {
-      return toBuilder().setClustering(new Clustering()).build();
+      return withClustering(new Clustering());
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -2991,6 +3038,26 @@ public class BigQueryIO {
         boolean propagateSuccessfulStorageApiWrites) {
       return toBuilder()
           .setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites)
+          .build();
+    }
+
+    /**
+     * If called, then all successful writes will be propagated to {@link WriteResult} and
+     * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method. The predicate
+     * allows filtering out columns from appearing in the resulting PCollection. The argument to the
+     * predicate is the name of the field to potentially be included in the output. Nested fields
+     * will be presented using . notation - e.g. a.b.c. If you want a nested field included, you
+     * must ensure that the predicate returns true for every parent field. e.g. if you want field
+     * "a.b.c" included, the predicate must return true for "a" for "a.b" and for "a.b.c".
+     *
+     * <p>The predicate will be invoked repeatedly for every field in every message, so it is
+     * recommended that it be as lightweight as possible. e.g. looking up fields in a hash table
+     * instead of searching a list of field names.
+     */
+    public Write<T> withPropagateSuccessfulStorageApiWrites(Predicate<String> columnsToPropagate) {
+      return toBuilder()
+          .setPropagateSuccessfulStorageApiWrites(true)
+          .setPropagateSuccessfulStorageApiWritesPredicate(columnsToPropagate)
           .build();
     }
 
@@ -3161,14 +3228,34 @@ public class BigQueryIO {
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFileSize(long maxFileSize) {
+    /**
+     * Controls the maximum byte size per file to be loaded into BigQuery. If the amount of data
+     * written to one file reaches this threshold, we will close that file and continue writing in a
+     * new file.
+     *
+     * <p>The default value (4 TiB) respects BigQuery's maximum number of source URIs per job
+     * configuration.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxFileSize(long maxFileSize) {
       checkArgument(maxFileSize > 0, "maxFileSize must be > 0, but was: %s", maxFileSize);
       return toBuilder().setMaxFileSize(maxFileSize).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
+    /**
+     * Controls how many files will be assigned to a single BigQuery load job. If the number of
+     * files increases past this threshold, we will spill it over into multiple load jobs as
+     * necessary.
+     *
+     * <p>The default value (10,000 files) respects BigQuery's maximum number of source URIs per job
+     * configuration.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
       checkArgument(
           maxFilesPerPartition > 0,
           "maxFilesPerPartition must be > 0, but was: %s",
@@ -3420,10 +3507,10 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription(), getClustering() != null);
+                  getJsonTableRef(), getTableDescription(), getJsonClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
+              new TableFunctionDestinations<>(getTableFunction(), getJsonClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -3440,13 +3527,12 @@ public class BigQueryIO {
         }
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
-        if (getJsonTimePartitioning() != null
-            || Optional.ofNullable(getClustering()).map(Clustering::getFields).isPresent()) {
+        if (getJsonTimePartitioning() != null || (getJsonClustering() != null)) {
           dynamicDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
-                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+                  getJsonClustering());
         }
         if (getPrimaryKey() != null) {
           dynamicDestinations =
@@ -3699,7 +3785,7 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null,
+                getJsonClustering() != null,
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),
                 getBadRecordRouter(),
@@ -3741,6 +3827,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   elementSchema,
                   elementToRowFunction,
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
           // We could support both of these by falling back to
@@ -3763,7 +3850,9 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)
                   new StorageApiDynamicDestinationsProto(
-                      dynamicDestinations, getWriteProtosClass());
+                      dynamicDestinations,
+                      getWriteProtosClass(),
+                      getFormatRecordOnFailureFunction());
         } else if (getAvroRowWriterFactory() != null) {
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
@@ -3786,6 +3875,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   avroSchemaFactory,
                   recordWriterFactory.getToAvroFn(),
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
@@ -3795,6 +3885,7 @@ public class BigQueryIO {
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
@@ -3822,6 +3913,7 @@ public class BigQueryIO {
                 getAutoSchemaUpdate(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
+                getPropagateSuccessfulStorageApiWritesPredicate(),
                 getRowMutationInformationFn() != null,
                 getDefaultMissingValueInterpretation(),
                 getBadRecordRouter(),
@@ -3932,7 +4024,12 @@ public class BigQueryIO {
     }
   }
 
-  /** Clear the cached map of created tables. Used for testing. */
+  /**
+   * Clear the cached map of created tables. Used for testing only.
+   *
+   * <p>Should not be used in any PTransform as cache is a static member shared by different
+   * BigQueryIO.write.
+   */
   @VisibleForTesting
   static void clearStaticCaches() throws ExecutionException, InterruptedException {
     CreateTables.clearCreatedTables();

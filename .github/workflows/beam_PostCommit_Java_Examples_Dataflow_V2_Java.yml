@@ -46,7 +46,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -61,7 +61,7 @@ jobs:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_V2_Java]
         job_phrase_1: [Run Java ]
         job_phrase_2: [Examples on Dataflow Runner V2]
-        java_version: ['11', '17', '21']
+        java_version: ['8', '17', '21']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -79,10 +79,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
           java-version: |
             ${{ matrix.java_version }}
-            8
+            11
       - name: run PostCommit Java Examples Dataflow V2 Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

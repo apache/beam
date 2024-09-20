@@ -19,6 +19,7 @@
 import functools
 import inspect
 import itertools
+import re
 from collections import abc
 from typing import Any
 from typing import Callable
@@ -31,11 +32,6 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
-import js2py
-from js2py import base
-from js2py.constructors import jsdate
-from js2py.internals import simplex
-
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
@@ -44,6 +40,7 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
@@ -51,6 +48,20 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import dicts_to_rows
+
+# Import js2py package if it exists
+try:
+  import js2py
+  from js2py.base import JsObjectWrapper
+except ImportError:
+  js2py = None
+  JsObjectWrapper = object
+
+_str_expression_fields = {
+    'AssignTimestamps': 'timestamp',
+    'Filter': 'keep',
+    'Partition': 'by',
+}
 
 
 def normalize_mapping(spec):
@@ -61,7 +72,85 @@ def normalize_mapping(spec):
     config = spec.get('config')
     if isinstance(config.get('drop'), str):
       config['drop'] = [config['drop']]
+    for field, value in list(config.get('fields', {}).items()):
+      if isinstance(value, (str, int, float)):
+        config['fields'][field] = {'expression': str(value)}
+
+  elif spec['type'] in _str_expression_fields:
+    param = _str_expression_fields[spec['type']]
+    config = spec.get('config', {})
+    if isinstance(config.get(param), (str, int, float)):
+      config[param] = {'expression': str(config.get(param))}
+
   return spec
+
+
+def is_literal(expr: str) -> bool:
+  # Some languages have limited integer literal ranges.
+  if re.fullmatch(r'-?\d+?', expr) and -1 << 31 < int(expr) < 1 << 31:
+    return True
+  elif re.fullmatch(r'-?\d+\.\d*', expr):
+    return True
+  elif re.fullmatch(r'"[^\\"]*"', expr):
+    return True
+  else:
+    return False
+
+
+def validate_generic_expression(
+    expr_dict: dict,
+    input_fields: Collection[str],
+    allow_cmp: bool,
+    error_field: str) -> None:
+  if not isinstance(expr_dict, dict):
+    raise ValueError(
+        f"Ambiguous expression type (perhaps missing quoting?): {expr_dict}")
+  if len(expr_dict) != 1 or 'expression' not in expr_dict:
+    raise ValueError(
+        "Missing language specification. "
+        "Must specify a language when using a map with custom logic for %s" %
+        error_field)
+  expr = str(expr_dict['expression'])
+
+  def is_atomic(expr: str):
+    return is_literal(expr) or expr in input_fields
+
+  if is_atomic(expr):
+    return
+
+  if allow_cmp:
+    maybe_cmp = re.fullmatch('(.*)([<>=!]+)(.*)', expr)
+    if maybe_cmp:
+      left, cmp, right = maybe_cmp.groups()
+      if (is_atomic(left.strip()) and is_atomic(right.strip()) and
+          cmp in {'==', '<=', '>=', '<', '>', '!='}):
+        return
+
+  raise ValueError(
+      "Missing language specification, unknown input fields, "
+      f"or invalid generic expression: {expr}. "
+      "See https://beam.apache.org/documentation/sdks/yaml-udf/#generic")
+
+
+def validate_generic_expressions(base_type, config, input_pcolls) -> None:
+  if not input_pcolls:
+    return
+  try:
+    input_fields = [
+        name for (name, _) in named_fields_from_element_type(
+            next(iter(input_pcolls)).element_type)
+    ]
+  except (TypeError, ValueError):
+    input_fields = []
+
+  if base_type == 'MapToFields':
+    for field, value in list(config.get('fields', {}).items()):
+      validate_generic_expression(value, input_fields, True, field)
+
+  elif base_type in _str_expression_fields:
+    param = _str_expression_fields[base_type]
+    validate_generic_expression(
+        config.get(param), input_fields, base_type == 'Filter', param)
 
 
 def _check_mapping_arguments(
@@ -87,7 +176,7 @@ def _check_mapping_arguments(
 # js2py's JsObjectWrapper object has a self-referencing __dict__ property
 # that cannot be pickled without implementing the __getstate__ and
 # __setstate__ methods.
-class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
+class _CustomJsObjectWrapper(JsObjectWrapper):
   def __init__(self, js_obj):
     super().__init__(js_obj.__dict__['_obj'])
 
@@ -115,6 +204,17 @@ def py_value_to_js_dict(py_value):
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
+
+  # Check for installed js2py package
+  if js2py is None:
+    raise ValueError(
+        "Javascript mapping functions are not supported on"
+        " Python 3.12 or later.")
+
+  # import remaining js2py objects
+  from js2py import base
+  from js2py.constructors import jsdate
+  from js2py.internals import simplex
 
   js_array_type = (
       base.PyJsArray,
@@ -262,17 +362,21 @@ def _as_callable_for_pcoll(
   if isinstance(fn_spec, str) and fn_spec in input_schema:
     return lambda row: getattr(row, fn_spec)
   else:
-    return _as_callable(list(input_schema.keys()), fn_spec, msg, language)
+    return _as_callable(
+        list(input_schema.keys()), fn_spec, msg, language, input_schema)
 
 
-def _as_callable(original_fields, expr, transform_name, language):
+def _as_callable(original_fields, expr, transform_name, language, input_schema):
+  if isinstance(expr, str):
+    expr = {'expression': expr}
+
+  # Extract original type from upstream pcoll when doing simple mappings
+  original_type = input_schema.get(expr.get('expression'), None)
   if expr in original_fields:
-    return expr
+    language = "python"
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
-  if isinstance(expr, str):
-    expr = {'expression': expr}
   if not isinstance(expr, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
@@ -281,7 +385,7 @@ def _as_callable(original_fields, expr, transform_name, language):
 
   if language == "javascript":
     func = _expand_javascript_mapping_func(original_fields, **expr)
-  elif language == "python":
+  elif language in ("python", "generic", None):
     func = _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
@@ -302,6 +406,11 @@ def _as_callable(original_fields, expr, transform_name, language):
       return result
 
     return checking_func
+
+  elif original_type:
+    return beam.typehints.with_output_types(
+        convert_to_beam_type(original_type))(
+            func)
 
   else:
     return func
@@ -470,7 +579,7 @@ def _PyJsFilter(
   See more complete documentation on
   [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
   """  # pylint: disable=line-too-long
-  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
+  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
   return pcoll | beam.Filter(keep_fn)
 
 
@@ -502,20 +611,9 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
             f'Redefinition of field "{name}". '
             'Cannot append a field that already exists in original input.')
 
-  if language == 'generic':
-    for expr in fields.values():
-      if not isinstance(expr, str):
-        raise ValueError(
-            "Missing language specification. "
-            "Must specify a language when using a map with custom logic.")
-    missing = set(fields.values()) - set(input_schema.keys())
-    if missing:
-      raise ValueError(
-          f"Missing language specification or unknown input fields: {missing}")
-
   if append:
     return input_schema, {
-        **{name: name
+        **{name: f'`{name}`' if language in ['sql', 'calcite'] else name
            for name in input_schema.keys() if name not in drop},
         **fields
     }
@@ -540,7 +638,8 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
 
   return pcoll | beam.Select(
       **{
-          name: _as_callable(original_fields, expr, name, language)
+          name: _as_callable(
+              original_fields, expr, name, language, input_schema)
           for (name, expr) in fields.items()
       })
 
@@ -561,10 +660,10 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
     elif 'expression' in v:
       return v['expression']
     else:
-      raise ValueError("Only expressions allowed in SQL at {name}.")
+      raise ValueError(f"Only expressions allowed in SQL at {name}.")
 
   selects = [
-      f'({extract_expr(name, expr)}) AS {name}'
+      f'({extract_expr(name, expr)}) AS `{name}`'
       for (name, expr) in fields.items()
   ]
   query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
@@ -691,6 +790,7 @@ def create_mapping_providers():
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
+          'Filter-generic': _PyJsFilter,
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,

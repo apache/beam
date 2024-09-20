@@ -98,6 +98,9 @@ sdks/python/coverage.xml
 # Ignore python venv
 **/venv
 
+# pyenv
+.python-version
+
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.
 # This is typically in files named 'src.xml' throughout this repository.
@@ -133,18 +136,15 @@ playground/frontend/playground_components/test/tools/extract_symbols_java/depend
 playground/frontend/playground_components_dev/pubspec.lock
 
 # Ignore Beam Playground Terraform
-**/.terraform
+playground/cloudfunction.zip
+
+# Ignore Terraform related
+**/.terraform/
 **/*.tfstate
 **/*.tfstate.*
-**/*.hcl
-**/*.tfvars
-playground/cloudfunction.zip
 
 # Ignore Katas auto-generated files
 **/*-remote-info.yaml
-
-# Exception to .gitignore .test-infra/pipelines related files
-!.test-infra/pipelines/**/apache-beam-testing.tfvars
 
 # Ignore .test-infra/mock-apis related files
 .test-infra/mock-apis/**/charts/

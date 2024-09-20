@@ -26,23 +26,9 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.8'
 
-toxTask "formatter", "py3-yapf-check"
-check.dependsOn formatter
-
-// TODO(BEAM-12000): Move tasks that aren't specific to 3.8 to Py 3.9.
 def posargs = project.findProperty("posargs") ?: ""
 
-task lint {}
-check.dependsOn lint
-
-toxTask "lintPy38", "py38-lint", "${posargs}"
-lint.dependsOn lintPy38
-
-toxTask "mypyPy38", "py38-mypy", "${posargs}"
-lint.dependsOn mypyPy38
-
 apply from: "../common.gradle"
-
 
 toxTask "testPy38CloudCoverage", "py38-cloudcoverage", "${posargs}"
 test.dependsOn "testPy38CloudCoverage"
@@ -58,36 +44,48 @@ project.tasks.register("preCommitPyCoverage") {
 // e.g. pyarrow and pandas also run on PreCommit Dataframe and Coverage
 project.tasks.register("postCommitPyDep") {}
 
-// Create a test task for each supported major version of pyarrow
+// Create a test task for supported major versions of pyarrow
+// We should have a test for the lowest supported version and
+// For versions that we would like to prioritize for testing,
+// for example versions released in a timeframe of last 1-2 years.
+
 toxTask "testPy38pyarrow-3", "py38-pyarrow-3", "${posargs}"
 test.dependsOn "testPy38pyarrow-3"
 postCommitPyDep.dependsOn "testPy38pyarrow-3"
-
-toxTask "testPy38pyarrow-4", "py38-pyarrow-4", "${posargs}"
-test.dependsOn "testPy38pyarrow-4"
-postCommitPyDep.dependsOn "testPy38pyarrow-4"
-
-toxTask "testPy38pyarrow-5", "py38-pyarrow-5", "${posargs}"
-test.dependsOn "testPy38pyarrow-5"
-postCommitPyDep.dependsOn "testPy38pyarrow-5"
-
-toxTask "testPy38pyarrow-6", "py38-pyarrow-6", "${posargs}"
-test.dependsOn "testPy38pyarrow-6"
-postCommitPyDep.dependsOn "testPy38pyarrow-6"
-
-toxTask "testPy38pyarrow-7", "py38-pyarrow-7", "${posargs}"
-test.dependsOn "testPy38pyarrow-7"
-postCommitPyDep.dependsOn "testPy38pyarrow-7"
-
-toxTask "testPy38pyarrow-8", "py38-pyarrow-8", "${posargs}"
-test.dependsOn "testPy38pyarrow-8"
-postCommitPyDep.dependsOn "testPy38pyarrow-8"
 
 toxTask "testPy38pyarrow-9", "py38-pyarrow-9", "${posargs}"
 test.dependsOn "testPy38pyarrow-9"
 postCommitPyDep.dependsOn "testPy38pyarrow-9"
 
-// Create a test task for each minor version of pandas
+toxTask "testPy38pyarrow-10", "py38-pyarrow-10", "${posargs}"
+test.dependsOn "testPy38pyarrow-10"
+postCommitPyDep.dependsOn "testPy38pyarrow-10"
+
+toxTask "testPy38pyarrow-11", "py38-pyarrow-11", "${posargs}"
+test.dependsOn "testPy38pyarrow-11"
+postCommitPyDep.dependsOn "testPy38pyarrow-11"
+
+toxTask "testPy38pyarrow-12", "py38-pyarrow-12", "${posargs}"
+test.dependsOn "testPy38pyarrow-12"
+postCommitPyDep.dependsOn "testPy38pyarrow-12"
+
+toxTask "testPy38pyarrow-13", "py38-pyarrow-13", "${posargs}"
+test.dependsOn "testPy38pyarrow-13"
+postCommitPyDep.dependsOn "testPy38pyarrow-13"
+
+toxTask "testPy38pyarrow-14", "py38-pyarrow-14", "${posargs}"
+test.dependsOn "testPy38pyarrow-14"
+postCommitPyDep.dependsOn "testPy38pyarrow-14"
+
+toxTask "testPy38pyarrow-15", "py38-pyarrow-15", "${posargs}"
+test.dependsOn "testPy38pyarrow-15"
+postCommitPyDep.dependsOn "testPy38pyarrow-15"
+
+toxTask "testPy38pyarrow-16", "py38-pyarrow-16", "${posargs}"
+test.dependsOn "testPy38pyarrow-16"
+postCommitPyDep.dependsOn "testPy38pyarrow-16"
+
+// Create a test task for each supported minor version of pandas
 toxTask "testPy38pandas-14", "py38-pandas-14", "${posargs}"
 test.dependsOn "testPy38pandas-14"
 postCommitPyDep.dependsOn "testPy38pandas-14"
@@ -99,6 +97,20 @@ postCommitPyDep.dependsOn "testPy38pandas-15"
 toxTask "testPy38pandas-20", "py38-pandas-20", "${posargs}"
 test.dependsOn "testPy38pandas-20"
 postCommitPyDep.dependsOn "testPy38pandas-20"
+
+// TODO(https://github.com/apache/beam/issues/31192): Add below suites
+// after dependency compat tests suite switches to Python 3.9 or we add
+// Python 2.2 support.
+
+// toxTask "testPy39pandas-21", "py39-pandas-21", "${posargs}"
+// test.dependsOn "testPy39pandas-21"
+// postCommitPyDep.dependsOn "testPy39pandas-21"
+
+// toxTask "testPy39pandas-22", "py39-pandas-22", "${posargs}"
+// test.dependsOn "testPy39pandas-22"
+// postCommitPyDep.dependsOn "testPy39pandas-22"
+
+// TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
 // Create a test task for each minor version of pytorch
 toxTask "testPy38pytorch-19", "py38-pytorch-19", "${posargs}"
@@ -124,21 +136,22 @@ postCommitPyDep.dependsOn "testPy38pytorch-113"
 // run on precommit
 toxTask "testPy38pytorch-200", "py38-pytorch-200", "${posargs}"
 test.dependsOn "testPy38pytorch-200"
-preCommitPyCoverage.dependsOn "testPy38pytorch-200"
+postCommitPyDep.dependsOn "testPy38pytorch-200"
 
 toxTask "testPy38tft-113", "py38-tft-113", "${posargs}"
 test.dependsOn "testPy38tft-113"
-preCommitPyCoverage.dependsOn "testPy38tft-113"
+postCommitPyDep.dependsOn "testPy38tft-113"
 
 // TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
 // toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
 // test.dependsOn "testPy38onnx-113"
 // postCommitPyDep.dependsOn "testPy38onnx-113"
+
 // Create a test task for each minor version of tensorflow
 toxTask "testPy38tensorflow-212", "py38-tensorflow-212", "${posargs}"
 test.dependsOn "testPy38tensorflow-212"
-preCommitPyCoverage.dependsOn "testPy38tensorflow-212"
+postCommitPyDep.dependsOn "testPy38tensorflow-212"
 
 // Create a test task for each minor version of transformers
 toxTask "testPy38transformers-428", "py38-transformers-428", "${posargs}"
@@ -149,14 +162,13 @@ toxTask "testPy38transformers-429", "py38-transformers-429", "${posargs}"
 test.dependsOn "testPy38transformers-429"
 postCommitPyDep.dependsOn "testPy38transformers-429"
 
-// run on precommit
 toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
 test.dependsOn "testPy38transformers-430"
-preCommitPyCoverage.dependsOn "testPy38transformers-430"
+postCommitPyDep.dependsOn "testPy38transformers-430"
 
 toxTask "testPy38embeddingsMLTransform", "py38-embeddings", "${posargs}"
 test.dependsOn "testPy38embeddingsMLTransform"
-preCommitPyCoverage.dependsOn "testPy38embeddingsMLTransform"
+postCommitPyDep.dependsOn "testPy38embeddingsMLTransform"
 
 // Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
 // mutliple versions so keeping this suite separate.
@@ -164,10 +176,9 @@ toxTask "testPy38TensorflowHubEmbeddings-014", "py38-TFHubEmbeddings-014", "${po
 test.dependsOn "testPy38TensorflowHubEmbeddings-014"
 postCommitPyDep.dependsOn "testPy38TensorflowHubEmbeddings-014"
 
-// run on precommit
 toxTask "testPy38TensorflowHubEmbeddings-015", "py38-TFHubEmbeddings-015", "${posargs}"
 test.dependsOn "testPy38TensorflowHubEmbeddings-015"
-preCommitPyCoverage.dependsOn "testPy38TensorflowHubEmbeddings-015"
+postCommitPyDep.dependsOn "testPy38TensorflowHubEmbeddings-015"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 

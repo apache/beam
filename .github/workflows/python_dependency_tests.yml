@@ -26,10 +26,10 @@ jobs:
       matrix:
           os: [ubuntu-latest]
           params: [
-            {"py_ver": "3.8", "py_env": "py38"},
             {"py_ver": "3.9", "py_env": "py39"},
             {"py_ver": "3.10", "py_env": "py310" },
             { "py_ver": "3.11", "py_env": "py311" },
+            { "py_ver": "3.12", "py_env": "py312" },
           ]
     steps:
       - name: Checkout code

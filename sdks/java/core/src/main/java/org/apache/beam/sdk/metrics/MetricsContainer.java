@@ -54,6 +54,12 @@ public interface MetricsContainer extends Serializable {
   Gauge getGauge(MetricName metricName);
 
   /**
+   * Return the {@link StringSet} that should be used for implementing the given {@code metricName}
+   * in this container.
+   */
+  StringSet getStringSet(MetricName metricName);
+
+  /**
    * Return the {@link Histogram} that should be used for implementing the given {@code metricName}
    * in this container.
    */

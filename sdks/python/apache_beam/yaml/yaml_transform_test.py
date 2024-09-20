@@ -592,8 +592,7 @@ class YamlWindowingTest(unittest.TestCase):
 
   def test_assign_timestamps(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
           '''
           type: chain

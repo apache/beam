@@ -42,6 +42,7 @@ from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -415,6 +416,19 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
           return_context=True, default_environment=self._default_environment)
 
+    if any(pcoll.is_bounded == beam_runner_api_pb2.IsBounded.UNBOUNDED
+           for pcoll in self.proto_pipeline.components.pcollections.values()):
+      if (not options.view_as(StandardOptions).streaming and
+          not options.view_as(DebugOptions).lookup_experiment(
+              'unsafely_attempt_to_process_unbounded_data_in_batch_mode')):
+        _LOGGER.info(
+            'Automatically inferring streaming mode '
+            'due to unbounded PCollections.')
+        options.view_as(StandardOptions).streaming = True
+
+    if options.view_as(StandardOptions).streaming:
+      _check_and_add_missing_streaming_options(options)
+
     # Dataflow can only handle Docker environments.
     for env_id, env in self.proto_pipeline.components.environments.items():
       self.proto_pipeline.components.environments[env_id].CopyFrom(
@@ -473,6 +487,7 @@ class DataflowRunner(PipelineRunner):
     if test_options.dry_run:
       result = PipelineResult(PipelineState.DONE)
       result.wait_until_finish = lambda duration=None: None
+      result.job = self.job
       return result
 
     # Get a Dataflow API client and set its options
@@ -598,9 +613,21 @@ def _check_and_add_missing_options(options):
         "an SDK preinstalled in the default Dataflow dev runtime environment "
         "or in a custom container image, use --sdk_location=container.")
 
+
+def _check_and_add_missing_streaming_options(options):
+  # Type: (PipelineOptions) -> None
+
+  """Validates and adds missing pipeline options depending on options set.
+
+  Must be called after it has been determined whether we're running in
+  streaming mode.
+
+  :param options: PipelineOptions for this pipeline.
+  """
   # Streaming only supports using runner v2 (aka unified worker).
   # Runner v2 only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
+    debug_options = options.view_as(DebugOptions)
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if (not google_cloud_options.enable_streaming_engine and
         (debug_options.lookup_experiment("enable_windmill_service") or

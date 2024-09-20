@@ -153,12 +153,14 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     if self._cache:
       self._cache.request_coder = request_coder
 
-    fetched_data = input_row | RequestResponseIO(
-        caller=self._source_handler,
-        timeout=self._timeout,
-        repeater=self._repeater,
-        cache=self._cache,
-        throttler=self._throttler)
+    fetched_data = (
+        input_row
+        | "Enrichment-RRIO" >> RequestResponseIO(
+            caller=self._source_handler,
+            timeout=self._timeout,
+            repeater=self._repeater,
+            cache=self._cache,
+            throttler=self._throttler))
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return (

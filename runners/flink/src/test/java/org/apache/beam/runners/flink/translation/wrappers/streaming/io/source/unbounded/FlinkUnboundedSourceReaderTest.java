@@ -37,19 +37,23 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestCount
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.EmptyUnboundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderTestBase;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestCompat.TestMetricGroup;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestMetrics.TestMetricGroup;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.metrics.Gauge;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Unite tests for {@link FlinkUnboundedSourceReader}. */
@@ -228,6 +232,38 @@ public class FlinkUnboundedSourceReaderTest
   public void testWatermarkOnEmptySource() throws Exception {
     ManuallyTriggeredScheduledExecutorService executor =
         new ManuallyTriggeredScheduledExecutorService();
+    AtomicReference<Instant> watermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    ReaderOutput<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> output =
+        new ReaderOutput<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>() {
+          @Override
+          public void collect(WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> unused) {}
+
+          @Override
+          public void collect(
+              WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> unused, long l) {}
+
+          @Override
+          public void emitWatermark(Watermark w) {
+            watermark.compareAndSet(
+                BoundedWindow.TIMESTAMP_MIN_VALUE, Instant.ofEpochMilli(w.getTimestamp()));
+          }
+
+          @Override
+          public void markIdle() {}
+
+          @Override
+          public SourceOutput<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+              createOutputForSplit(String s) {
+            return this;
+          }
+
+          @Override
+          public void releaseOutputForSplit(String s) {}
+
+          @Override
+          public void markActive() {}
+        };
+    Instant now = Instant.now();
     try (FlinkUnboundedSourceReader<KV<Integer, Integer>> reader =
         (FlinkUnboundedSourceReader<KV<Integer, Integer>>) createReader(executor, -1L)) {
       List<FlinkSourceSplit<KV<Integer, Integer>>> splits = createEmptySplits(2);
@@ -236,21 +272,45 @@ public class FlinkUnboundedSourceReaderTest
       reader.notifyNoMoreSplits();
 
       for (int i = 0; i < 4; i++) {
-        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(null));
+        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(output));
       }
+
+      // move first reader to 'now'
+      ((EmptyUnboundedSource<KV<Integer, Integer>>) splits.get(0).getBeamSplitSource())
+          .setWatermark(now);
+      // force trigger timeout
+      executor.triggerScheduledTasks();
+      for (int i = 0; i < 4; i++) {
+        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(output));
+      }
+
+      // check we have emitted watermark
+      assertEquals(now, watermark.get());
 
       // move first reader to end of time
       ((EmptyUnboundedSource<KV<Integer, Integer>>) splits.get(0).getBeamSplitSource())
           .setWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
       for (int i = 0; i < 4; i++) {
-        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(null));
+        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(output));
       }
 
       // move the second reader to end of time
       ((EmptyUnboundedSource<KV<Integer, Integer>>) splits.get(1).getBeamSplitSource())
           .setWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
+      assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(output));
+    }
+  }
+
+  @Test
+  public void testWatermarkOnNoSplits() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    try (FlinkUnboundedSourceReader<KV<Integer, Integer>> reader =
+        (FlinkUnboundedSourceReader<KV<Integer, Integer>>) createReader(executor, -1L)) {
+      reader.start();
+      reader.notifyNoMoreSplits();
       assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(null));
     }
   }
@@ -279,6 +339,40 @@ public class FlinkUnboundedSourceReaderTest
       // have 2 splits,
       // the expected value is the magic number 14 here.
       assertEquals(14L, pendingBytesGauge.getValue().longValue());
+    }
+  }
+
+  @Test
+  public void testCheckMarksFinalized() throws Exception {
+
+    final int numSplits = 2;
+    final int numRecordsPerSplit = 10;
+
+    List<FlinkSourceSplit<KV<Integer, Integer>>> splits =
+        createSplits(numSplits, numRecordsPerSplit, 0);
+    RecordsValidatingOutput validatingOutput = new RecordsValidatingOutput(splits);
+    // Create a reader, take a snapshot.
+    try (SourceReader<
+            WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+            FlinkSourceSplit<KV<Integer, Integer>>>
+        reader = createReader()) {
+      List<Integer> finalizeTracker = new ArrayList<>();
+      TestCountingSource.setFinalizeTracker(finalizeTracker);
+      pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
+      assertTrue(finalizeTracker.isEmpty());
+      reader.snapshotState(0L);
+      // notifyCheckpointComplete is normally called by the SourceOperator
+      reader.notifyCheckpointComplete(0L);
+      // every split should be finalized
+      assertEquals(numSplits, finalizeTracker.size());
+      pollAndValidate(reader, splits, validatingOutput, numSplits);
+      // no notifyCheckpointComplete here, assume the checkpoint failed
+      reader.snapshotState(1L);
+      pollAndValidate(reader, splits, validatingOutput, numSplits);
+      reader.snapshotState(2L);
+      reader.notifyCheckpointComplete(2L);
+      // 2 * numSplits more should be finalized
+      assertEquals(3 * numSplits, finalizeTracker.size());
     }
   }
 

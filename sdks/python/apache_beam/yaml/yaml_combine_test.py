@@ -34,8 +34,7 @@ DATA = [
 class YamlCombineTest(unittest.TestCase):
   def test_multiple_aggregations(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -55,8 +54,7 @@ class YamlCombineTest(unittest.TestCase):
 
   def test_multiple_keys(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -76,8 +74,7 @@ class YamlCombineTest(unittest.TestCase):
 
   def test_no_keys(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -95,8 +92,7 @@ class YamlCombineTest(unittest.TestCase):
 
   def test_multiple_combines(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -120,8 +116,7 @@ class YamlCombineTest(unittest.TestCase):
 
   def test_group(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -146,8 +141,7 @@ class YamlCombineTest(unittest.TestCase):
 
   def test_expression(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
@@ -169,8 +163,7 @@ class YamlCombineTest(unittest.TestCase):
 
   def test_config(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''

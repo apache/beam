@@ -31,7 +31,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
@@ -88,7 +87,6 @@ public class JavaClassLookupTransformProviderTest {
   public static void setupExpansionService() {
     PipelineOptionsFactory.register(ExpansionServiceOptions.class);
     URL allowListFile = Resources.getResource("./test_allowlist.yaml");
-    System.out.println("Exists: " + new File(allowListFile.getPath()).exists());
     expansionService =
         new ExpansionService(
             new String[] {"--javaClassLookupAllowlistFile=" + allowListFile.getPath()});

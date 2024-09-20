@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
@@ -149,7 +148,7 @@ public class JdbcIOIT {
 
   private void gatherAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         getWriteMetricSuppliers(uuid, timestamp);

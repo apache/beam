@@ -438,7 +438,7 @@ public interface NexmarkOptions
 
   @Description(
       "If non-negative, events from the Kafka topic will get their timestamps from the Kafka createtime, with the maximum delay for"
-          + "disorder as specified.")
+          + " disorder as specified.")
   @Default.Integer(60)
   int getKafkaTopicCreateTimeMaxDelaySec();
 

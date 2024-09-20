@@ -894,6 +894,7 @@ def _python_sdk_capabilities_iter():
   yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
   yield common_urns.primitives.TO_STRING.urn
   yield common_urns.protocols.DATA_SAMPLING.urn
+  yield common_urns.protocols.SDK_CONSUMING_RECEIVED_DATA.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):

@@ -137,7 +137,9 @@ func main() {
 		"--logging_endpoint=" + *loggingEndpoint,
 		"--control_endpoint=" + *controlEndpoint,
 		"--semi_persist_dir=" + *semiPersistDir,
-		"--options=" + options,
+	}
+	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
+		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
 	if info.GetStatusEndpoint() != nil {
 		os.Setenv("STATUS_ENDPOINT", info.GetStatusEndpoint().GetUrl())

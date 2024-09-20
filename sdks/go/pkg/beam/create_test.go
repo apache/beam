@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/protoadapt"
 )
 
 func TestMain(m *testing.M) {
@@ -157,7 +157,5 @@ func (t *testProto) Unmarshal(b []byte) error {
 // Ensure testProto is detected as a proto.Message and can be (un)marshalled by
 // the proto library.
 var (
-	_ proto.Message     = &testProto{}
-	_ proto.Marshaler   = &testProto{}
-	_ proto.Unmarshaler = &testProto{}
+	_ protoadapt.MessageV1 = &testProto{}
 )

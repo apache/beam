@@ -1115,6 +1115,9 @@ class _NamedPTransform(PTransform):
   def annotations(self):
     return self.transform.annotations()
 
+  def __rrshift__(self, label):
+    return _NamedPTransform(self.transform, label)
+
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)
     if callable(transform_attr):

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
-import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
@@ -34,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -95,6 +95,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
+            .addNullableStringField("query_temp_project")
             .addNullableByteArrayField("method")
             .addNullableByteArrayField("format")
             .addNullableArrayField("selected_fields", FieldType.STRING)
@@ -160,6 +161,9 @@ public class BigQueryIOTranslation {
       }
       if (transform.getQueryTempDataset() != null) {
         fieldValues.put("query_temp_dataset", transform.getQueryTempDataset());
+      }
+      if (transform.getQueryTempProject() != null) {
+        fieldValues.put("query_temp_project", transform.getQueryTempProject());
       }
       if (transform.getMethod() != null) {
         fieldValues.put("method", toByteArray(transform.getMethod()));
@@ -271,6 +275,16 @@ public class BigQueryIOTranslation {
         if (queryTempDataset != null) {
           builder = builder.setQueryTempDataset(queryTempDataset);
         }
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.57.0") >= 0) {
+          // This property was added for Beam 2.57.0 hence not available when
+          // upgrading the transform from previous Beam versions.
+          String queryTempProject = configRow.getString("query_temp_project");
+          if (queryTempProject != null) {
+            builder = builder.setQueryTempProject(queryTempProject);
+          }
+        }
+
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
@@ -373,7 +387,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("dynamic_destinations")
             .addNullableStringField("json_schema")
             .addNullableStringField("json_time_partitioning")
-            .addNullableByteArrayField("clustering")
+            .addNullableStringField("clustering")
             .addNullableByteArrayField("create_disposition")
             .addNullableByteArrayField("write_disposition")
             .addNullableArrayField("schema_update_options", FieldType.BYTES)
@@ -385,6 +399,7 @@ public class BigQueryIOTranslation {
             .addNullableInt32Field("num_file_shards")
             .addNullableInt32Field("num_storage_write_api_streams")
             .addNullableBooleanField("propagate_successful_storage_api_writes")
+            .addNullableByteArrayField("propagate_successful_storage_api_writes_predicate")
             .addNullableInt32Field("max_files_per_partition")
             .addNullableInt64Field("max_bytes_per_partition")
             .addNullableLogicalTypeField("triggering_frequency", new NanosDuration())
@@ -474,8 +489,8 @@ public class BigQueryIOTranslation {
         fieldValues.put(
             "json_time_partitioning", toByteArray(transform.getJsonTimePartitioning().get()));
       }
-      if (transform.getClustering() != null) {
-        fieldValues.put("clustering", toByteArray(transform.getClustering()));
+      if (transform.getJsonClustering() != null) {
+        fieldValues.put("clustering", transform.getJsonClustering().get());
       }
       if (transform.getCreateDisposition() != null) {
         fieldValues.put("create_disposition", toByteArray(transform.getCreateDisposition()));
@@ -509,6 +524,9 @@ public class BigQueryIOTranslation {
       fieldValues.put(
           "propagate_successful_storage_api_writes",
           transform.getPropagateSuccessfulStorageApiWrites());
+      fieldValues.put(
+          "propagate_successful_storage_api_writes_predicate",
+          toByteArray(transform.getPropagateSuccessfulStorageApiWritesPredicate()));
       fieldValues.put("max_files_per_partition", transform.getMaxFilesPerPartition());
       fieldValues.put("max_bytes_per_partition", transform.getMaxBytesPerPartition());
       if (transform.getTriggeringFrequency() != null) {
@@ -577,7 +595,7 @@ public class BigQueryIOTranslation {
             "deterministic_record_id_fn", toByteArray(transform.getDeterministicRecordIdFn()));
       }
       if (transform.getWriteTempDataset() != null) {
-        fieldValues.put("write_temp_dataset", toByteArray(transform.getDeterministicRecordIdFn()));
+        fieldValues.put("write_temp_dataset", toByteArray(transform.getWriteTempDataset()));
       }
       if (transform.getRowMutationInformationFn() != null) {
         fieldValues.put(
@@ -658,9 +676,14 @@ public class BigQueryIOTranslation {
         if (jsonTimePartitioning != null) {
           builder = builder.setJsonTimePartitioning(StaticValueProvider.of(jsonTimePartitioning));
         }
-        byte[] clusteringBytes = configRow.getBytes("clustering");
-        if (clusteringBytes != null) {
-          builder = builder.setClustering((Clustering) fromByteArray(clusteringBytes));
+        // Translation with Clustering is broken before 2.56.0, where we used to attempt to
+        // serialize a non-serializable Clustering object to bytes.
+        // In 2.56.0 onwards, we translate using the json string representation instead.
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") >= 0) {
+          String jsonClustering = configRow.getString("clustering");
+          if (jsonClustering != null) {
+            builder = builder.setJsonClustering(StaticValueProvider.of(jsonClustering));
+          }
         }
         byte[] createDispositionBytes = configRow.getBytes("create_disposition");
         if (createDispositionBytes != null) {
@@ -733,6 +756,12 @@ public class BigQueryIOTranslation {
         if (propagateSuccessfulStorageApiWrites != null) {
           builder =
               builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
+        }
+        byte[] predicate = configRow.getBytes("propagate_successful_storage_api_writes_predicate");
+        if (predicate != null) {
+          builder =
+              builder.setPropagateSuccessfulStorageApiWritesPredicate(
+                  (Predicate<String>) fromByteArray(predicate));
         }
         Integer maxFilesPerPartition = configRow.getInt32("max_files_per_partition");
         if (maxFilesPerPartition != null) {

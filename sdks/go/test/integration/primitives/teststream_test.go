@@ -71,3 +71,23 @@ func TestTestStreamTwoUserTypeSequences(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TestStreamTwoUserTypeSequences)
 }
+
+func TestTestStreamSimple(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamSimple)
+}
+
+func TestTestStreamSimple_InfinityDefault(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamSimple_InfinityDefault)
+}
+
+func TestTestStreamToGBK(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamToGBK)
+}
+
+func TestTestStreamTimersEventTime(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamTimersEventTime)
+}

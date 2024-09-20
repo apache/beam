@@ -41,21 +41,76 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A {@link SchemaProvider} base class that vends schemas and rows based on {@link
  * FieldValueGetter}s.
+ *
+ * @deprecated new implementations should extend the {@link GetterBasedSchemaProviderV2} class'
+ *     methods which receive {@link TypeDescriptor}s instead of ordinary {@link Class}es as
+ *     arguments, which permits to support generic type signatures during schema inference
  */
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
+@Deprecated
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
-  /** Implementing class should override to return FieldValueGetters. */
+
+  /**
+   * Implementing class should override to return FieldValueGetters.
+   *
+   * @deprecated new implementations should override {@link #fieldValueGetters(TypeDescriptor,
+   *     Schema)} and make this method throw an {@link UnsupportedOperationException}
+   */
+  @Deprecated
   public abstract List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema);
 
-  /** Implementing class should override to return a list of type-informations. */
+  /**
+   * Delegates to the {@link #fieldValueGetters(Class, Schema)} for backwards compatibility,
+   * override it if you want to use the richer type signature contained in the {@link
+   * TypeDescriptor} not subject to the type erasure.
+   */
+  public List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return fieldValueGetters(targetTypeDescriptor.getRawType(), schema);
+  }
+
+  /**
+   * Implementing class should override to return a list of type-informations.
+   *
+   * @deprecated new implementations should override {@link
+   *     #fieldValueTypeInformations(TypeDescriptor, Schema)} and make this method throw an {@link
+   *     UnsupportedOperationException}
+   */
+  @Deprecated
   public abstract List<FieldValueTypeInformation> fieldValueTypeInformations(
       Class<?> targetClass, Schema schema);
 
-  /** Implementing class should override to return a constructor. */
+  /**
+   * Delegates to the {@link #fieldValueTypeInformations(Class, Schema)} for backwards
+   * compatibility, override it if you want to use the richer type signature contained in the {@link
+   * TypeDescriptor} not subject to the type erasure.
+   */
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return fieldValueTypeInformations(targetTypeDescriptor.getRawType(), schema);
+  }
+
+  /**
+   * Implementing class should override to return a constructor.
+   *
+   * @deprecated new implementations should override {@link #schemaTypeCreator(TypeDescriptor,
+   *     Schema)} and make this method throw an {@link UnsupportedOperationException}
+   */
+  @Deprecated
   public abstract SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema);
+
+  /**
+   * Delegates to the {@link #schemaTypeCreator(Class, Schema)} for backwards compatibility,
+   * override it if you want to use the richer type signature contained in the {@link
+   * TypeDescriptor} not subject to the type erasure.
+   */
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return schemaTypeCreator(targetTypeDescriptor.getRawType(), schema);
+  }
 
   private class ToRowWithValueGetters<T> implements SerializableFunction<T, Row> {
     private final Schema schema;
@@ -113,8 +168,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   @Override
   @SuppressWarnings("unchecked")
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
-    Class<T> clazz = (Class<T>) typeDescriptor.getType();
-    return new FromRowUsingCreator<>(clazz, this);
+    return new FromRowUsingCreator<>(typeDescriptor, this);
   }
 
   @Override
@@ -141,8 +195,8 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     @Override
-    public List<FieldValueGetter> create(Class<?> clazz, Schema schema) {
-      List<FieldValueGetter> getters = gettersFactory.create(clazz, schema);
+    public List<FieldValueGetter> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      List<FieldValueGetter> getters = gettersFactory.create(typeDescriptor, schema);
       List<FieldValueGetter> rowGetters = new ArrayList<>(getters.size());
       for (int i = 0; i < getters.size(); i++) {
         rowGetters.add(rowValueGetter(getters.get(i), schema.getField(i).getType()));

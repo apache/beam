@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsMap;
+import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -217,6 +219,26 @@ class DirectMetrics extends MetricResults {
         }
       };
 
+  private static final MetricAggregation<StringSetData, StringSetResult> STRING_SET =
+      new MetricAggregation<StringSetData, StringSetResult>() {
+        @Override
+        public StringSetData zero() {
+          return StringSetData.empty();
+        }
+
+        @Override
+        public StringSetData combine(Iterable<StringSetData> updates) {
+          StringSetData result = StringSetData.empty();
+          result = result.combine(updates);
+          return result;
+        }
+
+        @Override
+        public StringSetResult extract(StringSetData data) {
+          return data.extractResult();
+        }
+      };
+
   /** The current values of counters in memory. */
   private final MetricsMap<MetricKey, DirectMetric<Long, Long>> counters;
 
@@ -224,12 +246,14 @@ class DirectMetrics extends MetricResults {
       distributions;
 
   private final MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges;
+  private final MetricsMap<MetricKey, DirectMetric<StringSetData, StringSetResult>> stringSet;
 
   DirectMetrics(ExecutorService executorService) {
     this.counters = new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER, executorService));
     this.distributions =
         new MetricsMap<>(unusedKey -> new DirectMetric<>(DISTRIBUTION, executorService));
     this.gauges = new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE, executorService));
+    this.stringSet = new MetricsMap<>(unusedKey -> new DirectMetric<>(STRING_SET, executorService));
   }
 
   @Override
@@ -249,8 +273,17 @@ class DirectMetrics extends MetricResults {
       maybeExtractResult(filter, gaugeResults, gauge);
     }
 
+    ImmutableList.Builder<MetricResult<StringSetResult>> stringSetResult = ImmutableList.builder();
+    for (Entry<MetricKey, DirectMetric<StringSetData, StringSetResult>> stringSet :
+        stringSet.entries()) {
+      maybeExtractResult(filter, stringSetResult, stringSet);
+    }
+
     return MetricQueryResults.create(
-        counterResults.build(), distributionResults.build(), gaugeResults.build());
+        counterResults.build(),
+        distributionResults.build(),
+        gaugeResults.build(),
+        stringSetResult.build());
   }
 
   private <ResultT> void maybeExtractResult(
@@ -277,6 +310,10 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
       gauges.get(gauge.getKey()).updatePhysical(bundle, gauge.getUpdate());
     }
+
+    for (MetricUpdate<StringSetData> sSet : updates.stringSetUpdates()) {
+      stringSet.get(sSet.getKey()).updatePhysical(bundle, sSet.getUpdate());
+    }
   }
 
   public void commitPhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
@@ -288,6 +325,9 @@ class DirectMetrics extends MetricResults {
     }
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
       gauges.get(gauge.getKey()).commitPhysical(bundle, gauge.getUpdate());
+    }
+    for (MetricUpdate<StringSetData> sSet : updates.stringSetUpdates()) {
+      stringSet.get(sSet.getKey()).commitPhysical(bundle, sSet.getUpdate());
     }
   }
 
@@ -301,6 +341,9 @@ class DirectMetrics extends MetricResults {
     }
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
       gauges.get(gauge.getKey()).commitLogical(bundle, gauge.getUpdate());
+    }
+    for (MetricUpdate<StringSetData> sSet : updates.stringSetUpdates()) {
+      stringSet.get(sSet.getKey()).commitLogical(bundle, sSet.getUpdate());
     }
   }
 }

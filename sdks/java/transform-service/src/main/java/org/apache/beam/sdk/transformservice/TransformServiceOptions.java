@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.transformservice;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -51,16 +52,18 @@ public interface TransformServiceOptions extends PipelineOptions {
     public TransformServiceConfig create(PipelineOptions options) {
       String configFile = options.as(TransformServiceOptions.class).getTransformServiceConfigFile();
       if (configFile != null) {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         File configFileObj = new File(configFile);
         if (!configFileObj.exists()) {
           throw new IllegalArgumentException("Config file " + configFile + " does not exist");
         }
-        try {
-          return mapper.readValue(configFileObj, TransformServiceConfig.class);
+        try (InputStream stream = new FileInputStream(configFileObj)) {
+          return TransformServiceConfig.parseFromYamlStream(stream);
+        } catch (FileNotFoundException e) {
+          throw new RuntimeException(
+              "Could not parse the provided Transform Service config file " + configFile, e);
         } catch (IOException e) {
-          throw new IllegalArgumentException(
-              "Could not load the provided config file " + configFile, e);
+          throw new RuntimeException(
+              "Could not parse the provided Transform Service config file " + configFile, e);
         }
       }
 

@@ -39,16 +39,22 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -158,6 +164,60 @@ public class TransformUpgraderTest {
     }
   }
 
+  public static class TestSchemaTransformProvider implements SchemaTransformProvider {
+
+    @Override
+    public String identifier() {
+      return "dummy_schema_transform";
+    }
+
+    @Override
+    public Schema configurationSchema() {
+      return Schema.builder().build();
+    }
+
+    @Override
+    public SchemaTransform from(Row configuration) {
+      return new TestSchemaTransform();
+    }
+  }
+
+  public static class TestSchemaTransform extends SchemaTransform {
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      return input;
+    }
+  }
+
+  static class TestSchemaTransformTranslator
+      extends SchemaTransformPayloadTranslator<TestSchemaTransform> {
+    @Override
+    public SchemaTransformProvider provider() {
+      return new TestSchemaTransformProvider();
+    }
+
+    @Override
+    public Row toConfigRow(TestSchemaTransform transform) {
+      return Row.withSchema(Schema.builder().build()).build();
+    }
+  }
+
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class TestSchemaTransformPayloadTranslatorRegistrar
+      implements TransformPayloadTranslatorRegistrar {
+    @Override
+    @SuppressWarnings({
+      "rawtypes",
+    })
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(TestSchemaTransform.class, new TestSchemaTransformTranslator())
+          .build();
+    }
+  }
+
   static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {
     ExpansionApi.ExpansionResponse response;
 
@@ -183,6 +243,18 @@ public class TransformUpgraderTest {
                     .getTransformsMap()
                     .get("TransformUpgraderTest-TestTransform2");
           }
+
+          boolean schemaTransformTest = false;
+          if (transformToUpgrade == null) {
+            // This is running a schema-transform test.
+            transformToUpgrade =
+                request
+                    .getComponents()
+                    .getTransformsMap()
+                    .get("TransformUpgraderTest-TestSchemaTransform");
+            schemaTransformTest = true;
+          }
+
           if (!transformToUpgrade
               .getSpec()
               .getUrn()
@@ -190,27 +262,30 @@ public class TransformUpgraderTest {
             throw new RuntimeException("Could not find a valid transform to upgrade");
           }
 
-          Integer oldParam;
-          try {
-            ByteArrayInputStream byteArrayInputStream =
-                new ByteArrayInputStream(transformToUpgrade.getSpec().getPayload().toByteArray());
-            ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-            oldParam = (Integer) objectInputStream.readObject();
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-
           RunnerApi.PTransform.Builder upgradedTransform = transformToUpgrade.toBuilder();
           FunctionSpec.Builder specBuilder = upgradedTransform.getSpecBuilder();
 
-          ByteStringOutputStream byteStringOutputStream = new ByteStringOutputStream();
-          try {
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteStringOutputStream);
-            objectOutputStream.writeObject(oldParam * 2);
-            objectOutputStream.flush();
-            specBuilder.setPayload(byteStringOutputStream.toByteString());
-          } catch (IOException e) {
-            throw new RuntimeException(e);
+          if (!schemaTransformTest) {
+            Integer oldParam;
+            try {
+              ByteArrayInputStream byteArrayInputStream =
+                  new ByteArrayInputStream(transformToUpgrade.getSpec().getPayload().toByteArray());
+              ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+              oldParam = (Integer) objectInputStream.readObject();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+
+            ByteStringOutputStream byteStringOutputStream = new ByteStringOutputStream();
+            try {
+              ObjectOutputStream objectOutputStream =
+                  new ObjectOutputStream(byteStringOutputStream);
+              objectOutputStream.writeObject(oldParam * 2);
+              objectOutputStream.flush();
+              specBuilder.setPayload(byteStringOutputStream.toByteString());
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
           }
 
           upgradedTransform.setSpec(specBuilder.build());
@@ -286,6 +361,34 @@ public class TransformUpgraderTest {
             .get("TransformUpgraderTest-TestTransform");
 
     validateTestParam(upgradedTransform, 4);
+
+    // Confirm that the upgraded transform includes the upgrade annotation.
+    assertTrue(upgradedTransform.getAnnotationsMap().containsKey(TransformUpgrader.UPGRADE_KEY));
+  }
+
+  @Test
+  public void testTransformUpgradeSchemaTransform() throws Exception {
+    Pipeline pipeline = Pipeline.create();
+
+    // Build the pipeline
+    PCollectionRowTuple.empty(pipeline).apply(new TestSchemaTransform());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    ExternalTranslationOptions options =
+        PipelineOptionsFactory.create().as(ExternalTranslationOptions.class);
+    List<String> urnsToOverride = ImmutableList.of("dummy_schema_transform");
+    options.setTransformsToOverride(urnsToOverride);
+    options.setTransformServiceAddress("dummyaddress");
+
+    RunnerApi.Pipeline upgradedPipelineProto =
+        TransformUpgrader.of(new TestExpansionServiceClientFactory())
+            .upgradeTransformsViaTransformService(pipelineProto, urnsToOverride, options);
+
+    RunnerApi.PTransform upgradedTransform =
+        upgradedPipelineProto
+            .getComponents()
+            .getTransformsMap()
+            .get("TransformUpgraderTest-TestSchemaTransform");
 
     // Confirm that the upgraded transform includes the upgrade annotation.
     assertTrue(upgradedTransform.getAnnotationsMap().containsKey(TransformUpgrader.UPGRADE_KEY));

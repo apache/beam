@@ -14,9 +14,6 @@
 # limitations under the License.
 #
 
-# cython: profile=True
-# cython: language_level=3
-
 """ For internal use only. No backwards compatibility guarantees."""
 
 cimport cython

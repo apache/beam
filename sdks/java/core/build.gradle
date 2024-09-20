@@ -98,6 +98,7 @@ dependencies {
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   provided library.java.json_org
   implementation library.java.everit_json_schema
+  implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
   testImplementation "com.github.stefanbirkner:system-rules:1.19.0"

@@ -80,6 +80,10 @@ public class WorkerStatusPages {
     return new WorkerStatusPages(new Server(statusPort), memoryMonitor, healthyIndicator);
   }
 
+  public static WorkerStatusPages create(int defaultStatusPort, MemoryMonitor memoryMonitor) {
+    return create(defaultStatusPort, memoryMonitor, () -> true);
+  }
+
   /** Start the server. */
   public void start() {
     if (statusServer.isStarted()) {
