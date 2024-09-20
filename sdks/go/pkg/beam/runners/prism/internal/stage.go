@@ -84,7 +84,7 @@ type stage struct {
 
 // The minimum and maximum durations between each ProgressBundleRequest and split evaluation.
 const (
-	minimumProgTick = 10 * time.Millisecond
+	minimumProgTick = 100 * time.Millisecond
 	maximumProgTick = 30 * time.Second
 )
 
@@ -266,7 +266,7 @@ progress:
 	}
 	// If we never received any progress ticks, we may have too long a time, shrink it for new runs instead.
 	if !ticked {
-		newTick := clampTick(baseTick / 2)
+		newTick := clampTick(baseTick - minimumProgTick)
 		// If it's otherwise unchanged, apply the new duration.
 		s.baseProgTick.CompareAndSwap(baseTick, newTick)
 	}
