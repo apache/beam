@@ -939,7 +939,7 @@ class WorkerHandlerManager(object):
         except Exception:
           _LOGGER.error(
               "Error closing worker_handler %s" % worker_handler, exc_info=True)
-    self._cached_handlers = {}  # type: ignore[assignment]
+    self._cached_handlers = collections.defaultdict(list)
     self._workers_by_id = {}
     if self._grpc_server is not None:
       self._grpc_server.close()
