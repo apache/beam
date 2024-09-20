@@ -1124,14 +1124,14 @@ public class BigtableIO {
           .build();
     }
 
-    /** This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
     @Deprecated
     public Write withThrottlingTargetMs(int throttlingTargetMs) {
       LOG.warn("withThrottlingTargetMs has been removed and does not have effect.");
       return this;
     }
 
-    /** This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
     @Deprecated
     public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
       LOG.warn("withThrottlingReportTargetMs has been removed and does not have an effect.");
