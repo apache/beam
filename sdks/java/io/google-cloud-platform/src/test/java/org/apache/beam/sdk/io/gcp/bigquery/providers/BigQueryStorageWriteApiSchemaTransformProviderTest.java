@@ -257,7 +257,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
                           "cdc_info",
                           Row.withSchema(cdcInfoSchema)
                               .withFieldValue("mutation_info", "UPSERT")
-                              .withFieldValue("change_sequence_number", "AAA/" + idx))
+                              .withFieldValue("change_sequence_number", "AAA/" + idx)
+                              .build())
                       .withFieldValue("record", row)
                       .build();
                 })
@@ -316,7 +317,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
                           "cdc_info",
                           Row.withSchema(cdcInfoSchema)
                               .withFieldValue("mutation_info", "UPSERT")
-                              .withFieldValue("change_sequence_number", "AAA/" + idx))
+                              .withFieldValue("change_sequence_number", "AAA/" + idx)
+                              .build())
                       .withFieldValue("record", row)
                       .build();
                 })
