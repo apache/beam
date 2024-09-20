@@ -975,6 +975,11 @@ class GoogleCloudOptions(PipelineOptions):
   # Log warning if soft delete policy is enabled in a gcs bucket
   # that is specified in an argument.
   def _warn_if_soft_delete_policy_enabled(self, arg_name):
+    # skip the check if it is in dry-run mode because the later step requires
+    # internet connection to access GCS
+    if self.view_as(TestOptions).dry_run:
+      return
+
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
@@ -1023,8 +1028,7 @@ class GoogleCloudOptions(PipelineOptions):
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
-      if not self.view_as(TestOptions).dry_run:
-        errors.extend(self._handle_temp_and_staging_locations(validator))
+      errors.extend(self._handle_temp_and_staging_locations(validator))
       errors.extend(validator.validate_cloud_options(self))
 
     if self.view_as(DebugOptions).dataflow_job_file:
