@@ -20,11 +20,16 @@ from typing import Dict
 from typing import Optional
 
 import apache_beam as beam
+from apache_beam.yaml import options
 from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
 from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
-from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
 from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
+
+try:
+  from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
+except ImportError:
+  FeastFeatureStoreEnrichmentHandler = None
 
 
 @beam.ptransform.ptransform_fn
@@ -87,6 +92,12 @@ def enrichment_transform(
             timeout: 30
 
     """
+  options.YamlOptions.check_enabled(pcoll.pipeline, 'Enrichment')
+  if (enrichment_handler == 'FeastFeatureStore' and
+      not FeastFeatureStoreEnrichmentHandler):
+    raise ValueError(
+        "FeastFeatureStore handler requires 'feast' package to be installed. " +
+        "Please install using 'pip install feast[gcp]' and try again.")
   handler_map = {
       'BigQuery': BigQueryEnrichmentHandler,
       'BigTable': BigTableEnrichmentHandler,
