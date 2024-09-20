@@ -1023,7 +1023,8 @@ class GoogleCloudOptions(PipelineOptions):
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
-      errors.extend(self._handle_temp_and_staging_locations(validator))
+      if not self.view_as(TestOptions).dry_run:
+        errors.extend(self._handle_temp_and_staging_locations(validator))
       errors.extend(validator.validate_cloud_options(self))
 
     if self.view_as(DebugOptions).dataflow_job_file:

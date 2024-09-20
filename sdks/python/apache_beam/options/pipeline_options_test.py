@@ -719,8 +719,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=gs://beam/tmp'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                    return_value=False):
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -734,8 +736,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=gs://beam/tmp'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                    return_value=False):
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/tmp")
     self.assertEqual(
@@ -749,8 +753,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                    return_value=False):
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -764,8 +770,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                    return_value=False):
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://default/bucket")
     self.assertEqual(
@@ -779,8 +787,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(len(errors), 2, errors)
+    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                    return_value=False):
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(len(errors), 2, errors)
     self.assertIn(
         'Invalid GCS path (badGSpath), given for the option: temp_location.',
         errors,
