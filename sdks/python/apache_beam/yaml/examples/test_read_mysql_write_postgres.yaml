@@ -17,7 +17,7 @@
 
 #
 # The following example reads data from a Mysql database
-# then load the results back to a Postgre database
+# then loads the results back to a Postgres database
 pipeline:
   transforms:
     - type: ReadFromMySql
