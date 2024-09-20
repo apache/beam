@@ -15,12 +15,15 @@
 # limitations under the License.
 #
 # pytype: skip-file
+import logging
 import unittest
 
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.runners.portability.fn_api_runner.fn_runner import ExtendedProvisionInfo
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
 from apache_beam.transforms import environments
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class WorkerHandlerManagerTest(unittest.TestCase):
@@ -42,3 +45,8 @@ class WorkerHandlerManagerTest(unittest.TestCase):
     second_workers = manager.get_worker_handlers('inprocess', 1)
     assert len(first_workers) == len(second_workers) == 1
     assert first_workers != second_workers
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
