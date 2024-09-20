@@ -193,7 +193,8 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testBuildTableBasedSource() {
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.readTableRows()
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table");
     checkTypedReadTableObject(typedRead, "foo.com:project", "dataset", "table");
@@ -203,7 +204,8 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testBuildTableBasedSourceWithoutValidation() {
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.readTableRows()
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .withoutValidation();
@@ -214,7 +216,10 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testBuildTableBasedSourceWithDefaultProject() {
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.readTableRows().withMethod(Method.DIRECT_READ).from("myDataset.myTable");
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("myDataset.myTable");
     checkTypedReadTableObject(typedRead, null, "myDataset", "myTable");
   }
 
@@ -226,7 +231,10 @@ public class BigQueryIOStorageReadTest {
             .setDatasetId("dataset")
             .setTableId("table");
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.readTableRows().withMethod(Method.DIRECT_READ).from(tableReference);
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from(tableReference);
     checkTypedReadTableObject(typedRead, "foo.com:project", "dataset", "table");
   }
 
@@ -247,7 +255,8 @@ public class BigQueryIOStorageReadTest {
             + " which only applies to queries");
     p.apply(
         "ReadMyTable",
-        BigQueryIO.readTableRows()
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .withoutResultFlattening());
@@ -262,7 +271,8 @@ public class BigQueryIOStorageReadTest {
             + " which only applies to queries");
     p.apply(
         "ReadMyTable",
-        BigQueryIO.readTableRows()
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .usingStandardSql());
@@ -273,7 +283,8 @@ public class BigQueryIOStorageReadTest {
   public void testDisplayData() {
     String tableSpec = "foo.com:project:dataset.table";
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.readTableRows()
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .withSelectedFields(ImmutableList.of("foo", "bar"))
             .withProjectionPushdownApplied()
@@ -288,7 +299,8 @@ public class BigQueryIOStorageReadTest {
   public void testName() {
     assertEquals(
         "BigQueryIO.TypedRead",
-        BigQueryIO.readTableRows()
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .getName());
@@ -335,7 +347,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -355,7 +367,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -374,7 +386,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -466,7 +478,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -514,7 +526,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             StaticValueProvider.of(Lists.newArrayList("name")),
             StaticValueProvider.of("number > 5"),
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -559,7 +571,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -600,7 +612,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -618,7 +630,7 @@ public class BigQueryIOStorageReadTest {
                 BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table")),
             null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -737,7 +749,7 @@ public class BigQueryIOStorageReadTest {
             ReadSession.getDefaultInstance(),
             ReadStream.getDefaultInstance(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices());
 
@@ -752,7 +764,7 @@ public class BigQueryIOStorageReadTest {
             ReadSession.getDefaultInstance(),
             ReadStream.getDefaultInstance(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices());
 
@@ -781,7 +793,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -824,7 +836,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -880,7 +892,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -965,7 +977,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1050,7 +1062,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1187,7 +1199,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             readStreams.get(0),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1251,7 +1263,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1340,7 +1352,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1432,7 +1444,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1764,7 +1776,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1813,7 +1825,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1895,7 +1907,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1976,7 +1988,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2095,7 +2107,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             readStreams.get(0),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2155,7 +2167,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2241,7 +2253,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 

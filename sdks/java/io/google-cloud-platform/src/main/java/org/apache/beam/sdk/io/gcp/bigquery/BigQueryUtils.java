@@ -310,44 +310,45 @@ public class BigQueryUtils {
    *
    * <p>Supports both standard and legacy SQL types.
    *
-   * @param typeName Name of the type
+   * @param typeName Name of the type returned by {@link TableFieldSchema#getType()}
    * @param nestedFields Nested fields for the given type (eg. RECORD type)
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
       String typeName, List<TableFieldSchema> nestedFields, SchemaConversionOptions options) {
+    // see
+    // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
     switch (typeName) {
       case "STRING":
         return FieldType.STRING;
       case "BYTES":
         return FieldType.BYTES;
-      case "INT64":
-      case "INT":
-      case "SMALLINT":
       case "INTEGER":
-      case "BIGINT":
-      case "TINYINT":
-      case "BYTEINT":
+      case "INT64":
         return FieldType.INT64;
+      case "FLOAT":
       case "FLOAT64":
-      case "FLOAT": // even if not a valid BQ type, it is used in the schema
         return FieldType.DOUBLE;
-      case "BOOL":
       case "BOOLEAN":
+      case "BOOL":
         return FieldType.BOOLEAN;
+      case "TIMESTAMP":
+        return FieldType.DATETIME;
+      case "DATE":
+        return FieldType.logicalType(SqlTypes.DATE);
+      case "TIME":
+        return FieldType.logicalType(SqlTypes.TIME);
+      case "DATETIME":
+        return FieldType.logicalType(SqlTypes.DATETIME);
       case "NUMERIC":
       case "BIGNUMERIC":
         return FieldType.DECIMAL;
-      case "TIMESTAMP":
-        return FieldType.DATETIME;
-      case "TIME":
-        return FieldType.logicalType(SqlTypes.TIME);
-      case "DATE":
-        return FieldType.logicalType(SqlTypes.DATE);
-      case "DATETIME":
-        return FieldType.logicalType(SqlTypes.DATETIME);
-      case "STRUCT":
+      case "GEOGRAPHY":
+      case "JSON":
+        // TODO Add metadata for custom sql types ?
+        return FieldType.STRING;
       case "RECORD":
+      case "STRUCT":
         if (options.getInferMaps() && nestedFields.size() == 2) {
           TableFieldSchema key = nestedFields.get(0);
           TableFieldSchema value = nestedFields.get(1);
@@ -358,13 +359,9 @@ public class BigQueryUtils {
                 fromTableFieldSchemaType(value.getType(), value.getFields(), options));
           }
         }
-
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
         return FieldType.row(rowSchema);
-      case "GEOGRAPHY":
-      case "JSON":
-        // TODO Add metadata for custom sql types
-        return FieldType.STRING;
+      case "RANGE": // TODO add support for range type
       default:
         throw new UnsupportedOperationException(
             "Converting BigQuery type " + typeName + " to Beam type is unsupported");
@@ -463,8 +460,8 @@ public class BigQueryUtils {
 
   /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
-      TableSchema tableSchema, Boolean stringLogicalTypes) {
-    return toGenericAvroSchema("root", tableSchema.getFields(), stringLogicalTypes);
+      TableSchema tableSchema, Boolean useAvroLogicalTypes) {
+    return toGenericAvroSchema("root", tableSchema.getFields(), useAvroLogicalTypes);
   }
 
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
@@ -475,8 +472,8 @@ public class BigQueryUtils {
 
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
-      String schemaName, List<TableFieldSchema> fieldSchemas, Boolean stringLogicalTypes) {
-    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas, stringLogicalTypes);
+      String schemaName, List<TableFieldSchema> fieldSchemas, Boolean useAvroLogicalTypes) {
+    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas, useAvroLogicalTypes);
   }
 
   private static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow>
@@ -1075,21 +1072,6 @@ public class BigQueryUtils {
       tableSpec = String.format("%s.%s", tableReference.getProjectId(), tableSpec);
     }
     return tableSpec;
-  }
-
-  static TableSchema trimSchema(TableSchema schema, @Nullable List<String> selectedFields) {
-    if (selectedFields == null || selectedFields.isEmpty()) {
-      return schema;
-    }
-
-    List<TableFieldSchema> fields = schema.getFields();
-    List<TableFieldSchema> trimmedFields = new ArrayList<>();
-    for (TableFieldSchema field : fields) {
-      if (selectedFields.contains(field.getName())) {
-        trimmedFields.add(field);
-      }
-    }
-    return new TableSchema().setFields(trimmedFields);
   }
 
   private static @Nullable ServiceCallMetric callMetricForMethod(

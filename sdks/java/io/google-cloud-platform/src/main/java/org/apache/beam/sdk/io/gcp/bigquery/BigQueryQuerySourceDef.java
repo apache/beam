@@ -178,7 +178,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
 
   /** {@inheritDoc} */
   @Override
-  public TableSchema getTableSchema(BigQueryOptions bqOptions) {
+  public Schema getBeamSchema(BigQueryOptions bqOptions) {
     try {
       JobStatistics stats =
           BigQueryQueryHelper.dryRunQueryIfNeeded(
@@ -189,18 +189,12 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
               flattenResults,
               useLegacySql,
               location);
-      return stats.getQuery().getSchema();
+      TableSchema tableSchema = stats.getQuery().getSchema();
+      return BigQueryUtils.fromTableSchema(tableSchema);
     } catch (IOException | InterruptedException | NullPointerException e) {
       throw new BigQuerySchemaRetrievalException(
           "Exception while trying to retrieve schema of query", e);
     }
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public Schema getBeamSchema(BigQueryOptions bqOptions) {
-    TableSchema tableSchema = getTableSchema(bqOptions);
-    return BigQueryUtils.fromTableSchema(tableSchema);
   }
 
   ValueProvider<String> getQuery() {

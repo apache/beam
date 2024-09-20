@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryAvroUtils.DATETIME_LOGICAL_TYPE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -29,22 +28,25 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
+import org.apache.avro.Schema.Field;
+import org.apache.avro.Schema.Type;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
-import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -112,11 +114,8 @@ public class BigQueryAvroUtilsTest {
 
     {
       // Test nullable fields.
-      GenericRecord record =
-          new GenericRecordBuilder(avroSchema)
-              .set("number", 5L)
-              .set("associates", new ArrayList<GenericRecord>())
-              .build();
+      GenericRecord record = new GenericData.Record(avroSchema);
+      record.put("number", 5L);
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
       TableRow row = new TableRow().set("number", "5").set("associates", new ArrayList<TableRow>());
       assertEquals(row, convertedRow);
@@ -126,54 +125,50 @@ public class BigQueryAvroUtilsTest {
     {
       // Test type conversion for:
       // INTEGER, FLOAT, NUMERIC, TIMESTAMP, BOOLEAN, BYTES, DATE, DATETIME, TIME.
+      GenericRecord record = new GenericData.Record(avroSchema);
       byte[] soundBytes = "chirp,chirp".getBytes(StandardCharsets.UTF_8);
-      GenericRecord record =
-          new GenericRecordBuilder(avroSchema)
-              .set("number", 5L)
-              .set("quality", 5.0)
-              .set("birthday", 5L)
-              .set("birthdayMoney", numericBytes)
-              .set("lotteryWinnings", bigNumericBytes)
-              .set("flighted", Boolean.TRUE)
-              .set("sound", ByteBuffer.wrap(soundBytes))
-              .set("anniversaryDate", new Utf8("2000-01-01"))
-              .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
-              .set("anniversaryTime", new Utf8("00:00:00.000005"))
-              .set("geoPositions", "LINESTRING(1 2, 3 4, 5 6, 7 8)")
-              .set("associates", new ArrayList<GenericRecord>())
-              .build();
-
+      ByteBuffer soundByteBuffer = ByteBuffer.wrap(soundBytes);
+      soundByteBuffer.rewind();
+      record.put("number", 5L);
+      record.put("quality", 5.0);
+      record.put("birthday", 5L);
+      record.put("birthdayMoney", numericBytes);
+      record.put("lotteryWinnings", bigNumericBytes);
+      record.put("flighted", Boolean.TRUE);
+      record.put("sound", soundByteBuffer);
+      record.put("anniversaryDate", new Utf8("2000-01-01"));
+      record.put("anniversaryDatetime", new String("2000-01-01 00:00:00.000005"));
+      record.put("anniversaryTime", new Utf8("00:00:00.000005"));
+      record.put("geoPositions", new String("LINESTRING(1 2, 3 4, 5 6, 7 8)"));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
       TableRow row =
           new TableRow()
+              .set("number", "5")
+              .set("birthday", "1970-01-01 00:00:00.000005 UTC")
+              .set("birthdayMoney", numeric.toString())
+              .set("lotteryWinnings", bigNumeric.toString())
+              .set("quality", 5.0)
+              .set("associates", new ArrayList<TableRow>())
+              .set("flighted", Boolean.TRUE)
+              .set("sound", BaseEncoding.base64().encode(soundBytes))
               .set("anniversaryDate", "2000-01-01")
               .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
               .set("anniversaryTime", "00:00:00.000005")
-              .set("associates", new ArrayList<TableRow>())
-              .set("birthday", "1970-01-01 00:00:00.000005 UTC")
-              .set("birthdayMoney", numeric.toString())
-              .set("flighted", Boolean.TRUE)
-              .set("geoPositions", "LINESTRING(1 2, 3 4, 5 6, 7 8)")
-              .set("lotteryWinnings", bigNumeric.toString())
-              .set("number", "5")
-              .set("quality", 5.0)
-              .set("sound", BaseEncoding.base64().encode(soundBytes));
-      assertEquals(row, convertedRow);
+              .set("geoPositions", "LINESTRING(1 2, 3 4, 5 6, 7 8)");
       TableRow clonedRow = convertedRow.clone();
-      assertEquals(clonedRow, convertedRow);
+      assertEquals(convertedRow, clonedRow);
+      assertEquals(row, convertedRow);
     }
     {
       // Test repeated fields.
-      Schema subBirdSchema = ReflectData.get().getSchema(Bird.SubBird.class);
-      GenericRecord nestedRecord =
-          new GenericRecordBuilder(subBirdSchema).set("species", "other").build();
-      GenericRecord record =
-          new GenericRecordBuilder(avroSchema)
-              .set("number", 5L)
-              .set("associates", Lists.newArrayList(nestedRecord))
-              .set("birthdayMoney", numericBytes)
-              .set("lotteryWinnings", bigNumericBytes)
-              .build();
+      Schema subBirdSchema = AvroCoder.of(Bird.SubBird.class).getSchema();
+      GenericRecord nestedRecord = new GenericData.Record(subBirdSchema);
+      nestedRecord.put("species", "other");
+      GenericRecord record = new GenericData.Record(avroSchema);
+      record.put("number", 5L);
+      record.put("associates", Lists.newArrayList(nestedRecord));
+      record.put("birthdayMoney", numericBytes);
+      record.put("lotteryWinnings", bigNumericBytes);
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
       TableRow row =
           new TableRow()
@@ -188,269 +183,201 @@ public class BigQueryAvroUtilsTest {
   }
 
   @Test
-  public void testConvertBigQuerySchemaToAvroSchemaDisabledLogicalTypes() {
-    TableSchema tableSchema = new TableSchema();
-    tableSchema.setFields(fields);
-    Schema avroSchema = BigQueryAvroUtils.toGenericAvroSchema(tableSchema, false);
-
-    assertThat(avroSchema.getField("number").schema(), equalTo(SchemaBuilder.builder().longType()));
-    assertThat(
-        avroSchema.getField("species").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().stringType().endUnion()));
-    assertThat(
-        avroSchema.getField("quality").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().doubleType().endUnion()));
-    assertThat(
-        avroSchema.getField("quantity").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().longType().endUnion()));
-    assertThat(
-        avroSchema.getField("birthday").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(
-                    LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType()))
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("birthdayMoney").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(LogicalTypes.decimal(38, 9).addToSchema(SchemaBuilder.builder().bytesType()))
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("lotteryWinnings").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(LogicalTypes.decimal(77, 38).addToSchema(SchemaBuilder.builder().bytesType()))
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("flighted").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().booleanType().endUnion()));
-    assertThat(
-        avroSchema.getField("sound").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().bytesType().endUnion()));
-    assertThat(
-        avroSchema.getField("anniversaryDate").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringBuilder()
-                .prop("sqlType", "DATE")
-                .endString()
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("anniversaryDatetime").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringBuilder()
-                .prop("sqlType", "DATETIME")
-                .endString()
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("anniversaryTime").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringBuilder()
-                .prop("sqlType", "TIME")
-                .endString()
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("geoPositions").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringBuilder()
-                .prop("sqlType", "GEOGRAPHY")
-                .endString()
-                .endUnion()));
-    assertThat(
-        avroSchema.getField("scion").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .record("scion")
-                .doc("Translated Avro Schema for scion")
-                .namespace("org.apache.beam.sdk.io.gcp.bigquery")
-                .fields()
-                .name("species")
-                .type()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringType()
-                .endUnion()
-                .noDefault()
-                .endRecord()
-                .endUnion()));
-
-    assertThat(
-        avroSchema.getField("associates").schema(),
-        equalTo(
-            SchemaBuilder.array()
-                .items()
-                .record("associates")
-                .doc("Translated Avro Schema for associates")
-                .namespace("org.apache.beam.sdk.io.gcp.bigquery")
-                .fields()
-                .name("species")
-                .type()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringType()
-                .endUnion()
-                .noDefault()
-                .endRecord()));
-  }
-
-  @Test
   public void testConvertBigQuerySchemaToAvroSchema() {
     TableSchema tableSchema = new TableSchema();
     tableSchema.setFields(fields);
     Schema avroSchema = BigQueryAvroUtils.toGenericAvroSchema(tableSchema);
 
-    assertThat(avroSchema.getField("number").schema(), equalTo(SchemaBuilder.builder().longType()));
+    assertThat(avroSchema.getField("number").schema(), equalTo(Schema.create(Type.LONG)));
     assertThat(
         avroSchema.getField("species").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().stringType().endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
     assertThat(
         avroSchema.getField("quality").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().doubleType().endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.DOUBLE))));
     assertThat(
         avroSchema.getField("quantity").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().longType().endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.LONG))));
     assertThat(
         avroSchema.getField("birthday").schema(),
         equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(
-                    LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType()))
-                .endUnion()));
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                LogicalTypes.timestampMicros().addToSchema(Schema.create(Type.LONG)))));
     assertThat(
         avroSchema.getField("birthdayMoney").schema(),
         equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(LogicalTypes.decimal(38, 9).addToSchema(SchemaBuilder.builder().bytesType()))
-                .endUnion()));
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                LogicalTypes.decimal(38, 9).addToSchema(Schema.create(Type.BYTES)))));
     assertThat(
         avroSchema.getField("lotteryWinnings").schema(),
         equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(LogicalTypes.decimal(77, 38).addToSchema(SchemaBuilder.builder().bytesType()))
-                .endUnion()));
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                LogicalTypes.decimal(77, 38).addToSchema(Schema.create(Type.BYTES)))));
     assertThat(
         avroSchema.getField("flighted").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().booleanType().endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BOOLEAN))));
     assertThat(
         avroSchema.getField("sound").schema(),
-        equalTo(SchemaBuilder.builder().unionOf().nullType().and().bytesType().endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BYTES))));
+    Schema dateSchema = Schema.create(Type.INT);
+    LogicalTypes.date().addToSchema(dateSchema);
     assertThat(
         avroSchema.getField("anniversaryDate").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType()))
-                .endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), dateSchema)));
+    Schema dateTimeSchema = Schema.create(Type.STRING);
+    BigQueryAvroUtils.DATETIME_LOGICAL_TYPE.addToSchema(dateTimeSchema);
     assertThat(
         avroSchema.getField("anniversaryDatetime").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(DATETIME_LOGICAL_TYPE.addToSchema(SchemaBuilder.builder().stringType()))
-                .endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), dateTimeSchema)));
+    Schema timeSchema = Schema.create(Type.LONG);
+    LogicalTypes.timeMicros().addToSchema(timeSchema);
     assertThat(
         avroSchema.getField("anniversaryTime").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .type(LogicalTypes.timeMicros().addToSchema(SchemaBuilder.builder().longType()))
-                .endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), timeSchema)));
+    Schema geoSchema = Schema.create(Type.STRING);
+    geoSchema.addProp("sqlType", "GEOGRAPHY");
     assertThat(
         avroSchema.getField("geoPositions").schema(),
-        equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringBuilder()
-                .prop("sqlType", "GEOGRAPHY")
-                .endString()
-                .endUnion()));
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), geoSchema)));
     assertThat(
         avroSchema.getField("scion").schema(),
         equalTo(
-            SchemaBuilder.builder()
-                .unionOf()
-                .nullType()
-                .and()
-                .record("scion")
-                .doc("Translated Avro Schema for scion")
-                .namespace("org.apache.beam.sdk.io.gcp.bigquery")
-                .fields()
-                .name("species")
-                .type()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringType()
-                .endUnion()
-                .noDefault()
-                .endRecord()
-                .endUnion()));
-
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                Schema.createRecord(
+                    "scion",
+                    "Translated Avro Schema for scion",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
+                    false,
+                    ImmutableList.of(
+                        new Field(
+                            "species",
+                            Schema.createUnion(
+                                Schema.create(Type.NULL), Schema.create(Type.STRING)),
+                            null,
+                            (Object) null))))));
     assertThat(
         avroSchema.getField("associates").schema(),
         equalTo(
-            SchemaBuilder.array()
-                .items()
-                .record("associates")
-                .doc("Translated Avro Schema for associates")
-                .namespace("org.apache.beam.sdk.io.gcp.bigquery")
-                .fields()
-                .name("species")
-                .type()
-                .unionOf()
-                .nullType()
-                .and()
-                .stringType()
-                .endUnion()
-                .noDefault()
-                .endRecord()));
+            Schema.createArray(
+                Schema.createRecord(
+                    "associates",
+                    "Translated Avro Schema for associates",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
+                    false,
+                    ImmutableList.of(
+                        new Field(
+                            "species",
+                            Schema.createUnion(
+                                Schema.create(Type.NULL), Schema.create(Type.STRING)),
+                            null,
+                            (Object) null))))));
+  }
+
+  @Test
+  public void testConvertBigQuerySchemaToAvroSchemaWithoutLogicalTypes() {
+    TableSchema tableSchema = new TableSchema();
+    tableSchema.setFields(fields);
+    Schema avroSchema = BigQueryAvroUtils.toGenericAvroSchema(tableSchema, false);
+
+    assertThat(avroSchema.getField("number").schema(), equalTo(Schema.create(Schema.Type.LONG)));
+    assertThat(
+        avroSchema.getField("species").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING))));
+    assertThat(
+        avroSchema.getField("quality").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.DOUBLE))));
+    assertThat(
+        avroSchema.getField("quantity").schema(),
+        equalTo(
+            Schema.createUnion(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.LONG))));
+    assertThat(
+        avroSchema.getField("birthday").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL),
+                LogicalTypes.timestampMicros().addToSchema(Schema.create(Schema.Type.LONG)))));
+    assertThat(
+        avroSchema.getField("birthdayMoney").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL),
+                LogicalTypes.decimal(38, 9).addToSchema(Schema.create(Schema.Type.BYTES)))));
+    assertThat(
+        avroSchema.getField("lotteryWinnings").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL),
+                LogicalTypes.decimal(77, 38).addToSchema(Schema.create(Schema.Type.BYTES)))));
+    assertThat(
+        avroSchema.getField("flighted").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.BOOLEAN))));
+    assertThat(
+        avroSchema.getField("sound").schema(),
+        equalTo(
+            Schema.createUnion(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.BYTES))));
+    Schema dateSchema = Schema.create(Schema.Type.STRING);
+    dateSchema.addProp("sqlType", "DATE");
+    assertThat(
+        avroSchema.getField("anniversaryDate").schema(),
+        equalTo(Schema.createUnion(Schema.create(Schema.Type.NULL), dateSchema)));
+    Schema dateTimeSchema = Schema.create(Schema.Type.STRING);
+    dateTimeSchema.addProp("sqlType", "DATETIME");
+    assertThat(
+        avroSchema.getField("anniversaryDatetime").schema(),
+        equalTo(Schema.createUnion(Schema.create(Schema.Type.NULL), dateTimeSchema)));
+    Schema timeSchema = Schema.create(Schema.Type.STRING);
+    timeSchema.addProp("sqlType", "TIME");
+    assertThat(
+        avroSchema.getField("anniversaryTime").schema(),
+        equalTo(Schema.createUnion(Schema.create(Schema.Type.NULL), timeSchema)));
+    Schema geoSchema = Schema.create(Type.STRING);
+    geoSchema.addProp("sqlType", "GEOGRAPHY");
+    assertThat(
+        avroSchema.getField("geoPositions").schema(),
+        equalTo(Schema.createUnion(Schema.create(Schema.Type.NULL), geoSchema)));
+    assertThat(
+        avroSchema.getField("scion").schema(),
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Schema.Type.NULL),
+                Schema.createRecord(
+                    "scion",
+                    "Translated Avro Schema for scion",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
+                    false,
+                    ImmutableList.of(
+                        new Schema.Field(
+                            "species",
+                            Schema.createUnion(
+                                Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING)),
+                            null,
+                            (Object) null))))));
+    assertThat(
+        avroSchema.getField("associates").schema(),
+        equalTo(
+            Schema.createArray(
+                Schema.createRecord(
+                    "associates",
+                    "Translated Avro Schema for associates",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
+                    false,
+                    ImmutableList.of(
+                        new Schema.Field(
+                            "species",
+                            Schema.createUnion(
+                                Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING)),
+                            null,
+                            (Object) null))))));
   }
 
   @Test

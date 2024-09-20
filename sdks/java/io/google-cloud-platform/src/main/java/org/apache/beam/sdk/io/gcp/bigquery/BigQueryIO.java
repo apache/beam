@@ -647,12 +647,12 @@ public class BigQueryIO {
    * domain-specific type, due to the overhead of converting the rows to {@link TableRow}.
    */
   public static TypedRead<TableRow> readTableRows() {
-    return read(TableRowParser.INSTANCE).withCoder(TableRowJsonCoder.of());
+    return read(new TableRowParser()).withCoder(TableRowJsonCoder.of());
   }
 
   /** Like {@link #readTableRows()} but with {@link Schema} support. */
   public static TypedRead<TableRow> readTableRowsWithSchema() {
-    return read(TableRowParser.INSTANCE)
+    return read(new TableRowParser())
         .withCoder(TableRowJsonCoder.of())
         .withBeamRowConverters(
             TypeDescriptor.of(TableRow.class),
@@ -1272,12 +1272,8 @@ public class BigQueryIO {
 
       Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        TableSchema tableSchema = sourceDef.getTableSchema(bqOptions);
-        ValueProvider<List<String>> selectedFields = getSelectedFields();
-        if (selectedFields != null) {
-          tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFields.get());
-        }
-        beamSchema = BigQueryUtils.fromTableSchema(tableSchema);
+        beamSchema = sourceDef.getBeamSchema(bqOptions);
+        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
       }
 
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
@@ -1440,6 +1436,24 @@ public class BigQueryIO {
             getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
+    }
+
+    private static Schema getFinalSchema(
+        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
+      List<Schema.Field> flds =
+          beamSchema.getFields().stream()
+              .filter(
+                  field -> {
+                    if (selectedFields != null
+                        && selectedFields.isAccessible()
+                        && selectedFields.get() != null) {
+                      return selectedFields.get().contains(field.getName());
+                    } else {
+                      return true;
+                    }
+                  })
+              .collect(Collectors.toList());
+      return Schema.builder().addFields(flds).build();
     }
 
     private PCollection<T> expandForDirectRead(

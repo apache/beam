@@ -170,7 +170,9 @@ public class BigQueryIOStorageQueryTest {
   @Test
   public void testQueryBasedSourceWithCustomQuery() throws Exception {
     TypedRead<TableRow> typedRead =
-        BigQueryIO.readTableRows().fromQuery("SELECT * FROM `google.com:project.dataset.table`");
+        BigQueryIO.read(new TableRowParser())
+            .fromQuery("SELECT * FROM `google.com:project.dataset.table`")
+            .withCoder(TableRowJsonCoder.of());
     checkTypedReadQueryObject(typedRead, "SELECT * FROM `google.com:project.dataset.table`");
   }
 
@@ -225,7 +227,10 @@ public class BigQueryIOStorageQueryTest {
   }
 
   private TypedRead<TableRow> getDefaultTypedRead() {
-    return BigQueryIO.readTableRows().fromQuery(DEFAULT_QUERY).withMethod(Method.DIRECT_READ);
+    return BigQueryIO.read(new TableRowParser())
+        .fromQuery(DEFAULT_QUERY)
+        .withCoder(TableRowJsonCoder.of())
+        .withMethod(Method.DIRECT_READ);
   }
 
   private void checkTypedReadQueryObject(TypedRead<?> typedRead, String query) {
@@ -305,7 +310,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
 
@@ -418,7 +423,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -667,7 +672,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             DataFormat.AVRO,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -739,7 +744,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -764,7 +769,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            TableRowParser.INSTANCE,
+            new TableRowParser(),
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
 

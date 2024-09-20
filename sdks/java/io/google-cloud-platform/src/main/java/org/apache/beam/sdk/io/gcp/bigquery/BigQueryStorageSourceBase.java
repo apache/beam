@@ -28,7 +28,10 @@ import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import java.io.IOException;
 import java.util.List;
+import org.apache.avro.Schema;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Lineage;
@@ -179,17 +182,30 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
-    // TODO: this is inconsistent with method above, where it can be null
-    Preconditions.checkStateNotNull(targetTable);
-    TableSchema tableSchema = targetTable.getSchema();
-    if (selectedFieldsProvider != null) {
-      tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFieldsProvider.get());
+    Schema sessionSchema;
+    if (readSession.getDataFormat() == DataFormat.ARROW) {
+      org.apache.arrow.vector.types.pojo.Schema schema =
+          ArrowConversion.arrowSchemaFromInput(
+              readSession.getArrowSchema().getSerializedSchema().newInput());
+      org.apache.beam.sdk.schemas.Schema beamSchema =
+          ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
+      sessionSchema = AvroUtils.toAvroSchema(beamSchema);
+    } else if (readSession.getDataFormat() == DataFormat.AVRO) {
+      sessionSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
+    } else {
+      throw new IllegalArgumentException(
+          "data is not in a supported dataFormat: " + readSession.getDataFormat());
     }
+
+    Preconditions.checkStateNotNull(
+        targetTable); // TODO: this is inconsistent with method above, where it can be null
+    TableSchema trimmedSchema =
+        BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
     for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, readStream, tableSchema, parseFn, outputCoder, bqServices));
+              readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);

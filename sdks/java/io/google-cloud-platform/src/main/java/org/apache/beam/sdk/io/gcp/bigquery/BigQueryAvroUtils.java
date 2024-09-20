@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -58,6 +60,7 @@ import org.joda.time.format.DateTimeFormatter;
  */
 class BigQueryAvroUtils {
 
+  // org.apache.avro.LogicalType
   static class DateTimeLogicalType extends LogicalType {
     public DateTimeLogicalType() {
       super("datetime");
@@ -112,6 +115,7 @@ class BigQueryAvroUtils {
         } else if (bqType.equals("NUMERIC")) {
           logicalType = LogicalTypes.decimal(38, 9);
         } else {
+          // BIGNUMERIC
           logicalType = LogicalTypes.decimal(77, 38);
         }
         return logicalType.addToSchema(SchemaBuilder.builder().bytesType());
@@ -230,6 +234,41 @@ class BigQueryAvroUtils {
     return LocalTime.ofNanoOfDay(timeMicros * 1000).format(formatter);
   }
 
+  static TableSchema trimBigQueryTableSchema(TableSchema inputSchema, Schema avroSchema) {
+    List<TableFieldSchema> subSchemas =
+        inputSchema.getFields().stream()
+            .flatMap(fieldSchema -> mapTableFieldSchema(fieldSchema, avroSchema))
+            .collect(Collectors.toList());
+
+    return new TableSchema().setFields(subSchemas);
+  }
+
+  private static Stream<TableFieldSchema> mapTableFieldSchema(
+      TableFieldSchema fieldSchema, Schema avroSchema) {
+    Field avroFieldSchema = avroSchema.getField(fieldSchema.getName());
+    if (avroFieldSchema == null) {
+      return Stream.empty();
+    } else if (avroFieldSchema.schema().getType() != Type.RECORD) {
+      return Stream.of(fieldSchema);
+    }
+
+    List<TableFieldSchema> subSchemas =
+        fieldSchema.getFields().stream()
+            .flatMap(subSchema -> mapTableFieldSchema(subSchema, avroFieldSchema.schema()))
+            .collect(Collectors.toList());
+
+    TableFieldSchema output =
+        new TableFieldSchema()
+            .setCategories(fieldSchema.getCategories())
+            .setDescription(fieldSchema.getDescription())
+            .setFields(subSchemas)
+            .setMode(fieldSchema.getMode())
+            .setName(fieldSchema.getName())
+            .setType(fieldSchema.getType());
+
+    return Stream.of(output);
+  }
+
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
@@ -303,8 +342,6 @@ class BigQueryAvroUtils {
     // INTEGER type maps to an Avro LONG type.
     checkNotNull(v, "REQUIRED field %s should not be null", name);
 
-    // For historical reasons, don't validate avroLogicalType except for with NUMERIC.
-    // BigQuery represents NUMERIC in Avro format as BYTES with a DECIMAL logical type.
     Type type = schema.getType();
     LogicalType logicalType = schema.getLogicalType();
     switch (type) {
