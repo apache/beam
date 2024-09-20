@@ -1039,6 +1039,21 @@ public class BigQueryUtils {
     return tableSpec;
   }
 
+  static TableSchema trimSchema(TableSchema schema, @Nullable List<String> selectedFields) {
+    if (selectedFields == null || selectedFields.isEmpty()) {
+      return schema;
+    }
+
+    List<TableFieldSchema> fields = schema.getFields();
+    List<TableFieldSchema> trimmedFields = new ArrayList<>();
+    for (TableFieldSchema field : fields) {
+      if (selectedFields.contains(field.getName())) {
+        trimmedFields.add(field);
+      }
+    }
+    return new TableSchema().setFields(trimmedFields);
+  }
+
   private static @Nullable ServiceCallMetric callMetricForMethod(
       @Nullable TableReference tableReference, String method) {
     if (tableReference != null) {
