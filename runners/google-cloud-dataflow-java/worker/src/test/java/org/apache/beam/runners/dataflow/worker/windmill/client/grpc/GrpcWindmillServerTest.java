@@ -72,8 +72,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -113,6 +111,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
+
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
@@ -217,15 +216,8 @@ public class GrpcWindmillServerTest {
     this.client =
         GrpcWindmillServer.newApplianceTestInstance(
             inprocessChannel,
-            new WindmillStubFactoryFactory() {
-              private final WindmillStubFactory windmillStubFactory =
-                  new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel);
-
-              @Override
-              public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
-                return windmillStubFactory;
-              }
-            });
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel)));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());
