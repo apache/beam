@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
@@ -55,4 +56,39 @@ func TestImpulse(t *testing.T) {
 	out := Impulse(s, start, end, interval, false)
 	passert.Count(s, out, "SecondsInMinute", 60)
 	ptest.RunAndValidate(t, p)
+}
+
+func TestSize(t *testing.T) {
+	sd := SequenceDefinition{
+		Interval: 10 * time.Second,
+		Start:    0,
+		End:      1000 * time.Minute.Milliseconds(),
+	}
+	end := int64((1000 * time.Minute) / (10 * time.Second))
+
+	sizeTests := []struct {
+		now, startIndex, endIndex, want int64
+	}{
+		{100, 10, end, 0},
+		{100, 9, end, 8},
+		{100, 8, end, 16},
+		{101, 9, end, 8},
+		{10000, 0, end, 8 * 10000 / 10},
+		{10000, 1002, 1003, 0},
+		{10100, 1002, 1003, 8},
+	}
+
+	for _, test := range sizeTests {
+		got := CalculateByteSizeOfSequence(
+			time.Unix(test.now, 0),
+			sd,
+			offsetrange.Restriction{
+				Start: int64(test.startIndex),
+				End:   int64(test.endIndex),
+			})
+		if got != test.want {
+			t.Errorf("TestBytes(%v, %v, %v) = %v, want %v",
+				test.now, test.startIndex, test.endIndex, got, test.want)
+		}
+	}
 }
