@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -230,7 +231,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(tableSpec)
-            .setUseCDCWritesWithTablePrimaryKey(List.of("name"))
+            .setUseCDCWritesWithPrimaryKey(ImmutableList.of("name"))
             .build();
 
     Schema cdcInfoSchema =
@@ -243,7 +244,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             .addRowField("record", SCHEMA)
             .addRowField("cdc_info", cdcInfoSchema)
             .build();
-    
+
     List<Row> rowsDuplicated =
         Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
     List<Row> rowsWithCDC =
@@ -285,7 +286,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(dynamic)
-            .setUseCDCWritesWithTablePrimaryKey(List.of("name"))
+            .setUseCDCWritesWithPrimaryKey(ImmutableList.of("name"))
             .build();
 
     String baseTableSpec = "project:dataset.dynamic_write_";
@@ -301,7 +302,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             .addRowField("record", SCHEMA)
             .addRowField("cdc_info", cdcInfoSchema)
             .build();
-    
+
     List<Row> rowsDuplicated =
         Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
     List<Row> rowsWithDestinationsAndCDC =
