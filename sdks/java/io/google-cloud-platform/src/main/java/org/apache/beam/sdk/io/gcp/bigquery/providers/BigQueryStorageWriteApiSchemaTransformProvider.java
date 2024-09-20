@@ -208,7 +208,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
      */
     public static Builder builder() {
       return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration
-          .Builder();
+              .Builder()
+          .setUseCDCWritesWithTablePrimaryKey(List.of());
     }
 
     @SchemaFieldDescription(
@@ -259,9 +260,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public abstract ErrorHandling getErrorHandling();
 
     @SchemaFieldDescription(
-        "This option enables the use of BigQuery CDC functionality. It expects a Row schema wrapping the record to be inserted and adding the CDC info similar to: {cdc_info: {...}, record: {...}}")
-    @Nullable
-    public abstract Boolean getUseCDCWrites();
+        "This option enables the use of BigQuery CDC functionality. It expects a Row schema"
+            + " wrapping the record to be inserted and adding the CDC info similar to:"
+            + " {cdc_info: {mutation_type:\"...\", change_sequence_number:\"...\"}, record: {...}}")
+    public abstract List<String> getUseCDCWritesWithTablePrimaryKey();
 
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
@@ -283,7 +285,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
-      public abstract Builder setUseCDCWrites(Boolean useCDCWrites);
+      public abstract Builder setUseCDCWritesWithTablePrimaryKey(List<String> pkColumns);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -484,11 +486,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
                 .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
 
-        if (configuration.getUseCDCWrites()) {
+        if (!configuration.getUseCDCWritesWithTablePrimaryKey().isEmpty()) {
           write = validateAndIncludeCDCInformation(write, schema);
         }
       } else {
-        if (configuration.getUseCDCWrites()) {
+        if (!configuration.getUseCDCWritesWithTablePrimaryKey().isEmpty()) {
           write =
               validateAndIncludeCDCInformation(write, schema)
                   .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
@@ -535,12 +537,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                           .build())),
           "When writing using CDC functionality, we expect a \"cdc_info\" field with Row Schema "
               + "with fields \"mutation_type\" and \"change_sequence_number\" of type string.");
-      return write.withRowMutationInformationFn(
-          row ->
-              RowMutationInformation.of(
-                  RowMutationInformation.MutationType.valueOf(
-                      row.getRow("cdc_info").getString("mutation_type")),
-                  row.getRow("cdc_info").getString("change_sequence_number")));
+      return write
+          .withPrimaryKey(configuration.getUseCDCWritesWithTablePrimaryKey())
+          .withRowMutationInformationFn(
+              row ->
+                  RowMutationInformation.of(
+                      RowMutationInformation.MutationType.valueOf(
+                          row.getRow("cdc_info").getString("mutation_type")),
+                      row.getRow("cdc_info").getString("change_sequence_number")));
     }
   }
 }

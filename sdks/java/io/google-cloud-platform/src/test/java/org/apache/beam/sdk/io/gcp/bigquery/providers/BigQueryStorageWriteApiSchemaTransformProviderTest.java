@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
@@ -218,6 +220,121 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     assertTrue(
         rowEquals(
             ROWS.get(2),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
+  }
+
+  @Test
+  public void testCDCWrites() throws Exception {
+    String tableSpec = "project:dataset.cdc_write";
+
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            .setTable(tableSpec)
+            .setUseCDCWritesWithTablePrimaryKey(List.of("name"))
+            .build();
+
+    Schema cdcInfoSchema =
+        Schema.builder()
+            .addStringField("mutation_info")
+            .addStringField("change_sequence_number")
+            .build();
+    Schema schemaWithCDC =
+        Schema.builder()
+            .addRowField("record", SCHEMA)
+            .addRowField("cdc_info", cdcInfoSchema)
+            .build();
+    
+    List<Row> rowsDuplicated =
+        Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
+    List<Row> rowsWithCDC =
+        IntStream.range(0, rowsDuplicated.size())
+            .mapToObj(
+                idx -> {
+                  Row row = rowsDuplicated.get(idx);
+                  return Row.withSchema(schemaWithCDC)
+                      .withFieldValue(
+                          "cdc_info",
+                          Row.withSchema(cdcInfoSchema)
+                              .withFieldValue("mutation_info", "UPSERT")
+                              .withFieldValue("change_sequence_number", "AAA/" + idx))
+                      .withFieldValue("record", row)
+                      .build();
+                })
+            .collect(Collectors.toList());
+
+    runWithConfig(config, rowsWithCDC);
+    p.run().waitUntilFinish();
+
+    assertTrue(
+        rowEquals(
+            rowsDuplicated.get(3),
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_write").get(0)));
+    assertTrue(
+        rowEquals(
+            rowsDuplicated.get(4),
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_write").get(1)));
+    assertTrue(
+        rowEquals(
+            rowsDuplicated.get(5),
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_write").get(1)));
+  }
+
+  @Test
+  public void testCDCWriteToDynamicDestinations() throws Exception {
+    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            .setTable(dynamic)
+            .setUseCDCWritesWithTablePrimaryKey(List.of("name"))
+            .build();
+
+    String baseTableSpec = "project:dataset.dynamic_write_";
+
+    Schema cdcInfoSchema =
+        Schema.builder()
+            .addStringField("mutation_info")
+            .addStringField("change_sequence_number")
+            .build();
+    Schema schemaWithDestinationsAndCDC =
+        Schema.builder()
+            .addStringField("destination")
+            .addRowField("record", SCHEMA)
+            .addRowField("cdc_info", cdcInfoSchema)
+            .build();
+    
+    List<Row> rowsDuplicated =
+        Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
+    List<Row> rowsWithDestinationsAndCDC =
+        IntStream.range(0, rowsDuplicated.size())
+            .mapToObj(
+                idx -> {
+                  Row row = rowsDuplicated.get(idx);
+                  return Row.withSchema(schemaWithDestinationsAndCDC)
+                      .withFieldValue("destination", baseTableSpec + row.getInt64("number"))
+                      .withFieldValue(
+                          "cdc_info",
+                          Row.withSchema(cdcInfoSchema)
+                              .withFieldValue("mutation_info", "UPSERT")
+                              .withFieldValue("change_sequence_number", "AAA/" + idx))
+                      .withFieldValue("record", row)
+                      .build();
+                })
+            .collect(Collectors.toList());
+
+    runWithConfig(config, rowsWithDestinationsAndCDC);
+    p.run().waitUntilFinish();
+
+    assertTrue(
+        rowEquals(
+            rowsDuplicated.get(3),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_1").get(0)));
+    assertTrue(
+        rowEquals(
+            rowsDuplicated.get(4),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_2").get(0)));
+    assertTrue(
+        rowEquals(
+            rowsDuplicated.get(5),
             fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
   }
 
