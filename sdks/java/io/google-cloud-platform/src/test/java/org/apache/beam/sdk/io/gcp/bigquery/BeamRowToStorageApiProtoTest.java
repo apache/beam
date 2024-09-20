@@ -424,7 +424,7 @@ public class BeamRowToStorageApiProtoTest {
     assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
     DynamicMessage msg =
         BeamRowToStorageApiProto.messageFromBeamRow(descriptor, NESTED_ROW, "UPDATE", 42);
-    assertEquals(5, msg.getAllFields().size());
+    assertEquals(6, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
