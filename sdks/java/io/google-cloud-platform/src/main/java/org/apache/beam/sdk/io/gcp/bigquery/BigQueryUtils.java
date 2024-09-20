@@ -403,7 +403,7 @@ public class BigQueryUtils {
       }
       if (type.getTypeName().isCollectionType()) {
         type = Preconditions.checkArgumentNotNull(type.getCollectionElementType());
-        if (type.getTypeName().isCollectionType() || type.getTypeName().isMapType()) {
+        if (type.getTypeName().isCollectionType() && !type.getTypeName().isMapType()) {
           throw new IllegalArgumentException("Array of collection is not supported in BigQuery.");
         }
         field.setMode(Mode.REPEATED.toString());
