@@ -33,6 +33,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
@@ -718,11 +719,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--staging_location=gs://beam/stg',
         '--temp_location=gs://beam/tmp'
     ])
+    options.view_as(TestOptions).dry_run = True
     validator = PipelineOptionsValidator(options, runner)
-    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
-                    return_value=False):
-      errors = options._handle_temp_and_staging_locations(validator)
-      self.assertEqual(errors, [])
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -735,11 +735,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--staging_location=badGSpath',
         '--temp_location=gs://beam/tmp'
     ])
+    options.view_as(TestOptions).dry_run = True
     validator = PipelineOptionsValidator(options, runner)
-    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
-                    return_value=False):
-      errors = options._handle_temp_and_staging_locations(validator)
-      self.assertEqual(errors, [])
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/tmp")
     self.assertEqual(
@@ -752,11 +751,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--staging_location=gs://beam/stg',
         '--temp_location=badGSpath'
     ])
+    options.view_as(TestOptions).dry_run = True
     validator = PipelineOptionsValidator(options, runner)
-    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
-                    return_value=False):
-      errors = options._handle_temp_and_staging_locations(validator)
-      self.assertEqual(errors, [])
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -769,11 +767,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--staging_location=badGSpath',
         '--temp_location=badGSpath'
     ])
+    options.view_as(TestOptions).dry_run = True
     validator = PipelineOptionsValidator(options, runner)
-    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
-                    return_value=False):
-      errors = options._handle_temp_and_staging_locations(validator)
-      self.assertEqual(errors, [])
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://default/bucket")
     self.assertEqual(
@@ -786,11 +783,10 @@ class PipelineOptionsTest(unittest.TestCase):
         '--staging_location=badGSpath',
         '--temp_location=badGSpath'
     ])
+    options.view_as(TestOptions).dry_run = True
     validator = PipelineOptionsValidator(options, runner)
-    with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
-                    return_value=False):
-      errors = options._handle_temp_and_staging_locations(validator)
-      self.assertEqual(len(errors), 2, errors)
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(len(errors), 2, errors)
     self.assertIn(
         'Invalid GCS path (badGSpath), given for the option: temp_location.',
         errors,
