@@ -596,7 +596,7 @@ public class ProcessBundleHandler {
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
       return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
-      // Make sure we clean-up from the active set of bundle processors.
+      // Make sure we clean up from the active set of bundle processors.
       bundleProcessorCache.discard(bundleProcessor);
       throw e;
     }
@@ -1168,6 +1168,19 @@ public class ProcessBundleHandler {
         if (this.bundleCache != null) {
           this.bundleCache.clear();
         }
+        // setupFunction called in createBundleProcessor when BundleProcessorCache.get returns null.
+        // call teardownFunction here as the BundleProcessor is already removed from cache and isn't
+        // going to be re-used.
+        for (ThrowingRunnable teardownFunction : Lists.reverse(this.getTearDownFunctions())) {
+          try {
+            teardownFunction.run();
+          } catch (Throwable e) {
+            LOG.error(
+                "Exceptions are thrown from DoFn.teardown method. Note that it will not fail the"
+                    + " pipeline execution,",
+                e);
+          }
+        }
         getMetricsEnvironmentStateForBundle().discard();
         for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
           aggregator.discard();
@@ -1175,6 +1188,7 @@ public class ProcessBundleHandler {
       }
     }
 
+    // this is called in cachedBundleProcessors removal listener
     void shutdown() {
       for (ThrowingRunnable tearDownFunction : getTearDownFunctions()) {
         LOG.debug("Tearing down function {}", tearDownFunction);
