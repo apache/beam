@@ -18,11 +18,12 @@ package primitives
 import (
 	"flag"
 	"fmt"
+	"sync/atomic"
+	"time"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
-	"sync/atomic"
-	"time"
 )
 
 func init() {
@@ -207,13 +208,9 @@ const (
 
 // ParDoProcessElementBundleFinalizer creates a beam.Pipeline with a beam.ParDo0 that processes a DoFn with a
 // beam.BundleFinalization in its ProcessElement method.
-func ParDoProcessElementBundleFinalizer() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func ParDoProcessElementBundleFinalizer(s beam.Scope) {
 	imp := beam.Impulse(s)
 	beam.ParDo0(s, &processElemBundleFinalizer{}, imp)
-
-	return p
 }
 
 type processElemBundleFinalizer struct {
@@ -228,13 +225,9 @@ func (fn *processElemBundleFinalizer) ProcessElement(bf beam.BundleFinalization,
 
 // ParDoFinishBundleFinalizer creates a beam.Pipeline with a beam.ParDo0 that processes a DoFn containing a noop
 // beam.BundleFinalization in its ProcessElement method and a beam.BundleFinalization in its FinishBundle method.
-func ParDoFinishBundleFinalizer() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func ParDoFinishBundleFinalizer(s beam.Scope) {
 	imp := beam.Impulse(s)
 	beam.ParDo0(s, &finalizerInFinishBundle{}, imp)
-
-	return p
 }
 
 type finalizerInFinishBundle struct{}
@@ -252,13 +245,9 @@ func (fn *finalizerInFinishBundle) FinishBundle(bf beam.BundleFinalization) {
 
 // ParDoFinalizerInAll creates a beam.Pipeline with a beam.ParDo0 that processes a DoFn containing a beam.BundleFinalization
 // in all three lifecycle methods StartBundle, ProcessElement, FinishBundle.
-func ParDoFinalizerInAll() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func ParDoFinalizerInAll(s beam.Scope) {
 	imp := beam.Impulse(s)
 	beam.ParDo0(s, &finalizerInAll{}, imp)
-
-	return p
 }
 
 type finalizerInAll struct{}

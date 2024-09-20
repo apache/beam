@@ -56,7 +56,7 @@ func TestParDoBundleFinalizer(t *testing.T) {
 	}
 	for _, tt := range []struct {
 		name       string
-		pipelineFn func() *beam.Pipeline
+		pipelineFn func(s beam.Scope)
 		want       int32
 	}{
 		{
@@ -77,7 +77,8 @@ func TestParDoBundleFinalizer(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			CountInvokeBundleFinalizer.Store(0)
-			p := tt.pipelineFn()
+			p, s := beam.NewPipelineWithRoot()
+			tt.pipelineFn(s)
 			_, err := ptest.RunWithMetrics(p)
 			if err != nil {
 				t.Fatalf("Failed to execute job: %v", err)
