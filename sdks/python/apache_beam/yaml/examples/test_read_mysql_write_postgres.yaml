@@ -33,13 +33,10 @@ pipeline:
         username: 'username'
         password: 'password'
         query: 'select * from table;'
-    - type: WriteToJdbc
-      name: WriteToJdbc
+    - type: WriteToPostgres
       input: ReadFromMysql
       config:
-        driver_class_name: 'org.postgresql.Driver'
-        jdbc_url: 'jdbc:postgresql://database_ip:5432/database_name'
+        url: 'jdbc:postgresql://database_ip:5432/database_name'
         username: 'username'
         password: 'password'
         table: 'table_name'
-        driver_jars: 'postgresql-42.7.4.jar'
