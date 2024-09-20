@@ -115,7 +115,12 @@ public class SchemaTranslation {
           .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
-    String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
+    return schemaToProto(schema, serializeLogicalType, true);
+  }
+
+  public static SchemaApi.Schema schemaToProto(
+      Schema schema, boolean serializeLogicalType, boolean serializeUUID) {
+    String uuid = schema.getUUID() != null && serializeUUID ? schema.getUUID().toString() : "";
     SchemaApi.Schema.Builder builder = SchemaApi.Schema.newBuilder().setId(uuid);
     for (Field field : schema.getFields()) {
       SchemaApi.Field protoField =
@@ -123,7 +128,8 @@ public class SchemaTranslation {
               field,
               schema.indexOf(field.getName()),
               schema.getEncodingPositions().get(field.getName()),
-              serializeLogicalType);
+              serializeLogicalType,
+              serializeUUID);
       builder.addFields(protoField);
     }
     builder.addAllOptions(optionsToProto(schema.getOptions()));
@@ -131,11 +137,11 @@ public class SchemaTranslation {
   }
 
   private static SchemaApi.Field fieldToProto(
-      Field field, int fieldId, int position, boolean serializeLogicalType) {
+      Field field, int fieldId, int position, boolean serializeLogicalType, boolean serializeUUID) {
     return SchemaApi.Field.newBuilder()
         .setName(field.getName())
         .setDescription(field.getDescription())
-        .setType(fieldTypeToProto(field.getType(), serializeLogicalType))
+        .setType(fieldTypeToProto(field.getType(), serializeLogicalType, serializeUUID))
         .setId(fieldId)
         .setEncodingPosition(position)
         .addAllOptions(optionsToProto(field.getOptions()))
@@ -143,34 +149,46 @@ public class SchemaTranslation {
   }
 
   @VisibleForTesting
-  static SchemaApi.FieldType fieldTypeToProto(FieldType fieldType, boolean serializeLogicalType) {
+  static SchemaApi.FieldType fieldTypeToProto(
+      FieldType fieldType, boolean serializeLogicalType, boolean serializeUUID) {
     SchemaApi.FieldType.Builder builder = SchemaApi.FieldType.newBuilder();
     switch (fieldType.getTypeName()) {
       case ROW:
         builder.setRowType(
             SchemaApi.RowType.newBuilder()
-                .setSchema(schemaToProto(fieldType.getRowSchema(), serializeLogicalType)));
+                .setSchema(
+                    schemaToProto(fieldType.getRowSchema(), serializeLogicalType, serializeUUID)));
         break;
 
       case ARRAY:
         builder.setArrayType(
             SchemaApi.ArrayType.newBuilder()
                 .setElementType(
-                    fieldTypeToProto(fieldType.getCollectionElementType(), serializeLogicalType)));
+                    fieldTypeToProto(
+                        fieldType.getCollectionElementType(),
+                        serializeLogicalType,
+                        serializeUUID)));
         break;
 
       case ITERABLE:
         builder.setIterableType(
             SchemaApi.IterableType.newBuilder()
                 .setElementType(
-                    fieldTypeToProto(fieldType.getCollectionElementType(), serializeLogicalType)));
+                    fieldTypeToProto(
+                        fieldType.getCollectionElementType(),
+                        serializeLogicalType,
+                        serializeUUID)));
         break;
 
       case MAP:
         builder.setMapType(
             SchemaApi.MapType.newBuilder()
-                .setKeyType(fieldTypeToProto(fieldType.getMapKeyType(), serializeLogicalType))
-                .setValueType(fieldTypeToProto(fieldType.getMapValueType(), serializeLogicalType))
+                .setKeyType(
+                    fieldTypeToProto(
+                        fieldType.getMapKeyType(), serializeLogicalType, serializeUUID))
+                .setValueType(
+                    fieldTypeToProto(
+                        fieldType.getMapValueType(), serializeLogicalType, serializeUUID))
                 .build());
         break;
 
@@ -186,12 +204,14 @@ public class SchemaTranslation {
                   .setUrn(logicalType.getIdentifier())
                   .setPayload(ByteString.copyFrom(((UnknownLogicalType) logicalType).getPayload()))
                   .setRepresentation(
-                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType));
+                      fieldTypeToProto(
+                          logicalType.getBaseType(), serializeLogicalType, serializeUUID));
 
           if (logicalType.getArgumentType() != null) {
             logicalTypeBuilder
                 .setArgumentType(
-                    fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                    fieldTypeToProto(
+                        logicalType.getArgumentType(), serializeLogicalType, serializeUUID))
                 .setArgument(
                     fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()));
           }
@@ -200,13 +220,15 @@ public class SchemaTranslation {
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
                   .setRepresentation(
-                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
+                      fieldTypeToProto(
+                          logicalType.getBaseType(), serializeLogicalType, serializeUUID))
                   .setUrn(urn);
           if (logicalType.getArgumentType() != null) {
             logicalTypeBuilder =
                 logicalTypeBuilder
                     .setArgumentType(
-                        fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                        fieldTypeToProto(
+                            logicalType.getArgumentType(), serializeLogicalType, serializeUUID))
                     .setArgument(
                         fieldValueToProto(
                             logicalType.getArgumentType(), logicalType.getArgument()));
@@ -226,7 +248,8 @@ public class SchemaTranslation {
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_MILLIS_INSTANT)
-                .setRepresentation(fieldTypeToProto(FieldType.INT64, serializeLogicalType))
+                .setRepresentation(
+                    fieldTypeToProto(FieldType.INT64, serializeLogicalType, serializeUUID))
                 .build());
         break;
       case DECIMAL:
@@ -235,7 +258,8 @@ public class SchemaTranslation {
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()
                 .setUrn(URN_BEAM_LOGICAL_DECIMAL)
-                .setRepresentation(fieldTypeToProto(FieldType.BYTES, serializeLogicalType))
+                .setRepresentation(
+                    fieldTypeToProto(FieldType.BYTES, serializeLogicalType, serializeUUID))
                 .build());
         break;
       case BYTE:
@@ -771,7 +795,8 @@ public class SchemaTranslation {
       protoOptions.add(
           SchemaApi.Option.newBuilder()
               .setName(name)
-              .setType(fieldTypeToProto(Objects.requireNonNull(options.getType(name)), false))
+              .setType(
+                  fieldTypeToProto(Objects.requireNonNull(options.getType(name)), false, false))
               .setValue(
                   fieldValueToProto(
                       Objects.requireNonNull(options.getType(name)), options.getValue(name)))
