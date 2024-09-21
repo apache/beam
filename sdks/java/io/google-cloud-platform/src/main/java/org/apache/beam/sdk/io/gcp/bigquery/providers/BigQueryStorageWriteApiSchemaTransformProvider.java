@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -264,6 +265,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         "This option enables the use of BigQuery CDC functionality. It expects a Row schema"
             + " wrapping the record to be inserted and adding the CDC info similar to:"
             + " {cdc_info: {mutation_type:\"...\", change_sequence_number:\"...\"}, record: {...}}")
+    @Nullable
     public abstract List<String> getUseCdcWritesWithPrimaryKey();
 
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
@@ -487,11 +489,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
                 .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
 
-        if (!configuration.getUseCdcWritesWithPrimaryKey().isEmpty()) {
+        if (!safeUseCdcWritesWithPrimaryKeys().isEmpty()) {
           write = validateAndIncludeCDCInformation(write, schema);
         }
       } else {
-        if (!configuration.getUseCdcWritesWithPrimaryKey().isEmpty()) {
+        if (!safeUseCdcWritesWithPrimaryKeys().isEmpty()) {
           write =
               validateAndIncludeCDCInformation(write, schema)
                   .to(configuration.getTable())
@@ -519,6 +521,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       return write;
+    }
+
+    List<String> safeUseCdcWritesWithPrimaryKeys() {
+      return Optional.ofNullable(configuration.getUseCdcWritesWithPrimaryKey())
+          .orElse(ImmutableList.of());
     }
 
     BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
