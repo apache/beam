@@ -45,7 +45,7 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 _LOGGER = logging.getLogger(__name__)
 
 try:
-  import apache_beam.io.gcp.gcsio # pylint: disable=unused-import
+  import apache_beam.io.gcp.gcsio  # pylint: disable=unused-import
   has_gcsio = True
 except ImportError:
   has_gcsio = False
