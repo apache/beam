@@ -17,21 +17,22 @@
 
 # pytype: skip-file
 
-from apache_beam.ml.inference.base import ModelHandler
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils import subprocess_server
-from dataclasses import dataclass
-from openai import OpenAI
 import logging
+import subprocess
 import threading
 import time
-import subprocess
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
+
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.utils import subprocess_server
+from openai import OpenAI
 
 try:
   import vllm  # pylint: disable=unused-import
@@ -244,8 +245,11 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     inference_args = inference_args or {}
     predictions = []
     for messages in batch:
+      formatted = []
+      for message in messages:
+        formatted.append({"role": message.role, "content": message.content})
       completion = client.chat.completions.create(
-          model=self._model_name, messages=messages, **inference_args)
+          model=self._model_name, messages=formatted, **inference_args)
       predictions.append(completion)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 

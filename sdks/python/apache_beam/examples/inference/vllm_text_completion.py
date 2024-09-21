@@ -30,7 +30,9 @@ from typing import Iterable
 import apache_beam as beam
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.vllm_inference import OpenAIChatMessage, VLLMCompletionsModelHandler, VLLMChatModelHandler
+from apache_beam.ml.inference.vllm_inference import OpenAIChatMessage
+from apache_beam.ml.inference.vllm_inference import VLLMChatModelHandler
+from apache_beam.ml.inference.vllm_inference import VLLMCompletionsModelHandler
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
