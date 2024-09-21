@@ -297,7 +297,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(tableSpec)
             .setCreateDisposition("CREATE_NEVER")
-            .setUseCDCWritesWithPrimaryKey(primaryKeyColumns)
+            .setUseCdcWritesWithPrimaryKey(primaryKeyColumns)
             .build();
 
     // Create table, give it a schema and add the primary keys
@@ -332,7 +332,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(dynamic)
             .setCreateDisposition("CREATE_NEVER")
-            .setUseCDCWritesWithPrimaryKey(primaryKeyColumns)
+            .setUseCdcWritesWithPrimaryKey(primaryKeyColumns)
             .build();
 
     String baseTableSpec = "project:dataset.dynamic_write_";

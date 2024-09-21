@@ -210,7 +210,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public static Builder builder() {
       return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration
               .Builder()
-          .setUseCDCWritesWithPrimaryKey(ImmutableList.of());
+          .setUseCdcWritesWithPrimaryKey(ImmutableList.of());
     }
 
     @SchemaFieldDescription(
@@ -264,7 +264,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         "This option enables the use of BigQuery CDC functionality. It expects a Row schema"
             + " wrapping the record to be inserted and adding the CDC info similar to:"
             + " {cdc_info: {mutation_type:\"...\", change_sequence_number:\"...\"}, record: {...}}")
-    public abstract List<String> getUseCDCWritesWithPrimaryKey();
+    public abstract List<String> getUseCdcWritesWithPrimaryKey();
 
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
@@ -286,7 +286,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
-      public abstract Builder setUseCDCWritesWithPrimaryKey(List<String> pkColumns);
+      public abstract Builder setUseCdcWritesWithPrimaryKey(List<String> pkColumns);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -487,11 +487,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
                 .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
 
-        if (!configuration.getUseCDCWritesWithPrimaryKey().isEmpty()) {
+        if (!configuration.getUseCdcWritesWithPrimaryKey().isEmpty()) {
           write = validateAndIncludeCDCInformation(write, schema);
         }
       } else {
-        if (!configuration.getUseCDCWritesWithPrimaryKey().isEmpty()) {
+        if (!configuration.getUseCdcWritesWithPrimaryKey().isEmpty()) {
           write =
               validateAndIncludeCDCInformation(write, schema)
                   .to(configuration.getTable())
@@ -549,7 +549,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               + "with fields \"mutation_type\" and \"change_sequence_number\" of type string.");
       return write
           .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
-          .withPrimaryKey(configuration.getUseCDCWritesWithPrimaryKey())
+          .withPrimaryKey(configuration.getUseCdcWritesWithPrimaryKey())
           .withRowMutationInformationFn(
               row ->
                   RowMutationInformation.of(
