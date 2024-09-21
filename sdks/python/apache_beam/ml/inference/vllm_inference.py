@@ -126,8 +126,8 @@ class _VLLMModelServer():
 
     if retries == 0:
       raise Exception(
-          'Failed to start vLLM server, process exited with code %s. '
-          'See worker logs to determine cause.' % self._server_process.poll())
+          "Failed to start vLLM server, process exited with code %s" %
+          self._server_process.poll())
     else:
       self.start_server(retries - 1)
 
@@ -179,6 +179,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       An Iterable of type PredictionResult.
     """
     client = getVLLMClient(model.get_server_port())
+    inference_args = inference_args or {}
     predictions = []
     for prompt in batch:
       completion = client.completions.create(
@@ -192,6 +193,9 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
   def should_skip_batching(self) -> bool:
     # Batching does not help since vllm is already doing dynamic batching and
     # each request is sent one by one anyways
+    # TODO(https://github.com/apache/beam/issues/32528): We should add support
+    # for taking in batches and doing a bunch of async calls. That will end up
+    # being more efficient when we can do in bundle batching.
     return True
 
 
@@ -237,9 +241,10 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       An Iterable of type PredictionResult.
     """
     client = getVLLMClient(model.get_server_port())
+    inference_args = inference_args or {}
     predictions = []
     for messages in batch:
-      completion = client.completions.create(
+      completion = client.chat.completions.create(
           model=self._model_name, messages=messages, **inference_args)
       predictions.append(completion)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
@@ -250,4 +255,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
   def should_skip_batching(self) -> bool:
     # Batching does not help since vllm is already doing dynamic batching and
     # each request is sent one by one anyways
+    # TODO(https://github.com/apache/beam/issues/32528): We should add support
+    # for taking in batches and doing a bunch of async calls. That will end up
+    # being more efficient when we can do in bundle batching.
     return True

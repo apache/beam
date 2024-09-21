@@ -56,9 +56,7 @@ CHAT_EXAMPLES = [
             role='user', content='What colors are in the rainbow?'),
         OpenAIChatMessage(
             role='system',
-            content=
-            'Red, orange, yellow, green, blue, indigo, and violet.'
-        ),
+            content='Red, orange, yellow, green, blue, indigo, and violet.'),
         OpenAIChatMessage(role='user', content='Do other colors ever appear?')
     ],
     [
@@ -110,7 +108,7 @@ def parse_known_args(argv):
 
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[str]:
-    yield element.example + ": " + element.inference
+    yield element.example + ": " + str(element.inference)
 
 
 def run(
