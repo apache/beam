@@ -64,17 +64,17 @@ class VisionMlTestIT(unittest.TestCase):
               context_side_input=beam.pvalue.AsDict(contexts))
           | beam.ParDo(extract))
 
-    assert_that(
-        output,
-        equal_to([
-            'WAITING?\nPLEASE\nTURN OFF\nYOUR\nENGINE',
-            'WAITING?',
-            'PLEASE',
-            'TURN',
-            'OFF',
-            'YOUR',
-            'ENGINE'
-        ]))
+      assert_that(
+          output,
+          equal_to([
+              'WAITING?\nPLEASE\nTURN OFF\nYOUR\nENGINE',
+              'WAITING?',
+              'PLEASE',
+              'TURN',
+              'OFF',
+              'YOUR',
+              'ENGINE'
+          ]))
 
 
 if __name__ == '__main__':
