@@ -494,6 +494,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         if (!configuration.getUseCDCWritesWithPrimaryKey().isEmpty()) {
           write =
               validateAndIncludeCDCInformation(write, schema)
+                  .to(configuration.getTable())
                   .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
         } else {
           write = write.to(configuration.getTable()).useBeamSchema();
@@ -523,6 +524,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
         BigQueryIO.Write<Row> write, Schema schema) {
       checkArgument(
+          configuration.getCreateDisposition() != null
+              && CreateDisposition.CREATE_NEVER.equals(
+                  CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase())),
+          "When using CDC functionality BigQuery tables should be pre-created and"
+              + " CREATE_NEVER should be set as create disposition."
+              + " Currently BigQueryIO does not support creating primary keys"
+              + " for tables when CREATE_IF_NEEDED is in use.");
+      checkArgument(
           schema.getFieldNames().containsAll(Arrays.asList("cdc_info", "record")),
           "When writing using CDC functionality, we expect Row Schema with a "
               + "\"cdc_info\" Row field and a \"record\" Row field.");
@@ -530,15 +539,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
           schema
               .getField("cdc_info")
               .getType()
+              .getRowSchema()
               .equals(
-                  Schema.FieldType.row(
-                      Schema.builder()
-                          .addStringField("mutation_type")
-                          .addStringField("change_sequence_number")
-                          .build())),
-          "When writing using CDC functionality, we expect a \"cdc_info\" field with Row Schema "
+                  Schema.builder()
+                      .addStringField("mutation_type")
+                      .addStringField("change_sequence_number")
+                      .build()),
+          "When writing using CDC functionality, we expect a \"cdc_info\" field of Row type "
               + "with fields \"mutation_type\" and \"change_sequence_number\" of type string.");
       return write
+          .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
           .withPrimaryKey(configuration.getUseCDCWritesWithPrimaryKey())
           .withRowMutationInformationFn(
               row ->

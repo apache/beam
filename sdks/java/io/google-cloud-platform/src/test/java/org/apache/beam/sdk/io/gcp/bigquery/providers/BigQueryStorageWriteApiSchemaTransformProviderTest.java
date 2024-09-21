@@ -22,7 +22,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -34,6 +38,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
@@ -224,47 +229,85 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
   }
 
+  List<Row> createCDCUpsertRows(List<Row> rows, boolean dynamicDestination, String tablePrefix) {
+    Schema cdcInfoSchema =
+        Schema.builder()
+            .addStringField("mutation_type")
+            .addStringField("change_sequence_number")
+            .build();
+    Schema.Builder schemaBuilder =
+        Schema.builder().addRowField("record", SCHEMA).addRowField("cdc_info", cdcInfoSchema);
+
+    if (dynamicDestination) {
+      schemaBuilder = schemaBuilder.addStringField("destination");
+    }
+
+    Schema schemaWithCDC = schemaBuilder.build();
+    return IntStream.range(0, rows.size())
+        .mapToObj(
+            idx -> {
+              Row row = rows.get(idx);
+              Row.FieldValueBuilder rowBuilder =
+                  Row.withSchema(schemaWithCDC)
+                      .withFieldValue(
+                          "cdc_info",
+                          Row.withSchema(cdcInfoSchema)
+                              .withFieldValue("mutation_type", "UPSERT")
+                              .withFieldValue("change_sequence_number", "AAA" + idx)
+                              .build())
+                      .withFieldValue("record", row);
+              if (dynamicDestination) {
+                rowBuilder =
+                    rowBuilder.withFieldValue("destination", tablePrefix + row.getInt64("number"));
+              }
+              return rowBuilder.build();
+            })
+        .collect(Collectors.toList());
+  }
+
+  void createTables(
+      Schema rowSchema,
+      List<String> primaryKeyColumns,
+      String project,
+      String dataset,
+      String tableName,
+      List<String> tableNameSuffixes)
+      throws IOException {
+    for (String suffix : tableNameSuffixes) {
+      TableSchema schema = BigQueryUtils.toTableSchema(SCHEMA);
+      Table fakeTable = new Table();
+      TableReference ref =
+          new TableReference()
+              .setProjectId(project)
+              .setDatasetId(dataset)
+              .setTableId(tableName + suffix);
+      fakeTable.setSchema(schema);
+      fakeTable.setTableReference(ref);
+      fakeDatasetService.createTable(fakeTable);
+      fakeDatasetService.setPrimaryKey(ref, primaryKeyColumns);
+    }
+  }
+
   @Test
   public void testCDCWrites() throws Exception {
     String tableSpec = "project:dataset.cdc_write";
+    List<String> primaryKeyColumns = ImmutableList.of("name");
 
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(tableSpec)
-            .setUseCDCWritesWithPrimaryKey(ImmutableList.of("name"))
+            .setCreateDisposition("CREATE_NEVER")
+            .setUseCDCWritesWithPrimaryKey(primaryKeyColumns)
             .build();
 
-    Schema cdcInfoSchema =
-        Schema.builder()
-            .addStringField("mutation_info")
-            .addStringField("change_sequence_number")
-            .build();
-    Schema schemaWithCDC =
-        Schema.builder()
-            .addRowField("record", SCHEMA)
-            .addRowField("cdc_info", cdcInfoSchema)
-            .build();
+    // Create table, give it a schema and add the primary keys
+    createTables(
+        SCHEMA, primaryKeyColumns, "project", "dataset", "cdc_write", ImmutableList.of(""));
 
     List<Row> rowsDuplicated =
         Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
-    List<Row> rowsWithCDC =
-        IntStream.range(0, rowsDuplicated.size())
-            .mapToObj(
-                idx -> {
-                  Row row = rowsDuplicated.get(idx);
-                  return Row.withSchema(schemaWithCDC)
-                      .withFieldValue(
-                          "cdc_info",
-                          Row.withSchema(cdcInfoSchema)
-                              .withFieldValue("mutation_info", "UPSERT")
-                              .withFieldValue("change_sequence_number", "AAA/" + idx)
-                              .build())
-                      .withFieldValue("record", row)
-                      .build();
-                })
-            .collect(Collectors.toList());
 
-    runWithConfig(config, rowsWithCDC);
+    runWithConfig(config, createCDCUpsertRows(rowsDuplicated, false, ""));
     p.run().waitUntilFinish();
 
     assertTrue(
@@ -278,53 +321,35 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     assertTrue(
         rowEquals(
             rowsDuplicated.get(5),
-            fakeDatasetService.getAllRows("project", "dataset", "cdc_write").get(1)));
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_write").get(2)));
   }
 
   @Test
   public void testCDCWriteToDynamicDestinations() throws Exception {
+    List<String> primaryKeyColumns = ImmutableList.of("name");
     String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(dynamic)
-            .setUseCDCWritesWithPrimaryKey(ImmutableList.of("name"))
+            .setCreateDisposition("CREATE_NEVER")
+            .setUseCDCWritesWithPrimaryKey(primaryKeyColumns)
             .build();
 
     String baseTableSpec = "project:dataset.dynamic_write_";
 
-    Schema cdcInfoSchema =
-        Schema.builder()
-            .addStringField("mutation_info")
-            .addStringField("change_sequence_number")
-            .build();
-    Schema schemaWithDestinationsAndCDC =
-        Schema.builder()
-            .addStringField("destination")
-            .addRowField("record", SCHEMA)
-            .addRowField("cdc_info", cdcInfoSchema)
-            .build();
+    // Create table, give it a schema and add the primary keys
+    createTables(
+        SCHEMA,
+        primaryKeyColumns,
+        "project",
+        "dataset",
+        "dynamic_write_",
+        ImmutableList.of("1", "2", "3"));
 
     List<Row> rowsDuplicated =
         Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
-    List<Row> rowsWithDestinationsAndCDC =
-        IntStream.range(0, rowsDuplicated.size())
-            .mapToObj(
-                idx -> {
-                  Row row = rowsDuplicated.get(idx);
-                  return Row.withSchema(schemaWithDestinationsAndCDC)
-                      .withFieldValue("destination", baseTableSpec + row.getInt64("number"))
-                      .withFieldValue(
-                          "cdc_info",
-                          Row.withSchema(cdcInfoSchema)
-                              .withFieldValue("mutation_info", "UPSERT")
-                              .withFieldValue("change_sequence_number", "AAA/" + idx)
-                              .build())
-                      .withFieldValue("record", row)
-                      .build();
-                })
-            .collect(Collectors.toList());
 
-    runWithConfig(config, rowsWithDestinationsAndCDC);
+    runWithConfig(config, createCDCUpsertRows(rowsDuplicated, true, baseTableSpec));
     p.run().waitUntilFinish();
 
     assertTrue(
@@ -412,7 +437,6 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
                 MapElements.into(TypeDescriptors.rows())
                     .via((rowAndError) -> rowAndError.<Row>getValue("failed_row")))
             .setRowSchema(SCHEMA);
-    ;
 
     PAssert.that(failedRows).containsInAnyOrder(expectedFailedRows);
     p.run().waitUntilFinish();
