@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -94,6 +95,7 @@ final class ComputationWorkExecutorFactory {
 
   private final long maxSinkBytes;
   private final IdGenerator idGenerator;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
 
   ComputationWorkExecutorFactory(
@@ -103,12 +105,14 @@ final class ComputationWorkExecutorFactory {
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
       DataflowExecutionStateSampler sampler,
       CounterSet pendingDeltaCounters,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
     this.stateCacheFactory = stateCacheFactory;
     this.idGenerator = idGenerator;
+    this.globalConfigHandle = globalConfigHandle;
     this.readerRegistry = ReaderRegistry.defaultRegistry();
     this.sinkRegistry = SinkRegistry.defaultRegistry();
     this.sampler = sampler;
@@ -262,6 +266,7 @@ final class ComputationWorkExecutorFactory {
         stageInfo.metricsContainerRegistry(),
         executionStateTracker,
         stageInfo.executionStateRegistry(),
+        globalConfigHandle,
         maxSinkBytes,
         throwExceptionOnLargeOutput);
   }

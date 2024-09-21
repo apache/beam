@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG GO_BASE_IMAGE=golang:1.20-bullseye
+ARG GO_BASE_IMAGE=golang:1-bullseye
 ARG SDK_TAG
 ARG BASE_IMAGE=apache/beam_python3.10_sdk:$SDK_TAG
 FROM $GO_BASE_IMAGE AS build

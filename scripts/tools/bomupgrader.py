@@ -278,7 +278,7 @@ configurations.implementation.canBeResolved = true
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   if len(sys.argv) < 2:
-    print("Usage: python scripts/tools/gcpbomupgrader.py target_version")
+    print("Usage: python scripts/tools/bomupgrader.py target_version")
     exit(1)
   processor = BeamModulePluginProcessor(sys.argv[1])
   processor.run()

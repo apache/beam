@@ -314,3 +314,11 @@ class S3FileSystem(FileSystem):
     }
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    try:
+      components = s3io.parse_s3_path(path, get_account=True)
+    except ValueError:
+      # report lineage is fail-safe
+      return
+    lineage.add('s3', *components)

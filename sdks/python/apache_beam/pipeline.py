@@ -618,7 +618,13 @@ class Pipeline(HasDisplayData):
     try:
       if not exc_type:
         self.result = self.run()
-        self.result.wait_until_finish()
+        if not self._options.view_as(StandardOptions).no_wait_until_finish:
+          self.result.wait_until_finish()
+        else:
+          logging.info(
+              'Job execution continues without waiting for completion.'
+              ' Use "wait_until_finish" in PipelineResult to block'
+              ' until finished.')
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -225,7 +224,6 @@ public interface BigQueryOptions
   void setJobLabelsMap(Map<String, String> value);
 
   /** BQ endpoint to use. If unspecified, uses the default endpoint. */
-  @JsonIgnore
   @Hidden
   @Description("The URL for the BigQuery API.")
   String getBigQueryEndpoint();

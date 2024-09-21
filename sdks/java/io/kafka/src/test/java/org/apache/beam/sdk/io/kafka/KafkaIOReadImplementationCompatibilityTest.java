@@ -108,7 +108,13 @@ public class KafkaIOReadImplementationCompatibilityTest {
       Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>> kafkaReadDecorator) {
     p.apply(
         kafkaReadDecorator.apply(
-            mkKafkaReadTransform(1000, null, new ValueAsTimestampFn(), false, 0)));
+            mkKafkaReadTransform(
+                1000,
+                null,
+                new ValueAsTimestampFn(),
+                false, /*redistribute*/
+                false, /*allowDuplicates*/
+                0)));
     return p.run();
   }
 

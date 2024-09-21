@@ -34,6 +34,7 @@ import uuid
 
 import mock
 import pytest
+from parameterized import parameterized_class
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -51,6 +52,9 @@ except ImportError:
 
 
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
+@parameterized_class(
+    ('no_gcsio_throttling_counter', 'enable_gcsio_blob_generation'),
+    [(False, False), (False, True), (True, False), (True, True)])
 class GcsIOIntegrationTest(unittest.TestCase):
 
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
@@ -67,7 +71,6 @@ class GcsIOIntegrationTest(unittest.TestCase):
     self.gcs_tempdir = (
         self.test_pipeline.get_option('temp_location') + '/gcs_it-' +
         str(uuid.uuid4()))
-    self.gcsio = gcsio.GcsIO()
 
   def tearDown(self):
     FileSystems.delete([self.gcs_tempdir + '/'])
@@ -92,14 +95,47 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_copy(self):
+    self.gcsio = gcsio.GcsIO(
+        pipeline_options={
+            "no_gcsio_throttling_counter": self.no_gcsio_throttling_counter,
+            "enable_gcsio_blob_generation": self.enable_gcsio_blob_generation
+        })
     src = self.INPUT_FILE
     dest = self.gcs_tempdir + '/test_copy'
 
     self.gcsio.copy(src, dest)
     self._verify_copy(src, dest)
 
+    unknown_src = self.test_pipeline.get_option('temp_location') + \
+        '/gcs_it-' + str(uuid.uuid4())
+    with self.assertRaises(NotFound):
+      self.gcsio.copy(unknown_src, dest)
+
+  @pytest.mark.it_postcommit
+  def test_copy_and_delete(self):
+    self.gcsio = gcsio.GcsIO(
+        pipeline_options={
+            "no_gcsio_throttling_counter": self.no_gcsio_throttling_counter,
+            "enable_gcsio_blob_generation": self.enable_gcsio_blob_generation
+        })
+    src = self.INPUT_FILE
+    dest = self.gcs_tempdir + '/test_copy'
+
+    self.gcsio.copy(src, dest)
+    self._verify_copy(src, dest)
+
+    self.gcsio.delete(dest)
+
+    # no exception if we delete an nonexistent file.
+    self.gcsio.delete(dest)
+
   @pytest.mark.it_postcommit
   def test_batch_copy_and_delete(self):
+    self.gcsio = gcsio.GcsIO(
+        pipeline_options={
+            "no_gcsio_throttling_counter": self.no_gcsio_throttling_counter,
+            "enable_gcsio_blob_generation": self.enable_gcsio_blob_generation
+        })
     num_copies = 10
     srcs = [self.INPUT_FILE] * num_copies
     dests = [
@@ -152,6 +188,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
   @mock.patch('apache_beam.io.gcp.gcsio.default_gcs_bucket_name')
   @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
   def test_create_default_bucket(self, mock_default_gcs_bucket_name):
+    self.gcsio = gcsio.GcsIO()
     google_cloud_options = self.test_pipeline.options.view_as(
         GoogleCloudOptions)
     # overwrite kms option here, because get_or_create_default_gcs_bucket()
