@@ -1921,6 +1921,7 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
+      cdc_writes_with_primary_key_columns=[],
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
 
@@ -2086,6 +2087,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         GCP expansion service. Used for STORAGE_WRITE_API method.
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
+      cdc_writes_with_primary_key_columns: When param array is not empty
+        configures the usage of CDC writes on BigQuery and sets the primary
+        key columns for the table. The destination table (or tables if using
+        dynamic destionations) should be pre-created since CREATE_NEVER
+        disposition is enforced. Used for STORAGE_WRITE_API method.
     """
     self._table = table
     self._dataset = dataset
@@ -2127,6 +2133,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.load_job_project_id = load_job_project_id
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
+    self._cdc_writes_with_primary_key_columns = cdc_writes_with_primary_key_columns
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2280,6 +2287,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
           num_storage_api_streams=self._num_storage_api_streams,
+          cdc_writes_with_primary_key_columns=self._cdc_writes_with_primary_key_columns
           expansion_service=self.expansion_service)
 
     else:
@@ -2523,6 +2531,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
+      cdc_writes_with_primary_key_columns=[],
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2533,6 +2542,7 @@ class StorageWriteToBigQuery(PTransform):
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
     self._num_storage_api_streams = num_storage_api_streams
+    self._cdc_writes_with_primary_key_columns = cdc_writes_with_primary_key_columns
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2615,6 +2625,7 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
+            use_cdc_writes_with_primary_key=eyself._cdc_writes_with_primary_key_columns,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
