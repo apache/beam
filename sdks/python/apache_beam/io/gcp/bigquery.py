@@ -2287,7 +2287,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
           num_storage_api_streams=self._num_storage_api_streams,
-          cdc_writes_with_primary_key_columns=self._cdc_writes_with_primary_key_columns
+          cdc_writes_with_primary_key_columns=self._cdc_writes_with_primary_key_columns,
           expansion_service=self.expansion_service)
 
     else:
