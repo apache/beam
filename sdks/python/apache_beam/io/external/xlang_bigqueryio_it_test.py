@@ -303,8 +303,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           | StorageWriteToBigQuery(
               table=table_id,
               create_disposition="CREATE_NEVER",
-              use_cdc_writes_with_primary_key=["name"]
-       ))
+              use_cdc_writes_with_primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
