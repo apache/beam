@@ -68,7 +68,8 @@ class VisionMlTestIT(unittest.TestCase):
           output,
           equal_to([
               'WAITING?\nPLEASE\nTURN OFF\nYOUR\nENGINE',
-              'WAITING?',
+              'WAITING',
+              '?',
               'PLEASE',
               'TURN',
               'OFF',
