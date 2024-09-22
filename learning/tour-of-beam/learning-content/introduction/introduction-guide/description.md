@@ -29,7 +29,7 @@ Learning units are accompanied by code examples that you can review in the upper
 - **Edit the code**
 - **Run the example**
 
-Output is displayed in the lower right pane.
+After running the example, the output will be displayed in the lower right pane.
 
 Each module also contains a challenge based on the material learned. Try to solve as many as you can, and if you need help, just click on the:
 
