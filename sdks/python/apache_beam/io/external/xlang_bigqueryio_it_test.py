@@ -297,8 +297,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           ),
           record=beam.Row(
             name="cdc_test",
-            value=3
-          ))
+            value=3))
     ]
 
     bq_matcher = BigqueryFullResultMatcher(
