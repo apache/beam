@@ -1921,7 +1921,7 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
-      cdc_writes_with_primary_key=[],
+      cdc_writes_with_primary_key:List[str]=None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
 
@@ -2087,11 +2087,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         GCP expansion service. Used for STORAGE_WRITE_API method.
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
-      cdc_writes_with_primary_key: When param array is not empty
-        configures the usage of CDC writes on BigQuery and sets the primary
-        key columns for the table. The destination table (or tables if using
-        dynamic destionations) should be pre-created since CREATE_NEVER
-        disposition is enforced. Used for STORAGE_WRITE_API method.
+      cdc_writes_with_primary_key: Configure the usage of CDC writes on BigQuery
+        and sets the primary key using the column names from the argument.
+        The destination table (or tables if using dynamic destionations) should
+        be pre-created since CREATE_NEVER disposition is enforced.
+        Used for STORAGE_WRITE_API method.
     """
     self._table = table
     self._dataset = dataset
@@ -2531,7 +2531,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
-      cdc_writes_with_primary_key=[],
+      cdc_writes_with_primary_key:List[str]=None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2625,7 +2625,7 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
-            use_cdc_writes_with_primary_key=eyself._cdc_writes_with_primary_key,
+            use_cdc_writes_with_primary_key=self._cdc_writes_with_primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
