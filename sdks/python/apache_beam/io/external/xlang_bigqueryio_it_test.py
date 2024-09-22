@@ -271,7 +271,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table = 'write_with_beam_rows_cdc'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
-    create_table_for_cdc(table)
+    self.create_table_for_cdc(table)
 
     expected_data_on_bq = [
         # (name, value)
