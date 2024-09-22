@@ -282,13 +282,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     rows_with_cdc = [
         beam.Row(
-          cdc_info=beam.Row(
-            mutation_type="UPSERT", change_sequence_number="AAA/2"),
-          record=beam.Row(name="cdc_test", value=5)),
+            cdc_info=beam.Row(
+                mutation_type="UPSERT", change_sequence_number="AAA/2"),
+            record=beam.Row(name="cdc_test", value=5)),
         beam.Row(
-          cdc_info=beam.Row(
-            mutation_type="UPSERT", change_sequence_number="AAA/1"),
-          record=beam.Row(name="cdc_test", value=3))
+            cdc_info=beam.Row(
+                mutation_type="UPSERT", change_sequence_number="AAA/1"),
+            record=beam.Row(name="cdc_test", value=3))
     ]
 
     bq_matcher = BigqueryFullResultMatcher(
@@ -301,9 +301,9 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           p
           | beam.Create(rows_with_cdc)
           | StorageWriteToBigQuery(
-            table=table_id,
-            create_disposition="CREATE_NEVER",
-            use_cdc_writes_with_primary_key=["name"]
+              table=table_id,
+              create_disposition="CREATE_NEVER",
+              use_cdc_writes_with_primary_key=["name"]
        ))
     hamcrest_assert(p, bq_matcher)
 
