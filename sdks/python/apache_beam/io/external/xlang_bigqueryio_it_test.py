@@ -165,6 +165,27 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
+  def create_table_for_cdc(self, table_name):
+    table_schema = bigquery.TableSchema()
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'name'
+    table_field.type = 'STRING'
+    table_field.mode = 'REQUIRED'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'value'
+    table_field.type = 'INT64'
+    table_schema.fields.append(table_field)
+    table = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId=self.project,
+            datasetId=self.dataset_id,
+            tableId=table_name),
+        schema=table_schema)
+    request = bigquery.BigqueryTablesInsertRequest(
+        projectId=self.project, datasetId=self.dataset_id, table=table)
+    self.bigquery_client.client.tables.Insert(request)
+
   def test_all_types(self):
     table_name = "all_types"
     schema = self.ALL_TYPES_SCHEMA
@@ -243,6 +264,57 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           p
           | beam.Create(row_elements)
           | StorageWriteToBigQuery(table=table_id))
+    hamcrest_assert(p, bq_matcher)
+
+  def test_write_with_beam_rows_cdc(self):
+    table = 'write_with_beam_rows_cdc'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    create_table_for_cdc(table)
+
+    expected_data_on_bq = [
+      # (name, value)
+      {
+          "name": "cdc_test",
+          "value": 5,
+      }
+    ]
+
+    rows_with_cdc = [
+        beam.Row(
+          cdc_info=beam.Row(
+            mutation_type="UPSERT",
+            change_sequence_number="AAA/2"
+          ),
+          record=beam.Row(
+            name="cdc_test",
+            value=5
+          )),
+    beam.Row(
+          cdc_info=beam.Row(
+            mutation_type="UPSERT",
+            change_sequence_number="AAA/1"
+          ),
+          record=beam.Row(
+            name="cdc_test",
+            value=3
+          ))
+    ]
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected_data_on_bq))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(rows_with_cdc)
+          | StorageWriteToBigQuery(
+            table=table_id,
+            create_disposition="CREATE_NEVER",
+            use_cdc_writes_with_primary_key=(primaryKeyColumns)
+       ))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
