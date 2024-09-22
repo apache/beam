@@ -273,31 +273,22 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     create_table_for_cdc(table)
 
     expected_data_on_bq = [
-      # (name, value)
-      {
-          "name": "cdc_test",
-          "value": 5,
-      }
+        # (name, value)
+        {
+            "name": "cdc_test",
+            "value": 5,
+        }
     ]
 
     rows_with_cdc = [
         beam.Row(
           cdc_info=beam.Row(
-            mutation_type="UPSERT",
-            change_sequence_number="AAA/2"
-          ),
-          record=beam.Row(
-            name="cdc_test",
-            value=5
-          )),
-    beam.Row(
+            mutation_type="UPSERT", change_sequence_number="AAA/2"),
+          record=beam.Row(name="cdc_test", value=5)),
+        beam.Row(
           cdc_info=beam.Row(
-            mutation_type="UPSERT",
-            change_sequence_number="AAA/1"
-          ),
-          record=beam.Row(
-            name="cdc_test",
-            value=3))
+            mutation_type="UPSERT", change_sequence_number="AAA/1"),
+          record=beam.Row(name="cdc_test", value=3))
     ]
 
     bq_matcher = BigqueryFullResultMatcher(
