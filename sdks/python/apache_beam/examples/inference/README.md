@@ -924,18 +924,24 @@ python -m apache_beam.examples.inference.vllm_text_completion \
 
 Make sure to enable the 5xx driver since vLLM only works with 5xx drivers, not 4xx.
 
-This writes the output to the output file with contents like:
+This writes the output to the output file location with contents like:
+
 ```
 'Hello, my name is', PredictionResult(example={'prompt': 'Hello, my name is'}, inference=Completion(id='cmpl-5f5113a317c949309582b1966511ffc4', choices=[CompletionChoice(finish_reason='length', index=0, logprobs=None, text=' Joel, my dad is Anton Harriman and my wife is Lydia. ', stop_reason=None)], created=1714064548, model='facebook/opt-125m', object='text_completion', system_fingerprint=None, usage=CompletionUsage(completion_tokens=16, prompt_tokens=6, total_tokens=22))})
 ```
 Each line represents a tuple containing the example, a [PredictionResult](https://beam.apache.org/releases/pydoc/2.40.0/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.PredictionResult) object with the response from the model in the inference field.
 
-You can also choose to run with chat examples by adding the `--chat` parameter:
+You can also choose to run with chat examples. Doing this requires 2 steps:
+
+1) Upload a [chat_template](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#chat-template) to a filestore which is accessible from your job's environment (e.g. a public Google Cloud Storage bucket). You can copy [this sample template](https://storage.googleapis.com/apache-beam-ml/additional_files/sample_chat_template.jinja) to get started. You can skip this step if using a model other than `facebook/opt-125m` and you know your model provides a chat template.
+2) Add the `--chat true` and `--chat_template <gs://path/to/your/file>` parameters:
+
 ```sh
 python -m apache_beam.examples.inference.vllm_text_completion \
   --model "facebook/opt-125m" \
-  --output 'path/to/output/file.txt' \
-  --chat \
+  --output 'gs://path/to/output/file.txt' \
+  --chat true \
+  --chat_template gs://path/to/your/file \
   <... aditional pipeline arguments to configure runner if not running in GPU environment ...>
 ```
 
@@ -950,7 +956,7 @@ For example, it might run against:
 ],
 ```
 
-and produce:
+and produce the following result in your output file location:
 
 ```
 An emperor penguin is an adorable creature that lives in Antarctica.

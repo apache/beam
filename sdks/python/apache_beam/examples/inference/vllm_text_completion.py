@@ -50,14 +50,14 @@ CHAT_EXAMPLES = [
         OpenAIChatMessage(
             role='user', content='What is an example of a type of penguin?'),
         OpenAIChatMessage(
-            role='system', content='An emperor penguin is a type of penguin.'),
+            role='assistant', content='Emperor penguin is a type of penguin.'),
         OpenAIChatMessage(role='user', content='Tell me about them')
     ],
     [
         OpenAIChatMessage(
             role='user', content='What colors are in the rainbow?'),
         OpenAIChatMessage(
-            role='system',
+            role='assistant',
             content='Red, orange, yellow, green, blue, indigo, and violet.'),
         OpenAIChatMessage(role='user', content='Do other colors ever appear?')
     ],
@@ -67,10 +67,10 @@ CHAT_EXAMPLES = [
     ],
     [
         OpenAIChatMessage(role='user', content='What state is Fargo in?'),
-        OpenAIChatMessage(role='system', content='Fargo is in North Dakota.'),
+        OpenAIChatMessage(role='assistant', content='It is in North Dakota.'),
         OpenAIChatMessage(role='user', content='How many people live there?'),
         OpenAIChatMessage(
-            role='system',
+            role='assistant',
             content='Approximately 130,000 people live in Fargo, North Dakota.'
         ),
         OpenAIChatMessage(role='user', content='What is Fargo known for?'),
@@ -105,12 +105,19 @@ def parse_known_args(argv):
       required=False,
       default=False,
       help='Whether to use chat model handler and examples')
+  parser.add_argument(
+      '--chat_template',
+      dest='chat_template',
+      type=str,
+      required=False,
+      default=None,
+      help='Chat template to use for chat example.')
   return parser.parse_known_args(argv)
 
 
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[str]:
-    yield element.example + ": " + str(element.inference)
+    yield str(element.example) + ": " + str(element.inference)
 
 
 def run(
@@ -129,7 +136,9 @@ def run(
   input_examples = COMPLETION_EXAMPLES
 
   if known_args.chat:
-    model_handler = VLLMChatModelHandler(model_name=known_args.model)
+    model_handler = VLLMChatModelHandler(
+        model_name=known_args.model,
+        chat_template_path=known_args.chat_template)
     input_examples = CHAT_EXAMPLES
 
   pipeline = test_pipeline

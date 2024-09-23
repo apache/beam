@@ -18,9 +18,11 @@
 # pytype: skip-file
 
 import logging
+import os
 import subprocess
 import threading
 import time
+import uuid
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
@@ -29,6 +31,7 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils import subprocess_server
@@ -92,8 +95,9 @@ def getVLLMClient(port) -> OpenAI:
 
 
 class _VLLMModelServer():
-  def __init__(self, model_name):
+  def __init__(self, model_name: str, vllm_server_kwargs: Dict[str, str]):
     self._model_name = model_name
+    self._vllm_server_kwargs = vllm_server_kwargs
     self._server_started = False
     self._server_process = None
     self._server_port = None
@@ -102,7 +106,7 @@ class _VLLMModelServer():
 
   def start_server(self, retries=3):
     if not self._server_started:
-      self._server_process, self._server_port = start_process([
+      server_cmd = [
           'python',
           '-m',
           'vllm.entrypoints.openai.api_server',
@@ -110,7 +114,11 @@ class _VLLMModelServer():
           self._model_name,
           '--port',
           '{{PORT}}',
-      ])
+      ]
+      for k, v in self._vllm_server_kwargs.items():
+        server_cmd.append(f'--{k}')
+        server_cmd.append(v)
+      self._server_process, self._server_port = start_process(server_cmd)
 
     client = getVLLMClient(self._server_port)
     while self._server_process.poll() is None:
@@ -141,10 +149,9 @@ class _VLLMModelServer():
 class VLLMCompletionsModelHandler(ModelHandler[str,
                                                PredictionResult,
                                                _VLLMModelServer]):
-  def __init__(
-      self,
-      model_name: str,
-  ):
+  def __init__(self,
+               model_name: str,
+               vllm_server_kwargs: Optional[Dict[str, str]] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -156,16 +163,24 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       model_name: The vLLM model. See
         https://docs.vllm.ai/en/latest/models/supported_models.html for
         supported models.
+      vllm_server_kwargs: Any additional kwargs to be passed into your vllm
+        server when it is being created. Will be invoked using
+        `python -m vllm.entrypoints.openai.api_serverv <beam provided args>
+        <vllm_server_kwargs>`. For example, you could pass
+        `{'echo': 'true'}` to prepend new messages with the previous message.
+        For a list of possible kwargs, see
+        https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-completions-api
     """
     self._model_name = model_name
+    self._vllm_server_kwargs: Dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
 
   def load_model(self) -> _VLLMModelServer:
-    return _VLLMModelServer(self._model_name)
+    return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
 
   def run_inference(
       self,
-      batch: Sequence[str],
+      batch: str,
       model: _VLLMModelServer,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
@@ -182,10 +197,9 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     client = getVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
     predictions = []
-    for prompt in batch:
-      completion = client.completions.create(
-          model=self._model_name, prompt=prompt, **inference_args)
-      predictions.append(completion)
+    completion = client.completions.create(
+        model=self._model_name, prompt=batch, **inference_args)
+    predictions.append(completion)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def share_model_across_processes(self) -> bool:
@@ -206,7 +220,8 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
   def __init__(
       self,
       model_name: str,
-  ):
+      chat_template_path: Optional[str] = None,
+      vllm_server_kwargs: Dict[str, str] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -218,16 +233,41 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       model_name: The vLLM model. See
         https://docs.vllm.ai/en/latest/models/supported_models.html for
         supported models.
+      chat_template_path: Path to a chat template. This file must be accessible
+        from your runner's execution environment, so it is recommended to use
+        a cloud based file storage system (e.g. Google Cloud Storage).
+        For info on chat templates, see:
+        https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#chat-template
+      vllm_server_kwargs: Any additional kwargs to be passed into your vllm
+        server when it is being created. Will be invoked using
+        `python -m vllm.entrypoints.openai.api_serverv <beam provided args>
+        <vllm_server_kwargs>`. For example, you could pass
+        `{'echo': 'true'}` to prepend new messages with the previous message.
+        For a list of possible kwargs, see
+        https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
     """
     self._model_name = model_name
+    self._vllm_server_kwargs: Dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
+    self._chat_template_path = chat_template_path
+    self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
 
   def load_model(self) -> _VLLMModelServer:
-    return _VLLMModelServer(self._model_name)
+    chat_template_contents = ''
+    if self._chat_template_path is not None:
+      local_chat_template_path = os.path.join(os.getcwd(), self._chat_file)
+      if not os.path.exists(local_chat_template_path):
+        with FileSystems.open(self._chat_template_path) as fin:
+          chat_template_contents = fin.read().decode()
+        with open(local_chat_template_path, 'a') as f:
+          f.write(chat_template_contents)
+      self._vllm_server_kwargs['chat_template'] = local_chat_template_path
+
+    return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
 
   def run_inference(
       self,
-      batch: Sequence[Sequence[OpenAIChatMessage]],
+      batch: Sequence[OpenAIChatMessage],
       model: _VLLMModelServer,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
@@ -244,13 +284,12 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     client = getVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
     predictions = []
-    for messages in batch:
-      formatted = []
-      for message in messages:
-        formatted.append({"role": message.role, "content": message.content})
-      completion = client.chat.completions.create(
-          model=self._model_name, messages=formatted, **inference_args)
-      predictions.append(completion)
+    formatted = []
+    for message in batch:
+      formatted.append({"role": message.role, "content": message.content})
+    completion = client.chat.completions.create(
+        model=self._model_name, messages=formatted, **inference_args)
+    predictions.append(completion)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def share_model_across_processes(self) -> bool:
