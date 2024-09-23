@@ -305,8 +305,6 @@ class BigQueryAvroUtils {
   }
 
   private static @Nullable Object getTypedCellValue(String name, Schema schema, Object v) {
-    // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the mode field
-    // is optional (and so it may be null), but defaults to "NULLABLE".
     Type type = schema.getType();
     switch (type) {
       case ARRAY:
@@ -315,8 +313,7 @@ class BigQueryAvroUtils {
         return convertNullableField(name, schema, v);
       case MAP:
         throw new UnsupportedOperationException(
-            String.format(
-                "Unexpected BigQuery field schema type %s for field named %s", type, name));
+            String.format("Unexpected Avro field schema type %s for field named %s", type, name));
       default:
         return convertRequiredField(name, schema, v);
     }
@@ -354,8 +351,7 @@ class BigQueryAvroUtils {
           return formatDate((Integer) v);
         } else {
           throw new UnsupportedOperationException(
-              String.format(
-                  "Unexpected BigQuery field schema type %s for field named %s", type, name));
+              String.format("Unexpected Avro field schema type %s for field named %s", type, name));
         }
       case LONG:
         if (logicalType instanceof LogicalTypes.TimeMicros) {
@@ -389,8 +385,7 @@ class BigQueryAvroUtils {
         return convertGenericRecordToTableRow((GenericRecord) v);
       default:
         throw new UnsupportedOperationException(
-            String.format(
-                "Unexpected BigQuery field schema type %s for field named %s", type, name));
+            String.format("Unexpected Avro field schema type %s for field named %s", type, name));
     }
   }
 
