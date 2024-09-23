@@ -34,11 +34,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * The result of the ordered processing. Three PCollections are returned:
  * <li>output - the key/value of the mutated states
  * <li>unprocessedEvents - the key/value of the events that failed to be processed and the failure
- * reason
+ *     reason
  * <li>processingStatuses - the key/value of the status of processing for a particular key
  *
- * In case of global sequence processing, the result also contains PCollectionView of the latest
- * contiguous sequence range
+ *     <p>In case of global sequence processing, the result also contains PCollectionView of the
+ *     latest contiguous sequence range
  *
  * @param <KeyT>
  * @param <ResultT>
@@ -66,8 +66,15 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
       TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag) {
 
-    this(pipeline, outputPCollection, outputPCollectionTupleTag, eventProcessingStatusPCollection,
-        eventProcessingStatusTupleTag, unprocessedEventPCollection, unprocessedEventTupleTag, null);
+    this(
+        pipeline,
+        outputPCollection,
+        outputPCollectionTupleTag,
+        eventProcessingStatusPCollection,
+        eventProcessingStatusTupleTag,
+        unprocessedEventPCollection,
+        unprocessedEventTupleTag,
+        null);
   }
 
   OrderedEventProcessorResult(
@@ -110,20 +117,17 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
 
   @Override
   public void finishSpecifyingOutput(
-      String transformName, PInput input, PTransform<?, ?> transform) {
-  }
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 
   /**
    * @return processing status for a particular key. The elements will have the timestamp of the
-   * instant the status was emitted.
+   *     instant the status was emitted.
    */
   public PCollection<KV<KeyT, OrderedProcessingStatus>> processingStatuses() {
     return eventProcessingStatusPCollection;
   }
 
-  /**
-   * @return processed states keyed by the original key
-   */
+  /** @return processed states keyed by the original key */
   public PCollection<KV<KeyT, ResultT>> output() {
     return outputPCollection;
   }

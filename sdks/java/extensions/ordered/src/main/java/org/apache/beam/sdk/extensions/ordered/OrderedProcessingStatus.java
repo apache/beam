@@ -24,9 +24,7 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;
 
-/**
- * Indicates the status of ordered processing for a particular key.
- */
+/** Indicates the status of ordered processing for a particular key. */
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
 public abstract class OrderedProcessingStatus {
@@ -55,49 +53,38 @@ public abstract class OrderedProcessingStatus {
 
   /**
    * @return Last sequence processed. If null is returned - no elements for the given key and window
-   * have been processed yet.
+   *     have been processed yet.
    */
-
   public abstract @Nullable Long getLastProcessedSequence();
 
-  /**
-   * @return Number of events received out of sequence and buffered.
-   */
+  /** @return Number of events received out of sequence and buffered. */
   public abstract long getNumberOfBufferedEvents();
 
-  /**
-   * @return Earliest buffered sequence. If null is returned - there are no buffered events.
-   */
+  /** @return Earliest buffered sequence. If null is returned - there are no buffered events. */
   @Nullable
   public abstract Long getEarliestBufferedSequence();
 
-  /**
-   * @return Latest buffered sequence. If null is returned - there are no buffered events.
-   */
+  /** @return Latest buffered sequence. If null is returned - there are no buffered events. */
   @Nullable
   public abstract Long getLatestBufferedSequence();
 
-  /**
-   * @return Total number of events received for the given key and window.
-   */
+  /** @return Total number of events received for the given key and window. */
   public abstract long getNumberOfReceivedEvents();
 
   /**
-   * @return Number of duplicate events which were output in
-   * {@link OrderedEventProcessorResult#unprocessedEvents()} PCollection
+   * @return Number of duplicate events which were output in {@link
+   *     OrderedEventProcessorResult#unprocessedEvents()} PCollection
    */
   public abstract long getDuplicateCount();
 
-  /**
-   * @return Number of output results produced.
-   */
+  /** @return Number of output results produced. */
   public abstract long getResultCount();
 
   /**
    * @return Indicator that the last event for the given key and window has been received. It
-   * doesn't necessarily mean that all the events for the given key and window have been processed.
-   * Use {@link OrderedProcessingStatus#getNumberOfBufferedEvents()} == 0 and this indicator as the
-   * sign that the processing is complete.
+   *     doesn't necessarily mean that all the events for the given key and window have been
+   *     processed. Use {@link OrderedProcessingStatus#getNumberOfBufferedEvents()} == 0 and this
+   *     indicator as the sign that the processing is complete.
    */
   public abstract boolean isLastEventReceived();
 

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.ordered;
 
 import java.util.ArrayList;
@@ -25,12 +42,12 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testPerfectOrderingProcessing() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(2, "id-1", "c"),
-        Event.create(3, "id-1", "d"),
-        Event.create(0, "id-2", "a"),
-        Event.create(1, "id-2", "b")
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", "c"),
+      Event.create(3, "id-1", "d"),
+      Event.create(0, "id-2", "a"),
+      Event.create(1, "id-2", "b")
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -80,15 +97,15 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testOutOfSequenceProcessing() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(2, "id-1", "c"),
-        Event.create(1, "id-1", "b"),
-        Event.create(0, "id-1", "a"),
-        Event.create(3, "id-1", "d"),
-        Event.create(1, "id-2", "b"),
-        Event.create(2, "id-2", "c"),
-        Event.create(4, "id-2", "e"),
-        Event.create(0, "id-2", "a"),
-        Event.create(3, "id-2", "d")
+      Event.create(2, "id-1", "c"),
+      Event.create(1, "id-1", "b"),
+      Event.create(0, "id-1", "a"),
+      Event.create(3, "id-1", "d"),
+      Event.create(1, "id-2", "b"),
+      Event.create(2, "id-2", "c"),
+      Event.create(4, "id-2", "e"),
+      Event.create(0, "id-2", "a"),
+      Event.create(3, "id-2", "d")
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -141,12 +158,12 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testUnfinishedProcessing() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(2, "id-1", "c"),
-        //   Excluded                     Event.create(1, "id-1", "b"),
-        Event.create(0, "id-1", "a"),
-        Event.create(3, "id-1", "d"),
-        Event.create(0, "id-2", "a"),
-        Event.create(1, "id-2", "b"),
+      Event.create(2, "id-1", "c"),
+      //   Excluded                     Event.create(1, "id-1", "b"),
+      Event.create(0, "id-1", "a"),
+      Event.create(3, "id-1", "d"),
+      Event.create(0, "id-2", "a"),
+      Event.create(1, "id-2", "b"),
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -166,17 +183,17 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testHandlingOfDuplicateSequences() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(3, "id-1", "d"),
-        Event.create(2, "id-1", "c"),
-        // Duplicates to be buffered
-        Event.create(3, "id-1", "d"),
-        Event.create(3, "id-1", "d"),
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
+      Event.create(3, "id-1", "d"),
+      Event.create(2, "id-1", "c"),
+      // Duplicates to be buffered
+      Event.create(3, "id-1", "d"),
+      Event.create(3, "id-1", "d"),
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
 
-        // Duplicates after the events are processed
-        Event.create(1, "id-1", "b"),
-        Event.create(3, "id-1", "d"),
+      // Duplicates after the events are processed
+      Event.create(1, "id-1", "b"),
+      Event.create(3, "id-1", "d"),
     };
     int resultCount = 4;
     int duplicateCount = 4;
@@ -214,10 +231,10 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testHandlingOfCheckedExceptions() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(2, "id-1", StringBuilderState.BAD_VALUE),
-        Event.create(3, "id-1", "c"),
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", StringBuilderState.BAD_VALUE),
+      Event.create(3, "id-1", "c"),
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -250,12 +267,12 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testProcessingWithEveryOtherResultEmission() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(2, "id-1", "c"),
-        Event.create(1, "id-1", "b"),
-        Event.create(0, "id-1", "a"),
-        Event.create(3, "id-1", "d"),
-        Event.create(0, "id-2", "a"),
-        Event.create(1, "id-2", "b"),
+      Event.create(2, "id-1", "c"),
+      Event.create(1, "id-1", "b"),
+      Event.create(0, "id-1", "a"),
+      Event.create(3, "id-1", "d"),
+      Event.create(0, "id-2", "a"),
+      Event.create(1, "id-2", "b"),
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -367,7 +384,7 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   public void testSequenceGapProcessingInBufferedOutput() throws CannotProvideCoderException {
     int maxResultsPerOutput = 3;
 
-    long[] sequences = new long[]{2, 3, 7, 8, 9, 10, 1, 4, 5, 6};
+    long[] sequences = new long[] {2, 3, 7, 8, 9, 10, 1, 4, 5, 6};
 
     List<Event> events = new ArrayList<>(sequences.length);
     List<KV<String, String>> expectedOutput = new ArrayList<>(sequences.length);
@@ -461,9 +478,9 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testHandlingOfMaxSequenceNumber() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(Long.MAX_VALUE, "id-1", "c")
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(Long.MAX_VALUE, "id-1", "c")
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -497,9 +514,9 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   @Test
   public void testProcessingOfTheLastInput() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(2, "id-1", StringEventExaminer.LAST_INPUT)
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", StringEventExaminer.LAST_INPUT)
     };
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -565,7 +582,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         maxResultsPerOutput,
         produceStatusOnEveryEvent,
         STREAMING,
-        false, ContiguousSequenceRange.EMPTY);
+        false,
+        ContiguousSequenceRange.EMPTY);
 
     // Test a batch pipeline
     doTest(
@@ -578,7 +596,8 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         maxResultsPerOutput,
         produceStatusOnEveryEvent,
         BATCH,
-        false, ContiguousSequenceRange.EMPTY);
+        false,
+        ContiguousSequenceRange.EMPTY);
   }
 
   @Test

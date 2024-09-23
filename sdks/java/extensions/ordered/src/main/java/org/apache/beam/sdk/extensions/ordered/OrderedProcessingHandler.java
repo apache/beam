@@ -34,18 +34,18 @@ import org.joda.time.Duration;
 /**
  * Parent class for Ordered Processing configuration handlers.
  *
- * There are two types of processing - when the sequence numbers are contiguous per key and these
- * sequences per keys are independent of each other, and when there is a global sequence shared
- * by all keys. In case of the global sequence processing the custom handler must extend from
- * {@see OrderedProcessingGlobalSequenceHandler}.
+ * <p>There are two types of processing - when the sequence numbers are contiguous per key and these
+ * sequences per keys are independent of each other, and when there is a global sequence shared by
+ * all keys. In case of the global sequence processing the custom handler must extend from {@see
+ * OrderedProcessingGlobalSequenceHandler}.
  *
- * @param <EventT>  type of events to be processed
- * @param <KeyT>    type of keys which will be used to group the events
- * @param <StateT>  type of internal State which will be used for processing
+ * @param <EventT> type of events to be processed
+ * @param <KeyT> type of keys which will be used to group the events
+ * @param <StateT> type of internal State which will be used for processing
  * @param <ResultT> type of the result of the processing which will be output
  */
 public abstract class OrderedProcessingHandler<
-    EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT>
+        EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT>
     implements Serializable {
 
   private static final int DEFAULT_STATUS_UPDATE_FREQUENCY_SECONDS = 5;
@@ -65,9 +65,9 @@ public abstract class OrderedProcessingHandler<
   /**
    * Provide concrete classes which will be used by the ordered processing transform.
    *
-   * @param eventTClass  class of the events
-   * @param keyTClass    class of the keys
-   * @param stateTClass  class of the state
+   * @param eventTClass class of the events
+   * @param keyTClass class of the keys
+   * @param stateTClass class of the state
    * @param resultTClass class of the results
    */
   public OrderedProcessingHandler(
@@ -81,9 +81,7 @@ public abstract class OrderedProcessingHandler<
     this.resultTClass = resultTClass;
   }
 
-  /**
-   * @return the event examiner instance which will be used by the transform.
-   */
+  /** @return the event examiner instance which will be used by the transform. */
   public abstract @NonNull EventExaminer<EventT, StateT> getEventExaminer();
 
   /**
@@ -93,11 +91,11 @@ public abstract class OrderedProcessingHandler<
    * PCollection. If the input PCollection doesn't use KVCoder, it will attempt to get the coder
    * from the pipeline's coder registry.
    *
-   * @param pipeline   of the transform
+   * @param pipeline of the transform
    * @param inputCoder input coder of the transform
    * @return event coder
    * @throws CannotProvideCoderException if the method can't determine the coder based on the above
-   *                                     algorithm.
+   *     algorithm.
    */
   public @NonNull Coder<EventT> getEventCoder(
       Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
@@ -137,7 +135,7 @@ public abstract class OrderedProcessingHandler<
    * @param inputCoder
    * @return
    * @throws CannotProvideCoderException if the method can't determine the coder based on the above
-   *                                     algorithm.
+   *     algorithm.
    */
   public @NonNull Coder<KeyT> getKeyCoder(
       Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
@@ -168,7 +166,7 @@ public abstract class OrderedProcessingHandler<
    * <p>Default is 5 seconds.
    *
    * @return the frequency of updates. If null is returned, no updates will be emitted on a
-   * scheduled basis.
+   *     scheduled basis.
    */
   public @Nullable Duration getStatusUpdateFrequency() {
     return statusUpdateFrequency;
@@ -233,14 +231,14 @@ public abstract class OrderedProcessingHandler<
    * Parent class for Ordered Processing configuration handlers to handle processing of the events
    * where global sequence is used.
    *
-   * @param <EventT>  type of events to be processed
-   * @param <KeyT>    type of keys which will be used to group the events
-   * @param <StateT>  type of internal State which will be used for processing
+   * @param <EventT> type of events to be processed
+   * @param <KeyT> type of keys which will be used to group the events
+   * @param <StateT> type of internal State which will be used for processing
    * @param <ResultT> type of the result of the processing which will be output
    */
   public abstract static class OrderedProcessingGlobalSequenceHandler<
-      EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT> extends
-      OrderedProcessingHandler<EventT, KeyT, StateT, ResultT> {
+          EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT>
+      extends OrderedProcessingHandler<EventT, KeyT, StateT, ResultT> {
 
     public OrderedProcessingGlobalSequenceHandler(
         Class<EventT> eventTClass,
@@ -255,18 +253,22 @@ public abstract class OrderedProcessingHandler<
      *
      * @return combiner
      */
-    public GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, ContiguousSequenceRange> getGlobalSequenceCombiner() {
-      return Combine.globally(
-          new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer())).asSingletonView();
+    public GloballyAsSingletonView<
+            TimestampedValue<KV<KeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
+        getGlobalSequenceCombiner() {
+      return Combine.globally(new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer()))
+          .asSingletonView();
     }
 
     /**
      * How frequently the combiner should generate a new sequence? This parameter only affects the
      * behaviour of streaming pipelines.
-     * <p>
-     * Notice that some runners cache the output of side inputs and this parameter might not appear
-     * to have an effect unless the cache time-to-live is equal or less than this frequency. For
-     * Dataflow runner, see {@link <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowStreamingPipelineOptions.html#getStreamingSideInputCacheExpirationMillis--">this Dataflow streaming pipeline option</a>}
+     *
+     * <p>Notice that some runners cache the output of side inputs and this parameter might not
+     * appear to have an effect unless the cache time-to-live is equal or less than this frequency.
+     * For Dataflow runner, see {@link <a
+     * href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowStreamingPipelineOptions.html#getStreamingSideInputCacheExpirationMillis--">this
+     * Dataflow streaming pipeline option</a>}
      *
      * @return frequency of generating new global sequence. Default - every second.
      */

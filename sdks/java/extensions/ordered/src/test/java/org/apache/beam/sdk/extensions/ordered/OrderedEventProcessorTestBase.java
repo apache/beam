@@ -77,10 +77,8 @@ public class OrderedEventProcessorTestBase {
   public static final boolean BATCH = false;
   public static final Set<KV<String, KV<Long, UnprocessedEvent<String>>>> NO_EXPECTED_DLQ_EVENTS =
       Collections.emptySet();
-  @Rule
-  public final transient TestPipeline streamingPipeline = TestPipeline.create();
-  @Rule
-  public final transient TestPipeline batchPipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline streamingPipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline batchPipeline = TestPipeline.create();
 
   protected boolean runTestsOnDataflowRunner() {
     return Boolean.getBoolean("run-tests-on-dataflow");
@@ -88,7 +86,7 @@ public class OrderedEventProcessorTestBase {
 
   protected String getSystemProperty(String name) {
     String property = System.getProperty(name);
-    if(property == null) {
+    if (property == null) {
       throw new IllegalStateException("Unable to find system property '" + name + "'");
     }
     return property;
@@ -136,7 +134,8 @@ public class OrderedEventProcessorTestBase {
     Pipeline pipeline = streaming ? streamingPipeline : batchPipeline;
     if (runTestsOnDataflowRunner()) {
       pipeline.getOptions().setRunner(TestDataflowRunner.class);
-      TestDataflowPipelineOptions options = pipeline.getOptions().as(TestDataflowPipelineOptions.class);
+      TestDataflowPipelineOptions options =
+          pipeline.getOptions().as(TestDataflowPipelineOptions.class);
       options.setExperiments(Arrays.asList("disable_runner_v2"));
       options.setTempRoot("gs://" + getSystemProperty("temp_dataflow_bucket"));
     }
@@ -148,10 +147,10 @@ public class OrderedEventProcessorTestBase {
         rawInput.apply("To KV", ParDo.of(new MapEventsToKV()));
 
     OrderedProcessingHandler<String, String, StringBuilderState, String> handler =
-        isGlobalSequence ?
-            new StringBufferOrderedProcessingWithGlobalSequenceHandler(emissionFrequency,
-                initialSequence) :
-            new StringBufferOrderedProcessingHandler(emissionFrequency, initialSequence);
+        isGlobalSequence
+            ? new StringBufferOrderedProcessingWithGlobalSequenceHandler(
+                emissionFrequency, initialSequence)
+            : new StringBufferOrderedProcessingHandler(emissionFrequency, initialSequence);
     handler.setMaxOutputElementsPerBundle(maxResultsPerOutput);
     if (produceStatusOnEveryEvent) {
       handler.setProduceStatusUpdateOnEveryEvent(true);
@@ -171,7 +170,8 @@ public class OrderedEventProcessorTestBase {
     PAssert.that("Output matches", processingResult.output()).containsInAnyOrder(expectedOutput);
 
     if (streaming && expectedStatuses != null) {
-      // Only in a streaming pipeline the events will arrive in a pre-determined order and the statuses
+      // Only in a streaming pipeline the events will arrive in a pre-determined order and the
+      // statuses
       // will be deterministic. In batch pipelines events can be processed in any order,
       // so we skip status verification and rely on the output and unprocessed event matches.
       PAssert.that("Statuses match", processingResult.processingStatuses())
@@ -205,22 +205,22 @@ public class OrderedEventProcessorTestBase {
           .containsInAnyOrder(expectedUnprocessedEvents);
     }
 
-    if (expectedLastCompletedSequence != null
-        && processingResult.latestContiguousRange() != null) {
-      PCollection<ContiguousSequenceRange> globalSequences = rawInput
-          .apply("Publish Global Sequences",
-              new GlobalSequenceRangePublisher(processingResult.latestContiguousRange(),
+    if (expectedLastCompletedSequence != null && processingResult.latestContiguousRange() != null) {
+      PCollection<ContiguousSequenceRange> globalSequences =
+          rawInput.apply(
+              "Publish Global Sequences",
+              new GlobalSequenceRangePublisher(
+                  processingResult.latestContiguousRange(),
                   handler.getKeyCoder(pipeline, input.getCoder()),
                   handler.getEventCoder(pipeline, input.getCoder())));
-      PAssert.that("CompletedSequenceRange verification", globalSequences).satisfies(
-          new LastExpectedGlobalSequenceRangeMatcher(expectedLastCompletedSequence)
-      );
+      PAssert.that("CompletedSequenceRange verification", globalSequences)
+          .satisfies(new LastExpectedGlobalSequenceRangeMatcher(expectedLastCompletedSequence));
     }
     pipeline.run();
   }
 
-  static class LastExpectedGlobalSequenceRangeMatcher implements
-      SerializableFunction<Iterable<ContiguousSequenceRange>, Void> {
+  static class LastExpectedGlobalSequenceRangeMatcher
+      implements SerializableFunction<Iterable<ContiguousSequenceRange>, Void> {
 
     private final long expectedStart;
     private final long expectedEnd;
@@ -244,13 +244,19 @@ public class OrderedEventProcessorTestBase {
         listOfRanges.append(lastRange);
       }
       listOfRanges.append(']');
-      boolean foundExpectedRange = lastRange != null &&
-          lastRange.getStart() == expectedStart && lastRange.getEnd() == expectedEnd;
+      boolean foundExpectedRange =
+          lastRange != null
+              && lastRange.getStart() == expectedStart
+              && lastRange.getEnd() == expectedEnd;
 
       assertThat(
-          "Expected range not found: [" + expectedStart + '-' + expectedEnd
+          "Expected range not found: ["
+              + expectedStart
+              + '-'
+              + expectedEnd
               + "], received ranges: "
-              + listOfRanges, foundExpectedRange);
+              + listOfRanges,
+          foundExpectedRange);
       return null;
     }
   }
@@ -311,7 +317,7 @@ public class OrderedEventProcessorTestBase {
           && originalEvent.getEvent().equals(eventToMatch.getEvent())
           && originalEvent.getReason() == eventToMatch.getReason()
           && normalizeExplanation(originalEvent.getExplanation())
-          .equals(normalizeExplanation(eventToMatch.getExplanation()));
+              .equals(normalizeExplanation(eventToMatch.getExplanation()));
     }
 
     @Override
@@ -331,8 +337,8 @@ public class OrderedEventProcessorTestBase {
     }
   }
 
-  static class GlobalSequenceRangePublisher extends
-      PTransform<PCollection<Event>, PCollection<ContiguousSequenceRange>> {
+  static class GlobalSequenceRangePublisher
+      extends PTransform<PCollection<Event>, PCollection<ContiguousSequenceRange>> {
 
     private final PCollectionView<ContiguousSequenceRange> lastCompletedSequenceRangeView;
     private final Coder<String> keyCoder;
@@ -340,7 +346,8 @@ public class OrderedEventProcessorTestBase {
 
     public GlobalSequenceRangePublisher(
         PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange,
-        Coder<String> keyCoder, Coder<String> eventCoder) {
+        Coder<String> keyCoder,
+        Coder<String> eventCoder) {
       this.lastCompletedSequenceRangeView = latestCompletedSequenceRange;
       this.keyCoder = keyCoder;
       this.eventCoder = eventCoder;
@@ -348,30 +355,34 @@ public class OrderedEventProcessorTestBase {
 
     @Override
     public PCollection<ContiguousSequenceRange> expand(PCollection<Event> input) {
-      PCollection<KV<String, KV<Long, String>>> events = input
-          // In production pipelines the global sequence will typically be obtained
-          // by using GenerateSequence. But GenerateSequence doesn't work well with TestStream,
-          // That's why we use the input events here.
-//              .apply("Create Ticker",
-//                  GenerateSequence.from(0).to(2).withRate(1, Duration.standardSeconds(5)))
-          .apply("To KV", ParDo.of(new MapEventsToKV()));
+      PCollection<KV<String, KV<Long, String>>> events =
+          input
+              // In production pipelines the global sequence will typically be obtained
+              // by using GenerateSequence. But GenerateSequence doesn't work well with TestStream,
+              // That's why we use the input events here.
+              //              .apply("Create Ticker",
+              //                  GenerateSequence.from(0).to(2).withRate(1,
+              // Duration.standardSeconds(5)))
+              .apply("To KV", ParDo.of(new MapEventsToKV()));
       if (input.isBounded() == IsBounded.BOUNDED) {
-        return events.apply("Emit SideInput", ParDo.of(new SideInputEmitter())
-            .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
+        return events.apply(
+            "Emit SideInput",
+            ParDo.of(new SideInputEmitter())
+                .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
       } else {
-        PCollection<KV<String, KV<Long, String>>> tickers = events
-            .apply("Create Tickers",
-                new PerKeyTickerGenerator<>(keyCoder, eventCoder,
-                    Duration.standardSeconds(1)));
-        return
-            tickers
-                .apply("Emit SideInput", ParDo.of(new SideInputEmitter())
-                    .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
+        PCollection<KV<String, KV<Long, String>>> tickers =
+            events.apply(
+                "Create Tickers",
+                new PerKeyTickerGenerator<>(keyCoder, eventCoder, Duration.standardSeconds(1)));
+        return tickers.apply(
+            "Emit SideInput",
+            ParDo.of(new SideInputEmitter())
+                .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
       }
     }
 
-    static class SideInputEmitter extends
-        DoFn<KV<String, KV<Long, String>>, ContiguousSequenceRange> {
+    static class SideInputEmitter
+        extends DoFn<KV<String, KV<Long, String>>, ContiguousSequenceRange> {
 
       @ProcessElement
       public void produceCompletedRange(

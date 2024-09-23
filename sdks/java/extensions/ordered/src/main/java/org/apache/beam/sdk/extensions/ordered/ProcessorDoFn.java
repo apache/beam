@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.ordered;
 
 import java.util.Iterator;
@@ -18,12 +35,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Base DoFn for processing ordered events.
  *
- * @param <EventT>     type of the events to process
- * @param <EventKeyT>  event key type
+ * @param <EventT> type of the events to process
+ * @param <EventKeyT> event key type
  * @param <StateT> state type
  */
-abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
-    StateT extends MutableState<EventT, ResultT>>
+abstract class ProcessorDoFn<
+        EventT, EventKeyT, ResultT, StateT extends MutableState<EventT, ResultT>>
     extends DoFn<KV<EventKeyT, KV<Long, EventT>>, KV<EventKeyT, ResultT>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessorDoFn.class);
@@ -45,7 +62,6 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
 
   private final long maxNumberOfResultsToProduce;
 
-
   protected @Nullable Long numberOfResultsBeforeBundleStart = 0L;
 
   ProcessorDoFn(
@@ -53,8 +69,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
       TupleTag<KV<EventKeyT, ResultT>> mainOutputTupleTag,
       TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusTupleTag,
       Duration statusUpdateFrequency,
-      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>
-          unprocessedEventTupleTag,
+      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
       boolean produceStatusUpdateOnEveryEvent,
       long maxNumberOfResultsToProduce) {
     this.eventExaminer = eventExaminer;
@@ -78,9 +93,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
     numberOfResultsBeforeBundleStart = null;
   }
 
-  /**
-   * @return true if each event needs to be examined.
-   */
+  /** @return true if each event needs to be examined. */
   abstract boolean checkForFirstOrLastEvent();
 
   /**
@@ -116,14 +129,13 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
           .output(
               KV.of(
                   processingState.getKey(),
-                  KV.of(
-                      currentSequence, UnprocessedEvent.create(currentEvent, Reason.duplicate))));
+                  KV.of(currentSequence, UnprocessedEvent.create(currentEvent, Reason.duplicate))));
       return null;
     }
 
     StateT state;
-    boolean thisIsTheLastEvent = checkForFirstOrLastEvent()
-        && eventExaminer.isLastEvent(currentSequence, currentEvent);
+    boolean thisIsTheLastEvent =
+        checkForFirstOrLastEvent() && eventExaminer.isLastEvent(currentSequence, currentEvent);
     if (checkForFirstOrLastEvent() && eventExaminer.isInitialEvent(currentSequence, currentEvent)) {
       // First event of the key/window
       // What if it's a duplicate event - it will reset everything. Shall we drop/DLQ anything
@@ -173,8 +185,8 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
     }
 
     // Event is not ready to be processed yet
-    bufferEvent(currentSequence, currentEvent, processingState, bufferedEventsState,
-        thisIsTheLastEvent);
+    bufferEvent(
+        currentSequence, currentEvent, processingState, bufferedEventsState, thisIsTheLastEvent);
 
     // This will signal that the state hasn't been mutated. We don't need to save it.
     return null;
@@ -204,7 +216,9 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
     }
   }
 
-  void processStatusTimerEvent(MultiOutputReceiver outputReceiver, Timer statusEmissionTimer,
+  void processStatusTimerEvent(
+      MultiOutputReceiver outputReceiver,
+      Timer statusEmissionTimer,
       ValueState<Boolean> windowClosedState,
       ValueState<ProcessingState<EventKeyT>> processingStateState) {
     ProcessingState<EventKeyT> currentState = processingStateState.read();
@@ -250,12 +264,11 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
             statusTimestamp);
   }
 
-
   protected boolean reachedMaxResultCountForBundle(
       ProcessingState<EventKeyT> processingState, Timer largeBatchEmissionTimer) {
     boolean exceeded =
         processingState.resultsProducedInBundle(
-            numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart)
+                numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart)
             >= maxNumberOfResultsToProduce;
     if (exceeded) {
       if (LOG.isTraceEnabled()) {
@@ -272,9 +285,12 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
     return exceeded;
   }
 
-  private void bufferEvent(long currentSequence, EventT currentEvent,
+  private void bufferEvent(
+      long currentSequence,
+      EventT currentEvent,
       ProcessingState<EventKeyT> processingState,
-      OrderedListState<EventT> bufferedEventsState, boolean thisIsTheLastEvent) {
+      OrderedListState<EventT> bufferedEventsState,
+      boolean thisIsTheLastEvent) {
     Instant eventTimestamp = fromLong(currentSequence);
     bufferedEventsState.add(TimestampedValue.of(currentEvent, eventTimestamp));
     processingState.eventBuffered(currentSequence, thisIsTheLastEvent);
@@ -283,10 +299,13 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
   abstract boolean checkForSequenceGapInBufferedEvents();
 
   @Nullable
-  StateT processBufferedEventRange(ProcessingState<EventKeyT> processingState,
+  StateT processBufferedEventRange(
+      ProcessingState<EventKeyT> processingState,
       @Nullable StateT state,
-      OrderedListState<EventT> bufferedEventsState, MultiOutputReceiver outputReceiver,
-      Timer largeBatchEmissionTimer, ContiguousSequenceRange contiguousSequenceRange) {
+      OrderedListState<EventT> bufferedEventsState,
+      MultiOutputReceiver outputReceiver,
+      Timer largeBatchEmissionTimer,
+      ContiguousSequenceRange contiguousSequenceRange) {
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
     Long latestBufferedSequence = processingState.getLatestBufferedSequence();
     if (earliestBufferedSequence == null || latestBufferedSequence == null) {
@@ -296,8 +315,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
     Instant endRange = fromLong(latestBufferedSequence + 1);
 
     // readRange is efficiently implemented and will bring records in batches
-    Iterable<TimestampedValue<EventT>> events =
-        bufferedEventsState.readRange(startRange, endRange);
+    Iterable<TimestampedValue<EventT>> events = bufferedEventsState.readRange(startRange, endRange);
 
     Instant endClearRange = startRange; // it will get re-adjusted later.
 
@@ -328,8 +346,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
                 KV.of(
                     processingState.getKey(),
                     KV.of(
-                        eventSequence,
-                        UnprocessedEvent.create(bufferedEvent, Reason.duplicate))));
+                        eventSequence, UnprocessedEvent.create(bufferedEvent, Reason.duplicate))));
         // TODO: When there is a large number of duplicates this can cause a situation where
         // we produce too much output and the runner will start throwing unrecoverable errors.
         // Need to add counting logic to accumulate both the normal and DLQ outputs.
@@ -339,9 +356,10 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
       Long lastOutputSequence = processingState.getLastOutputSequence();
       boolean currentEventIsNextInSequence =
           lastOutputSequence != null && eventSequence == lastOutputSequence + 1;
-      boolean continueProcessing = checkForSequenceGapInBufferedEvents() ?
-          currentEventIsNextInSequence :
-          (eventSequence <= contiguousSequenceRange.getEnd() || currentEventIsNextInSequence);
+      boolean continueProcessing =
+          checkForSequenceGapInBufferedEvents()
+              ? currentEventIsNextInSequence
+              : (eventSequence <= contiguousSequenceRange.getEnd() || currentEventIsNextInSequence);
       if (!continueProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element

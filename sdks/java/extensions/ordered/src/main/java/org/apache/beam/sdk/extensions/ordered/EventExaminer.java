@@ -31,8 +31,8 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
     extends Serializable {
 
   /**
-   * Is this event the first expected event for the given key and window if the per key sequence
-   * is used? In case of global sequence it determines the first global sequence event.
+   * Is this event the first expected event for the given key and window if the per key sequence is
+   * used? In case of global sequence it determines the first global sequence event.
    *
    * @param sequenceNumber the sequence number of the event as defined by the key of the input
    *     PCollection to {@link OrderedEventProcessor}
@@ -54,7 +54,7 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
   /**
    * Is this event the last expected event for a given key and window?
    *
-   * Note, this method is not used yet with global sequences.
+   * <p>Note, this method is not used yet with global sequences.
    *
    * @param sequenceNumber of the event
    * @param event being processed

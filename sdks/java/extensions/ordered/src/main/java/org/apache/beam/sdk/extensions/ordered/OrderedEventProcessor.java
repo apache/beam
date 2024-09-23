@@ -50,41 +50,41 @@ import org.joda.time.Instant;
  * Transform for processing ordered events. Events are grouped by the key and within each key they
  * are applied according to the provided sequence. Events which arrive out of sequence are buffered
  * and processed after all the missing events for a given key have arrived.
- * <p>
- * There are two sequencing modes - a sequence per key and a global sequence. See
- * {@link OrderedProcessingHandler} for details on how to configure this transform.
  *
- * @param <EventT>    type of event
+ * <p>There are two sequencing modes - a sequence per key and a global sequence. See {@link
+ * OrderedProcessingHandler} for details on how to configure this transform.
+ *
+ * @param <EventT> type of event
  * @param <EventKeyT> type of event key
- * @param <StateT>    type of the state
+ * @param <StateT> type of the state
  */
 @AutoValue
 @SuppressWarnings({"nullness", "TypeNameShadowing"})
 public abstract class OrderedEventProcessor<
-    EventT, EventKeyT, ResultT, StateT extends MutableState<EventT, ResultT>>
+        EventT, EventKeyT, ResultT, StateT extends MutableState<EventT, ResultT>>
     extends PTransform<
-    PCollection<KV<EventKeyT, KV<Long, EventT>>>,
-    OrderedEventProcessorResult<EventKeyT, ResultT, EventT>> {
+        PCollection<KV<EventKeyT, KV<Long, EventT>>>,
+        OrderedEventProcessorResult<EventKeyT, ResultT, EventT>> {
 
   public static final String GLOBAL_SEQUENCE_TRACKER = "global_sequence_tracker";
 
   /**
    * Create the transform.
    *
-   * @param handler         provides the configuration of this transform
-   * @param <EventTypeT>    type of event
+   * @param handler provides the configuration of this transform
+   * @param <EventTypeT> type of event
    * @param <EventKeyTypeT> type of event key
-   * @param <ResultTypeT>   type of the result object
-   * @param <StateTypeT>    type of the state to store
+   * @param <ResultTypeT> type of the result object
+   * @param <StateTypeT> type of the state to store
    * @return the transform
    */
   public static <
-      EventTypeT,
-      EventKeyTypeT,
-      ResultTypeT,
-      StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
-  OrderedEventProcessor<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> create(
-      OrderedProcessingHandler<EventTypeT, EventKeyTypeT, StateTypeT, ResultTypeT> handler) {
+          EventTypeT,
+          EventKeyTypeT,
+          ResultTypeT,
+          StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
+      OrderedEventProcessor<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> create(
+          OrderedProcessingHandler<EventTypeT, EventKeyTypeT, StateTypeT, ResultTypeT> handler) {
     return new AutoValue_OrderedEventProcessor<>(handler);
   }
 
@@ -95,15 +95,12 @@ public abstract class OrderedEventProcessor<
   public OrderedEventProcessorResult<EventKeyT, ResultT, EventT> expand(
       PCollection<KV<EventKeyT, KV<Long, EventT>>> input) {
     final TupleTag<KV<EventKeyT, ResultT>> mainOutput =
-        new TupleTag<KV<EventKeyT, ResultT>>("mainOutput") {
-        };
+        new TupleTag<KV<EventKeyT, ResultT>>("mainOutput") {};
     final TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusOutput =
-        new TupleTag<KV<EventKeyT, OrderedProcessingStatus>>("status") {
-        };
+        new TupleTag<KV<EventKeyT, OrderedProcessingStatus>>("status") {};
 
     final TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventOutput =
-        new TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>("unprocessed-events") {
-        };
+        new TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>("unprocessed-events") {};
 
     OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler = getHandler();
     Pipeline pipeline = input.getPipeline();
@@ -144,18 +141,38 @@ public abstract class OrderedEventProcessor<
             keyCoder, KvCoder.of(VarLongCoder.of(), new UnprocessedEventCoder<>(eventCoder)));
 
     if (handler instanceof OrderedProcessingGlobalSequenceHandler) {
-      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler =
-          (OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>) handler;
+      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>
+          globalSequenceHandler =
+              (OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>) handler;
 
-      return expandGlobalSequenceProcessing(input, mainOutput, statusOutput,
-          unprocessedEventOutput, handler, pipeline, keyCoder, eventCoder, stateCoder,
+      return expandGlobalSequenceProcessing(
+          input,
+          mainOutput,
+          statusOutput,
+          unprocessedEventOutput,
+          handler,
+          pipeline,
+          keyCoder,
+          eventCoder,
+          stateCoder,
           mainOutputCoder,
-          processingStatusCoder, unprocessedEventsCoder, globalSequenceHandler);
+          processingStatusCoder,
+          unprocessedEventsCoder,
+          globalSequenceHandler);
     } else {
-      return expandPerKeyProcessing(input, mainOutput, statusOutput,
-          unprocessedEventOutput, handler, pipeline, keyCoder, eventCoder, stateCoder,
+      return expandPerKeyProcessing(
+          input,
+          mainOutput,
+          statusOutput,
+          unprocessedEventOutput,
+          handler,
+          pipeline,
+          keyCoder,
+          eventCoder,
+          stateCoder,
           mainOutputCoder,
-          processingStatusCoder, unprocessedEventsCoder);
+          processingStatusCoder,
+          unprocessedEventsCoder);
     }
   }
 
@@ -164,8 +181,11 @@ public abstract class OrderedEventProcessor<
       TupleTag<KV<EventKeyT, ResultT>> mainOutput,
       TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusOutput,
       TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventOutput,
-      OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler, Pipeline pipeline,
-      Coder<EventKeyT> keyCoder, Coder<EventT> eventCoder, Coder<StateT> stateCoder,
+      OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler,
+      Pipeline pipeline,
+      Coder<EventKeyT> keyCoder,
+      Coder<EventT> eventCoder,
+      Coder<StateT> stateCoder,
       KvCoder<EventKeyT, ResultT> mainOutputCoder,
       KvCoder<EventKeyT, OrderedProcessingStatus> processingStatusCoder,
       KvCoder<EventKeyT, KV<Long, UnprocessedEvent<EventT>>> unprocessedEventsCoder) {
@@ -202,59 +222,65 @@ public abstract class OrderedEventProcessor<
       TupleTag<KV<EventKeyT, ResultT>> mainOutput,
       TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusOutput,
       TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventOutput,
-      OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler, Pipeline pipeline,
-      Coder<EventKeyT> keyCoder, Coder<EventT> eventCoder, Coder<StateT> stateCoder,
+      OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler,
+      Pipeline pipeline,
+      Coder<EventKeyT> keyCoder,
+      Coder<EventT> eventCoder,
+      Coder<StateT> stateCoder,
       KvCoder<EventKeyT, ResultT> mainOutputCoder,
       KvCoder<EventKeyT, OrderedProcessingStatus> processingStatusCoder,
       KvCoder<EventKeyT, KV<Long, UnprocessedEvent<EventT>>> unprocessedEventsCoder,
-      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler) {
+      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>
+          globalSequenceHandler) {
     PCollectionTuple processingResult;
     boolean streamingProcessing = input.isBounded() == IsBounded.UNBOUNDED;
 
     final PCollectionView<ContiguousSequenceRange> latestContiguousRange =
         input
-            .apply("Convert to SequenceAndTimestamp",
-                ParDo.of(new ToTimestampedEventConverter<>()))
-            .apply("Global Sequence Tracker",
-                streamingProcessing ?
-                    new GlobalSequenceTracker<>(
+            .apply("Convert to SequenceAndTimestamp", ParDo.of(new ToTimestampedEventConverter<>()))
+            .apply(
+                "Global Sequence Tracker",
+                streamingProcessing
+                    ? new GlobalSequenceTracker<>(
                         globalSequenceHandler.getGlobalSequenceCombiner(),
-                        globalSequenceHandler.getGlobalSequenceGenerationFrequency()) :
-                    new GlobalSequenceTracker<>(
+                        globalSequenceHandler.getGlobalSequenceGenerationFrequency())
+                    : new GlobalSequenceTracker<>(
                         globalSequenceHandler.getGlobalSequenceCombiner()));
 
     if (streamingProcessing) {
-      PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
-          new PerKeyTickerGenerator<>(keyCoder, eventCoder,
-              globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
+      PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers =
+          input.apply(
+              "Create Tickers",
+              new PerKeyTickerGenerator<>(
+                  keyCoder,
+                  eventCoder,
+                  globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
 
       input =
-          PCollectionList.of(input).and(tickers)
+          PCollectionList.of(input)
+              .and(tickers)
               .apply("Combine Events and Tickers", Flatten.pCollections())
               .setCoder(tickers.getCoder());
     }
     processingResult =
-        input
-            .apply(
-                ParDo.of(
-                        new GlobalSequencesProcessorDoFn<>(
-                            handler.getEventExaminer(),
-                            eventCoder,
-                            stateCoder,
-                            keyCoder,
-                            mainOutput,
-                            statusOutput,
-                            handler.getStatusUpdateFrequency(),
-                            unprocessedEventOutput,
-                            handler.isProduceStatusUpdateOnEveryEvent(),
-                            handler.getMaxOutputElementsPerBundle(),
-                            latestContiguousRange)
-                    )
-                    .withOutputTags(
+        input.apply(
+            ParDo.of(
+                    new GlobalSequencesProcessorDoFn<>(
+                        handler.getEventExaminer(),
+                        eventCoder,
+                        stateCoder,
+                        keyCoder,
                         mainOutput,
-                        TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
-                    .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContiguousRange)
-            );
+                        statusOutput,
+                        handler.getStatusUpdateFrequency(),
+                        unprocessedEventOutput,
+                        handler.isProduceStatusUpdateOnEveryEvent(),
+                        handler.getMaxOutputElementsPerBundle(),
+                        latestContiguousRange))
+                .withOutputTags(
+                    mainOutput,
+                    TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
+                .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContiguousRange));
     return new OrderedEventProcessorResult<>(
         pipeline,
         processingResult.get(mainOutput).setCoder(mainOutputCoder),
@@ -282,15 +308,16 @@ public abstract class OrderedEventProcessor<
     return result;
   }
 
-  static class ToTimestampedEventConverter<EventKeyT, EventT> extends
-      DoFn<KV<EventKeyT, KV<Long, EventT>>, TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> {
+  static class ToTimestampedEventConverter<EventKeyT, EventT>
+      extends DoFn<
+          KV<EventKeyT, KV<Long, EventT>>, TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> {
 
     @ProcessElement
-    public void convert(@Element KV<EventKeyT, KV<Long, EventT>> element,
+    public void convert(
+        @Element KV<EventKeyT, KV<Long, EventT>> element,
         @Timestamp Instant timestamp,
         OutputReceiver<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> outputReceiver) {
       outputReceiver.output(TimestampedValue.of(element, timestamp));
     }
   }
-
 }

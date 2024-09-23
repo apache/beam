@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.ordered;
 
 import javax.annotation.Nullable;
@@ -27,20 +44,26 @@ import org.slf4j.LoggerFactory;
  * @param <ResultTypeT> result type
  * @param <StateTypeT> state type
  */
-class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
-    StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
+class SequencePerKeyProcessorDoFn<
+        EventTypeT,
+        EventKeyTypeT,
+        ResultTypeT,
+        StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
     extends ProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SequencePerKeyProcessorDoFn.class);
 
   private static final String LARGE_BATCH_EMISSION_TIMER = "largeBatchTimer";
   protected static final String BUFFERED_EVENTS = "bufferedEvents";
+
   @TimerId(LARGE_BATCH_EMISSION_TIMER)
   @SuppressWarnings("unused")
   private final TimerSpec largeBatchEmissionTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
   @StateId(BUFFERED_EVENTS)
   @SuppressWarnings("unused")
   private final StateSpec<OrderedListState<EventTypeT>> bufferedEventsSpec;
+
   @SuppressWarnings("unused")
   @StateId(MUTABLE_STATE)
   private final StateSpec<ValueState<StateTypeT>> mutableStateSpec;
@@ -52,6 +75,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
   @TimerId(STATUS_EMISSION_TIMER)
   @SuppressWarnings("unused")
   private final TimerSpec statusEmissionTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
   @StateId(PROCESSING_STATE)
   @SuppressWarnings("unused")
   private final StateSpec<ValueState<ProcessingState<EventKeyTypeT>>> processingStateSpec;
@@ -78,11 +102,16 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       TupleTag<KV<EventKeyTypeT, ResultTypeT>> mainOutputTupleTag,
       TupleTag<KV<EventKeyTypeT, OrderedProcessingStatus>> statusTupleTag,
       Duration statusUpdateFrequency,
-      TupleTag<KV<EventKeyTypeT, KV<Long, UnprocessedEvent<EventTypeT>>>>
-          unprocessedEventTupleTag,
-      boolean produceStatusUpdateOnEveryEvent, long maxNumberOfResultsToProduce) {
-    super(eventExaminer, mainOutputTupleTag, statusTupleTag,
-        statusUpdateFrequency, unprocessedEventTupleTag, produceStatusUpdateOnEveryEvent,
+      TupleTag<KV<EventKeyTypeT, KV<Long, UnprocessedEvent<EventTypeT>>>> unprocessedEventTupleTag,
+      boolean produceStatusUpdateOnEveryEvent,
+      long maxNumberOfResultsToProduce) {
+    super(
+        eventExaminer,
+        mainOutputTupleTag,
+        statusTupleTag,
+        statusUpdateFrequency,
+        unprocessedEventTupleTag,
+        produceStatusUpdateOnEveryEvent,
         maxNumberOfResultsToProduce);
     this.bufferedEventsSpec = StateSpecs.orderedList(eventCoder);
     this.processingStateSpec = StateSpecs.value(ProcessingStateCoder.of(keyCoder));
@@ -104,7 +133,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
   public void processElement(
       @StateId(BUFFERED_EVENTS) OrderedListState<EventTypeT> bufferedEventsState,
       @AlwaysFetched @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyTypeT>> processingStateState,
+          ValueState<ProcessingState<EventKeyTypeT>> processingStateState,
       @StateId(MUTABLE_STATE) ValueState<StateTypeT> mutableStateState,
       @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
       @TimerId(LARGE_BATCH_EMISSION_TIMER) Timer largeBatchEmissionTimer,
@@ -165,9 +194,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
     return result;
   }
 
-  /**
-   * Process buffered events.
-   */
+  /** Process buffered events. */
   private void processBufferedEvents(
       ProcessingState<EventKeyTypeT> processingState,
       @Nullable StateTypeT state,
@@ -200,8 +227,13 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       return;
     }
 
-    processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
-        largeBatchEmissionTimer, ContiguousSequenceRange.EMPTY);
+    processBufferedEventRange(
+        processingState,
+        state,
+        bufferedEventsState,
+        outputReceiver,
+        largeBatchEmissionTimer,
+        ContiguousSequenceRange.EMPTY);
   }
 
   @OnTimer(LARGE_BATCH_EMISSION_TIMER)
@@ -209,7 +241,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       OnTimerContext context,
       @StateId(BUFFERED_EVENTS) OrderedListState<EventTypeT> bufferedEventsState,
       @AlwaysFetched @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyTypeT>> processingStatusState,
+          ValueState<ProcessingState<EventKeyTypeT>> processingStatusState,
       @AlwaysFetched @StateId(MUTABLE_STATE) ValueState<StateTypeT> currentStateState,
       @TimerId(LARGE_BATCH_EMISSION_TIMER) Timer largeBatchEmissionTimer,
       MultiOutputReceiver outputReceiver) {
@@ -249,11 +281,10 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       MultiOutputReceiver outputReceiver,
       @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
       @StateId(WINDOW_CLOSED) ValueState<Boolean> windowClosedState,
-      @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
+      @StateId(PROCESSING_STATE) ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
 
-    processStatusTimerEvent(outputReceiver, statusEmissionTimer, windowClosedState,
-        processingStateState);
+    processStatusTimerEvent(
+        outputReceiver, statusEmissionTimer, windowClosedState, processingStateState);
   }
 
   @OnWindowExpiration

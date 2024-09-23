@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.ordered;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -31,8 +48,9 @@ import org.slf4j.LoggerFactory;
  * @param <EventT>
  */
 class PerKeyTickerGenerator<EventKeyT, EventT>
-    extends PTransform<PCollection<KV<EventKeyT, KV<Long, EventT>>>,
-    PCollection<KV<EventKeyT, KV<Long, EventT>>>> {
+    extends PTransform<
+        PCollection<KV<EventKeyT, KV<Long, EventT>>>,
+        PCollection<KV<EventKeyT, KV<Long, EventT>>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PerKeyTickerGenerator.class);
 
@@ -40,8 +58,8 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
   private final Coder<EventT> eventCoder;
   private final Duration tickerFrequency;
 
-  PerKeyTickerGenerator(Coder<EventKeyT> eventKeyCoder, Coder<EventT> eventCoder,
-      Duration tickerFrequency) {
+  PerKeyTickerGenerator(
+      Coder<EventKeyT> eventKeyCoder, Coder<EventT> eventCoder, Duration tickerFrequency) {
     this.eventKeyCoder = eventKeyCoder;
     this.eventCoder = eventCoder;
     this.tickerFrequency = tickerFrequency;
@@ -50,7 +68,9 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
   @Override
   public @UnknownKeyFor @NonNull @Initialized PCollection<KV<EventKeyT, KV<Long, EventT>>> expand(
       PCollection<KV<EventKeyT, KV<Long, EventT>>> input) {
-    return input.apply("Generate Tickers",
+    return input
+        .apply(
+            "Generate Tickers",
             ParDo.of(new PerKeyTickerGeneratorDoFn<>(eventKeyCoder, tickerFrequency)))
         .setCoder(
             KvCoder.of(eventKeyCoder, KvCoder.of(VarLongCoder.of(), NullableCoder.of(eventCoder))));
@@ -59,8 +79,8 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
   static class PerKeyTickerGeneratorDoFn<EventKeyT, EventT>
       extends DoFn<KV<EventKeyT, KV<Long, EventT>>, KV<EventKeyT, KV<Long, EventT>>> {
 
-    private final static String STATE = "state";
-    private final static String TIMER = "timer";
+    private static final String STATE = "state";
+    private static final String TIMER = "timer";
 
     @StateId(STATE)
     @SuppressWarnings("unused")
@@ -72,7 +92,6 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
 
     private final Duration tickerFrequency;
 
-
     PerKeyTickerGeneratorDoFn(Coder<EventKeyT> keyCoder, Duration tickerFrequency) {
       stateSpec = StateSpecs.value(keyCoder);
       this.tickerFrequency = tickerFrequency;
@@ -81,8 +100,7 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
     @ProcessElement
     public void process(
         @Element KV<EventKeyT, KV<Long, EventT>> element,
-        @AlwaysFetched
-        @StateId(STATE) ValueState<EventKeyT> state,
+        @AlwaysFetched @StateId(STATE) ValueState<EventKeyT> state,
         @TimerId(TIMER) Timer tickerTimer) {
       @Nullable EventKeyT keyValue = state.read();
       if (keyValue != null) {

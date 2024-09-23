@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.ordered;
 
 import java.util.ArrayList;
@@ -35,12 +52,12 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @org.junit.Test
   public void testPerfectOrderingProcessing() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(2, "id-1", "c"),
-        Event.create(3, "id-1", "d"),
-        Event.create(4, "id-2", "a"),
-        Event.create(5, "id-2", "b")
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", "c"),
+      Event.create(3, "id-1", "d"),
+      Event.create(4, "id-2", "a"),
+      Event.create(5, "id-2", "b")
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -63,15 +80,15 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testOutOfSequenceProcessing() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(2, "id-1", "c"),
-        Event.create(1, "id-1", "b"),
-        Event.create(0, "id-1", "a"),
-        Event.create(3, "id-1", "d"),
-        Event.create(5, "id-2", "b"),
-        Event.create(6, "id-2", "c"),
-        Event.create(8, "id-2", "e"),
-        Event.create(4, "id-2", "a"),
-        Event.create(7, "id-2", "d")
+      Event.create(2, "id-1", "c"),
+      Event.create(1, "id-1", "b"),
+      Event.create(0, "id-1", "a"),
+      Event.create(3, "id-1", "d"),
+      Event.create(5, "id-2", "b"),
+      Event.create(6, "id-2", "c"),
+      Event.create(8, "id-2", "e"),
+      Event.create(4, "id-2", "a"),
+      Event.create(7, "id-2", "d")
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -97,19 +114,18 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testHandlingOfDuplicateSequences() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(3, "id-1", "d"),
-        Event.create(2, "id-1", "c"),
+      Event.create(3, "id-1", "d"),
+      Event.create(2, "id-1", "c"),
 
-        // Duplicates
-        Event.create(3, "id-1", "d"),
-        Event.create(3, "id-1", "d"),
+      // Duplicates
+      Event.create(3, "id-1", "d"),
+      Event.create(3, "id-1", "d"),
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
 
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-
-        // Additional duplicates
-        Event.create(1, "id-1", "b"),
-        Event.create(3, "id-1", "d"),
+      // Additional duplicates
+      Event.create(1, "id-1", "b"),
+      Event.create(3, "id-1", "d"),
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -137,15 +153,14 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testTreatingSequencesBelowInitialAsDuplicates() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(3, "id-1", "d"),
-        Event.create(2, "id-1", "c"),
+      Event.create(3, "id-1", "d"),
+      Event.create(2, "id-1", "c"),
 
-        // Earlier events
-        Event.create(-1, "id-1", "early-1"),
-        Event.create(-2, "id-1", "early-2"),
-
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b")
+      // Earlier events
+      Event.create(-1, "id-1", "early-1"),
+      Event.create(-2, "id-1", "early-2"),
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b")
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -171,10 +186,10 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testHandlingOfCheckedExceptions() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(2, "id-1", StringBuilderState.BAD_VALUE),
-        Event.create(3, "id-1", "c"),
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", StringBuilderState.BAD_VALUE),
+      Event.create(3, "id-1", "c"),
     };
 
     // This is an interesting case - even though event #2 is not processed it doesn't affect
@@ -209,12 +224,12 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testProcessingWithEveryOtherResultEmission() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(2, "id-1", "c"),
-        Event.create(1, "id-1", "b"),
-        Event.create(0, "id-1", "a"),
-        Event.create(3, "id-1", "d"),
-        Event.create(4, "id-2", "a"),
-        Event.create(5, "id-2", "b"),
+      Event.create(2, "id-1", "c"),
+      Event.create(1, "id-1", "b"),
+      Event.create(0, "id-1", "a"),
+      Event.create(3, "id-1", "d"),
+      Event.create(4, "id-2", "a"),
+      Event.create(5, "id-2", "b"),
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -256,7 +271,6 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
       events.add(Event.create(sequence, key, outputPerElement));
       output.append(outputPerElement);
       expectedOutput.add(KV.of(key, output.toString()));
-
     }
 
     testGlobalSequenceProcessing(
@@ -272,7 +286,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   public void testSequenceGapProcessingInBufferedOutput() throws CannotProvideCoderException {
     int maxResultsPerOutput = 3;
 
-    long[] sequences = new long[]{2, 3, 7, 8, 9, 10, 1, 4, 5, 6};
+    long[] sequences = new long[] {2, 3, 7, 8, 9, 10, 1, 4, 5, 6};
 
     List<Event> events = new ArrayList<>(sequences.length);
     List<KV<String, String>> expectedOutput = new ArrayList<>(sequences.length);
@@ -284,11 +298,13 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
     }
 
     StringBuilder output = new StringBuilder();
-    Arrays.stream(sequences).sorted().forEach(sequence -> {
-          output.append(sequence + "-");
-          expectedOutput.add(KV.of(key, output.toString()));
-        }
-    );
+    Arrays.stream(sequences)
+        .sorted()
+        .forEach(
+            sequence -> {
+              output.append(sequence + "-");
+              expectedOutput.add(KV.of(key, output.toString()));
+            });
 
     testGlobalSequenceProcessing(
         events.toArray(new Event[events.size()]),
@@ -302,10 +318,10 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testHandlingOfMaxSequenceNumber() throws CannotProvideCoderException {
     Event[] events = {
-        Event.create(1, "id-1", "b"),
-        Event.create(0, "id-1", "a"),
-        Event.create(Long.MAX_VALUE, "id-1", "d"),
-        Event.create(2, "id-1", "c")
+      Event.create(1, "id-1", "b"),
+      Event.create(0, "id-1", "a"),
+      Event.create(Long.MAX_VALUE, "id-1", "d"),
+      Event.create(2, "id-1", "c")
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -336,9 +352,9 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   public void testProcessingOfTheLastInput() throws CannotProvideCoderException {
     // TODO: fix the test. Need to see that the resulting status reflects the last input
     Event[] events = {
-        Event.create(0, "id-1", "a"),
-        Event.create(1, "id-1", "b"),
-        Event.create(2, "id-1", StringEventExaminer.LAST_INPUT)
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", StringEventExaminer.LAST_INPUT)
     };
 
     Collection<KV<String, String>> expectedOutput = new ArrayList<>();
@@ -355,7 +371,6 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         ContiguousSequenceRange.of(0, 2, new Instant()));
   }
 
-
   private void testGlobalSequenceProcessing(
       Event[] events,
       Collection<KV<String, String>> expectedOutput,
@@ -370,7 +385,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         NO_EXPECTED_DLQ_EVENTS,
         emissionFrequency,
         initialSequence,
-        maxResultsPerOutput, expectedLastCompleteRange);
+        maxResultsPerOutput,
+        expectedLastCompleteRange);
   }
 
   private void testGlobalSequenceProcessing(
@@ -394,7 +410,8 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
           maxResultsPerOutput,
           false /* produceStatusOnEveryEvent */,
           STREAMING,
-          GLOBAL_SEQUENCE, expectedLastCompleteRange);
+          GLOBAL_SEQUENCE,
+          expectedLastCompleteRange);
     }
 
     // Test a batch pipeline
@@ -418,7 +435,6 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
               + "Run the tests using Dataflow runner to validate.");
     }
   }
-
 
   @Test
   public void testWindowedProcessing() throws CannotProvideCoderException {
@@ -487,21 +503,24 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         .containsInAnyOrder(KV.of("id-1", "c"), KV.of("id-1", "cd"));
 
     // TODO: can we make the status assertions work?
-//    PAssert.that("Statuses match in window 1", processingResult.processingStatuses())
-//        .inWindow(window1)
-//        .containsInAnyOrder(
-////            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
-//            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
-////            KV.of("id-2", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
-////            KV.of("id-2", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
-//            KV.of("id-2", OrderedProcessingStatus.create(2L, 0, null, null, 3, 3, 0, false))
-//        );
+    //    PAssert.that("Statuses match in window 1", processingResult.processingStatuses())
+    //        .inWindow(window1)
+    //        .containsInAnyOrder(
+    ////            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0,
+    // false)),
+    //            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
+    ////            KV.of("id-2", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0,
+    // false)),
+    ////            KV.of("id-2", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0,
+    // false)),
+    //            KV.of("id-2", OrderedProcessingStatus.create(2L, 0, null, null, 3, 3, 0, false))
+    //        );
 
-//    PAssert.that("Statuses match in window 2", processingResult.processingStatuses())
-//        .inWindow(window2)
-//        .containsInAnyOrder(
-//            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
-//            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)));
+    //    PAssert.that("Statuses match in window 2", processingResult.processingStatuses())
+    //        .inWindow(window2)
+    //        .containsInAnyOrder(
+    //            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
+    //            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)));
 
     PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
         .containsInAnyOrder(NO_EXPECTED_DLQ_EVENTS);

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.ordered;
 
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -28,8 +45,8 @@ import org.slf4j.LoggerFactory;
  * @param <ResultT>
  * @param <StateT>
  */
-class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
-    StateT extends MutableState<EventT, ResultT>>
+class GlobalSequencesProcessorDoFn<
+        EventT, EventKeyT, ResultT, StateT extends MutableState<EventT, ResultT>>
     extends ProcessorDoFn<EventT, EventKeyT, ResultT, StateT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlobalSequencesProcessorDoFn.class);
@@ -41,6 +58,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   private final TimerSpec batchTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
   private static final String BUFFERED_EVENTS = "bufferedEvents";
+
   @StateId(BUFFERED_EVENTS)
   @SuppressWarnings("unused")
   private final StateSpec<OrderedListState<EventT>> bufferedEventsSpec;
@@ -63,19 +81,25 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
   private final PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput;
 
-  GlobalSequencesProcessorDoFn(EventExaminer<EventT, StateT> eventExaminer,
+  GlobalSequencesProcessorDoFn(
+      EventExaminer<EventT, StateT> eventExaminer,
       Coder<EventT> eventCoder,
       Coder<StateT> stateCoder,
       Coder<EventKeyT> keyCoder,
       TupleTag<KV<EventKeyT, ResultT>> mainOutputTupleTag,
       TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusTupleTag,
       Duration statusUpdateFrequency,
-      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>
-          unprocessedEventTupleTag,
-      boolean produceStatusUpdateOnEveryEvent, long maxNumberOfResultsToProduce,
+      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
+      boolean produceStatusUpdateOnEveryEvent,
+      long maxNumberOfResultsToProduce,
       PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput) {
-    super(eventExaminer, mainOutputTupleTag, statusTupleTag,
-        statusUpdateFrequency, unprocessedEventTupleTag, produceStatusUpdateOnEveryEvent,
+    super(
+        eventExaminer,
+        mainOutputTupleTag,
+        statusTupleTag,
+        statusUpdateFrequency,
+        unprocessedEventTupleTag,
+        produceStatusUpdateOnEveryEvent,
         maxNumberOfResultsToProduce);
 
     this.latestContiguousRangeSideInput = latestContiguousRangeSideInput;
@@ -96,19 +120,19 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   }
 
   @ProcessElement
-  public void processElement(ProcessContext context,
+  public void processElement(
+      ProcessContext context,
       @Element KV<EventKeyT, KV<Long, EventT>> eventAndSequence,
       @StateId(BUFFERED_EVENTS) OrderedListState<EventT> bufferedEventsProxy,
       @AlwaysFetched @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyT>> processingStateProxy,
+          ValueState<ProcessingState<EventKeyT>> processingStateProxy,
       @StateId(MUTABLE_STATE) ValueState<StateT> mutableStateProxy,
       @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
       @TimerId(BATCH_EMISSION_TIMER) Timer batchEmissionTimer,
       MultiOutputReceiver outputReceiver,
       BoundedWindow window) {
 
-    ContiguousSequenceRange lastContiguousRange = context.sideInput(
-        latestContiguousRangeSideInput);
+    ContiguousSequenceRange lastContiguousRange = context.sideInput(latestContiguousRangeSideInput);
 
     EventT event = eventAndSequence.getValue().getValue();
     EventKeyT key = eventAndSequence.getKey();
@@ -132,7 +156,8 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     processingState.updateGlobalSequenceDetails(lastContiguousRange);
 
     if (event == null) {
-      // This is a ticker event. We only need to update the state as it relates to the global sequence.
+      // This is a ticker event. We only need to update the state as it relates to the global
+      // sequence.
       processingStateProxy.write(processingState);
 
       setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
@@ -167,11 +192,11 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
   }
 
-  private void setBatchEmissionTimerIfNeeded(Timer batchEmissionTimer,
-      ProcessingState<EventKeyT> processingState) {
+  private void setBatchEmissionTimerIfNeeded(
+      Timer batchEmissionTimer, ProcessingState<EventKeyT> processingState) {
     ContiguousSequenceRange lastCompleteGlobalSequence = processingState.getLastContiguousRange();
-    if (lastCompleteGlobalSequence != null &&
-        processingState.thereAreGloballySequencedEventsToBeProcessed()) {
+    if (lastCompleteGlobalSequence != null
+        && processingState.thereAreGloballySequencedEventsToBeProcessed()) {
       batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
     }
   }
@@ -181,12 +206,13 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       OnTimerContext context,
       @StateId(BUFFERED_EVENTS) OrderedListState<EventT> bufferedEventsState,
       @AlwaysFetched @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyT>> processingStatusState,
+          ValueState<ProcessingState<EventKeyT>> processingStatusState,
       @AlwaysFetched @StateId(MUTABLE_STATE) ValueState<StateT> mutableStateState,
       @TimerId(BATCH_EMISSION_TIMER) Timer batchEmissionTimer,
       MultiOutputReceiver outputReceiver) {
 
-    // At this point everything in the buffered state is ready to be processed up to the latest global sequence.
+    // At this point everything in the buffered state is ready to be processed up to the latest
+    // global sequence.
     @Nullable ProcessingState<EventKeyT> processingState = processingStatusState.read();
     if (processingState == null) {
       LOG.warn("Missing the processing state. Probably occurred during pipeline drainage");
@@ -213,8 +239,14 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
 
-    state = processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
-        batchEmissionTimer, lastContiguousRange);
+    state =
+        processBufferedEventRange(
+            processingState,
+            state,
+            bufferedEventsState,
+            outputReceiver,
+            batchEmissionTimer,
+            lastContiguousRange);
 
     saveStates(
         processingStatusState,
@@ -232,10 +264,9 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       MultiOutputReceiver outputReceiver,
       @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
       @StateId(WINDOW_CLOSED) ValueState<Boolean> windowClosedState,
-      @StateId(PROCESSING_STATE)
-      ValueState<ProcessingState<EventKeyT>> processingStateState) {
+      @StateId(PROCESSING_STATE) ValueState<ProcessingState<EventKeyT>> processingStateState) {
 
-    processStatusTimerEvent(outputReceiver, statusEmissionTimer, windowClosedState,
-        processingStateState);
+    processStatusTimerEvent(
+        outputReceiver, statusEmissionTimer, windowClosedState, processingStateState);
   }
 }
