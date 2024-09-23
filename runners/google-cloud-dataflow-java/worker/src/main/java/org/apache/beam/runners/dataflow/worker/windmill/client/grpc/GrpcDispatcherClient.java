@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 /** Manages endpoints and stubs for connecting to the Windmill Dispatcher. */
 @ThreadSafe
 public class GrpcDispatcherClient {
+
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDispatcherClient.class);
   private final WindmillStubFactory windmillStubFactory;
   private final CountDownLatch onInitializedEndpoints;
@@ -144,6 +146,14 @@ public class GrpcDispatcherClient {
    */
   public boolean hasInitializedEndpoints() {
     return dispatcherStubs.get().hasInitializedEndpoints();
+  }
+
+  public void onJobConfig(StreamingGlobalConfig config) {
+    if (config.windmillServiceEndpoints().isEmpty()) {
+      LOG.warn("Dispatcher client received empty windmill service endpoints from global config");
+      return;
+    }
+    consumeWindmillDispatcherEndpoints(config.windmillServiceEndpoints());
   }
 
   public synchronized void consumeWindmillDispatcherEndpoints(

@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
 
 class RecordWriter {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
-  private final Counter activeWriters = Metrics.counter(RecordWriterManager.class, "activeWriters");
+  private final Counter activeIcebergWriters =
+      Metrics.counter(RecordWriterManager.class, "activeIcebergWriters");
   private final DataWriter<Record> icebergDataWriter;
   private final Table table;
   private final String absoluteFilename;
@@ -92,7 +93,7 @@ class RecordWriter {
       default:
         throw new RuntimeException("Unknown File Format: " + fileFormat);
     }
-    activeWriters.inc();
+    activeIcebergWriters.inc();
     LOG.info(
         "Opened {} writer for table {}, partition {}. Writing to path: {}",
         fileFormat,
@@ -115,7 +116,7 @@ class RecordWriter {
               fileFormat, table.name(), absoluteFilename),
           e);
     }
-    activeWriters.dec();
+    activeIcebergWriters.dec();
     LOG.info("Closed {} writer for table {}, path: {}", fileFormat, table.name(), absoluteFilename);
   }
 

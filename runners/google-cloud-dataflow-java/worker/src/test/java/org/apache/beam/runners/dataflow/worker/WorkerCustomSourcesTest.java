@@ -90,6 +90,9 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -594,6 +597,8 @@ public class WorkerCustomSourcesTest {
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
     ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
+    StreamingGlobalConfigHandle globalConfigHandle =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
@@ -610,7 +615,9 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -634,7 +641,6 @@ public class WorkerCustomSourcesTest {
               Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
-          OperationalLimits.builder().build(),
           Windmill.WorkItemCommitRequest.newBuilder());
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -959,6 +965,8 @@ public class WorkerCustomSourcesTest {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
+    StreamingGlobalConfigHandle globalConfigHandle =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
@@ -978,7 +986,9 @@ public class WorkerCustomSourcesTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 100;
@@ -1010,7 +1020,6 @@ public class WorkerCustomSourcesTest {
         dummyWork,
         mock(WindmillStateReader.class),
         mock(SideInputStateFetcher.class),
-        OperationalLimits.builder().build(),
         Windmill.WorkItemCommitRequest.newBuilder());
 
     @SuppressWarnings({"unchecked", "rawtypes"})

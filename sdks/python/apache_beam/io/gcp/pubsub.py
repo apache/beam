@@ -43,8 +43,11 @@ from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
+from apache_beam.metrics.metric import Lineage
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
@@ -257,7 +260,16 @@ class ReadFromPubSub(PTransform):
   def expand(self, pvalue):
     # TODO(BEAM-27443): Apply a proper transform rather than Read.
     pcoll = pvalue.pipeline | Read(self._source)
+    # explicit element_type required after native read, otherwise coder error
     pcoll.element_type = bytes
+    return self.expand_continued(pcoll)
+
+  def expand_continued(self, pcoll):
+    pcoll = pcoll | ParDo(
+        _AddMetricsPassThrough(
+            project=self._source.project,
+            topic=self._source.topic_name,
+            sub=self._source.subscription_name)).with_output_types(bytes)
     if self.with_attributes:
       pcoll = pcoll | Map(PubsubMessage._from_proto_str)
       pcoll.element_type = PubsubMessage
@@ -267,6 +279,31 @@ class ReadFromPubSub(PTransform):
     # Required as this is identified by type in PTransformOverrides.
     # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
+
+
+class _AddMetricsPassThrough(DoFn):
+  def __init__(self, project, topic=None, sub=None):
+    self.project = project
+    self.topic = topic
+    self.sub = sub
+    self.reported_lineage = False
+
+  def setup(self):
+    self.reported_lineage = False
+
+  def process(self, element: bytes):
+    self.report_lineage_once()
+    yield element
+
+  def report_lineage_once(self):
+    if not self.reported_lineage:
+      self.reported_lineage = True
+      if self.topic is not None:
+        Lineage.sources().add(
+            'pubsub', self.project, self.topic, subtype='topic')
+      elif self.sub is not None:
+        Lineage.sources().add(
+            'pubsub', self.project, self.sub, subtype='subscription')
 
 
 @deprecated(since='2.7.0', extra_message='Use ReadFromPubSub instead.')
@@ -312,6 +349,26 @@ class _WriteStringsToPubSub(PTransform):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
     pcoll.element_type = bytes
     return pcoll | WriteToPubSub(self.topic)
+
+
+class _AddMetricsAndMap(DoFn):
+  def __init__(self, fn, project, topic=None):
+    self.project = project
+    self.topic = topic
+    self.fn = fn
+    self.reported_lineage = False
+
+  def setup(self):
+    self.reported_lineage = False
+
+  def process(self, element):
+    self.report_lineage_once()
+    yield self.fn(element)
+
+  def report_lineage_once(self):
+    if not self.reported_lineage:
+      self.reported_lineage = True
+      Lineage.sinks().add('pubsub', self.project, self.topic, subtype='topic')
 
 
 class WriteToPubSub(PTransform):
@@ -364,9 +421,15 @@ class WriteToPubSub(PTransform):
 
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobufX' >> Map(self.message_to_proto_str)
+      pcoll = pcoll | 'ToProtobufX' >> ParDo(
+          _AddMetricsAndMap(
+              self.message_to_proto_str, self.project,
+              self.topic_name)).with_input_types(PubsubMessage)
     else:
-      pcoll = pcoll | 'ToProtobufY' >> Map(self.bytes_to_proto_str)
+      pcoll = pcoll | 'ToProtobufY' >> ParDo(
+          _AddMetricsAndMap(
+              self.bytes_to_proto_str, self.project,
+              self.topic_name)).with_input_types(Union[bytes, str])
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.OUTPUT_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -88,8 +89,8 @@ public class IcebergWriteSchemaTransformProviderTest {
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    SchemaTransformConfiguration config =
-        SchemaTransformConfiguration.builder()
+    Configuration config =
+        Configuration.builder()
             .setTable(identifier)
             .setCatalogName("name")
             .setCatalogProperties(properties)
