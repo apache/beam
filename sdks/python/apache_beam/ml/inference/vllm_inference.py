@@ -149,9 +149,10 @@ class _VLLMModelServer():
 class VLLMCompletionsModelHandler(ModelHandler[str,
                                                PredictionResult,
                                                _VLLMModelServer]):
-  def __init__(self,
-               model_name: str,
-               vllm_server_kwargs: Optional[Dict[str, str]] = None):
+  def __init__(
+      self,
+      model_name: str,
+      vllm_server_kwargs: Optional[Dict[str, str]] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -180,7 +181,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
 
   def run_inference(
       self,
-      batch: str,
+      batch: Sequence[str],
       model: _VLLMModelServer,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
@@ -197,20 +198,16 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     client = getVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
     predictions = []
-    completion = client.completions.create(
-        model=self._model_name, prompt=batch, **inference_args)
-    predictions.append(completion)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-  def share_model_across_processes(self) -> bool:
-    return True
-
-  def should_skip_batching(self) -> bool:
-    # Batching does not help since vllm is already doing dynamic batching and
-    # each request is sent one by one anyways
     # TODO(https://github.com/apache/beam/issues/32528): We should add support
     # for taking in batches and doing a bunch of async calls. That will end up
     # being more efficient when we can do in bundle batching.
+    for prompt in batch:
+      completion = client.completions.create(
+          model=self._model_name, prompt=prompt, **inference_args)
+      predictions.append(completion)
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+  def share_model_across_processes(self) -> bool:
     return True
 
 
@@ -267,7 +264,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
 
   def run_inference(
       self,
-      batch: Sequence[OpenAIChatMessage],
+      batch: Sequence[Sequence[OpenAIChatMessage]],
       model: _VLLMModelServer,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
@@ -284,21 +281,17 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     client = getVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
     predictions = []
-    formatted = []
-    for message in batch:
-      formatted.append({"role": message.role, "content": message.content})
-    completion = client.chat.completions.create(
-        model=self._model_name, messages=formatted, **inference_args)
-    predictions.append(completion)
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-  def share_model_across_processes(self) -> bool:
-    return True
-
-  def should_skip_batching(self) -> bool:
-    # Batching does not help since vllm is already doing dynamic batching and
-    # each request is sent one by one anyways
     # TODO(https://github.com/apache/beam/issues/32528): We should add support
     # for taking in batches and doing a bunch of async calls. That will end up
     # being more efficient when we can do in bundle batching.
+    for messages in batch:
+      formatted = []
+      for message in messages:
+        formatted.append({"role": message.role, "content": message.content})
+      completion = client.chat.completions.create(
+          model=self._model_name, messages=formatted, **inference_args)
+      predictions.append(completion)
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
+  def share_model_across_processes(self) -> bool:
     return True
