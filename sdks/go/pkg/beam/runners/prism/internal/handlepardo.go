@@ -78,11 +78,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 
 	// Lets check for and remove anything that makes things less simple.
-	if pdo.OnWindowExpirationTimerFamilySpec == "" &&
-		!pdo.RequestsFinalization &&
-		!pdo.RequiresStableInput &&
-		!pdo.RequiresTimeSortedInput &&
-		pdo.RestrictionCoderId == "" {
+	if pdo.RestrictionCoderId == "" {
 		// Which inputs are Side inputs don't change the graph further,
 		// so they're not included here. Any nearly any ParDo can have them.
 

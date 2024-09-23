@@ -41,6 +41,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:java-fn-execution")
   implementation project(path: ":sdks:java:harness")
+  runtimeOnly library.java.jamm
   implementation library.java.snake_yaml
   permitUnusedDeclared project(path: ":model:fn-execution")
   implementation library.java.vendored_grpc_1_60_1
