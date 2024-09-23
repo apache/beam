@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.FlowReceiver;
@@ -28,43 +29,33 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
+import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
-/**
- * A class that manages a connection to a Solace broker using basic authentication.
- *
- * <p>This class provides a way to connect to a Solace broker and receive messages from a queue. The
- * connection is established using basic authentication.
- */
-public class BasicAuthJcsmpSessionService extends SessionService {
-  private final String queueName;
-  private final String host;
-  private final String username;
-  private final String password;
-  private final String vpnName;
+@AutoValue
+public abstract class JcsmpSessionService extends SessionService {
+  abstract JCSMPProperties jcsmpProperties();
+
+  /** The name of the queue to receive messages from. */
+  abstract @Nullable Queue queue();
+
   @Nullable private JCSMPSession jcsmpSession;
   @Nullable private MessageReceiver messageReceiver;
+  @Nullable private MessageProducer messageProducer;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
-  /**
-   * Creates a new {@link BasicAuthJcsmpSessionService} with the given parameters.
-   *
-   * @param queueName The name of the queue to receive messages from.
-   * @param host The host name or IP address of the Solace broker. Format: Host[:Port]
-   * @param username The username to use for authentication.
-   * @param password The password to use for authentication.
-   * @param vpnName The name of the VPN to connect to.
-   */
-  public BasicAuthJcsmpSessionService(
-      String queueName, String host, String username, String password, String vpnName) {
-    this.queueName = queueName;
-    this.host = host;
-    this.username = username;
-    this.password = password;
-    this.vpnName = vpnName;
+  public static JcsmpSessionService create(JCSMPProperties jcsmpProperties, @Nullable Queue queue) {
+    return new AutoValue_JcsmpSessionService(jcsmpProperties, queue);
+  }
+
+  @Override
+  public JCSMPProperties getSessionProperties(JCSMPProperties baseProps) {
+    return jcsmpProperties();
   }
 
   @Override
@@ -79,6 +70,9 @@ public class BasicAuthJcsmpSessionService extends SessionService {
           if (messageReceiver != null) {
             messageReceiver.close();
           }
+          if (messageProducer != null) {
+            messageProducer.close();
+          }
           if (!isClosed()) {
             checkStateNotNull(jcsmpSession).closeSession();
           }
@@ -88,11 +82,23 @@ public class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public MessageReceiver createReceiver() {
-    this.messageReceiver =
-        retryCallableManager.retryCallable(
-            this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+  public MessageReceiver getReceiver() {
+    if (this.messageReceiver == null) {
+      this.messageReceiver =
+          retryCallableManager.retryCallable(
+              this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+    }
     return this.messageReceiver;
+  }
+
+  @Override
+  public MessageProducer getProducer() {
+    if (this.messageProducer == null || this.messageProducer.isClosed()) {
+      this.messageProducer =
+          retryCallableManager.retryCallable(
+              this::createXMLMessageProducer, ImmutableSet.of(JCSMPException.class));
+    }
+    return checkStateNotNull(this.messageProducer);
   }
 
   @Override
@@ -100,12 +106,30 @@ public class BasicAuthJcsmpSessionService extends SessionService {
     return jcsmpSession == null || jcsmpSession.isClosed();
   }
 
-  private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
+  private MessageProducer createXMLMessageProducer() throws JCSMPException, IOException {
     if (isClosed()) {
       connectSession();
     }
 
-    Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
+    @SuppressWarnings("nullness")
+    Callable<XMLMessageProducer> initProducer =
+        () -> Objects.requireNonNull(jcsmpSession).getMessageProducer(new PublishResultHandler());
+
+    XMLMessageProducer producer =
+        retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));
+    if (producer == null) {
+      throw new IOException("SolaceIO.Write: Could not create producer, producer object is null");
+    }
+    return new SolaceMessageProducer(producer);
+  }
+
+  private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
+    if (isClosed()) {
+      connectSession();
+    }
+    Queue queueNotNull = checkStateNotNull(queue(), "SolaceIO.Read: Queue is not set.");
+
+    Queue queue = JCSMPFactory.onlyInstance().createQueue(queueNotNull.getName());
 
     ConsumerFlowProperties flowProperties = new ConsumerFlowProperties();
     flowProperties.setEndpoint(queue);
@@ -142,19 +166,6 @@ public class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   private JCSMPSession createSessionObject() throws InvalidPropertiesException {
-    JCSMPProperties properties = initializeSessionProperties(new JCSMPProperties());
-    return JCSMPFactory.onlyInstance().createSession(properties);
-  }
-
-  @Override
-  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProps) {
-    baseProps.setProperty(JCSMPProperties.VPN_NAME, vpnName);
-
-    baseProps.setProperty(
-        JCSMPProperties.AUTHENTICATION_SCHEME, JCSMPProperties.AUTHENTICATION_SCHEME_BASIC);
-    baseProps.setProperty(JCSMPProperties.USERNAME, username);
-    baseProps.setProperty(JCSMPProperties.PASSWORD, password);
-    baseProps.setProperty(JCSMPProperties.HOST, host);
-    return baseProps;
+    return JCSMPFactory.onlyInstance().createSession(jcsmpProperties());
   }
 }
