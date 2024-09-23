@@ -11,7 +11,7 @@ import org.junit.Test;
 
 public class SequenceRangeAccumulatorCoderTest {
 
-  private SequenceRangeAccumulatorCoder coder = new SequenceRangeAccumulatorCoder();
+  private SequenceRangeAccumulatorCoder coder = SequenceRangeAccumulatorCoder.of();
 
   @Test
   public void testEncodingEmptyAccumulator() throws IOException {

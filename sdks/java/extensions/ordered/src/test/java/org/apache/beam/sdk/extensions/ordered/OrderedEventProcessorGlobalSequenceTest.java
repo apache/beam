@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.ordered.StringBufferOrderedProcessingHandler.StringBufferOrderedProcessingWithGlobalSequenceHandler;
@@ -24,6 +26,11 @@ import org.junit.Test;
 public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcessorTestBase {
 
   public static final boolean GLOBAL_SEQUENCE = true;
+
+  static {
+    Logger logger = Logger.getLogger(GlobalSequencesProcessorDoFn.class.getName());
+    logger.setLevel(Level.FINEST);
+  }
 
   @org.junit.Test
   public void testPerfectOrderingProcessing() throws CannotProvideCoderException {
@@ -50,7 +57,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0,5, new Instant()));
+        ContiguousSequenceRange.of(0, 5, new Instant()));
   }
 
   @Test
@@ -84,7 +91,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0,8, new Instant()));
+        ContiguousSequenceRange.of(0, 8, new Instant()));
   }
 
   @Test
@@ -124,7 +131,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0,3, new Instant()));
+        ContiguousSequenceRange.of(0, 3, new Instant()));
   }
 
   @Test
@@ -158,7 +165,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0,3, new Instant()));
+        ContiguousSequenceRange.of(0, 3, new Instant()));
   }
 
   @Test
@@ -196,7 +203,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         // Sequence matcher doesn't know if the element is valid or not.
         // That's why the elements that are get rejected in the processor still count  when
         // calculating the global sequence
-        CompletedSequenceRange.of(0,3, new Instant()));
+        ContiguousSequenceRange.of(0, 3, new Instant()));
   }
 
   @Test
@@ -223,7 +230,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_OTHER_EVENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0,5, new Instant()));
+        ContiguousSequenceRange.of(0, 5, new Instant()));
   }
 
   @Test
@@ -258,7 +265,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
         maxResultsPerOutput,
-        CompletedSequenceRange.of(1, sequences.length, new Instant()));
+        ContiguousSequenceRange.of(1, sequences.length, new Instant()));
   }
 
   @Test
@@ -289,7 +296,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
         maxResultsPerOutput,
-        CompletedSequenceRange.of(1,10, new Instant()));
+        ContiguousSequenceRange.of(1, 10, new Instant()));
   }
 
   @Test
@@ -322,7 +329,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0, 2, Instant.now()));
+        ContiguousSequenceRange.of(0, 2, Instant.now()));
   }
 
   @Test
@@ -345,7 +352,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        CompletedSequenceRange.of(0,2, new Instant()));
+        ContiguousSequenceRange.of(0, 2, new Instant()));
   }
 
 
@@ -355,7 +362,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
       int emissionFrequency,
       long initialSequence,
       int maxResultsPerOutput,
-      CompletedSequenceRange expectedLastCompleteRange)
+      ContiguousSequenceRange expectedLastCompleteRange)
       throws CannotProvideCoderException {
     testGlobalSequenceProcessing(
         events,
@@ -373,38 +380,43 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
       int emissionFrequency,
       long initialSequence,
       int maxResultsPerOutput,
-      CompletedSequenceRange expectedLastCompleteRange)
+      ContiguousSequenceRange expectedLastCompleteRange)
       throws CannotProvideCoderException {
     // Test a streaming pipeline
-    doTest(
-        events,
-        null /* expectedStatuses */,
-        expectedOutput,
-        expectedUnprocessedEvents,
-        emissionFrequency,
-        initialSequence,
-        maxResultsPerOutput,
-        false /* produceStatusOnEveryEvent */,
-        STREAMING,
-        GLOBAL_SEQUENCE, expectedLastCompleteRange);
-
-    if (true) {
-      // TODO: Test batch processing
-      return;
+    if (false) {
+      doTest(
+          events,
+          null /* expectedStatuses */,
+          expectedOutput,
+          expectedUnprocessedEvents,
+          emissionFrequency,
+          initialSequence,
+          maxResultsPerOutput,
+          false /* produceStatusOnEveryEvent */,
+          STREAMING,
+          GLOBAL_SEQUENCE, expectedLastCompleteRange);
     }
+
     // Test a batch pipeline
-    doTest(
-        events,
-        null /* expectedStatuses */,
-        expectedOutput,
-        expectedUnprocessedEvents,
-        emissionFrequency,
-        initialSequence,
-        maxResultsPerOutput,
-        false /* produceStatusOnEveryEvent */,
-        BATCH,
-        GLOBAL_SEQUENCE,
-        expectedLastCompleteRange);
+    if (runTestsOnDataflowRunner()) {
+      doTest(
+          events,
+          null /* expectedStatuses */,
+          expectedOutput,
+          expectedUnprocessedEvents,
+          emissionFrequency,
+          initialSequence,
+          maxResultsPerOutput,
+          false /* produceStatusOnEveryEvent */,
+          BATCH,
+          GLOBAL_SEQUENCE,
+          expectedLastCompleteRange);
+    } else {
+      System.err.println(
+          "Warning - batch tests didn't run. "
+              + "DirectRunner doesn't work correctly with this transform in batch mode."
+              + "Run the tests using Dataflow runner to validate.");
+    }
   }
 
 

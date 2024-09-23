@@ -236,12 +236,16 @@ public abstract class OrderedProcessingHandler<
       super(eventTClass, keyTClass, stateTClass, resultTClass);
     }
 
-    public GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, CompletedSequenceRange> getGlobalSequenceCombiner() {
+    public GloballyAsSingletonView<TimestampedValue<KV<KeyT, KV<Long, EventT>>>, ContiguousSequenceRange> getGlobalSequenceCombiner() {
       return Combine.globally(
           new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer())).asSingletonView();
     }
 
     public Duration getFrequencyOfCheckingForNewGlobalSequence() {
+      return Duration.standardSeconds(1);
+    }
+
+    public Duration getGlobalSequenceGenerationFrequency() {
       return Duration.standardSeconds(1);
     }
   }

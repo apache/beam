@@ -13,18 +13,19 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.ordered.CompletedSequenceRange;
+import org.apache.beam.sdk.extensions.ordered.ContiguousSequenceRange;
 import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Default accumulator used to combine sequence ranges.
+ */
 public class SequenceRangeAccumulator {
 
-  static Instant max(Instant a, Instant b) {
+  private static Instant max(Instant a, Instant b) {
     return a.isAfter(b) ? a : b;
   }
 
@@ -91,9 +92,9 @@ public class SequenceRangeAccumulator {
     data.subMap(Long.MIN_VALUE, sequence).clear();
   }
 
-  public CompletedSequenceRange largestContinuousRange() {
+  public ContiguousSequenceRange largestContinuousRange() {
     if (initialSequence == null) {
-      return CompletedSequenceRange.EMPTY;
+      return ContiguousSequenceRange.EMPTY;
     }
 
     Entry<Long, Pair<Long, Instant>> firstEntry = data.firstEntry();
@@ -103,7 +104,7 @@ public class SequenceRangeAccumulator {
     Long start = firstEntry.getKey();
     Long end = firstEntry.getValue().getLeft();
     Instant latestTimestamp = firstEntry.getValue().getRight();
-    return CompletedSequenceRange.of(start, end, latestTimestamp);
+    return ContiguousSequenceRange.of(start, end, latestTimestamp);
   }
 
   public int numberOfRanges() {
@@ -113,7 +114,7 @@ public class SequenceRangeAccumulator {
 
   public void merge(SequenceRangeAccumulator another) {
     if (this.initialSequence != null && another.initialSequence != null
-        && ! this.initialSequence.equals(another.initialSequence)) {
+        && !this.initialSequence.equals(another.initialSequence)) {
       throw new IllegalStateException("Two accumulators contain different initial sequences: "
           + this.initialSequence + " and " + another.initialSequence);
     }
@@ -205,6 +206,15 @@ public class SequenceRangeAccumulator {
   }
 
   public static class SequenceRangeAccumulatorCoder extends CustomCoder<SequenceRangeAccumulator> {
+
+    private static final SequenceRangeAccumulatorCoder INSTANCE = new SequenceRangeAccumulatorCoder();
+
+    public static SequenceRangeAccumulatorCoder of() {
+      return INSTANCE;
+    }
+
+    private SequenceRangeAccumulatorCoder() {
+    }
 
     private final NullableCoder<Long> initialSequenceCoder = NullableCoder.of(VarLongCoder.of());
     private final VarIntCoder numberOfRangesCoder = VarIntCoder.of();

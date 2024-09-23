@@ -286,7 +286,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
   StateT processBufferedEventRange(ProcessingState<EventKeyT> processingState,
       @Nullable StateT state,
       OrderedListState<EventT> bufferedEventsState, MultiOutputReceiver outputReceiver,
-      Timer largeBatchEmissionTimer, CompletedSequenceRange completedSequenceRange) {
+      Timer largeBatchEmissionTimer, ContiguousSequenceRange contiguousSequenceRange) {
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
     Long latestBufferedSequence = processingState.getLatestBufferedSequence();
     if (earliestBufferedSequence == null || latestBufferedSequence == null) {
@@ -310,7 +310,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
       EventT bufferedEvent = timestampedEvent.getValue();
       boolean skipProcessing = false;
 
-      if (completedSequenceRange != null && eventSequence < completedSequenceRange.getStart()) {
+      if (contiguousSequenceRange != null && eventSequence < contiguousSequenceRange.getStart()) {
         // In case of global sequence processing - remove the elements below the range start
         skipProcessing = true;
         endClearRange = fromLong(eventSequence);
@@ -341,7 +341,7 @@ abstract class ProcessorDoFn<EventT, EventKeyT, ResultT,
           lastOutputSequence != null && eventSequence == lastOutputSequence + 1;
       boolean continueProcessing = checkForSequenceGapInBufferedEvents() ?
           currentEventIsNextInSequence :
-          (eventSequence <= completedSequenceRange.getEnd() || currentEventIsNextInSequence);
+          (eventSequence <= contiguousSequenceRange.getEnd() || currentEventIsNextInSequence);
       if (!continueProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element

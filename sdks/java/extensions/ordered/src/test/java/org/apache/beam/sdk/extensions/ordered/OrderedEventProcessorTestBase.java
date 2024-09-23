@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -78,6 +81,18 @@ public class OrderedEventProcessorTestBase {
   public final transient TestPipeline streamingPipeline = TestPipeline.create();
   @Rule
   public final transient TestPipeline batchPipeline = TestPipeline.create();
+
+  protected boolean runTestsOnDataflowRunner() {
+    return Boolean.getBoolean("run-tests-on-dataflow");
+  }
+
+  protected String getSystemProperty(String name) {
+    String property = System.getProperty(name);
+    if(property == null) {
+      throw new IllegalStateException("Unable to find system property '" + name + "'");
+    }
+    return property;
+  }
 
   static class MapEventsToKV extends DoFn<Event, KV<String, KV<Long, String>>> {
 
@@ -115,11 +130,16 @@ public class OrderedEventProcessorTestBase {
       boolean produceStatusOnEveryEvent,
       boolean streaming,
       boolean isGlobalSequence,
-      @Nullable CompletedSequenceRange expectedLastCompletedSequence)
+      @Nullable ContiguousSequenceRange expectedLastCompletedSequence)
       throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException {
 
     Pipeline pipeline = streaming ? streamingPipeline : batchPipeline;
-
+    if (runTestsOnDataflowRunner()) {
+      pipeline.getOptions().setRunner(TestDataflowRunner.class);
+      TestDataflowPipelineOptions options = pipeline.getOptions().as(TestDataflowPipelineOptions.class);
+      options.setExperiments(Arrays.asList("disable_runner_v2"));
+      options.setTempRoot("gs://" + getSystemProperty("temp_dataflow_bucket"));
+    }
     PCollection<Event> rawInput =
         streaming
             ? createStreamingPCollection(pipeline, events)
@@ -187,7 +207,7 @@ public class OrderedEventProcessorTestBase {
 
     if (expectedLastCompletedSequence != null
         && processingResult.latestCompletedSequenceRange() != null) {
-      PCollection<CompletedSequenceRange> globalSequences = rawInput
+      PCollection<ContiguousSequenceRange> globalSequences = rawInput
           .apply("Publish Global Sequences",
               new GlobalSequenceRangePublisher(processingResult.latestCompletedSequenceRange(),
                   handler.getKeyCoder(pipeline, input.getCoder()),
@@ -200,21 +220,21 @@ public class OrderedEventProcessorTestBase {
   }
 
   static class LastExpectedGlobalSequenceRangeMatcher implements
-      SerializableFunction<Iterable<CompletedSequenceRange>, Void> {
+      SerializableFunction<Iterable<ContiguousSequenceRange>, Void> {
 
     private final long expectedStart;
     private final long expectedEnd;
 
-    LastExpectedGlobalSequenceRangeMatcher(CompletedSequenceRange expected) {
+    LastExpectedGlobalSequenceRangeMatcher(ContiguousSequenceRange expected) {
       this.expectedStart = expected.getStart();
       this.expectedEnd = expected.getEnd();
     }
 
     @Override
-    public Void apply(Iterable<CompletedSequenceRange> input) {
+    public Void apply(Iterable<ContiguousSequenceRange> input) {
       StringBuilder listOfRanges = new StringBuilder("[");
-      Iterator<CompletedSequenceRange> iterator = input.iterator();
-      CompletedSequenceRange lastRange = null;
+      Iterator<ContiguousSequenceRange> iterator = input.iterator();
+      ContiguousSequenceRange lastRange = null;
       while (iterator.hasNext()) {
         lastRange = iterator.next();
 
@@ -228,7 +248,8 @@ public class OrderedEventProcessorTestBase {
           lastRange.getStart() == expectedStart && lastRange.getEnd() == expectedEnd;
 
       assertThat(
-          "Expected range not found: [" + expectedStart + '-' + expectedEnd + "], received ranges: "
+          "Expected range not found: [" + expectedStart + '-' + expectedEnd
+              + "], received ranges: "
               + listOfRanges, foundExpectedRange);
       return null;
     }
@@ -311,14 +332,14 @@ public class OrderedEventProcessorTestBase {
   }
 
   static class GlobalSequenceRangePublisher extends
-      PTransform<PCollection<Event>, PCollection<CompletedSequenceRange>> {
+      PTransform<PCollection<Event>, PCollection<ContiguousSequenceRange>> {
 
-    private final PCollectionView<CompletedSequenceRange> lastCompletedSequenceRangeView;
+    private final PCollectionView<ContiguousSequenceRange> lastCompletedSequenceRangeView;
     private final Coder<String> keyCoder;
     private final Coder<String> eventCoder;
 
     public GlobalSequenceRangePublisher(
-        PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange,
+        PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange,
         Coder<String> keyCoder, Coder<String> eventCoder) {
       this.lastCompletedSequenceRangeView = latestCompletedSequenceRange;
       this.keyCoder = keyCoder;
@@ -326,30 +347,38 @@ public class OrderedEventProcessorTestBase {
     }
 
     @Override
-    public PCollection<CompletedSequenceRange> expand(PCollection<Event> input) {
-      return
-          input
-              // In production pipelines the global sequence will typically be obtained
-              // by using GenerateSequence. But GenerateSequence doesn't work well with TestStream,
-              // That's why we use the input events here.
+    public PCollection<ContiguousSequenceRange> expand(PCollection<Event> input) {
+      PCollection<KV<String, KV<Long, String>>> events = input
+          // In production pipelines the global sequence will typically be obtained
+          // by using GenerateSequence. But GenerateSequence doesn't work well with TestStream,
+          // That's why we use the input events here.
 //              .apply("Create Ticker",
 //                  GenerateSequence.from(0).to(2).withRate(1, Duration.standardSeconds(5)))
-              .apply("To KV", ParDo.of(new MapEventsToKV()))
-              .apply("Create Tickers",
-                  new PerKeyTickerGenerator<>(keyCoder, eventCoder,
-                      Duration.standardSeconds(1)))
-              .apply("Emit SideInput", ParDo.of(new SideInputEmitter())
-                  .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
+          .apply("To KV", ParDo.of(new MapEventsToKV()));
+      if (input.isBounded() == IsBounded.BOUNDED) {
+        return events.apply("Emit SideInput", ParDo.of(new SideInputEmitter())
+            .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
+      } else {
+        PCollection<KV<String, KV<Long, String>>> tickers = events
+            .apply("Create Tickers",
+                new PerKeyTickerGenerator<>(keyCoder, eventCoder,
+                    Duration.standardSeconds(1)));
+        return
+            tickers
+                .apply("Emit SideInput", ParDo.of(new SideInputEmitter())
+                    .withSideInput("lastCompletedSequence", lastCompletedSequenceRangeView));
+      }
     }
-  }
 
-  static class SideInputEmitter extends DoFn<KV<String, KV<Long,String>>, CompletedSequenceRange> {
+    static class SideInputEmitter extends
+        DoFn<KV<String, KV<Long, String>>, ContiguousSequenceRange> {
 
-    @ProcessElement
-    public void produceCompletedRange(
-        @SideInput("lastCompletedSequence") CompletedSequenceRange sideInput,
-        OutputReceiver<CompletedSequenceRange> outputReceiver) {
-      outputReceiver.output(sideInput);
+      @ProcessElement
+      public void produceCompletedRange(
+          @SideInput("lastCompletedSequence") ContiguousSequenceRange sideInput,
+          OutputReceiver<ContiguousSequenceRange> outputReceiver) {
+        outputReceiver.output(sideInput);
+      }
     }
   }
 }

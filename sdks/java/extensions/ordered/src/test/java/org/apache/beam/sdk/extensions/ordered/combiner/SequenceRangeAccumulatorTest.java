@@ -2,7 +2,7 @@ package org.apache.beam.sdk.extensions.ordered.combiner;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.sdk.extensions.ordered.CompletedSequenceRange;
+import org.apache.beam.sdk.extensions.ordered.ContiguousSequenceRange;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
@@ -50,7 +50,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(3, nextTimestamp())
     };
 
-    doTestAccumulation(events, CompletedSequenceRange.of(1, 3, eventTimestamp(events, 3)), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, eventTimestamp(events, 3)), 1);
   }
 
   @Test
@@ -62,7 +62,7 @@ public class SequenceRangeAccumulatorTest {
     };
 
     Instant timestampOfEventNumber1 = eventTimestamp(events, 1);
-    doTestAccumulation(events, CompletedSequenceRange.of(1, 3, timestampOfEventNumber1), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, timestampOfEventNumber1), 1);
   }
 
   @Test
@@ -75,7 +75,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(7, nextTimestamp()),
     };
 
-    doTestAccumulation(events, CompletedSequenceRange.of(1, 3, eventTimestamp(events, 3)), 3);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, eventTimestamp(events, 3)), 3);
   }
 
   @Test
@@ -89,7 +89,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp()),
     };
 
-    doTestAccumulation(events, CompletedSequenceRange.of(1, 3, eventTimestamp(events, 3)), 2);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, eventTimestamp(events, 3)), 2);
   }
 
   @Test
@@ -102,14 +102,14 @@ public class SequenceRangeAccumulatorTest {
         new Event(5, nextTimestamp()),
     };
 
-    doTestAccumulation(events, CompletedSequenceRange.EMPTY, 2);
+    doTestAccumulation(events, ContiguousSequenceRange.EMPTY, 2);
   }
 
   @Test
   public void testNoEventsAccumulation() {
     Event[] events = new Event[]{};
 
-    doTestAccumulation(events, CompletedSequenceRange.EMPTY, 0);
+    doTestAccumulation(events, ContiguousSequenceRange.EMPTY, 0);
   }
 
   @Test
@@ -128,7 +128,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(7, nextTimestamp(), true),
     };
 
-    doTestAccumulation(events, CompletedSequenceRange.of(7, 7, eventTimestamp(events, 7)), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(7, 7, eventTimestamp(events, 7)), 1);
   }
 
   @Test
@@ -151,10 +151,10 @@ public class SequenceRangeAccumulatorTest {
     };
 
     Instant timestampOfTheLastEvent = events[events.length - 1].timestamp;
-    doTestAccumulation(events, CompletedSequenceRange.of(7, 8, timestampOfTheLastEvent), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(7, 8, timestampOfTheLastEvent), 1);
   }
 
-  private static void doTestAccumulation(Event[] events, CompletedSequenceRange expectedResult,
+  private static void doTestAccumulation(Event[] events, ContiguousSequenceRange expectedResult,
       int expectedNumberOfRanges) {
     SequenceRangeAccumulator accumulator = new SequenceRangeAccumulator();
     Arrays.stream(events).forEach(e -> accumulator.add(e.sequence, e.timestamp, e.initialEvent));
@@ -172,7 +172,7 @@ public class SequenceRangeAccumulatorTest {
     Event[] set1 = new Event[]{};
     Event[] set2 = new Event[]{};
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.EMPTY;
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.EMPTY;
     int expectedNumberOfRanges = 0;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -187,7 +187,7 @@ public class SequenceRangeAccumulatorTest {
     };
     Event[] set2 = new Event[]{};
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 3,
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.of(1, 3,
         eventTimestamp(set1, 1L));
     int expectedNumberOfRanges = 1;
 
@@ -206,7 +206,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp())
     };
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 2,
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.of(1, 2,
         eventTimestamp(set1, 2L));
     int expectedNumberOfRanges = 2;
 
@@ -225,7 +225,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp())
     };
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.EMPTY;
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.EMPTY;
     int expectedNumberOfRanges = 2;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -244,7 +244,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp())
     };
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 6,
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.of(1, 6,
         eventTimestamp(set2, 6L));
     int expectedNumberOfRanges = 1;
 
@@ -264,7 +264,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp())
     };
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(3, 6,
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.of(3, 6,
         eventTimestamp(set2, 6L));
     int expectedNumberOfRanges = 1;
 
@@ -286,7 +286,7 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp())
     };
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 6,
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.of(1, 6,
         eventTimestamp(set2, 6L));
     int expectedNumberOfRanges = 1;
 
@@ -307,7 +307,7 @@ public class SequenceRangeAccumulatorTest {
     };
 
     try {
-      doTestMerging(set1, set2, CompletedSequenceRange.EMPTY, 0);
+      doTestMerging(set1, set2, ContiguousSequenceRange.EMPTY, 0);
       Assert.fail("Expected to throw an exception");
     } catch (IllegalStateException e) {
       Assert.assertEquals("Exception message",
@@ -329,14 +329,14 @@ public class SequenceRangeAccumulatorTest {
         new Event(6, nextTimestamp())
     };
 
-    CompletedSequenceRange expectedResult = CompletedSequenceRange.of(1, 6,
+    ContiguousSequenceRange expectedResult = ContiguousSequenceRange.of(1, 6,
         eventTimestamp(set1, 2L));
     int expectedNumberOfRanges = 1;
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
   }
 
   private static void doTestMerging(Event[] set1, Event[] set2,
-      CompletedSequenceRange expectedResult,
+      ContiguousSequenceRange expectedResult,
       int expectedNumberOfRanges) {
     // Try to merge both set2 to set1 and set1 to set2 - both must return the same results
     mergeAndTest(set1, set2, expectedResult, expectedNumberOfRanges, "set1");
@@ -344,7 +344,7 @@ public class SequenceRangeAccumulatorTest {
   }
 
   private static void mergeAndTest(Event[] set1, Event[] set2,
-      CompletedSequenceRange expectedResult,
+      ContiguousSequenceRange expectedResult,
       int expectedNumberOfRanges, String firstSetName) {
     final SequenceRangeAccumulator a1 = new SequenceRangeAccumulator();
     Arrays.stream(set1).forEach(e -> a1.add(e.sequence, e.timestamp, e.initialEvent));

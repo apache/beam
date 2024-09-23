@@ -51,7 +51,7 @@ class ProcessingState<KeyT> {
 
   private long resultCount;
 
-  @Nullable private CompletedSequenceRange lastCompleteGlobalSequence;
+  @Nullable private ContiguousSequenceRange lastCompleteGlobalSequence;
 
   private KeyT key;
 
@@ -133,11 +133,11 @@ class ProcessingState<KeyT> {
     return key;
   }
 
-  public @Nullable CompletedSequenceRange getLastCompleteGlobalSequence() {
+  public @Nullable ContiguousSequenceRange getLastContiguousRange() {
     return lastCompleteGlobalSequence;
   }
 
-  public void setLastCompleteGlobalSequence(@Nullable CompletedSequenceRange lastCompleteGlobalSequence) {
+  public void setLastCompleteGlobalSequence(@Nullable ContiguousSequenceRange lastCompleteGlobalSequence) {
     this.lastCompleteGlobalSequence = lastCompleteGlobalSequence;
   }
 
@@ -301,7 +301,7 @@ class ProcessingState<KeyT> {
     return resultCount - numberOfResultsBeforeBundleStart;
   }
 
-  public void updateGlobalSequenceDetails(CompletedSequenceRange updated) {
+  public void updateGlobalSequenceDetails(ContiguousSequenceRange updated) {
     if(thereAreGloballySequencedEventsToBeProcessed()) {
       // We don't update the timer if we can already process events in the onTimer batch.
       // Otherwise, it's possible that we will be pushing the timer to later timestamps
@@ -331,8 +331,8 @@ class ProcessingState<KeyT> {
     private static final VarIntCoder INTEGER_CODER = VarIntCoder.of();
     private static final BooleanCoder BOOLEAN_CODER = BooleanCoder.of();
 
-    private static final NullableCoder<CompletedSequenceRange> SEQUENCE_AND_TIMESTAMP_CODER =
-        NullableCoder.of(CompletedSequenceRange.CompletedSequenceRangeCoder.of());
+    private static final NullableCoder<ContiguousSequenceRange> SEQUENCE_AND_TIMESTAMP_CODER =
+        NullableCoder.of(ContiguousSequenceRange.CompletedSequenceRangeCoder.of());
 
     private Coder<KeyT> keyCoder;
 
@@ -355,7 +355,7 @@ class ProcessingState<KeyT> {
       LONG_CODER.encode(value.getResultCount(), outStream);
       BOOLEAN_CODER.encode(value.isLastEventReceived(), outStream);
       keyCoder.encode(value.getKey(), outStream);
-      SEQUENCE_AND_TIMESTAMP_CODER.encode(value.getLastCompleteGlobalSequence(), outStream);
+      SEQUENCE_AND_TIMESTAMP_CODER.encode(value.getLastContiguousRange(), outStream);
     }
 
     @Override
@@ -369,7 +369,7 @@ class ProcessingState<KeyT> {
       long resultCount = LONG_CODER.decode(inStream);
       boolean isLastEventReceived = BOOLEAN_CODER.decode(inStream);
       KeyT key = keyCoder.decode(inStream);
-      CompletedSequenceRange lastCompleteGlobalSequence = SEQUENCE_AND_TIMESTAMP_CODER.decode(inStream);
+      ContiguousSequenceRange lastCompleteGlobalSequence = SEQUENCE_AND_TIMESTAMP_CODER.decode(inStream);
 
       ProcessingState<KeyT> result = new ProcessingState<>(
           key,

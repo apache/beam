@@ -565,7 +565,7 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         maxResultsPerOutput,
         produceStatusOnEveryEvent,
         STREAMING,
-        false, CompletedSequenceRange.EMPTY);
+        false, ContiguousSequenceRange.EMPTY);
 
     // Test a batch pipeline
     doTest(
@@ -578,7 +578,7 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
         maxResultsPerOutput,
         produceStatusOnEveryEvent,
         BATCH,
-        false, CompletedSequenceRange.EMPTY);
+        false, ContiguousSequenceRange.EMPTY);
   }
 
   @Test

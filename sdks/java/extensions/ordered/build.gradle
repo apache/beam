@@ -31,5 +31,9 @@ dependencies {
     testImplementation library.java.slf4j_jdk14
     testImplementation project(path: ':sdks:java:core')
     testImplementation 'junit:junit:4.13.1'
+    testImplementation project(path: ':runners:google-cloud-dataflow-java')
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":runners:google-cloud-dataflow-java")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform")
 }

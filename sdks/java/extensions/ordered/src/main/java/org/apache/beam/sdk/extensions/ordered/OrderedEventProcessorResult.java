@@ -52,7 +52,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       unprocessedEventPCollection;
   private final TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag;
 
-  private final @Nullable PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange;
+  private final @Nullable PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange;
 
   OrderedEventProcessorResult(
       Pipeline pipeline,
@@ -75,7 +75,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       TupleTag<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusTupleTag,
       PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
       TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
-      @Nullable PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange) {
+      @Nullable PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange) {
 
     this.pipeline = pipeline;
     this.outputPCollection = outputPCollection;
@@ -129,7 +129,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     return unprocessedEventPCollection;
   }
 
-  public @Nullable PCollectionView<CompletedSequenceRange> latestCompletedSequenceRange() {
+  public @Nullable PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange() {
     return latestCompletedSequenceRange;
   }
 }

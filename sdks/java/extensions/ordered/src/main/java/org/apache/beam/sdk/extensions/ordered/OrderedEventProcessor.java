@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -134,23 +134,33 @@ public abstract class OrderedEventProcessor<
 
     if (handler instanceof OrderedProcessingGlobalSequenceHandler) {
       OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler = (OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>) handler;
-      final PCollectionView<CompletedSequenceRange> latestContinuousSequence =
+
+      boolean streamingProcessing = input.isBounded() == IsBounded.UNBOUNDED;
+
+      final PCollectionView<ContiguousSequenceRange> latestContinuousSequence =
           input
               .apply("Convert to SequenceAndTimestamp",
                   ParDo.of(new ToTimestampedEventConverter<>()))
               .apply("Global Sequence Tracker",
-                  new GlobalSequenceTracker<>(globalSequenceHandler.getGlobalSequenceCombiner()));
+                  streamingProcessing ?
+                      new GlobalSequenceTracker<>(
+                          globalSequenceHandler.getGlobalSequenceCombiner(),
+                          globalSequenceHandler.getGlobalSequenceGenerationFrequency()) :
+                      new GlobalSequenceTracker<>(
+                          globalSequenceHandler.getGlobalSequenceCombiner()));
 
-      PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
-          new PerKeyTickerGenerator<>(keyCoder, eventCoder,
-              globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
+      if (streamingProcessing) {
+        PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
+            new PerKeyTickerGenerator<>(keyCoder, eventCoder,
+                globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
 
-      PCollection<KV<EventKeyT, KV<Long, EventT>>> eventsAndTickers =
-          PCollectionList.of(input).and(tickers)
-              .apply("Combine Events and Tickers", Flatten.pCollections())
-              .setCoder(tickers.getCoder());
+        input =
+            PCollectionList.of(input).and(tickers)
+                .apply("Combine Events and Tickers", Flatten.pCollections())
+                .setCoder(tickers.getCoder());
+      }
       processingResult =
-          eventsAndTickers
+          input
               .apply(
                   ParDo.of(
                           new GlobalSequencesProcessorDoFn<>(

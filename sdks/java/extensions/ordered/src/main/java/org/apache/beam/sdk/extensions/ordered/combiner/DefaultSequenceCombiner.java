@@ -5,7 +5,7 @@ import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.extensions.ordered.CompletedSequenceRange;
+import org.apache.beam.sdk.extensions.ordered.ContiguousSequenceRange;
 import org.apache.beam.sdk.extensions.ordered.EventExaminer;
 import org.apache.beam.sdk.extensions.ordered.MutableState;
 import org.apache.beam.sdk.extensions.ordered.combiner.SequenceRangeAccumulator.SequenceRangeAccumulatorCoder;
@@ -20,8 +20,20 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Default global sequence combiner.
+ * <p>
+ * Produces {@link ContiguousSequenceRange} of contiguous longs starting from the initial event
+ * identified by {@link EventExaminer#isInitialEvent(long, EventT)}.
+ * <p>
+ * This combiner currently doesn't use {@link  EventExaminer#isLastEvent(long, EventT)}.
+ *
+ * @param <EventKeyT> type of key
+ * @param <EventT>    type of event
+ * @param <StateT>    type of state
+ */
 public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableState<EventT, ?>> extends
-    CombineFn<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, SequenceRangeAccumulator, CompletedSequenceRange> {
+    CombineFn<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, SequenceRangeAccumulator, ContiguousSequenceRange> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DefaultSequenceCombiner.class);
 
@@ -67,9 +79,9 @@ public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableSt
   }
 
   @Override
-  public CompletedSequenceRange extractOutput(SequenceRangeAccumulator accum) {
-    CompletedSequenceRange result = accum.largestContinuousRange();
-    if(LOG.isTraceEnabled()) {
+  public ContiguousSequenceRange extractOutput(SequenceRangeAccumulator accum) {
+    ContiguousSequenceRange result = accum.largestContinuousRange();
+    if (LOG.isTraceEnabled()) {
       LOG.trace("Returning completed sequence range: " + result);
     }
     return result;
@@ -80,6 +92,6 @@ public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableSt
       @UnknownKeyFor @NonNull @Initialized CoderRegistry registry,
       @UnknownKeyFor @NonNull @Initialized Coder<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> inputCoder)
       throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException {
-    return new SequenceRangeAccumulatorCoder();
+    return SequenceRangeAccumulatorCoder.of();
   }
 }

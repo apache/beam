@@ -20,6 +20,14 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Main Stateful DoFn used to process events in the global sequence mode.
+ *
+ * @param <EventT>
+ * @param <EventKeyT>
+ * @param <ResultT>
+ * @param <StateT>
+ */
 class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     StateT extends MutableState<EventT, ResultT>>
     extends ProcessorDoFn<EventT, EventKeyT, ResultT, StateT> {
@@ -53,23 +61,8 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   @SuppressWarnings("unused")
   private final TimerSpec statusEmissionTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  private final PCollectionView<CompletedSequenceRange> latestContinuousSequenceSideInput;
+  private final PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput;
 
-  /**
-   * Stateful DoFn to do the bulk of processing.
-   *
-   * @param eventExaminer
-   * @param eventCoder
-   * @param stateCoder
-   * @param keyCoder
-   * @param mainOutputTupleTag
-   * @param statusTupleTag
-   * @param statusUpdateFrequency
-   * @param unprocessedEventTupleTag
-   * @param produceStatusUpdateOnEveryEvent
-   * @param maxNumberOfResultsToProduce
-   * @param latestContinuousSequenceSideInput
-   */
   GlobalSequencesProcessorDoFn(EventExaminer<EventT, StateT> eventExaminer,
       Coder<EventT> eventCoder,
       Coder<StateT> stateCoder,
@@ -80,12 +73,12 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>
           unprocessedEventTupleTag,
       boolean produceStatusUpdateOnEveryEvent, long maxNumberOfResultsToProduce,
-      PCollectionView<CompletedSequenceRange> latestContinuousSequenceSideInput) {
+      PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput) {
     super(eventExaminer, mainOutputTupleTag, statusTupleTag,
         statusUpdateFrequency, unprocessedEventTupleTag, produceStatusUpdateOnEveryEvent,
         maxNumberOfResultsToProduce);
 
-    this.latestContinuousSequenceSideInput = latestContinuousSequenceSideInput;
+    this.latestContiguousRangeSideInput = latestContiguousRangeSideInput;
     this.bufferedEventsSpec = StateSpecs.orderedList(eventCoder);
     this.processingStateSpec = StateSpecs.value(ProcessingStateCoder.of(keyCoder));
     this.mutableStateSpec = StateSpecs.value(stateCoder);
@@ -114,15 +107,15 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       MultiOutputReceiver outputReceiver,
       BoundedWindow window) {
 
-    CompletedSequenceRange lastContinuousSequence = context.sideInput(
-        latestContinuousSequenceSideInput);
+    ContiguousSequenceRange lastContiguousRange = context.sideInput(
+        latestContiguousRangeSideInput);
 
     EventT event = eventAndSequence.getValue().getValue();
     EventKeyT key = eventAndSequence.getKey();
     long sequence = eventAndSequence.getValue().getKey();
 
     if (LOG.isTraceEnabled()) {
-      LOG.trace(key + ": " + sequence + " lastSequence: " + lastContinuousSequence);
+      LOG.trace(key + ": " + sequence + " lastRange: " + lastContiguousRange);
     }
 
     ProcessingState<EventKeyT> processingState = processingStateProxy.read();
@@ -136,7 +129,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       }
     }
 
-    processingState.updateGlobalSequenceDetails(lastContinuousSequence);
+    processingState.updateGlobalSequenceDetails(lastContiguousRange);
 
     if (event == null) {
       // This is a ticker event. We only need to update the state as it relates to the global sequence.
@@ -176,7 +169,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
   private void setBatchEmissionTimerIfNeeded(Timer batchEmissionTimer,
       ProcessingState<EventKeyT> processingState) {
-    CompletedSequenceRange lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
+    ContiguousSequenceRange lastCompleteGlobalSequence = processingState.getLastContiguousRange();
     if (lastCompleteGlobalSequence != null &&
         processingState.thereAreGloballySequencedEventsToBeProcessed()) {
       batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
@@ -202,8 +195,8 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     StateT state = mutableStateState.read();
 
-    CompletedSequenceRange lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
-    if (lastCompleteGlobalSequence == null) {
+    ContiguousSequenceRange lastContiguousRange = processingState.getLastContiguousRange();
+    if (lastContiguousRange == null) {
       LOG.warn("Last complete global instance is null.");
       return;
     }
@@ -221,7 +214,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
 
     state = processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
-        batchEmissionTimer, lastCompleteGlobalSequence);
+        batchEmissionTimer, lastContiguousRange);
 
     saveStates(
         processingStatusState,
