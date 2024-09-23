@@ -140,7 +140,6 @@ public class Flatten {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection}s.
    * @param other a PTransform whose ouptput should be flattened with the input
-   * @param <T> the type of the elements in the input and output {@code PCollection}s.
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> with(
       PTransform<PBegin, PCollection<T>> other) {
