@@ -206,10 +206,10 @@ public class OrderedEventProcessorTestBase {
     }
 
     if (expectedLastCompletedSequence != null
-        && processingResult.latestCompletedSequenceRange() != null) {
+        && processingResult.latestContiguousRange() != null) {
       PCollection<ContiguousSequenceRange> globalSequences = rawInput
           .apply("Publish Global Sequences",
-              new GlobalSequenceRangePublisher(processingResult.latestCompletedSequenceRange(),
+              new GlobalSequenceRangePublisher(processingResult.latestContiguousRange(),
                   handler.getKeyCoder(pipeline, input.getCoder()),
                   handler.getEventCoder(pipeline, input.getCoder())));
       PAssert.that("CompletedSequenceRange verification", globalSequences).satisfies(

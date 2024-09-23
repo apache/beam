@@ -50,10 +50,13 @@ import org.joda.time.Instant;
  * Transform for processing ordered events. Events are grouped by the key and within each key they
  * are applied according to the provided sequence. Events which arrive out of sequence are buffered
  * and processed after all the missing events for a given key have arrived.
+ * <p>
+ * There are two sequencing modes - a sequence per key and a global sequence. See
+ * {@link OrderedProcessingHandler} for details on how to configure this transform.
  *
- * @param <EventT>
- * @param <EventKeyT>
- * @param <StateT>
+ * @param <EventT>    type of event
+ * @param <EventKeyT> type of event key
+ * @param <StateT>    type of the state
  */
 @AutoValue
 @SuppressWarnings({"nullness", "TypeNameShadowing"})
@@ -65,6 +68,16 @@ public abstract class OrderedEventProcessor<
 
   public static final String GLOBAL_SEQUENCE_TRACKER = "global_sequence_tracker";
 
+  /**
+   * Create the transform.
+   *
+   * @param handler         provides the configuration of this transform
+   * @param <EventTypeT>    type of event
+   * @param <EventKeyTypeT> type of event key
+   * @param <ResultTypeT>   type of the result object
+   * @param <StateTypeT>    type of the state to store
+   * @return the transform
+   */
   public static <
       EventTypeT,
       EventKeyTypeT,
@@ -130,95 +143,127 @@ public abstract class OrderedEventProcessor<
         KvCoder.of(
             keyCoder, KvCoder.of(VarLongCoder.of(), new UnprocessedEventCoder<>(eventCoder)));
 
-    PCollectionTuple processingResult;
-
     if (handler instanceof OrderedProcessingGlobalSequenceHandler) {
-      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler = (OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>) handler;
+      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler =
+          (OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT>) handler;
 
-      boolean streamingProcessing = input.isBounded() == IsBounded.UNBOUNDED;
-
-      final PCollectionView<ContiguousSequenceRange> latestContinuousSequence =
-          input
-              .apply("Convert to SequenceAndTimestamp",
-                  ParDo.of(new ToTimestampedEventConverter<>()))
-              .apply("Global Sequence Tracker",
-                  streamingProcessing ?
-                      new GlobalSequenceTracker<>(
-                          globalSequenceHandler.getGlobalSequenceCombiner(),
-                          globalSequenceHandler.getGlobalSequenceGenerationFrequency()) :
-                      new GlobalSequenceTracker<>(
-                          globalSequenceHandler.getGlobalSequenceCombiner()));
-
-      if (streamingProcessing) {
-        PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
-            new PerKeyTickerGenerator<>(keyCoder, eventCoder,
-                globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
-
-        input =
-            PCollectionList.of(input).and(tickers)
-                .apply("Combine Events and Tickers", Flatten.pCollections())
-                .setCoder(tickers.getCoder());
-      }
-      processingResult =
-          input
-              .apply(
-                  ParDo.of(
-                          new GlobalSequencesProcessorDoFn<>(
-                              handler.getEventExaminer(),
-                              eventCoder,
-                              stateCoder,
-                              keyCoder,
-                              mainOutput,
-                              statusOutput,
-                              handler.getStatusUpdateFrequency(),
-                              unprocessedEventOutput,
-                              handler.isProduceStatusUpdateOnEveryEvent(),
-                              handler.getMaxOutputElementsPerBundle(),
-                              latestContinuousSequence)
-                      )
-                      .withOutputTags(
-                          mainOutput,
-                          TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
-                      .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContinuousSequence)
-              );
-      return new OrderedEventProcessorResult<>(
-          pipeline,
-          processingResult.get(mainOutput).setCoder(mainOutputCoder),
-          mainOutput,
-          processingResult.get(statusOutput).setCoder(processingStatusCoder),
-          statusOutput,
-          processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
-          unprocessedEventOutput,
-          latestContinuousSequence);
+      return expandGlobalSequenceProcessing(input, mainOutput, statusOutput,
+          unprocessedEventOutput, handler, pipeline, keyCoder, eventCoder, stateCoder,
+          mainOutputCoder,
+          processingStatusCoder, unprocessedEventsCoder, globalSequenceHandler);
     } else {
-      // Per key sequence handler
-      processingResult =
-          input.apply(
-              ParDo.of(
-                      new SequencePerKeyProcessorDoFn<>(
-                          handler.getEventExaminer(),
-                          eventCoder,
-                          stateCoder,
-                          keyCoder,
-                          mainOutput,
-                          statusOutput,
-                          handler.getStatusUpdateFrequency(),
-                          unprocessedEventOutput,
-                          handler.isProduceStatusUpdateOnEveryEvent(),
-                          handler.getMaxOutputElementsPerBundle()))
-                  .withOutputTags(
-                      mainOutput,
-                      TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
-      return new OrderedEventProcessorResult<>(
-          pipeline,
-          processingResult.get(mainOutput).setCoder(mainOutputCoder),
-          mainOutput,
-          processingResult.get(statusOutput).setCoder(processingStatusCoder),
-          statusOutput,
-          processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
-          unprocessedEventOutput);
-
+      return expandPerKeyProcessing(input, mainOutput, statusOutput,
+          unprocessedEventOutput, handler, pipeline, keyCoder, eventCoder, stateCoder,
+          mainOutputCoder,
+          processingStatusCoder, unprocessedEventsCoder);
     }
+  }
+
+  private OrderedEventProcessorResult<EventKeyT, ResultT, EventT> expandPerKeyProcessing(
+      PCollection<KV<EventKeyT, KV<Long, EventT>>> input,
+      TupleTag<KV<EventKeyT, ResultT>> mainOutput,
+      TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusOutput,
+      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventOutput,
+      OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler, Pipeline pipeline,
+      Coder<EventKeyT> keyCoder, Coder<EventT> eventCoder, Coder<StateT> stateCoder,
+      KvCoder<EventKeyT, ResultT> mainOutputCoder,
+      KvCoder<EventKeyT, OrderedProcessingStatus> processingStatusCoder,
+      KvCoder<EventKeyT, KV<Long, UnprocessedEvent<EventT>>> unprocessedEventsCoder) {
+    PCollectionTuple processingResult;
+    processingResult =
+        input.apply(
+            ParDo.of(
+                    new SequencePerKeyProcessorDoFn<>(
+                        handler.getEventExaminer(),
+                        eventCoder,
+                        stateCoder,
+                        keyCoder,
+                        mainOutput,
+                        statusOutput,
+                        handler.getStatusUpdateFrequency(),
+                        unprocessedEventOutput,
+                        handler.isProduceStatusUpdateOnEveryEvent(),
+                        handler.getMaxOutputElementsPerBundle()))
+                .withOutputTags(
+                    mainOutput,
+                    TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
+    return new OrderedEventProcessorResult<>(
+        pipeline,
+        processingResult.get(mainOutput).setCoder(mainOutputCoder),
+        mainOutput,
+        processingResult.get(statusOutput).setCoder(processingStatusCoder),
+        statusOutput,
+        processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
+        unprocessedEventOutput);
+  }
+
+  private OrderedEventProcessorResult<EventKeyT, ResultT, EventT> expandGlobalSequenceProcessing(
+      PCollection<KV<EventKeyT, KV<Long, EventT>>> input,
+      TupleTag<KV<EventKeyT, ResultT>> mainOutput,
+      TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusOutput,
+      TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventOutput,
+      OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler, Pipeline pipeline,
+      Coder<EventKeyT> keyCoder, Coder<EventT> eventCoder, Coder<StateT> stateCoder,
+      KvCoder<EventKeyT, ResultT> mainOutputCoder,
+      KvCoder<EventKeyT, OrderedProcessingStatus> processingStatusCoder,
+      KvCoder<EventKeyT, KV<Long, UnprocessedEvent<EventT>>> unprocessedEventsCoder,
+      OrderedProcessingGlobalSequenceHandler<EventT, EventKeyT, StateT, ResultT> globalSequenceHandler) {
+    PCollectionTuple processingResult;
+    boolean streamingProcessing = input.isBounded() == IsBounded.UNBOUNDED;
+
+    final PCollectionView<ContiguousSequenceRange> latestContiguousRange =
+        input
+            .apply("Convert to SequenceAndTimestamp",
+                ParDo.of(new ToTimestampedEventConverter<>()))
+            .apply("Global Sequence Tracker",
+                streamingProcessing ?
+                    new GlobalSequenceTracker<>(
+                        globalSequenceHandler.getGlobalSequenceCombiner(),
+                        globalSequenceHandler.getGlobalSequenceGenerationFrequency()) :
+                    new GlobalSequenceTracker<>(
+                        globalSequenceHandler.getGlobalSequenceCombiner()));
+
+    if (streamingProcessing) {
+      PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
+          new PerKeyTickerGenerator<>(keyCoder, eventCoder,
+              globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
+
+      input =
+          PCollectionList.of(input).and(tickers)
+              .apply("Combine Events and Tickers", Flatten.pCollections())
+              .setCoder(tickers.getCoder());
+    }
+    processingResult =
+        input
+            .apply(
+                ParDo.of(
+                        new GlobalSequencesProcessorDoFn<>(
+                            handler.getEventExaminer(),
+                            eventCoder,
+                            stateCoder,
+                            keyCoder,
+                            mainOutput,
+                            statusOutput,
+                            handler.getStatusUpdateFrequency(),
+                            unprocessedEventOutput,
+                            handler.isProduceStatusUpdateOnEveryEvent(),
+                            handler.getMaxOutputElementsPerBundle(),
+                            latestContiguousRange)
+                    )
+                    .withOutputTags(
+                        mainOutput,
+                        TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
+                    .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContiguousRange)
+            );
+    return new OrderedEventProcessorResult<>(
+        pipeline,
+        processingResult.get(mainOutput).setCoder(mainOutputCoder),
+        mainOutput,
+        processingResult.get(statusOutput).setCoder(processingStatusCoder),
+        statusOutput,
+        processingResult.get(unprocessedEventOutput).setCoder(unprocessedEventsCoder),
+        unprocessedEventOutput,
+        latestContiguousRange);
   }
 
   private static Coder<OrderedProcessingStatus> getOrderedProcessingStatusCoder(Pipeline pipeline) {

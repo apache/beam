@@ -24,6 +24,12 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * PTransform to generate per key tickers with certain frequency.
+ *
+ * @param <EventKeyT>
+ * @param <EventT>
+ */
 class PerKeyTickerGenerator<EventKeyT, EventT>
     extends PTransform<PCollection<KV<EventKeyT, KV<Long, EventT>>>,
     PCollection<KV<EventKeyT, KV<Long, EventT>>>> {
@@ -100,7 +106,7 @@ class PerKeyTickerGenerator<EventKeyT, EventT>
         return;
       }
 
-      //  null value will be an indicator to the main transform that the element is a ticker
+      // Null value will be an indicator to the main transform that the element is a ticker
       outputReceiver.output(KV.of(key, KV.of(0L, null)));
       tickerTimer.offset(tickerFrequency).setRelative();
     }

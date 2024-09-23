@@ -37,6 +37,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * reason
  * <li>processingStatuses - the key/value of the status of processing for a particular key
  *
+ * In case of global sequence processing, the result also contains PCollectionView of the latest
+ * contiguous sequence range
+ *
  * @param <KeyT>
  * @param <ResultT>
  */
@@ -52,7 +55,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       unprocessedEventPCollection;
   private final TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag;
 
-  private final @Nullable PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange;
+  private final @Nullable PCollectionView<ContiguousSequenceRange> latestContiguousRange;
 
   OrderedEventProcessorResult(
       Pipeline pipeline,
@@ -75,7 +78,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       TupleTag<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusTupleTag,
       PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
       TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
-      @Nullable PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange) {
+      @Nullable PCollectionView<ContiguousSequenceRange> latestContiguousRange) {
 
     this.pipeline = pipeline;
     this.outputPCollection = outputPCollection;
@@ -84,7 +87,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     this.eventProcessingStatusTupleTag = eventProcessingStatusTupleTag;
     this.unprocessedEventPCollection = unprocessedEventPCollection;
     this.unprocessedEventTupleTag = unprocessedEventTupleTag;
-    this.latestCompletedSequenceRange = latestCompletedSequenceRange;
+    this.latestContiguousRange = latestContiguousRange;
   }
 
   private final Pipeline pipeline;
@@ -129,7 +132,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     return unprocessedEventPCollection;
   }
 
-  public @Nullable PCollectionView<ContiguousSequenceRange> latestCompletedSequenceRange() {
-    return latestCompletedSequenceRange;
+  public @Nullable PCollectionView<ContiguousSequenceRange> latestContiguousRange() {
+    return latestContiguousRange;
   }
 }

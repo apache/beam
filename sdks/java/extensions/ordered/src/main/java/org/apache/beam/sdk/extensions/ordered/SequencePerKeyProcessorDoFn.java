@@ -19,6 +19,14 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Stateful DoFn to process per key sequences.
+ *
+ * @param <EventTypeT> event type
+ * @param <EventKeyTypeT> event key type
+ * @param <ResultTypeT> result type
+ * @param <StateTypeT> state type
+ */
 class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
     StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
     extends ProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> {

@@ -50,8 +50,12 @@ class GlobalSequenceTracker<EventKeyT, EventT, ResultT, StateT extends MutableSt
         ContiguousSequenceRange.class, CompletedSequenceRangeCoder.of());
 
     if (frequencyOfGeneration != null) {
+      // This branch will only be executed in case of streaming pipelines.
+      // For batch pipelines the side input should only be computed once.
       input = input
           .apply("Triggering Setup",
+              // Reproduce the windowing of the input PCollection, but change the triggering
+              // in order to create a slowing changing side input
               Window.<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>>into(
                       (WindowFn<? super TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ?>)
                           input.getWindowingStrategy().getWindowFn()
@@ -65,8 +69,6 @@ class GlobalSequenceTracker<EventKeyT, EventT, ResultT, StateT extends MutableSt
                           AfterProcessingTime.pastFirstElementInPane()
                               .plusDelayOf(frequencyOfGeneration)))));
     }
-    return
-        input
-            .apply("Create Side Input", sideInputProducer);
+    return input.apply("Create Side Input", sideInputProducer);
   }
 }
