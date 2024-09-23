@@ -27,6 +27,6 @@
 --stateful
 --job_endpoint=localhost:8099
 --environment_type=DOCKER
---environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.8_sdk:latest
+--environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest
 --use_stateful_load_generator
 --runner=PortableRunner

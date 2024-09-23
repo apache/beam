@@ -59,6 +59,9 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfi
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -107,6 +110,8 @@ public class StreamingModeExecutionContextTest {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    StreamingGlobalConfigHandle globalConfigHandle =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
         new StreamingModeExecutionContext(
@@ -127,7 +132,9 @@ public class StreamingModeExecutionContextTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -157,7 +164,6 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        OperationalLimits.builder().build(),
         outputBuilder);
 
     TimerInternals timerInternals = stepContext.timerInternals();
@@ -207,7 +213,6 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        OperationalLimits.builder().build(),
         outputBuilder);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));

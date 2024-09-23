@@ -204,6 +204,7 @@ type Window = typex.Window
 
 // BundleFinalization represents the parameter used to register callbacks to
 // be run once the runner has durably persisted output for a bundle.
+// See typex.BundleFinalization for more details.
 type BundleFinalization = typex.BundleFinalization
 
 // These are the reflect.Type instances of the universal types, which are used

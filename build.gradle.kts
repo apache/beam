@@ -268,6 +268,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:jet:build")
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
+  dependsOn(":runners:prism:java:build")
   dependsOn(":runners:samza:build")
   dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
@@ -470,7 +471,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
@@ -487,7 +487,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
@@ -547,12 +546,11 @@ tasks.register("python312PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py38:preCommitPy38")
+  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:portable:py312:preCommitPy312")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py312:sparkValidatesRunner")
 }
@@ -577,15 +575,15 @@ tasks.register("javaExamplesDataflowPrecommit") {
 
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
+  dependsOn(":sdks:python:test-suites:tox:py39:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py39:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py39:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:eslint")
-  dependsOn(":sdks:python:test-suites:tox:py38:jest")
+  dependsOn(":sdks:python:test-suites:tox:py39:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py39:jest")
 }
 
 tasks.register("pushAllRunnersDockerImages") {

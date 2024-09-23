@@ -278,6 +278,11 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 12:
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
+elif sys.version_info.major == 3 and sys.version_info.minor == 8:
+  warnings.warn('Python 3.8 reaches EOL in October 2024 and support will '
+                'be removed from Apache Beam in version 2.61.0. See '
+                'https://github.com/apache/beam/issues/31192 for more '
+                'information.')
 
 if __name__ == '__main__':
   # In order to find the tree of proto packages, the directory
@@ -353,11 +358,10 @@ if __name__ == '__main__':
           'cloudpickle~=2.2.1',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
+          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          # https://github.com/PiotrDabkowski/Js2Py/issues/317
-          'js2py>=0.74,<1; python_version<"3.12"',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -501,7 +505,10 @@ if __name__ == '__main__':
               'tf2onnx',
               'torch',
               'transformers',
-              'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+              # Comment out xgboost as it is breaking presubmit python ml
+              # tests due to tag check introduced since pip 24.2
+              # https://github.com/apache/beam/issues/31285
+              # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
@@ -519,6 +526,8 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              # https://github.com/PiotrDabkowski/Js2Py/issues/317
+              'js2py>=0.74,<1; python_version<"3.12"',
           ] + dataframe_dependency
       },
       zip_safe=False,

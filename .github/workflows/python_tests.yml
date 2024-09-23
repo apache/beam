@@ -98,7 +98,6 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
           { "py_ver": "3.11", "tox_env": "py311" },
@@ -113,10 +112,14 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Install tox
         run: pip install tox
-      - name: Run tests basic unix
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+      - name: Run tests basic linux
+        if: startsWith(matrix.os, 'ubuntu')
         working-directory: ./sdks/python
         run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}
+      - name: Run tests basic macos
+        if: startsWith(matrix.os, 'macos')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-macos
       - name: Run tests basic windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
@@ -135,7 +138,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -162,7 +165,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

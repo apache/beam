@@ -48,12 +48,13 @@ public abstract class ComputationConfig {
   public abstract ImmutableMap<String, String> stateNameMap();
 
   /** Interface to fetch configurations for a specific computation. */
-  @FunctionalInterface
   public interface Fetcher {
     default void start() {}
 
     default void stop() {}
 
     Optional<ComputationConfig> fetchConfig(String computationId);
+
+    StreamingGlobalConfigHandle getGlobalConfigHandle();
   }
 }

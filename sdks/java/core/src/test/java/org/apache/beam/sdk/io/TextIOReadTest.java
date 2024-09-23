@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
@@ -693,6 +694,73 @@ public class TextIOReadTest {
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
               "The slings and arrows of outrageous fortune,*|",
               "*|Or to take arms against a sea of troubles,|");
+      p.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadStringsWithCustomDelimiter_NestedDelimiter() throws IOException {
+      // Test for https://github.com/apache/beam/issues/32251
+      String delimiter = "AABAAC";
+      String text = "0AABAAC1AABAABAAC2AABAAABAAC";
+      List<String> expected = Arrays.asList("0", "1AAB", "2AABA");
+      assertEquals(
+          expected, Arrays.asList(Pattern.compile(delimiter, Pattern.LITERAL).split(text)));
+
+      File tmpFile = tempFolder.newFile("tmpfile.txt");
+      String filename = tmpFile.getPath();
+
+      try (Writer writer = Files.newBufferedWriter(tmpFile.toPath(), UTF_8)) {
+        writer.write(text);
+      }
+
+      PAssert.that(
+              p.apply(
+                  TextIO.read()
+                      .from(filename)
+                      .withDelimiter(delimiter.getBytes(StandardCharsets.UTF_8))))
+          .containsInAnyOrder(expected);
+      p.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadStringsWithCustomDelimiter_PartialDelimiterMatchedAtBoundary()
+        throws IOException {
+      // Test for https://github.com/apache/beam/issues/32249
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < 8190; ++i) {
+        sb.append('0');
+      }
+      sb.append('A'); // index 8190
+      sb.append('B'); // index 8191
+      sb.append('C'); // index 8192
+      for (int i = 8193; i < 16400; ++i) {
+        sb.append('0');
+      }
+
+      String text = sb.toString();
+      String delimiter = "ABCDE";
+
+      // check the text is not split by the delimiter
+      assertEquals(
+          Collections.singletonList(text),
+          Arrays.asList(Pattern.compile(delimiter, Pattern.LITERAL).split(text)));
+
+      File tmpFile = tempFolder.newFile("tmpfile.txt");
+      String filename = tmpFile.getPath();
+
+      try (Writer writer = Files.newBufferedWriter(tmpFile.toPath(), UTF_8)) {
+        writer.write(text);
+      }
+
+      // Expects no IndexOutOfBoundsException
+      PAssert.that(
+              p.apply(
+                  TextIO.read()
+                      .from(filename)
+                      .withDelimiter(delimiter.getBytes(StandardCharsets.UTF_8))))
+          .containsInAnyOrder(text);
       p.run();
     }
 
