@@ -22,8 +22,33 @@ import java.io.Serializable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * This abstract class serves as a blueprint for creating `SessionService` objects. It introduces a
+ * This abstract class serves as a blueprint for creating `SessionServiceFactory` objects. It introduces a
  * queue property and mandates the implementation of a create() method in concrete subclasses.
+ *
+ * <p>For basic authentication, use {@link BasicAuthJcsmpSessionServiceFactory}</p>.
+ *
+ * <p>For other situations, you need to extend this class. Classes extending from this abstract class must implement the `equals` method so two instances
+ * can be compared by value, and not by reference. We recommend using AutoValue for that.
+ *
+ * <pre>{@code
+ * @AutoValue
+ * public abstract class MyFactory implements SessionServiceClientFactory {
+ *
+ *   abstract String value1();
+ *
+ *   abstract String value2();
+ *
+ *   public static MyFactory create(String value1, String value2) {
+ *     return new AutoValue_MyFactory.Builder(value1, value2);
+ *   }
+ *
+ *   ...
+ *
+ *   @Override
+ *   public SessionService create() {
+ *     ...
+ *   }
+ *}</pre>
  */
 public abstract class SessionServiceFactory implements Serializable {
   /**
@@ -40,6 +65,19 @@ public abstract class SessionServiceFactory implements Serializable {
    */
   public abstract SessionService create();
 
+  /**
+   * You need to override this method to be able to compare these objects by value. We recommend
+   * using AutoValue for that.
+   */
+  @Override
+  public abstract boolean equals(@Nullable Object other);
+
+  /**
+   * You need to override this method to be able to compare these objects by value. We recommend
+   * using AutoValue for that.
+   */
+  @Override
+  public abstract int hashCode();
   /**
    * This method is called in the {@link
    * org.apache.beam.sdk.io.solace.SolaceIO.Read#expand(org.apache.beam.sdk.values.PBegin)} method

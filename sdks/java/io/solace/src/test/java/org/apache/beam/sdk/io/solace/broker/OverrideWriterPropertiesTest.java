@@ -31,7 +31,7 @@ public class OverrideWriterPropertiesTest {
   @Test
   public void testOverrideForHigherThroughput() {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
-    MockSessionService service = new MockSessionService(null, 0, mode);
+    MockSessionService service = MockSessionService.builder().mode(mode).build();
 
     // Test HIGHER_THROUGHPUT mode
     JCSMPProperties props = service.initializeWriteSessionProperties(mode);
@@ -44,7 +44,7 @@ public class OverrideWriterPropertiesTest {
   @Test
   public void testOverrideForLowerLatency() {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
-    MockSessionService service = new MockSessionService(null, 0, mode);
+    MockSessionService service = MockSessionService.builder().mode(mode).build();
 
     // Test HIGHER_THROUGHPUT mode
     JCSMPProperties props = service.initializeWriteSessionProperties(mode);
