@@ -79,30 +79,49 @@ class BigQueryAvroUtils {
    */
   static Schema getPrimitiveType(TableFieldSchema schema, Boolean useAvroLogicalTypes) {
     String bqType = schema.getType();
+    // see
+    // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
     switch (bqType) {
-      case "BOOL":
-      case "BOOLEAN":
-        // boolean
-        return SchemaBuilder.builder().booleanType();
-      case "BYTES":
-        // bytes
-        return SchemaBuilder.builder().bytesType();
-      case "FLOAT64":
-      case "FLOAT": // even if not a valid BQ type, it is used in the schema
-        // double
-        return SchemaBuilder.builder().doubleType();
-      case "INT64":
-      case "INT":
-      case "SMALLINT":
-      case "INTEGER":
-      case "BIGINT":
-      case "TINYINT":
-      case "BYTEINT":
-        // long
-        return SchemaBuilder.builder().longType();
       case "STRING":
         // string
         return SchemaBuilder.builder().stringType();
+      case "BYTES":
+        // bytes
+        return SchemaBuilder.builder().bytesType();
+      case "INTEGER":
+      case "INT64":
+        // long
+        return SchemaBuilder.builder().longType();
+      case "FLOAT":
+      case "FLOAT64":
+        // double
+        return SchemaBuilder.builder().doubleType();
+      case "BOOLEAN":
+      case "BOOL":
+        // boolean
+        return SchemaBuilder.builder().booleanType();
+      case "TIMESTAMP":
+        // in Extract Jobs, it always uses the Avro logical type
+        // we may have to change this if we move to EXPORT DATA
+        return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
+      case "DATE":
+        if (useAvroLogicalTypes) {
+          return LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
+        } else {
+          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
+        }
+      case "TIME":
+        if (useAvroLogicalTypes) {
+          return LogicalTypes.timeMicros().addToSchema(SchemaBuilder.builder().longType());
+        } else {
+          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
+        }
+      case "DATETIME":
+        if (useAvroLogicalTypes) {
+          return DATETIME_LOGICAL_TYPE.addToSchema(SchemaBuilder.builder().stringType());
+        } else {
+          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
+        }
       case "NUMERIC":
       case "BIGNUMERIC":
         // decimal
@@ -119,27 +138,6 @@ class BigQueryAvroUtils {
           logicalType = LogicalTypes.decimal(77, 38);
         }
         return logicalType.addToSchema(SchemaBuilder.builder().bytesType());
-      case "DATE":
-        if (useAvroLogicalTypes) {
-          return LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
-        } else {
-          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
-        }
-      case "DATETIME":
-        if (useAvroLogicalTypes) {
-          return DATETIME_LOGICAL_TYPE.addToSchema(SchemaBuilder.builder().stringType());
-        } else {
-          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
-        }
-      case "TIME":
-        if (useAvroLogicalTypes) {
-          return LogicalTypes.timeMicros().addToSchema(SchemaBuilder.builder().longType());
-        } else {
-          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
-        }
-      case "TIMESTAMP":
-        // somehow the doc is wrong and BQ always uses logical type
-        return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
       case "GEOGRAPHY":
       case "JSON":
         return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
@@ -147,6 +145,7 @@ class BigQueryAvroUtils {
       case "STRUCT":
         // record
         throw new IllegalArgumentException("RECORD/STRUCT are not primitive types");
+      case "RANGE": // TODO add support for range type
       default:
         throw new IllegalArgumentException("Unknown BigQuery type: " + bqType);
     }
