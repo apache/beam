@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +30,6 @@ import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
@@ -103,7 +101,7 @@ public class RowFilterTest {
               () ->
                   RowFilter.validateSchemaContainsFields(ROW_SCHEMA, allFields, "test-operation"));
 
-      assertThat(e.getMessage(), containsString("Validation failed for test-operation"));
+      assertThat(e.getMessage(), containsString("Validation failed for 'test-operation'"));
       assertThat(
           e.getMessage(),
           containsString("Row Schema does not contain the following specified fields"));
@@ -138,7 +136,7 @@ public class RowFilterTest {
               () ->
                   RowFilter.validateSchemaContainsFields(ROW_SCHEMA, allFields, "test-operation"));
 
-      assertThat(e.getMessage(), containsString("Validation failed for test-operation"));
+      assertThat(e.getMessage(), containsString("Validation failed for 'test-operation'"));
       assertThat(
           e.getMessage(),
           containsString(
@@ -280,58 +278,12 @@ public class RowFilterTest {
   }
 
   @Test
-  public void testUnnestingFailsWhenSpecifyingNonRowField() {
+  public void testOnlyFailsWhenSpecifyingNonRowField() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Expected type 'ROW' for specified field 'nested_int', but instead got type 'INT32'");
+        "Expected type 'ROW' for field 'nullable_int', but instead got type 'INT32'");
 
-    List<String> invalidFields = Collections.singletonList("row.nested_int");
-
-    new RowFilter(ROW_SCHEMA).unnesting(invalidFields);
-  }
-
-  @Test
-  public void testUnnestFailsOnDuplicateNestedFieldNames() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Duplicate field nested_str");
-
-    // "row" and "nullable_row" have identical schemas. unnesting their
-    // fields will result in duplicate field names
-    List<String> rowFieldsToUnnest = Arrays.asList("row", "nullable_row");
-
-    RowFilter.unnestRowFields(ROW_SCHEMA, rowFieldsToUnnest);
-  }
-
-  @Test
-  public void testGetNestedField() {
-    List<String> fieldPaths = Arrays.asList("row", "nullable_row.nested_row");
-    List<Schema.Field> expectedFields =
-        Arrays.asList(
-            Schema.Field.of("row", Schema.FieldType.row(NESTED_ROW_SCHEMA)),
-            Schema.Field.of("nested_row", Schema.FieldType.row(DOUBLY_NESTED_ROW_SCHEMA)));
-
-    List<Schema.Field> actualFields = new ArrayList<>(fieldPaths.size());
-    for (String fieldPath : fieldPaths) {
-      actualFields.add(
-          RowFilter.getRowFieldToUnnest(ROW_SCHEMA, Splitter.on(".").splitToList(fieldPath)));
-    }
-
-    assertEquals(expectedFields, actualFields);
-  }
-
-  @Test
-  public void testUnnestSchemaFields() {
-    List<String> rowFieldsToUnnest = Arrays.asList("row", "row.nested_row");
-
-    List<Schema.Field> fieldList = new ArrayList<>();
-    fieldList.addAll(NESTED_ROW_SCHEMA.getFields());
-    fieldList.addAll(DOUBLY_NESTED_ROW_SCHEMA.getFields());
-
-    Schema expectedUnnestedSchema = new Schema(fieldList);
-
-    assertTrue(
-        expectedUnnestedSchema.equivalent(
-            RowFilter.unnestRowFields(ROW_SCHEMA, rowFieldsToUnnest)));
+    new RowFilter(ROW_SCHEMA).only("nullable_int");
   }
 
   private static final Row ORIGINAL_ROW =
@@ -388,14 +340,12 @@ public class RowFilterTest {
   }
 
   @Test
-  public void testUnnestRowFields() {
-    List<String> unnestFields = Arrays.asList("row", "row.nested_row");
-    RowFilter rowFilter = new RowFilter(ROW_SCHEMA).unnesting(unnestFields);
+  public void testOnlyRowField() {
+    RowFilter rowFilter = new RowFilter(ROW_SCHEMA).only("row");
 
     Row expecedRow =
         Row.withSchema(rowFilter.outputSchema())
             .addValues(ORIGINAL_ROW.getRow("row").getValues())
-            .addValues(ORIGINAL_ROW.getRow("row").getRow("nested_row").getValues())
             .build();
 
     assertEquals(expecedRow, rowFilter.filter(ORIGINAL_ROW));

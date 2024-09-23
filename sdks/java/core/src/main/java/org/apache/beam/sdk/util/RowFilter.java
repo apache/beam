@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,11 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A utility that filters fields from Beam {@link Row}s. This filter can be configured to indicate
- * what fields you would like to either <strong>keep</strong>, <strong>drop</strong>, or
- * <strong>unnest</strong>. Afterward, call {@link #filter(Row)} on a Schema-compatible Row to
- * filter it. An un-configured filter will simply return the input row untouched.
- *
- * <p>Nested fields can be expressed using dot-notation (e.g. {@code "top.middle.nested"}).
+ * what fields you would like to either <strong>keep</strong> or <strong>drop</strong>. You may also
+ * specify a singular {@link Row} field to extract with <strong>only</strong>. Afterward, call
+ * {@link #filter(Row)} on a Schema-compatible Row to filter it. An un-configured filter will simply
+ * return the input row untouched.
  *
  * <p>A configured {@link RowFilter} will naturally produce {@link Row}s with a new Beam {@link
  * Schema}. You can access this new Schema via the filter's {@link #outputSchema()}.
@@ -58,20 +58,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * // this filter will drop these fields
  * RowFilter droppingFilter = new RowFilter(beamSchema).dropping(fields);
  *
- * // this filter will unnest all fields under "row_a" and "row_b" to the top level
- * List<String> fields = Arrays.asList("row_a", "row_b");
- * RowFilter unnestingFilter = new RowFilter(beamSchema).unnesting(fields);
+ * // this filter will only output the contents of row field "my_record"
+ * String field = "my_record";
+ * RowFilter onlyFilter = new RowFilter(beamSchema).only(field);
  *
  * // produces a filtered row
  * Row outputRow = keepingFilter.filter(row);
  * }</pre>
  *
  * Check the documentation for {@link #keeping(List)}, {@link #dropping(List)}, and {@link
- * #unnesting(List)} for further details on what an output Row can look like.
+ * #only(String)} for further details on what an output Row can look like.
  */
 public class RowFilter implements Serializable {
   private final Schema rowSchema;
   private @Nullable Schema transformedSchema;
+  // for 'only' case
+  private @Nullable String onlyField;
 
   public RowFilter(Schema rowSchema) {
     this.rowSchema = rowSchema;
@@ -139,16 +141,14 @@ public class RowFilter implements Serializable {
   }
 
   /**
-   * Configures this {@link RowFilter} to unnest everything under the specified row fields to the
-   * top-level. The unnested sub-fields are kept with their original names.
+   * Configures this {@link RowFilter} to only output the contents of a single row field.
    *
-   * <p>For example, if we want to unnest the sub-fields of {@code ["abc", "foo"]}, for this input
-   * {@link Row}:
+   * <p>For example, if we want to only extract the contents of field "foo" for this input {@link
+   * Row}:
    *
    * <pre>{@code
-   * wkl: 123
-   * abc:
-   *   bar: my_str
+   * abc: 123
+   * bar: my_str
    * foo:
    *   xyz:
    *     baz: 456
@@ -158,43 +158,29 @@ public class RowFilter implements Serializable {
    * we will get the following output {@link Row}:
    *
    * <pre>{@code
-   * bar: my_str
    * xyz:
    *   baz: 456
    *   qwe: 789
    * }</pre>
    *
-   * <p>Note that this will fail if two specified row fields contain sub-fields with identical
-   * names, as that would result in duplicates. This will also fail if a specified field is not of
-   * type {@link Row}.
-   *
-   * <p>For example, the {@link RowFilter} will fail when configuring to unnest the fields {@code
-   * ["abc", "foo"]} if they look like this:
-   *
-   * <pre>{@code
-   * abc:
-   *   bar: my_str
-   * foo:
-   *   baz: 456
-   *   bar: another_str
-   * }</pre>
-   *
-   * because this will lead to two fields on the same level named "bar".
+   * <p>Note that this will fail if the field is not of type {@link Row}, e.g. if {@code "abc"} is
+   * specified for the example above.
    */
-  public RowFilter unnesting(List<String> fields) {
+  public RowFilter only(String field) {
     checkUnconfigured();
-    verifyNoNestedFields(fields, "unnest");
-    validateSchemaContainsFields(rowSchema, fields, "unnest");
-    transformedSchema = unnestRowFields(rowSchema, fields);
-    List<List<String>> fieldPaths = new ArrayList<>(fields.size());
-    for (String fieldPath : fields) {
-      fieldPaths.add(Splitter.on(".").splitToList(fieldPath));
-    }
-    fieldPathsToUnnest = fieldPaths;
+    validateSchemaContainsFields(rowSchema, Collections.singletonList(field), "only");
+    Schema.Field rowField = rowSchema.getField(field);
+    Preconditions.checkArgument(
+        rowField.getType().getTypeName().equals(Schema.TypeName.ROW),
+        "Expected type '%s' for field '%s', but instead got type '%s'.",
+        Schema.TypeName.ROW,
+        rowField.getName(),
+        rowField.getType().getTypeName());
+
+    transformedSchema = rowField.getType().getRowSchema();
+    onlyField = field;
     return this;
   }
-
-  private @Nullable List<List<String>> fieldPathsToUnnest;
 
   /**
    * Performs a filter operation (keep or drop) on the input {@link Row}. Must have already
@@ -207,10 +193,6 @@ public class RowFilter implements Serializable {
     if (transformedSchema == null) {
       return row;
     }
-    // unnesting case
-    if (fieldPathsToUnnest != null) {
-      return unnestRowValues(row);
-    }
 
     Preconditions.checkState(
         row.getSchema().assignableTo(rowSchema),
@@ -220,6 +202,12 @@ public class RowFilter implements Serializable {
         row.getSchema(),
         rowSchema);
 
+    // 'only' case
+    if (onlyField != null) {
+      return checkStateNotNull(row.getRow(onlyField));
+    }
+
+    // 'keep' and 'drop'
     return Preconditions.checkNotNull(copyWithNewSchema(row, outputSchema()));
   }
 
@@ -347,21 +335,6 @@ public class RowFilter implements Serializable {
     return Row.withSchema(newSchema).withFieldValues(values).build();
   }
 
-  /** Unnests the specified Row field values and outputs a new Row. */
-  private Row unnestRowValues(Row row) {
-    Row.Builder builder = Row.withSchema(checkStateNotNull(transformedSchema));
-    for (List<String> fieldPath : checkStateNotNull(fieldPathsToUnnest)) {
-      Row traversingRow = row;
-      int i = 0;
-      while (i < fieldPath.size()) {
-        traversingRow = checkStateNotNull(traversingRow.getRow(fieldPath.get(i++)));
-      }
-
-      builder.addValues(traversingRow.getValues());
-    }
-    return builder.build();
-  }
-
   /**
    * Returns a new {@link Schema} with the specified fields removed.
    *
@@ -443,49 +416,6 @@ public class RowFilter implements Serializable {
                 .withNullable(typeToKeep.getNullable());
       }
       newFieldsList.add(fieldToKeep);
-    }
-
-    return new Schema(newFieldsList);
-  }
-
-  @VisibleForTesting
-  static Schema.Field getRowFieldToUnnest(Schema schema, List<String> fieldPath) {
-    Preconditions.checkState(
-        !fieldPath.isEmpty(), "Unexpected call to get nested field without providing a name.");
-    Schema.Field field = schema.getField(fieldPath.get(0));
-
-    Preconditions.checkArgument(
-        field.getType().getTypeName().equals(Schema.TypeName.ROW),
-        "Expected type '%s' for field '%s', but instead got type '%s'.",
-        Schema.TypeName.ROW,
-        field.getName(),
-        field.getType().getTypeName());
-
-    if (fieldPath.size() == 1) {
-      return field;
-    }
-
-    return getRowFieldToUnnest(
-        checkStateNotNull(field.getType().getRowSchema()), fieldPath.subList(1, fieldPath.size()));
-  }
-
-  /**
-   * Takes a {@link Schema} and a list of field paths that refer to {@link Row} fields.
-   *
-   * <p>For each row field, its sub-fields are unnested and placed at the top level.
-   *
-   * <p>No guarantee that field ordering will remain the same.
-   */
-  @VisibleForTesting
-  static Schema unnestRowFields(Schema schema, List<String> fieldsToUnnest) {
-    if (fieldsToUnnest.isEmpty()) {
-      return schema;
-    }
-    List<Schema.Field> newFieldsList = new ArrayList<>(fieldsToUnnest.size());
-    for (String fieldPath : fieldsToUnnest) {
-      Schema.Field field = getRowFieldToUnnest(schema, Splitter.on(".").splitToList(fieldPath));
-
-      newFieldsList.addAll(checkStateNotNull(field.getType().getRowSchema()).getFields());
     }
 
     return new Schema(newFieldsList);
