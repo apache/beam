@@ -68,7 +68,7 @@
 
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
-* Added support for processing events which use a global sequence to OrderedEventProcessor (Java)
+* Added support for processing events which use a global sequence to "ordered" extension (Java)
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
