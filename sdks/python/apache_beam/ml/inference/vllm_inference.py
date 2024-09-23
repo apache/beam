@@ -100,7 +100,7 @@ class _VLLMModelServer():
     self._vllm_server_kwargs = vllm_server_kwargs
     self._server_started = False
     self._server_process = None
-    self._server_port = None
+    self._server_port: int = -1
 
     self.start_server()
 
@@ -218,7 +218,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       model_name: str,
       chat_template_path: Optional[str] = None,
-      vllm_server_kwargs: Dict[str, str] = None):
+      vllm_server_kwargs: Optional[Dict[str, str]] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
