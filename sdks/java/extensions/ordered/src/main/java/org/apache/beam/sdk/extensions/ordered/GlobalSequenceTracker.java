@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * PTransform to produce the side input of the maximum contiguous range of sequence numbers
+ * PTransform to produce the side input of the maximum contiguous range of sequence numbers.
  *
  * @param <EventKeyT> type of event key
  * @param <EventT> type of event
