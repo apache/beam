@@ -110,6 +110,12 @@ public class ReadFromKafkaDoFnTest {
   private final ReadFromKafkaDoFn<String, String> exceptionDofnInstance =
       ReadFromKafkaDoFn.create(makeReadSourceDescriptor(exceptionConsumer), RECORDS);
 
+  private final SimpleMockKafkaConsumerWithBrokenSeek consumerWithBrokenSeek =
+      new SimpleMockKafkaConsumerWithBrokenSeek(OffsetResetStrategy.NONE, topicPartition);
+
+  private final ReadFromKafkaDoFn<String, String> dofnInstanceWithBrokenSeek =
+      ReadFromKafkaDoFn.create(makeReadSourceDescriptor(consumerWithBrokenSeek), RECORDS);
+
   private ReadSourceDescriptors<String, String> makeReadSourceDescriptor(
       Consumer<byte[], byte[]> kafkaMockConsumer) {
     return ReadSourceDescriptors.<String, String>read()
@@ -295,6 +301,17 @@ public class ReadFromKafkaDoFnTest {
     }
   }
 
+  private static class SimpleMockKafkaConsumerWithBrokenSeek extends SimpleMockKafkaConsumer {
+
+    public SimpleMockKafkaConsumerWithBrokenSeek(
+        OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
+      super(offsetResetStrategy, topicPartition);
+    }
+
+    @Override
+    public synchronized void seek(TopicPartition partition, long offset) {}
+  }
+
   private static class MockMultiOutputReceiver implements MultiOutputReceiver {
 
     MockOutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> mockOutputReceiver =
@@ -377,6 +394,7 @@ public class ReadFromKafkaDoFnTest {
   public void setUp() throws Exception {
     dofnInstance.setup();
     exceptionDofnInstance.setup();
+    dofnInstanceWithBrokenSeek.setup();
     consumer.reset();
   }
 
@@ -469,6 +487,24 @@ public class ReadFromKafkaDoFnTest {
     KafkaSourceDescriptor descriptor =
         KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
     ProcessContinuation result = dofnInstance.processElement(descriptor, tracker, null, receiver);
+    assertEquals(ProcessContinuation.stop(), result);
+    assertEquals(
+        createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
+        receiver.getGoodRecords());
+  }
+
+  @Test
+  public void testProcessElementWithEarlierOffset() throws Exception {
+    MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
+    consumerWithBrokenSeek.setNumOfRecordsPerPoll(6L);
+    consumerWithBrokenSeek.setCurrentPos(0L);
+    long startOffset = 3L;
+    OffsetRangeTracker tracker =
+        new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
+    KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
+    ProcessContinuation result =
+        dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver);
     assertEquals(ProcessContinuation.stop(), result);
     assertEquals(
         createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
