@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -357,14 +358,39 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
     private static class RowDynamicDestinations extends DynamicDestinations<Row, String> {
       Schema schema;
+      String fixedDestination = null;
+      List<String> primaryKey = null;
 
       RowDynamicDestinations(Schema schema) {
         this.schema = schema;
       }
 
+      RowDynamicDestinations withFixedDestination(String destination) {
+        this.fixedDestination = destination;
+        return this;
+      }
+
+      RowDynamicDestinations withPrimaryKey(List<String> primaryKey) {
+        this.primaryKey = primaryKey;
+        return this;
+      }
+
       @Override
       public String getDestination(ValueInSingleWindow<Row> element) {
-        return element.getValue().getString("destination");
+        return fixedDestination != null
+            ? fixedDestination
+            : element.getValue().getString("destination");
+      }
+
+      @Override
+      public TableConstraints getTableConstraints(String destination) {
+        return Optional.ofNullable(this.primaryKey)
+            .filter(pk -> !pk.isEmpty())
+            .map(
+                pk ->
+                    new TableConstraints()
+                        .setPrimaryKey(new TableConstraints.PrimaryKey().setColumns(pk)))
+            .orElse(null);
       }
 
       @Override
@@ -484,19 +510,26 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             schema.getFieldNames().containsAll(Arrays.asList("destination", "record")),
             "When writing to dynamic destinations, we expect Row Schema with a "
                 + "\"destination\" string field and a \"record\" Row field.");
-        write =
-            write
-                .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
-                .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
+        RowDynamicDestinations dynamicDestination =
+            new RowDynamicDestinations(schema.getField("record").getType().getRowSchema());
 
-        if (!safeUseCdcWritesWithPrimaryKeys().isEmpty()) {
+        if (isCdcConfigured()) {
+          dynamicDestination =
+              dynamicDestination.withPrimaryKey(configuration.getUseCdcWritesWithPrimaryKey());
           write = validateAndIncludeCDCInformation(write, schema);
         }
+        write =
+            write
+                .to(dynamicDestination)
+                .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
       } else {
-        if (!safeUseCdcWritesWithPrimaryKeys().isEmpty()) {
+        if (isCdcConfigured()) {
           write =
               validateAndIncludeCDCInformation(write, schema)
-                  .to(configuration.getTable())
+                  .to(
+                      new RowDynamicDestinations(schema.getField("record").getType().getRowSchema())
+                          .withFixedDestination(configuration.getTable())
+                          .withPrimaryKey(configuration.getUseCdcWritesWithPrimaryKey()))
                   .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
         } else {
           write = write.to(configuration.getTable()).useBeamSchema();
@@ -523,21 +556,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       return write;
     }
 
-    List<String> safeUseCdcWritesWithPrimaryKeys() {
-      return Optional.ofNullable(configuration.getUseCdcWritesWithPrimaryKey())
-          .orElse(ImmutableList.of());
+    boolean isCdcConfigured() {
+      return !Optional.ofNullable(configuration.getUseCdcWritesWithPrimaryKey())
+          .orElse(ImmutableList.of())
+          .isEmpty();
     }
 
     BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
         BigQueryIO.Write<Row> write, Schema schema) {
-      checkArgument(
-          configuration.getCreateDisposition() != null
-              && CreateDisposition.CREATE_NEVER.equals(
-                  CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase())),
-          "When using CDC functionality BigQuery tables should be pre-created and"
-              + " CREATE_NEVER should be set as create disposition."
-              + " Currently BigQueryIO does not support creating primary keys"
-              + " for tables when CREATE_IF_NEEDED is in use.");
       checkArgument(
           schema.getFieldNames().containsAll(Arrays.asList("cdc_info", "record")),
           "When writing using CDC functionality, we expect Row Schema with a "

@@ -33,7 +33,6 @@ from hamcrest.core.core.allof import all_of
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -166,27 +165,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
-  def create_table_for_cdc(self, table_name):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'name'
-    table_field.type = 'STRING'
-    table_field.mode = 'REQUIRED'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'value'
-    table_field.type = 'INT64'
-    table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
-            tableId=table_name),
-        schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
-
   def test_all_types(self):
     table_name = "all_types"
     schema = self.ALL_TYPES_SCHEMA
@@ -271,8 +249,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table = 'write_with_beam_rows_cdc'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
-    self.create_table_for_cdc(table)
-
     expected_data_on_bq = [
         # (name, value)
         {
@@ -302,9 +278,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           p
           | beam.Create(rows_with_cdc)
           | StorageWriteToBigQuery(
-              table=table_id,
-              create_disposition="CREATE_NEVER",
-              use_cdc_writes_with_primary_key=["name"]))
+              table=table_id, cdc_writes_with_primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):

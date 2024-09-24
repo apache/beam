@@ -22,11 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-import java.io.IOException;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,7 +34,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
@@ -265,29 +260,6 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         .collect(Collectors.toList());
   }
 
-  void createTables(
-      Schema rowSchema,
-      List<String> primaryKeyColumns,
-      String project,
-      String dataset,
-      String tableName,
-      List<String> tableNameSuffixes)
-      throws IOException {
-    for (String suffix : tableNameSuffixes) {
-      TableSchema schema = BigQueryUtils.toTableSchema(SCHEMA);
-      Table fakeTable = new Table();
-      TableReference ref =
-          new TableReference()
-              .setProjectId(project)
-              .setDatasetId(dataset)
-              .setTableId(tableName + suffix);
-      fakeTable.setSchema(schema);
-      fakeTable.setTableReference(ref);
-      fakeDatasetService.createTable(fakeTable);
-      fakeDatasetService.setPrimaryKey(ref, primaryKeyColumns);
-    }
-  }
-
   @Test
   public void testCDCWrites() throws Exception {
     String tableSpec = "project:dataset.cdc_write";
@@ -296,13 +268,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(tableSpec)
-            .setCreateDisposition("CREATE_NEVER")
             .setUseCdcWritesWithPrimaryKey(primaryKeyColumns)
             .build();
-
-    // Create table, give it a schema and add the primary keys
-    createTables(
-        SCHEMA, primaryKeyColumns, "project", "dataset", "cdc_write", ImmutableList.of(""));
 
     List<Row> rowsDuplicated =
         Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
@@ -331,20 +298,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(dynamic)
-            .setCreateDisposition("CREATE_NEVER")
             .setUseCdcWritesWithPrimaryKey(primaryKeyColumns)
             .build();
 
-    String baseTableSpec = "project:dataset.dynamic_write_";
-
-    // Create table, give it a schema and add the primary keys
-    createTables(
-        SCHEMA,
-        primaryKeyColumns,
-        "project",
-        "dataset",
-        "dynamic_write_",
-        ImmutableList.of("1", "2", "3"));
+    String baseTableSpec = "project:dataset.cdc_dynamic_write_";
 
     List<Row> rowsDuplicated =
         Stream.concat(ROWS.stream(), ROWS.stream()).collect(Collectors.toList());
@@ -355,15 +312,15 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     assertTrue(
         rowEquals(
             rowsDuplicated.get(3),
-            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_1").get(0)));
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_dynamic_write_1").get(0)));
     assertTrue(
         rowEquals(
             rowsDuplicated.get(4),
-            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_2").get(0)));
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_dynamic_write_2").get(0)));
     assertTrue(
         rowEquals(
             rowsDuplicated.get(5),
-            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
+            fakeDatasetService.getAllRows("project", "dataset", "cdc_dynamic_write_3").get(0)));
   }
 
   @Test
