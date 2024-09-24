@@ -235,7 +235,7 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
                 ReadSession.newBuilder()
                     .setTable("projects/my-project/datasets/dataset/tables/table")
                     .setDataFormat(DataFormat.AVRO)
-                    .setReadOptions(ReadSession.TableReadOptions.newBuilder().build()))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 

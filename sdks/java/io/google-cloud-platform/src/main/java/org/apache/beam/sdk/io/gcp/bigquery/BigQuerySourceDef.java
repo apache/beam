@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -53,15 +52,4 @@ interface BigQuerySourceDef extends Serializable {
    * @throws BigQuerySchemaRetrievalException if schema retrieval fails
    */
   TableSchema getTableSchema(BigQueryOptions bqOptions);
-
-  /**
-   * Extract the Beam {@link Schema} corresponding to this source.
-   *
-   * @param bqOptions BigQueryOptions
-   * @return Beam schema of the source
-   * @throws BigQuerySchemaRetrievalException if schema retrieval fails
-   */
-  default Schema getBeamSchema(BigQueryOptions bqOptions) {
-    return BigQueryUtils.fromTableSchema(getTableSchema(bqOptions));
-  }
 }

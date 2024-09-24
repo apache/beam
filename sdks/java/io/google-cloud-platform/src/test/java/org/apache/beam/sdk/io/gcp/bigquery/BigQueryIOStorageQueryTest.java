@@ -382,7 +382,7 @@ public class BigQueryIOStorageQueryTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setReadOptions(ReadSession.TableReadOptions.newBuilder().build()))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(requestedStreamCount)
             .build();
 
@@ -484,7 +484,7 @@ public class BigQueryIOStorageQueryTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setReadOptions(ReadSession.TableReadOptions.newBuilder().build()))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(1024)
             .build();
 
@@ -655,7 +655,7 @@ public class BigQueryIOStorageQueryTest {
                 ReadSession.newBuilder()
                     .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
                     .setDataFormat(DataFormat.AVRO)
-                    .setReadOptions(ReadSession.TableReadOptions.newBuilder().build()))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
@@ -728,7 +728,7 @@ public class BigQueryIOStorageQueryTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setReadOptions(ReadSession.TableReadOptions.newBuilder().build()))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
