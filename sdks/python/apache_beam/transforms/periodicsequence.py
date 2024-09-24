@@ -49,15 +49,17 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
     return OffsetRestrictionTracker(restriction)
 
   def restriction_size(self, element, restriction):
-    return sequence_backlog_bytes(element, time.time(), restriction)
+    return _sequence_backlog_bytes(element, time.time(), restriction)
 
   # On drain, immediately stop emitting new elements
   def truncate(self, unused_element, unused_restriction):
     return None
 
 
-def sequence_backlog_bytes(element, now, offset_range):
-  # Find the # of outputs expected for overlap of  and [-inf, now)
+def _sequence_backlog_bytes(element, now, offset_range):
+  '''
+  Calculates size of the output that the sequence should have emitted up to now.
+  '''
   start, _, interval = element
   if isinstance(start, Timestamp):
     start = start.micros / 1000000
@@ -66,6 +68,8 @@ def sequence_backlog_bytes(element, now, offset_range):
   now_index = math.floor((now - start) / interval)
   if now_index < offset_range.start:
     return 0
+  # We attempt to be precise as some runners scale based upon bytes and
+  # output byte throughput.
   return 8 * (min(offset_range.stop, now_index) - offset_range.start)
 
 

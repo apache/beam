@@ -79,7 +79,7 @@ func TestSize(t *testing.T) {
 	}
 
 	for _, test := range sizeTests {
-		got := CalculateByteSizeOfSequence(
+		got := calculateSequenceByteSize(
 			time.Unix(test.now, 0),
 			sd,
 			offsetrange.Restriction{

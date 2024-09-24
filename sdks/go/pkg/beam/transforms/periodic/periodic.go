@@ -61,8 +61,8 @@ func NewSequenceDefinition(start, end time.Time, interval time.Duration) Sequenc
 	}
 }
 
-func CalculateByteSizeOfSequence(now time.Time, sd SequenceDefinition, rest offsetrange.Restriction) int64 {
-	// Find the # of outputs expected for overlap of  and [-inf, now)
+// Calculates size of the output that the sequence should have emitted up to now.
+func calculateSequenceByteSize(now time.Time, sd SequenceDefinition, rest offsetrange.Restriction) int64 {
 	nowIndex := int64(now.Sub(mtime.Time(sd.Start).ToTime()) / sd.Interval)
 	if nowIndex < rest.Start {
 		return 0
@@ -85,7 +85,7 @@ func (fn *sequenceGenDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.Lock
 }
 
 func (fn *sequenceGenDoFn) RestrictionSize(sd SequenceDefinition, rest offsetrange.Restriction) float64 {
-	return float64(CalculateByteSizeOfSequence(time.Now(), sd, rest))
+	return float64(calculateSequenceByteSize(time.Now(), sd, rest))
 }
 
 func (fn *sequenceGenDoFn) SplitRestriction(_ SequenceDefinition, rest offsetrange.Restriction) []offsetrange.Restriction {

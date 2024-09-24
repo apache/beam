@@ -30,7 +30,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.periodicsequence import PeriodicSequence
-from apache_beam.transforms.periodicsequence import sequence_backlog_bytes
+from apache_beam.transforms.periodicsequence import _sequence_backlog_bytes
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
@@ -117,20 +117,20 @@ class PeriodicSequenceTest(unittest.TestCase):
   def test_periodicsequence_output_size(self):
     element = [0, 1000000000, 10]
     self.assertEqual(
-        sequence_backlog_bytes(element, 100, OffsetRange(10, 100000000)), 0)
+        _sequence_backlog_bytes(element, 100, OffsetRange(10, 100000000)), 0)
     self.assertEqual(
-        sequence_backlog_bytes(element, 100, OffsetRange(9, 100000000)), 8)
+        _sequence_backlog_bytes(element, 100, OffsetRange(9, 100000000)), 8)
     self.assertEqual(
-        sequence_backlog_bytes(element, 100, OffsetRange(8, 100000000)), 16)
+        _sequence_backlog_bytes(element, 100, OffsetRange(8, 100000000)), 16)
     self.assertEqual(
-        sequence_backlog_bytes(element, 101, OffsetRange(9, 100000000)), 8)
+        _sequence_backlog_bytes(element, 101, OffsetRange(9, 100000000)), 8)
     self.assertEqual(
-        sequence_backlog_bytes(element, 10000, OffsetRange(0, 100000000)),
+        _sequence_backlog_bytes(element, 10000, OffsetRange(0, 100000000)),
         8 * 10000 / 10)
     self.assertEqual(
-        sequence_backlog_bytes(element, 10000, OffsetRange(1002, 1003)), 0)
+        _sequence_backlog_bytes(element, 10000, OffsetRange(1002, 1003)), 0)
     self.assertEqual(
-        sequence_backlog_bytes(element, 10100, OffsetRange(1002, 1003)), 8)
+        _sequence_backlog_bytes(element, 10100, OffsetRange(1002, 1003)), 8)
 
 
 if __name__ == '__main__':
