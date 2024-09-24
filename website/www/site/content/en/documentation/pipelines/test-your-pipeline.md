@@ -69,7 +69,7 @@ with TestPipeline as p:
 import "github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 
 // Override TestMain with ptest.Main,
-// once per package. 
+// once per package.
 func TestMain(m *testing.M) {
 	ptest.Main(m)
 }
@@ -237,7 +237,7 @@ import (
 
 // formatFn takes a key value pair and puts them
 // into a single string for comparison.
-func formatFn(w string, c int) string { 
+func formatFn(w string, c int) string {
    return fmt.Sprintf("%s: %d", w, c)
 }
 
