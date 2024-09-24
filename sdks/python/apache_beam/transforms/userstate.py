@@ -156,7 +156,7 @@ class OrderedListStateSpec(StateSpec):
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
-        bag_spec=beam_runner_api_pb2.BagStateSpec(
+        ordered_list_spec=beam_runner_api_pb2.OrderedListStateSpec(
             element_coder_id=context.coders.get_id(self.coder)),
         protocol=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.user_state.ORDERED_LIST.urn))
