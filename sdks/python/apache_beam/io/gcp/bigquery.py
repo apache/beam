@@ -2089,9 +2089,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         streaming insert payload.
       cdc_writes_with_primary_key: Configure the usage of CDC writes on BigQuery
         and sets the primary key using the column names from the argument.
-        The destination table (or tables if using dynamic destionations) will 
-        be created in case of using CREATE_IF_NEEDED mode, and StorageWrite API 
-        at least once mode will be configured. Used for STORAGE_WRITE_API method.
+        The destination table (or tables if using dynamic destionations) will
+        be created in case of using CREATE_IF_NEEDED mode, and StorageWrite API
+        at least once mode will be configured. Used for STORAGE_WRITE_API
+        method.
     """
     self._table = table
     self._dataset = dataset
