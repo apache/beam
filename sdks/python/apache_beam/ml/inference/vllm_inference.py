@@ -120,6 +120,14 @@ class _VLLMModelServer():
         server_cmd.append(v)
       self._server_process, self._server_port = start_process(server_cmd)
 
+    self.check_connectivity()
+
+  def get_server_port(self) -> int:
+    if not self._server_started:
+      self.start_server()
+    return self._server_port
+
+  def check_connectivity(self, retries=3):
     client = getVLLMClient(self._server_port)
     while self._server_process.poll() is None:
       try:
@@ -134,16 +142,13 @@ class _VLLMModelServer():
       time.sleep(5)
 
     if retries == 0:
+      self._server_started = False
       raise Exception(
-          "Failed to start vLLM server, process exited with code %s" %
+          "Failed to start vLLM server, polling process exited with code " +
+          "%s.  Next time a request is tried, the server will be restarted" %
           self._server_process.poll())
     else:
       self.start_server(retries - 1)
-
-  def get_server_port(self) -> int:
-    if not self._server_started:
-      self.start_server()
-    return self._server_port
 
 
 class VLLMCompletionsModelHandler(ModelHandler[str,
@@ -202,9 +207,14 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     # for taking in batches and doing a bunch of async calls. That will end up
     # being more efficient when we can do in bundle batching.
     for prompt in batch:
-      completion = client.completions.create(
-          model=self._model_name, prompt=prompt, **inference_args)
-      predictions.append(completion)
+      try:
+        completion = client.completions.create(
+            model=self._model_name, prompt=prompt, **inference_args)
+        predictions.append(completion)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def share_model_across_processes(self) -> bool:
@@ -288,9 +298,14 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       formatted = []
       for message in messages:
         formatted.append({"role": message.role, "content": message.content})
-      completion = client.chat.completions.create(
-          model=self._model_name, messages=formatted, **inference_args)
-      predictions.append(completion)
+      try:
+        completion = client.chat.completions.create(
+            model=self._model_name, messages=formatted, **inference_args)
+        predictions.append(completion)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def share_model_across_processes(self) -> bool:
