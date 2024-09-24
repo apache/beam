@@ -225,8 +225,6 @@ class CountTest(unittest.TestCase):
 {{< /highlight >}}
 
 {{< highlight go >}}
-package wordcount
-
 import (
   "testing"
 
