@@ -76,8 +76,9 @@ func TestMain(m *testing.M) {
 
 func TestPipeline(t *testing.T) {
 	...
-	// The Go SDK doesn't use a TestPipeline concept, and recommends using the ptest
-	// harness to wrap pipeline construction.
+	// The Go SDK doesn't use a TestPipeline concept,
+	// and recommends using the ptest harness
+	// to wrap pipeline construction.
 	pr := ptest.BuildAndRun(t, func(s beam.Scope) {
 		...
 	})
@@ -226,7 +227,7 @@ class CountTest(unittest.TestCase):
 
 {{< highlight go >}}
 import (
-  "testing"
+	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -238,32 +239,32 @@ import (
 // formatFn takes a key value pair and puts them
 // into a single string for comparison.
 func formatFn(w string, c int) string {
-   return fmt.Sprintf("%s: %d", w, c)
+	return fmt.Sprintf("%s: %d", w, c)
 }
 
 // Register the functional DoFn to ensure execution on workers.
 func init() {
-  register.Function2x1(formatFn)
+	register.Function2x1(formatFn)
 }
 
 func TestCountWords(t *testing.T) {
-  // The pipeline will run and verify the results.
-  ptest.BuildAndRun(t, func(s beam.Scope) {
-    words := []string{"hi", "there", "hi", "hi", "sue", "bob",
-      "hi", "sue", "", "", "ZOW", "bob", ""}
+	// The pipeline will run and verify the results.
+	ptest.BuildAndRun(t, func(s beam.Scope) {
+		words := []string{"hi", "there", "hi", "hi", "sue", "bob",
+			"hi", "sue", "", "", "ZOW", "bob", ""}
 
-    wantCounts := []string{"hi: 5", "there: 1", "sue: 2", "bob: 2"}
+		wantCounts := []string{"hi: 5", "there: 1", "sue: 2", "bob: 2"}
 
-    // Create a PCollection from the words static input data.
-    input := beam.CreateList(s, words)
+		// Create a PCollection from the words static input data.
+		input := beam.CreateList(s, words)
 
-    // Apply the Count transform under test.
-    output := stats.Count(s, col)
-    formatted := beam.ParDo(s, formatFn, output)
+		// Apply the Count transform under test.
+		output := stats.Count(s, col)
+		formatted := beam.ParDo(s, formatFn, output)
 
-    // Assert that the output PCollection matches the wantCounts data.
-    passert.Equals(s, formatted, wantCounts...)
-  })
+		// Assert that the output PCollection matches the wantCounts data.
+		passert.Equals(s, formatted, wantCounts...)
+	})
 }
 {{< /highlight >}}
 ## Testing a Pipeline End-to-End
@@ -360,7 +361,7 @@ class WordCountTest(unittest.TestCase):
 package wordcount
 
 import (
-  "testing"
+	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
@@ -376,22 +377,22 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection { ... }
 func formatFn(w string, c int) string { ... }
 
 func TestCountWords(t *testing.T) {
-  // The pipeline will run and verify the results.
-  ptest.BuildAndRun(t, func(s beam.Scope) {
-    words := []string{"hi", "there", "hi", "hi", "sue", "bob",
-      "hi", "sue", "", "", "ZOW", "bob", ""}
+	// The pipeline will run and verify the results.
+	ptest.BuildAndRun(t, func(s beam.Scope) {
+		words := []string{"hi", "there", "hi", "hi", "sue", "bob",
+			"hi", "sue", "", "", "ZOW", "bob", ""}
 
-    wantCounts := []string{"hi: 5", "there: 1", "sue: 2", "bob: 2"}
+		wantCounts := []string{"hi: 5", "there: 1", "sue: 2", "bob: 2"}
 
-    // Create a PCollection from the words static input data.
-    input := beam.CreateList(s, words)
+		// Create a PCollection from the words static input data.
+		input := beam.CreateList(s, words)
 
-    // Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
-    output := CountWords(s, input)
-    formatted := beam.ParDo(s, formatFn, output)
+		// Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
+		output := CountWords(s, input)
+		formatted := beam.ParDo(s, formatFn, output)
 
-    // Assert that the output PCollection matches the wantCounts data.
-    passert.Equals(s, formatted, wantCounts...)
-  })
+		// Assert that the output PCollection matches the wantCounts data.
+		passert.Equals(s, formatted, wantCounts...)
+	})
 }
 {{< /highlight >}}
