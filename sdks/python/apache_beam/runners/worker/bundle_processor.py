@@ -19,6 +19,8 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
+
 import base64
 import bisect
 import collections
@@ -745,12 +747,12 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
 class RangeSet:
   """For Internal Use only. A simple range set for ranges of [x,y)."""
-  def __init__(self):
+  def __init__(self) -> None:
     # The start points and end points are stored separately in order.
     self._sorted_starts = SortedList()
     self._sorted_ends = SortedList()
 
-  def add(self, start, end):
+  def add(self, start: int, end: int) -> None:
     if start >= end:
       return
 
@@ -775,20 +777,20 @@ class RangeSet:
     self._sorted_starts.add(new_start)
     self._sorted_ends.add(new_end)
 
-  def __contains__(self, key):
+  def __contains__(self, key: int) -> bool:
     idx = self._sorted_starts.bisect_left(key)
     return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key
             ) or (idx > 0 and self._sorted_ends[idx - 1] > key)
 
-  def __len__(self):
+  def __len__(self) -> int:
     assert len(self._sorted_starts) == len(self._sorted_ends)
     return len(self._sorted_starts)
 
-  def __iter__(self):
+  def __iter__(self) -> Iterator[Tuple[int, int]]:
     for i in zip(self._sorted_starts, self._sorted_ends):
       yield i
 
-  def __str__(self):
+  def __str__(self) -> str:
     return str(list(zip(self._sorted_starts, self._sorted_ends)))
 
 
@@ -796,11 +798,11 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
   RANGE_MIN = -(1 << 63)
   RANGE_MAX = (1 << 63) - 1
 
-  def __init__(self,
-               state_handler,  # type: sdk_worker.CachingStateHandler
-               state_key,  # type: beam_fn_api_pb2.StateKey
-               value_coder  # type: coders.Coder
-               ):
+  def __init__(
+      self,
+      state_handler: sdk_worker.CachingStateHandler,
+      state_key: beam_fn_api_pb2.StateKey,
+      value_coder: coders.Coder) -> None:
     self._state_handler = state_handler
     self._state_key = state_key
     self._elem_coder = beam.coders.TupleCoder(
@@ -809,21 +811,24 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     self._pending_adds = SortedDict()
     self._pending_removes = RangeSet()
 
-  def add(self, elem):
-    # type: (Any) -> None
+  def add(self, elem: Tuple[Union[int, timestamp.Timestamp], Any]) -> None:
     assert len(elem) == 2
     key, value = elem
     if isinstance(key, timestamp.Timestamp):
       key = key.micros
 
-    if key >= self.RANGE_MAX:
+    if key >= self.RANGE_MAX or key < self.RANGE_MIN:
       raise ValueError("key value %d is out of range" % key)
     self._pending_adds.setdefault(key, []).append(value)
 
-  def read(self):
+  def read(self) -> Iterable[Any]:
     return self.read_range(self.RANGE_MIN, self.RANGE_MAX)
 
-  def read_range(self, min_timestamp, limit_timestamp):
+  def read_range(
+      self,
+      min_timestamp: Union[int, timestamp.Timestamp],
+      limit_timestamp: Union[int, timestamp.Timestamp]
+  ) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
     # convert timestamp to int, as sort keys are stored as int internally.
     if isinstance(min_timestamp, timestamp.Timestamp):
       min_timestamp = min_timestamp.micros
@@ -858,17 +863,22 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
           _StateBackedIterable(
               self._state_handler, range_query_state_key, self._elem_coder))
 
-      return _MergeSortedIterable(persistent_items, local_items)
+      return map(
+          lambda x: (timestamp.Timestamp(x[0]), x[1]),
+          _MergeSortedIterable(persistent_items, local_items))
 
-    return local_items
+    return map(lambda x: (timestamp.Timestamp(x[0]), x[1]), local_items)
 
-  def clear(self):
+  def clear(self) -> None:
     self._cleared = True
     self._pending_adds = SortedDict()
     self._pending_removes = RangeSet()
     self._pending_removes.add(self.RANGE_MIN, self.RANGE_MAX)
 
-  def clear_range(self, min_timestamp, limit_timestamp):
+  def clear_range(
+      self,
+      min_timestamp: Union[int, timestamp.Timestamp],
+      limit_timestamp: Union[int, timestamp.Timestamp]) -> None:
     if isinstance(min_timestamp, timestamp.Timestamp):
       min_timestamp = min_timestamp.micros
 
@@ -885,7 +895,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     if not self._cleared:
       self._pending_removes.add(min_timestamp, limit_timestamp)
 
-  def commit(self):
+  def commit(self) -> None:
     futures = []
     if self._pending_removes:
       for start, end in self._pending_removes:
