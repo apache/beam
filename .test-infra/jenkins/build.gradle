@@ -23,7 +23,7 @@ applyGroovyNature()
 applyPythonNature()
 
 // TODO(https://github.com/apache/beam/issues/20209): Don't hardcode this version, take the value provided by Python nature.
-pythonVersion = '3.8'
+pythonVersion = '3.12'
 
 task generateMetricsReport {
   dependsOn setupVirtualenv
