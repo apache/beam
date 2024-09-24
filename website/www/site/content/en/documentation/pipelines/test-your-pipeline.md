@@ -387,11 +387,13 @@ func TestCountWords(t *testing.T) {
 		// Create a PCollection from the words static input data.
 		input := beam.CreateList(s, words)
 
-		// Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
+		// Run ALL the pipeline's transforms
+		// (in this case, the CountWords composite transform).
 		output := CountWords(s, input)
 		formatted := beam.ParDo(s, formatFn, output)
 
-		// Assert that the output PCollection matches the wantCounts data.
+		// Assert that the output PCollection matches
+		// the wantCounts data.
 		passert.Equals(s, formatted, wantCounts...)
 	})
 }
