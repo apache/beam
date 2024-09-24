@@ -386,10 +386,17 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 
 class OrderedListRuntimeState(AccumulatingRuntimeState):
   """Ordered list state interface object passed to user code."""
+  def read(self) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def add(self, value: Tuple[Union[int, Timestamp], Any]) -> None:
+    raise NotImplementedError(type(self))
+
   def read_range(
       self,
       min_time_stamp: Union[int, Timestamp],
-      limit_time_stamp: Union[int, Timestamp]) -> Iterable[Any]:
+      limit_time_stamp: Union[int,
+                              Timestamp]) -> Iterable[Tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
   def clear_range(

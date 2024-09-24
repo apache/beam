@@ -821,7 +821,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       raise ValueError("key value %d is out of range" % key)
     self._pending_adds.setdefault(key, []).append(value)
 
-  def read(self) -> Iterable[Any]:
+  def read(self) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
     return self.read_range(self.RANGE_MIN, self.RANGE_MAX)
 
   def read_range(
