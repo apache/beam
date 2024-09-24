@@ -264,10 +264,10 @@ class LineageTest(unittest.TestCase):
     for k, v in test_cases.items():
       self.assertEqual("apache:" + v, Lineage.get_fq_name("apache", k))
       self.assertEqual(
-          "apache:beam:" + v, Lineage.get_fq_name("apache", k, route="beam"))
+          "apache:beam:" + v, Lineage.get_fq_name("apache", k, subtype="beam"))
       self.assertEqual(
           "apache:beam:" + v + '.' + v,
-          Lineage.get_fq_name("apache", k, k, route="beam"))
+          Lineage.get_fq_name("apache", k, k, subtype="beam"))
 
 
 if __name__ == '__main__':

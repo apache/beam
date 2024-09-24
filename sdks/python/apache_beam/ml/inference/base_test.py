@@ -878,21 +878,22 @@ class RunInferenceBaseTest(unittest.TestCase):
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
   @unittest.skipIf(
-      sys.version_info < (3, 11),
+      sys.platform == "win32" or sys.version_info < (3, 11),
       "This test relies on the __del__ lifecycle method, but __del__ does " +
-      "not get invoked in the same way on older versions of Python, " +
-      "breaking this test. See " +
+      "not get invoked in the same way on older versions of Python or on " +
+      "windows, breaking this test. See " +
       "github.com/python/cpython/issues/87950#issuecomment-1807570983 " +
       "for example.")
   def test_run_inference_timeout_does_garbage_collection(self):
     with tempfile.TemporaryDirectory() as tmp_dirname:
       tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
+      expected_file_contents = 'Deleted FakeSlowModel'
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 15 + [20, 20, 20]
+        examples = [20] + [1] * 15
         expected_good = [1] * 15
-        expected_bad = [20, 20, 20, 20]
+        expected_bad = [20]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
@@ -909,7 +910,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       with open(tmp_path) as f:
         s = f.read()
-        self.assertNotEqual(s, '')
+        self.assertEqual(s, expected_file_contents)
 
   def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:
