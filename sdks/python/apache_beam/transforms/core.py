@@ -1464,10 +1464,11 @@ def _get_function_body_without_inners(func):
   source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
   first_def_line = next(source_lines).strip()
   if first_def_line.startswith("def "):
-    last_def_line = first_def_line
-    while not (
-        last_def_line.split("#")[0].split("\"\"\"")[0].strip().endswith(":")):
-      last_def_line = next(source_lines)
+    last_def_line_without_comment = first_def_line.split("#")[0] \
+        .split("\"\"\"")[0]
+    while not last_def_line_without_comment.strip().endswith(":"):
+      last_def_line_without_comment = next(source_lines).split("#")[0] \
+        .split("\"\"\"")[0]
 
     first_line = next(source_lines)
     indentation = len(first_line) - len(first_line.lstrip())
