@@ -59,7 +59,7 @@
 
 * Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
 * [Managed Iceberg] Added support for streaming writes ([#32451](https://github.com/apache/beam/pull/32451))
-* [Managed Iceberg] Added support for writing to dynamic destinations 
+* [Managed Iceberg] Added support for writing to dynamic destinations ([#32565](https://github.com/apache/beam/pull/32565))
 
 ## New Features / Improvements
 
