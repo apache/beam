@@ -665,7 +665,10 @@ def set_pandas_options():
   # See
   # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
   np.random.seed(123456)
-  np.set_printoptions(precision=4, suppress=True)
+  legacy = None
+  if np.version.version.startswith('2'):
+    legacy = '1.25'
+  np.set_printoptions(precision=4, suppress=True, legacy=legacy)
   pd.options.display.max_rows = 15
 
 

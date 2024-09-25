@@ -168,6 +168,7 @@ class FileBasedSource(iobase.BoundedSource):
             min_bundle_size=self._min_bundle_size,
             splittable=splittable)
         single_file_sources.append(single_file_source)
+        FileSystems.report_source_lineage(file_name)
       self._concat_source = concat_source.ConcatSource(single_file_sources)
     return self._concat_source
 
@@ -351,6 +352,7 @@ class _ExpandIntoRanges(DoFn):
       match_results = FileSystems.match([element])
       metadata_list = match_results[0].metadata_list
     for metadata in metadata_list:
+      FileSystems.report_source_lineage(metadata.path)
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))
