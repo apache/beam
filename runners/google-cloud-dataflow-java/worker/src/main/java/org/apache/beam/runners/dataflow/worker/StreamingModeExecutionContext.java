@@ -348,7 +348,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Windmill.WorkItem getWorkItem() {
-    return checkNotNull(work).getWorkItem();
+    return checkNotNull(
+            work,
+            "work is null. A call to StreamingModeExecutionContext.start(...) is required to set"
+                + " work for execution.")
+        .getWorkItem();
   }
 
   public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
@@ -736,7 +740,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               key,
               stateFamily,
               stateReader,
-              checkNotNull(work).getWorkItem().getIsNewKey(),
+              getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
               scopedReadStateSupplier);
 
