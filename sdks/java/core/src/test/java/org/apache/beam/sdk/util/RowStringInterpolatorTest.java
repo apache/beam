@@ -69,7 +69,9 @@ public class RowStringInterpolatorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'str'.");
 
-    interpolator.interpolate(ValueInSingleWindow.of(invalidRow, null, null, null));
+    interpolator.interpolate(
+        ValueInSingleWindow.of(
+            invalidRow, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   @Test
@@ -156,7 +158,9 @@ public class RowStringInterpolatorTest {
         "foo {str}, bar {row.nested_row.doubly_nested_str}, baz {row.nested_row.doubly_nested_int}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ValueInSingleWindow.of(ROW, null, null, null));
+    String output =
+        interpolator.interpolate(
+            ValueInSingleWindow.of(ROW, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     assertEquals("foo str_value, bar doubly_nested_str_value, baz 789", output);
   }

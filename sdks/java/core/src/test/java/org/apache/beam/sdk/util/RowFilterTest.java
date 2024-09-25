@@ -254,7 +254,7 @@ public class RowFilterTest {
   @Test
   public void testDropNestedFieldsFails() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("RowFilter does not support specifying nested fields to drop");
+    thrown.expectMessage("'drop' does not support nested fields");
 
     new RowFilter(ROW_SCHEMA)
         .dropping(
@@ -270,7 +270,7 @@ public class RowFilterTest {
   @Test
   public void testKeepNestedFieldsFails() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("RowFilter does not support specifying nested fields to keep");
+    thrown.expectMessage("'keep' does not support nested fields");
 
     new RowFilter(ROW_SCHEMA)
         .keeping(
