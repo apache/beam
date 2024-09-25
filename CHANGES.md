@@ -57,17 +57,13 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-
-## I/Os
-
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
 
 ## New Features / Improvements
 
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
+* Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
 * Optimized Spark Runner parDo transform evaluator (Java) ([#32537](https://github.com/apache/beam/issues/32537))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
@@ -78,11 +74,9 @@
   as strings rather than silently coerced (and possibly truncated) to numeric
   values.  To retain the old behavior, pass `dtype=True` (or any other value
   accepted by `pandas.read_json`).
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Python 3.8 is reaching EOL and support is being removed in Beam 2.61.0. The 2.60.0 release will warn users
 when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
@@ -92,10 +86,6 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.59.0] - 2024-09-11
 
