@@ -1465,8 +1465,8 @@ def _get_function_body_without_inners(func):
   first_def_line = next(source_lines).strip()
   if first_def_line.startswith("def "):
     last_def_line = first_def_line
-    while not last_def_line.split("#")[0].split("\"\"\"")[0].strip().endswith(
-        ":"):
+    while not (
+        last_def_line.split("#")[0].split("\"\"\"")[0].strip().endswith(":")):
       last_def_line = next(source_lines)
 
     first_line = next(source_lines)
