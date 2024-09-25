@@ -27,7 +27,7 @@ The Prism runner is suitable for small scale local testing and provides:
 * A web UI when executing in stand alone mode.
 * A direct implementation of Beam execution semantics.
 * A streaming-first runtime that supports batch processing and data streaming programs.
-* Fast, in-memory execution for to simplify SDK, Transform, and Pipeline development. 
+* Fast, in-memory execution for to simplify SDK, Transform, and Pipeline development.
 * Cross Language Transform support.
 
 Written in [Go](https://go.dev), it is the default runner for the [Go SDK](/roadmap/go-sdk/), but can be used in other SDKs as well (see below).
@@ -49,7 +49,7 @@ See the [Roadmap](/roadmap/prism-runner/) for how to find current progress.
 Specific feature support information will soon migrate to the [Runner Capability Matrix](/documentation/runners/capability-matrix/).
 
 # Using the Prism Runner
- 
+
 {{< language-switcher go java py >}}
 
 <span class="language-go">Prism is the default runner for the Go SDK and is used automatically. Set the runner with the flag `--runner=PrismRunner`. </span>
