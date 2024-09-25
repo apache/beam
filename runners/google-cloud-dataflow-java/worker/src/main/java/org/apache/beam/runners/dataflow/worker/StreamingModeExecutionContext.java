@@ -73,7 +73,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
@@ -129,7 +128,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable Object key = null;
 
-  private Work work;
+  private @Nullable Work work;
   private WindmillComputationKey computationKey;
   private SideInputStateFetcher sideInputStateFetcher;
   // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
@@ -304,9 +303,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return fetchSideInputFromWindmill(
         view,
         sideInputWindow,
-        Preconditions.checkNotNull(stateFamily),
+        checkNotNull(stateFamily),
         state,
-        Preconditions.checkNotNull(scopedReadStateSupplier),
+        checkNotNull(scopedReadStateSupplier),
         tagCache);
   }
 
@@ -329,15 +328,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
-    return work.getWorkItem().getGlobalDataIdNotificationsList();
+    return getWorkItem().getGlobalDataIdNotificationsList();
   }
 
   private List<Timer> getFiredTimers() {
-    return work.getWorkItem().getTimers().getTimersList();
+    return getWorkItem().getTimers().getTimersList();
   }
 
   public @Nullable ByteString getSerializedKey() {
-    return work.getWorkItem().getKey();
+    return work == null ? null : work.getWorkItem().getKey();
   }
 
   public WindmillComputationKey getComputationKey() {
@@ -345,11 +344,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public long getWorkToken() {
-    return work.getWorkItem().getWorkToken();
+    return getWorkItem().getWorkToken();
   }
 
   public Windmill.WorkItem getWorkItem() {
-    return work.getWorkItem();
+    return checkNotNull(work).getWorkItem();
   }
 
   public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
@@ -390,7 +389,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   public UnboundedSource.@Nullable CheckpointMark getReaderCheckpoint(
       Coder<? extends UnboundedSource.CheckpointMark> coder) {
     try {
-      ByteString sourceStateState = work.getWorkItem().getSourceState().getState();
+      ByteString sourceStateState = getWorkItem().getSourceState().getState();
       if (sourceStateState.isEmpty()) {
         return null;
       }
@@ -737,7 +736,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               key,
               stateFamily,
               stateReader,
-              work.getWorkItem().getIsNewKey(),
+              checkNotNull(work).getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
               scopedReadStateSupplier);
 
