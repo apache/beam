@@ -55,8 +55,11 @@ public class Lineage {
    *
    * <p>Specifically, If there are reserved chars (colon, whitespace, dot), escape with backtick. If
    * the segment is already wrapped, return the original.
+   *
+   * <p>This helper method is for internal and testing usage only.
    */
-  private static String wrapSegment(String value) {
+  @Internal
+  public static String wrapSegment(String value) {
     if (value.startsWith("`") && value.endsWith("`")) {
       return value;
     }
