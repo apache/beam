@@ -1462,10 +1462,11 @@ class CallableWrapperPartitionFn(PartitionFn):
 def _get_function_body_without_inners(func):
   source_lines = inspect.getsourcelines(func)[0]
   source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
-  def_line = next(source_lines).strip()
-  if def_line.startswith("def "):
-    while not def_line.split("#")[0].split("\"\"\"")[0].endswith(":"):
-      def_line = next(source_lines)
+  first_def_line = next(source_lines).strip()
+  if first_def_line.startswith("def "):
+    last_def_line = first_def_line
+    while not last_def_line.split("#")[0].split("\"\"\"")[0].endswith(":"):
+      last_def_line = next(source_lines)
 
     first_line = next(source_lines)
     indentation = len(first_line) - len(first_line.lstrip())
@@ -1490,7 +1491,7 @@ def _get_function_body_without_inners(func):
 
     return "".join(final_lines)
   else:
-    return def_line.rsplit(":")[-1].strip()
+    return first_def_line.rsplit(":")[-1].strip()
 
 
 def _check_fn_use_yield_and_return(fn):
