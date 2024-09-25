@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:22.05-py3
+ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:23.05-py3
 
 FROM ${BUILD_IMAGE} 
 
@@ -22,7 +22,7 @@ ENV PATH="/usr/src/tensorrt/bin:${PATH}"
 
 WORKDIR /workspace
 
-COPY --from=apache/beam_python3.9_sdk:latest /opt/apache/beam /opt/apache/beam
+COPY --from=apache/beam_python3.10_sdk:latest /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
     && pip install torch>=1.7.1 \
@@ -32,4 +32,4 @@ RUN pip install --upgrade pip \
     && pip install cuda-python
 
 ENTRYPOINT [ "/opt/apache/beam/boot" ]
-RUN apt-get update && apt-get install -y python3.9-venv 
+RUN apt-get update && apt-get install -y python3.10-venv 
