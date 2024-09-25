@@ -48,9 +48,6 @@ public final class GrpcGetWorkerMetadataStream
   private final Object metadataLock;
 
   @GuardedBy("metadataLock")
-  private long metadataVersion;
-
-  @GuardedBy("metadataLock")
   private WorkerMetadataResponse latestResponse;
 
   private GrpcGetWorkerMetadataStream(
@@ -61,7 +58,6 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      long metadataVersion,
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
@@ -74,7 +70,6 @@ public final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         "");
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
-    this.metadataVersion = metadataVersion;
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
     this.serverMappingConsumer = serverMappingConsumer;
     this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
@@ -89,7 +84,6 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      int metadataVersion,
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingUpdater) {
     GrpcGetWorkerMetadataStream getWorkerMetadataStream =
@@ -100,7 +94,6 @@ public final class GrpcGetWorkerMetadataStream
             streamRegistry,
             logEveryNStreamFailures,
             jobHeader,
-            metadataVersion,
             getWorkerMetadataThrottleTimer,
             serverMappingUpdater);
     getWorkerMetadataStream.startStream();
@@ -119,14 +112,13 @@ public final class GrpcGetWorkerMetadataStream
 
   /**
    * Acquires the {@link #metadataLock} Returns {@link Optional<WindmillEndpoints>} if the
-   * metadataVersion in the response is not stale (older or equal to {@link #metadataVersion}), else
-   * returns empty {@link Optional}.
+   * metadataVersion in the response is not stale (older or equal to current {@link
+   * WorkerMetadataResponse#getMetadataVersion()}), else returns empty {@link Optional}.
    */
   private Optional<WindmillEndpoints> extractWindmillEndpointsFrom(
       WorkerMetadataResponse response) {
     synchronized (metadataLock) {
-      if (response.getMetadataVersion() > metadataVersion) {
-        this.metadataVersion = response.getMetadataVersion();
+      if (response.getMetadataVersion() > latestResponse.getMetadataVersion()) {
         this.latestResponse = response;
         return Optional.of(WindmillEndpoints.from(response));
       } else {
@@ -136,7 +128,7 @@ public final class GrpcGetWorkerMetadataStream
             "Received metadata version={}; Current metadata version={}. "
                 + "Skipping update because received stale metadata",
             response.getMetadataVersion(),
-            this.metadataVersion);
+            latestResponse.getMetadataVersion());
       }
     }
 

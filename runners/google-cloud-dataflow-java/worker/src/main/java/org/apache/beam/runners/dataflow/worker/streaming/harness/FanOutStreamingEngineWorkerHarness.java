@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
@@ -24,7 +25,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +34,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.CheckReturnValue;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
@@ -61,12 +62,11 @@ import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,10 +81,7 @@ import org.slf4j.LoggerFactory;
 public final class FanOutStreamingEngineWorkerHarness implements StreamingWorkerHarness {
   private static final Logger LOG =
       LoggerFactory.getLogger(FanOutStreamingEngineWorkerHarness.class);
-  private static final String PUBLISH_NEW_WORKER_METADATA_THREAD_NAME =
-      "PublishNewWorkerMetadataThread";
-  private static final String CONSUME_NEW_WORKER_METADATA_THREAD_NAME =
-      "ConsumeNewWorkerMetadataThread";
+  private static final String WORKER_METADATA_CONSUMER_THREAD_NAME = "WorkerMetadataConsumerThread";
   private static final String STREAM_MANAGER_THREAD_NAME = "WindmillStreamManager-%d";
 
   private final JobHeader jobHeader;
@@ -96,19 +93,21 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final GetWorkBudget totalGetWorkBudget;
   private final ThrottleTimer getWorkerMetadataThrottleTimer;
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
-  private final Queue<WindmillEndpoints> newWindmillEndpoints;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
   private final ExecutorService windmillStreamManager;
-  private final ExecutorService newWorkerMetadataPublisher;
-  private final ExecutorService newWorkerMetadataConsumer;
+  private final ExecutorService workerMetadataConsumer;
+  private final Object metadataLock;
 
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
-  private volatile boolean started;
+  @GuardedBy("metadataLock")
+  private long metadataVersion;
 
-  @SuppressWarnings("FutureReturnValueIgnored")
+  @GuardedBy("this")
+  private boolean started;
+
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
@@ -131,30 +130,15 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.windmillStreamManager =
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setNameFormat(STREAM_MANAGER_THREAD_NAME).build());
-    this.newWorkerMetadataPublisher =
+    this.workerMetadataConsumer =
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder()
-                .setNameFormat(PUBLISH_NEW_WORKER_METADATA_THREAD_NAME)
-                .build());
-    this.newWorkerMetadataConsumer =
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder()
-                .setNameFormat(CONSUME_NEW_WORKER_METADATA_THREAD_NAME)
-                .build());
-    this.newWindmillEndpoints = Queues.synchronizedQueue(EvictingQueue.create(1));
+            new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build());
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.totalGetWorkBudget = totalGetWorkBudget;
-    this.getWorkerMetadataStream =
-        Suppliers.memoize(
-            () ->
-                streamFactory.createGetWorkerMetadataStream(
-                    dispatcherClient.getWindmillMetadataServiceStubBlocking(),
-                    getWorkerMetadataThrottleTimer,
-                    endpoints ->
-                        // Run this on a separate thread than the grpc stream thread.
-                        newWorkerMetadataPublisher.submit(
-                            () -> newWindmillEndpoints.add(endpoints))));
+    this.metadataVersion = Long.MIN_VALUE;
+    this.getWorkerMetadataStream = Suppliers.memoize(createGetWorkerMetadataStream()::get);
     this.workCommitterFactory = workCommitterFactory;
+    this.metadataLock = new Object();
   }
 
   /**
@@ -216,7 +200,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     Preconditions.checkState(!started, "StreamingEngineClient cannot start twice.");
     // Starts the stream, this value is memoized.
     getWorkerMetadataStream.get();
-    startWorkerMetadataConsumer();
     started = true;
   }
 
@@ -249,27 +232,51 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                     dispatcherClient.getWindmillServiceStub(), new ThrottleTimer()));
   }
 
-  private void startWorkerMetadataConsumer() {
-    newWorkerMetadataConsumer.execute(
-        () -> {
-          while (true) {
-            Optional.ofNullable(newWindmillEndpoints.poll())
-                .ifPresent(this::consumeWindmillWorkerEndpoints);
-          }
-        });
-  }
-
   @VisibleForTesting
   @Override
   public synchronized void shutdown() {
     Preconditions.checkState(started, "StreamingEngineClient never started.");
     getWorkerMetadataStream.get().halfClose();
-    newWorkerMetadataPublisher.shutdownNow();
-    newWorkerMetadataConsumer.shutdownNow();
+    workerMetadataConsumer.shutdownNow();
     channelCachingStubFactory.shutdown();
   }
 
+  @SuppressWarnings("methodref.receiver.bound")
+  private Supplier<GetWorkerMetadataStream> createGetWorkerMetadataStream(
+      @UnderInitialization FanOutStreamingEngineWorkerHarness this) {
+    // Checker Framework complains about reference to "this" in the constructor since the instance
+    // is "UnderInitialization" here, which we pass as a lambda to GetWorkerMetadataStream for
+    // processing new worker metadata. Supplier.get() is only called in start(), after we have
+    // constructed the FanOutStreamingEngineWorkerHarness.
+    return () ->
+        checkNotNull(streamFactory)
+            .createGetWorkerMetadataStream(
+                checkNotNull(dispatcherClient).getWindmillMetadataServiceStubBlocking(),
+                checkNotNull(getWorkerMetadataThrottleTimer),
+                this::consumeWorkerMetadata);
+  }
+
+  private void consumeWorkerMetadata(WindmillEndpoints windmillEndpoints) {
+    synchronized (metadataLock) {
+      // Only process versions greater than what we currently have to prevent double processing of
+      // metadata.
+      if (windmillEndpoints.version() > metadataVersion) {
+        metadataVersion = windmillEndpoints.version();
+        workerMetadataConsumer.execute(() -> consumeWindmillWorkerEndpoints(windmillEndpoints));
+      }
+    }
+  }
+
   private synchronized void consumeWindmillWorkerEndpoints(WindmillEndpoints newWindmillEndpoints) {
+    // Since this is run on a single threaded executor, multiple versions of the metadata maybe
+    // queued up while a previous version of the windmillEndpoints were being consumed. Only consume
+    // the endpoints if they are the most current version.
+    synchronized (metadataLock) {
+      if (newWindmillEndpoints.version() < metadataVersion) {
+        return;
+      }
+    }
+
     LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
     ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
         createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
@@ -400,7 +407,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private Supplier<GetDataStream> existingOrNewGetDataStreamFor(
       Entry<String, Endpoint> keyedEndpoint,
       ImmutableMap<String, Supplier<GetDataStream>> currentGlobalDataStreams) {
-    return Preconditions.checkNotNull(
+    return checkNotNull(
         currentGlobalDataStreams.getOrDefault(
             keyedEndpoint.getKey(),
             () ->

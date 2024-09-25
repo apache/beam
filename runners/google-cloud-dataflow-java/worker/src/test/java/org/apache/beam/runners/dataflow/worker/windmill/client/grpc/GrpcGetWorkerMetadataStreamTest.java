@@ -89,7 +89,6 @@ public class GrpcGetWorkerMetadataStreamTest {
 
   private GrpcGetWorkerMetadataStream getWorkerMetadataTestStream(
       GetWorkerMetadataTestStub getWorkerMetadataTestStub,
-      int metadataVersion,
       Consumer<WindmillEndpoints> endpointsConsumer) {
     serviceRegistry.addService(getWorkerMetadataTestStub);
     return GrpcGetWorkerMetadataStream.create(
@@ -101,7 +100,6 @@ public class GrpcGetWorkerMetadataStreamTest {
         streamRegistry,
         1, // logEveryNStreamFailures
         TEST_JOB_HEADER,
-        metadataVersion,
         new ThrottleTimer(),
         endpointsConsumer);
   }
@@ -146,8 +144,7 @@ public class GrpcGetWorkerMetadataStreamTest {
         new TestWindmillEndpointsConsumer();
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    int metadataVersion = -1;
-    stream = getWorkerMetadataTestStream(testStub, metadataVersion, testWindmillEndpointsConsumer);
+    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
     testStub.injectWorkerMetadata(mockResponse);
 
     assertThat(testWindmillEndpointsConsumer.globalDataEndpoints.keySet())
@@ -175,8 +172,7 @@ public class GrpcGetWorkerMetadataStreamTest {
 
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    int metadataVersion = 0;
-    stream = getWorkerMetadataTestStream(testStub, metadataVersion, testWindmillEndpointsConsumer);
+    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
     testStub.injectWorkerMetadata(initialResponse);
 
     List<WorkerMetadataResponse.Endpoint> newDirectPathEndpoints =
@@ -222,8 +218,7 @@ public class GrpcGetWorkerMetadataStreamTest {
         Mockito.spy(new TestWindmillEndpointsConsumer());
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    int metadataVersion = 0;
-    stream = getWorkerMetadataTestStream(testStub, metadataVersion, testWindmillEndpointsConsumer);
+    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
     testStub.injectWorkerMetadata(freshEndpoints);
 
     List<WorkerMetadataResponse.Endpoint> staleDirectPathEndpoints =
@@ -252,7 +247,7 @@ public class GrpcGetWorkerMetadataStreamTest {
   public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry() {
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    stream = getWorkerMetadataTestStream(testStub, 0, new TestWindmillEndpointsConsumer());
+    stream = getWorkerMetadataTestStream(testStub, new TestWindmillEndpointsConsumer());
     testStub.injectWorkerMetadata(
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -270,7 +265,7 @@ public class GrpcGetWorkerMetadataStreamTest {
     TestGetWorkMetadataRequestObserver requestObserver =
         Mockito.spy(new TestGetWorkMetadataRequestObserver());
     GetWorkerMetadataTestStub testStub = new GetWorkerMetadataTestStub(requestObserver);
-    stream = getWorkerMetadataTestStream(testStub, 0, new TestWindmillEndpointsConsumer());
+    stream = getWorkerMetadataTestStream(testStub, new TestWindmillEndpointsConsumer());
     stream.sendHealthCheck();
 
     verify(requestObserver).onNext(WorkerMetadataRequest.getDefaultInstance());

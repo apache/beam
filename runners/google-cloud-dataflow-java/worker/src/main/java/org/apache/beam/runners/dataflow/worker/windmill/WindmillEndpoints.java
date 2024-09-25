@@ -61,6 +61,7 @@ public abstract class WindmillEndpoints {
             .collect(toImmutableList());
 
     return WindmillEndpoints.builder()
+        .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
         .setWindmillEndpoints(windmillServers)
         .build();
@@ -122,6 +123,8 @@ public abstract class WindmillEndpoints {
         HostAndPort.fromParts(
             directEndpointAddress.getHostAddress(), (int) endpointProto.getPort()));
   }
+
+  public abstract long version();
 
   /**
    * Used by GetData GlobalDataRequest(s) to support Beam side inputs. Returns a map where the key
@@ -204,6 +207,8 @@ public abstract class WindmillEndpoints {
 
   @AutoValue.Builder
   public abstract static class Builder {
+    public abstract Builder setVersion(long version);
+
     public abstract Builder setGlobalDataEndpoints(
         ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers);
 

@@ -311,7 +311,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamRegistry,
         logEveryNStreamFailures,
         jobHeader,
-        0,
         getWorkerMetadataThrottleTimer,
         onNewWindmillEndpoints);
   }
