@@ -34,12 +34,16 @@ Written in [Go](https://go.dev), it is the default runner for the [Go SDK](/road
 
 # Capabilities
 
-Prism does not yet support every Beam feature and is under active development, however it does support a great deal already.
+While Prism already supports a great deal of Beam features, it doesn't yet support everything.
+Prism is under active development to close these gaps.
+
+With the exception of timer issues, use of unsupported features should fail the pipeline at job submission time.
 
 In the [2.59.0 release](/blog/beam-2.59.0/), Prism passes most runner validations tests with the exceptions of pipelines using the following features:
 
 OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders.
 Processing Time timers do not yet have real time support.
+
 
 See the [Roadmap](/roadmap/prism-runner/) for how to find current progress.
 Specific feature support information will soon migrate to the [Runner Capability Matrix](/documentation/runners/capability-matrix/).
