@@ -183,7 +183,9 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     String destinationTemplate = "default.table_{id}_{name}_";
     // for streaming, test substitution works for windowing
-    if (streaming) destinationTemplate += "{$DD}_";
+    if (streaming) {
+      destinationTemplate += "{$DD}_";
+    }
     destinationTemplate += salt;
 
     Map<String, Object> writeConfig =
@@ -199,8 +201,9 @@ public class IcebergWriteSchemaTransformProviderTest {
                         .build())
                 .build());
 
-    // trig freq is needed for streaming
-    if (streaming) writeConfig.put("triggering_frequency_seconds", 100);
+    if (streaming) {
+      writeConfig.put("triggering_frequency_seconds", 100);
+    }
 
     // (drop) we drop these fields from our iceberg table, so we drop them from our input rows
     // (keep) we want to include only these fields in our iceberg table, so we keep them and drop
