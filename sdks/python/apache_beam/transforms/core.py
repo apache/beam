@@ -1463,7 +1463,10 @@ def _get_function_body_without_inners(func):
   source_lines = inspect.getsourcelines(func)[0]
   source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
   def_line = next(source_lines).strip()
-  if def_line.startswith("def ") and def_line.endswith(":"):
+  if def_line.startswith("def "):
+    while next(source_lines).split("#")[0].split("\"\"\"")[0].endswith(":"):
+      continue
+
     first_line = next(source_lines)
     indentation = len(first_line) - len(first_line.lstrip())
     final_lines = [first_line[indentation:]]
