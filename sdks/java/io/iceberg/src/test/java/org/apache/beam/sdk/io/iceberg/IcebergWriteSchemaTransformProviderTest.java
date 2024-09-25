@@ -37,6 +37,8 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.util.RowStringInterpolator;
@@ -248,11 +250,14 @@ public class IcebergWriteSchemaTransformProviderTest {
     Instant second = first.plus(Duration.standardDays(1));
     Instant third = second.plus(Duration.standardDays(1));
     String identifier0 =
-        interpolator.interpolate(ValueInSingleWindow.of(rows.get(0), first, null, null));
+        interpolator.interpolate(
+            ValueInSingleWindow.of(rows.get(0), first, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
     String identifier1 =
-        interpolator.interpolate(ValueInSingleWindow.of(rows.get(1), second, null, null));
+        interpolator.interpolate(
+            ValueInSingleWindow.of(rows.get(1), second, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
     String identifier2 =
-        interpolator.interpolate(ValueInSingleWindow.of(rows.get(2), third, null, null));
+        interpolator.interpolate(
+            ValueInSingleWindow.of(rows.get(2), third, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     org.apache.iceberg.Schema icebergSchema =
         IcebergUtils.beamSchemaToIcebergSchema(filter.outputSchema());
