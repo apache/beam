@@ -115,15 +115,21 @@ public class IcebergIO {
       DynamicDestinations destinations = getDynamicDestinations();
       if (destinations == null) {
         destinations =
-            DynamicDestinations.singleTable(Preconditions.checkNotNull(getTableIdentifier()));
+            DynamicDestinations.singleTable(
+                Preconditions.checkNotNull(getTableIdentifier()), input.getSchema());
       }
 
-      if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+      // Assign destinations before re-windowing to global because
+      // user's dynamic destination may depend on windowing properties
+      PCollection<Row> assignedRows =
+          input.apply("Set Destination Metadata", new AssignDestinations(destinations));
+
+      if (assignedRows.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
         Duration triggeringFrequency = getTriggeringFrequency();
         checkArgumentNotNull(
             triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
-        input =
-            input.apply(
+        assignedRows =
+            assignedRows.apply(
                 "WindowIntoGlobal",
                 Window.<Row>into(new GlobalWindows())
                     .triggering(
@@ -138,11 +144,9 @@ public class IcebergIO {
             getTriggeringFrequency() == null,
             "Triggering frequency is only applicable for streaming pipelines.");
       }
-      return input
-          .apply("Set Destination Metadata", new AssignDestinations(destinations))
-          .apply(
-              "Write Rows to Destinations",
-              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
+      return assignedRows.apply(
+          "Write Rows to Destinations",
+          new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
     }
   }
 

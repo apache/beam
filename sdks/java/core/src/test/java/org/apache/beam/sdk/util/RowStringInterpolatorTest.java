@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -68,7 +69,7 @@ public class RowStringInterpolatorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'str'.");
 
-    interpolator.interpolate(invalidRow, null, null, null);
+    interpolator.interpolate(ValueInSingleWindow.of(invalidRow, null, null, null));
   }
 
   @Test
@@ -85,7 +86,7 @@ public class RowStringInterpolatorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'nested_int'.");
 
-    interpolator.interpolate(invalidRow, null, null, null);
+    interpolator.interpolate(ValueInSingleWindow.of(invalidRow, null, null, null));
   }
 
   @Test
@@ -105,7 +106,7 @@ public class RowStringInterpolatorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'doubly_nested_int'.");
 
-    interpolator.interpolate(invalidRow, null, null, null);
+    interpolator.interpolate(ValueInSingleWindow.of(invalidRow, null, null, null));
   }
 
   private static final Row ROW =
@@ -134,7 +135,7 @@ public class RowStringInterpolatorTest {
     String template = "foo {str}, bar {bool}, baz {int}, xyz {nullable_int}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ROW, null, null, null);
+    String output = interpolator.interpolate(ValueInSingleWindow.of(ROW, null, null, null));
 
     assertEquals("foo str_value, bar true, baz 123, xyz ", output);
   }
@@ -144,7 +145,7 @@ public class RowStringInterpolatorTest {
     String template = "foo {str}, bar {row.nested_str}, baz {row.nested_float}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ROW, null, null, null);
+    String output = interpolator.interpolate(ValueInSingleWindow.of(ROW, null, null, null));
 
     assertEquals("foo str_value, bar nested_str_value, baz 1.234", output);
   }
@@ -155,7 +156,7 @@ public class RowStringInterpolatorTest {
         "foo {str}, bar {row.nested_row.doubly_nested_str}, baz {row.nested_row.doubly_nested_int}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ROW, null, null, null);
+    String output = interpolator.interpolate(ValueInSingleWindow.of(ROW, null, null, null));
 
     assertEquals("foo str_value, bar doubly_nested_str_value, baz 789", output);
   }
@@ -177,10 +178,11 @@ public class RowStringInterpolatorTest {
 
     String output =
         interpolator.interpolate(
-            ROW,
-            GlobalWindow.INSTANCE,
-            PaneInfo.createPane(false, false, PaneInfo.Timing.ON_TIME, 2, 0),
-            instant);
+            ValueInSingleWindow.of(
+                ROW,
+                instant,
+                GlobalWindow.INSTANCE,
+                PaneInfo.createPane(false, false, PaneInfo.Timing.ON_TIME, 2, 0)));
     String expected =
         String.format(
             "str: str_value, window: %s, pane: 2, year: 2024, month: 8, day: 28",

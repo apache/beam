@@ -21,8 +21,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.joda.time.Instant;
 
 /**
  * Assigns the destination metadata for each input record.
@@ -32,7 +36,7 @@ import org.apache.beam.sdk.values.Row;
  */
 class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> {
 
-  private DynamicDestinations dynamicDestinations;
+  private final DynamicDestinations dynamicDestinations;
 
   public AssignDestinations(DynamicDestinations dynamicDestinations) {
     this.dynamicDestinations = dynamicDestinations;
@@ -41,11 +45,10 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
   @Override
   public PCollection<Row> expand(PCollection<Row> input) {
 
-    final Schema inputSchema = input.getSchema();
     final Schema outputSchema =
         Schema.builder()
-            .addRowField("data", inputSchema)
-            .addRowField("dest", dynamicDestinations.getMetadataSchema())
+            .addStringField("dest")
+            .addRowField("data", dynamicDestinations.getDataSchema())
             .build();
 
     return input
@@ -53,11 +56,19 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
             ParDo.of(
                 new DoFn<Row, Row>() {
                   @ProcessElement
-                  public void processElement(@Element Row data, OutputReceiver<Row> out) {
+                  public void processElement(
+                      @Element Row element,
+                      BoundedWindow window,
+                      PaneInfo paneInfo,
+                      @Timestamp Instant timestamp,
+                      OutputReceiver<Row> out) {
+                    String tableIdentifier =
+                        dynamicDestinations.getTableStringIdentifier(
+                            ValueInSingleWindow.of(element, timestamp, window, paneInfo));
+                    Row data = dynamicDestinations.getData(element);
+
                     out.output(
-                        Row.withSchema(outputSchema)
-                            .addValues(data, dynamicDestinations.assignDestinationMetadata(data))
-                            .build());
+                        Row.withSchema(outputSchema).addValues(tableIdentifier, data).build());
                   }
                 }))
         .setRowSchema(outputSchema);

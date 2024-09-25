@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -89,6 +89,16 @@ public class IcebergWriteSchemaTransformProvider
         "For a streaming pipeline, sets the frequency at which snapshots are produced.")
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
+    @SchemaFieldDescription(
+        "A list of field names to keep in the input record. All other fields are dropped before writing.")
+    public abstract @Nullable List<String> getKeep();
+
+    @SchemaFieldDescription("A list of field names to drop from the input record before writing.")
+    public abstract @Nullable List<String> getDrop();
+
+    @SchemaFieldDescription("The name of a single record field that should be written.")
+    public abstract @Nullable String getOnly();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -100,6 +110,12 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setConfigProperties(Map<String, String> confProperties);
 
       public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
+
+      public abstract Builder setKeep(List<String> keep);
+
+      public abstract Builder setDrop(List<String> drop);
+
+      public abstract Builder setOnly(String only);
 
       public abstract Configuration build();
     }
@@ -160,7 +176,14 @@ public class IcebergWriteSchemaTransformProvider
 
       IcebergIO.WriteRows writeTransform =
           IcebergIO.writeRows(configuration.getIcebergCatalog())
-              .to(TableIdentifier.parse(configuration.getTable()));
+              .to(
+                  new PortableIcebergDestinations(
+                      configuration.getTable(),
+                      FileFormat.PARQUET.toString(),
+                      rows.getSchema(),
+                      configuration.getDrop(),
+                      configuration.getKeep(),
+                      configuration.getOnly()));
 
       Integer trigFreq = configuration.getTriggeringFrequencySeconds();
       if (trigFreq != null) {

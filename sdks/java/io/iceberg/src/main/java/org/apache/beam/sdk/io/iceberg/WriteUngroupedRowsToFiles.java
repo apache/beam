@@ -208,11 +208,10 @@ class WriteUngroupedRowsToFiles
     public void processElement(
         @Element Row element, BoundedWindow window, PaneInfo pane, MultiOutputReceiver out)
         throws Exception {
-
+      String dest =
+          checkArgumentNotNull(element.getString("dest"), "Input row missing `dest` field.");
       Row data = checkArgumentNotNull(element.getRow("data"), "Input row missing `data` field.");
-      Row destMetadata =
-          checkArgumentNotNull(element.getRow("dest"), "Input row missing `dest` field.");
-      IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
+      IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
 

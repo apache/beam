@@ -168,6 +168,7 @@ public class RowFilter implements Serializable {
    */
   public RowFilter only(String field) {
     checkUnconfigured();
+    verifyNoNestedFields(Collections.singletonList(field), "only");
     validateSchemaContainsFields(rowSchema, Collections.singletonList(field), "only");
     Schema.Field rowField = rowSchema.getField(field);
     Preconditions.checkArgument(
@@ -196,9 +197,9 @@ public class RowFilter implements Serializable {
 
     Preconditions.checkState(
         row.getSchema().assignableTo(rowSchema),
-        "Encountered Row with schema that is incompatible with this RowFilter's schema."
+        "Encountered Row with schema that is incompatible with this filter's schema."
             + "\nRow schema: %s"
-            + "\nSchema used to initialize this RowFilter: %s",
+            + "\nSchema used to initialize this filter: %s",
         row.getSchema(),
         rowSchema);
 
@@ -219,7 +220,7 @@ public class RowFilter implements Serializable {
   private void checkUnconfigured() {
     Preconditions.checkState(
         transformedSchema == null,
-        "This RowFilter has already been configured to filter to the following Schema: %s",
+        "This has already been configured to filter to the following Schema: %s",
         transformedSchema);
   }
 
@@ -233,9 +234,7 @@ public class RowFilter implements Serializable {
     }
     if (!nestedFields.isEmpty()) {
       throw new IllegalArgumentException(
-          String.format(
-              "RowFilter does not support specifying nested fields to %s: %s",
-              operation, nestedFields));
+          String.format("'%s' does not support nested fields: %s", operation, nestedFields));
     }
   }
 
