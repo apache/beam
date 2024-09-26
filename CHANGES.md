@@ -68,6 +68,7 @@
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
 * Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
+* Reading Kafka with SDF and with commit offsets in finalize enabled is much more efficient, avoiding a reshuffle of the data ([#31682](https://github.com/apache/beam/pull/31682)). This changes the graph so pipelines which encounter issues with update compatability should use the `updateCompatibilityVersion` option.
 
 ## Breaking Changes
 
@@ -85,6 +86,8 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 ## Bugfixes
 
 * (Java) Fixed custom delimiter issues in TextIO ([#32249](https://github.com/apache/beam/issues/32249), [#32251](https://github.com/apache/beam/issues/32251)).
+* (Java, Python, Go) Fixed PeriodicSequence backlog bytes reporting which was preventing Dataflow Runner autoscaling from functioning properly ([#32506](https://github.com/apache/beam/issues/32506)).
+* (Java) Fix improper decoding of schemas with compatible encodingPositions but changed field order with nullable fields ([#32388](https://github.com/apache/beam/issues/32388)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
