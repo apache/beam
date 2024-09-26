@@ -300,7 +300,7 @@ class TimestampedValue(Generic[V]):
     return self.timestamp < other.timestamp
 
 
-class GlobalWindow(BoundedWindow):
+class GlobalWindow(IntervalWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance: Optional['GlobalWindow'] = None
 
@@ -310,7 +310,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self) -> None:
-    super().__init__(GlobalWindow._getTimestampFromProto())
+    super().__init__(MIN_TIMESTAMP, GlobalWindow._getTimestampFromProto())
 
   def __repr__(self):
     return 'GlobalWindow'

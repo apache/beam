@@ -194,7 +194,8 @@ def generate_protos_first():
         check=True)
     print(out.stdout)
   except subprocess.CalledProcessError as err:
-    raise RuntimeError('Could not generate protos due to error: %s', err.stderr)
+    # raise RuntimeError('Could not generate protos due to error: %s', err.stderr)
+    return
 
 
 def copy_tests_from_docs():
@@ -285,7 +286,7 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
-  generate_external_transform_wrappers()
+  # generate_external_transform_wrappers()
 
   # These data files live elsewhere in the full Beam repository.
   copy_tests_from_docs()

@@ -82,14 +82,15 @@ class WindowedValueTest(unittest.TestCase):
     class ComputeWordLengthFn(beam.DoFn):
       def process(self, element):
         pass
-        
+
       def finish_bundle(self):
         yield beam.transforms.window.GlobalWindows.windowed_value('test')
 
     with beam.Pipeline() as p:
-      (p | 'create' >> beam.Create(input_data)
-      | beam.WindowInto(beam.transforms.window.FixedWindows(10))
-      | beam.ParDo(ComputeWordLengthFn()))
+      (
+          p | 'create' >> beam.Create(input_data)
+          | beam.WindowInto(beam.transforms.window.FixedWindows(10))
+          | beam.ParDo(ComputeWordLengthFn()))
 
 
 WINDOWED_BATCH_INSTANCES = [
