@@ -2780,6 +2780,32 @@ class DeadLettersTest(unittest.TestCase):
                     ('slow', 'TimeoutError()')]),
           label='CheckBad')
 
+  def test_increment_counter(self):
+    # Counters are not currently supported for
+    # ParDo#with_exception_handling(use_subprocess=True).
+    if (self.use_subprocess):
+      return
+
+    class CounterDoFn(beam.DoFn):
+      def __init__(self):
+        self.records_counter = Metrics.counter(self.__class__, 'recordsCounter')
+
+      def process(self, element):
+        self.records_counter.inc()
+
+    with TestPipeline() as p:
+      _, _ = (
+          (p | beam.Create([1,2,3])) | beam.ParDo(CounterDoFn())
+          .with_exception_handling(
+            use_subprocess=self.use_subprocess, timeout=1))
+    results = p.result
+    metric_results = results.metrics().query(
+        MetricsFilter().with_name("recordsCounter"))
+    records_counter = metric_results['counters'][0]
+
+    self.assertEqual(records_counter.key.metric.name, 'recordsCounter')
+    self.assertEqual(records_counter.result, 3)
+
   def test_lifecycle(self):
     die = type(self).die
 
