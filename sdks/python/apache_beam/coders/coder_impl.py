@@ -74,6 +74,7 @@ except ImportError:
 if TYPE_CHECKING:
   import proto
   from apache_beam.transforms import userstate
+  from apache_beam.transforms.window import GlobalWindow
   from apache_beam.transforms.window import IntervalWindow
 
 try:
@@ -806,6 +807,7 @@ class FloatCoderImpl(StreamCoderImpl):
 
 if not TYPE_CHECKING:
   IntervalWindow = None
+  GlobalWindow = None
 
 
 class IntervalWindowCoderImpl(StreamCoderImpl):
@@ -834,6 +836,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     if not TYPE_CHECKING:
       global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
+        from apache_beam.transforms.window import GlobalWindow
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
     typed_value = IntervalWindow(None, None)  # type: ignore[arg-type]
@@ -841,6 +844,10 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
         1000 * self._to_normal_time(in_.read_bigendian_uint64()))
     typed_value._start_micros = (
         typed_value._end_micros - 1000 * in_.read_var_int64())
+    gw = GlobalWindow()
+    if typed_value == gw:
+      return gw
+    
     return typed_value
 
   def estimate_size(self, value, nested=False):
