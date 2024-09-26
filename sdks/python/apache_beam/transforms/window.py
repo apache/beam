@@ -260,6 +260,13 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
     if self.end != other.end:
       return self.end < other.end
     return hash(self) < hash(other)
+  
+  def __eq__(self, other):
+    return (
+        self is other or
+        (type(self) is type(other) and
+        self.end == other.end and
+        self.start == other.start))
 
   def intersects(self, other: 'IntervalWindow') -> bool:
     return other.start < self.end or self.start < other.end
@@ -319,8 +326,10 @@ class GlobalWindow(IntervalWindow):
     return hash(type(self))
 
   def __eq__(self, other):
-    # Global windows are always and only equal to each other.
-    return self is other or type(self) is type(other)
+    return (
+      self is other or
+      type(self) is type(other) or
+      (type(other) is IntervalWindow and other.__eq__(self)))
 
   @property
   def start(self) -> Timestamp:
