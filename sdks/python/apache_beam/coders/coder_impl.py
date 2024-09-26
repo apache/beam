@@ -847,7 +847,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     gw = GlobalWindow()
     if typed_value == gw:
       return gw
-    
+
     return typed_value
 
   def estimate_size(self, value, nested=False):
