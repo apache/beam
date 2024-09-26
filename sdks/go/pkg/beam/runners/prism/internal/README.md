@@ -40,7 +40,7 @@ Handler configurations are registered by dependant packages.
 `urns` contains beam URN strings pulled from the protos. Leaf package.
 
 `engine` contains the core manager for handling elements, watermarks, windowing strategies,
-timers, and state. Determines bundle readiness, and stages to execute. Leaf package.
+state, and timers. Determines bundle readiness, and stages to execute. Leaf package.
 Should never depend on the protocol buffers.
 
 `jobservices` contains GRPC service handlers for job management and submission.
@@ -127,22 +127,22 @@ SplittableDoFns into their executable components. Preprocessing returns
 a set of stateless executable stages.
 
 Stages in hand, the job executor produces SDK workers for each environment,
-and configures an ElementManager with the stage information, so it can
+and configures an `ElementManager` with the stage information, so it can
 begin to produce and manage bundles. Those bundles are then handed to
 appropriate workers for processing.
 
-The ElementManager will produce as many bundles as are ready for execution,
+The `ElementManager` will produce as many bundles as are ready for execution,
 WRT necessary restrictions on processing. For example, stateful stages may
 require that only a single inprogress bundle may operate on a given user key
 at a time, while aggregations like GroupByKey will only execute when their
 windowing strategy dictates, and DoFns with side inputs can only execute when
 all approprate side inputs are ready.
 
-Architecturally, the ElementManager is only aware of the properties of the
+Architecturally, the `ElementManager` is only aware of the properties of the
 fused stages, and not their actual relationships with the Beam Protocol Buffers.
-The ElementManager is not aware of individual transforms.
+The `ElementManager` is not aware of individual transforms.
 
-Interfacing with SDK workers is left to the stateless job executore stages as
+Interfacing with SDK workers is left to the stateless job executor stages as
 needed for bundle processing.
 
 ### How are bundles produced?
@@ -150,12 +150,12 @@ needed for bundle processing.
 Work is divided into Bundles for execution on end user DoFns within
 SDK workers.
 
-Producing bundles is the ElementManager's job. The ElementManager is the heart
-of Prism. The element manager tracks the state for each stage, which includes a
+Producing bundles is the `ElementManager`'s job. The `ElementManager` is the heart
+of Prism. The `ElementManager` tracks the state for each stage, which includes a
 stage's relationships with others, the pending input elements, the various watermarks,
-whether it is stateful or aggregating.
+and whether it is stateful or aggregating.
 
-Each executing pipeline has it's own instance of the ElementManager which
+Each executing pipeline has it's own instance of the `ElementManager` which
 manages all element data for the pipeline.
 The core loop of the engine is to produce bundles for stages to process.
 A bundle represents some number of elements as well as a stage to process them on.
@@ -192,7 +192,7 @@ graph TD;
         Terminate Job as Failed
     ")
     end
-    subgraph EM [Element Manager]
+    subgraph EM [ElementManager]
     Bundles["
         Bundles()
     "]
@@ -275,7 +275,7 @@ At the start of a job, all stages are initialized to have watermarks at the the 
 ```mermaid
 sequenceDiagram
 loop Until Job Terminates
-    box Purple Element Manager
+    box Purple ElementManager
         participant WE as Watermark Evaluation
         participant RCL as RefreshConditionLock
     end
@@ -355,12 +355,12 @@ Bundle generation is greedy, as described above, without particular limits or pa
 
 Dynamic Splitting is how a Beam runner can spread the processing load after a bundle starts execution.
 It also has many different names, such as work stealing, or liquid-sharding.
-The goal is to be able to complete work faster, by completing it in parallel.
+The goal is to be able to complete work faster by completing it in parallel.
 
 Prism's approach to dynamic splitting is naive, but does take into account previous bundles for
 the stage.
 
-In short, if a bundle is making dicernable progress, then do not split. Otherwise, do split.
+In short, if a bundle is making discernable progress, then do not split. Otherwise, do split.
 
 In particular, it takes into account whether new inputs have been consumed, or
 elements have been emitted to downstream PCollections between two BundleProgress requests.
@@ -385,17 +385,17 @@ There are some benefits to re-use Goroutines, but not critically so.
 Generally the goal is to strategically limit parallelism to avoid
 wasting time in the goroutine scheduler.
 
-For a single Job Goroutines are initialized to the following cardinatlities
+For a single Job Goroutines are initialized to the following cardinalities
 Per Job, Per Environment, and Per Bundle.
 
 This section will attempt to outline the threads associated with Prism when
-executing a job. This will not include SDK side threads, such as those
+executing a job. This will not include SDK-side threads, such as those
 within containers, or started by an external worker service.
 
 As a rule of thumb, each Bundle is processed on
 an independant goroutine, with a few exceptions.
 
-jobservices.Server implements a beam JobManagmenent GRPC services. GRPC servers
+jobservices.Server implements a beam JobManagmenent GRPC service. GRPC servers
 have goroutines managed by GRPC itself. Call this G goroutines.
 
 When RunJob is called, the server starts a goroutine with the Job Executor function.
@@ -406,7 +406,7 @@ and one for the FnAPI server for that Environment, to communicate with the SDK W
 in that Environment. These will persist for the lifetime of the job.
 
 After producing stages for the job the Job Executor goroutine will wait on Bundles
-from the ElementManager, and execute them in parallel.
+from the `ElementManager`, and execute them in parallel.
 Each bundle has it's own goroutine.
 This is by default configured to a maximum of 8 simultaneous Bundles.
 
@@ -415,13 +415,13 @@ This handles sending the bundle for execution on the SDK worker, managing progre
 split requests, and persisting data and other results after the bundle completes.
 
 The FnAPI server side worker will have several goroutines to handle requests and responses
-from the SDK worker. FnAPI services are typically bi directional streaming RPCs.
+from the SDK worker. FnAPI services are typically bi-directional streaming RPCs.
 There will be one goroutine handling requests being sent to the SDK, and another for responses
 from the SDK.
 So there will be a pair of goroutines for each of the Control, Data, and State streams, and a
 single one for Logging.
 
-The ElementManager returns a channel to the Job Executor in order to relay those bundles, and
+The `ElementManager` returns a channel to the Job Executor in order to relay those bundles, and
 starts two goroutines in order to populate that channel with bundles.
 One goroutine is tasked with evaluating and refreshing the watermark whenever a stage persists
 a bundle. This goroutine sends bundles on the channel when appropriate. This goroutine waits on
@@ -441,7 +441,7 @@ For a Prism instance:
 
 For each Job:
 * 1 for the Job Executor
-* 2 for the ElementManager
+* 2 for the `ElementManager`
 
 For each Environment:
 * 2 for the Environment itself
@@ -473,9 +473,9 @@ FnAPI messages are multiplexed so the expectation is the data service goroutines
 be the busiest moving data back and forth from the SDK.
 
 A consequence of this approach is the need to take care in locking shared resources and data
-when they may be accessed by multiple goroutines. In particular, is all done in the ElementManager
+when they may be accessed by multiple goroutines. This,Iin particular, is all done in the `ElementManager`
 which has locks for each stage in order to serialze access to it's state. This state is notably
-accessed by the Bundle goroutines on persisting data back to the Element manager.
+accessed by the Bundle goroutines on persisting data back to the `ElementManager`.
 
 For best performance, we do as much work as possible in the Bundle Goroutines since they are
 what can most dynamically scale out, as bundle generation is handled by the single watermark
@@ -488,7 +488,7 @@ for the worker endpoint, these are no wasted either. Prism can assign uniques na
 to be able to identify which job they're a part of, so it's possible to avoid the per job and
 worker grpc service, and multiplex from there.  (See https://github.com/apache/beam/issues/32167)
 
-A channel is being used to move ready to execute bundles from the ElementManager to the Job Executor.
+A channel is being used to move ready to execute bundles from the `ElementManager` to the Job Executor.
 This may be unbuffered (the default) which means
 serializing how bundles are generated for execution,
 and there being at most a single "readyToExecute"
@@ -506,18 +506,18 @@ to higher lock contention and variability in execution.
 
 ## Durability Model
 
-Prism keeps all data in memory, and doesn't write anything durably to disk.
+Prism keeps all data in memory and doesn't write anything durably to disk.
 Recommended only for testing purposes. It's not suitable for any long term production
 work due to the risk of dataloss or recomputing.
 
-SDK side code however may be make durable changes or side effects in external systems.
+SDK-side code, however, may make durable changes or side effects in external systems.
 Prism cannot restrict such behavior.
 
-Prism doesn't retry failed bundle, and simply fails the job instead.
+Prism doesn't retry failed bundles, and simply fails the job instead.
 
 ## Execution Distribution Model
 
-Prism is intended to be single machine, local runner. If it does start up docker containers
+Prism is intended to be single-machine, local runner. If it does start up docker containers
 for SDK environments, they'll be on the same machine as Prism.
 
 # Glossary
