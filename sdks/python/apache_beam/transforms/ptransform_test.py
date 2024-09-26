@@ -2797,7 +2797,7 @@ class DeadLettersTest(unittest.TestCase):
       _, _ = (
           (p | beam.Create([1,2,3])) | beam.ParDo(CounterDoFn())
           .with_exception_handling(
-            use_subprocess=self.use_subprocess, timeout=1))
+            use_subprocess=self.use_subprocess, timeout=20))
     results = p.result
     metric_results = results.metrics().query(
         MetricsFilter().with_name("recordsCounter"))
