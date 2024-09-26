@@ -378,6 +378,8 @@ public class MqttIOTest {
                     .expand(PBegin.in(pipeline)));
 
     assertEquals("topic can not be null", exception.getMessage());
+
+    pipeline.run();
   }
 
   @Test
@@ -464,6 +466,24 @@ public class MqttIOTest {
     assertEquals("DynamicWrite can not have static topic", exception.getMessage());
 
     pipeline.run();
+  }
+
+  @Test
+  public void testWriteWithTopicFn() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> MqttIO.write().withTopicFn(e -> "some topic"));
+
+    assertEquals("withTopicFn can not use in non-dynamic write", exception.getMessage());
+  }
+
+  @Test
+  public void testWriteWithPayloadFn() {
+    final IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> MqttIO.write().withPayloadFn(e -> new byte[] {}));
+
+    assertEquals("withPayloadFn can not use in non-dynamic write", exception.getMessage());
   }
 
   @Test
