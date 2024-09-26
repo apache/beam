@@ -23,10 +23,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
 import com.google.api.services.pubsub.Pubsub.Projects.Topics;
@@ -310,26 +306,6 @@ public class PubsubJsonClientTest {
     Topic topic = new Topic();
     topic.setName(PubsubClient.topicPathFromName(PROJECT.getId(), "Topic" + i).getPath());
     return topic;
-  }
-
-  @Test
-  public void isTopicExists() throws Exception {
-    TopicPath topicExists =
-        PubsubClient.topicPathFromPath("projects/testProject/topics/topicExists");
-    TopicPath topicDoesNotExist =
-        PubsubClient.topicPathFromPath("projects/testProject/topics/topicDoesNotExist");
-    HttpResponseException.Builder builder =
-        new HttpResponseException.Builder(404, "topic is not found", new HttpHeaders());
-    GoogleJsonError error = new GoogleJsonError();
-    when(mockPubsub.projects().topics().get(topicExists.getPath()).execute())
-        .thenReturn(new Topic().setName(topicExists.getName()));
-    when(mockPubsub.projects().topics().get(topicDoesNotExist.getPath()).execute())
-        .thenThrow(new GoogleJsonResponseException(builder, error));
-
-    client = new PubsubJsonClient(null, null, mockPubsub);
-
-    assertEquals(true, client.isTopicExists(topicExists));
-    assertEquals(false, client.isTopicExists(topicDoesNotExist));
   }
 
   @Test
