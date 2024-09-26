@@ -83,11 +83,11 @@ public abstract class ComputationWorkExecutor {
    * cannot be reused.
    */
   public final void invalidate() {
+    context().invalidateCache();
     try {
-      context().invalidateCache();
       workExecutor().close();
     } catch (Exception e) {
-      LOG.warn("Failed to invalidate ComputationWorkExecutor: ", e);
+      LOG.warn("Failed to close map task executor: ", e);
     }
   }
 

@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -50,11 +49,13 @@ public class ComputationWorkExecutorTest {
   }
 
   @Test
-  public void testInvalidate_handlesException() {
-    NullPointerException npe = new NullPointerException("something bad happened");
-    doThrow(npe).when(context).invalidateCache();
+  public void testInvalidate_withoutCallToStart() {
+    // Call to invalidate w/o a call to start should not fail.
     computationWorkExecutor.invalidate();
-    verifyNoInteractions(dataflowWorkExecutor);
+  }
+
+  @Test
+  public void testInvalidate_handlesException() {
     AtomicBoolean verifyContextInvalidated = new AtomicBoolean(false);
     Throwable e = new RuntimeException("something bad happened 2");
     doThrow(e).when(dataflowWorkExecutor).close();
