@@ -278,7 +278,10 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           p
           | beam.Create(rows_with_cdc)
           | StorageWriteToBigQuery(
-              table=table_id, cdc_writes_with_primary_key=["name"]))
+              table=table_id,
+              use_at_least_once=True,
+              use_cdc_writes=True,
+              cdc_writes_primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):

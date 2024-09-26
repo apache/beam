@@ -267,8 +267,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            .setUseAtLeastOnceSemantics(true)
             .setTable(tableSpec)
-            .setUseCdcWritesWithPrimaryKey(primaryKeyColumns)
+            .setUseCdcWrites(true)
+            .setCdcWritesPrimaryKey(primaryKeyColumns)
             .build();
 
     List<Row> rowsDuplicated =
@@ -298,7 +300,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setTable(dynamic)
-            .setUseCdcWritesWithPrimaryKey(primaryKeyColumns)
+            .setUseCdcWrites(true)
+            .setCdcWritesPrimaryKey(primaryKeyColumns)
             .build();
 
     String baseTableSpec = "project:dataset.cdc_dynamic_write_";

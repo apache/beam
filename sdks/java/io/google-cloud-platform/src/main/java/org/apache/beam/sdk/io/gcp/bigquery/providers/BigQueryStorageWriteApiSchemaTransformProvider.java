@@ -211,8 +211,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
      */
     public static Builder builder() {
       return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration
-              .Builder()
-          .setUseCdcWritesWithPrimaryKey(ImmutableList.of());
+          .Builder();
     }
 
     @SchemaFieldDescription(
@@ -263,11 +262,18 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public abstract ErrorHandling getErrorHandling();
 
     @SchemaFieldDescription(
-        "This option enables the use of BigQuery CDC functionality. It expects a Row schema"
-            + " wrapping the record to be inserted and adding the CDC info similar to:"
-            + " {cdc_info: {mutation_type:\"...\", change_sequence_number:\"...\"}, record: {...}}")
+        "This option enables the use of BigQuery CDC functionality. The expected PCollection"
+            + " should contain Beam Rows with a schema wrapping the record to be inserted and"
+            + " adding the CDC info similar to: {cdc_info: {mutation_type:\"...\", "
+            + "change_sequence_number:\"...\"}, record: {...}}")
     @Nullable
-    public abstract List<String> getUseCdcWritesWithPrimaryKey();
+    public abstract Boolean getUseCdcWrites();
+
+    @SchemaFieldDescription(
+        "In the case of using CDC writes and setting CREATE_IF_NEEDED mode for the tables"
+            + " a primary key is required.")
+    @Nullable
+    public abstract List<String> getCdcWritesPrimaryKey();
 
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
@@ -289,7 +295,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
-      public abstract Builder setUseCdcWritesWithPrimaryKey(List<String> pkColumns);
+      public abstract Builder setUseCdcWrites(Boolean cdcWrites);
+
+      public abstract Builder setCdcWritesPrimaryKey(List<String> pkColumns);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -510,30 +518,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             schema.getFieldNames().containsAll(Arrays.asList("destination", "record")),
             "When writing to dynamic destinations, we expect Row Schema with a "
                 + "\"destination\" string field and a \"record\" Row field.");
-        RowDynamicDestinations dynamicDestination =
-            new RowDynamicDestinations(schema.getField("record").getType().getRowSchema());
-
-        if (isCdcConfigured()) {
-          dynamicDestination =
-              dynamicDestination.withPrimaryKey(configuration.getUseCdcWritesWithPrimaryKey());
-          write = validateAndIncludeCDCInformation(write, schema);
-        }
         write =
             write
-                .to(dynamicDestination)
+                .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
                 .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
+      } else if (Optional.ofNullable(configuration.getUseCdcWrites()).orElse(false)) {
+        write = validateAndIncludeCDCInformation(write, schema);
       } else {
-        if (isCdcConfigured()) {
-          write =
-              validateAndIncludeCDCInformation(write, schema)
-                  .to(
-                      new RowDynamicDestinations(schema.getField("record").getType().getRowSchema())
-                          .withFixedDestination(configuration.getTable())
-                          .withPrimaryKey(configuration.getUseCdcWritesWithPrimaryKey()))
-                  .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
-        } else {
-          write = write.to(configuration.getTable()).useBeamSchema();
-        }
+        write = write.to(configuration.getTable()).useBeamSchema();
       }
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
@@ -556,14 +548,25 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       return write;
     }
 
-    boolean isCdcConfigured() {
-      return !Optional.ofNullable(configuration.getUseCdcWritesWithPrimaryKey())
-          .orElse(ImmutableList.of())
-          .isEmpty();
-    }
-
     BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
         BigQueryIO.Write<Row> write, Schema schema) {
+      if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
+        checkArgument(
+            BigQueryStorageWriteApiSchemaTransformConfiguration.CREATE_DISPOSITIONS
+                    .get(configuration.getCreateDisposition().toUpperCase())
+                    .equals(CreateDisposition.CREATE_IF_NEEDED)
+                && !Optional.ofNullable(configuration.getCdcWritesPrimaryKey())
+                    .orElse(ImmutableList.of())
+                    .isEmpty(),
+            "When using CDC writes into BigQuery, alongside with CREATE_IF_NEEDED mode,"
+                + " a primary key should be provided.");
+      }
+      if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
+        checkArgument(
+            schema.getFieldNames().contains("destination"),
+            "When writing to dynamic destinations, we expect Row Schema with a "
+                + "\"destination\" string field.");
+      }
       checkArgument(
           schema.getFieldNames().containsAll(Arrays.asList("cdc_info", "record")),
           "When writing using CDC functionality, we expect Row Schema with a "
@@ -580,9 +583,18 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       .build()),
           "When writing using CDC functionality, we expect a \"cdc_info\" field of Row type "
               + "with fields \"mutation_type\" and \"change_sequence_number\" of type string.");
+
+      RowDynamicDestinations destinations =
+          new RowDynamicDestinations(schema.getField("record").getType().getRowSchema())
+              .withPrimaryKey(configuration.getCdcWritesPrimaryKey());
+      if (!configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
+        destinations = destinations.withFixedDestination(configuration.getTable());
+      }
+
       return write
-          .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
-          .withPrimaryKey(configuration.getUseCdcWritesWithPrimaryKey())
+          .to(destinations)
+          .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")))
+          .withPrimaryKey(configuration.getCdcWritesPrimaryKey())
           .withRowMutationInformationFn(
               row ->
                   RowMutationInformation.of(

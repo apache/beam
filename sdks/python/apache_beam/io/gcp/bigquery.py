@@ -366,6 +366,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -378,6 +379,7 @@ from objsize import get_deep_size
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam import Row
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io import range_trackers
@@ -1921,7 +1923,8 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
-      cdc_writes_with_primary_key: List[str] = None,
+      use_cdc_writes: Union[bool, Callable[[Row], Row]] = False,
+      cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
 
@@ -2093,6 +2096,15 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         be created in case of using CREATE_IF_NEEDED mode, and StorageWrite API
         at least once mode will be configured. Used for STORAGE_WRITE_API
         method.
+      use_cdc_writes: Configure the usage of CDC writes on BigQuery.
+        The argument can be used by passing True and the Beam Rows will be
+        sent as they are to the BigQuery sink which expects a 'record'
+        and 'cdc_info' properties.
+        Used for STORAGE_WRITE_API, working on 'at least once' mode.
+      cdc_writes_primary_key: When using CDC write on BigQuery and
+        CREATE_IF_NEEDED mode for the underlying tables a list of column names
+        is required to be configured as the primary key. Used for
+        STORAGE_WRITE_API.
     """
     self._table = table
     self._dataset = dataset
@@ -2135,6 +2147,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
     self._cdc_writes_with_primary_key = cdc_writes_with_primary_key
+    self._use_cdc_writes = use_cdc_writes
+    self._cdc_writes_primary_key = cdc_writes_primary_key
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2278,21 +2292,32 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS])
 
     elif method_to_use == WriteToBigQuery.Method.STORAGE_WRITE_API:
-      return pcoll | StorageWriteToBigQuery(
-          table=self.table_reference,
-          schema=self.schema,
-          table_side_inputs=self.table_side_inputs,
-          create_disposition=self.create_disposition,
-          write_disposition=self.write_disposition,
-          triggering_frequency=self.triggering_frequency,
-          use_at_least_once=self.use_at_least_once,
-          with_auto_sharding=self.with_auto_sharding,
-          num_storage_api_streams=self._num_storage_api_streams,
-          cdc_writes_with_primary_key=self._cdc_writes_with_primary_key,
-          expansion_service=self.expansion_service)
-
+      return maybe_apply_cdc_callable(pcoll, self._use_cdc_writes)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
+
+  def maybe_apply_cdc_callable(
+      self, pcoll, use_cdc_writes: Union[bool, Callable[[beam.Row], beam.Row]]):
+    should_do_cdc = False
+    if use_cdc_writes is not None:
+      if isinstance(use_cdc_writes, Callable):
+        pcoll = pcoll | beam.ParDo(use_cdc_writes)
+        should_do_cdc = True
+      else:
+        should_do_cdc = True
+    return pcoll | StorageWriteToBigQuery(
+        table=self.table_reference,
+        schema=self.schema,
+        table_side_inputs=self.table_side_inputs,
+        create_disposition=self.create_disposition,
+        write_disposition=self.write_disposition,
+        triggering_frequency=self.triggering_frequency,
+        use_at_least_once=self.use_at_least_once,
+        with_auto_sharding=self.with_auto_sharding,
+        num_storage_api_streams=self._num_storage_api_streams,
+        use_cdc_writes=should_do_cdc,
+        cdc_writes_primary_key=self._cdc_writes_primary_key,
+        expansion_service=self.expansion_service)
 
   def display_data(self):
     res = {}
@@ -2532,7 +2557,8 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
-      cdc_writes_with_primary_key: List[str] = None,
+      use_cdc_writes: bool = False,
+      cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2543,7 +2569,8 @@ class StorageWriteToBigQuery(PTransform):
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
     self._num_storage_api_streams = num_storage_api_streams
-    self._cdc_writes_with_primary_key = cdc_writes_with_primary_key
+    self._use_cdc_writes = use_cdc_writes
+    self._cdc_writes_primary_key = cdc_writes_primary_key
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2626,7 +2653,8 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
-            use_cdc_writes_with_primary_key=self._cdc_writes_with_primary_key,
+            use_cdc_writes=self._use_cdc_writes,
+            cdc_writes_primary_key=self._cdc_writes_primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
