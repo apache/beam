@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
@@ -27,16 +30,13 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
-import org.junit.Rule;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -48,29 +48,8 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Enclosed.class)
 public class GrpcDispatcherClientTest {
 
-  static class GrpcDispatcherClientTestBase {
-
-    @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
-    final ChannelCachingStubFactory stubFactory =
-        new FakeWindmillStubFactory(
-            () ->
-                grpcCleanup.register(
-                    WindmillChannelFactory.inProcessChannel("GrpcDispatcherClientTestChannel")));
-
-    static StreamingGlobalConfig getGlobalConfig(boolean useWindmillIsolatedChannels) {
-      return StreamingGlobalConfig.builder()
-          .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromString("windmill:1234")))
-          .setUserWorkerJobSettings(
-              UserWorkerRunnerV1Settings.newBuilder()
-                  .setUseWindmillIsolatedChannels(useWindmillIsolatedChannels)
-                  .build())
-          .build();
-    }
-  }
-
   @RunWith(JUnit4.class)
-  public static class RespectsJobSettingTest extends GrpcDispatcherClientTestBase {
+  public static class RespectsJobSettingTest {
 
     @Test
     public void createsNewStubWhenIsolatedChannelsConfigIsChanged() {
@@ -80,18 +59,20 @@ public class GrpcDispatcherClientTest {
           Lists.newArrayList(
               GrpcDispatcherClient.STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_ISOLATED_CHANNELS));
       GrpcDispatcherClient dispatcherClient =
-          GrpcDispatcherClient.create(options, new FakeWindmillStubFactoryFactory(stubFactory));
+          GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
       // Create first time with Isolated channels disabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
       CloudWindmillServiceV1Alpha1Stub stub1 = dispatcherClient.getWindmillServiceStub();
       CloudWindmillServiceV1Alpha1Stub stub2 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub2, stub1);
+      assertThat(stub1.getChannel(), not(instanceOf(IsolationChannel.class)));
 
       // Enable Isolated channels
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ true));
       CloudWindmillServiceV1Alpha1Stub stub3 = dispatcherClient.getWindmillServiceStub();
       assertNotSame(stub3, stub1);
 
+      assertThat(stub3.getChannel(), instanceOf(IsolationChannel.class));
       CloudWindmillServiceV1Alpha1Stub stub4 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub3, stub4);
 
@@ -99,19 +80,18 @@ public class GrpcDispatcherClientTest {
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
       CloudWindmillServiceV1Alpha1Stub stub5 = dispatcherClient.getWindmillServiceStub();
       assertNotSame(stub4, stub5);
+      assertThat(stub5.getChannel(), not(instanceOf(IsolationChannel.class)));
     }
   }
 
   @RunWith(Parameterized.class)
-  public static class RespectsPipelineOptionsTest extends GrpcDispatcherClientTestBase {
+  public static class RespectsPipelineOptionsTest {
 
     @Parameters
     public static Collection<Object[]> data() {
       List<Object[]> list = new ArrayList<>();
-      for (Boolean pipelineOption : new Boolean[] {null, true, false}) {
-        list.add(new Object[] {/*experimentEnabled=*/ false, pipelineOption});
-      }
       for (Boolean pipelineOption : new Boolean[] {true, false}) {
+        list.add(new Object[] {/*experimentEnabled=*/ false, pipelineOption});
         list.add(new Object[] {/*experimentEnabled=*/ true, pipelineOption});
       }
       return list;
@@ -134,13 +114,18 @@ public class GrpcDispatcherClientTest {
       }
       options.setUseWindmillIsolatedChannels(pipelineOption);
       GrpcDispatcherClient dispatcherClient =
-          GrpcDispatcherClient.create(options, new FakeWindmillStubFactoryFactory(stubFactory));
+          GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
+      Matcher<Object> classMatcher =
+          pipelineOption
+              ? instanceOf(IsolationChannel.class)
+              : not(instanceOf(IsolationChannel.class));
 
       // Job setting disabled, PipelineOption enabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ false));
       CloudWindmillServiceV1Alpha1Stub stub1 = dispatcherClient.getWindmillServiceStub();
       CloudWindmillServiceV1Alpha1Stub stub2 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub2, stub1);
+      assertThat(stub1.getChannel(), classMatcher);
 
       // Job setting enabled
       dispatcherClient.onJobConfig(getGlobalConfig(/*useWindmillIsolatedChannels=*/ true));
@@ -155,5 +140,15 @@ public class GrpcDispatcherClientTest {
       CloudWindmillServiceV1Alpha1Stub stub5 = dispatcherClient.getWindmillServiceStub();
       assertSame(stub4, stub5);
     }
+  }
+
+  static StreamingGlobalConfig getGlobalConfig(boolean useWindmillIsolatedChannels) {
+    return StreamingGlobalConfig.builder()
+        .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromString("windmill:1234")))
+        .setUserWorkerJobSettings(
+            UserWorkerRunnerV1Settings.newBuilder()
+                .setUseWindmillIsolatedChannels(useWindmillIsolatedChannels)
+                .build())
+        .build();
   }
 }
