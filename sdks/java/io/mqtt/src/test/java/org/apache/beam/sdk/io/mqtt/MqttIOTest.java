@@ -152,8 +152,7 @@ public class MqttIOTest {
     publisherThread.join();
   }
 
-  @Test(timeout = 30 * 1000)
-  @Ignore("https://github.com/apache/beam/issues/19092 Flake Non-deterministic output.")
+  @Test(timeout = 40 * 1000)
   public void testRead() throws Exception {
     PCollection<byte[]> output =
         pipeline.apply(
@@ -161,7 +160,7 @@ public class MqttIOTest {
                 .withConnectionConfiguration(
                     MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
                         .withClientId("READ_PIPELINE"))
-                .withMaxReadTime(Duration.standardSeconds(3)));
+                .withMaxReadTime(Duration.standardSeconds(5)));
     PAssert.that(output)
         .containsInAnyOrder(
             "This is test 0".getBytes(StandardCharsets.UTF_8),
@@ -190,12 +189,12 @@ public class MqttIOTest {
                         + "messages ...");
                 boolean pipelineConnected = false;
                 while (!pipelineConnected) {
-                  Thread.sleep(1000);
                   for (Connection connection : brokerService.getBroker().getClients()) {
                     if (connection.getConnectionId().startsWith("READ_PIPELINE")) {
                       pipelineConnected = true;
                     }
                   }
+                  Thread.sleep(1000);
                 }
                 for (int i = 0; i < 10; i++) {
                   publishConnection.publish(

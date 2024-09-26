@@ -102,6 +102,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -275,6 +277,8 @@ public class StreamingDataflowWorkerTest {
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
+  StreamingGlobalConfigHandleImpl mockGlobalConfigHandle =
+      mock(StreamingGlobalConfigHandleImpl.class);
   HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
   private @Nullable ComputationStateCache computationStateCache = null;
@@ -750,7 +754,9 @@ public class StreamingDataflowWorkerTest {
     requestBuilder.append("cache_token: ");
     requestBuilder.append(index + 1);
     requestBuilder.append(" ");
-    if (hasSourceBytesProcessed) requestBuilder.append("source_bytes_processed: 0 ");
+    if (hasSourceBytesProcessed) {
+      requestBuilder.append("source_bytes_processed: 0 ");
+    }
 
     return requestBuilder;
   }
@@ -834,6 +840,8 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorker makeWorker(
       StreamingDataflowWorkerTestParams streamingDataflowWorkerTestParams) {
+    when(mockGlobalConfigHandle.getConfig())
+        .thenReturn(streamingDataflowWorkerTestParams.streamingGlobalConfig());
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
             streamingDataflowWorkerTestParams.stateNameMappings(),
@@ -847,8 +855,8 @@ public class StreamingDataflowWorkerTest {
             hotKeyLogger,
             streamingDataflowWorkerTestParams.clock(),
             streamingDataflowWorkerTestParams.executorSupplier(),
-            streamingDataflowWorkerTestParams.localRetryTimeoutMs(),
-            streamingDataflowWorkerTestParams.operationalLimits());
+            mockGlobalConfigHandle,
+            streamingDataflowWorkerTestParams.localRetryTimeoutMs());
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
@@ -1210,8 +1218,11 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams()
                 .setInstructions(instructions)
-                .setOperationalLimits(
-                    OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
+                        .build())
                 .publishCounters()
                 .build());
     worker.start();
@@ -1282,7 +1293,11 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
                 .setInstructions(instructions)
-                .setOperationalLimits(OperationalLimits.builder().setMaxOutputKeyBytes(15).build())
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            OperationalLimits.builder().setMaxOutputKeyBytes(15).build())
+                        .build())
                 .build());
     worker.start();
 
@@ -1315,8 +1330,11 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
                 .setInstructions(instructions)
-                .setOperationalLimits(
-                    OperationalLimits.builder().setMaxOutputValueBytes(15).build())
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            OperationalLimits.builder().setMaxOutputValueBytes(15).build())
+                        .build())
                 .build());
     worker.start();
 
@@ -4412,7 +4430,9 @@ public class StreamingDataflowWorkerTest {
     }
 
     boolean isActiveWorkRefresh(GetDataRequest request) {
-      if (request.getComputationHeartbeatRequestCount() > 0) return true;
+      if (request.getComputationHeartbeatRequestCount() > 0) {
+        return true;
+      }
       for (ComputationGetDataRequest computationRequest : request.getRequestsList()) {
         if (!computationRequest.getComputationId().equals(DEFAULT_COMPUTATION_ID)) {
           return false;
@@ -4508,7 +4528,7 @@ public class StreamingDataflowWorkerTest {
           .setLocalRetryTimeoutMs(-1)
           .setPublishCounters(false)
           .setClock(Instant::now)
-          .setOperationalLimits(OperationalLimits.builder().build());
+          .setStreamingGlobalConfig(StreamingGlobalConfig.builder().build());
     }
 
     abstract ImmutableMap<String, String> stateNameMappings();
@@ -4525,10 +4545,11 @@ public class StreamingDataflowWorkerTest {
 
     abstract int localRetryTimeoutMs();
 
-    abstract OperationalLimits operationalLimits();
+    abstract StreamingGlobalConfig streamingGlobalConfig();
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setStateNameMappings(ImmutableMap<String, String> value);
 
       abstract ImmutableMap.Builder<String, String> stateNameMappingsBuilder();
@@ -4559,7 +4580,7 @@ public class StreamingDataflowWorkerTest {
 
       abstract Builder setLocalRetryTimeoutMs(int value);
 
-      abstract Builder setOperationalLimits(OperationalLimits operationalLimits);
+      abstract Builder setStreamingGlobalConfig(StreamingGlobalConfig config);
 
       abstract StreamingDataflowWorkerTestParams build();
     }

@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import com.google.auto.value.AutoValue;
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.beam.runners.dataflow.worker.OperationalLimits;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
@@ -27,41 +27,30 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 /** Global pipeline config for pipelines running in Streaming Engine mode. */
 @AutoValue
 @Internal
-public abstract class StreamingEnginePipelineConfig {
+public abstract class StreamingGlobalConfig {
 
-  private static final long DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES = 180 << 20;
-
-  public static StreamingEnginePipelineConfig.Builder builder() {
-    return new AutoValue_StreamingEnginePipelineConfig.Builder()
-        .setMaxWorkItemCommitBytes(DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES)
-        .setMaxOutputKeyBytes(Long.MAX_VALUE)
-        .setMaxOutputValueBytes(Long.MAX_VALUE)
-        .setUserStepToStateFamilyNameMap(new HashMap<>())
-        .setWindmillServiceEndpoints(ImmutableSet.of());
+  public static StreamingGlobalConfig.Builder builder() {
+    return new AutoValue_StreamingGlobalConfig.Builder()
+        .setWindmillServiceEndpoints(ImmutableSet.of())
+        .setUserWorkerJobSettings(UserWorkerRunnerV1Settings.newBuilder().build())
+        .setOperationalLimits(OperationalLimits.builder().build());
   }
 
-  public abstract long maxWorkItemCommitBytes();
-
-  public abstract long maxOutputKeyBytes();
-
-  public abstract long maxOutputValueBytes();
-
-  public abstract Map<String, String> userStepToStateFamilyNameMap();
+  public abstract OperationalLimits operationalLimits();
 
   public abstract ImmutableSet<HostAndPort> windmillServiceEndpoints();
 
+  public abstract UserWorkerRunnerV1Settings userWorkerJobSettings();
+
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setMaxWorkItemCommitBytes(long value);
-
-    public abstract Builder setMaxOutputKeyBytes(long value);
-
-    public abstract Builder setMaxOutputValueBytes(long value);
-
-    public abstract Builder setUserStepToStateFamilyNameMap(Map<String, String> value);
 
     public abstract Builder setWindmillServiceEndpoints(ImmutableSet<HostAndPort> value);
 
-    public abstract StreamingEnginePipelineConfig build();
+    public abstract Builder setOperationalLimits(OperationalLimits operationalLimits);
+
+    public abstract Builder setUserWorkerJobSettings(UserWorkerRunnerV1Settings settings);
+
+    public abstract StreamingGlobalConfig build();
   }
 }

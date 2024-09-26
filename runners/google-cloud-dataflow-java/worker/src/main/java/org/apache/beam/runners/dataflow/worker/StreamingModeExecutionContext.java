@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
@@ -72,7 +73,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
@@ -107,6 +107,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private volatile long backlogBytes;
 
@@ -127,7 +128,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable Object key = null;
 
-  private Work work;
+  private @Nullable Work work;
   private WindmillComputationKey computationKey;
   private SideInputStateFetcher sideInputStateFetcher;
   // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
@@ -153,6 +154,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
+      StreamingGlobalConfigHandle globalConfigHandle,
       long sinkByteLimit,
       boolean throwExceptionOnLargeOutput) {
     super(
@@ -163,6 +165,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         sinkByteLimit);
     this.computationId = computationId;
     this.readerCache = readerCache;
+    this.globalConfigHandle = globalConfigHandle;
     this.sideInputCache = new HashMap<>();
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
@@ -176,11 +179,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public long getMaxOutputKeyBytes() {
-    return operationalLimits.maxOutputKeyBytes;
+    return operationalLimits.getMaxOutputKeyBytes();
   }
 
   public long getMaxOutputValueBytes() {
-    return operationalLimits.maxOutputValueBytes;
+    return operationalLimits.getMaxOutputValueBytes();
   }
 
   public boolean throwExceptionsForLargeOutput() {
@@ -196,13 +199,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      OperationalLimits operationalLimits,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
-    this.operationalLimits = operationalLimits;
+    // Snapshot the limits for entire bundle processing.
+    this.operationalLimits = globalConfigHandle.getConfig().operationalLimits();
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();
@@ -300,9 +303,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return fetchSideInputFromWindmill(
         view,
         sideInputWindow,
-        Preconditions.checkNotNull(stateFamily),
+        checkNotNull(stateFamily),
         state,
-        Preconditions.checkNotNull(scopedReadStateSupplier),
+        checkNotNull(scopedReadStateSupplier),
         tagCache);
   }
 
@@ -325,15 +328,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
-    return work.getWorkItem().getGlobalDataIdNotificationsList();
+    return getWorkItem().getGlobalDataIdNotificationsList();
   }
 
   private List<Timer> getFiredTimers() {
-    return work.getWorkItem().getTimers().getTimersList();
+    return getWorkItem().getTimers().getTimersList();
   }
 
   public @Nullable ByteString getSerializedKey() {
-    return work.getWorkItem().getKey();
+    return work == null ? null : work.getWorkItem().getKey();
   }
 
   public WindmillComputationKey getComputationKey() {
@@ -341,11 +344,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public long getWorkToken() {
-    return work.getWorkItem().getWorkToken();
+    return getWorkItem().getWorkToken();
   }
 
   public Windmill.WorkItem getWorkItem() {
-    return work.getWorkItem();
+    return checkNotNull(
+            work,
+            "work is null. A call to StreamingModeExecutionContext.start(...) is required to set"
+                + " work for execution.")
+        .getWorkItem();
   }
 
   public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
@@ -386,7 +393,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   public UnboundedSource.@Nullable CheckpointMark getReaderCheckpoint(
       Coder<? extends UnboundedSource.CheckpointMark> coder) {
     try {
-      ByteString sourceStateState = work.getWorkItem().getSourceState().getState();
+      ByteString sourceStateState = getWorkItem().getSourceState().getState();
       if (sourceStateState.isEmpty()) {
         return null;
       }
@@ -733,7 +740,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               key,
               stateFamily,
               stateReader,
-              work.getWorkItem().getIsNewKey(),
+              getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
               scopedReadStateSupplier);
 

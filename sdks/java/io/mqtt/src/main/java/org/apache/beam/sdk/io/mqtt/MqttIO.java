@@ -30,6 +30,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.fusesource.mqtt.client.BlockingConnection;
+import org.fusesource.mqtt.client.FutureConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
 import org.fusesource.mqtt.client.QoS;
@@ -464,8 +466,7 @@ public class MqttIO {
         client = spec.connectionConfiguration().createClient();
         LOG.debug("Reader client ID is {}", client.getClientId());
         checkpointMark.clientId = client.getClientId().toString();
-        connection = client.blockingConnection();
-        connection.connect();
+        connection = createConnection(client);
         connection.subscribe(
             new Topic[] {new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)});
         return advance();
@@ -719,8 +720,7 @@ public class MqttIO {
         LOG.debug("Starting MQTT writer");
         client = spec.connectionConfiguration().createClient();
         LOG.debug("MQTT writer client ID is {}", client.getClientId());
-        connection = client.blockingConnection();
-        connection.connect();
+        connection = createConnection(client);
       }
 
       @ProcessElement
@@ -739,5 +739,21 @@ public class MqttIO {
         }
       }
     }
+  }
+
+  /** Create a connected MQTT BlockingConnection from given client, aware of connection timeout. */
+  static BlockingConnection createConnection(MQTT client) throws Exception {
+    FutureConnection futureConnection = client.futureConnection();
+    org.fusesource.mqtt.client.Future<Void> connecting = futureConnection.connect();
+    while (true) {
+      try {
+        connecting.await(1, TimeUnit.MINUTES);
+      } catch (TimeoutException e) {
+        LOG.warn("Connection to {} pending after waiting for 1 minute", client.getHost());
+        continue;
+      }
+      break;
+    }
+    return new BlockingConnection(futureConnection);
   }
 }

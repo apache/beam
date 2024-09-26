@@ -17,13 +17,20 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
+
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -35,6 +42,8 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * SchemaTransform implementation for {@link IcebergIO#writeRows}. Writes Beam Rows to Iceberg and
@@ -42,7 +51,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergWriteSchemaTransformProvider
-    extends TypedSchemaTransformProvider<SchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<Configuration> {
 
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
@@ -57,8 +66,55 @@ public class IcebergWriteSchemaTransformProvider
         + "{\"table\" (str), \"operation\" (str), \"summary\" (map[str, str]), \"manifestListLocation\" (str)}";
   }
 
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class Configuration {
+    public static Builder builder() {
+      return new AutoValue_IcebergWriteSchemaTransformProvider_Configuration.Builder();
+    }
+
+    @SchemaFieldDescription("Identifier of the Iceberg table.")
+    public abstract String getTable();
+
+    @SchemaFieldDescription("Name of the catalog containing the table.")
+    public abstract @Nullable String getCatalogName();
+
+    @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
+    public abstract @Nullable Map<String, String> getCatalogProperties();
+
+    @SchemaFieldDescription("Properties passed to the Hadoop Configuration.")
+    public abstract @Nullable Map<String, String> getConfigProperties();
+
+    @SchemaFieldDescription(
+        "For a streaming pipeline, sets the frequency at which snapshots are produced.")
+    public abstract @Nullable Integer getTriggeringFrequencySeconds();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setTable(String table);
+
+      public abstract Builder setCatalogName(String catalogName);
+
+      public abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
+
+      public abstract Builder setConfigProperties(Map<String, String> confProperties);
+
+      public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
+
+      public abstract Configuration build();
+    }
+
+    public IcebergCatalogConfig getIcebergCatalog() {
+      return IcebergCatalogConfig.builder()
+          .setCatalogName(getCatalogName())
+          .setCatalogProperties(getCatalogProperties())
+          .setConfigProperties(getConfigProperties())
+          .build();
+    }
+  }
+
   @Override
-  protected SchemaTransform from(SchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(Configuration configuration) {
     return new IcebergWriteSchemaTransform(configuration);
   }
 
@@ -78,9 +134,9 @@ public class IcebergWriteSchemaTransformProvider
   }
 
   static class IcebergWriteSchemaTransform extends SchemaTransform {
-    private final SchemaTransformConfiguration configuration;
+    private final Configuration configuration;
 
-    IcebergWriteSchemaTransform(SchemaTransformConfiguration configuration) {
+    IcebergWriteSchemaTransform(Configuration configuration) {
       this.configuration = configuration;
     }
 
@@ -89,7 +145,7 @@ public class IcebergWriteSchemaTransformProvider
         // To stay consistent with our SchemaTransform configuration naming conventions,
         // we sort lexicographically and convert field names to snake_case
         return SchemaRegistry.createDefault()
-            .getToRowFunction(SchemaTransformConfiguration.class)
+            .getToRowFunction(Configuration.class)
             .apply(configuration)
             .sorted()
             .toSnakeCase();
@@ -102,11 +158,17 @@ public class IcebergWriteSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rows = input.get(INPUT_TAG);
 
+      IcebergIO.WriteRows writeTransform =
+          IcebergIO.writeRows(configuration.getIcebergCatalog())
+              .to(TableIdentifier.parse(configuration.getTable()));
+
+      Integer trigFreq = configuration.getTriggeringFrequencySeconds();
+      if (trigFreq != null) {
+        writeTransform = writeTransform.withTriggeringFrequency(Duration.standardSeconds(trigFreq));
+      }
+
       // TODO: support dynamic destinations
-      IcebergWriteResult result =
-          rows.apply(
-              IcebergIO.writeRows(configuration.getIcebergCatalog())
-                  .to(TableIdentifier.parse(configuration.getTable())));
+      IcebergWriteResult result = rows.apply(writeTransform);
 
       PCollection<Row> snapshots =
           result
