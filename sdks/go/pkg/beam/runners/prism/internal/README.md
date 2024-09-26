@@ -74,7 +74,7 @@ Eventually these behaviors should be covered by using Prism in the main SDK test
 
 # Deep Dive
 
-This section covers how Prism operates just above the code level, and addresses the
+These sections cover how Prism operates just above the code level, and addresses the
 questions of "how it works".
 
 ## Job Execution
@@ -89,7 +89,7 @@ sequenceDiagram
     X->>S: create
     create participant W as SDK Worker
     X->>W: create
-    create participant EM as ElementManager 
+    create participant EM as ElementManager
     X->>EM: Configure Stages in ElementManager
     activate EM
     X->>+EM: Request Bundles
@@ -147,12 +147,12 @@ needed for bundle processing.
 
 ### How are bundles produced?
 
-Work is divided into Bundles for execution, typically, on end user DoFns within
+Work is divided into Bundles for execution on end user DoFns within
 SDK workers.
 
 Producing bundles is the ElementManager's job. The ElementManager is the heart
 of Prism. The element manager tracks the state for each stage, which includes a
-stage's relationships with others, the pending input elements, the various watermarks, 
+stage's relationships with others, the pending input elements, the various watermarks,
 whether it is stateful or aggregating.
 
 Each executing pipeline has it's own instance of the ElementManager which
@@ -241,7 +241,7 @@ graph TD;
 
 ### Watermark Evaluation and Bundle Generation
 
-Here's a closer look at the watermark evaluation goroutine. 
+Here's a closer look at the watermark evaluation goroutine.
 
 A key idea is that execution can't progress unless something has changed a stage.
 A stage can only change as a result of a bundle being persisted.
@@ -255,7 +255,7 @@ Each stage has several watermarks: upstream, input, and output.
 The upstream watermark is determined by the output watermarks of stages that provide elements to the stage.
 The input watermark is determined by the pending and
 inprogress elements for the stage.
-The output watermark is where we have determined we have fully processed all input elements. 
+The output watermark is where we have determined we have fully processed all input elements.
 
 A stage's watermark progress depends on its pending and in progress elements and timers, and the output watermark of its upstream stages.
 As these change this enables more data to be processed,
@@ -264,7 +264,7 @@ and allow downstream stages to be processed.
 Elements are associated with an event time timestamp.
 Pending elements for a stage can be added to a bundle for processing, when the stage's upstream watermark  has advanced passed the element's timestamp.
 
-So Bundles are produced for a stage based on its watermark progress, with elements 
+So Bundles are produced for a stage based on its watermark progress, with elements
 
 A stage's watermarks are determined by it's upstream stages, it's current watermark state, and it's current
 pending elements.
@@ -273,7 +273,7 @@ At the start of a job, all stages are initialized to have watermarks at the the 
 
 
 ```mermaid
-sequenceDiagram 
+sequenceDiagram
 loop Until Job Terminates
     box Purple Element Manager
         participant WE as Watermark Evaluation
@@ -321,13 +321,59 @@ loop Until Job Terminates
         else
         Note right of WE: continue with next stage
         end
-    end 
+    end
     Note right of WE: Check if job can make progress.
     WE->>RCL: Unlock()
     deactivate RCL
 end
-    
+
 ```
+
+## Bundle Spliting
+
+In order to efficiently process data and scale, Beam Runners can use a combination
+of two broad approaches to dividing work, Initial Splitting, and Dynamic Splitting.
+
+### Initial Splitting
+
+Initial Splitting is a part of bundle generation, and is decided before bundles
+even begin processing. This should take into account the current state
+of the pipeline, oustanding data to be processed, and the current load on the system.
+Larger bundles require fewer "round trips" to the SDK and batch processing, but in
+general, are processed serially by the runner, leading to higher latency for downstream
+results. Smaller bundles may incur per bundle overhead more frequently, but can yeild lower
+latency execution. 
+
+Runners must strike a balance, to avoid over splitting, where per bundle overhead dominates, or
+undersplitting, where available parallelism on the workers is going unused.
+
+Prism doesn't yet provide sophisticated initial splits outside of it's own testing harness.
+
+Bundle generation is greedy, as described above, without particular limits or parallelism goals.
+
+### Dynamic Splitting
+
+Dynamic Splitting is how a Beam runner can spread the processing load after a bundle starts execution.
+It also has many different names, such as work stealing, or liquid-sharding.
+The goal is to be able to complete work faster, by completing it in parallel.
+
+Prism's approach to dynamic splitting is naive, but does take into account previous bundles for
+the stage.
+
+In short, if a bundle is making dicernable progress, then do not split. Otherwise, do split.
+
+In particular, it takes into account whether new inputs have been consumed, or
+elements have been emitted to downstream PCollections between two BundleProgress requests.
+If there hasn't, then a split request is made for half of the unprocessed work from the SDK.
+
+The progress interval for the stage (not simply this bundle) is then increased, to reduce
+the frequency of splits if the stage is relatively slow at processing.
+The stage's progress interval is decreased if bundles complete so quickly that no progress requests
+can be made durinng the interval.
+
+Oversplitting can still occur for this approach, so https://github.com/apache/beam/issues/32538
+proposes incorporating the available execution parallelism into the decision of whether or not to
+split a bundle.
 
 ## Threading and Concurrency Model
 
@@ -337,7 +383,7 @@ operating system threads for execution, and it's reasonably effective at this.
 Goroutines allow prism to distribute multiple bundles to SDK workers simultaneously.
 There are some benefits to re-use Goroutines, but not critically so.
 Generally the goal is to strategically limit parallelism to avoid
-wasting time in the goroutine scheduler. 
+wasting time in the goroutine scheduler.
 
 For a single Job Goroutines are initialized to the following cardinatlities
 Per Job, Per Environment, and Per Bundle.
@@ -361,7 +407,7 @@ in that Environment. These will persist for the lifetime of the job.
 
 After producing stages for the job the Job Executor goroutine will wait on Bundles
 from the ElementManager, and execute them in parallel.
-Each bundle has it's own goroutine. 
+Each bundle has it's own goroutine.
 This is by default configured to a maximum of 8 simultaneous Bundles.
 
 The bundle goroutine will communicate with the worker associated with the bundle's stage.
@@ -390,11 +436,11 @@ while the job is executing through the "Universal" runner handlers for a pipelin
 
 A job thus has the following number of persistent goroutines in execution:
 
-For a Prism instance: 
+For a Prism instance:
 * G for the job services.
 
 For each Job:
-* 1 for the Job Executor 
+* 1 for the Job Executor
 * 2 for the ElementManager
 
 For each Environment:
@@ -434,7 +480,7 @@ accessed by the Bundle goroutines on persisting data back to the Element manager
 For best performance, we do as much work as possible in the Bundle Goroutines since they are
 what can most dynamically scale out, as bundle generation is handled by the single watermark
 evaluation thread. This may include migrating handling of data responses away from the Data
-received goroutine and into the Bundle processing goroutine, so bundles are less likely to 
+received goroutine and into the Bundle processing goroutine, so bundles are less likely to
 block each other.
 
 As one G of goroutines is the single Job Management instance for prism itself, and the other is
@@ -450,10 +496,10 @@ bundle at a time. An unbufferred channel puts a
 bottleneck on the job since there may be additional
 ready work to execute. On the other hand, it also
 allows for bundles to be made larger as more data
-may have arrived. 
+may have arrived.
 
 The channel could be made to be buffered, to allow
-multiple bundles to be prepared for execution. 
+multiple bundles to be prepared for execution.
 This would lead to lower latency as bundles could be made smaller, and faster to execute, as it would
 permit pipelineing in work generation, but may lead
 to higher lock contention and variability in execution.
@@ -485,7 +531,7 @@ for SDK environments, they'll be on the same machine as Prism.
 * Upstream Stages: Stages that provide input to the
 current stage. Not all stages have upstream stages.
 * Downstream Stages: Stages that depend on input from the current stage. Not alls tages have downstream stages.
-* Watermark: An event time which relates to the the readiness to process data in the engine. 
+* Watermark: An event time which relates to the the readiness to process data in the engine.
    Each stage has several watermarks it tracks: Input, Output, and Upstream.
    * Upstream Watermark: The minimum output watermark of all stages that provide input to this stage.
    * Input watermark: The minumum event time of all elements pending or in progress for this stage.
