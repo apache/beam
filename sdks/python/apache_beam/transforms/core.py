@@ -2592,17 +2592,29 @@ class _TimeoutDoFn(DoFn):
       return getattr(self._fn, name)
 
   def process(self, *args, **kwargs):
-    if self._pool is None:
-      self._pool = concurrent.futures.ThreadPoolExecutor(10)
-    # Ensure we iterate over the entire output list in the given amount of time.
-    try:
-      return self._pool.submit(
-          lambda: list(self._fn.process(*args, **kwargs))).result(
-              self._timeout)
-    except TimeoutError:
-      self._pool.shutdown(wait=False)
-      self._pool = None
-      raise
+    from apache_beam.utils.threads import ParentAwareThread
+
+    results = []
+    exception = None
+
+    def run_process():
+      try:
+        results.extend(self._fn.process(*args, **kwargs))
+      except Exception as e:
+        nonlocal exception
+        exception = e
+
+    thread = ParentAwareThread(target=run_process)
+    thread.start()
+    thread.join(self._timeout)
+
+    if thread.is_alive():
+      raise TimeoutError()
+
+    if exception is not None:
+      raise exception
+
+    return results
 
   def teardown(self):
     try:
