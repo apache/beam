@@ -235,7 +235,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         // Pass metrics to container.
         kafkaResults.updateKafkaMetrics();
         return true;
-
       } else { // -- (b)
         nextBatch();
 
@@ -590,11 +589,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             // Each source has a single unique topic.
             List<TopicPartition> topicPartitions = source.getSpec().getTopicPartitions();
             Preconditions.checkStateNotNull(topicPartitions);
-            String topicName = "null"; // value will be overridden
-            for (TopicPartition topicPartition : topicPartitions) {
-              topicName = topicPartition.topic();
-              break;
-            }
 
             stopwatch.start();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());

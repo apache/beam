@@ -25,6 +25,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Stores and exports metrics for a batch of Kafka Client RPCs. */
 public interface KafkaMetrics {
@@ -62,6 +64,8 @@ public interface KafkaMetrics {
    */
   @AutoValue
   abstract class KafkaMetricsImpl implements KafkaMetrics {
+
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaMetricsImpl.class);
 
     static HashMap<String, Histogram> latencyHistograms = new HashMap<String, Histogram>();
 
@@ -118,6 +122,7 @@ public interface KafkaMetrics {
     @Override
     public void updateKafkaMetrics() {
       if (!isWritable().compareAndSet(true, false)) {
+        LOG.warn("Updating stale Kafka metrics container");
         return;
       }
       recordRpcLatencyMetrics();
