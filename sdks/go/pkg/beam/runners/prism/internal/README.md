@@ -342,7 +342,7 @@ of the pipeline, oustanding data to be processed, and the current load on the sy
 Larger bundles require fewer "round trips" to the SDK and batch processing, but in
 general, are processed serially by the runner, leading to higher latency for downstream
 results. Smaller bundles may incur per bundle overhead more frequently, but can yeild lower
-latency execution. 
+latency execution.
 
 Runners must strike a balance, to avoid over splitting, where per bundle overhead dominates, or
 undersplitting, where available parallelism on the workers is going unused.
