@@ -491,7 +491,6 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       errors = (
           p | 'create' >> beam.Create(input_data)
-          | beam.WindowInto(beam.transforms.window.FixedWindows(10))
           | 'write' >> beam.io.WriteToBigQuery(
               table_id,
               schema=table_schema,

@@ -27,6 +27,7 @@ import unittest
 from parameterized import parameterized
 from parameterized import parameterized_class
 
+import apache_beam as beam
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 
@@ -74,6 +75,21 @@ class WindowedValueTest(unittest.TestCase):
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
     wv = windowed_value.WindowedValue(1, 3, (), pane_info)
     self.assertTrue(pickle.loads(pickle.dumps(wv)) == wv)
+
+  def test_encoding_global_window_in_interval_window(self):
+    input_data = ['123']
+
+    class ComputeWordLengthFn(beam.DoFn):
+      def process(self, element):
+        pass
+        
+      def finish_bundle(self):
+        yield beam.transforms.window.GlobalWindows.windowed_value('test')
+
+    with beam.Pipeline() as p:
+      (p | 'create' >> beam.Create(input_data)
+      | beam.WindowInto(beam.transforms.window.FixedWindows(10))
+      | beam.ParDo(ComputeWordLengthFn()))
 
 
 WINDOWED_BATCH_INSTANCES = [
