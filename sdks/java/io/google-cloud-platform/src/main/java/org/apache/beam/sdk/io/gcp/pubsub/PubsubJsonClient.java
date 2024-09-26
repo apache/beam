@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
@@ -309,19 +308,6 @@ public class PubsubJsonClient extends PubsubClient {
       response = request.execute();
     }
     return topics;
-  }
-
-  @Override
-  public boolean isTopicExists(TopicPath topic) throws IOException {
-    try {
-      pubsub.projects().topics().get(topic.getPath()).execute();
-      return true;
-    } catch (GoogleJsonResponseException e) {
-      if (e.getStatusCode() == 404) {
-        return false;
-      }
-      throw e;
-    }
   }
 
   @Override
