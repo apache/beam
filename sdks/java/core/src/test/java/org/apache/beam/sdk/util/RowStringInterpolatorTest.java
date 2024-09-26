@@ -88,7 +88,9 @@ public class RowStringInterpolatorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'nested_int'.");
 
-    interpolator.interpolate(ValueInSingleWindow.of(invalidRow, null, null, null));
+    interpolator.interpolate(
+        ValueInSingleWindow.of(
+            invalidRow, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   @Test
@@ -108,7 +110,9 @@ public class RowStringInterpolatorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid row does not contain field 'doubly_nested_int'.");
 
-    interpolator.interpolate(ValueInSingleWindow.of(invalidRow, null, null, null));
+    interpolator.interpolate(
+        ValueInSingleWindow.of(
+            invalidRow, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   private static final Row ROW =
@@ -137,7 +141,9 @@ public class RowStringInterpolatorTest {
     String template = "foo {str}, bar {bool}, baz {int}, xyz {nullable_int}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ValueInSingleWindow.of(ROW, null, null, null));
+    String output =
+        interpolator.interpolate(
+            ValueInSingleWindow.of(ROW, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     assertEquals("foo str_value, bar true, baz 123, xyz ", output);
   }
@@ -147,7 +153,9 @@ public class RowStringInterpolatorTest {
     String template = "foo {str}, bar {row.nested_str}, baz {row.nested_float}";
     RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
 
-    String output = interpolator.interpolate(ValueInSingleWindow.of(ROW, null, null, null));
+    String output =
+        interpolator.interpolate(
+            ValueInSingleWindow.of(ROW, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     assertEquals("foo str_value, bar nested_str_value, baz 1.234", output);
   }
