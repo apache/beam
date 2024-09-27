@@ -267,19 +267,20 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
   def union(self, other: 'IntervalWindow') -> 'IntervalWindow':
     return IntervalWindow(
         min(self.start, other.start), max(self.end, other.end))
-  
+
   @staticmethod
   def try_from_global_window(value) -> 'IntervalWindow':
     gw = GlobalWindow()
     if gw == value:
       return IntervalWindow(gw.start, GlobalWindow._getTimestampFromProto())
     return value
-  
+
   def try_to_global_window(self) -> BoundedWindow:
     gw = GlobalWindow()
-    if self.start == gw.start and self.end == GlobalWindow._getTimestampFromProto():
+    if (self.start == gw.start and
+        self.end == GlobalWindow._getTimestampFromProto()):
       return gw
-    return IntervalWindow(gw.start(), GlobalWindow._getTimestampFromProto())
+    return IntervalWindow(gw.start, GlobalWindow._getTimestampFromProto())
 
 
 V = TypeVar("V")
@@ -332,6 +333,7 @@ class GlobalWindow(BoundedWindow):
     return hash(type(self))
 
   def __eq__(self, other):
+    # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
 
   @property
