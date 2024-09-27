@@ -28,11 +28,8 @@ import java.io.ObjectInputStream;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,7 +167,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   public <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
       Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      BigQueryReaderFactory<T> readerFactory,
       boolean useAvroLogicalTypes) {
     return BigQueryQuerySource.create(
         stepUuid, this, bqServices, coder, readerFactory, useAvroLogicalTypes);
@@ -178,7 +175,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
 
   /** {@inheritDoc} */
   @Override
-  public Schema getBeamSchema(BigQueryOptions bqOptions) {
+  public TableSchema getTableSchema(BigQueryOptions bqOptions) {
     try {
       JobStatistics stats =
           BigQueryQueryHelper.dryRunQueryIfNeeded(
@@ -189,8 +186,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
               flattenResults,
               useLegacySql,
               location);
-      TableSchema tableSchema = stats.getQuery().getSchema();
-      return BigQueryUtils.fromTableSchema(tableSchema);
+      return stats.getQuery().getSchema();
     } catch (IOException | InterruptedException | NullPointerException e) {
       throw new BigQuerySchemaRetrievalException(
           "Exception while trying to retrieve schema of query", e);

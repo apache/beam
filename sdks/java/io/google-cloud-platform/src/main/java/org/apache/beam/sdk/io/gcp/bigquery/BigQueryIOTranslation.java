@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteAr
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
@@ -35,9 +36,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.FromBeamRowFunction;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -55,6 +59,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
@@ -66,6 +71,7 @@ import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar
 import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -90,8 +96,8 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("use_legacy_sql")
             .addNullableBooleanField("with_template_compatibility")
             .addNullableByteArrayField("bigquery_services")
-            .addNullableByteArrayField("parse_fn")
-            .addNullableByteArrayField("datum_reader_factory")
+            .addNullableByteArrayField("bigquery_reader_factory")
+            .addNullableByteArrayField("parse_fn") // for migration
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
@@ -147,11 +153,9 @@ public class BigQueryIOTranslation {
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
-      if (transform.getParseFn() != null) {
-        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
-      }
-      if (transform.getDatumReaderFactory() != null) {
-        fieldValues.put("datum_reader_factory", toByteArray(transform.getDatumReaderFactory()));
+      if (transform.getBigQueryReaderFactory() != null) {
+        fieldValues.put(
+            "bigquery_reader_factory", toByteArray(transform.getBigQueryReaderFactory()));
       }
       if (transform.getQueryPriority() != null) {
         fieldValues.put("query_priority", toByteArray(transform.getQueryPriority()));
@@ -253,16 +257,6 @@ public class BigQueryIOTranslation {
             builder.setBigQueryServices(new BigQueryServicesImpl());
           }
         }
-        byte[] parseFnBytes = configRow.getBytes("parse_fn");
-        if (parseFnBytes != null) {
-          builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
-        }
-        byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
-        if (datumReaderFactoryBytes != null) {
-          builder =
-              builder.setDatumReaderFactory(
-                  (SerializableFunction) fromByteArray(datumReaderFactoryBytes));
-        }
         byte[] queryPriorityBytes = configRow.getBytes("query_priority");
         if (queryPriorityBytes != null) {
           builder = builder.setQueryPriority((QueryPriority) fromByteArray(queryPriorityBytes));
@@ -285,12 +279,56 @@ public class BigQueryIOTranslation {
           }
         }
 
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.60.0") < 0) {
+          // best effort migration
+          // if user was specifying a custom datum_reader_factory, that would fail
+          byte[] formatBytes = configRow.getBytes("format");
+          DataFormat dataFormat = null;
+          if (formatBytes != null) {
+            dataFormat = (DataFormat) fromByteArray(formatBytes);
+          }
+
+          byte[] parseFnBytes = configRow.getBytes("parse_fn");
+          if (parseFnBytes != null) {
+            SerializableFunction<SchemaAndRecord, ?> parseFn =
+                (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFnBytes);
+            BigQueryReaderFactory<?> readerFactory;
+            if (DataFormat.ARROW.equals(dataFormat)) {
+              SerializableBiFunction<TableSchema, Row, ?> fromArrow =
+                  (s, r) -> parseFn.apply(new SchemaAndRecord(AvroUtils.toGenericRecord(r), s));
+              readerFactory = BigQueryReaderFactory.arrow(null, fromArrow);
+            } else {
+              // default to avro
+              SerializableBiFunction<TableSchema, GenericRecord, ?> fromAvro =
+                  (s, r) -> parseFn.apply(new SchemaAndRecord(r, s));
+              readerFactory =
+                  BigQueryReaderFactory.avro(null, AvroDatumFactory.generic(), fromAvro);
+            }
+            builder.setBigQueryReaderFactory(readerFactory);
+
+            if (configRow.getBytes("type_descriptor") == null) {
+              TypeDescriptor typeDescriptor = TypeDescriptors.outputOf(parseFn);
+              if (!typeDescriptor.hasUnresolvedParameters()) {
+                builder.setTypeDescriptor(typeDescriptor);
+              }
+            }
+          }
+        } else {
+          // This property was added for Beam 2.60.0 hence not available when
+          // upgrading the transform from previous Beam versions.
+          byte[] readerFactoryBytes = configRow.getBytes("bigquery_reader_factory");
+          if (readerFactoryBytes != null) {
+            builder.setBigQueryReaderFactory(
+                (BigQueryReaderFactory<?>) fromByteArray(readerFactoryBytes));
+          }
+        }
+
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
         }
         byte[] formatBytes = configRow.getBytes("format");
-        if (methodBytes != null) {
+        if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");

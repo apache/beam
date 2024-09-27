@@ -40,19 +40,21 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.avro.io.AvroSource;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -145,20 +147,11 @@ public class BigQueryIOReadTest implements Serializable {
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
 
-  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>
-      datumReaderFactoryFn =
-          (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-              input -> {
-                try {
-                  String jsonSchema = BigQueryIO.JSON_FACTORY.toString(input);
-                  return (AvroSource.DatumReaderFactory<TableRow>)
-                      (writer, reader) ->
-                          new BigQueryIO.GenericDatumTransformer<>(
-                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer);
-                } catch (IOException e) {
-                  return null;
-                }
-              };
+  private BigQueryReaderFactory<TableRow> readerFactory =
+      BigQueryReaderFactory.avro(
+          null,
+          AvroDatumFactory.generic(),
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
   private static class MyData implements Serializable {
     private String name;
@@ -650,48 +643,35 @@ public class BigQueryIOReadTest implements Serializable {
     p.run();
   }
 
-  static class User extends SpecificRecordBase {
-    private static final org.apache.avro.Schema schema =
-        org.apache.avro.SchemaBuilder.record("User")
-            .namespace("org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadTest$")
-            .fields()
-            .optionalString("name")
-            .endRecord();
+  static class User {
+    @Nullable String name;
 
-    private String name;
+    User() {}
 
-    public String getName() {
-      return this.name;
-    }
-
-    public void setName(String name) {
+    User(String name) {
       this.name = name;
     }
 
-    public User() {}
+    @Override
+    public String toString() {
+      return "User{" + "name='" + name + "'" + "}";
+    }
 
     @Override
-    public void put(int i, Object v) {
-      if (i == 0) {
-        setName(((org.apache.avro.util.Utf8) v).toString());
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
       }
-    }
-
-    @Override
-    public Object get(int i) {
-      if (i == 0) {
-        return getName();
+      if (!(o instanceof User)) {
+        return false;
       }
-      return null;
+      User user = (User) o;
+      return Objects.equals(name, user.name);
     }
 
     @Override
-    public org.apache.avro.Schema getSchema() {
-      return schema;
-    }
-
-    public static org.apache.avro.Schema getAvroSchema() {
-      return schema;
+    public int hashCode() {
+      return Objects.hashCode(name);
     }
   }
 
@@ -705,11 +685,11 @@ public class BigQueryIOReadTest implements Serializable {
     someTable.setTableReference(
         new TableReference()
             .setProjectId("non-executing-project")
-            .setDatasetId("schema_dataset")
-            .setTableId("schema_table"));
+            .setDatasetId("user_dataset")
+            .setTableId("user_table"));
     someTable.setNumBytes(1024L * 1024L);
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
+    fakeDatasetService.createDataset("non-executing-project", "user_dataset", "", "", null);
     fakeDatasetService.createTable(someTable);
 
     List<TableRow> records =
@@ -727,24 +707,18 @@ public class BigQueryIOReadTest implements Serializable {
             .withDatasetService(fakeDatasetService);
 
     BigQueryIO.TypedRead<User> read =
-        BigQueryIO.readWithDatumReader(
-                (AvroSource.DatumReaderFactory<User>)
-                    (writer, reader) -> new SpecificDatumReader<>(User.getAvroSchema()))
-            .from("non-executing-project:schema_dataset.schema_table")
+        BigQueryIO.readWithDatumReader(AvroDatumFactory.reflect(User.class))
+            .from("non-executing-project:user_dataset.user_table")
             .withTestServices(fakeBqServices)
             .withoutValidation()
-            .withCoder(SerializableCoder.of(User.class));
+            .withCoder(AvroCoder.reflect(User.class));
 
     PCollection<User> bqRows = p.apply(read);
 
-    User a = new User();
-    a.setName("a");
-    User b = new User();
-    b.setName("b");
-    User c = new User();
-    c.setName("c");
-    User d = new User();
-    d.setName("d");
+    User a = new User("a");
+    User b = new User("b");
+    User c = new User("c");
+    User d = new User("d");
 
     PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c, d));
 
@@ -819,7 +793,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), readerFactory, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -874,7 +848,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), readerFactory, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -912,7 +886,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), readerFactory, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -944,7 +918,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), readerFactory, false);
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
@@ -1021,7 +995,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), readerFactory, false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
@@ -1094,7 +1068,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, TableRowJsonCoder.of(), readerFactory, false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
@@ -1189,9 +1163,31 @@ public class BigQueryIOReadTest implements Serializable {
             return null;
           }
         };
-
+    TableSchema tableSchema = new TableSchema();
     assertEquals(
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),
-        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
+        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault(), tableSchema, false));
+  }
+
+  @Test
+  public void testAvroCoderInference() {
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("name").setType("STRING"));
+    fields.add(new TableFieldSchema().setName("age").setType("NUMERIC"));
+    TableSchema tableSchema = new TableSchema().setFields(fields);
+    assertEquals(
+        AvroCoder.generic(BigQueryUtils.toGenericAvroSchema(tableSchema, false)),
+        BigQueryIO.readAvro().inferCoder(CoderRegistry.createDefault(), tableSchema, false));
+  }
+
+  @Test
+  public void testRowCoderInference() {
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("name").setType("STRING"));
+    fields.add(new TableFieldSchema().setName("age").setType("NUMERIC"));
+    TableSchema tableSchema = new TableSchema().setFields(fields);
+    assertEquals(
+        RowCoder.of(BigQueryUtils.fromTableSchema(tableSchema)),
+        BigQueryIO.readArrow().inferCoder(CoderRegistry.createDefault(), tableSchema, false));
   }
 }

@@ -94,7 +94,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
@@ -108,6 +107,7 @@ import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroSink;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
@@ -1221,14 +1221,14 @@ public class BigQueryIOWriteTest implements Serializable {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withTestServices(fakeBqServices)
             .withAvroFormatFunction(
-                r -> {
-                  GenericRecord rec = new GenericData.Record(r.getSchema());
-                  InputRecord i = r.getElement();
-                  rec.put("strval", i.strVal());
-                  rec.put("longval", i.longVal());
-                  rec.put("doubleval", i.doubleVal());
-                  rec.put("instantval", i.instantVal().getMillis() * 1000);
-                  return rec;
+                wr -> {
+                  InputRecord i = wr.getElement();
+                  return new GenericRecordBuilder(wr.getSchema())
+                      .set("strval", i.strVal())
+                      .set("longval", i.longVal())
+                      .set("doubleval", i.doubleVal())
+                      .set("instantval", i.instantVal().getMillis() * 1000)
+                      .build();
                 })
             .withoutValidation();
     TableSchema tableSchema =
@@ -1314,7 +1314,7 @@ public class BigQueryIOWriteTest implements Serializable {
           return rec;
         };
 
-    SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>> customWriterFactory =
+    AvroSink.DatumWriterFactory<GenericRecord> customWriterFactory =
         s ->
             new GenericDatumWriter<GenericRecord>() {
               @Override
