@@ -280,7 +280,7 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
     if (self.start == gw.start and
         self.end == GlobalWindow._getTimestampFromProto()):
       return gw
-    return IntervalWindow(gw.start, GlobalWindow._getTimestampFromProto())
+    return self
 
 
 V = TypeVar("V")
