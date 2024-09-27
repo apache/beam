@@ -74,7 +74,6 @@ except ImportError:
 if TYPE_CHECKING:
   import proto
   from apache_beam.transforms import userstate
-  from apache_beam.transforms.window import GlobalWindow
   from apache_beam.transforms.window import IntervalWindow
 
 try:
@@ -807,7 +806,6 @@ class FloatCoderImpl(StreamCoderImpl):
 
 if not TYPE_CHECKING:
   IntervalWindow = None
-  GlobalWindow = None
 
 
 class IntervalWindowCoderImpl(StreamCoderImpl):
@@ -824,7 +822,11 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     # type: (IntervalWindow, create_OutputStream, bool) -> None
-    typed_value = value
+    if not TYPE_CHECKING:
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
+      if IntervalWindow is None:
+        from apache_beam.transforms.window import IntervalWindow
+    typed_value = IntervalWindow.try_from_global_window(value)
     span_millis = (
         typed_value._end_micros // 1000 - typed_value._start_micros // 1000)
     out.write_bigendian_uint64(
@@ -836,7 +838,6 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     if not TYPE_CHECKING:
       global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
-        from apache_beam.transforms.window import GlobalWindow
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
     typed_value = IntervalWindow(None, None)  # type: ignore[arg-type]
@@ -844,17 +845,17 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
         1000 * self._to_normal_time(in_.read_bigendian_uint64()))
     typed_value._start_micros = (
         typed_value._end_micros - 1000 * in_.read_var_int64())
-    gw = GlobalWindow()
-    if typed_value == gw:
-      return gw
-
-    return typed_value
+    return typed_value.try_to_global_window()
 
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
-    typed_value = value
+    if not TYPE_CHECKING:
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
+      if IntervalWindow is None:
+        from apache_beam.transforms.window import IntervalWindow
+    typed_value = IntervalWindow.try_from_global_window(value)
     span_millis = (
         typed_value._end_micros // 1000 - typed_value._start_micros // 1000)
     return 8 + get_varint_size(span_millis)

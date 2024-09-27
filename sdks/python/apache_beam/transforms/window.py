@@ -261,21 +261,25 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
       return self.end < other.end
     return hash(self) < hash(other)
 
-  def __eq__(self, other):
-    return (
-        self is other or (
-            type(self) is type(other) and self.end == other.end and
-            self.start == other.start))
-
-  def __hash__(self):
-    return hash((self.start, self.end))
-
   def intersects(self, other: 'IntervalWindow') -> bool:
     return other.start < self.end or self.start < other.end
 
   def union(self, other: 'IntervalWindow') -> 'IntervalWindow':
     return IntervalWindow(
         min(self.start, other.start), max(self.end, other.end))
+  
+  @staticmethod
+  def try_from_global_window(value) -> 'IntervalWindow':
+    gw = GlobalWindow()
+    if gw == value:
+      return IntervalWindow(gw.start, GlobalWindow._getTimestampFromProto())
+    return value
+  
+  def try_to_global_window(self) -> BoundedWindow:
+    gw = GlobalWindow()
+    if self.start == gw.start and self.end == GlobalWindow._getTimestampFromProto():
+      return gw
+    return IntervalWindow(gw.start(), GlobalWindow._getTimestampFromProto())
 
 
 V = TypeVar("V")
@@ -309,7 +313,7 @@ class TimestampedValue(Generic[V]):
     return self.timestamp < other.timestamp
 
 
-class GlobalWindow(IntervalWindow):
+class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance: Optional['GlobalWindow'] = None
 
@@ -319,7 +323,7 @@ class GlobalWindow(IntervalWindow):
     return cls._instance
 
   def __init__(self) -> None:
-    super().__init__(MIN_TIMESTAMP, GlobalWindow._getTimestampFromProto())
+    super().__init__(GlobalWindow._getTimestampFromProto())
 
   def __repr__(self):
     return 'GlobalWindow'
@@ -328,9 +332,7 @@ class GlobalWindow(IntervalWindow):
     return hash(type(self))
 
   def __eq__(self, other):
-    return (
-        self is other or type(self) is type(other) or
-        (type(other) is IntervalWindow and other.__eq__(self)))
+    return self is other or type(self) is type(other)
 
   @property
   def start(self) -> Timestamp:
