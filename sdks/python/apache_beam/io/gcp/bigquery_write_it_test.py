@@ -470,7 +470,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     input_data = [{
         'number': 1,
         'str': 'some_string',
-    }]*500
+    }] * 500
 
     table_schema = {
         "fields": [{
@@ -483,7 +483,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     bq_result_errors = [({
         'number': 1,
         'str': 'some_string',
-    }, "Not Found")]*500
+    }, "Not Found")] * 500
 
     args = self.test_pipeline.get_full_options_as_args()
 
