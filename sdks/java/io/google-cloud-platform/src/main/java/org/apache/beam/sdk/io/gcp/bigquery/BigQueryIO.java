@@ -2276,6 +2276,7 @@ public class BigQueryIO {
         .withFormatFunction(RowMutation::getTableRow)
         .withRowMutationInformationFn(RowMutation::getMutationInformation);
   }
+
   /**
    * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
    * GenericRecords} to a BigQuery table.
@@ -2384,8 +2385,10 @@ public class BigQueryIO {
     abstract WriteDisposition getWriteDisposition();
 
     abstract Set<SchemaUpdateOption> getSchemaUpdateOptions();
+
     /** Table description. Default is empty. */
     abstract @Nullable String getTableDescription();
+
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
 
@@ -3472,7 +3475,10 @@ public class BigQueryIO {
         LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
       }
       if (getRowMutationInformationFn() != null) {
-        checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
+        checkArgument(
+            getMethod() == Method.STORAGE_API_AT_LEAST_ONCE,
+            "When using row updates on BigQuery, StorageWrite API should execute using"
+                + " \"at least once\" mode.");
         checkArgument(
             getCreateDisposition() == CreateDisposition.CREATE_NEVER || getPrimaryKey() != null,
             "If specifying CREATE_IF_NEEDED along with row updates, a primary key needs to be specified");

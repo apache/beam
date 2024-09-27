@@ -2292,32 +2292,21 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS])
 
     elif method_to_use == WriteToBigQuery.Method.STORAGE_WRITE_API:
-      return maybe_apply_cdc_callable(pcoll, self._use_cdc_writes)
+      return pcoll | StorageWriteToBigQuery(
+          table=self.table_reference,
+          schema=self.schema,
+          table_side_inputs=self.table_side_inputs,
+          create_disposition=self.create_disposition,
+          write_disposition=self.write_disposition,
+          triggering_frequency=self.triggering_frequency,
+          use_at_least_once=self.use_at_least_once,
+          with_auto_sharding=self.with_auto_sharding,
+          num_storage_api_streams=self._num_storage_api_streams,
+          use_cdc_writes=self._use_cdc_writes,
+          cdc_writes_primary_key=self._cdc_writes_primary_key,
+          expansion_service=self.expansion_service)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
-
-  def maybe_apply_cdc_callable(
-      self, pcoll, use_cdc_writes: Union[bool, Callable[[beam.Row], beam.Row]]):
-    should_do_cdc = False
-    if use_cdc_writes is not None:
-      if isinstance(use_cdc_writes, Callable):
-        pcoll = pcoll | beam.ParDo(use_cdc_writes)
-        should_do_cdc = True
-      else:
-        should_do_cdc = True
-    return pcoll | StorageWriteToBigQuery(
-        table=self.table_reference,
-        schema=self.schema,
-        table_side_inputs=self.table_side_inputs,
-        create_disposition=self.create_disposition,
-        write_disposition=self.write_disposition,
-        triggering_frequency=self.triggering_frequency,
-        use_at_least_once=self.use_at_least_once,
-        with_auto_sharding=self.with_auto_sharding,
-        num_storage_api_streams=self._num_storage_api_streams,
-        use_cdc_writes=should_do_cdc,
-        cdc_writes_primary_key=self._cdc_writes_primary_key,
-        expansion_service=self.expansion_service)
 
   def display_data(self):
     res = {}
@@ -2543,6 +2532,8 @@ class StorageWriteToBigQuery(PTransform):
   # fields for rows sent to Storage API with dynamic destinations
   DESTINATION = "destination"
   RECORD = "record"
+  # field for rows sent to Storage API for CDC functionality
+  CDC_INFO = "cdc_info"
   # magic string to tell Java that these rows are going to dynamic destinations
   DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
 
@@ -2557,7 +2548,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
-      use_cdc_writes: bool = False,
+      use_cdc_writes: Union[bool, Callable[[Row], Row]] = False,
       cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
@@ -2640,6 +2631,40 @@ class StorageWriteToBigQuery(PTransform):
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
+    use_cdc_writes = False
+    # if CDC functionality is configured we need to check if a callable has
+    # been passed to extract MutationInfo from the rows to be written
+    if callable(self._use_cdc_writes):
+      use_cdc_writes = True
+      # if we have dynamic destinations we just need to copy the
+      # destination and record properties while adding the cdc_info
+      if callable(table):
+        input_beam_rows = (
+            input_beam_rows
+            | "Include Row Mutation Info in the wrapping record" >> beam.Map(
+                lambda row: beam.Row(
+                    **{
+                        StorageWriteToBigQuery.DESTINATION: row[0],
+                        StorageWriteToBigQuery.RECORD: row[1],
+                        StorageWriteToBigQuery.CDC_INFO: self._use_cdc_writes(
+                            row[1])
+                    })))
+      # otherwise, we create the wrapping Row with the record and
+      # cdc_info properties in it
+      else:
+        input_beam_rows = (
+            input_beam_rows
+            | "Create a wrapping Row including CDC info" >> beam.Map(
+                lambda row: beam.Row(
+                    **{
+                        StorageWriteToBigQuery.RECORD: row,
+                        StorageWriteToBigQuery.CDC_INFO: self._use_cdc_writes(
+                            row)
+                    })))
+    # otherwise we extract the configured boolean value
+    else:
+      use_cdc_writes = self._use_cdc_writes
+
     output = (
         input_beam_rows
         | SchemaAwareExternalTransform(
@@ -2653,7 +2678,7 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
-            use_cdc_writes=self._use_cdc_writes,
+            use_cdc_writes=use_cdc_writes,
             cdc_writes_primary_key=self._cdc_writes_primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
