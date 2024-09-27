@@ -57,19 +57,15 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-
-## I/Os
-
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
 
 ## New Features / Improvements
 
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
+* Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
 * Added support for writing to Pubsub with ordering keys (Java) ([#21162](https://github.com/apache/beam/issues/21162))
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Significantly improved performance of Kafka IO reads that enable [commitOffsetsInFinalize](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html#commitOffsetsInFinalize--) by removing the data reshuffle from SDF implementation.  ([#31682](https://github.com/apache/beam/pull/31682)).
 
 ## Breaking Changes
 
@@ -78,28 +74,32 @@
   as strings rather than silently coerced (and possibly truncated) to numeric
   values.  To retain the old behavior, pass `dtype=True` (or any other value
   accepted by `pandas.read_json`).
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Users of KafkaIO  Read transform that enable [commitOffsetsInFinalize](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html#commitOffsetsInFinalize--) might encounter pipeline graph  compatibility issues when updating the pipeline. To mitigate, set the `updateCompatibilityVersion` option to the SDK version used for the original pipeline, example `--updateCompatabilityVersion=2.58.1`
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Python 3.8 is reaching EOL and support is being removed in Beam 2.61.0. The 2.60.0 release will warn users
+when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 ## Bugfixes
 
 * (Java) Fixed custom delimiter issues in TextIO ([#32249](https://github.com/apache/beam/issues/32249), [#32251](https://github.com/apache/beam/issues/32251)).
+* (Java, Python, Go) Fixed PeriodicSequence backlog bytes reporting, which was preventing Dataflow Runner autoscaling from functioning properly ([#32506](https://github.com/apache/beam/issues/32506)).
+* (Java) Fix improper decoding of rows with schemas containing nullable fields when encoded with a schema with equal encoding positions but modified field order. ([#32388](https://github.com/apache/beam/issues/32388)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
 
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
-
-# [2.59.0] - Cut, 2024-08-22
+# [2.59.0] - 2024-09-11
 
 ## Highlights
 
 * Added support for setting a configureable timeout when loading a model and performing inference in the [RunInference](https://beam.apache.org/documentation/ml/inference-overview/) transform using [with_exception_handling](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling) ([#32137](https://github.com/apache/beam/issues/32137))
+* Initial experimental support for using Prism with the Java and Python SDKs
+  * Prism is presently targeting local testing usage, or other small scale execution.
+  * For Java, use 'PrismRunner', or 'TestPrismRunner' as an argument to the `--runner` flag.
+  * For Python, use 'PrismRunner' as an argument to the `--runner` flag.
+  * Go already uses Prism as the default local runner.
 
 ## I/Os
 
@@ -116,7 +116,7 @@
 * Updated Go protobuf package to new version (Go) ([#21515](https://github.com/apache/beam/issues/21515)).
 * Added support for setting a configureable timeout when loading a model and performing inference in the [RunInference](https://beam.apache.org/documentation/ml/inference-overview/) transform using [with_exception_handling](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling) ([#32137](https://github.com/apache/beam/issues/32137))
 * Adds OrderedListState support for Java SDK via FnApi.
-* Initial support for using Prism from the Python SDK.
+* Initial support for using Prism from the Python and Java SDKs.
 
 ## Bugfixes
 
@@ -124,6 +124,13 @@
 * Auto-disable broken and meaningless `upload_graph` feature when using Dataflow Runner V2 ([#32159](https://github.com/apache/beam/issues/32159)).
 * (Python) Upgraded google-cloud-storage to version 2.18.2 to fix a data corruption issue ([#32135](https://github.com/apache/beam/pull/32135)).
 * (Go) Fix corruption on State API writes. ([#32245](https://github.com/apache/beam/issues/32245)).
+
+## Known Issues
+
+* Prism is under active development and does not yet support all pipelines. See [#29650](https://github.com/apache/beam/issues/29650) for progress.
+   * In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
+   OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.
+   * If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.
 
 # [2.58.1] - 2024-08-15
 

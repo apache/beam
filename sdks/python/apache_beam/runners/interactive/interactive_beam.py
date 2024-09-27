@@ -36,7 +36,9 @@ this module in your notebook or application code.
 
 import logging
 from datetime import timedelta
+from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Union
@@ -46,6 +48,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
+from apache_beam.pvalue import PCollection
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
 from apache_beam.runners.interactive.dataproc.types import ClusterIdentifier
@@ -681,13 +684,11 @@ def watch(watchable):
 
 @progress_indicated
 def show(
-    *pcolls,
-    include_window_info=False,
-    visualize_data=False,
-    n='inf',
-    duration='inf'):
-  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None # noqa: F821
-
+    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    include_window_info: bool = False,
+    visualize_data: bool = False,
+    n: Union[int, str] = 'inf',
+    duration: Union[int, str] = 'inf'):
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
@@ -880,6 +881,8 @@ def collect(
     n='inf',
     duration='inf',
     include_window_info=False,
+    runner=None,
+    options=None,
     force_compute=False,
     force_tuple=False):
   """Materializes the elements from a PCollection into a Dataframe.
@@ -896,6 +899,9 @@ def collect(
         a string duration. Default 'inf'.
     include_window_info: (optional) if True, appends the windowing information
         to each row. Default False.
+    runner: (optional) the runner with which to compute the results
+    options: (optional) any additional pipeline options to use to compute the
+        results
     force_compute: (optional) if True, forces recomputation rather than using
         cached PCollections
     force_tuple: (optional) if True, return a 1-tuple or results rather than
@@ -969,7 +975,12 @@ def collect(
   uncomputed = set(pcolls) - set(computed.keys())
   if uncomputed:
     recording = recording_manager.record(
-        uncomputed, max_n=n, max_duration=duration, force_compute=force_compute)
+        uncomputed,
+        max_n=n,
+        max_duration=duration,
+        runner=runner,
+        options=options,
+        force_compute=force_compute)
 
     try:
       for pcoll in uncomputed:

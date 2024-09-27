@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
@@ -38,6 +39,8 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
@@ -77,6 +80,8 @@ public final class StreamingWorkerStatusPages {
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
 
+  private final AtomicReference<StreamingGlobalConfig> globalConfig = new AtomicReference<>();
+
   StreamingWorkerStatusPages(
       Supplier<Instant> clock,
       long clientId,
@@ -90,7 +95,8 @@ public final class StreamingWorkerStatusPages {
       @Nullable GrpcWindmillStreamFactory windmillStreamFactory,
       Consumer<PrintWriter> getDataStatusProvider,
       BoundedQueueExecutor workUnitExecutor,
-      ScheduledExecutorService statusPageDumper) {
+      ScheduledExecutorService statusPageDumper,
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.clock = clock;
     this.clientId = clientId;
     this.isRunning = isRunning;
@@ -104,6 +110,7 @@ public final class StreamingWorkerStatusPages {
     this.getDataStatusProvider = getDataStatusProvider;
     this.workUnitExecutor = workUnitExecutor;
     this.statusPageDumper = statusPageDumper;
+    globalConfigHandle.registerConfigObserver(globalConfig::set);
   }
 
   public static StreamingWorkerStatusPages.Builder builder() {
@@ -150,6 +157,17 @@ public final class StreamingWorkerStatusPages {
     statusPages.addCapturePage(Preconditions.checkNotNull(channelzServlet));
     statusPages.addStatusDataProvider(
         "streaming", "Streaming RPCs", Preconditions.checkNotNull(windmillStreamFactory));
+    statusPages.addStatusDataProvider(
+        "jobSettings",
+        "User Worker Job Settings",
+        writer -> {
+          @Nullable StreamingGlobalConfig config = globalConfig.get();
+          if (config == null) {
+            writer.println("Job Settings not loaded.");
+            return;
+          }
+          writer.println(config.userWorkerJobSettings().toString());
+        });
   }
 
   private boolean isStreamingEngine() {
@@ -255,6 +273,8 @@ public final class StreamingWorkerStatusPages {
     Builder setWorkUnitExecutor(BoundedQueueExecutor workUnitExecutor);
 
     Builder setStatusPageDumper(ScheduledExecutorService statusPageDumper);
+
+    Builder setGlobalConfigHandle(StreamingGlobalConfigHandle globalConfigHandle);
 
     StreamingWorkerStatusPages build();
   }

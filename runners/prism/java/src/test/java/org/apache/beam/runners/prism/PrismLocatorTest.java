@@ -31,6 +31,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -111,6 +112,7 @@ public class PrismLocatorTest {
   }
 
   @Test
+  @Ignore // TODO: use mock site. Currently failing with response code 500 instead of 404
   public void givenPrismLocation404_thenThrows() {
     PrismPipelineOptions options = options();
     options.setPrismLocation("https://example.com/i/dont/exist.zip");

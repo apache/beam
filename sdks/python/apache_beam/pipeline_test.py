@@ -274,6 +274,16 @@ class PipelineTest(unittest.TestCase):
         'reloading the job state. This is not recommended for '
         'streaming jobs.')
 
+  @mock.patch('logging.info')  # Mock the logging.info function
+  def test_no_wait_until_finish(self, mock_info):
+    with Pipeline(runner='DirectRunner',
+                  options=PipelineOptions(["--no_wait_until_finish"])) as p:
+      _ = p | beam.Create(['test'])
+    mock_info.assert_called_once_with(
+        'Job execution continues without waiting for completion. '
+        'Use "wait_until_finish" in PipelineResult to block until finished.')
+    p.result.wait_until_finish()
+
   def test_auto_unique_labels(self):
 
     opts = PipelineOptions(["--auto_unique_labels"])
@@ -773,7 +783,7 @@ class DoFnTest(unittest.TestCase):
           | Map(lambda _, wv=DoFn.WindowedValueParam: (wv.value, wv.windows)))
       assert_that(
           pcoll,
-          equal_to([(1, [IntervalWindow(0, 5)]), (7, [IntervalWindow(5, 10)])]))
+          equal_to([(1, [IntervalWindow(0, 5)]), (7, [IntervalWindow(5, 10)])]))  # pylint: disable=too-many-function-args
 
   def test_timestamp_param(self):
     class TestDoFn(DoFn):
