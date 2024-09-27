@@ -1337,7 +1337,7 @@ public class PubsubIO {
 
     abstract @Nullable String getPubsubRootUrl();
 
-    abstract boolean getNeedsOrderingKey();
+    abstract boolean getPublishWithOrderingKey();
 
     abstract BadRecordRouter getBadRecordRouter();
 
@@ -1352,7 +1352,7 @@ public class PubsubIO {
       builder.setFormatFn(formatFn);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
-      builder.setNeedsOrderingKey(false);
+      builder.setPublishWithOrderingKey(false);
       return builder;
     }
 
@@ -1384,7 +1384,7 @@ public class PubsubIO {
 
       abstract Builder<T> setPubsubRootUrl(String pubsubRootUrl);
 
-      abstract Builder<T> setNeedsOrderingKey(boolean needsOrderingKey);
+      abstract Builder<T> setPublishWithOrderingKey(boolean publishWithOrderingKey);
 
       abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
 
@@ -1469,7 +1469,7 @@ public class PubsubIO {
      *     ordering</a>
      */
     public Write<T> withOrderingKey() {
-      return toBuilder().setNeedsOrderingKey(true).build();
+      return toBuilder().setPublishWithOrderingKey(true).build();
     }
 
     /**
@@ -1543,7 +1543,7 @@ public class PubsubIO {
                       new PreparePubsubWriteDoFn<>(
                           getFormatFn(),
                           topicFunction,
-                          getNeedsOrderingKey(),
+                          getPublishWithOrderingKey(),
                           maxMessageSize,
                           getBadRecordRouter(),
                           input.getCoder(),
@@ -1556,7 +1556,7 @@ public class PubsubIO {
                   .get(BAD_RECORD_TAG)
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
       PCollection<PubsubMessage> pubsubMessages = pubsubMessageTuple.get(pubsubMessageTupleTag);
-      if (getNeedsOrderingKey()) {
+      if (getPublishWithOrderingKey()) {
         pubsubMessages.setCoder(PubsubMessageSchemaCoder.getSchemaCoder());
       } else {
         pubsubMessages.setCoder(PubsubMessageWithTopicCoder.of());
@@ -1580,7 +1580,7 @@ public class PubsubIO {
                   getTimestampAttribute(),
                   getIdAttribute(),
                   100 /* numShards */,
-                  getNeedsOrderingKey(),
+                  getPublishWithOrderingKey(),
                   MoreObjects.firstNonNull(
                       getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
                   MoreObjects.firstNonNull(
@@ -1662,7 +1662,7 @@ public class PubsubIO {
         }
 
         // Checking before adding the message stops us from violating max batch size or bytes
-        String orderingKey = getNeedsOrderingKey() ? msg.getMessage().getOrderingKey() : "";
+        String orderingKey = getPublishWithOrderingKey() ? msg.getMessage().getOrderingKey() : "";
         final OutgoingData currentTopicAndOrderingKeyOutput =
             output.computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
         // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800

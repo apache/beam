@@ -2039,7 +2039,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             String.format(
                 "The DataflowRunner does not currently support publishing to Pubsub with ordering keys. "
                     + "%s is required to support publishing with ordering keys. "
-                    + "Set the pipeline option --experiments=%s to use this PTransform.",
+                    + "Set the pipeline option --experiments=%s to use this PTransform. "
+                    + "See https://issuetracker.google.com/issues/200955424 for current status.",
                 PubsubUnboundedSink.class.getSimpleName(), ENABLE_CUSTOM_PUBSUB_SINK));
       }
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
