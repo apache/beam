@@ -418,7 +418,6 @@ from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
-from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import retry
@@ -1582,10 +1581,7 @@ class BigQueryWriteFn(DoFn):
     _KNOWN_TABLES.add(str_table_reference)
 
   def process(
-      self,
-      element,
-      window_value=DoFn.WindowedValueParam,
-      *schema_side_inputs):
+      self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
 
     if callable(self.schema):
@@ -1736,21 +1732,21 @@ class BigQueryWriteFn(DoFn):
     if destination in self._destination_buffer_byte_size:
       del self._destination_buffer_byte_size[destination]
 
-    return itertools.chain([
-        pvalue.TaggedOutput(
-            BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
-            window_value.with_value((destination, row, err))) for row,
-        err,
-        w in failed_rows
-    ],
-                           [
-                               pvalue.TaggedOutput(
-                                   BigQueryWriteFn.FAILED_ROWS,
-                                   window_value.with_value((destination, row)))
-                               for row,
-                               unused_err,
-                               w in failed_rows
-                           ])
+    return itertools.chain(
+        [
+            pvalue.TaggedOutput(
+                BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                w.with_value((destination, row, err))) for row,
+            err,
+            w in failed_rows
+        ],
+        [
+            pvalue.TaggedOutput(
+                BigQueryWriteFn.FAILED_ROWS, w.with_value((destination, row)))
+            for row,
+            unused_err,
+            w in failed_rows
+        ])
 
 
 # The number of shards per destination when writing via streaming inserts.
