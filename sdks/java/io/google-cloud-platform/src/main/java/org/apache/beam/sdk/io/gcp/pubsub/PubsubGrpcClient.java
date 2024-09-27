@@ -54,7 +54,6 @@ import com.google.pubsub.v1.Topic;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
-import io.grpc.StatusRuntimeException;
 import io.grpc.auth.ClientAuthInterceptor;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
@@ -371,21 +370,6 @@ public class PubsubGrpcClient extends PubsubClient {
       response = publisherStub().listTopics(request.build());
     }
     return topics;
-  }
-
-  @Override
-  public boolean isTopicExists(TopicPath topic) throws IOException {
-    GetTopicRequest request = GetTopicRequest.newBuilder().setTopic(topic.getPath()).build();
-    try {
-      publisherStub().getTopic(request);
-      return true;
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == io.grpc.Status.Code.NOT_FOUND) {
-        return false;
-      }
-
-      throw e;
-    }
   }
 
   @Override
