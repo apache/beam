@@ -112,7 +112,7 @@ public class Lineage {
    * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link #getFqName}.
    */
   public void add(String system, @Nullable String subtype, Iterable<String> segments) {
-    metric.add(getFqName(system, subtype, segments));
+    add(getFqName(system, subtype, segments));
   }
 
   /**
@@ -120,6 +120,14 @@ public class Lineage {
    */
   public void add(String system, Iterable<String> segments) {
     add(system, null, segments);
+  }
+
+  /**
+   * Adds the given details as Lineage. For asset level lineage the resource location should be
+   * specified as Dataplex FQN https://cloud.google.com/data-catalog/docs/fully-qualified-names
+   */
+  public void add(String details) {
+    metric.add(details);
   }
 
   /** Query {@link StringSet} metrics from {@link MetricResults}. */
