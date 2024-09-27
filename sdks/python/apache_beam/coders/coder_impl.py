@@ -74,6 +74,7 @@ except ImportError:
 if TYPE_CHECKING:
   import proto
   from apache_beam.transforms import userstate
+  from apache_beam.transforms.window import BoundedWindow
   from apache_beam.transforms.window import IntervalWindow
 
 try:
@@ -806,6 +807,7 @@ class FloatCoderImpl(StreamCoderImpl):
 
 if not TYPE_CHECKING:
   IntervalWindow = None
+  BoundedWindow = None
 
 
 class IntervalWindowCoderImpl(StreamCoderImpl):
@@ -834,7 +836,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     out.write_var_int64(span_millis)
 
   def decode_from_stream(self, in_, nested):
-    # type: (create_InputStream, bool) -> IntervalWindow
+    # type: (create_InputStream, bool) -> BoundedWindow
     if not TYPE_CHECKING:
       global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
