@@ -2526,6 +2526,8 @@ class StorageWriteToBigQuery(PTransform):
   RECORD = "record"
   # field for rows sent to Storage API for CDC functionality
   CDC_INFO = "cdc_info"
+  CDC_MUTATION_TYPE = "mutation_type"
+  CDC_SQN = "change_sequence_number"
   # magic string to tell Java that these rows are going to dynamic destinations
   DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
 
@@ -2564,11 +2566,11 @@ class StorageWriteToBigQuery(PTransform):
         is_rows = True
       except TypeError as exn:
         raise ValueError(
-            "A schema is required in order to prepare rows"
+            "A schema is required in order to prepare rows "
             "for writing with STORAGE_WRITE_API.") from exn
     elif callable(self._schema):
       raise NotImplementedError(
-          "Writing with dynamic schemas is not"
+          "Writing with dynamic schemas is not "
           "supported for this write method.")
     elif isinstance(self._schema, vp.ValueProvider):
       schema = self._schema.get()
@@ -2628,31 +2630,53 @@ class StorageWriteToBigQuery(PTransform):
     # been passed to extract MutationInfo from the rows to be written
     if callable(self._use_cdc_writes):
       use_cdc_writes = True
+      type_hints_beam_rows = bigquery_tools.get_beam_typehints_from_tableschema(
+          schema)
+      cdc_info_fn = self._use_cdc_writes
       # if we have dynamic destinations we just need to copy the
       # destination and record properties while adding the cdc_info
       if callable(table):
         input_beam_rows = (
             input_beam_rows
-            | "Include Row Mutation Info in the wrapping record" >> beam.Map(
+            | "Include CDC info in Row" >> beam.Map(
                 lambda row: beam.Row(
                     **{
                         StorageWriteToBigQuery.DESTINATION: row[0],
                         StorageWriteToBigQuery.RECORD: row[1],
-                        StorageWriteToBigQuery.CDC_INFO: self._use_cdc_writes(
-                            row[1])
-                    })))
+                        StorageWriteToBigQuery.CDC_INFO: cdc_info_fn(row[1])
+                    })).
+            with_output_types(
+                RowTypeConstraint.from_fields(
+                    [(StorageWriteToBigQuery.DESTINATION, str),
+                     (
+                         StorageWriteToBigQuery.RECORD,
+                         RowTypeConstraint.from_fields(type_hints_beam_rows)),
+                     (
+                         StorageWriteToBigQuery.CDC_INFO,
+                         RowTypeConstraint.from_fields(
+                             [(StorageWriteToBigQuery.CDC_MUTATION_TYPE, str),
+                              (StorageWriteToBigQuery.CDC_SQN, str)]))])))
       # otherwise, we create the wrapping Row with the record and
       # cdc_info properties in it
       else:
         input_beam_rows = (
             input_beam_rows
-            | "Create a wrapping Row including CDC info" >> beam.Map(
+            | "Wrap in Row with CDC info" >> beam.Map(
                 lambda row: beam.Row(
                     **{
                         StorageWriteToBigQuery.RECORD: row,
-                        StorageWriteToBigQuery.CDC_INFO: self._use_cdc_writes(
-                            row)
-                    })))
+                        StorageWriteToBigQuery.CDC_INFO: cdc_info_fn(row)
+                    })).
+            with_output_types(
+                RowTypeConstraint.from_fields(
+                    [(
+                        StorageWriteToBigQuery.RECORD,
+                        RowTypeConstraint.from_fields(type_hints_beam_rows)),
+                     (
+                         StorageWriteToBigQuery.CDC_INFO,
+                         RowTypeConstraint.from_fields(
+                             [(StorageWriteToBigQuery.CDC_MUTATION_TYPE, str),
+                              (StorageWriteToBigQuery.CDC_SQN, str)]))])))
     # otherwise we extract the configured boolean value
     else:
       use_cdc_writes = self._use_cdc_writes

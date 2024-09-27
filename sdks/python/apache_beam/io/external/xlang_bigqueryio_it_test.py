@@ -284,6 +284,54 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               cdc_writes_primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
+  def test_write_dicts_cdc(self):
+    table = 'write_dicts_cdc'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    expected_data_on_bq = [
+        # (name, value)
+        {
+            "name": "cdc_test",
+            "value": 5,
+        }
+    ]
+
+    schema = {
+        "fields": [{
+            "name": "name", "type": "STRING"
+        }, {
+            "name": "value", "type": "INTEGER"
+        }]
+    }
+
+    dicts = [{
+        "name": "cdc_test", "value": 3
+    }, {
+        "name": "cdc_test", "value": 5
+    }, {
+        "name": "cdc_test", "value": 4
+    }]
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected_data_on_bq))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(dicts)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=schema,
+              use_at_least_once=True,
+              use_cdc_writes=lambda row: beam.Row(
+                  mutation_type="UPSERT",
+                  change_sequence_number="AAA/" + str(row.value)),
+              cdc_writes_primary_key=["name"]))
+    hamcrest_assert(p, bq_matcher)
+
   def test_write_to_dynamic_destinations(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
