@@ -1584,7 +1584,7 @@ class BigQueryWriteFn(DoFn):
   def process(
       self,
       element,
-      window_value=beam.DoFn.WindowedValueParam,
+      window_value=DoFn.WindowedValueParam,
       *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
 
