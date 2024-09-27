@@ -43,7 +43,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
@@ -1037,6 +1039,48 @@ public class BigQueryUtils {
       tableSpec = String.format("%s.%s", tableReference.getProjectId(), tableSpec);
     }
     return tableSpec;
+  }
+
+  static TableSchema trimSchema(TableSchema schema, @Nullable List<String> selectedFields) {
+    if (selectedFields == null || selectedFields.isEmpty()) {
+      return schema;
+    }
+
+    List<TableFieldSchema> trimmedFields =
+        schema.getFields().stream()
+            .flatMap(f -> trimField(f, selectedFields))
+            .collect(Collectors.toList());
+    return new TableSchema().setFields(trimmedFields);
+  }
+
+  private static Stream<TableFieldSchema> trimField(
+      TableFieldSchema field, List<String> selectedFields) {
+    String name = field.getName();
+    if (selectedFields.contains(name)) {
+      return Stream.of(field);
+    }
+
+    if (field.getFields() != null) {
+      // record
+      List<String> selectedChildren =
+          selectedFields.stream()
+              .filter(sf -> sf.startsWith(name + "."))
+              .map(sf -> sf.substring(name.length() + 1))
+              .collect(toList());
+
+      if (!selectedChildren.isEmpty()) {
+        List<TableFieldSchema> trimmedChildren =
+            field.getFields().stream()
+                .flatMap(c -> trimField(c, selectedChildren))
+                .collect(toList());
+
+        if (!trimmedChildren.isEmpty()) {
+          return Stream.of(field.clone().setFields(trimmedChildren));
+        }
+      }
+    }
+
+    return Stream.empty();
   }
 
   private static @Nullable ServiceCallMetric callMetricForMethod(

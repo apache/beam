@@ -1275,8 +1275,12 @@ public class BigQueryIO {
 
       Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchema = sourceDef.getBeamSchema(bqOptions);
-        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
+        TableSchema tableSchema = sourceDef.getTableSchema(bqOptions);
+        ValueProvider<List<String>> selectedFields = getSelectedFields();
+        if (selectedFields != null && selectedFields.isAccessible()) {
+          tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFields.get());
+        }
+        beamSchema = BigQueryUtils.fromTableSchema(tableSchema);
       }
 
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
@@ -1439,24 +1443,6 @@ public class BigQueryIO {
             getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
-    }
-
-    private static Schema getFinalSchema(
-        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
-      List<Schema.Field> flds =
-          beamSchema.getFields().stream()
-              .filter(
-                  field -> {
-                    if (selectedFields != null
-                        && selectedFields.isAccessible()
-                        && selectedFields.get() != null) {
-                      return selectedFields.get().contains(field.getName());
-                    } else {
-                      return true;
-                    }
-                  })
-              .collect(Collectors.toList());
-      return Schema.builder().addFields(flds).build();
     }
 
     private PCollection<T> expandForDirectRead(
