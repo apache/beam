@@ -627,9 +627,7 @@ public class BigQueryIO {
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
-      DEFAULT_AVRO_SCHEMA_FACTORY =
-          (SerializableFunction<TableSchema, org.apache.avro.Schema>)
-              input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
+      DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -793,8 +791,7 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      return BigQueryAvroUtils.convertGenericRecordToTableRow(
-          schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(schemaAndRecord.getRecord());
     }
   }
 

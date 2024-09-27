@@ -312,38 +312,45 @@ public class BigQueryUtils {
    *
    * <p>Supports both standard and legacy SQL types.
    *
-   * @param typeName Name of the type
+   * @param typeName Name of the type returned by {@link TableFieldSchema#getType()}
    * @param nestedFields Nested fields for the given type (eg. RECORD type)
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
       String typeName, List<TableFieldSchema> nestedFields, SchemaConversionOptions options) {
+    // see
+    // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
     switch (typeName) {
       case "STRING":
         return FieldType.STRING;
       case "BYTES":
         return FieldType.BYTES;
-      case "INT64":
       case "INTEGER":
+      case "INT64":
         return FieldType.INT64;
-      case "FLOAT64":
       case "FLOAT":
+      case "FLOAT64":
         return FieldType.DOUBLE;
-      case "BOOL":
       case "BOOLEAN":
+      case "BOOL":
         return FieldType.BOOLEAN;
-      case "NUMERIC":
-        return FieldType.DECIMAL;
       case "TIMESTAMP":
         return FieldType.DATETIME;
-      case "TIME":
-        return FieldType.logicalType(SqlTypes.TIME);
       case "DATE":
         return FieldType.logicalType(SqlTypes.DATE);
+      case "TIME":
+        return FieldType.logicalType(SqlTypes.TIME);
       case "DATETIME":
         return FieldType.logicalType(SqlTypes.DATETIME);
-      case "STRUCT":
+      case "NUMERIC":
+      case "BIGNUMERIC":
+        return FieldType.DECIMAL;
+      case "GEOGRAPHY":
+      case "JSON":
+        // TODO Add metadata for custom sql types ?
+        return FieldType.STRING;
       case "RECORD":
+      case "STRUCT":
         if (options.getInferMaps() && nestedFields.size() == 2) {
           TableFieldSchema key = nestedFields.get(0);
           TableFieldSchema value = nestedFields.get(1);
@@ -354,9 +361,9 @@ public class BigQueryUtils {
                 fromTableFieldSchemaType(value.getType(), value.getFields(), options));
           }
         }
-
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
         return FieldType.row(rowSchema);
+      case "RANGE": // TODO add support for range type
       default:
         throw new UnsupportedOperationException(
             "Converting BigQuery type " + typeName + " to Beam type is unsupported");
@@ -448,10 +455,27 @@ public class BigQueryUtils {
     return fromTableFieldSchema(tableSchema.getFields(), options);
   }
 
+  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(TableSchema tableSchema) {
+    return toGenericAvroSchema(tableSchema, false);
+  }
+
+  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      TableSchema tableSchema, Boolean useAvroLogicalTypes) {
+    return toGenericAvroSchema("root", tableSchema.getFields(), useAvroLogicalTypes);
+  }
+
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
       String schemaName, List<TableFieldSchema> fieldSchemas) {
-    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas);
+    return toGenericAvroSchema(schemaName, fieldSchemas, false);
+  }
+
+  /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      String schemaName, List<TableFieldSchema> fieldSchemas, Boolean useAvroLogicalTypes) {
+    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas, useAvroLogicalTypes);
   }
 
   private static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow>
@@ -516,9 +540,20 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
+  /**
+   * Convert generic record to Bq TableRow.
+   *
+   * @deprecated use {@link #convertGenericRecordToTableRow(GenericRecord)}
+   */
+  @Deprecated
   public static TableRow convertGenericRecordToTableRow(
       GenericRecord record, TableSchema tableSchema) {
-    return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+    return convertGenericRecordToTableRow(record);
+  }
+
+  /** Convert generic record to Bq TableRow. */
+  public static TableRow convertGenericRecordToTableRow(GenericRecord record) {
+    return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
   }
 
   /** Convert a Beam Row to a BigQuery TableRow. */
