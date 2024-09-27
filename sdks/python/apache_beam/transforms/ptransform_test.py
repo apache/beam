@@ -1495,17 +1495,17 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     def more_than_half(a):
       return a > 0.50
 
-    # Func above was hinted to only take a float, yet an int will be passed.
+    # Func above was hinted to only take a float, yet a str will be passed.
     with self.assertRaises(typehints.TypeCheckError) as e:
       (
           self.p
-          | 'Ints' >> beam.Create([1, 2, 3, 4]).with_output_types(int)
+          | 'Ints' >> beam.Create(['1', '2', '3', '4']).with_output_types(str)
           | 'Half' >> beam.Filter(more_than_half))
 
     self.assertStartswith(
         e.exception.args[0],
         "Type hint violation for 'Half': "
-        "requires {} but got {} for a".format(float, int))
+        "requires {} but got {} for a".format(float, str))
 
   def test_filter_type_checks_using_type_hints_decorator(self):
     @with_input_types(b=int)
