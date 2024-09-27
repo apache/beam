@@ -1864,6 +1864,9 @@ class _StreamToBigQuery(PTransform):
     return (
         tagged_data
         | 'FromHashableTableRef' >> beam.Map(_restore_table_ref)
+        # Use global window for writes since we're outputting back into the
+        # global window.
+        | 'Window into Global Window' >> beam.WindowInto(GlobalWindows())
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                 BigQueryWriteFn.FAILED_ROWS,
