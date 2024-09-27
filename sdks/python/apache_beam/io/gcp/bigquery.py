@@ -379,7 +379,6 @@ from objsize import get_deep_size
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam import Row
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io import range_trackers
@@ -1923,7 +1922,7 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
-      use_cdc_writes: Union[bool, Callable[[Row], Row]] = False,
+      use_cdc_writes: Union[bool, Callable] = False,
       cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
@@ -2090,12 +2089,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         GCP expansion service. Used for STORAGE_WRITE_API method.
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
-      cdc_writes_with_primary_key: Configure the usage of CDC writes on BigQuery
-        and sets the primary key using the column names from the argument.
-        The destination table (or tables if using dynamic destionations) will
-        be created in case of using CREATE_IF_NEEDED mode, and StorageWrite API
-        at least once mode will be configured. Used for STORAGE_WRITE_API
-        method.
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
         The argument can be used by passing True and the Beam Rows will be
         sent as they are to the BigQuery sink which expects a 'record'
@@ -2547,7 +2540,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
-      use_cdc_writes: Union[bool, Callable[[Row], Row]] = False,
+      use_cdc_writes: Union[bool, Callable] = False,
       cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
