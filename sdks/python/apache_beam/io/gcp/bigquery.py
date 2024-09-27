@@ -2146,7 +2146,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.load_job_project_id = load_job_project_id
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
-    self._cdc_writes_with_primary_key = cdc_writes_with_primary_key
     self._use_cdc_writes = use_cdc_writes
     self._cdc_writes_primary_key = cdc_writes_primary_key
 
