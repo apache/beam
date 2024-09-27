@@ -268,6 +268,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:jet:build")
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
+  dependsOn(":runners:prism:java:build")
   dependsOn(":runners:samza:build")
   dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
@@ -541,6 +542,7 @@ tasks.register("python312PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py312:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py312:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py312:postCommitPy312")
+  dependsOn(":sdks:python:test-suites:dataflow:py312:inferencePostCommitITPy312")
 }
 
 tasks.register("portablePythonPreCommit") {

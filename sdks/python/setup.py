@@ -405,6 +405,7 @@ if __name__ == '__main__':
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
               'pandas<2.2.0',
+              'openai'
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
