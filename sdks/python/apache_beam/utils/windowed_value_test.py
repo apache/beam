@@ -87,7 +87,7 @@ class WindowedValueTest(unittest.TestCase):
         yield beam.transforms.window.GlobalWindows.windowed_value('test')
 
     with beam.Pipeline() as p:
-      (
+      _ = (
           p | 'create' >> beam.Create(input_data)
           | beam.WindowInto(beam.transforms.window.FixedWindows(10))
           | beam.ParDo(ComputeWordLengthFn()))
