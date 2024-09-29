@@ -1461,7 +1461,7 @@ class CallableWrapperPartitionFn(PartitionFn):
 
 def _get_function_body_without_inners(func):
   source_lines = inspect.getsourcelines(func)[0]
-  source_lines = dropwhile(lambda x: x.strip().startswith("@"), source_lines)
+  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
   first_def_line = next(source_lines).strip()
   if first_def_line.startswith("def "):
     last_def_line_without_comment = first_def_line.split("#")[0] \
