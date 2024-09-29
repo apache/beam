@@ -87,6 +87,7 @@ public class SolaceIOIT {
             "Read from Solace",
             SolaceIO.read()
                 .from(Queue.fromName(queueName))
+                .withDeduplicateRecords(true)
                 .withMaxNumConnections(1)
                 .withSempClientFactory(
                     BasicAuthSempClientFactory.builder()

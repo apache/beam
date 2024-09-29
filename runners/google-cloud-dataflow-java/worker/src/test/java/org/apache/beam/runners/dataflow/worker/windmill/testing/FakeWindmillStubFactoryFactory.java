@@ -15,13 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.prism;
+package org.apache.beam.runners.dataflow.worker.windmill.testing;
 
-import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 
-/** Listens for {@link PipelineResult.State} changes reported by the {@link StateWatcher}. */
-interface StateListener {
+public class FakeWindmillStubFactoryFactory implements WindmillStubFactoryFactory {
 
-  /** Callback invoked when {@link StateWatcher} discovers a {@link PipelineResult.State} change. */
-  void onStateChanged(PipelineResult.State state);
+  private final WindmillStubFactory windmillStubFactory;
+
+  public FakeWindmillStubFactoryFactory(WindmillStubFactory windmillStubFactory) {
+    this.windmillStubFactory = windmillStubFactory;
+  }
+
+  @Override
+  public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
+    return windmillStubFactory;
+  }
 }
