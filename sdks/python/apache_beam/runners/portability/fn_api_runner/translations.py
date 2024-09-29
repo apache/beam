@@ -1033,6 +1033,18 @@ def replace_gbk_combinevalue_pairs(stages, context):
   """
   Replaces GroupByKey + CombineValues pairs into CombinePerKey.
   """
+  # First record the producers and consumers of each PCollection.
+  producers_by_pcoll = {}  # type: Dict[str, Stage]
+  consumers_by_pcoll = collections.defaultdict(
+      list)  # type: DefaultDict[str, List[Stage]]
+
+  for stage in stages:
+    for transform in stage.transforms:
+      for input in transform.inputs.values():
+        consumers_by_pcoll[input].append(stage)
+      for output in transform.outputs.values():
+        producers_by_pcoll[output] = stage
+
   processed_stages_by_name = set()
   for stage in stages:
     transform = only_element(stage.transforms)
@@ -1040,13 +1052,18 @@ def replace_gbk_combinevalue_pairs(stages, context):
       continue
     if transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
       consumer_transforms = [
-          context.components.transforms[consumer]
-          for consumer in transform.outputs.values()
+          only_transform(consumer.transforms)
+          for consumer in consumers_by_pcoll[only_element(
+              transform.outputs.values())]
       ]
+      if not consumer_transforms:
+        yield stage
+        continue
       if not all(consumer.spec.urn ==
                  common_urns.combine_components.COMBINE_GROUPED_VALUES.urn
                  for consumer in consumer_transforms):
         yield stage
+        continue
       for consumer in consumer_transforms:
         # Replace GroupByKey + CombineValues with CombinePerKey.
         # The name of the new merged stage is the GBK stage name joined with

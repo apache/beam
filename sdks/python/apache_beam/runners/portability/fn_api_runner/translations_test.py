@@ -74,6 +74,23 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
 
+  def test_replace_gbk_combinevalue_pairs_createreshuffle(self):
+
+    pipeline = beam.Pipeline()
+    kvs = [('a', 1), ('a', 2), ('b', 3), ('b', 4)]
+    _ = pipeline | Create(kvs) | beam.GroupByKey() | beam.CombineValues(sum)
+    pipeline_proto = pipeline.to_runner_api()
+    _, stages = translations.create_and_optimize_stages(
+      pipeline_proto, [translations.replace_gbk_combinevalue_pairs],
+      known_runner_urns=frozenset())
+    combine_per_key_stages = []
+    for stage in stages:
+      for transform in stage.transforms:
+        if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
+          combine_per_key_stages.append(stage)
+    print(combine_per_key_stages)
+    self.assertEqual(len(combine_per_key_stages), 1)
+
   def test_pack_combiners(self):
     class MultipleCombines(beam.PTransform):
       def annotations(self):
