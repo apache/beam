@@ -24,6 +24,7 @@ import collections
 import copy
 import functools
 import itertools
+import json
 import logging
 import operator
 from builtins import object
@@ -1083,6 +1084,8 @@ def replace_gbk_combinevalue_pairs(stages, context):
 
         name = '%s+%s' % (label(transform), label(consumer))
         unique_name = consumer.unique_name.rsplit('/', 1)[0] + '/' + name
+        encoded_source_xforms_anno = json.dumps(
+            [transform.unique_name, consumer.unique_name]).encode('utf-8')
         stage = Stage(
             unique_name,
             [
@@ -1091,7 +1094,10 @@ def replace_gbk_combinevalue_pairs(stages, context):
                     inputs={'input': only_element(transform.inputs.values())},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=common_urns.composites.COMBINE_PER_KEY.urn),
-                    environment_id=transform.environment_id)
+                    annotations={
+                        'pretranslated_xforms': encoded_source_xforms_anno
+                    },
+                    environment_id=transform.environment_id),
             ],
             downstream_side_inputs=frozenset(),
             must_follow=stage.must_follow)
