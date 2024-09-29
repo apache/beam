@@ -1031,7 +1031,12 @@ def replace_gbk_combinevalue_pairs(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
   """
-  Replaces GroupByKey + CombineValues pairs into CombinePerKey.
+  Replaces GroupByKey + CombineValues pairs into CombinePerKeys
+
+  This replacement is only done if the GBK's output pcollection
+  is _only_ consumed by CombineValue(s). If the GBK's output
+  pcollection is consumed by any other transform, the GBK is
+  not replaced.
   """
   # First record the producers and consumers of each PCollection.
   producers_by_pcoll = {}  # type: Dict[str, Stage]
