@@ -61,7 +61,8 @@ class TranslationsTest(unittest.TestCase):
 
     pipeline = beam.Pipeline()
     kvs = [('a', 1), ('a', 2), ('b', 3), ('b', 4)]
-    _ = pipeline | Create(kvs) | beam.GroupByKey() | beam.CombineValues(sum)
+    _ = pipeline | Create(
+        kvs, reshuffle=False) | beam.GroupByKey() | beam.CombineValues(sum)
     pipeline_proto = pipeline.to_runner_api()
     _, stages = translations.create_and_optimize_stages(
       pipeline_proto, [translations.replace_gbk_combinevalue_pairs],
