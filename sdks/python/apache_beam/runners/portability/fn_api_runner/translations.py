@@ -797,6 +797,7 @@ def standard_optimize_phases():
       annotate_downstream_side_inputs,
       annotate_stateful_dofns_as_roots,
       fix_side_input_pcoll_coders,
+      replace_gbk_combinevalue_pairs,
       pack_combiners,
       lift_combiners,
       expand_sdf,
