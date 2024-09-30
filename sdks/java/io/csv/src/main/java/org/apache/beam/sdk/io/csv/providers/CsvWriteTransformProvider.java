@@ -36,10 +36,10 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 
@@ -139,7 +139,10 @@ public class CsvWriteTransformProvider
       // Preserve input windowing
       CsvIO.Write<Row> writeTransform =
           CsvIO.writeRows(configuration.getPath(), format).withSuffix("");
-      if (input.get(INPUT_ROWS_TAG).isBounded() == PCollection.IsBounded.UNBOUNDED) {
+      if (!input
+          .get(INPUT_ROWS_TAG)
+          .getWindowingStrategy()
+          .equals(WindowingStrategy.globalDefault())) {
         writeTransform = writeTransform.withWindowedWrites();
       }
 
