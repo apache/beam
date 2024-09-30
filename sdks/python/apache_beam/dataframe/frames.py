@@ -316,9 +316,19 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     else:
       # Default case, pass value through as a constant, no particular
       # partitioning requirement
-      value_expr = expressions.ConstantExpression(value)
-      get_value = lambda x: x
+      def func_elementwise(df):
+        df = df.copy()
+        df.fillna(value=value, **kwargs)
+        return df
+
       requires = partitionings.Arbitrary()
+      return frame_base.DeferredFrame.wrap(
+          # yapf: disable
+          expressions.ComputedExpression(
+              'fillna',
+              func_elementwise, [self._expr],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=requires))
 
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
