@@ -1009,12 +1009,12 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.fillna(df2), df, df2)
 
-  def test_dataframe_fillna_dataframe_column_as_value(self):
+  def test_dataframe_column_fillna_constant_as_value(self):
     df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
                        [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
                       columns=list("ABCD"))
 
-    self._run_test(lambda df, s: df['A'].fillna(s), df, s)
+    self._run_test(lambda df: df['A'].fillna(0), df)
 
   def test_dataframe_fillna_series_as_value(self):
     df = pd.DataFrame([[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1],
