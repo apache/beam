@@ -91,6 +91,9 @@ Prism aims to have minimal configuration required, and does not currently presen
 ## Running Prism Standalone
 
 Prism can be executed as a stand alone binary and will present a basic UI for listing jobs, and job status.
+This is an optional mode for Prism that is useful for demos or rapid iteration.
+It is not a requirement for using Prism in the Java or Python SDKs.
+
 This can be done in two ways, downloading an asset from the github release, or building the binary locally with Go installed.
 
 In either case, Prism serves a JobManagement API endpoint, and a Webpage UI locally.
@@ -103,9 +106,23 @@ Example output from the Prism binary:
 2024/09/30 09:56:42 INFO Serving WebUI endpoint=http://localhost:8074
 ```
 
+The binary has the following optional flags:
+
+* `--job_port` sets the port for the Job management server (defaults to 8073)
+* `--web_port` sets the port for the web ui (defaults to 8074)
+* `--serve_http` enables or disables the web ui (defaults to true)
+* `---idle_shutdown_timeout` sets a duration that Prism will wait for a new job before automatically shutting itself down. Uses duration format like `10s`, `5m`,`2h`. Defaults to not shutting down.
+
 ### Download a release asset
 
-It's recommended to use a released version of Prism, such as downloading one from the [Github Release](\(https://github.com/apache/beam/releases/tag/v{{< param release_latest >}})). This
+This approach doesn't require other dependencies or runtimes installed.
+This is recommended if you want to deploy Prism on some other machine.
+
+Navigate to the latest [Beam Release Github page](https://github.com/apache/beam/releases/tag/v{{< param release_latest >}}), scroll to the bottom, and download the correct asset for where you want to run Prism.
+
+For example, if you want to execute Prism on a newer MacBook, you'd download the `darwin-arm64` asset. For executing on many cloud machines, you'd download the `linux-amd64` asset.
+
+This
 requires downloading the right asset for the machine Prism will run on, such as your development
 machine.
 
@@ -114,14 +131,17 @@ Simply unzip, and execute.
 ### Build from the release with Go.
 
 This approach requires a [recent version of Go installed](https://go.dev/dl/).
+This is recommended if you only want to run Prism on your local machine.
 
+You can insall Prism with `go install`:
 
-```
+```sh
 go install github.com/apache/beam/sdks/v2/go/cmd/prism@latest
+prism
 ```
 
-Or using `go run`
+Or simply build and execute the binary immeadiately using `go run`:
 
-```
+```sh
 go run github.com/apache/beam/sdks/v2/go/cmd/prism@latest
 ```
