@@ -354,6 +354,16 @@ class TransformTest(unittest.TestCase):
                   0: 2, 2: 0
               }, errors='raise'))
 
+  def test_dataframe_column_fillna_constant_as_value(self):
+    df = pd.DataFrame({'A': (1, "NAN", 1), 'B': (1, 1, 1)})
+
+    def column_fillna_constant_as_value_function(df):
+      df['A'] = df['A'].fillna(0)
+      return df
+
+    self.run_scenario(
+        df, lambda df: column_fillna_constant_as_value_function(df))
+
 
 class FusionTest(unittest.TestCase):
   @staticmethod
