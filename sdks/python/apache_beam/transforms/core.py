@@ -1156,7 +1156,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def compact(self, accumulator, *args, **kwargs):
-    """Optionally returns a more compact represenation of the accumulator.
+    """Optionally returns a more compact representation of the accumulator.
 
     This is called before an accumulator is sent across the wire, and can
     be useful in cases where values are buffered or otherwise lazily
