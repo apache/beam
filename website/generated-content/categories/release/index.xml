@@ -17,7 +17,7 @@ See the &lt;a href="/get-started/downloads/#2590-2024-09-11">download page&lt;/a
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Added support for setting a configureable timeout when loading a model and performing inference in the &lt;a href="https://beam.apache.org/documentation/ml/inference-overview/">RunInference&lt;/a> transform using &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling">with_exception_handling&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/32137">#32137&lt;/a>)&lt;/li>
-&lt;li>Initial experimental support for using Prism with the Java and Python SDKs
+&lt;li>Initial experimental support for using &lt;a href="/documentation/runners/prism/">Prism&lt;/a> with the Java and Python SDKs
 &lt;ul>
 &lt;li>Prism is presently targeting local testing usage, or other small scale execution.&lt;/li>
 &lt;li>For Java, use &amp;lsquo;PrismRunner&amp;rsquo;, or &amp;lsquo;TestPrismRunner&amp;rsquo; as an argument to the &lt;code>--runner&lt;/code> flag.&lt;/li>

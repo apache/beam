@@ -403,7 +403,35 @@ how to run portable pipelines on top of Spark.&lt;/p>
 &lt;h2 id="sdk-harness-config">SDK Harness Configuration&lt;/h2>
 &lt;p>See &lt;a href="/documentation/runtime/sdk-harness-config/">here&lt;/a> for more information on SDK harness deployment options
 and &lt;a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit?usp=sharing">here&lt;/a>
-for what goes into writing a portable SDK.&lt;/p></description></item><item><title>Roadmap: Python SDK Roadmap</title><link>/roadmap/python-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/python-sdk/</guid><description>
+for what goes into writing a portable SDK.&lt;/p></description></item><item><title>Roadmap: Prism Runner Roadmap</title><link>/roadmap/prism-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/prism-runner/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="apache-beam-prism-runner-roadmap">Apache Beam Prism Runner Roadmap&lt;/h1>
+&lt;p>The goal for the Prism runner is to provide a good default onboarding experience for Apache Beam.&lt;/p>
+&lt;ul>
+&lt;li>Prism should be able to execute any Beam pipeline that can execute on a local machine.&lt;/li>
+&lt;li>Prism should be fast to start and execute pipelines.&lt;/li>
+&lt;li>Prism should be able to assist with the local testing and debugging of pipelines.&lt;/li>
+&lt;li>Prism may develop into a robust, production ready runner for pipelines that can execute locally.&lt;/li>
+&lt;/ul>
+&lt;p>The detailed roadmap lives in an &lt;a href="https://github.com/apache/beam/issues/29650">umbrella tracking issue in Github&lt;/a>.&lt;/p>
+&lt;p>Here are available resources:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/runners/prism">Runner documentation&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aprism">prism&lt;/a>&lt;/li>
+&lt;li>CLI &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/cmd/prism">Code&lt;/a>, CLI Binaries are available as assets on &lt;a href="https://github.com/apache/beam/releases/tag/v2.59.0">Github Releases&lt;/a>.&lt;/li>
+&lt;li>Core &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism">Code&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/runners/prism/internal/README.md">Prism Internals Deep Dive&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Roadmap: Python SDK Roadmap</title><link>/roadmap/python-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/python-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
