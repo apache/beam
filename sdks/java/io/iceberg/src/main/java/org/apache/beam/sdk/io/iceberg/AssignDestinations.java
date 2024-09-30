@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.WriteToDestinations.DATA;
+import static org.apache.beam.sdk.io.iceberg.WriteToDestinations.DEST;
+
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,8 +50,8 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
 
     final Schema outputSchema =
         Schema.builder()
-            .addStringField("dest")
-            .addRowField("data", dynamicDestinations.getDataSchema())
+            .addStringField(DEST)
+            .addRowField(DATA, dynamicDestinations.getDataSchema())
             .build();
 
     return input

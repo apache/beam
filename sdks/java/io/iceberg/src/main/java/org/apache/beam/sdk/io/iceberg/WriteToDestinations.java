@@ -48,6 +48,9 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
 
   static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
   static final int DEFAULT_NUM_FILE_SHARDS = 0;
+  // constant field names representing table identifier string and the record
+  static final String DEST = "dest";
+  static final String DATA = "data";
 
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
@@ -75,17 +78,19 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
 
     // Then write the rest by shuffling on the destination metadata
     Preconditions.checkState(
-        writeUngroupedResult.getSpilledRows().getSchema().hasField("dest"),
-        "Input schema missing `dest` field.");
+        writeUngroupedResult.getSpilledRows().getSchema().hasField(DEST),
+        "Input schema missing `%s` field.",
+        DEST);
     Schema dataSchema =
         checkArgumentNotNull(
             writeUngroupedResult
                 .getSpilledRows()
                 .getSchema()
-                .getField("data")
+                .getField(DATA)
                 .getType()
                 .getRowSchema(),
-            "Input schema missing `data` field");
+            "Input schema missing `%s` field",
+            DATA);
 
     PCollection<FileWriteResult> writeGroupedResult =
         writeUngroupedResult
@@ -102,10 +107,10 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
                       public KV<ShardedKey<String>, Row> apply(Row elem) {
                         Row data =
                             checkArgumentNotNull(
-                                elem.getRow("data"), "Element missing `data` field");
+                                elem.getRow(DATA), "Element missing `%s` field", DATA);
                         String dest =
                             checkArgumentNotNull(
-                                elem.getString("dest"), "Element missing `dest` field");
+                                elem.getString(DEST), "Element missing `%s` field", DEST);
                         return KV.of(
                             ShardedKey.of(dest, ++shardNumber % SPILLED_ROWS_SHARDING_FACTOR),
                             data);
