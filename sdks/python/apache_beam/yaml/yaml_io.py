@@ -264,12 +264,13 @@ def _create_formatter(
       output = getattr(row, field_names[0])
       if isinstance(output, bytes):
         return output
-      try:
-        return str(output).encode('utf-8')
-      except Exception as e:
+      elif isinstance(output, str):
+        return output.encode('utf-8')
+      else:
         raise ValueError(
             f"Cannot encode payload for WriteToPubSub. "
-            f"Must be valid string or bytes object. {e}")
+            f"Expected be valid string or bytes object, "
+            f"got {repr(output)} of type {type(output}.")
 
     return convert_to_bytes
   elif format == 'JSON':
