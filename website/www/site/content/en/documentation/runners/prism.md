@@ -122,9 +122,7 @@ Navigate to the latest [Beam Release Github page](https://github.com/apache/beam
 
 For example, if you want to execute Prism on a newer MacBook, you'd download the `darwin-arm64` asset. For executing on many cloud machines, you'd download the `linux-amd64` asset.
 
-This
-requires downloading the right asset for the machine Prism will run on, such as your development
-machine.
+This requires downloading the right asset for the machine Prism will run on, such as your development machine.
 
 Simply unzip, and execute.
 
