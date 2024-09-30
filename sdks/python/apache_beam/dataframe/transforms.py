@@ -395,7 +395,10 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
       if stage is None:
         # No stage available, compute this expression as part of a new stage.
-        stage = Stage([arg for arg in expr.args() if arg in inputs],
+        stage = Stage([
+            arg for arg in expr.args()
+            if not isinstance(arg, expressions.ConstantExpression)
+        ],
                       expr.requires_partition_by())
         for arg in expr.args():
           # For each argument, declare that it is also available in
