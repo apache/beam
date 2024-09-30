@@ -76,6 +76,16 @@ public class LogicalTypesTest {
     union = intOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
     assertEquals("int32", oneOf.getCaseEnumType().toString(union.getCaseType()));
     assertEquals(42, (int) union.getValue());
+
+    // Validate schema equality.
+    OneOfType oneOf2 =
+        OneOfType.create(Field.of("string", FieldType.STRING), Field.of("int32", FieldType.INT32));
+    assertEquals(oneOf.getOneOfSchema(), oneOf2.getOneOfSchema());
+    Schema schema2 = Schema.builder().addLogicalTypeField("union", oneOf2).build();
+    assertEquals(schema, schema2);
+    Row stringOneOf2 =
+        Row.withSchema(schema2).addValue(oneOf.createValue("string", "stringValue")).build();
+    assertEquals(stringOneOf, stringOneOf2);
   }
 
   @Test

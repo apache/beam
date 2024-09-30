@@ -458,7 +458,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(streamCount)
             .build();
 
@@ -551,7 +552,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/project-id/datasets/dataset/tables/table"))
+                    .setTable("projects/project-id/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(1024)
             .build();
 
@@ -599,7 +601,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(1024)
             .build();
 
@@ -1482,7 +1485,8 @@ public class BigQueryIOStorageReadTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO))
+                    .setDataFormat(DataFormat.AVRO)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
@@ -1693,7 +1697,8 @@ public class BigQueryIOStorageReadTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.ARROW))
+                    .setDataFormat(DataFormat.ARROW)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
