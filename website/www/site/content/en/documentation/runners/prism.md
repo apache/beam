@@ -91,13 +91,37 @@ Prism aims to have minimal configuration required, and does not currently presen
 ## Running Prism Standalone
 
 Prism can be executed as a stand alone binary and will present a basic UI for listing jobs, and job status.
-
-It's recommended to use a released version of Prism, such as downloading one from the [Github Release](\(https://github.com/apache/beam/releases/tag/v{{< param release_latest >}})), or to build one from the latest version of the Beam Go module, using a [recent version of Go](https://go.dev/dl/).
-
-```
-go run github.com/apache/beam/sdks/v2/go/cmd/prism@latest
-```
+This can be done in two ways, downloading an asset from the github release, or building the binary locally with Go installed.
 
 In either case, Prism serves a JobManagement API endpoint, and a Webpage UI locally.
 Jobs can be submitted using `--runner=PortableRunner --endpoint=<endpoint address>` and monitored using the webpage UI.
 
+Example output from the Prism binary:
+
+```
+2024/09/30 09:56:42 INFO Serving JobManagement endpoint=localhost:8073
+2024/09/30 09:56:42 INFO Serving WebUI endpoint=http://localhost:8074
+```
+
+### Download a release asset
+
+It's recommended to use a released version of Prism, such as downloading one from the [Github Release](\(https://github.com/apache/beam/releases/tag/v{{< param release_latest >}})). This
+requires downloading the right asset for the machine Prism will run on, such as your development
+machine.
+
+Simply unzip, and execute.
+
+### Build from the release with Go.
+
+This approach requires a [recent version of Go installed](https://go.dev/dl/).
+
+
+```
+go install github.com/apache/beam/sdks/v2/go/cmd/prism@latest
+```
+
+Or using `go run`
+
+```
+go run github.com/apache/beam/sdks/v2/go/cmd/prism@latest
+```
