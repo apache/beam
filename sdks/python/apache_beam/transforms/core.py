@@ -29,6 +29,7 @@ import time
 import traceback
 import types
 import typing
+import functools
 from itertools import dropwhile
 
 from apache_beam import coders
@@ -2495,6 +2496,68 @@ class _MaybePValueWithErrors(object):
       return self._pvalue
 
 
+class _DeferredStateUpdatingPool:
+  """
+  A class that submits a DoFn#process but defers updating counter metrics until
+  after the subprocess finishes execution.
+  """
+  def __init__(self, pool, timeout):
+    """
+    Args:
+      process_pool (ProcessPoolExecutor).
+      timeout (Optional[float]): The maximum time allowed for execution.
+    """
+    self._pool = pool
+    self._timeout = timeout
+
+  @staticmethod
+  def _wrapped_fn(fn, *args, **kwargs):
+    """Records thread scoped state modifications in the subprocess/thread and
+    replays them once the thread/subprocess returns"""
+    from apache_beam.runners.worker.statesampler_stub import StubStateSampler
+    stub_state_sampler = StubStateSampler()
+
+    from apache_beam.runners.worker.statesampler import set_current_tracker
+    set_current_tracker(stub_state_sampler)
+
+    results = fn(*args, **kwargs)
+    if results is not None:
+      # Ensure we iterate over the entire output list in the given amount of
+      # time.
+      results = list(results)
+    return (results, stub_state_sampler)
+
+  def submit(self, process_fn, *args, **kwargs):
+    """
+    Submits the process_fn for execution.
+
+    Args:
+        process_fn (Callable): DoFn#process function to be executed in a
+          subprocess or thread.
+        *args: Positional arguments to be passed to the wrapped method.
+        **kwargs: Keyword arguments to be passed to the wrapped method.
+
+    Returns:
+        Optional[list]: The results of the submitted_fn execution, or None if
+          no results.
+    """
+    results, stub_state_sampler = self._pool.submit(
+      functools.partial(self._wrapped_fn, process_fn),
+      *args, **kwargs).result(self._timeout)
+
+    from apache_beam.runners.worker.statesampler import get_current_tracker
+    tracker = get_current_tracker()
+
+    if tracker is not None:
+      for typed_metric_name, value in (
+        stub_state_sampler.get_recorded_calls().items()
+      ):
+        tracker.update_metric(typed_metric_name, value)
+    if results is None:
+      return
+    return list(results)
+
+
 class _SubprocessDoFn(DoFn):
   """Process method run in a subprocess, turning hard crashes into exceptions.
   """
@@ -2533,8 +2596,10 @@ class _SubprocessDoFn(DoFn):
       self._pool = concurrent.futures.ProcessPoolExecutor(1)
       self._pool.submit(self._remote_init, self._serialized_fn).result()
     try:
-      return self._pool.submit(method, *args, **kwargs).result(
-          self._timeout if method == self._remote_process else None)
+      return _DeferredStateUpdatingPool(
+          self._pool,
+          self._timeout if method == self._remote_process else None).submit(
+              method, *args, **kwargs)
     except (concurrent.futures.process.BrokenProcessPool,
             TimeoutError,
             concurrent.futures._base.TimeoutError):

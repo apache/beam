@@ -2755,17 +2755,18 @@ class DeadLettersTest(unittest.TestCase):
           label='CheckBad')
 
   def test_increment_counter(self):
-    # Counters are not currently supported for
-    # ParDo#with_exception_handling(use_subprocess=True).
-    if (self.use_subprocess):
-      return
-
     class CounterDoFn(beam.DoFn):
       def __init__(self):
-        self.records_counter = Metrics.counter(self.__class__, 'recordsCounter')
+        self.records_counter1 = Metrics.counter(
+            self.__class__, 'recordsCounter1')
+        self.records_counter2 = Metrics.counter(
+            self.__class__, 'recordsCounter2')
 
       def process(self, element):
-        self.records_counter.inc()
+        self.records_counter1.inc()
+        self.records_counter2.inc()
+        self.records_counter2.inc()
+        yield element
 
     with TestPipeline() as p:
       _, _ = (
@@ -2773,12 +2774,18 @@ class DeadLettersTest(unittest.TestCase):
           .with_exception_handling(
             use_subprocess=self.use_subprocess, timeout=1))
     results = p.result
-    metric_results = results.metrics().query(
-        MetricsFilter().with_name("recordsCounter"))
-    records_counter = metric_results['counters'][0]
 
-    self.assertEqual(records_counter.key.metric.name, 'recordsCounter')
-    self.assertEqual(records_counter.result, 3)
+    metric_results1 = results.metrics().query(
+        MetricsFilter().with_name("recordsCounter1"))
+    records_counter1 = metric_results1['counters'][0]
+    metric_results2 = results.metrics().query(
+        MetricsFilter().with_name("recordsCounter2"))
+    records_counter2 = metric_results2['counters'][0]
+
+    self.assertEqual(records_counter1.key.metric.name, 'recordsCounter1')
+    self.assertEqual(records_counter1.result, 3)
+    self.assertEqual(records_counter2.key.metric.name, 'recordsCounter2')
+    self.assertEqual(records_counter2.result, 6)
 
   def test_lifecycle(self):
     die = type(self).die
