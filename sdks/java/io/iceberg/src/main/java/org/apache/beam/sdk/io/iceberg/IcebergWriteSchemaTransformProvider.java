@@ -90,13 +90,18 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
     @SchemaFieldDescription(
-        "A list of field names to keep in the input record. All other fields are dropped before writing.")
+        "A list of field names to keep in the input record. All other fields are dropped before writing. "
+            + "Is mutually exclusive with 'drop' and 'only'.")
     public abstract @Nullable List<String> getKeep();
 
-    @SchemaFieldDescription("A list of field names to drop from the input record before writing.")
+    @SchemaFieldDescription(
+        "A list of field names to drop from the input record before writing. "
+            + "Is mutually exclusive with 'keep' and 'only'.")
     public abstract @Nullable List<String> getDrop();
 
-    @SchemaFieldDescription("The name of a single record field that should be written.")
+    @SchemaFieldDescription(
+        "The name of a single record field that should be written. "
+            + "Is mutually exclusive with 'keep' and 'drop'.")
     public abstract @Nullable String getOnly();
 
     @AutoValue.Builder
