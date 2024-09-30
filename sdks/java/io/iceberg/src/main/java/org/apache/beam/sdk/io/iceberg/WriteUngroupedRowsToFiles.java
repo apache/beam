@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.WriteToDestinations.DATA;
+import static org.apache.beam.sdk.io.iceberg.WriteToDestinations.DEST;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.List;
@@ -208,11 +210,11 @@ class WriteUngroupedRowsToFiles
     public void processElement(
         @Element Row element, BoundedWindow window, PaneInfo pane, MultiOutputReceiver out)
         throws Exception {
-
-      Row data = checkArgumentNotNull(element.getRow("data"), "Input row missing `data` field.");
-      Row destMetadata =
-          checkArgumentNotNull(element.getRow("dest"), "Input row missing `dest` field.");
-      IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
+      String dest =
+          checkArgumentNotNull(element.getString(DEST), "Input row missing `%s` field.", DEST);
+      Row data =
+          checkArgumentNotNull(element.getRow(DATA), "Input row missing `data` field.", DATA);
+      IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
 
