@@ -1671,8 +1671,7 @@ class BigQueryWriteFn(DoFn):
         len(rows_and_insert_ids_with_windows))
     self.batch_size_metric.update(len(rows_and_insert_ids_with_windows))
 
-    rows_and_insert_ids = [r[0] for r in rows_and_insert_ids_with_windows]
-    window_values = [r[1] for r in rows_and_insert_ids_with_windows]
+    rows_and_insert_ids, window_values = zip(*rows_and_insert_ids_with_windows)
     rows = [r[0] for r in rows_and_insert_ids]
     if self.ignore_insert_ids:
       insert_ids = [None for r in rows_and_insert_ids]
@@ -1694,6 +1693,7 @@ class BigQueryWriteFn(DoFn):
       failed_rows = [(
           rows[entry['index']], entry["errors"], window_values[entry['index']])
                      for entry in errors]
+      failed_insert_ids = [insert_ids[entry['index']] for entry in errors]
       retry_backoff = next(self._backoff_calculator, None)
 
       # If retry_backoff is None, then we will not retry and must log.
@@ -1724,7 +1724,11 @@ class BigQueryWriteFn(DoFn):
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        # We can now safely discard all information about successful rows and
+        # just focus on the failed ones
         rows = [fr[0] for fr in failed_rows]
+        window_values = [fr[2] for fr in failed_rows]
+        insert_ids = failed_insert_ids
         self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
