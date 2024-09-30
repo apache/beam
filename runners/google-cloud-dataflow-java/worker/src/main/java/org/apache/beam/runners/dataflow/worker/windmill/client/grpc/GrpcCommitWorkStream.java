@@ -280,7 +280,7 @@ final class GrpcCommitWorkStream
     synchronized (this) {
       pending.put(id, pendingRequest);
       for (int i = 0;
-          i < serializedCommit.size() && !isShutdown();
+          i < serializedCommit.size();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         int end = i + AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE;
         ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));

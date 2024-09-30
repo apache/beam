@@ -57,7 +57,7 @@ public class EvenGetWorkBudgetDistributorTest {
     return spy(
         new GetWorkBudgetSpender() {
           @Override
-          public void adjustBudget(long itemsDelta, long bytesDelta) {}
+          public void setBudget(long items, long bytes) {}
 
           @Override
           public GetWorkBudget remainingBudget() {
@@ -93,7 +93,7 @@ public class EvenGetWorkBudgetDistributorTest {
             ImmutableList.of(getWorkBudgetSpender),
             GetWorkBudget.builder().setItems(10L).setBytes(10L).build());
 
-    verify(getWorkBudgetSpender, never()).adjustBudget(anyLong(), anyLong());
+    verify(getWorkBudgetSpender, never()).setBudget(anyLong(), anyLong());
   }
 
   @Test
@@ -108,7 +108,7 @@ public class EvenGetWorkBudgetDistributorTest {
             ImmutableList.of(getWorkBudgetSpender),
             GetWorkBudget.builder().setItems(20L).setBytes(20L).build());
 
-    verify(getWorkBudgetSpender, never()).adjustBudget(anyLong(), anyLong());
+    verify(getWorkBudgetSpender, never()).setBudget(anyLong(), anyLong());
   }
 
   @Test
@@ -123,7 +123,7 @@ public class EvenGetWorkBudgetDistributorTest {
         .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
 
     verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
+        .setBudget(
             eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
             eq(totalGetWorkBudget.bytes() - streamRemainingBudget.bytes()));
   }
@@ -141,7 +141,7 @@ public class EvenGetWorkBudgetDistributorTest {
         .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
 
     verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
+        .setBudget(
             eq(
                 totalGetWorkBudget.items()
                     - streamRemainingBudget.items()
@@ -160,7 +160,7 @@ public class EvenGetWorkBudgetDistributorTest {
         .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
 
     verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
+        .setBudget(
             eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
             eq(totalGetWorkBudget.bytes() - streamRemainingBudget.bytes()));
   }
@@ -179,7 +179,7 @@ public class EvenGetWorkBudgetDistributorTest {
         .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
 
     verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
+        .setBudget(
             eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
             eq(
                 totalGetWorkBudget.bytes()
@@ -206,7 +206,7 @@ public class EvenGetWorkBudgetDistributorTest {
     streams.forEach(
         stream ->
             verify(stream, times(1))
-                .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
+                .setBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
   }
 
   @Test
@@ -228,7 +228,7 @@ public class EvenGetWorkBudgetDistributorTest {
     streams.forEach(
         stream ->
             verify(stream, times(1))
-                .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
+                .setBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
   }
 
   @Test
@@ -258,6 +258,6 @@ public class EvenGetWorkBudgetDistributorTest {
     streams.forEach(
         stream ->
             verify(stream, times(1))
-                .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
+                .setBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
   }
 }

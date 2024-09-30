@@ -154,10 +154,9 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
-    GetWorkBudget adjustment =
-        GetWorkBudget.builder().setItems(itemsDelta).setBytes(bytesDelta).build();
-    getWorkBudget.getAndSet(adjustment);
+  public void setBudget(long items, long bytes) {
+    GetWorkBudget adjustment = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
+    getWorkBudget.set(adjustment);
     if (started.get()) {
       getWorkStream.get().setBudget(adjustment);
     }

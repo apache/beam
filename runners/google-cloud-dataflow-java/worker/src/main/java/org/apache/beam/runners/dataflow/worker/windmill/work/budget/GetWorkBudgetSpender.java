@@ -22,10 +22,10 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
  * org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget}
  */
 public interface GetWorkBudgetSpender {
-  void adjustBudget(long itemsDelta, long bytesDelta);
+  void setBudget(long items, long bytes);
 
-  default void adjustBudget(GetWorkBudget adjustment) {
-    adjustBudget(adjustment.items(), adjustment.bytes());
+  default void setBudget(GetWorkBudget adjustment) {
+    setBudget(adjustment.items(), adjustment.bytes());
   }
 
   GetWorkBudget remainingBudget();

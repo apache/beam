@@ -244,7 +244,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       }
     }
 
-    // We were never able to start the stream, remove it from the stream registry.
+    // We were never able to start the stream, remove it from the stream registry. Otherwise, it is
+    // removed when closed.
     streamRegistry.remove(this);
   }
 
@@ -396,7 +397,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
 
     @Override
-    public synchronized void onCompleted() {
+    public void onCompleted() {
       delegate().onCompleted();
     }
   }
@@ -473,8 +474,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
                   : "received response " + (nowMillis - lastResponseTimeMs.get()) + "ms ago";
 
           logger.debug(
-              "{} has been restarted {} times. Streaming Windmill RPC Error Count: {}; last was: {} with status: {}."
-                  + " created {}ms ago; {}. This is normal with autoscaling.",
+              "{} has been restarted {} times. Streaming Windmill RPC Error Count: {}; last was: {}"
+                  + " with status: {}. created {}ms ago; {}. This is normal with autoscaling.",
               AbstractWindmillStream.this.getClass(),
               currentRestartCount,
               currentErrorCount,

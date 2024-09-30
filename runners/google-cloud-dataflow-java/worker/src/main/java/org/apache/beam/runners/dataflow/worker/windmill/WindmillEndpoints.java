@@ -124,6 +124,7 @@ public abstract class WindmillEndpoints {
             directEndpointAddress.getHostAddress(), (int) endpointProto.getPort()));
   }
 
+  /** Version of the endpoints which increases with every modification. */
   public abstract long version();
 
   /**

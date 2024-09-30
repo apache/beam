@@ -69,10 +69,10 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
                 GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
                 if (isBelowFiftyPercentOfTarget(remaining, desiredBudget)) {
                   GetWorkBudget adjustment = desiredBudget.subtract(remaining);
-                  getWorkBudgetSpender.adjustBudget(adjustment);
+                  getWorkBudgetSpender.setBudget(adjustment);
                 }
               } else {
-                getWorkBudgetSpender.adjustBudget(desiredBudget);
+                getWorkBudgetSpender.setBudget(desiredBudget);
               }
             });
   }

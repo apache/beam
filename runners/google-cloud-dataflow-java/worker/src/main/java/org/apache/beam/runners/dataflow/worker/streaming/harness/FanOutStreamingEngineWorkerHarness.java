@@ -102,8 +102,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
+  @GuardedBy("this")
+  private long activeMetadataVersion;
+
   @GuardedBy("metadataLock")
-  private long metadataVersion;
+  private long pendingMetadataVersion;
 
   @GuardedBy("this")
   private boolean started;
@@ -135,7 +138,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build());
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.totalGetWorkBudget = totalGetWorkBudget;
-    this.metadataVersion = Long.MIN_VALUE;
+    this.activeMetadataVersion = Long.MIN_VALUE;
     this.getWorkerMetadataStream = Suppliers.memoize(createGetWorkerMetadataStream()::get);
     this.workCommitterFactory = workCommitterFactory;
     this.metadataLock = new Object();
@@ -259,9 +262,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private void consumeWorkerMetadata(WindmillEndpoints windmillEndpoints) {
     synchronized (metadataLock) {
       // Only process versions greater than what we currently have to prevent double processing of
-      // metadata.
-      if (windmillEndpoints.version() > metadataVersion) {
-        metadataVersion = windmillEndpoints.version();
+      // metadata. workerMetadataConsumer is single-threaded so we maintain ordering.
+      if (windmillEndpoints.version() > pendingMetadataVersion) {
+        pendingMetadataVersion = windmillEndpoints.version();
         workerMetadataConsumer.execute(() -> consumeWindmillWorkerEndpoints(windmillEndpoints));
       }
     }
@@ -272,11 +275,12 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     // queued up while a previous version of the windmillEndpoints were being consumed. Only consume
     // the endpoints if they are the most current version.
     synchronized (metadataLock) {
-      if (newWindmillEndpoints.version() < metadataVersion) {
+      if (newWindmillEndpoints.version() < pendingMetadataVersion) {
         return;
       }
     }
 
+    long previousMetadataVersion = activeMetadataVersion;
     LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
     ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
         createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
@@ -296,6 +300,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         connections.get());
     connections.set(newConnectionsState);
     getWorkBudgetDistributor.distributeBudget(newStreams.values(), totalGetWorkBudget);
+    activeMetadataVersion = newWindmillEndpoints.version();
+    LOG.info(
+        "Consumed new endpoints. previous metadata version: {}, current metadata version: {}",
+        previousMetadataVersion,
+        activeMetadataVersion);
   }
 
   /** Close the streams that are no longer valid asynchronously. */

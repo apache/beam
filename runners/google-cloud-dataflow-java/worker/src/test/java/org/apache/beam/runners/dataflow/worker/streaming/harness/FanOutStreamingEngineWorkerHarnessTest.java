@@ -414,7 +414,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     @Override
     public <T extends GetWorkBudgetSpender> void distributeBudget(
         ImmutableCollection<T> streams, GetWorkBudget getWorkBudget) {
-      streams.forEach(stream -> stream.adjustBudget(getWorkBudget.items(), getWorkBudget.bytes()));
+      streams.forEach(stream -> stream.setBudget(getWorkBudget.items(), getWorkBudget.bytes()));
       getWorkBudgetDistributorTriggered.countDown();
     }
   }
