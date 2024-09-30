@@ -43,10 +43,10 @@ class PortableIcebergDestinations implements DynamicDestinations {
     RowFilter rf = new RowFilter(inputSchema);
 
     if (fieldsToDrop != null) {
-      rf = rf.dropping(fieldsToDrop);
+      rf = rf.drop(fieldsToDrop);
     }
     if (fieldsToKeep != null) {
-      rf = rf.keeping(fieldsToKeep);
+      rf = rf.keep(fieldsToKeep);
     }
     if (onlyField != null) {
       rf = rf.only(onlyField);

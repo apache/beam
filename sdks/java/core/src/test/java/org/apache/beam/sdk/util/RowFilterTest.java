@@ -257,7 +257,7 @@ public class RowFilterTest {
     thrown.expectMessage("'drop' does not support nested fields");
 
     new RowFilter(ROW_SCHEMA)
-        .dropping(
+        .drop(
             Arrays.asList(
                 "bool",
                 "nullable_int",
@@ -273,7 +273,7 @@ public class RowFilterTest {
     thrown.expectMessage("'keep' does not support nested fields");
 
     new RowFilter(ROW_SCHEMA)
-        .keeping(
+        .keep(
             Arrays.asList("str", "arr_int", "row.nested_str", "row.nested_row.doubly_nested_str"));
   }
 

@@ -216,11 +216,11 @@ public class IcebergWriteSchemaTransformProviderTest {
     if (operation != null) {
       switch (operation) {
         case "drop":
+          filter = filter.drop(filteredFields);
           writeConfig.put(operation, filteredFields);
-          filter = filter.dropping(filteredFields);
           break;
         case "keep":
-          filter = filter.keeping(filteredFields);
+          filter = filter.keep(filteredFields);
           writeConfig.put(operation, filteredFields);
           break;
         case "only":

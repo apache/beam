@@ -416,11 +416,11 @@ public class IcebergIOIT implements Serializable {
     if (filterOp != null) {
       switch (filterOp) {
         case "drop":
-          rowFilter = rowFilter.dropping(fieldsToFilter);
+          rowFilter = rowFilter.drop(fieldsToFilter);
           writeConfig.put(filterOp, fieldsToFilter);
           break;
         case "keep":
-          rowFilter = rowFilter.keeping(fieldsToFilter);
+          rowFilter = rowFilter.keep(fieldsToFilter);
           writeConfig.put(filterOp, fieldsToFilter);
           break;
         case "only":
