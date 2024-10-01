@@ -269,7 +269,7 @@ def _create_formatter(
       else:
         raise ValueError(
             f"Cannot encode payload for WriteToPubSub. "
-            f"Expected be valid string or bytes object, "
+            f"Expected valid string or bytes object, "
             f"got {repr(output)} of type {type(output)}.")
 
     return convert_to_bytes
