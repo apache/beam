@@ -29,6 +29,7 @@ from apache_beam.runners import common
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
+from apache_beam.utils.threads import ParentAwareThread
 
 try:
   from apache_beam.runners.worker import statesampler_fast as statesampler_impl  # type: ignore
@@ -40,18 +41,39 @@ except ImportError:
 if TYPE_CHECKING:
   from apache_beam.metrics.execution import MetricsContainer
 
-_STATE_SAMPLERS = threading.local()
+# Global dictionary to store state samplers keyed by thread id.
+_STATE_SAMPLERS = {}
+_STATE_SAMPLERS_LOCK = threading.Lock()
 
 
 def set_current_tracker(tracker):
-  _STATE_SAMPLERS.tracker = tracker
+  """Sets state tracker for the calling thread."""
+  with _STATE_SAMPLERS_LOCK:
+    if (tracker is None):
+      _STATE_SAMPLERS.pop(threading.get_ident())
+      return
+
+    _STATE_SAMPLERS[threading.get_ident()] = tracker
 
 
 def get_current_tracker():
-  try:
-    return _STATE_SAMPLERS.tracker
-  except AttributeError:
-    return None
+  """Retrieve state tracker for the calling thread.
+
+  If the thread is a ParentAwareThread (child thread that work was handed off
+  to) it attempts to retrieve the tracker associated with its parent thread.
+
+  """
+  current_thread_id = threading.get_ident()
+
+  with _STATE_SAMPLERS_LOCK:
+    if current_thread_id in _STATE_SAMPLERS:
+      return _STATE_SAMPLERS[current_thread_id]
+
+    current_thread = threading.current_thread()
+    if isinstance(current_thread, ParentAwareThread
+                  ) and current_thread.parent_thread_id in _STATE_SAMPLERS:
+      return _STATE_SAMPLERS.get(current_thread.parent_thread_id)
+  return None
 
 
 _INSTRUCTION_IDS = threading.local()
