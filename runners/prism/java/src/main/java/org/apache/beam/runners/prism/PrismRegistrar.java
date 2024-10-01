@@ -24,7 +24,6 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
  * PrismRunner}.
@@ -42,7 +41,6 @@ public class PrismRegistrar {
       return ImmutableList.of(PrismRunner.class, TestPrismRunner.class);
     }
   }
-
 
   /** Registers the {@link PrismPipelineOptions} and {@link TestPrismPipelineOptions} */
   @AutoService(PipelineOptionsRegistrar.class)
