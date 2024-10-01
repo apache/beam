@@ -81,6 +81,7 @@
   values.  To retain the old behavior, pass `dtype=True` (or any other value
   accepted by `pandas.read_json`).
 * Users of KafkaIO  Read transform that enable [commitOffsetsInFinalize](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html#commitOffsetsInFinalize--) might encounter pipeline graph  compatibility issues when updating the pipeline. To mitigate, set the `updateCompatibilityVersion` option to the SDK version used for the original pipeline, example `--updateCompatabilityVersion=2.58.1`
+* Default Kafka client version was upgraded from 2.4.1 to 3.1.2
 
 ## Deprecations
 

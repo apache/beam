@@ -44,6 +44,7 @@ def kafkaVersions = [
     '231': "2.3.1",
     '241': "2.4.1",
     '251': "2.5.1",
+    '312': "3.1.2",
 ]
 
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
@@ -143,6 +144,7 @@ task kafkaVersionsCompatibilityTest {
   dependsOn (":sdks:java:io:kafka:kafka-231:kafkaVersion231BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-241:kafkaVersion241BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-251:kafkaVersion251BatchIT")
+  dependsOn (":sdks:java:io:kafka:kafka-312:kafkaVersion312BatchIT")
 }
 
 static def createTestList(Map<String, String> prefixMap, String suffix) {
