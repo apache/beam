@@ -42,7 +42,7 @@ public class PrismRegistrar {
     }
   }
 
-  /** Registers the {@link PrismPipelineOptions} and {@link TestPrismPipelineOptions} */
+  /** Registers the {@link PrismPipelineOptions} and {@link TestPrismPipelineOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override
