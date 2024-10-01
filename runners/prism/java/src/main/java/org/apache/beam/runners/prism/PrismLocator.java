@@ -54,9 +54,9 @@ class PrismLocator {
   private static final String PRISM_BIN_PATH = ".apache_beam/cache/prism/bin";
   private static final Set<PosixFilePermission> PERMS =
       PosixFilePermissions.fromString("rwxr-xr-x");
-  private static final String GITHUB_DOWNLOAD_PREFIX =
-      "https://github.com/apache/beam/releases/download";
-  private static final String GITHUB_TAG_PREFIX = "https://github.com/apache/beam/releases/tag";
+  private static final String GITHUB_COMMON_PREFIX = "https://github.com/apache/beam/releases/";
+  private static final String GITHUB_DOWNLOAD_PREFIX = GITHUB_COMMON_PREFIX + "download";
+  private static final String GITHUB_TAG_PREFIX = GITHUB_COMMON_PREFIX + "tag";
 
   private final PrismPipelineOptions options;
 
@@ -64,24 +64,51 @@ class PrismLocator {
     this.options = options;
   }
 
+  String resolveLocation() {
+    String from =
+        String.format(
+            "%s/v%s/%s.zip", GITHUB_DOWNLOAD_PREFIX, RELEASE_INFO.getSdkVersion(), buildFileName());
+
+    if (Strings.isNullOrEmpty(options.getPrismLocation())) {
+      return from;
+    }
+    from = options.getPrismLocation();
+
+    // Likely a local file, return it directly.
+    if (!from.startsWith("http")) {
+      return from;
+    }
+
+    // Validate that it's from a safe location: A Beam Github Release
+    checkArgument(
+        options.getPrismLocation().startsWith(GITHUB_COMMON_PREFIX),
+        "Provided --prismLocation URL is not an Apache Beam Github "
+            + "Release page URL or download URL: ",
+        options.getPrismLocation());
+
+    from = options.getPrismLocation();
+
+    // If this is the tag prefix, then build the release download with the version
+    // from the given url.
+    if (options.getPrismLocation().startsWith(GITHUB_TAG_PREFIX)) {
+      Path tagPath = Paths.get(options.getPrismLocation());
+      Path locVersion = tagPath.getName(tagPath.getNameCount() - 1);
+      // The "v" prefix is already included in the version name segment.
+      from = String.format("%s/%s/%s.zip", GITHUB_DOWNLOAD_PREFIX, locVersion, buildFileName());
+    }
+    checkArgument(
+        from.startsWith(GITHUB_DOWNLOAD_PREFIX),
+        "Provided --prismLocation URL could not be resolved to a download URL. ",
+        options.getPrismLocation());
+    return from;
+  }
+
   /**
    * Downloads and prepares a Prism executable for use with the {@link PrismRunner}. The returned
    * {@link String} is the absolute path to the Prism executable.
    */
   String resolve() throws IOException {
-
-    String from =
-        String.format("%s/v%s/%s.zip", GITHUB_DOWNLOAD_PREFIX, getSDKVersion(), buildFileName());
-
-    if (!Strings.isNullOrEmpty(options.getPrismLocation())) {
-      checkArgument(
-          !options.getPrismLocation().startsWith(GITHUB_TAG_PREFIX),
-          "Provided --prismLocation URL is not an Apache Beam Github "
-              + "Release page URL or download URL: ",
-          from);
-
-      from = options.getPrismLocation();
-    }
+    String from = resolveLocation();
 
     String fromFileName = getNameWithoutExtension(from);
     Path to = Paths.get(userHome(), PRISM_BIN_PATH, fromFileName);
@@ -135,11 +162,6 @@ class PrismLocator {
     return to.toString();
   }
 
-  String buildFileName() {
-    String version = getSDKVersion();
-    return String.format("apache_beam-v%s-prism-%s-%s", version, os(), arch());
-  }
-
   private static void unzip(URL from, Path to) {
     try {
       unzip(from.openStream(), to);
@@ -179,6 +201,11 @@ class PrismLocator {
   private static String getNameWithoutExtension(String path) {
     return org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
         .getNameWithoutExtension(path);
+  }
+
+  private String buildFileName() {
+    String version = getSDKVersion();
+    return String.format("apache_beam-v%s-prism-%s-%s", version, os(), arch());
   }
 
   private String getSDKVersion() {
