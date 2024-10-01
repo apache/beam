@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -272,6 +273,8 @@ public class BeamRowToStorageApiProto {
     if (value == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
+      } else if (fieldDescriptor.isRepeated()) {
+        return Collections.emptyList();
       } else {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
