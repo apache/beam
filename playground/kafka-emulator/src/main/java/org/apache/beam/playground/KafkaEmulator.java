@@ -17,10 +17,10 @@
  */
 package org.apache.beam.playground;
 
-import net.manub.embeddedkafka.EmbeddedK;
-import net.manub.embeddedkafka.EmbeddedKafka$;
-import net.manub.embeddedkafka.EmbeddedKafkaConfig;
-import net.manub.embeddedkafka.EmbeddedKafkaConfig$;
+import io.github.embeddedkafka.EmbeddedK;
+import io.github.embeddedkafka.EmbeddedKafka$;
+import io.github.embeddedkafka.EmbeddedKafkaConfig;
+import io.github.embeddedkafka.EmbeddedKafkaConfig$;
 import scala.collection.immutable.Map;
 
 public class KafkaEmulator {
