@@ -24,7 +24,6 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import logging
 import os
 from typing import Any
 from typing import Callable
@@ -251,7 +250,6 @@ def _create_formatter(
 
   if format.islower():
     format = format.upper()
-    logging.warning('Lowercase formats will be deprecated in version 2.60')
 
   if format == 'RAW':
     if schema:
