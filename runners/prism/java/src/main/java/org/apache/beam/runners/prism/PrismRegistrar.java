@@ -19,17 +19,37 @@ package org.apache.beam.runners.prism;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/**
- * Registers {@link PrismRunner} and {@link TestPrismRunner} with {@link PipelineRunnerRegistrar}.
- */
-@AutoService(PipelineRunnerRegistrar.class)
-public class PrismRunnerRegistrar implements PipelineRunnerRegistrar {
 
-  @Override
-  public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-    return ImmutableList.of(PrismRunner.class, TestPrismRunner.class);
+/**
+ * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
+ * PrismRunner}.
+ */
+public class PrismRegistrar {
+  private PrismRegistrar() {}
+  /**
+   * Registers {@link PrismRunner} and {@link TestPrismRunner} with {@link PipelineRunnerRegistrar}.
+   */
+  @AutoService(PipelineRunnerRegistrar.class)
+  public static class Runner implements PipelineRunnerRegistrar {
+
+    @Override
+    public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
+      return ImmutableList.of(PrismRunner.class, TestPrismRunner.class);
+    }
+  }
+
+
+  /** Registers the {@link PrismPipelineOptions} and {@link TestPrismPipelineOptions} */
+  @AutoService(PipelineOptionsRegistrar.class)
+  public static class Options implements PipelineOptionsRegistrar {
+    @Override
+    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+      return ImmutableList.of(PrismPipelineOptions.class, TestPrismPipelineOptions.class);
+    }
   }
 }
