@@ -24,7 +24,6 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import logging
 import os
 from typing import Any
 from typing import Callable
