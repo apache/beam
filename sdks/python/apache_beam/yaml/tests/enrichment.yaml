@@ -43,6 +43,8 @@ pipelines:
 
   - pipeline:
       type: chain
+      options:
+        yaml_experimental_features: ['Enrichment']
       transforms:
         - type: Create
           name: Data
