@@ -386,9 +386,13 @@ class Lineage:
 
     - `add("system:segment1.segment2")`
     - `add("system:subtype:segment1.segment2")`
+
+    The first positional argument serves as system, if full segments are
+    provided, or the full FQN if it is provided as a single argument.
     """
+    system_or_details = system
     if len(segments) == 0 and subtype is None:
-      self.metric.add(system)
+      self.metric.add(system_or_details)
     else:
       self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
 
