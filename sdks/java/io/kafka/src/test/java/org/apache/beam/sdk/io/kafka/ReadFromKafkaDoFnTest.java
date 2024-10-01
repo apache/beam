@@ -88,8 +88,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 
 public class ReadFromKafkaDoFnTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   private final TopicPartition topicPartition = new TopicPartition("topic", 0);
 
