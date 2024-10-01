@@ -64,6 +64,6 @@ jobs:
           go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2023.1.7"
+          go install "honnef.co/go/tools/cmd/staticcheck@2024.1.1"
           cd sdks/go/pkg/beam
           $(go env GOPATH)/bin/staticcheck ./...
