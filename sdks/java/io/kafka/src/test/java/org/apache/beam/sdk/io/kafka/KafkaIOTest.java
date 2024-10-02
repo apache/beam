@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -970,8 +971,9 @@ public class KafkaIOTest {
     thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(instanceOf(IllegalStateException.class));
     thrown.expectMessage(
-        "Could not find any partitions info. Please check Kafka configuration and make sure that "
-            + "provided topics exist.");
+        matchesPattern(
+            ".*Could not find any partitions(?: info)?\\. Please check Kafka "
+                + "configuration and (?:make sure that provided topics exist|topic names).*"));
 
     int numElements = 1000;
     KafkaIO.Read<Integer, Long> reader =
