@@ -281,7 +281,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id,
               use_at_least_once=True,
               use_cdc_writes=True,
-              cdc_writes_primary_key=["name"]))
+              primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
