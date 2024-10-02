@@ -32,7 +32,6 @@ from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
-from typing import Union
 
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
@@ -393,15 +392,12 @@ class OrderedListRuntimeState(AccumulatingRuntimeState):
     raise NotImplementedError(type(self))
 
   def read_range(
-      self,
-      min_time_stamp: Timestamp,
+      self, min_time_stamp: Timestamp,
       limit_time_stamp: Timestamp) -> Iterable[Tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
   def clear_range(
-      self,
-      min_time_stamp: Timestamp,
-      limit_time_stamp: Timestamp) -> None:
+      self, min_time_stamp: Timestamp, limit_time_stamp: Timestamp) -> None:
     raise NotImplementedError(type(self))
 
 
