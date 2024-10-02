@@ -38,7 +38,7 @@ class WriteGroupedRowsToFiles
     extends PTransform<
         PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
 
-  static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
+  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
 
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
