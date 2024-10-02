@@ -2637,7 +2637,7 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
-            use_cdc_writes=use_cdc_writes,
+            use_cdc_writes=_use_cdc_writes,
             cdc_writes_primary_key=self._cdc_writes_primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS

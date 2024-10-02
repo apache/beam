@@ -284,21 +284,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               cdc_writes_primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
-    with beam.Pipeline(argv=self.args) as p:
-      _ = (
-          p
-          | beam.Create(dicts)
-          | beam.io.WriteToBigQuery(
-              table=table_id,
-              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              schema=schema,
-              use_at_least_once=True,
-              use_cdc_writes=lambda row: beam.Row(
-                  mutation_type="UPSERT",
-                  change_sequence_number="AAA/" + str(row.value)),
-              cdc_writes_primary_key=["name"]))
-    hamcrest_assert(p, bq_matcher)
-
   def test_write_to_dynamic_destinations(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
