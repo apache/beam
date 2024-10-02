@@ -45,7 +45,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   // Used for auto-sharding in streaming. Limits number of records per batch/file
   private static final int FILE_TRIGGERING_RECORD_COUNT = 500_000;
   // Used for auto-sharding in streaming. Limits total byte size per batch/file
-  public static final int FILE_TRIGGERING_BYTE_COUNT = 512 * 1024 * 1024; // 512MiB
+  public static final int FILE_TRIGGERING_BYTE_COUNT = 1 << 30; // 1GiB
   static final int DEFAULT_NUM_FILE_SHARDS = 0;
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
