@@ -54,7 +54,7 @@ public class IcebergWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<Configuration> {
 
   static final String INPUT_TAG = "input";
-  static final String OUTPUT_TAG = "output";
+  static final String SNAPSHOTS_TAG = "snapshots";
 
   static final Schema OUTPUT_SCHEMA =
       Schema.builder().addStringField("table").addFields(SnapshotInfo.SCHEMA.getFields()).build();
@@ -146,7 +146,7 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(OUTPUT_TAG);
+    return Collections.singletonList(SNAPSHOTS_TAG);
   }
 
   @Override
@@ -204,7 +204,7 @@ public class IcebergWriteSchemaTransformProvider
               .apply(MapElements.via(new SnapshotToRow()))
               .setRowSchema(OUTPUT_SCHEMA);
 
-      return PCollectionRowTuple.of(OUTPUT_TAG, snapshots);
+      return PCollectionRowTuple.of(SNAPSHOTS_TAG, snapshots);
     }
 
     @VisibleForTesting
