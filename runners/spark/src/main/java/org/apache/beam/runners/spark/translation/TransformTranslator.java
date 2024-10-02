@@ -482,7 +482,7 @@ public final class TransformTranslator {
         }
       }
 
-      private boolean hasMultipleOutputs(Map<TupleTag<?>, PCollection<?>> outputs) {
+      private static boolean hasMultipleOutputs(Map<TupleTag<?>, PCollection<?>> outputs) {
         return outputs.size() > 1;
       }
 
