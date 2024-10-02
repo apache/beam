@@ -225,13 +225,13 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   List<Row> createCDCUpsertRows(List<Row> rows, boolean dynamicDestination, String tablePrefix) {
-    Schema cdcInfoSchema =
-        Schema.builder()
-            .addStringField("mutation_type")
-            .addStringField("change_sequence_number")
-            .build();
+
     Schema.Builder schemaBuilder =
-        Schema.builder().addRowField("record", SCHEMA).addRowField("cdc_info", cdcInfoSchema);
+        Schema.builder()
+            .addRowField("record", SCHEMA)
+            .addRowField(
+                BigQueryStorageWriteApiSchemaTransformProvider.ROW_PROPERTY_MUTATION_INFO,
+                BigQueryStorageWriteApiSchemaTransformProvider.ROW_SCHEMA_MUTATION_INFO);
 
     if (dynamicDestination) {
       schemaBuilder = schemaBuilder.addStringField("destination");
@@ -245,10 +245,18 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
               Row.FieldValueBuilder rowBuilder =
                   Row.withSchema(schemaWithCDC)
                       .withFieldValue(
-                          "cdc_info",
-                          Row.withSchema(cdcInfoSchema)
-                              .withFieldValue("mutation_type", "UPSERT")
-                              .withFieldValue("change_sequence_number", "AAA" + idx)
+                          BigQueryStorageWriteApiSchemaTransformProvider.ROW_PROPERTY_MUTATION_INFO,
+                          Row.withSchema(
+                                  BigQueryStorageWriteApiSchemaTransformProvider
+                                      .ROW_SCHEMA_MUTATION_INFO)
+                              .withFieldValue(
+                                  BigQueryStorageWriteApiSchemaTransformProvider
+                                      .ROW_PROPERTY_MUTATION_TYPE,
+                                  "UPSERT")
+                              .withFieldValue(
+                                  BigQueryStorageWriteApiSchemaTransformProvider
+                                      .ROW_PROPERTY_MUTATION_SQN,
+                                  "AAA" + idx)
                               .build())
                       .withFieldValue("record", row);
               if (dynamicDestination) {
@@ -270,7 +278,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             .setUseAtLeastOnceSemantics(true)
             .setTable(tableSpec)
             .setUseCdcWrites(true)
-            .setCdcWritesPrimaryKey(primaryKeyColumns)
+            .setPrimaryKey(primaryKeyColumns)
             .build();
 
     List<Row> rowsDuplicated =
@@ -299,9 +307,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            .setUseAtLeastOnceSemantics(true)
             .setTable(dynamic)
             .setUseCdcWrites(true)
-            .setCdcWritesPrimaryKey(primaryKeyColumns)
+            .setPrimaryKey(primaryKeyColumns)
             .build();
 
     String baseTableSpec = "project:dataset.cdc_dynamic_write_";

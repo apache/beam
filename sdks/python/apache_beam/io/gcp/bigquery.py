@@ -366,7 +366,6 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -1922,7 +1921,7 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
-      use_cdc_writes: Union[bool, Callable] = False,
+      use_cdc_writes: bool = False,
       cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
@@ -2092,12 +2091,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
         The argument can be used by passing True and the Beam Rows will be
         sent as they are to the BigQuery sink which expects a 'record'
-        and 'cdc_info' properties.
+        and 'row_mutation_info' properties.
         Used for STORAGE_WRITE_API, working on 'at least once' mode.
       cdc_writes_primary_key: When using CDC write on BigQuery and
         CREATE_IF_NEEDED mode for the underlying tables a list of column names
         is required to be configured as the primary key. Used for
-        STORAGE_WRITE_API.
+        STORAGE_WRITE_API, working on 'at least once' mode.
     """
     self._table = table
     self._dataset = dataset
@@ -2525,7 +2524,7 @@ class StorageWriteToBigQuery(PTransform):
   DESTINATION = "destination"
   RECORD = "record"
   # field for rows sent to Storage API for CDC functionality
-  CDC_INFO = "cdc_info"
+  CDC_INFO = "row_mutation_info"
   CDC_MUTATION_TYPE = "mutation_type"
   CDC_SQN = "change_sequence_number"
   # magic string to tell Java that these rows are going to dynamic destinations
@@ -2542,7 +2541,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
-      use_cdc_writes: Union[bool, Callable] = False,
+      use_cdc_writes: bool = False,
       cdc_writes_primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
@@ -2624,62 +2623,6 @@ class StorageWriteToBigQuery(PTransform):
                 schema, True).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
-
-    use_cdc_writes = False
-    # if CDC functionality is configured we need to check if a callable has
-    # been passed to extract MutationInfo from the rows to be written
-    if callable(self._use_cdc_writes):
-      use_cdc_writes = True
-      type_hints_beam_rows = bigquery_tools.get_beam_typehints_from_tableschema(
-          schema)
-      cdc_info_fn = self._use_cdc_writes
-      # if we have dynamic destinations we just need to copy the
-      # destination and record properties while adding the cdc_info
-      if callable(table):
-        input_beam_rows = (
-            input_beam_rows
-            | "Include CDC info in Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[0],
-                        StorageWriteToBigQuery.RECORD: row[1],
-                        StorageWriteToBigQuery.CDC_INFO: cdc_info_fn(row[1])
-                    })).
-            with_output_types(
-                RowTypeConstraint.from_fields(
-                    [(StorageWriteToBigQuery.DESTINATION, str),
-                     (
-                         StorageWriteToBigQuery.RECORD,
-                         RowTypeConstraint.from_fields(type_hints_beam_rows)),
-                     (
-                         StorageWriteToBigQuery.CDC_INFO,
-                         RowTypeConstraint.from_fields(
-                             [(StorageWriteToBigQuery.CDC_MUTATION_TYPE, str),
-                              (StorageWriteToBigQuery.CDC_SQN, str)]))])))
-      # otherwise, we create the wrapping Row with the record and
-      # cdc_info properties in it
-      else:
-        input_beam_rows = (
-            input_beam_rows
-            | "Wrap in Row with CDC info" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.RECORD: row,
-                        StorageWriteToBigQuery.CDC_INFO: cdc_info_fn(row)
-                    })).
-            with_output_types(
-                RowTypeConstraint.from_fields(
-                    [(
-                        StorageWriteToBigQuery.RECORD,
-                        RowTypeConstraint.from_fields(type_hints_beam_rows)),
-                     (
-                         StorageWriteToBigQuery.CDC_INFO,
-                         RowTypeConstraint.from_fields(
-                             [(StorageWriteToBigQuery.CDC_MUTATION_TYPE, str),
-                              (StorageWriteToBigQuery.CDC_SQN, str)]))])))
-    # otherwise we extract the configured boolean value
-    else:
-      use_cdc_writes = self._use_cdc_writes
 
     output = (
         input_beam_rows
