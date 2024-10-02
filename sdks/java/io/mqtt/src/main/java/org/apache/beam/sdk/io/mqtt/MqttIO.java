@@ -39,6 +39,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -99,6 +101,26 @@ import org.slf4j.LoggerFactory;
  *       "my_topic"))
  *
  * }</pre>
+ *
+ * <h3>Dynamic Writing to a MQTT Broker</h3>
+ *
+ * <p>MqttIO also supports dynamic writing to multiple topics based on the data. You can specify a
+ * function to determine the target topic for each message. The following example demonstrates how
+ * to configure dynamic topic writing:
+ *
+ * <pre>{@code
+ * pipeline
+ *   .apply(...)  // Provide PCollection<InputT>
+ *   .apply(
+ *     MqttIO.<InputT>dynamicWrite()
+ *       .withConnectionConfiguration(
+ *         MqttIO.ConnectionConfiguration.create("tcp://host:11883"))
+ *       .withTopicFn(<Function to determine the topic dynamically>)
+ *       .withPayloadFn(<Function to extract the payload>));
+ * }</pre>
+ *
+ * <p>This dynamic writing capability allows for more flexible MQTT message routing based on the
+ * message content, enabling scenarios where messages are directed to different topics.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -115,8 +137,16 @@ public class MqttIO {
         .build();
   }
 
-  public static Write write() {
-    return new AutoValue_MqttIO_Write.Builder().setRetained(false).build();
+  public static Write<byte[]> write() {
+    return new AutoValue_MqttIO_Write.Builder<byte[]>()
+        .setRetained(false)
+        .setPayloadFn(SerializableFunctions.identity())
+        .setDynamic(false)
+        .build();
+  }
+
+  public static <InputT> Write<InputT> dynamicWrite() {
+    return new AutoValue_MqttIO_Write.Builder<InputT>().setRetained(false).setDynamic(true).build();
   }
 
   private MqttIO() {}
@@ -127,7 +157,7 @@ public class MqttIO {
 
     abstract String getServerUri();
 
-    abstract String getTopic();
+    abstract @Nullable String getTopic();
 
     abstract @Nullable String getClientId();
 
@@ -169,6 +199,11 @@ public class MqttIO {
           .build();
     }
 
+    public static ConnectionConfiguration create(String serverUri) {
+      checkArgument(serverUri != null, "serverUri can not be null");
+      return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri).build();
+    }
+
     /** Set up the MQTT broker URI. */
     public ConnectionConfiguration withServerUri(String serverUri) {
       checkArgument(serverUri != null, "serverUri can not be null");
@@ -199,7 +234,7 @@ public class MqttIO {
 
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("serverUri", getServerUri()));
-      builder.add(DisplayData.item("topic", getTopic()));
+      builder.addIfNotNull(DisplayData.item("topic", getTopic()));
       builder.addIfNotNull(DisplayData.item("clientId", getClientId()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
@@ -278,6 +313,9 @@ public class MqttIO {
 
     @Override
     public PCollection<byte[]> expand(PBegin input) {
+      checkArgument(connectionConfiguration() != null, "connectionConfiguration can not be null");
+      checkArgument(connectionConfiguration().getTopic() != null, "topic can not be null");
+
       org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedMqttSource(this));
 
@@ -505,27 +543,48 @@ public class MqttIO {
 
   /** A {@link PTransform} to write and send a message to a MQTT server. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
-
+  public abstract static class Write<InputT> extends PTransform<PCollection<InputT>, PDone> {
     abstract @Nullable ConnectionConfiguration connectionConfiguration();
+
+    abstract @Nullable SerializableFunction<InputT, String> topicFn();
+
+    abstract @Nullable SerializableFunction<InputT, byte[]> payloadFn();
+
+    abstract boolean dynamic();
 
     abstract boolean retained();
 
-    abstract Builder builder();
+    abstract Builder<InputT> builder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setConnectionConfiguration(ConnectionConfiguration configuration);
+    abstract static class Builder<InputT> {
+      abstract Builder<InputT> setConnectionConfiguration(ConnectionConfiguration configuration);
 
-      abstract Builder setRetained(boolean retained);
+      abstract Builder<InputT> setRetained(boolean retained);
 
-      abstract Write build();
+      abstract Builder<InputT> setTopicFn(SerializableFunction<InputT, String> topicFn);
+
+      abstract Builder<InputT> setPayloadFn(SerializableFunction<InputT, byte[]> payloadFn);
+
+      abstract Builder<InputT> setDynamic(boolean dynamic);
+
+      abstract Write<InputT> build();
     }
 
     /** Define MQTT connection configuration used to connect to the MQTT broker. */
-    public Write withConnectionConfiguration(ConnectionConfiguration configuration) {
+    public Write<InputT> withConnectionConfiguration(ConnectionConfiguration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       return builder().setConnectionConfiguration(configuration).build();
+    }
+
+    public Write<InputT> withTopicFn(SerializableFunction<InputT, String> topicFn) {
+      checkArgument(dynamic(), "withTopicFn can not use in non-dynamic write");
+      return builder().setTopicFn(topicFn).build();
+    }
+
+    public Write<InputT> withPayloadFn(SerializableFunction<InputT, byte[]> payloadFn) {
+      checkArgument(dynamic(), "withPayloadFn can not use in non-dynamic write");
+      return builder().setPayloadFn(payloadFn).build();
     }
 
     /**
@@ -538,14 +597,8 @@ public class MqttIO {
      * @param retained Whether or not the messaging engine should retain the message.
      * @return The {@link Write} {@link PTransform} with the corresponding retained configuration.
      */
-    public Write withRetained(boolean retained) {
+    public Write<InputT> withRetained(boolean retained) {
       return builder().setRetained(retained).build();
-    }
-
-    @Override
-    public PDone expand(PCollection<byte[]> input) {
-      input.apply(ParDo.of(new WriteFn(this)));
-      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -554,38 +607,66 @@ public class MqttIO {
       builder.add(DisplayData.item("retained", retained()));
     }
 
-    private static class WriteFn extends DoFn<byte[], Void> {
+    @Override
+    public PDone expand(PCollection<InputT> input) {
+      checkArgument(connectionConfiguration() != null, "connectionConfiguration can not be null");
+      if (dynamic()) {
+        checkArgument(
+            connectionConfiguration().getTopic() == null, "DynamicWrite can not have static topic");
+        checkArgument(topicFn() != null, "topicFn can not be null");
+      } else {
+        checkArgument(connectionConfiguration().getTopic() != null, "topic can not be null");
+      }
+      checkArgument(payloadFn() != null, "payloadFn can not be null");
 
-      private final Write spec;
+      input.apply(ParDo.of(new WriteFn<>(this)));
+      return PDone.in(input.getPipeline());
+    }
+
+    private static class WriteFn<InputT> extends DoFn<InputT, Void> {
+
+      private final Write<InputT> spec;
+      private final SerializableFunction<InputT, String> topicFn;
+      private final SerializableFunction<InputT, byte[]> payloadFn;
+      private final boolean retained;
 
       private transient MQTT client;
       private transient BlockingConnection connection;
 
-      public WriteFn(Write spec) {
+      public WriteFn(Write<InputT> spec) {
         this.spec = spec;
+        if (spec.dynamic()) {
+          this.topicFn = spec.topicFn();
+        } else {
+          String topic = spec.connectionConfiguration().getTopic();
+          this.topicFn = ignore -> topic;
+        }
+        this.payloadFn = spec.payloadFn();
+        this.retained = spec.retained();
       }
 
       @Setup
       public void createMqttClient() throws Exception {
         LOG.debug("Starting MQTT writer");
-        client = spec.connectionConfiguration().createClient();
+        this.client = this.spec.connectionConfiguration().createClient();
         LOG.debug("MQTT writer client ID is {}", client.getClientId());
-        connection = createConnection(client);
+        this.connection = createConnection(client);
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        byte[] payload = context.element();
+        InputT element = context.element();
+        byte[] payload = this.payloadFn.apply(element);
+        String topic = this.topicFn.apply(element);
         LOG.debug("Sending message {}", new String(payload, StandardCharsets.UTF_8));
-        connection.publish(
-            spec.connectionConfiguration().getTopic(), payload, QoS.AT_LEAST_ONCE, false);
+        this.connection.publish(topic, payload, QoS.AT_LEAST_ONCE, this.retained);
       }
 
       @Teardown
       public void closeMqttClient() throws Exception {
-        if (connection != null) {
+        if (this.connection != null) {
           LOG.debug("Disconnecting MQTT connection (client ID {})", client.getClientId());
-          connection.disconnect();
+          this.connection.disconnect();
         }
       }
     }

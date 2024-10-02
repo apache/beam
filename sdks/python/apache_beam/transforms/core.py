@@ -1156,7 +1156,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def compact(self, accumulator, *args, **kwargs):
-    """Optionally returns a more compact represenation of the accumulator.
+    """Optionally returns a more compact representation of the accumulator.
 
     This is called before an accumulator is sent across the wire, and can
     be useful in cases where values are buffered or otherwise lazily
@@ -1461,9 +1461,15 @@ class CallableWrapperPartitionFn(PartitionFn):
 
 def _get_function_body_without_inners(func):
   source_lines = inspect.getsourcelines(func)[0]
-  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
-  def_line = next(source_lines).strip()
-  if def_line.startswith("def ") and def_line.endswith(":"):
+  source_lines = dropwhile(lambda x: x.strip().startswith("@"), source_lines)
+  first_def_line = next(source_lines).strip()
+  if first_def_line.startswith("def "):
+    last_def_line_without_comment = first_def_line.split("#")[0] \
+        .split("\"\"\"")[0]
+    while not last_def_line_without_comment.strip().endswith(":"):
+      last_def_line_without_comment = next(source_lines).split("#")[0] \
+        .split("\"\"\"")[0]
+
     first_line = next(source_lines)
     indentation = len(first_line) - len(first_line.lstrip())
     final_lines = [first_line[indentation:]]
@@ -1487,7 +1493,7 @@ def _get_function_body_without_inners(func):
 
     return "".join(final_lines)
   else:
-    return def_line.rsplit(":")[-1].strip()
+    return first_def_line.rsplit(":")[-1].strip()
 
 
 def _check_fn_use_yield_and_return(fn):
@@ -1497,15 +1503,26 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
+    return_none_warning = (
+        "No iterator is returned by the process method in %s.",
+        fn.__self__.__class__)
     for line in source_code.split("\n"):
-      if line.lstrip().startswith("yield ") or line.lstrip().startswith(
+      lstripped_line = line.lstrip()
+      if lstripped_line.startswith("yield ") or lstripped_line.startswith(
           "yield("):
         has_yield = True
-      if line.lstrip().startswith("return ") or line.lstrip().startswith(
+      if lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
         has_return = True
+        if lstripped_line.startswith(
+            "return None") or lstripped_line.rstrip() == "return":
+          _LOGGER.warning(return_none_warning)
       if has_yield and has_return:
         return True
+
+    if not has_yield and not has_return:
+      _LOGGER.warning(return_none_warning)
+
     return False
   except Exception as e:
     _LOGGER.debug(str(e))
@@ -3141,33 +3158,40 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
     class PreCombineFn(CombineFn):
+      def __init__(self):
+        # Deepcopy of the combine_fn to avoid sharing state between lifted
+        # stages when using cloudpickle.
+        self._combine_fn_copy = copy.deepcopy(combine_fn)
+        self.setup = self._combine_fn_copy.setup
+        self.create_accumulator = self._combine_fn_copy.create_accumulator
+        self.add_input = self._combine_fn_copy.add_input
+        self.merge_accumulators = self._combine_fn_copy.merge_accumulators
+        self.compact = self._combine_fn_copy.compact
+        self.teardown = self._combine_fn_copy.teardown
+
       @staticmethod
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
 
-      setup = combine_fn.setup
-      create_accumulator = combine_fn.create_accumulator
-      add_input = combine_fn.add_input
-      merge_accumulators = combine_fn.merge_accumulators
-      compact = combine_fn.compact
-      teardown = combine_fn.teardown
-
     class PostCombineFn(CombineFn):
-      @staticmethod
-      def add_input(accumulator, element):
+      def __init__(self):
+        # Deepcopy of the combine_fn to avoid sharing state between lifted
+        # stages when using cloudpickle.
+        self._combine_fn_copy = copy.deepcopy(combine_fn)
+        self.setup = self._combine_fn_copy.setup
+        self.create_accumulator = self._combine_fn_copy.create_accumulator
+        self.merge_accumulators = self._combine_fn_copy.merge_accumulators
+        self.compact = self._combine_fn_copy.compact
+        self.extract_output = self._combine_fn_copy.extract_output
+        self.teardown = self._combine_fn_copy.teardown
+
+      def add_input(self, accumulator, element):
         is_accumulator, value = element
         if is_accumulator:
-          return combine_fn.merge_accumulators([accumulator, value])
+          return self._combine_fn_copy.merge_accumulators([accumulator, value])
         else:
-          return combine_fn.add_input(accumulator, value)
-
-      setup = combine_fn.setup
-      create_accumulator = combine_fn.create_accumulator
-      merge_accumulators = combine_fn.merge_accumulators
-      compact = combine_fn.compact
-      extract_output = combine_fn.extract_output
-      teardown = combine_fn.teardown
+          return self._combine_fn_copy.add_input(accumulator, value)
 
     def StripNonce(nonce_key_value):
       (_, key), value = nonce_key_value

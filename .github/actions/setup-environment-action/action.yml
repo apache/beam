@@ -57,5 +57,5 @@ runs:
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v5
       with:
-        go-version: ${{ inputs.go-version == 'default' && '1.22' || inputs.go-version }} # never set patch, to get latest patch releases.
+        go-version: ${{ inputs.go-version == 'default' && '1.23' || inputs.go-version }} # never set patch, to get latest patch releases.
         cache-dependency-path: $${{ inputs.disable-cache && '' || 'sdks/go.sum' }}

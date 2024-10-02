@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -135,25 +136,26 @@ public class IcebergIOWriteTest implements Serializable {
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
-          private final Schema schema = Schema.builder().addInt64Field("tableNumber").build();
-
           @Override
-          public Schema getMetadataSchema() {
-            return schema;
+          public Schema getDataSchema() {
+            return IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
           }
 
           @Override
-          public Row assignDestinationMetadata(Row data) {
-            long rowId = data.getInt64("id");
-            return Row.withSchema(schema).addValues((rowId / 3) + 1).build();
+          public Row getData(Row element) {
+            return element;
           }
 
           @Override
-          public IcebergDestination instantiateDestination(Row dest) {
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            long tableNumber = element.getValue().getInt64("id") / 3 + 1;
+            return String.format("default.table%s-%s", tableNumber, salt);
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String dest) {
             return IcebergDestination.builder()
-                .setTableIdentifier(
-                    TableIdentifier.of(
-                        "default", "table" + dest.getInt64("tableNumber") + "-" + salt))
+                .setTableIdentifier(TableIdentifier.parse(dest))
                 .setFileFormat(FileFormat.PARQUET)
                 .build();
           }
@@ -230,25 +232,26 @@ public class IcebergIOWriteTest implements Serializable {
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
-          private final Schema schema = Schema.builder().addInt64Field("tableNumber").build();
-
           @Override
-          public Schema getMetadataSchema() {
-            return schema;
+          public Schema getDataSchema() {
+            return IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
           }
 
           @Override
-          public Row assignDestinationMetadata(Row data) {
-            long rowId = data.getInt64("id");
-            return Row.withSchema(schema).addValues(rowId % numDestinations).build();
+          public Row getData(Row element) {
+            return element;
           }
 
           @Override
-          public IcebergDestination instantiateDestination(Row dest) {
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            long tableNumber = element.getValue().getInt64("id") % numDestinations;
+            return String.format("default.table%s-%s", tableNumber, salt);
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String dest) {
             return IcebergDestination.builder()
-                .setTableIdentifier(
-                    TableIdentifier.of(
-                        "default", "table" + dest.getInt64("tableNumber") + "-" + salt))
+                .setTableIdentifier(TableIdentifier.parse(dest))
                 .setFileFormat(FileFormat.PARQUET)
                 .build();
           }

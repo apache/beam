@@ -266,7 +266,12 @@ def assert_that(
     # The pipeline was already run. The user most likely called assert_that
     # after the pipeleline context.
     raise RuntimeError(
-        'assert_that must be used within a beam.Pipeline context')
+        'assert_that must be used within a beam.Pipeline context. ' +
+        'Prior to Beam 2.60.0, asserts outside of the context of a pipeline ' +
+        'were silently ignored, starting with Beam 2.60.0 this is no longer ' +
+        'allowed. To fix, move your assert_that call into your pipeline ' +
+        'context so that it is added before the pipeline is run. For more ' +
+        'information, see https://github.com/apache/beam/pull/30771')
 
   # Usually, the uniqueness of the label is left to the pipeline
   # writer to guarantee. Since we're in a testing context, we'll

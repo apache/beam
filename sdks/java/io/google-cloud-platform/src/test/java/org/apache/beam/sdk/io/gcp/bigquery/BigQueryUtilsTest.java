@@ -1222,4 +1222,29 @@ public class BigQueryUtilsTest {
     assertNull(BigQueryUtils.toTableReference("projects/"));
     assertNull(BigQueryUtils.toTableReference("projects"));
   }
+
+  @Test
+  public void testTrimSchema() {
+    assertEquals(BQ_FLAT_TYPE, BigQueryUtils.trimSchema(BQ_FLAT_TYPE, null));
+    assertEquals(BQ_FLAT_TYPE, BigQueryUtils.trimSchema(BQ_FLAT_TYPE, Collections.emptyList()));
+
+    {
+      TableSchema expected = new TableSchema().setFields(Arrays.asList(ID, VALUE, NAME));
+      assertEquals(
+          expected, BigQueryUtils.trimSchema(BQ_FLAT_TYPE, Arrays.asList("id", "value", "name")));
+    }
+
+    {
+      TableFieldSchema filteredRow =
+          new TableFieldSchema()
+              .setName("row")
+              .setType(StandardSQLTypeName.STRUCT.toString())
+              .setMode(Mode.NULLABLE.toString())
+              .setFields(Arrays.asList(ID, VALUE, NAME));
+      TableSchema expected = new TableSchema().setFields(Collections.singletonList(filteredRow));
+      assertEquals(
+          expected,
+          BigQueryUtils.trimSchema(BQ_ROW_TYPE, Arrays.asList("row.id", "row.value", "row.name")));
+    }
+  }
 }

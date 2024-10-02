@@ -162,14 +162,14 @@ To work around this, you can start using hosted runners and then switch over whe
 You can do this by changing `runs-on: [self-hosted, ubuntu-20.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
 
 Note when using `ubuntu-20.04` as the host, you might need to choose the Java version since some gradle tasks only work with a certain Java version.
-One example is below to use Java 8 when testing your workflow:
+One example is below to use Java 11 when testing your workflow:
 ```
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '11'
 ```
 
 ## Testing Workflow Updates
