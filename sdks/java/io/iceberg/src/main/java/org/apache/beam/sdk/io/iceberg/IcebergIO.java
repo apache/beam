@@ -88,7 +88,7 @@ import org.joda.time.Duration;
  *     template to use dynamic destinations (see the `Dynamic Destinations` section below for details). </td>
  *   </tr>
  *   <tr>
- *       <td> {@code triggering_frequency_seconds} </td> <td> int </td> <td> Required for streaming writes. Roughly every
+ *       <td> {@code triggering_frequency_seconds} </td> <td> {@code int} </td> <td> Required for streaming writes. Roughly every
  *       {@code triggering_frequency_seconds} duration, the sink will write records to data files and produce a table snapshot.
  *       Generally, a higher value will produce fewer, larger data files.
  *       </td>
