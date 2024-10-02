@@ -68,7 +68,7 @@ public class PrismLocatorTest {
     options.setPrismVersionOverride("2.57.0-RC1");
 
     PrismLocator underTest = new PrismLocator(options);
-    String got = underTest.resolveLocation();
+    String got = underTest.resolveSource();
 
     assertThat(got)
         .contains(
@@ -86,7 +86,7 @@ public class PrismLocatorTest {
     options.setPrismLocation(want);
 
     PrismLocator underTest = new PrismLocator(options);
-    String got = underTest.resolveLocation();
+    String got = underTest.resolveSource();
 
     assertThat(got).isEqualTo(want);
   }
@@ -102,7 +102,7 @@ public class PrismLocatorTest {
     options.setPrismVersionOverride("2.57.0");
 
     PrismLocator underTest = new PrismLocator(options);
-    String got = underTest.resolveLocation();
+    String got = underTest.resolveSource();
 
     assertThat(got)
         .contains(
@@ -117,7 +117,7 @@ public class PrismLocatorTest {
     options.setPrismVersionOverride("2.57.0");
 
     PrismLocator underTest = new PrismLocator(options);
-    String got = underTest.resolveLocation();
+    String got = underTest.resolveSource();
 
     assertThat(got)
         .contains(

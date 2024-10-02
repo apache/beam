@@ -64,7 +64,7 @@ class PrismLocator {
     this.options = options;
   }
 
-  String resolveLocation() {
+  String resolveSource() {
     String from =
         String.format(
             "%s/v%s/%s.zip", GITHUB_DOWNLOAD_PREFIX, RELEASE_INFO.getSdkVersion(), buildFileName());
@@ -108,7 +108,7 @@ class PrismLocator {
    * {@link String} is the absolute path to the Prism executable.
    */
   String resolve() throws IOException {
-    String from = resolveLocation();
+    String from = resolveSource();
 
     String fromFileName = getNameWithoutExtension(from);
     Path to = Paths.get(userHome(), PRISM_BIN_PATH, fromFileName);
