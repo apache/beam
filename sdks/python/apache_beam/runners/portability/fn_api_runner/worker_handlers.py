@@ -1056,7 +1056,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     yield
 
   def _get_one_interval_key(self, state_key, start):
-    # type: (...) -> bytes
+    # type: (beam_fn_api_pb2.StateKey, int) -> bytes
     state_key_copy = beam_fn_api_pb2.StateKey()
     state_key_copy.CopyFrom(state_key)
     state_key_copy.ordered_list_user_state.range.start = start

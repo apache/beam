@@ -781,8 +781,8 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
 
   def add(self, elem: Tuple[timestamp.Timestamp, Any]) -> None:
     assert len(elem) == 2
-    key, value = elem
-    key = key.micros
+    key_ts, value = elem
+    key = key_ts.micros
 
     if key >= self.RANGE_MAX or key < self.RANGE_MIN:
       raise ValueError("key value %d is out of range" % key)
@@ -797,11 +797,11 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       limit_timestamp: timestamp.Timestamp
   ) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
     # convert timestamp to int, as sort keys are stored as int internally.
-    min_timestamp = min_timestamp.micros
-    limit_timestamp = limit_timestamp.micros
+    min_key = min_timestamp.micros
+    limit_key = limit_timestamp.micros
 
     keys_to_add = self._pending_adds.irange(
-        min_timestamp, limit_timestamp, inclusive=(True, False))
+        min_key, limit_key, inclusive=(True, False))
 
     # use list interpretation here to construct the actual list
     # of iterators of the selected range.
@@ -816,8 +816,8 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     if not self._cleared:
       range_query_state_key = beam_fn_api_pb2.StateKey()
       range_query_state_key.CopyFrom(self._state_key)
-      range_query_state_key.ordered_list_user_state.range.start = min_timestamp
-      range_query_state_key.ordered_list_user_state.range.end = limit_timestamp
+      range_query_state_key.ordered_list_user_state.range.start = min_key
+      range_query_state_key.ordered_list_user_state.range.end = limit_key
 
       # make a deep copy here because there could be other operations occur in
       # the middle of an iteration and change pending_removes
@@ -843,18 +843,17 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       self,
       min_timestamp: timestamp.Timestamp,
       limit_timestamp: timestamp.Timestamp) -> None:
-    min_timestamp = min_timestamp.micros
-    limit_timestamp = limit_timestamp.micros
+    min_key = min_timestamp.micros
+    limit_key = limit_timestamp.micros
 
     # materialize the keys to remove before the actual removal
     keys_to_remove = list(
-        self._pending_adds.irange(
-            min_timestamp, limit_timestamp, inclusive=(True, False)))
+        self._pending_adds.irange(min_key, limit_key, inclusive=(True, False)))
     for k in keys_to_remove:
       del self._pending_adds[k]
 
     if not self._cleared:
-      self._pending_removes.add(min_timestamp, limit_timestamp)
+      self._pending_removes.add(min_key, limit_key)
 
   def commit(self) -> None:
     futures = []
