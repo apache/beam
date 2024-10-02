@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
-import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.OUTPUT_TAG;
+import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.SNAPSHOTS_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -122,7 +122,7 @@ public class IcebergWriteSchemaTransformProviderTest {
     PCollection<Row> result =
         input
             .apply("Append To Table", new IcebergWriteSchemaTransformProvider().from(config))
-            .get(OUTPUT_TAG);
+            .get(SNAPSHOTS_TAG);
 
     PAssert.that(result)
         .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
@@ -154,7 +154,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
             .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA));
     PCollection<Row> result =
-        inputRows.apply(Managed.write(Managed.ICEBERG).withConfig(configMap)).get(OUTPUT_TAG);
+        inputRows.apply(Managed.write(Managed.ICEBERG).withConfig(configMap)).get(SNAPSHOTS_TAG);
 
     PAssert.that(result)
         .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
