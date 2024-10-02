@@ -75,6 +75,7 @@
 
 ## Breaking Changes
 
+* In Python, assert_that now throws if it is not in a pipeline context instead of silently succeeding ([#30771](https://github.com/apache/beam/pull/30771))
 * In Python and YAML, ReadFromJson now override the dtype from None to
   an explicit False.  Most notably, string values like `"123"` are preserved
   as strings rather than silently coerced (and possibly truncated) to numeric
