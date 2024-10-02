@@ -198,6 +198,39 @@ import org.joda.time.Duration;
  *   </tr>
  * </table>
  *
+ * <p>Example write to dynamic destinations (pseudocode):
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", "flights.{country}.{airport}",
+ *         "catalog_properties", Map.of(...),
+ *         "drop", ["country", "airport"]);
+ *
+ * JSON_ROWS = [
+ *       // first record is written to table "flights.usa.RDU"
+ *         "{\"country\": \"usa\"," +
+ *          "\"airport\": \"RDU\"," +
+ *          "\"flight_id\": \"AA356\"," +
+ *          "\"destination\": \"SFO\"," +
+ *          "\"meal\": \"chicken alfredo\"}",
+ *       // second record is written to table "flights.qatar.HIA"
+ *         "{\"country\": \"qatar\"," +
+ *          "\"airport\": \"HIA\"," +
+ *          "\"flight_id\": \"QR 875\"," +
+ *          "\"destination\": \"DEL\"," +
+ *          "\"meal\": \"shawarma\"}",
+ *          ...
+ *          ];
+ *
+ * // fields "country" and "airport" are dropped before
+ * // records are written to tables
+ * pipeline
+ *     .apply(Create.of(JSON_ROWS))
+ *     .apply(JsonToRow.withSchema(...))
+ *     .apply(Managed.write(ICEBERG).withConfig(config));
+ *
+ * }</pre>
+ *
  * <h3>Output Snapshots</h3>
  *
  * <p>When records are written and committed to a table, a snapshot is produced. A batch pipeline
