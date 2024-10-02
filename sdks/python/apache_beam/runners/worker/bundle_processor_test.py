@@ -679,6 +679,8 @@ class OrderedListStateTest(unittest.TestCase):
   def test_continuation_token(self):
     A1, A2, A7, B7, A8 = [(1, "a1"), (2, "a2"), (7, "a7"), (7, "b7"), (8, "a8")]
     self.state._state_handler._underlying._use_continuation_tokens = True
+    self.assertEqual([], list(self.state.read_range(1, 8)))
+
     self.state.add(A1)
     self.state.add(A2)
     self.state.add(A7)

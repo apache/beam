@@ -50,10 +50,7 @@ from typing import overload
 import grpc
 from sortedcontainers import SortedSet
 
-from apache_beam.coders import BytesCoder
-from apache_beam.coders import TupleCoder
-from apache_beam.coders import VarIntCoder
-from apache_beam.coders import coders
+from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
@@ -1027,7 +1024,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     self._checkpoint = None  # type: Optional[StateServicer.StateType]
     self._use_continuation_tokens = False
     self._continuations = {}  # type: Dict[bytes, Tuple[bytes, ...]]
-    self._ordered_list_keys = {}  # type: Dict[bytes, SortedSet]
+    self._ordered_list_keys = collections.defaultdict(
+        SortedSet)  # type: DefaultDict[bytes, SortedSet]
 
   def checkpoint(self):
     # type: () -> None
@@ -1057,6 +1055,13 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     # type: (Any) -> Iterator
     yield
 
+  def _get_one_interval_key(self, state_key, start):
+    state_key_copy = beam_fn_api_pb2.StateKey()
+    state_key_copy.CopyFrom(state_key)
+    state_key_copy.ordered_list_user_state.range.start = start
+    state_key_copy.ordered_list_user_state.range.end = start + 1
+    return self._to_key(state_key_copy)
+
   def get_raw(self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token=None  # type: Optional[bytes]
@@ -1069,60 +1074,54 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
 
     with self._lock:
       if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        start = state_key.ordered_list_user_state.range.start
-        end = state_key.ordered_list_user_state.range.end
+        maybe_start = state_key.ordered_list_user_state.range.start
+        maybe_end = state_key.ordered_list_user_state.range.end
         persistent_state_key = beam_fn_api_pb2.StateKey()
         persistent_state_key.CopyFrom(state_key)
         persistent_state_key.ordered_list_user_state.ClearField("range")
 
-        if self._to_key(persistent_state_key) in self._ordered_list_keys:
-          available_keys = self._ordered_list_keys[self._to_key(
-              persistent_state_key)]
+        available_keys = self._ordered_list_keys[self._to_key(
+            persistent_state_key)]
 
-          if self._use_continuation_tokens:
-            # The token is "key_idx:value_idx"
-            if not continuation_token:
-              key_idx, value_idx = start, 0
-            else:
-              key_idx, value_idx = list(
-                  map(int, continuation_token.split(b':')))
+        if self._use_continuation_tokens and continuation_token:
+          # The token is "key_idx", suggesting the next start
+          key_start = int(continuation_token)
+        else:
+          key_start = maybe_start
 
-            key_idx = next(
-                iter(
-                    available_keys.irange(
-                        key_idx, end, inclusive=(True, False))),
-                end)
-            if key_idx >= end:
-              return b'', None
+        # Find the exact starting boundary of the current key query.
+        key_start = next(
+            iter(
+                available_keys.irange(
+                    key_start, maybe_end, inclusive=(True, False))),
+            maybe_end)
 
-            persistent_state_key.ordered_list_user_state.range.start = key_idx
-            persistent_state_key.ordered_list_user_state.range.end = key_idx + 1
-            entries = tuple(self._state[self._to_key(persistent_state_key)])
+        if key_start >= maybe_end:
+          return b'', None
 
-            if value_idx < 0 or value_idx >= len(entries):
-              return b'', None
-            else:
-              # for testing purpose, return one element at a time
-              e = entries[value_idx]
-              if (value_idx + 1) < len(entries):
-                value_idx += 1
-              else:
-                key_idx = next(
-                    iter(
-                        available_keys.irange(
-                            key_idx + 1, end, inclusive=(True, False))),
-                    end)
-                value_idx = 0
-              return e, b"%d:%d" % (key_idx, value_idx)
-          else:
-            output = []  # type: List[bytes]
-            for i in available_keys.irange(start, end, inclusive=(True, False)):
-              persistent_state_key.ordered_list_user_state.range.start = i
-              persistent_state_key.ordered_list_user_state.range.end = i + 1
-              entries = tuple(self._state[self._to_key(persistent_state_key)])
-              output.extend(entries)
-            return b''.join(output), None
-        return b'', None
+        if self._use_continuation_tokens:
+          # Find the exact stopping boundary of the current key query.
+          # For simplicity, we always return all entries under the same key
+          # with one continuation token.
+          key_end = next(
+              iter(
+                  available_keys.irange(
+                      key_start + 1, maybe_end, inclusive=(True, False))),
+              maybe_end)
+          next_token = b"%d" % key_end
+        else:
+          key_end = maybe_end
+          next_token = None
+
+        output = []  # type: List[bytes]
+        for i in available_keys.irange(key_start,
+                                       key_end,
+                                       inclusive=(True, False)):
+          entries = self._state[self._get_one_interval_key(
+              persistent_state_key, i)]
+          output.extend(entries)
+
+        return b''.join(output), next_token
       else:
         full_state = self._state[self._to_key(state_key)]
         if self._use_continuation_tokens:
@@ -1151,18 +1150,13 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     # type: (...) -> _Future
     with self._lock:
       if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        coder = TupleCoder(
-            [VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
-
-        if self._to_key(state_key) not in self._ordered_list_keys:
-          self._ordered_list_keys[self._to_key(state_key)] = SortedSet()
+        coder = coders.TupleCoder([
+            coders.VarIntCoder(),
+            coders.coders.LengthPrefixCoder(coders.BytesCoder())
+        ]).get_impl()
 
         for key, value in coder.decode_all(data):
-          persistent_state_key = beam_fn_api_pb2.StateKey()
-          persistent_state_key.CopyFrom(state_key)
-          persistent_state_key.ordered_list_user_state.range.start = key
-          persistent_state_key.ordered_list_user_state.range.end = key + 1
-          self._state[self._to_key(persistent_state_key)].append(
+          self._state[self._get_one_interval_key(state_key, key)].append(
               coder.encode((key, value)))
           self._ordered_list_keys[self._to_key(state_key)].add(key)
       else:
@@ -1182,14 +1176,10 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
           available_keys = self._ordered_list_keys[self._to_key(
               persistent_state_key)]
 
-          keys_to_remove = []
-          for i in available_keys.irange(start, end, inclusive=(True, False)):
-            persistent_state_key.ordered_list_user_state.range.start = i
-            persistent_state_key.ordered_list_user_state.range.end = i + 1
-            del self._state[self._to_key(persistent_state_key)]
-            keys_to_remove.append(i)
-
-          for i in keys_to_remove:
+          for i in list(available_keys.irange(start,
+                                              end,
+                                              inclusive=(True, False))):
+            del self._state[self._get_one_interval_key(persistent_state_key, i)]
             available_keys.remove(i)
         else:
           del self._state[self._to_key(state_key)]

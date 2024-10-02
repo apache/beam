@@ -25,6 +25,7 @@ import base64
 import bisect
 import collections
 import copy
+import heapq
 import itertools
 import json
 import logging
@@ -599,41 +600,7 @@ class _ConcatIterable(object):
       yield elem
 
 
-class _MergeSortedIterable(object):
-  """An iterable that is a merge sorted result of two iterables."""
-  _sentinel = object()
-
-  def __init__(self, left, right):
-    # type: (Iterable[Any], Iterable[Any]) -> None
-    self.left = iter(left)
-    self.right = iter(right)
-
-  def __iter__(self):
-    l = next(self.left, self._sentinel)
-    r = next(self.right, self._sentinel)
-    while True:
-      if l is self._sentinel:
-        if r is not self._sentinel:
-          yield r
-          r = next(self.right, self._sentinel)
-        else:
-          break
-      else:
-        if r is not self._sentinel:
-          if l <= r:
-            yield l
-            l = next(self.left, self._sentinel)
-          else:
-            yield r
-            r = next(self.right, self._sentinel)
-        else:
-          yield l
-          l = next(self.left, self._sentinel)
-
-
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
-coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
-    _MergeSortedIterable)
 
 
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
@@ -787,8 +754,7 @@ class RangeSet:
     return len(self._sorted_starts)
 
   def __iter__(self) -> Iterator[Tuple[int, int]]:
-    for i in zip(self._sorted_starts, self._sorted_ends):
-      yield i
+    return zip(self._sorted_starts, self._sorted_ends)
 
   def __str__(self) -> str:
     return str(list(zip(self._sorted_starts, self._sorted_ends)))
@@ -865,7 +831,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
 
       return map(
           lambda x: (timestamp.Timestamp(x[0]), x[1]),
-          _MergeSortedIterable(persistent_items, local_items))
+          heapq.merge(persistent_items, local_items))
 
     return map(lambda x: (timestamp.Timestamp(x[0]), x[1]), local_items)
 
