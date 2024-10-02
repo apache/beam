@@ -95,7 +95,7 @@ class RecordWriter {
     }
     activeIcebergWriters.inc();
     LOG.info(
-        "Opened {} writer for table {}, partition {}. Writing to path: {}",
+        "Opened {} writer for table '{}', partition {}. Writing to path: {}",
         fileFormat,
         table.name(),
         partitionKey,
@@ -117,7 +117,13 @@ class RecordWriter {
           e);
     }
     activeIcebergWriters.dec();
-    LOG.info("Closed {} writer for table {}, path: {}", fileFormat, table.name(), absoluteFilename);
+    LOG.info(
+        "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",
+        fileFormat,
+        table.name(),
+        icebergDataWriter.toDataFile().recordCount(),
+        icebergDataWriter.toDataFile().fileSizeInBytes(),
+        absoluteFilename);
   }
 
   public long bytesWritten() {
