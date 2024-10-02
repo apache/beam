@@ -389,20 +389,19 @@ class OrderedListRuntimeState(AccumulatingRuntimeState):
   def read(self) -> Iterable[Tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
-  def add(self, value: Tuple[Union[int, Timestamp], Any]) -> None:
+  def add(self, value: Tuple[Timestamp, Any]) -> None:
     raise NotImplementedError(type(self))
 
   def read_range(
       self,
-      min_time_stamp: Union[int, Timestamp],
-      limit_time_stamp: Union[int,
-                              Timestamp]) -> Iterable[Tuple[Timestamp, Any]]:
+      min_time_stamp: Timestamp,
+      limit_time_stamp: Timestamp) -> Iterable[Tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
   def clear_range(
       self,
-      min_time_stamp: Union[int, Timestamp],
-      limit_time_stamp: Union[int, Timestamp]) -> None:
+      min_time_stamp: Timestamp,
+      limit_time_stamp: Timestamp) -> None:
     raise NotImplementedError(type(self))
 
 

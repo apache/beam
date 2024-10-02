@@ -763,6 +763,8 @@ class RangeSet:
 class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
   RANGE_MIN = -(1 << 63)
   RANGE_MAX = (1 << 63) - 1
+  TIMESTAMP_RANGE_MIN = timestamp.Timestamp(micros=RANGE_MIN)
+  TIMESTAMP_RANGE_MAX = timestamp.Timestamp(micros=RANGE_MAX)
 
   def __init__(
       self,
@@ -777,30 +779,26 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     self._pending_adds = SortedDict()
     self._pending_removes = RangeSet()
 
-  def add(self, elem: Tuple[Union[int, timestamp.Timestamp], Any]) -> None:
+  def add(self, elem: Tuple[timestamp.Timestamp, Any]) -> None:
     assert len(elem) == 2
     key, value = elem
-    if isinstance(key, timestamp.Timestamp):
-      key = key.micros
+    key = key.micros
 
     if key >= self.RANGE_MAX or key < self.RANGE_MIN:
       raise ValueError("key value %d is out of range" % key)
     self._pending_adds.setdefault(key, []).append(value)
 
   def read(self) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
-    return self.read_range(self.RANGE_MIN, self.RANGE_MAX)
+    return self.read_range(self.TIMESTAMP_RANGE_MIN, self.TIMESTAMP_RANGE_MAX)
 
   def read_range(
       self,
-      min_timestamp: Union[int, timestamp.Timestamp],
-      limit_timestamp: Union[int, timestamp.Timestamp]
+      min_timestamp: timestamp.Timestamp,
+      limit_timestamp: timestamp.Timestamp
   ) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
     # convert timestamp to int, as sort keys are stored as int internally.
-    if isinstance(min_timestamp, timestamp.Timestamp):
-      min_timestamp = min_timestamp.micros
-
-    if isinstance(limit_timestamp, timestamp.Timestamp):
-      limit_timestamp = limit_timestamp.micros
+    min_timestamp = min_timestamp.micros
+    limit_timestamp = limit_timestamp.micros
 
     keys_to_add = self._pending_adds.irange(
         min_timestamp, limit_timestamp, inclusive=(True, False))
@@ -830,10 +828,10 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
               self._state_handler, range_query_state_key, self._elem_coder))
 
       return map(
-          lambda x: (timestamp.Timestamp(x[0]), x[1]),
+          lambda x: (timestamp.Timestamp(micros=x[0]), x[1]),
           heapq.merge(persistent_items, local_items))
 
-    return map(lambda x: (timestamp.Timestamp(x[0]), x[1]), local_items)
+    return map(lambda x: (timestamp.Timestamp(micros=x[0]), x[1]), local_items)
 
   def clear(self) -> None:
     self._cleared = True
@@ -843,13 +841,10 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
 
   def clear_range(
       self,
-      min_timestamp: Union[int, timestamp.Timestamp],
-      limit_timestamp: Union[int, timestamp.Timestamp]) -> None:
-    if isinstance(min_timestamp, timestamp.Timestamp):
-      min_timestamp = min_timestamp.micros
-
-    if isinstance(limit_timestamp, timestamp.Timestamp):
-      limit_timestamp = limit_timestamp.micros
+      min_timestamp: timestamp.Timestamp,
+      limit_timestamp: timestamp.Timestamp) -> None:
+    min_timestamp = min_timestamp.micros
+    limit_timestamp = limit_timestamp.micros
 
     # materialize the keys to remove before the actual removal
     keys_to_remove = list(
