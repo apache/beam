@@ -53,18 +53,15 @@ class CombineFnLifecycleTest(unittest.TestCase):
 
 
 @parameterized_class([
-    {'runner': direct_runner.BundleBasedDirectRunner, 'pickler': 'dill'},
-    {'runner': direct_runner.BundleBasedDirectRunner, 'pickler': 'cloudpickle'},
-    {'runner': fn_api_runner.FnApiRunner, 'pickler': 'dill'},
-    {'runner': fn_api_runner.FnApiRunner, 'pickler': 'cloudpickle'},
-    ])  # yapf: disable
+    {'runner': direct_runner.BundleBasedDirectRunner},
+    {'runner': fn_api_runner.FnApiRunner},
+])  # yapf: disable
 class LocalCombineFnLifecycleTest(unittest.TestCase):
   def tearDown(self):
     CallSequenceEnforcingCombineFn.instances.clear()
 
   def test_combine(self):
-    test_options = PipelineOptions(flags=[f"--pickle_library={self.pickler}"])
-    run_combine(TestPipeline(runner=self.runner(), options=test_options))
+    run_combine(TestPipeline(runner=self.runner()))
     self._assert_teardown_called()
 
   def test_non_liftable_combine(self):
