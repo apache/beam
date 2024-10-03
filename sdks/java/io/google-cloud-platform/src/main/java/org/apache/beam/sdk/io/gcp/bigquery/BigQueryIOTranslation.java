@@ -68,6 +68,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -290,7 +291,7 @@ public class BigQueryIOTranslation {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
         }
         byte[] formatBytes = configRow.getBytes("format");
-        if (methodBytes != null) {
+        if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
@@ -640,7 +641,7 @@ public class BigQueryIOTranslation {
         }
         byte[] formatRecordOnFailureFunctionBytes =
             configRow.getBytes("format_record_on_failure_function");
-        if (tableFunctionBytes != null) {
+        if (formatRecordOnFailureFunctionBytes != null) {
           builder =
               builder.setFormatRecordOnFailureFunction(
                   (SerializableFunction<?, TableRow>)
@@ -653,7 +654,7 @@ public class BigQueryIOTranslation {
                   (AvroRowWriterFactory) fromByteArray(avroRowWriterFactoryBytes));
         }
         byte[] avroSchemaFactoryBytes = configRow.getBytes("avro_schema_factory");
-        if (tableFunctionBytes != null) {
+        if (avroSchemaFactoryBytes != null) {
           builder =
               builder.setAvroSchemaFactory(
                   (SerializableFunction) fromByteArray(avroSchemaFactoryBytes));
@@ -751,18 +752,27 @@ public class BigQueryIOTranslation {
         if (numStorageWriteApiStreams != null) {
           builder = builder.setNumStorageWriteApiStreams(numStorageWriteApiStreams);
         }
-        Boolean propagateSuccessfulStorageApiWrites =
-            configRow.getBoolean("propagate_successful_storage_api_writes");
-        if (propagateSuccessfulStorageApiWrites != null) {
-          builder =
-              builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.60.0") >= 0) {
+          Boolean propagateSuccessfulStorageApiWrites =
+              configRow.getBoolean("propagate_successful_storage_api_writes");
+          if (propagateSuccessfulStorageApiWrites != null) {
+            builder =
+                builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
+          }
+
+          byte[] predicate =
+              configRow.getBytes("propagate_successful_storage_api_writes_predicate");
+          if (predicate != null) {
+            builder =
+                builder.setPropagateSuccessfulStorageApiWritesPredicate(
+                    (Predicate<String>) fromByteArray(predicate));
+          }
+        } else {
+          builder.setPropagateSuccessfulStorageApiWrites(false);
+          builder.setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue());
         }
-        byte[] predicate = configRow.getBytes("propagate_successful_storage_api_writes_predicate");
-        if (predicate != null) {
-          builder =
-              builder.setPropagateSuccessfulStorageApiWritesPredicate(
-                  (Predicate<String>) fromByteArray(predicate));
-        }
+
         Integer maxFilesPerPartition = configRow.getInt32("max_files_per_partition");
         if (maxFilesPerPartition != null) {
           builder = builder.setMaxFilesPerPartition(maxFilesPerPartition);

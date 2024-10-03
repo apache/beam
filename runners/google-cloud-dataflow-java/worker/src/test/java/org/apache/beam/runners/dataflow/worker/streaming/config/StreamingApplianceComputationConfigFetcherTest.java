@@ -137,6 +137,8 @@ public class StreamingApplianceComputationConfigFetcherTest {
   }
 
   private StreamingApplianceComputationConfigFetcher createStreamingApplianceConfigLoader() {
-    return new StreamingApplianceComputationConfigFetcher(mockWindmillServer::getConfig);
+    return new StreamingApplianceComputationConfigFetcher(
+        mockWindmillServer::getConfig,
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build()));
   }
 }

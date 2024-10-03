@@ -193,7 +193,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     expected_type_names = [('List[str]', True), ('numpy.int16', False),
                            ('str', False), ('Dict[str, numpy.float64]', False),
                            ('Dict[str, List[numpy.int64]]', True),
-                           ('Dict[int, Union[str, NoneType]]', False)]
+                           ('Dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
       self.assertEqual(

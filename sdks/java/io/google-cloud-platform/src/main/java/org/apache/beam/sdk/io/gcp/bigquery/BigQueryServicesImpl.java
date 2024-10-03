@@ -221,19 +221,26 @@ public class BigQueryServicesImpl implements BigQueryServices {
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
     private final BigQueryIOMetadata bqIOMetadata;
+    private final Map<String, String> jobLabels;
 
     @VisibleForTesting
     JobServiceImpl(Bigquery client) {
+      this(client, new HashMap<>());
+    }
+
+    @VisibleForTesting
+    JobServiceImpl(Bigquery client, Map<String, String> jobLabels) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
       this.bqIOMetadata = BigQueryIOMetadata.create();
+      this.jobLabels = new HashMap<>(jobLabels);
     }
 
     @VisibleForTesting
     JobServiceImpl(BigQueryOptions options) {
-      this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(options).build();
-      this.bqIOMetadata = BigQueryIOMetadata.create();
+      this(
+          newBigQueryClient(options).build(),
+          options.getJobLabelsMap() != null ? options.getJobLabelsMap() : new HashMap<>());
     }
 
     @VisibleForTesting
@@ -251,14 +258,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
-      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(
                   new JobConfiguration()
                       .setLoad(loadConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
       startJob(job, errorExtractor, client);
     }
 
@@ -273,14 +279,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public void startLoadJob(
         JobReference jobRef, JobConfigurationLoad loadConfig, AbstractInputStreamContent stream)
         throws InterruptedException, IOException {
-      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(
                   new JobConfiguration()
                       .setLoad(loadConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
       startJobStream(job, stream, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
     }
 
@@ -294,14 +299,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
-      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(
                   new JobConfiguration()
                       .setExtract(extractConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
       startJob(job, errorExtractor, client);
     }
 
@@ -315,14 +319,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery queryConfig)
         throws IOException, InterruptedException {
-      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(
                   new JobConfiguration()
                       .setQuery(queryConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
       startJob(job, errorExtractor, client);
     }
 
@@ -336,14 +339,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
         throws IOException, InterruptedException {
-      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(
                   new JobConfiguration()
                       .setCopy(copyConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
       startJob(job, errorExtractor, client);
     }
 

@@ -59,7 +59,7 @@ jobs:
         job_name: [beam_PostCommit_Sickbay_Python]
         job_phrase_1: [Run Python]
         job_phrase_2: [PostCommit Sickbay]
-        python_version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python_version: ['3.9', '3.10', '3.11', '3.12']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||

@@ -37,6 +37,7 @@ import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
+import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
@@ -60,6 +61,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -863,7 +865,8 @@ public class BigtableServiceImplTest {
                     .build())
             .build();
 
-    underTest.writeRecord(KV.of(key, ImmutableList.of(mutation)));
+    CompletableFuture<MutateRowResponse> unusedElementFuture =
+        underTest.writeRecord(KV.of(key, ImmutableList.of(mutation)));
 
     verify(mockBatcher).add(captor.capture());
 

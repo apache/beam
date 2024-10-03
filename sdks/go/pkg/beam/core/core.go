@@ -27,7 +27,7 @@ const (
 	// SdkName is the human readable name of the SDK for UserAgents.
 	SdkName = "Apache Beam SDK for Go"
 	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.60.0.dev"
+	SdkVersion = "2.61.0.dev"
 
 	// DefaultDockerImage represents the associated image for this release.
 	DefaultDockerImage = "apache/beam_go_sdk:" + SdkVersion

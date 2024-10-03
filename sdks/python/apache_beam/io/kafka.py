@@ -52,6 +52,18 @@
   that to expand transforms. Currently Kafka transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
 
+  Note that the KafkaIO read transform can be compiled in two modes
+
+  * `ReadFromKafkaViaUnbounded` (legacy)
+  * `ReadFromKafkaViaSDF` (default)
+
+  To use the legacy mode, the `use_deprecated_read` flag should be specified
+  within the IO expansion service. For example,
+
+    kafka.default_io_expansion_service(
+        append_args=["--experiments=use_deprecated_read"]
+    )
+
   *Option 2: specify a custom expansion service*
 
   In this option, you startup your own expansion service and provide that as

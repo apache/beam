@@ -436,21 +436,6 @@ public class BigtableIOTest {
     write.expand(null);
   }
 
-  @Test
-  public void testWriteClientRateLimitingAlsoSetReportMsecs() {
-    // client side flow control
-    BigtableIO.Write write = BigtableIO.write().withTableId("table").withFlowControl(true);
-    assertEquals(
-        60_000, (int) checkNotNull(write.getBigtableWriteOptions().getThrottlingReportTargetMs()));
-
-    // client side latency based throttling
-    int targetMs = 30_000;
-    write = BigtableIO.write().withTableId("table").withThrottlingTargetMs(targetMs);
-    assertEquals(
-        targetMs,
-        (int) checkNotNull(write.getBigtableWriteOptions().getThrottlingReportTargetMs()));
-  }
-
   /** Helper function to make a single row mutation to be written. */
   private static KV<ByteString, Iterable<Mutation>> makeWrite(String key, String value) {
     ByteString rowKey = ByteString.copyFromUtf8(key);
@@ -1921,8 +1906,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -1954,8 +1939,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
       if (failureOptions.getFailAtWriteRecord()) {
         throw new IOException("Fake IOException in writeRecord()");
       }

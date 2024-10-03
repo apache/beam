@@ -94,7 +94,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-gbk-1-${{env.NOW_UTC}}' \
       - name: run 2GB of 100B records test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -103,7 +103,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-gbk-2-${{env.NOW_UTC}}' \
       - name: run 2GB of 100kB records test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -112,7 +112,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-gbk-3-${{env.NOW_UTC}}' \
       - name: run fanout 4 times with 2GB 10-byte records test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -121,7 +121,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_4 }} --job_name=load-tests-python-dataflow-batch-gbk-4-${{env.NOW_UTC}}' \
       - name: run fanout 8 times with 2GB 10-byte records total test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -130,5 +130,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_5 }} --job_name=load-tests-python-dataflow-batch-gbk-5-${{env.NOW_UTC}}'
