@@ -27,12 +27,15 @@ try:
   from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
 except ImportError:
   Enrichment = None  # type: ignore
   BigQueryEnrichmentHandler = None  # type: ignore
   BigTableEnrichmentHandler = None  # type: ignore
   VertexAIFeatureStoreEnrichmentHandler = None  # type: ignore
+
+try:
+  from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
+except ImportError:
   FeastFeatureStoreEnrichmentHandler = None  # type: ignore
 
 
