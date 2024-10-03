@@ -2523,7 +2523,7 @@ class StorageWriteToBigQuery(PTransform):
   # fields for rows sent to Storage API with dynamic destinations
   DESTINATION = "destination"
   RECORD = "record"
-  # field for rows sent to Storage API for CDC functionality
+  # field names for rows sent to Storage API for CDC functionality
   CDC_INFO = "row_mutation_info"
   CDC_MUTATION_TYPE = "mutation_type"
   CDC_SQN = "change_sequence_number"
