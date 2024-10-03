@@ -321,4 +321,6 @@ class S3FileSystem(FileSystem):
     except ValueError:
       # report lineage is fail-safe
       return
+    if len(components) > 1:
+      components = components[:-1]
     lineage.add('s3', *components)

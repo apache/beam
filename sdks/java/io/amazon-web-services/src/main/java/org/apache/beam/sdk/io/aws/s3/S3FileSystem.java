@@ -627,7 +627,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   @Override
   protected void reportLineage(S3ResourceId resourceId, Lineage lineage) {
-    lineage.add("s3", ImmutableList.of(resourceId.getBucket(), resourceId.getKey()));
+    lineage.add("s3", ImmutableList.of(resourceId.getBucket()));
   }
 
   /**
