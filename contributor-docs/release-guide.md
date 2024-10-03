@@ -887,7 +887,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.18:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.19:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
