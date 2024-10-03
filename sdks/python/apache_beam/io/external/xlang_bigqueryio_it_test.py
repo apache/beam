@@ -259,11 +259,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     rows_with_cdc = [
         beam.Row(
-            cdc_info=beam.Row(
+            row_mutation_info=beam.Row(
                 mutation_type="UPSERT", change_sequence_number="AAA/2"),
             record=beam.Row(name="cdc_test", value=5)),
         beam.Row(
-            cdc_info=beam.Row(
+            row_mutation_info=beam.Row(
                 mutation_type="UPSERT", change_sequence_number="AAA/1"),
             record=beam.Row(name="cdc_test", value=3))
     ]
@@ -277,11 +277,12 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       _ = (
           p
           | beam.Create(rows_with_cdc)
-          | StorageWriteToBigQuery(
+          | beam.io.WriteToBigQuery(
               table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               use_at_least_once=True,
               use_cdc_writes=True,
-              cdc_writes_primary_key=["name"]))
+              primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
