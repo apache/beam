@@ -280,6 +280,7 @@ class FileBasedSink(iobase.Sink):
 
       src_files.append(src)
       dst_files.append(dst)
+      FileSystems.report_sink_lineage(dst)
     return src_files, dst_files, delete_files, num_skipped
 
   @check_accessible(['file_path_prefix'])

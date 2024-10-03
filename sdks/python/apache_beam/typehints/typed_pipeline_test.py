@@ -422,7 +422,7 @@ class MainInputTest(unittest.TestCase):
     # In this case, both MyMap and its contained ParDo have separate type
     # checks (that disagree with each other).
     @beam.ptransform_fn
-    @typehints.with_input_types(int)
+    @typehints.with_input_types(str)
     def MyMap(pcoll):
       def fn(element: float):
         yield element
@@ -430,11 +430,11 @@ class MainInputTest(unittest.TestCase):
       return pcoll | beam.ParDo(fn)
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'ParDo.*requires.*float.*got.*int'):
-      _ = [1, 2, 3] | MyMap()
+                                r'ParDo.*requires.*float.*got.*str'):
+      _ = ['1', '2', '3'] | MyMap()
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'MyMap.*expected.*int.*got.*str'):
-      _ = ['a'] | MyMap()
+                                r'MyMap.*expected.*str.*got.*bytes'):
+      _ = [b'a'] | MyMap()
 
   def test_typed_dofn_string_literals(self):
     class MyDoFn(beam.DoFn):

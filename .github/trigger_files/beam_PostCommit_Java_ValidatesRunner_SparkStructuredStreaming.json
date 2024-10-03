@@ -1,5 +1,6 @@
 {
   "comment": "Modify this file in a trivial way to cause this test suite to run",
   "https://github.com/apache/beam/pull/31156": "noting that PR #31156 should run this test",
-  "https://github.com/apache/beam/pull/31798": "noting that PR #31798 should run this test"
+  "https://github.com/apache/beam/pull/31798": "noting that PR #31798 should run this test",
+  "https://github.com/apache/beam/pull/32546": "noting that PR #32546 should run this test"
 }

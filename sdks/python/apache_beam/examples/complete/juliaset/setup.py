@@ -15,16 +15,14 @@
 # limitations under the License.
 #
 
-"""setup.py module for the pipeline package.
+"""Setup.py module for the workflow's worker utilities.
 
-In this example, the pipeline code is gathered in a package that can be built
-as source distribution and installed on the workers. The package is defined
-in the pyproject.toml file. You can use setup.py file for defining 
-configuration that needs to be determined programatically, for example,
-custom commands to run when a package is installed.
+All the workflow related code is gathered in a package that will be built as a
+source distribution, staged in the staging area for the workflow being run and
+then installed in the workers when they start running.
 
-You can install this package into the workers at runtime by using
-the --setup_file pipeline option.
+This behavior is triggered by specifying the --setup_file command line option
+when running the workflow for remote execution.
 """
 
 # pytype: skip-file
@@ -109,7 +107,19 @@ class CustomCommands(setuptools.Command):
       self.RunCustomCommand(command)
 
 
+# Configure the required packages and scripts to install.
+# Note that the Python Dataflow containers come with numpy already installed
+# so this dependency will not trigger anything to be installed unless a version
+# restriction is specified.
+REQUIRED_PACKAGES = [
+    'numpy',
+]
+
 setuptools.setup(
+    name='juliaset',
+    version='0.0.1',
+    description='Julia set workflow package.',
+    install_requires=REQUIRED_PACKAGES,
     packages=setuptools.find_packages(),
     cmdclass={
         # Command class instantiated and run during pip install scenarios.

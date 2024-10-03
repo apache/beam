@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +34,7 @@ import com.google.cloud.spanner.BatchTransactionId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.FakeBatchTransactionId;
 import com.google.cloud.spanner.FakePartitionFactory;
+import com.google.cloud.spanner.InstanceConfigId;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Options.ReadAndQueryOption;
 import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
@@ -53,11 +55,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
@@ -65,6 +70,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
@@ -81,6 +88,7 @@ public class SpannerIOReadTest implements Serializable {
   private static final TimestampBound TIMESTAMP_BOUND =
       TimestampBound.ofReadTimestamp(Timestamp.ofTimeMicroseconds(12345));
   public static final String PROJECT_ID = "1234";
+  public static final String INSTANCE_CONFIG_ID = "5678";
   public static final String INSTANCE_ID = "123";
   public static final String DATABASE_ID = "aaa";
   public static final String TABLE_ID = "users";
@@ -111,6 +119,9 @@ public class SpannerIOReadTest implements Serializable {
           Struct.newBuilder().set("id").to(Value.int64(5)).set("name").to("Evan").build(),
           Struct.newBuilder().set("id").to(Value.int64(6)).set("name").to("Floyd").build());
 
+  private static final String DEFAULT_PROJECT =
+      Lineage.wrapSegment(SpannerOptions.getDefaultProjectId());
+
   @Before
   public void setUp() throws Exception {
     serviceFactory = new FakeServiceFactory();
@@ -130,6 +141,8 @@ public class SpannerIOReadTest implements Serializable {
         .thenReturn(mockBatchTx);
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
         .thenReturn(mockBatchTx);
+    when(serviceFactory.mockInstance().getInstanceConfigId())
+        .thenReturn(InstanceConfigId.of(PROJECT_ID, INSTANCE_CONFIG_ID));
 
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
@@ -139,12 +152,20 @@ public class SpannerIOReadTest implements Serializable {
 
   @Test
   public void runBatchQueryTestWithSpannerConfig() {
-    runBatchQueryTest(
-        SpannerIO.read()
-            .withSpannerConfig(spannerConfig)
-            .withQuery(QUERY_STATEMENT)
-            .withQueryName(QUERY_NAME)
-            .withTimestampBound(TIMESTAMP_BOUND));
+    PipelineResult result =
+        runBatchQueryTest(
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withQuery(QUERY_STATEMENT)
+                .withQueryName(QUERY_NAME)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            Lineage.getFqName(
+                "spanner",
+                ImmutableList.of(
+                    PROJECT_ID, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
   }
 
   @Test
@@ -166,31 +187,48 @@ public class SpannerIOReadTest implements Serializable {
   @Test
   public void runBatchQueryTestWithUnspecifiedProject() {
     // Default spannerConfig has project ID specified - use an unspecified project.
-    runBatchQueryTest(
-        SpannerIO.read()
-            .withSpannerConfig(
-                SpannerConfig.create()
-                    .withInstanceId(INSTANCE_ID)
-                    .withDatabaseId(DATABASE_ID)
-                    .withServiceFactory(serviceFactory))
-            .withQuery(QUERY_STATEMENT)
-            .withQueryName(QUERY_NAME)
-            .withTimestampBound(TIMESTAMP_BOUND));
+    PipelineResult result =
+        runBatchQueryTest(
+            SpannerIO.read()
+                .withSpannerConfig(
+                    SpannerConfig.create()
+                        .withInstanceId(INSTANCE_ID)
+                        .withDatabaseId(DATABASE_ID)
+                        .withServiceFactory(serviceFactory))
+                .withQuery(QUERY_STATEMENT)
+                .withQueryName(QUERY_NAME)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            Lineage.getFqName(
+                "spanner",
+                ImmutableList.of(
+                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
   }
 
   @Test
   public void runBatchQueryTestWithNullProject() {
-    runBatchQueryTest(
-        SpannerIO.read()
-            .withSpannerConfig(
-                SpannerConfig.create()
-                    .withProjectId((String) null)
-                    .withInstanceId(INSTANCE_ID)
-                    .withDatabaseId(DATABASE_ID)
-                    .withServiceFactory(serviceFactory))
-            .withQuery(QUERY_STATEMENT)
-            .withQueryName(QUERY_NAME)
-            .withTimestampBound(TIMESTAMP_BOUND));
+    PipelineResult result =
+        runBatchQueryTest(
+            SpannerIO.read()
+                .withSpannerConfig(
+                    SpannerConfig.create()
+                        .withProjectId((String) null)
+                        .withInstanceId(INSTANCE_ID)
+                        .withDatabaseId(DATABASE_ID)
+                        .withServiceFactory(serviceFactory))
+                .withQuery(QUERY_STATEMENT)
+                .withQueryName(QUERY_NAME)
+                .withTimestampBound(TIMESTAMP_BOUND));
+
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            Lineage.getFqName(
+                "spanner",
+                ImmutableList.of(
+                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
   }
 
   @Test
@@ -218,7 +256,7 @@ public class SpannerIOReadTest implements Serializable {
     runBatchQueryTest(readTransform);
   }
 
-  private void runBatchQueryTest(SpannerIO.Read readTransform) {
+  private PipelineResult runBatchQueryTest(SpannerIO.Read readTransform) {
     PCollection<Struct> results = pipeline.apply("read q", readTransform);
 
     when(mockBatchTx.partitionQuery(
@@ -234,8 +272,9 @@ public class SpannerIOReadTest implements Serializable {
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
     PAssert.that(results).containsInAnyOrder(FAKE_ROWS);
-    pipeline.run();
+    PipelineResult result = pipeline.run();
     verifyQueryRequestMetricWasSet(readTransform.getSpannerConfig(), QUERY_NAME, "ok", 4);
+    return result;
   }
 
   @Test
@@ -269,42 +308,66 @@ public class SpannerIOReadTest implements Serializable {
 
   @Test
   public void runNaiveQueryTestWithProjectId() {
-    runNaiveQueryTest(
-        SpannerIO.read()
-            .withSpannerConfig(spannerConfig)
-            .withQuery(QUERY_STATEMENT)
-            .withQueryName(QUERY_NAME)
-            .withTimestampBound(TIMESTAMP_BOUND));
+    PipelineResult result =
+        runNaiveQueryTest(
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withQuery(QUERY_STATEMENT)
+                .withQueryName(QUERY_NAME)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            Lineage.getFqName(
+                "spanner",
+                ImmutableList.of(
+                    PROJECT_ID, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
   }
 
   @Test
   public void runNaiveQueryTestWithUnspecifiedProject() {
     // Default spannerConfig has project ID specified - use an unspecified project.
-    runNaiveQueryTest(
-        SpannerIO.read()
-            .withSpannerConfig(
-                SpannerConfig.create()
-                    .withInstanceId(INSTANCE_ID)
-                    .withDatabaseId(DATABASE_ID)
-                    .withServiceFactory(serviceFactory))
-            .withQuery(QUERY_STATEMENT)
-            .withQueryName(QUERY_NAME)
-            .withTimestampBound(TIMESTAMP_BOUND));
+    PipelineResult result =
+        runNaiveQueryTest(
+            SpannerIO.read()
+                .withSpannerConfig(
+                    SpannerConfig.create()
+                        .withInstanceId(INSTANCE_ID)
+                        .withDatabaseId(DATABASE_ID)
+                        .withServiceFactory(serviceFactory))
+                .withQuery(QUERY_STATEMENT)
+                .withQueryName(QUERY_NAME)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            Lineage.getFqName(
+                "spanner",
+                ImmutableList.of(
+                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
   }
 
   @Test
   public void runNaiveQueryTestWithNullProject() {
-    runNaiveQueryTest(
-        SpannerIO.read()
-            .withSpannerConfig(
-                SpannerConfig.create()
-                    .withProjectId((String) null)
-                    .withInstanceId(INSTANCE_ID)
-                    .withDatabaseId(DATABASE_ID)
-                    .withServiceFactory(serviceFactory))
-            .withQuery(QUERY_STATEMENT)
-            .withQueryName(QUERY_NAME)
-            .withTimestampBound(TIMESTAMP_BOUND));
+    PipelineResult result =
+        runNaiveQueryTest(
+            SpannerIO.read()
+                .withSpannerConfig(
+                    SpannerConfig.create()
+                        .withProjectId((String) null)
+                        .withInstanceId(INSTANCE_ID)
+                        .withDatabaseId(DATABASE_ID)
+                        .withServiceFactory(serviceFactory))
+                .withQuery(QUERY_STATEMENT)
+                .withQueryName(QUERY_NAME)
+                .withTimestampBound(TIMESTAMP_BOUND));
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            Lineage.getFqName(
+                "spanner",
+                ImmutableList.of(
+                    DEFAULT_PROJECT, INSTANCE_CONFIG_ID, INSTANCE_ID, DATABASE_ID, "users"))));
   }
 
   @Test
@@ -320,7 +383,7 @@ public class SpannerIOReadTest implements Serializable {
     assertEquals(RpcPriority.HIGH, readTransform.getSpannerConfig().getRpcPriority().get());
   }
 
-  private void runNaiveQueryTest(SpannerIO.Read readTransform) {
+  private PipelineResult runNaiveQueryTest(SpannerIO.Read readTransform) {
     readTransform = readTransform.withBatching(false);
     PCollection<Struct> results = pipeline.apply("read q", readTransform);
     when(mockBatchTx.executeQuery(
@@ -328,8 +391,9 @@ public class SpannerIOReadTest implements Serializable {
         .thenReturn(ResultSets.forRows(FAKE_TYPE, FAKE_ROWS));
 
     PAssert.that(results).containsInAnyOrder(FAKE_ROWS);
-    pipeline.run();
+    PipelineResult result = pipeline.run();
     verifyQueryRequestMetricWasSet(readTransform.getSpannerConfig(), QUERY_NAME, "ok", 1);
+    return result;
   }
 
   @Test
@@ -771,6 +835,21 @@ public class SpannerIOReadTest implements Serializable {
 
     Exception exception = assertThrows(IllegalStateException.class, spannerRows::getSchema);
     checkMessage("Cannot call getSchema when there is no schema", exception.getMessage());
+  }
+
+  @Test
+  public void testReadOperationTryGetTableName() {
+    ImmutableMap<String, ReadOperation> testCases =
+        ImmutableMap.<String, ReadOperation>builder()
+            .put("table", ReadOperation.create().withTable("table"))
+            .put("table_2", ReadOperation.create().withQuery("SELECT a, b FROM table_2"))
+            .put(
+                "table_3",
+                ReadOperation.create().withQuery(Statement.of("SELECT * FROM [table_3]")))
+            .build();
+    for (Map.Entry<String, ReadOperation> entry : testCases.entrySet()) {
+      assertEquals(entry.getKey(), entry.getValue().tryGetTableName());
+    }
   }
 
   private void checkMessage(String substring, @Nullable String message) {

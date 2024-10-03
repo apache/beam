@@ -352,25 +352,49 @@ class Lineage:
 
   @staticmethod
   def get_fq_name(
-      system: str, *segments: str, route: Optional[str] = None) -> str:
+      system: str, *segments: str, subtype: Optional[str] = None) -> str:
     """Assemble fully qualified name
     (`FQN <https://cloud.google.com/data-catalog/docs/fully-qualified-names>`_).
     Format:
 
     - `system:segment1.segment2`
-    - `system:routine:segment1.segment2`
-    - `system:`segment1.with.dots:clons`.segment2`
+    - `system:subtype:segment1.segment2`
+    - `system:`segment1.with.dots:colons`.segment2`
 
     This helper method is for internal and testing usage only.
     """
     segs = '.'.join(map(Lineage.wrap_segment, segments))
-    if route:
-      return ':'.join((system, route, segs))
+    if subtype:
+      return ':'.join((system, subtype, segs))
     return ':'.join((system, segs))
 
   def add(
-      self, system: str, *segments: str, route: Optional[str] = None) -> None:
-    self.metric.add(self.get_fq_name(system, *segments, route=route))
+      self, system: str, *segments: str, subtype: Optional[str] = None) -> None:
+    """
+    Adds the given details as Lineage.
+
+    For asset level lineage the resource location should be specified as
+    Dataplex FQN, see
+    https://cloud.google.com/data-catalog/docs/fully-qualified-names
+
+    Example of adding FQN components:
+
+    - `add("system", "segment1", "segment2")`
+    - `add("system", "segment1", "segment2", subtype="subtype")`
+
+    Example of adding a FQN:
+
+    - `add("system:segment1.segment2")`
+    - `add("system:subtype:segment1.segment2")`
+
+    The first positional argument serves as system, if full segments are
+    provided, or the full FQN if it is provided as a single argument.
+    """
+    system_or_details = system
+    if len(segments) == 0 and subtype is None:
+      self.metric.add(system_or_details)
+    else:
+      self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
 
   @staticmethod
   def query(results: MetricResults, label: str) -> Set[str]:

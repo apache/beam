@@ -264,10 +264,21 @@ class LineageTest(unittest.TestCase):
     for k, v in test_cases.items():
       self.assertEqual("apache:" + v, Lineage.get_fq_name("apache", k))
       self.assertEqual(
-          "apache:beam:" + v, Lineage.get_fq_name("apache", k, route="beam"))
+          "apache:beam:" + v, Lineage.get_fq_name("apache", k, subtype="beam"))
       self.assertEqual(
           "apache:beam:" + v + '.' + v,
-          Lineage.get_fq_name("apache", k, k, route="beam"))
+          Lineage.get_fq_name("apache", k, k, subtype="beam"))
+
+  def test_add(self):
+    lineage = Lineage(Lineage.SOURCE)
+    stringset = set()
+    # override
+    lineage.metric = stringset
+    lineage.add("s", "1", "2")
+    lineage.add("s:3.4")
+    lineage.add("s", "5", "6.7")
+    lineage.add("s", "1", "2", subtype="t")
+    self.assertSetEqual(stringset, {"s:1.2", "s:3.4", "s:t:1.2", "s:5.`6.7`"})
 
 
 if __name__ == '__main__':
