@@ -2611,11 +2611,23 @@ class _TimeoutDoFn(DoFn):
   def process(self, *args, **kwargs):
     if self._pool is None:
       self._pool = concurrent.futures.ThreadPoolExecutor(10)
+
+    # Import here to avoid circular dependency
+    from apache_beam.runners.worker.statesampler import get_current_tracker, set_current_tracker
+
+    # State sampler/tracker is stored as a thread local variable, and is used
+    # when incrementing counter metrics.
+    dispatching_thread_state_sampler = get_current_tracker()
+
+    def wrapped_process():
+      """Makes the dispatching thread local state sampler available to child
+      thread"""
+      set_current_tracker(dispatching_thread_state_sampler)
+      return list(self._fn.process(*args, **kwargs))
+
     # Ensure we iterate over the entire output list in the given amount of time.
     try:
-      return self._pool.submit(
-          lambda: list(self._fn.process(*args, **kwargs))).result(
-              self._timeout)
+      return self._pool.submit(wrapped_process).result(self._timeout)
     except TimeoutError:
       self._pool.shutdown(wait=False)
       self._pool = None
