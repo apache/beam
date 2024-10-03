@@ -221,7 +221,7 @@ No backward compatibility guarantees. Everything in this module is experimental.
 
 
 class InsertEmbeddingInOpenSearch(PTransform):
-    """WriteToOpensearch is a ``PTransform`` that writes a ``PCollection`` of
+    """InsertEmbeddingInOpenSearch is a ``PTransform`` that writes a ``PCollection`` of
     key, value tuple or 2-element array into a Opensearch server.
     """
 
