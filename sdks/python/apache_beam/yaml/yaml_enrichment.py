@@ -20,16 +20,23 @@ from typing import Dict
 from typing import Optional
 
 import apache_beam as beam
-from apache_beam.transforms.enrichment import Enrichment
-from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
-from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
-from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
 from apache_beam.yaml import options
+
+try:
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
+except ImportError:
+  Enrichment = None  # type: ignore
+  BigQueryEnrichmentHandler = None  # type: ignore
+  BigTableEnrichmentHandler = None  # type: ignore
+  VertexAIFeatureStoreEnrichmentHandler = None  # type: ignore
 
 try:
   from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
 except ImportError:
-  FeastFeatureStoreEnrichmentHandler = None
+  FeastFeatureStoreEnrichmentHandler = None  # type: ignore
 
 
 @beam.ptransform.ptransform_fn
@@ -93,11 +100,17 @@ def enrichment_transform(
 
     """
   options.YamlOptions.check_enabled(pcoll.pipeline, 'Enrichment')
+
+  if not Enrichment:
+    raise ValueError(
+        f"gcp dependencies not installed. Cannot use {enrichment_handler} "
+        f"handler. Please install using 'pip install apache-beam[gcp]'.")
   if (enrichment_handler == 'FeastFeatureStore' and
       not FeastFeatureStoreEnrichmentHandler):
     raise ValueError(
         "FeastFeatureStore handler requires 'feast' package to be installed. " +
         "Please install using 'pip install feast[gcp]' and try again.")
+
   handler_map = {
       'BigQuery': BigQueryEnrichmentHandler,
       'BigTable': BigTableEnrichmentHandler,

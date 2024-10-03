@@ -43,8 +43,6 @@ pipelines:
 
   - pipeline:
       type: chain
-      options:
-        yaml_experimental_features: ['Enrichment']
       transforms:
         - type: Create
           name: Data
@@ -82,4 +80,5 @@ pipelines:
           config:
             elements:
               - {label: '37a', rank: 1, name: 'S2'}
-
+    options:
+      yaml_experimental_features: [ 'Enrichment' ]

@@ -103,6 +103,7 @@
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
 - type: 'python'
-  config: {}
+  config:
+    requires_gcp: true
   transforms:
     Enrichment: 'apache_beam.yaml.yaml_enrichment.enrichment_transform'
