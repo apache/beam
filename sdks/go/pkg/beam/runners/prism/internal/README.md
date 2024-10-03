@@ -63,8 +63,8 @@ If no other option exists, it may use direct access to exported data from the ot
 ## Testing
 
 The sub packages should have reasonable Unit Test coverage in their own directories, but
-most features will be exercised via executing pipelines in the internal package, and engine
-package. To avoid overly re-implementing tests, use of the "_test" formalism to validate
+most features will be exercised via executing pipelines in the internal and engine
+packages. To avoid overly re-implementing tests, use of the "_test" formalism to validate
 coverage through re-using tests from sdks/go/tests is recommended.
 
 For the time being test DoFns should be added to standard build in order to validate execution
@@ -341,7 +341,7 @@ even begin processing. This should take into account the current state
 of the pipeline, oustanding data to be processed, and the current load on the system.
 Larger bundles require fewer "round trips" to the SDK and batch processing, but in
 general, are processed serially by the runner, leading to higher latency for downstream
-results. Smaller bundles may incur per bundle overhead more frequently, but can yeild lower
+results. Smaller bundles may incur per bundle overhead more frequently, but can yield lower
 latency execution.
 
 Runners must strike a balance, to avoid over splitting, where per bundle overhead dominates, or
@@ -473,7 +473,7 @@ FnAPI messages are multiplexed so the expectation is the data service goroutines
 be the busiest moving data back and forth from the SDK.
 
 A consequence of this approach is the need to take care in locking shared resources and data
-when they may be accessed by multiple goroutines. This,Iin particular, is all done in the `ElementManager`
+when they may be accessed by multiple goroutines. This, in particular, is all done in the `ElementManager`
 which has locks for each stage in order to serialze access to it's state. This state is notably
 accessed by the Bundle goroutines on persisting data back to the `ElementManager`.
 
@@ -484,7 +484,7 @@ received goroutine and into the Bundle processing goroutine, so bundles are less
 block each other.
 
 As one G of goroutines is the single Job Management instance for prism itself, and the other is
-for the worker endpoint, these are no wasted either. Prism can assign uniques names to workers
+for the worker endpoint, these are not wasted either. Prism can assign uniques names to workers
 to be able to identify which job they're a part of, so it's possible to avoid the per job and
 worker grpc service, and multiplex from there.  (See https://github.com/apache/beam/issues/32167)
 
