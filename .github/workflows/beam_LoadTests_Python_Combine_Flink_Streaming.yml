@@ -104,7 +104,7 @@ jobs:
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Flink_Streaming_test_arguments_1 }} --job_name=load-tests-python-flink-streaming-combine-4-${{env.NOW_UTC}}' \
@@ -113,7 +113,7 @@ jobs:
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Flink_Streaming_test_arguments_2 }} --job_name=load-tests-python-flink-streaming-combine-5-${{env.NOW_UTC}}' \

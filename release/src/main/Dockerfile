@@ -51,8 +51,8 @@ RUN curl https://pyenv.run | bash && \
 
 # Install a Go version >= 1.16 so we can bootstrap higher
 # Go versions
-RUN wget https://golang.org/dl/go1.17.linux-amd64.tar.gz && \
-    tar -zxvf go1.17.linux-amd64.tar.gz -C /usr/local/ && \
+RUN wget https://golang.org/dl/go1.23.1.linux-amd64.tar.gz && \
+    tar -zxvf go1.23.1.linux-amd64.tar.gz -C /usr/local/ && \
     echo "export PATH=/usr/local/go/bin:${PATH}" | tee /etc/profile.d/go.sh && \
     chmod a+x "/etc/profile.d/go.sh" && \
     source "/etc/profile.d/go.sh"

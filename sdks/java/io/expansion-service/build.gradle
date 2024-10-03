@@ -47,13 +47,13 @@ dependencies {
   // **** IcebergIO runtime dependencies ****
   runtimeOnly library.java.hadoop_client
   // Needed when using GCS as the warehouse location.
-  implementation library.java.bigdataoss_gcs_connector
-  permitUnusedDeclared library.java.bigdataoss_gcs_connector
+  runtimeOnly library.java.bigdataoss_gcs_connector
   // Needed for HiveCatalog
   runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
   runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
 
-  runtimeOnly library.java.kafka_clients
+  // TODO(https://github.com/apache/beam/pull/32486/) Use library.java.kafka_clients once 3.1.2 is set as default
+  runtimeOnly ("org.apache.kafka:kafka-clients:3.1.2")
   runtimeOnly library.java.slf4j_jdk14
 }
 

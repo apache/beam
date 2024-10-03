@@ -278,6 +278,11 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 12:
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
+elif sys.version_info.major == 3 and sys.version_info.minor == 8:
+  warnings.warn('Python 3.8 reaches EOL in October 2024 and support will '
+                'be removed from Apache Beam in version 2.61.0. See '
+                'https://github.com/apache/beam/issues/31192 for more '
+                'information.')
 
 if __name__ == '__main__':
   # In order to find the tree of proto packages, the directory
@@ -400,6 +405,7 @@ if __name__ == '__main__':
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
               'pandas<2.2.0',
+              'openai'
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',

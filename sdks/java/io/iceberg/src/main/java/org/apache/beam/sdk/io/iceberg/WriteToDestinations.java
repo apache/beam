@@ -19,33 +19,50 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResult> {
 
   static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
   static final int DEFAULT_NUM_FILE_SHARDS = 0;
-  static final int FILE_TRIGGERING_RECORD_COUNT = 50_000;
+  // constant field names representing table identifier string and the record
+  static final String DEST = "dest";
+  static final String DATA = "data";
 
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
+  private final @Nullable Duration triggeringFrequency;
 
-  WriteToDestinations(IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
+  WriteToDestinations(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
+    this.triggeringFrequency = triggeringFrequency;
   }
 
   @Override
@@ -60,24 +77,20 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
             new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations));
 
     // Then write the rest by shuffling on the destination metadata
-    Schema destSchema =
-        checkArgumentNotNull(
-            writeUngroupedResult
-                .getSpilledRows()
-                .getSchema()
-                .getField("dest")
-                .getType()
-                .getRowSchema(),
-            "Input schema missing `dest` field.");
+    Preconditions.checkState(
+        writeUngroupedResult.getSpilledRows().getSchema().hasField(DEST),
+        "Input schema missing `%s` field.",
+        DEST);
     Schema dataSchema =
         checkArgumentNotNull(
             writeUngroupedResult
                 .getSpilledRows()
                 .getSchema()
-                .getField("data")
+                .getField(DATA)
                 .getType()
                 .getRowSchema(),
-            "Input schema missing `data` field");
+            "Input schema missing `%s` field",
+            DATA);
 
     PCollection<FileWriteResult> writeGroupedResult =
         writeUngroupedResult
@@ -85,33 +98,67 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
             .apply(
                 "Key by destination and shard",
                 MapElements.via(
-                    new SimpleFunction<Row, KV<ShardedKey<Row>, Row>>() {
+                    new SimpleFunction<Row, KV<ShardedKey<String>, Row>>() {
                       private static final int SPILLED_ROWS_SHARDING_FACTOR = 10;
-                      private int shardNumber = 0;
+                      private int shardNumber =
+                          ThreadLocalRandom.current().nextInt(SPILLED_ROWS_SHARDING_FACTOR);
 
                       @Override
-                      public KV<ShardedKey<Row>, Row> apply(Row elem) {
+                      public KV<ShardedKey<String>, Row> apply(Row elem) {
                         Row data =
                             checkArgumentNotNull(
-                                elem.getRow("data"), "Element missing `data` field");
-                        Row dest =
+                                elem.getRow(DATA), "Element missing `%s` field", DATA);
+                        String dest =
                             checkArgumentNotNull(
-                                elem.getRow("dest"), "Element missing `dest` field");
+                                elem.getString(DEST), "Element missing `%s` field", DEST);
                         return KV.of(
-                            ShardedKey.of(dest, shardNumber % SPILLED_ROWS_SHARDING_FACTOR), data);
+                            ShardedKey.of(dest, ++shardNumber % SPILLED_ROWS_SHARDING_FACTOR),
+                            data);
                       }
                     }))
-            .setCoder(
-                KvCoder.of(ShardedKeyCoder.of(RowCoder.of(destSchema)), RowCoder.of(dataSchema)))
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), RowCoder.of(dataSchema)))
             .apply("Group spilled rows by destination shard", GroupByKey.create())
             .apply(
                 "Write remaining rows to files",
                 new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations));
 
+    PCollection<FileWriteResult> writeUngroupedResultPColl = writeUngroupedResult.getWrittenFiles();
+
+    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+      // for streaming pipelines, re-window both outputs to keep Flatten happy
+      writeGroupedResult =
+          writeGroupedResult.apply(
+              "RewindowGroupedRecords",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes());
+      writeUngroupedResultPColl =
+          writeUngroupedResultPColl.apply(
+              "RewindowUnGroupedRecords",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes());
+    }
+
     PCollection<FileWriteResult> allWrittenFiles =
-        PCollectionList.of(writeUngroupedResult.getWrittenFiles())
+        PCollectionList.of(writeUngroupedResultPColl)
             .and(writeGroupedResult)
             .apply("Flatten Written Files", Flatten.pCollections());
+
+    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+      checkArgumentNotNull(
+          triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
+      // apply the user's trigger before we start committing and creating snapshots
+      allWrittenFiles =
+          allWrittenFiles.apply(
+              "ApplyUserTrigger",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterProcessingTime.pastFirstElementInPane()
+                              .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
+                  .discardingFiredPanes());
+    }
 
     // Apply any sharded writes and flatten everything for catalog updates
     PCollection<KV<String, SnapshotInfo>> snapshots =

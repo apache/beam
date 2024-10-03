@@ -51,8 +51,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20240718'
-ext.dataflowFnapiContainerVersion = 'beam-master-20240718'
+ext.dataflowLegacyContainerVersion = 'beam-master-20240930'
+ext.dataflowFnapiContainerVersion = 'beam-master-20240930'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {

@@ -494,6 +494,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
+			payload.RequestsFinalization = true
 			m.requirements[URNRequiresBundleFinalization] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().StateProvider(); ok {

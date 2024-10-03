@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
@@ -71,6 +72,7 @@ public class BeamRowToStorageApiProtoTest {
           .addField("booleanValue", FieldType.BOOLEAN.withNullable(true))
           .addField("bytesValue", FieldType.BYTES.withNullable(true))
           .addField("arrayValue", FieldType.array(FieldType.STRING))
+          .addField("arrayNullValue", FieldType.array(FieldType.STRING).withNullable(true))
           .addField("iterableValue", FieldType.array(FieldType.STRING))
           .addField("sqlDateValue", FieldType.logicalType(SqlTypes.DATE).withNullable(true))
           .addField("sqlTimeValue", FieldType.logicalType(SqlTypes.TIME).withNullable(true))
@@ -168,43 +170,50 @@ public class BeamRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("iterablevalue")
+                  .setName("arraynullvalue")
                   .setNumber(13)
                   .setType(Type.TYPE_STRING)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("sqldatevalue")
+                  .setName("iterablevalue")
                   .setNumber(14)
+                  .setType(Type.TYPE_STRING)
+                  .setLabel(Label.LABEL_REPEATED)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("sqldatevalue")
+                  .setNumber(15)
                   .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("sqltimevalue")
-                  .setNumber(15)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("sqldatetimevalue")
                   .setNumber(16)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("sqltimestampvalue")
+                  .setName("sqldatetimevalue")
                   .setNumber(17)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("enumvalue")
+                  .setName("sqltimestampvalue")
                   .setNumber(18)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("enumvalue")
+                  .setNumber(19)
                   .setType(Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -225,6 +234,7 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("booleanValue", true)
           .withFieldValue("bytesValue", BYTES)
           .withFieldValue("arrayValue", ImmutableList.of("one", "two", "red", "blue"))
+          .withFieldValue("arrayNullValue", null)
           .withFieldValue("iterableValue", ImmutableList.of("blue", "red", "two", "one"))
           .withFieldValue("sqlDateValue", LocalDate.now())
           .withFieldValue("sqlTimeValue", LocalTime.now())
@@ -248,6 +258,7 @@ public class BeamRowToStorageApiProtoTest {
           .put("booleanvalue", true)
           .put("bytesvalue", ByteString.copyFrom(BYTES))
           .put("arrayvalue", ImmutableList.of("one", "two", "red", "blue"))
+          .put("arraynullvalue", Collections.emptyList())
           .put("iterablevalue", ImmutableList.of("blue", "red", "two", "one"))
           .put(
               "sqldatevalue",
