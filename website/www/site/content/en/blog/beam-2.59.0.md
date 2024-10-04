@@ -67,6 +67,8 @@ For more information on changes in 2.59.0, check out the [detailed release notes
    OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.
    * If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.
 
+* Java file-based IOs read or write lots (100k+) files could experience slowness and/or broken metrics visualization on Dataflow UI [#32649](https://github.com/apache/beam/issues/32649).
+
 For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 
 ## List of Contributors
