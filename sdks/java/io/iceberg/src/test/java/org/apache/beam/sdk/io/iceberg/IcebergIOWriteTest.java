@@ -362,7 +362,7 @@ public class IcebergIOWriteTest implements Serializable {
             .getSnapshots();
     // verify that 2 snapshots are created (one per triggering interval)
     PCollection<Long> snapshots = output.apply(Count.globally());
-    PAssert.that(snapshots).containsInAnyOrder(1L, 1L);
+    PAssert.that(snapshots).containsInAnyOrder(2L);
     testPipeline.run().waitUntilFinish();
 
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());

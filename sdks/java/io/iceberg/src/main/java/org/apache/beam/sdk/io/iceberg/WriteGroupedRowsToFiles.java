@@ -24,11 +24,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.catalog.Catalog;
@@ -38,7 +38,7 @@ class WriteGroupedRowsToFiles
     extends PTransform<
         PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
 
-  static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
+  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
 
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
