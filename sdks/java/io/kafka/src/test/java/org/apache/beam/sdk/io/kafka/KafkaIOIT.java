@@ -532,7 +532,6 @@ public class KafkaIOIT {
               .apply("Get Partitions", Keys.create());
 
       PAssert.that(values).containsInAnyOrder(0, 1);
-
       PipelineResult readResult = sdfReadPipeline.run();
 
       PipelineResult.State readState =
@@ -817,25 +816,26 @@ public class KafkaIOIT {
 
   @Test
   public void testReadAndWriteFromKafkaIOWithApplicationDefaultCredentials() throws IOException {
-    AdminClient client =
-        AdminClient.create(
-            ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
-
-    String topicName = "TestApplicationDefaultCreds-" + UUID.randomUUID();
+    // AdminClient client =
+    // AdminClient.create(
+    // ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+    String bootstraps =
+        "bootstrap.fozzie-test-cluster.us-central1.managedkafka.dataflow-testing-311516.cloud.goog:9092";
+    String topicName = "beam-testing";
     Map<Integer, String> records = new HashMap<>();
     for (int i = 0; i < 5; i++) {
       records.put(i, String.valueOf(i));
     }
-
+    // writePipeline.getOptions().as(Options.class).setRunner(DataflowRunner.class);
     try {
-      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+      // client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
 
       writePipeline
           .apply("Generate Write Elements", Create.of(records))
           .apply(
               "Write to Kafka",
               KafkaIO.<Integer, String>write()
-                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withBootstrapServers(bootstraps)
                   .withTopic(topicName)
                   .withKeySerializer(IntegerSerializer.class)
                   .withValueSerializer(StringSerializer.class)
@@ -843,19 +843,18 @@ public class KafkaIOIT {
 
       writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
 
-      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
+      // client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
 
-      sdfReadPipeline
-          .apply(
-              "Read from Kafka",
-              KafkaIO.<Integer, String>read()
-                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                  .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-                  .withTopic(topicName)
-                  .withKeyDeserializer(IntegerDeserializer.class)
-                  .withValueDeserializer(StringDeserializer.class)
-                  .withApplicationDefaultCredentials()
-                  .withoutMetadata());
+      sdfReadPipeline.apply(
+          "Read from Kafka",
+          KafkaIO.<Integer, String>read()
+              .withBootstrapServers(bootstraps)
+              .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+              .withTopic(topicName)
+              .withKeyDeserializer(IntegerDeserializer.class)
+              .withValueDeserializer(StringDeserializer.class)
+              .withApplicationDefaultCredentials()
+              .withoutMetadata());
 
       PipelineResult readResult = sdfReadPipeline.run();
 
@@ -866,7 +865,7 @@ public class KafkaIOIT {
       // Fail the test if pipeline failed.
       assertNotEquals(readState, PipelineResult.State.FAILED);
     } finally {
-      client.deleteTopics(ImmutableSet.of(topicName));
+      // client.deleteTopics(ImmutableSet.of(topicName));
     }
   }
 

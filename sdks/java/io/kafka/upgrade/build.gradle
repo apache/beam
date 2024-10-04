@@ -36,8 +36,8 @@ dependencies {
     permitUnusedDeclared project(":model:pipeline")
     implementation library.java.joda_time
     // Get back to "provided" since 2.14
-    provided library.java.kafka_clients
+    //provided library.java.kafka_clients
     testImplementation library.java.junit
-    testImplementation library.java.kafka_clients
+    // testImplementation library.java.kafka_clients
 
 }
