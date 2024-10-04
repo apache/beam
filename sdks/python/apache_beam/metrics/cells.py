@@ -606,8 +606,8 @@ class StringSetData(object):
         current_size += len(string)
         if current_size > cls._STRING_SET_SIZE_LIMIT:
           _LOGGER.warning(
-              "StringSetData reaches capacity. Current size: %d, last element "
-              "size: %d. Further incoming elements will be dropped.",
+              "StringSet metrics reaches capacity. Further incoming elements "
+              "won't be recorded. Current size: %d, last element size: %d.",
               current_size,
               len(string))
           break

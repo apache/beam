@@ -132,8 +132,8 @@ public abstract class StringSetData implements Serializable {
         // check capacity both before insert and after insert one, so the warning only emit once.
         if (currentSize > STRING_SET_SIZE_LIMIT) {
           LOG.warn(
-              "StringSetData reaches capacity. Current size: {}, last element size: {}. Further "
-                  + "incoming elements will be dropped.",
+              "StringSet metrics reaches capacity. Further incoming elements won't be recorded."
+                  + " Current size: {}, last element size: {}.",
               currentSize,
               string.length());
           break;
