@@ -154,9 +154,18 @@ public class TextIOIT {
 
     PipelineResult result = pipeline.run();
     PipelineResult.State pipelineState = result.waitUntilFinish();
-    assertEquals(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        Lineage.query(result.metrics(), Lineage.Type.SINK));
+
+    // FileIO Lineage has multi-level cap to avoid huge set. Only check both non-empty
+    // (if supported by runner) for large shards
+    if (numShards <= 100) {
+      assertEquals(
+          Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+          Lineage.query(result.metrics(), Lineage.Type.SINK));
+    } else {
+      assertEquals(
+          Lineage.query(result.metrics(), Lineage.Type.SOURCE).isEmpty(),
+          Lineage.query(result.metrics(), Lineage.Type.SINK).isEmpty());
+    }
 
     collectAndPublishMetrics(result);
     // Fail the test if pipeline failed.

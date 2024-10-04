@@ -219,7 +219,12 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected void reportLineage(GcsResourceId resourceId, Lineage lineage) {
     GcsPath path = resourceId.getGcsPath();
     if (!path.getBucket().isEmpty()) {
-      lineage.add("gcs", ImmutableList.of(path.getBucket(), path.getObject()));
+      ImmutableList.Builder<String> segments =
+          ImmutableList.<String>builder().add(path.getBucket());
+      if (!path.getObject().isEmpty()) {
+        segments.add(path.getObject());
+      }
+      lineage.add("gcs", segments.build());
     } else {
       LOG.warn("Report Lineage on relative path {} is unsupported", path.getObject());
     }

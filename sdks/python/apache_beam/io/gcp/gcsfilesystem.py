@@ -368,8 +368,11 @@ class GCSFileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      bucket, blob = gcsio.parse_gcs_path(path)
+      components = gcsio.parse_gcs_path(path, object_optional=True)
     except ValueError:
       # report lineage is fail-safe
       return
-    lineage.add('gcs', bucket, blob)
+    if len(components) > 1 and components[-1] == '':
+      # bucket only
+      components = components[:-1]
+    lineage.add('gcs', *components)

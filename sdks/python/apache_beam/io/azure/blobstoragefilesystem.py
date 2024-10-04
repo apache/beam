@@ -319,8 +319,12 @@ class BlobStorageFileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      components = blobstorageio.parse_azfs_path(path, get_account=True)
+      components = blobstorageio.parse_azfs_path(
+          path, blob_optional=True, get_account=True)
     except ValueError:
       # report lineage is fail-safe
       return
+    if len(components) > 1 and components[-1] == '':
+      # bucket only
+      components = components[:-1]
     lineage.add('abs', *components)

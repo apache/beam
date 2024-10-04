@@ -280,8 +280,29 @@ class FileBasedSink(iobase.Sink):
 
       src_files.append(src)
       dst_files.append(dst)
-      FileSystems.report_sink_lineage(dst)
+
+    self._report_sink_lineage(dst_glob, dst_files)
     return src_files, dst_files, delete_files, num_skipped
+
+  def _report_sink_lineage(self, dst_glob, dst_files):
+    """
+    Report sink Lineage. Report every file if number of files no more than 100,
+    otherwise only report at directory level.
+    """
+    if len(dst_files) <= 100:
+      for dst in dst_files:
+        FileSystems.report_sink_lineage(dst)
+    else:
+      dst = dst_glob
+      sep = dst_glob.find('*')
+      if sep > 0:
+        dst = dst[:sep]
+      try:
+        dst, _ = FileSystems.split(dst)
+      except ValueError:
+        return  # lineage report is fail-safe
+
+      FileSystems.report_sink_lineage(dst)
 
   @check_accessible(['file_path_prefix'])
   def finalize_write(

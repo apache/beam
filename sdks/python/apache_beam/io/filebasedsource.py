@@ -168,8 +168,23 @@ class FileBasedSource(iobase.BoundedSource):
             min_bundle_size=self._min_bundle_size,
             splittable=splittable)
         single_file_sources.append(single_file_source)
-        FileSystems.report_source_lineage(file_name)
+
       self._concat_source = concat_source.ConcatSource(single_file_sources)
+
+      # Report source Lineage. depend on the number of files, report full file
+      # name or only dir
+      if len(files_metadata) <= 100:
+        for file_metadata in files_metadata:
+          FileSystems.report_source_lineage(file_metadata.path)
+      else:
+        for file_metadata in files_metadata:
+          try:
+            base, _ = FileSystems.split(file_metadata.path)
+          except ValueError:
+            pass
+          else:
+            FileSystems.report_source_lineage(base)
+
     return self._concat_source
 
   def open_file(self, file_name):
@@ -352,7 +367,14 @@ class _ExpandIntoRanges(DoFn):
       match_results = FileSystems.match([element])
       metadata_list = match_results[0].metadata_list
     for metadata in metadata_list:
-      FileSystems.report_source_lineage(metadata.path)
+      # fail-safely report source lineage
+      try:
+        base, _ = FileSystems.split(metadata.path)
+      except ValueError:
+        pass
+      else:
+        FileSystems.report_source_lineage(base)
+
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))

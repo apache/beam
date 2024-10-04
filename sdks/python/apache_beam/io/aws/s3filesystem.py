@@ -317,8 +317,11 @@ class S3FileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      components = s3io.parse_s3_path(path, get_account=True)
+      components = s3io.parse_s3_path(path, object_optional=True)
     except ValueError:
       # report lineage is fail-safe
       return
+    if len(components) > 1 and components[-1] == '':
+      # bucket only
+      components = components[:-1]
     lineage.add('s3', *components)

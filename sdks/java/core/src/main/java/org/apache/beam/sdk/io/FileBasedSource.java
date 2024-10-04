@@ -297,9 +297,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
           System.currentTimeMillis() - startTime,
           expandedFiles.size(),
           splitResults.size());
+
+      reportSourceLineage(expandedFiles);
       return splitResults;
     } else {
-      FileSystems.reportSourceLineage(getSingleFileMetadata().resourceId());
       if (isSplittable()) {
         @SuppressWarnings("unchecked")
         List<FileBasedSource<T>> splits =
@@ -311,6 +312,19 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
                 + "the file is not seekable",
             fileOrPattern);
         return ImmutableList.of(this);
+      }
+    }
+  }
+
+  /** Report source Lineage. Depend on the number of files, report full file name or only dir. */
+  private void reportSourceLineage(List<Metadata> expandedFiles) {
+    if (expandedFiles.size() <= 100) {
+      for (Metadata metadata : expandedFiles) {
+        FileSystems.reportSourceLineage(metadata.resourceId());
+      }
+    } else {
+      for (Metadata metadata : expandedFiles) {
+        FileSystems.reportSourceLineage(metadata.resourceId().getCurrentDirectory());
       }
     }
   }

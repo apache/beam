@@ -88,6 +88,7 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     @ProcessElement
     public void process(ProcessContext c) {
       MatchResult.Metadata metadata = c.element().getMetadata();
+      FileSystems.reportSourceLineage(metadata.resourceId().getCurrentDirectory());
       if (!metadata.isReadSeekEfficient()) {
         c.output(KV.of(c.element(), new OffsetRange(0, metadata.sizeBytes())));
         return;
@@ -140,7 +141,6 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
           throw e;
         }
       }
-      FileSystems.reportSourceLineage(resourceId);
     }
   }
 }
