@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -38,6 +39,8 @@ class RecordWriter {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
   private final Counter activeIcebergWriters =
       Metrics.counter(RecordWriterManager.class, "activeIcebergWriters");
+  private final Distribution dataFileByteSize =
+      Metrics.distribution(RecordWriter.class, "dataFileByteSize");
   private final DataWriter<Record> icebergDataWriter;
   private final Table table;
   private final String absoluteFilename;
@@ -95,7 +98,7 @@ class RecordWriter {
     }
     activeIcebergWriters.inc();
     LOG.info(
-        "Opened {} writer for table {}, partition {}. Writing to path: {}",
+        "Opened {} writer for table '{}', partition {}. Writing to path: {}",
         fileFormat,
         table.name(),
         partitionKey,
@@ -117,7 +120,15 @@ class RecordWriter {
           e);
     }
     activeIcebergWriters.dec();
-    LOG.info("Closed {} writer for table {}, path: {}", fileFormat, table.name(), absoluteFilename);
+    DataFile dataFile = icebergDataWriter.toDataFile();
+    LOG.info(
+        "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",
+        fileFormat,
+        table.name(),
+        dataFile.recordCount(),
+        dataFile.fileSizeInBytes(),
+        absoluteFilename);
+    dataFileByteSize.update(dataFile.fileSizeInBytes());
   }
 
   public long bytesWritten() {

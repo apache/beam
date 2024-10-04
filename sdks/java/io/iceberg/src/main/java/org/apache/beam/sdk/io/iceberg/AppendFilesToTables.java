@@ -105,7 +105,7 @@ class AppendFilesToTables
       }
       update.commit();
       Snapshot snapshot = table.currentSnapshot();
-      LOG.info("Created new snapshot for table '{}': {}.", element.getKey(), snapshot);
+      LOG.info("Created new snapshot for table '{}': {}", element.getKey(), snapshot);
       snapshotsCreated.inc();
       out.outputWithTimestamp(
           KV.of(element.getKey(), SnapshotInfo.fromSnapshot(snapshot)), window.maxTimestamp());
