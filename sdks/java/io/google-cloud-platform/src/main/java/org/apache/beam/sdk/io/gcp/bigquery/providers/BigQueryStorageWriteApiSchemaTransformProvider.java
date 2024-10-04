@@ -278,7 +278,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
     @SchemaFieldDescription(
         "If CREATE_IF_NEEDED disposition is set, BigQuery table(s) will be created with this"
-            + " primary key. Required when CDC writes are enabled with CREATE_IF_NEEDED.")
+            + " columns as primary key. Required when CDC writes are enabled with CREATE_IF_NEEDED.")
     @Nullable
     public abstract List<String> getPrimaryKey();
 
