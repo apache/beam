@@ -53,6 +53,40 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.61.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
 # [2.60.0] - Unreleased
 
 ## Highlights
@@ -73,7 +107,6 @@
 * Significantly improved performance of Kafka IO reads that enable [commitOffsetsInFinalize](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html#commitOffsetsInFinalize--) by removing the data reshuffle from SDF implementation.  ([#31682](https://github.com/apache/beam/pull/31682)).
 * Added support for dynamic writing in MqttIO (Java) ([#19376](https://github.com/apache/beam/issues/19376))
 * Optimized Spark Runner parDo transform evaluator (Java) ([#32537](https://github.com/apache/beam/issues/32537))
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
@@ -95,9 +128,6 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 * (Java) Fixed custom delimiter issues in TextIO ([#32249](https://github.com/apache/beam/issues/32249), [#32251](https://github.com/apache/beam/issues/32251)).
 * (Java, Python, Go) Fixed PeriodicSequence backlog bytes reporting, which was preventing Dataflow Runner autoscaling from functioning properly ([#32506](https://github.com/apache/beam/issues/32506)).
 * (Java) Fix improper decoding of rows with schemas containing nullable fields when encoded with a schema with equal encoding positions but modified field order. ([#32388](https://github.com/apache/beam/issues/32388)).
-
-## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.59.0] - 2024-09-11
 
@@ -140,6 +170,8 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
    * In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
    OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.
    * If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.
+
+* Java file-based IOs read or write lots (100k+) files could experience slowness and/or broken metrics visualization on Dataflow UI [#32649](https://github.com/apache/beam/issues/32649).
 
 # [2.58.1] - 2024-08-15
 
