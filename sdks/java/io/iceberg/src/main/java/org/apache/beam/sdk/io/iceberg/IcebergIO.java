@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -28,12 +27,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.AfterFirst;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -288,7 +281,6 @@ public class IcebergIO {
 
   @AutoValue
   public abstract static class WriteRows extends PTransform<PCollection<Row>, IcebergWriteResult> {
-    private static final int TRIGGERING_RECORD_COUNT = 50_000;
 
     abstract IcebergCatalogConfig getCatalogConfig();
 
@@ -322,12 +314,14 @@ public class IcebergIO {
     }
 
     /**
-     * Sets the frequency at which data is committed and a new {@link org.apache.iceberg.Snapshot}
-     * is produced.
+     * Sets the frequency at which data is written to files and a new {@link
+     * org.apache.iceberg.Snapshot} is produced.
      *
-     * <p>Roughly every triggeringFrequency duration, this connector will try to accumulate all
-     * {@link org.apache.iceberg.ManifestFile}s and commit them to the table as appended files. Each
-     * commit results in a new table {@link org.apache.iceberg.Snapshot}.
+     * <p>Roughly every triggeringFrequency duration, records are written to data files and appended
+     * to the respective table. Each append operation created a new table snapshot.
+     *
+     * <p>Generally speaking, increasing this duration will result in fewer, larger data files and
+     * fewer snapshots.
      *
      * <p>This is only applicable when writing an unbounded {@link PCollection} (i.e. a streaming
      * pipeline).
@@ -350,34 +344,13 @@ public class IcebergIO {
                 Preconditions.checkNotNull(getTableIdentifier()), input.getSchema());
       }
 
-      // Assign destinations before re-windowing to global because
+      // Assign destinations before re-windowing to global in WriteToDestinations because
       // user's dynamic destination may depend on windowing properties
-      PCollection<Row> assignedRows =
-          input.apply("Set Destination Metadata", new AssignDestinations(destinations));
-
-      if (assignedRows.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
-        Duration triggeringFrequency = getTriggeringFrequency();
-        checkArgumentNotNull(
-            triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
-        assignedRows =
-            assignedRows.apply(
-                "WindowIntoGlobal",
-                Window.<Row>into(new GlobalWindows())
-                    .triggering(
-                        Repeatedly.forever(
-                            AfterFirst.of(
-                                AfterProcessingTime.pastFirstElementInPane()
-                                    .plusDelayOf(triggeringFrequency),
-                                AfterPane.elementCountAtLeast(TRIGGERING_RECORD_COUNT))))
-                    .discardingFiredPanes());
-      } else {
-        Preconditions.checkArgument(
-            getTriggeringFrequency() == null,
-            "Triggering frequency is only applicable for streaming pipelines.");
-      }
-      return assignedRows.apply(
-          "Write Rows to Destinations",
-          new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
+      return input
+          .apply("Assign Table Destinations", new AssignDestinations(destinations))
+          .apply(
+              "Write Rows to Destinations",
+              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
     }
   }
 
