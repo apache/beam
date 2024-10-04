@@ -231,17 +231,9 @@ class ExternalProvider(Provider):
           result.to_json = lambda: spec
         return result
       except Exception as exn:
-        if isinstance(exn, ModuleNotFoundError) and config.get('requires_gcp',
-                                                               False):
-          print(
-              f"gcp dependencies not installed. Cannot use transforms: "
-              f"{', '.join(urns.keys())}. Please install using "
-              f"'pip install apache-beam[gcp]'.")
-          return InlineProvider({})
-        else:
-          raise ValueError(
-              f'Unable to instantiate provider of type {type} '
-              f'at line {SafeLineLoader.get_line(spec)}: {exn}') from exn
+        raise ValueError(
+            f'Unable to instantiate provider of type {type} '
+            f'at line {SafeLineLoader.get_line(spec)}: {exn}') from exn
     else:
       raise NotImplementedError(
           f'Unknown provider type: {type} '
@@ -343,7 +335,7 @@ class ExternalJavaProvider(ExternalProvider):
 
 
 @ExternalProvider.register_provider_type('python')
-def python(urns, packages=(), requires_gcp=False):
+def python(urns, packages=()):
   if packages:
     return ExternalPythonProvider(urns, packages)
   else:
