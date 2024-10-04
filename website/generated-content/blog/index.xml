@@ -208,12 +208,16 @@ See the &lt;a href="/get-started/downloads/#2590-2024-09-11">download page&lt;/a
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
-&lt;li>Prism is under active development and does not yet support all pipelines. See &lt;a href="https://github.com/apache/beam/issues/29650">#29650&lt;/a> for progress.
+&lt;li>
+&lt;p>Prism is under active development and does not yet support all pipelines. See &lt;a href="https://github.com/apache/beam/issues/29650">#29650&lt;/a> for progress.&lt;/p>
 &lt;ul>
 &lt;li>In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
 OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.&lt;/li>
 &lt;li>If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.&lt;/li>
 &lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>Java file-based IOs read or write lots (100k+) files could experience slowness and/or broken metrics visualization on Dataflow UI &lt;a href="https://github.com/apache/beam/issues/32649">#32649&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
