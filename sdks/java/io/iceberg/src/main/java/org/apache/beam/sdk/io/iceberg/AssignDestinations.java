@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.WriteToDestinations.DATA;
-import static org.apache.beam.sdk.io.iceberg.WriteToDestinations.DEST;
-
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -37,7 +37,7 @@ import org.joda.time.Instant;
  * <p>The output record will have the format { dest: ..., data: ...} where the dest field has the
  * assigned metadata and the data field has the original row.
  */
-class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> {
+class AssignDestinations extends PTransform<PCollection<Row>, PCollection<KV<String, Row>>> {
 
   private final DynamicDestinations dynamicDestinations;
 
@@ -46,34 +46,27 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<Row> input) {
-
-    final Schema outputSchema =
-        Schema.builder()
-            .addStringField(DEST)
-            .addRowField(DATA, dynamicDestinations.getDataSchema())
-            .build();
-
+  public PCollection<KV<String, Row>> expand(PCollection<Row> input) {
     return input
         .apply(
             ParDo.of(
-                new DoFn<Row, Row>() {
+                new DoFn<Row, KV<String, Row>>() {
                   @ProcessElement
                   public void processElement(
                       @Element Row element,
                       BoundedWindow window,
                       PaneInfo paneInfo,
                       @Timestamp Instant timestamp,
-                      OutputReceiver<Row> out) {
+                      OutputReceiver<KV<String, Row>> out) {
                     String tableIdentifier =
                         dynamicDestinations.getTableStringIdentifier(
                             ValueInSingleWindow.of(element, timestamp, window, paneInfo));
                     Row data = dynamicDestinations.getData(element);
 
-                    out.output(
-                        Row.withSchema(outputSchema).addValues(tableIdentifier, data).build());
+                    out.output(KV.of(tableIdentifier, data));
                   }
                 }))
-        .setRowSchema(outputSchema);
+        .setCoder(
+            KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
   }
 }
