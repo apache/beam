@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -50,6 +51,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
+  private final String filePrefix;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
@@ -58,6 +60,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
+    // single unique prefix per pipeline
+    this.filePrefix = UUID.randomUUID().toString();
   }
 
   @Override
@@ -97,7 +101,9 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                     IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
 
     return groupedRecords
-        .apply("WriteGroupedRows", new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations))
+        .apply(
+            "WriteGroupedRows",
+            new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix))
         // Respect user's triggering frequency before committing snapshots
         .apply(
             "ApplyUserTrigger",
@@ -120,7 +126,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     WriteUngroupedRowsToFiles.Result writeUngroupedResult =
         input.apply(
             "Fast-path write rows",
-            new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations));
+            new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -129,7 +135,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .apply("Group spilled rows by destination shard", GroupByKey.create())
             .apply(
                 "Write remaining rows to files",
-                new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations));
+                new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)
