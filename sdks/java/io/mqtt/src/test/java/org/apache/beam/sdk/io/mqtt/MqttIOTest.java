@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -93,7 +94,7 @@ public class MqttIOTest {
   @Ignore("https://github.com/apache/beam/issues/18723 Test timeout failure.")
   public void testReadNoClientId() throws Exception {
     final String topicName = "READ_TOPIC_NO_CLIENT_ID";
-    Read mqttReader =
+    Read<byte[]> mqttReader =
         MqttIO.read()
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, topicName))
@@ -212,6 +213,81 @@ public class MqttIOTest {
 
     publisherThread.join();
     publishConnection.disconnect();
+  }
+
+  @Test(timeout = 60 * 1000)
+  public void testReadWithMetadata() throws Exception {
+    final String wildcardTopic = "topic/#";
+    final String topic1 = "topic/1";
+    final String topic2 = "topic/2";
+
+    final PTransform<PBegin, PCollection<MqttRecord>> mqttReaderWithMetadata =
+        MqttIO.readWithMetadata()
+            .withConnectionConfiguration(
+                MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, wildcardTopic))
+            .withMaxNumRecords(10);
+
+    final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithMetadata);
+    PAssert.that(output)
+        .containsInAnyOrder(
+            new MqttRecord(topic1, "This is test 0".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic1, "This is test 1".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic1, "This is test 2".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic1, "This is test 3".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic1, "This is test 4".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic2, "This is test 5".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic2, "This is test 6".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic2, "This is test 7".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic2, "This is test 8".getBytes(StandardCharsets.UTF_8)),
+            new MqttRecord(topic2, "This is test 9".getBytes(StandardCharsets.UTF_8)));
+
+    // produce messages on the brokerService in another thread
+    // This thread prevents to block the pipeline waiting for new messages
+    MQTT client = new MQTT();
+    client.setHost("tcp://localhost:" + port);
+    final BlockingConnection publishConnection = client.blockingConnection();
+    publishConnection.connect();
+    Thread publisherThread =
+        new Thread(
+            () -> {
+              try {
+                LOG.info(
+                    "Waiting pipeline connected to the MQTT broker before sending "
+                        + "messages ...");
+                boolean pipelineConnected = false;
+                while (!pipelineConnected) {
+                  Thread.sleep(1000);
+                  for (Connection connection : brokerService.getBroker().getClients()) {
+                    if (!connection.getConnectionId().isEmpty()) {
+                      pipelineConnected = true;
+                    }
+                  }
+                }
+                for (int i = 0; i < 5; i++) {
+                  publishConnection.publish(
+                      topic1,
+                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+                      QoS.EXACTLY_ONCE,
+                      false);
+                }
+                for (int i = 5; i < 10; i++) {
+                  publishConnection.publish(
+                      topic2,
+                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+                      QoS.EXACTLY_ONCE,
+                      false);
+                }
+
+              } catch (Exception e) {
+                // nothing to do
+              }
+            });
+
+    publisherThread.start();
+    pipeline.run();
+
+    publishConnection.disconnect();
+    publisherThread.join();
   }
 
   /** Test for BEAM-3282: this test should not timeout. */
