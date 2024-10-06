@@ -1,7 +1,11 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "java": "kennknowles",
+    "build": "damccorm",
+    "io": "chamikaramj"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
