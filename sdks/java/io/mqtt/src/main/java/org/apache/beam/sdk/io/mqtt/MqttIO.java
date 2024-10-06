@@ -106,7 +106,7 @@ import org.slf4j.LoggerFactory;
  * pipeline
  *   .apply(MqttIO.readWithMetadata()
  *     .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
- *       "tcp://localhost:1883", "my_topic_pattern")))
+ *       "tcp://host:1883", "my_topic_pattern")))
  *   .apply(ParDo.of(new DoFn<MqttRecord, Void>() {
  *     @ProcessElement
  *     public void processElement(ProcessContext c) {
