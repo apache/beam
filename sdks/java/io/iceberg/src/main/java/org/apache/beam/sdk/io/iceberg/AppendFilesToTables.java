@@ -118,6 +118,7 @@ class AppendFilesToTables
         committedDataFileRecordCount.update(dataFile.recordCount());
         numFiles++;
       }
+      // this commit will create a ManifestFile. we don't need to manually create one.
       update.commit();
       dataFilesCommitted.inc(numFiles);
 
