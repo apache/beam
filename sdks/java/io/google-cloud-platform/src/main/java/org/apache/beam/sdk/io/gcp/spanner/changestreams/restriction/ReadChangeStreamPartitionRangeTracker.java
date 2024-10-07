@@ -22,6 +22,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * This restriction tracker delegates most of its behavior to an internal {@link
@@ -34,9 +36,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class ReadChangeStreamPartitionRangeTracker extends TimestampRangeTracker {
+public class ReadChangeStreamPartitionRangeTracker extends TimestampRangeTracker
+    implements Interruptible {
 
   private final PartitionMetadata partition;
+  private Instant softDeadline;
+  private boolean continueProcessing = true;
 
   /**
    * Receives the partition that will be queried and the timestamp range that belongs to it.
@@ -47,6 +52,48 @@ public class ReadChangeStreamPartitionRangeTracker extends TimestampRangeTracker
   public ReadChangeStreamPartitionRangeTracker(PartitionMetadata partition, TimestampRange range) {
     super(range);
     this.partition = partition;
+  }
+
+  /**
+   * Sets a soft timeout from now for processing new positions. After the timeout the shouldContinue
+   * will start returning false indicating an early exit from processing.
+   */
+  @Override
+  public void setSoftTimeout(Duration duration) {
+    softDeadline = new Instant(timeSupplier.get().toSqlTimestamp()).plus(duration);
+    continueProcessing = true;
+  }
+
+  /**
+   * Returns true if the restriction tracker can claim new positions.
+   *
+   * <p>If soft timeout isn't set always returns true. Otherwise:
+   *
+   * <ol>
+   *   <li>If soft deadline hasn't been reached always returns true.
+   *   <li>If soft deadline has been reached but we haven't processed any positions returns true.
+   *   <li>If soft deadline has been reached but the new position is the same as the last attempted
+   *       position returns true.
+   *   <li>If soft deadline has been reached and the new position differs from the last attempted
+   *       position returns false.
+   * </ol>
+   *
+   * @return {@code true} if the position processing should continue, {@code false} if the soft
+   *     deadline has been reached and we have fully processed the previous position.
+   */
+  @Override
+  public boolean shouldContinue(Timestamp position) {
+    if (!continueProcessing) {
+      return false;
+    }
+    if (softDeadline == null || lastAttemptedPosition == null) {
+      return true;
+    }
+
+    continueProcessing &=
+        new Instant(timeSupplier.get().toSqlTimestamp()).isBefore(softDeadline)
+            || position.equals(lastAttemptedPosition);
+    return continueProcessing;
   }
 
   /**
