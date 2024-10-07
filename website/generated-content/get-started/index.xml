@@ -5651,9 +5651,9 @@ runtimeOnly(&amp;#34;org.apache.beam:beam-runners-google-cloud-dataflow-java:2.5
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre tabindex="0">&lt;code>task execute (type: JavaExec) {
-classpath = sourceSets[&amp;#34;main&amp;#34;].runtimeClasspath
+&lt;pre tabindex="0">&lt;code>tasks.register&amp;lt;JavaExec&amp;gt;(&amp;#34;execute&amp;#34;) {
 mainClass.set(System.getProperty(&amp;#34;mainClass&amp;#34;))
+classpath = sourceSets.main.get().runtimeClasspath
 }
 &lt;/code>&lt;/pre>
 &lt;/div>
