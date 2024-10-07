@@ -24,9 +24,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -46,9 +48,15 @@ import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A writer that manages multiple {@link RecordWriter}s to write to multiple tables and partitions.
@@ -74,6 +82,7 @@ import org.apache.iceberg.io.OutputFile;
  * #getManifestFiles()}.
  */
 class RecordWriterManager implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
   private final Counter dataFilesWritten =
       Metrics.counter(RecordWriterManager.class, "dataFilesWritten");
   private final Counter manifestFilesWritten =
@@ -95,7 +104,7 @@ class RecordWriterManager implements AutoCloseable {
     private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
     private final List<DataFile> dataFiles = Lists.newArrayList();
-    @VisibleForTesting final Cache<PartitionKey, RecordWriter> writers;
+    final Cache<PartitionKey, RecordWriter> writers;
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
@@ -211,6 +220,8 @@ class RecordWriterManager implements AutoCloseable {
 
   private final Map<WindowedValue<IcebergDestination>, List<ManifestFile>> totalManifestFiles =
       Maps.newHashMap();
+  private static final Cache<TableIdentifier, Table> TABLE_CACHE =
+      CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   private boolean isClosed = false;
 
@@ -219,6 +230,41 @@ class RecordWriterManager implements AutoCloseable {
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
+  }
+
+  /**
+   * Returns an Iceberg {@link Table}.
+   *
+   * <p>First attempts to fetch the table from the {@link #TABLE_CACHE}. If it's not there, we
+   * attempt to load it using the Iceberg API. If the table doesn't exist at all, we attempt to
+   * create it, inferring the table schema from the record schema.
+   *
+   * <p>Note that this is a best-effort operation that depends on the {@link Catalog}
+   * implementation. Although it is expected, some implementations may not support creating a table
+   * using the Iceberg API.
+   */
+  private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema) {
+    @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
+    if (table == null) {
+      try {
+        table = catalog.loadTable(identifier);
+      } catch (NoSuchTableException e) {
+        try {
+          org.apache.iceberg.Schema tableSchema =
+              IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+          // TODO(ahmedabu98): support creating a table with a specified partition spec
+          table = catalog.createTable(identifier, tableSchema);
+          LOG.info(
+              "Successfully created Iceberg table '{}' with schema: {}", identifier, tableSchema);
+        } catch (AlreadyExistsException alreadyExistsException) {
+          // handle race condition where workers are concurrently creating the same table.
+          // if running into already exists exception, we perform one last load
+          table = catalog.loadTable(identifier);
+        }
+      }
+      TABLE_CACHE.put(identifier, table);
+    }
+    return table;
   }
 
   /**
@@ -233,7 +279,16 @@ class RecordWriterManager implements AutoCloseable {
         destinations.computeIfAbsent(
             icebergDestination,
             destination -> {
-              Table table = catalog.loadTable(destination.getValue().getTableIdentifier());
+              TableIdentifier identifier = destination.getValue().getTableIdentifier();
+              Table table;
+              try {
+                table =
+                    TABLE_CACHE.get(
+                        identifier, () -> getOrCreateTable(identifier, row.getSchema()));
+              } catch (ExecutionException e) {
+                throw new RuntimeException(
+                    "Error while fetching or creating table: " + identifier, e);
+              }
               return new DestinationState(destination.getValue(), table);
             });
 
