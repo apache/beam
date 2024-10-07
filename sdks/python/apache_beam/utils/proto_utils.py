@@ -37,8 +37,8 @@ TimeMessageT = TypeVar(
 message_types = (message.Message, )
 
 _SECONDS_TO_MICROS = 10**6
-_SECONDS_TO_NANOS = 10**8
-_MICROS_TO_NANOS = 1000
+_SECONDS_TO_NANOS = 10**9
+_MICROS_TO_NANOS = 10**3
 
 
 @overload
