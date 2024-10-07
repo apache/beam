@@ -25,6 +25,9 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.hive.hcatalog.data.HCatRecord;
+import java.util.stream.Collectors;
+import java.util.List;
+import org.joda.time.Instant;
 
 /** Utilities to convert {@link HCatRecord HCatRecords} to {@link Row Rows}. */
 @SuppressWarnings({
@@ -74,6 +77,13 @@ public class HCatToRow {
   private static class HCatToRowFn extends DoFn<HCatRecord, Row> {
     private final Schema schema;
 
+    private Object castHDate(Object obj) {
+      if (obj instanceof org.apache.hadoop.hive.common.type.Date) {
+        return new Instant(((org.apache.hadoop.hive.common.type.Date) obj).toEpochMilli());
+      }
+      return obj;
+    }
+
     HCatToRowFn(Schema schema) {
       this.schema = schema;
     }
@@ -81,7 +91,8 @@ public class HCatToRow {
     @ProcessElement
     public void processElement(ProcessContext c) {
       HCatRecord hCatRecord = c.element();
-      c.output(Row.withSchema(schema).addValues(hCatRecord.getAll()).build());
+      List<Object> recordValues = hCatRecord.getAll().stream().map(this::castHDate).collect(Collectors.toList());
+      c.output(Row.withSchema(schema).addValues(recordValues).build());
     }
   }
 }
