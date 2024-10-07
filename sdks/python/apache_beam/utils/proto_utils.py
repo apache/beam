@@ -40,6 +40,7 @@ _SECONDS_TO_MICROS = 10**6
 _SECONDS_TO_NANOS = 10**8
 _MICROS_TO_NANOS = 1000
 
+
 @overload
 def pack_Any(msg: message.Message) -> any_pb2.Any:
   pass
@@ -129,7 +130,8 @@ def from_micros(cls: Type[TimeMessageT], micros: int) -> TimeMessageT:
     return result
   else:
     raise RuntimeError('cannot convert the micro seconds to %s' % cls)
-  
+
+
 def to_micros(value: Union[duration_pb2.Duration, timestamp_pb2.Timestamp]):
   if isinstance(value, duration_pb2.Duration):
     return value.ToMicroseconds()
@@ -140,6 +142,7 @@ def to_micros(value: Union[duration_pb2.Duration, timestamp_pb2.Timestamp]):
     return micros + (value.nanos // _MICROS_TO_NANOS)
   else:
     raise RuntimeError('cannot convert %s to micro seconds' % value)
+
 
 def to_Timestamp(time: Union[int, float]) -> timestamp_pb2.Timestamp:
   """Convert a float returned by time.time() to a Timestamp.
