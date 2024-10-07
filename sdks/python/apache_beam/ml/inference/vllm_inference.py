@@ -196,7 +196,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
-  
+
   async def _async_run_inference(
       self,
       batch: Sequence[Sequence[OpenAIChatMessage]],
@@ -214,7 +214,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       except Exception as e:
         model.check_connectivity()
         raise e
-      
+
     predictions = []
     for p in async_predictions:
       try:
@@ -297,7 +297,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self._vllm_server_kwargs['chat_template'] = local_chat_template_path
 
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
-  
+
   async def _async_run_inference(
       self,
       batch: Sequence[Sequence[OpenAIChatMessage]],
@@ -318,7 +318,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       except Exception as e:
         model.check_connectivity()
         raise e
-      
+
     predictions = []
     for p in async_predictions:
       try:
