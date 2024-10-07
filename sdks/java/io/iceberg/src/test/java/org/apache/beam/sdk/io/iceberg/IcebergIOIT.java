@@ -35,6 +35,7 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -71,6 +72,7 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -109,6 +111,9 @@ public class IcebergIOIT implements Serializable {
           .addArrayField("arr_long", org.apache.beam.sdk.schemas.Schema.FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
+          .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+          .addLogicalTypeField("date", SqlTypes.DATE)
+          .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
 
   private static final SimpleFunction<Long, Row> ROW_FUNC =
@@ -138,6 +143,9 @@ public class IcebergIOIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
+              .addValue(DateTimeUtil.timestampFromMicros(num))
+              .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
+              .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
         }
       };

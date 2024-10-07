@@ -32,12 +32,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -102,10 +104,20 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testDate() {}
+    public void testDate() {
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.DATE),
+          Types.DateType.get(),
+          DateTimeUtil.dateFromDays(12345));
+    }
 
     @Test
-    public void testTime() {}
+    public void testTime() {
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.TIME),
+          Types.TimeType.get(),
+          DateTimeUtil.timeFromMicros(12345678L));
+    }
 
     @Test
     public void testTimestamp() {
@@ -117,6 +129,11 @@ public class IcebergUtilsTest {
           dateTime.toInstant(),
           Types.TimestampType.withoutZone(),
           dateTime.getMillis());
+
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          Types.TimestampType.withoutZone(),
+          DateTimeUtil.timestampFromMicros(123456789L));
     }
 
     @Test
@@ -190,7 +207,7 @@ public class IcebergUtilsTest {
 
       Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
 
-      assertThat(row.getBaseValue("v"), equalTo(destValue));
+      assertThat(row.getValue("v"), equalTo(destValue));
     }
 
     @Test
@@ -224,10 +241,20 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testDate() {}
+    public void testDate() {
+      checkRecordValueToRowValue(
+          Types.DateType.get(),
+          Schema.FieldType.logicalType(SqlTypes.DATE),
+          DateTimeUtil.dateFromDays(12345));
+    }
 
     @Test
-    public void testTime() {}
+    public void testTime() {
+      checkRecordValueToRowValue(
+          Types.TimeType.get(),
+          Schema.FieldType.logicalType(SqlTypes.TIME),
+          DateTimeUtil.timeFromMicros(1234567L));
+    }
 
     @Test
     public void testTimestamp() {
@@ -537,6 +564,9 @@ public class IcebergUtilsTest {
             .addNullableStringField("str")
             .addNullableBooleanField("bool")
             .addByteArrayField("bytes")
+            .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+            .addLogicalTypeField("time", SqlTypes.TIME)
+            .addLogicalTypeField("date", SqlTypes.DATE)
             .build();
 
     static final org.apache.iceberg.Schema ICEBERG_SCHEMA_PRIMITIVE =
@@ -547,15 +577,15 @@ public class IcebergUtilsTest {
             required(4, "long", Types.LongType.get()),
             optional(5, "str", Types.StringType.get()),
             optional(6, "bool", Types.BooleanType.get()),
-            required(7, "bytes", Types.BinaryType.get()));
+            required(7, "bytes", Types.BinaryType.get()),
+            required(8, "datetime", Types.TimestampType.withoutZone()),
+            required(9, "time", Types.TimeType.get()),
+            required(10, "date", Types.DateType.get()));
 
     @Test
     public void testPrimitiveBeamSchemaToIcebergSchema() {
       org.apache.iceberg.Schema convertedIcebergSchema =
           IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA_PRIMITIVE);
-
-      System.out.println(convertedIcebergSchema);
-      System.out.println(ICEBERG_SCHEMA_PRIMITIVE);
 
       assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA_PRIMITIVE));
     }
@@ -565,6 +595,27 @@ public class IcebergUtilsTest {
       Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(ICEBERG_SCHEMA_PRIMITIVE);
 
       assertEquals(BEAM_SCHEMA_PRIMITIVE, convertedBeamSchema);
+    }
+
+    @Test
+    public void testDatetimeBeamToIceberg() {
+      // Support converting both DATETIME types to Iceberg TIMESTAMP type
+      // The other way around only supports Iceberg TIMESTAMP to Beam SqlTypes.DATETIME
+      Schema beamSchema =
+          Schema.builder()
+              .addDateTimeField("datetime")
+              .addLogicalTypeField("sql_datetime", SqlTypes.DATETIME)
+              .build();
+
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(
+              required(1, "datetime", Types.TimestampType.withoutZone()),
+              required(2, "sql_datetime", Types.TimestampType.withoutZone()));
+
+      org.apache.iceberg.Schema convertedIcebergSchema =
+          IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
+
+      assertTrue(convertedIcebergSchema.sameSchema(icebergSchema));
     }
 
     static final Schema BEAM_SCHEMA_LIST =

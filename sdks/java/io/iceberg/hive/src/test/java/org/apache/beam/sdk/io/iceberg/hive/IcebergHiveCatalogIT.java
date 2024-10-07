@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.hive.testutils.HiveMetastoreExtension;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -64,6 +65,7 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.thrift.TException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -100,6 +102,9 @@ public class IcebergHiveCatalogIT {
           .addArrayField("arr_long", Schema.FieldType.INT64)
           .addRowField("row", NESTED_ROW_SCHEMA)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
+          .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+          .addLogicalTypeField("date", SqlTypes.DATE)
+          .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
 
   private static final SimpleFunction<Long, Row> ROW_FUNC =
@@ -127,6 +132,9 @@ public class IcebergHiveCatalogIT {
               .addValue(LongStream.range(1, num % 10).boxed().collect(Collectors.toList()))
               .addValue(nestedRow)
               .addValue(num % 2 == 0 ? null : nestedRow)
+              .addValue(DateTimeUtil.timestampFromMicros(num))
+              .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
+              .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
         }
       };

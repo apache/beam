@@ -20,12 +20,16 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -34,9 +38,11 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
 
 /** Utilities for converting between Beam and Iceberg types. */
 public class IcebergUtils {
@@ -54,6 +60,14 @@ public class IcebergUtils {
           .put(Schema.TypeName.DOUBLE, Types.DoubleType.get())
           .put(Schema.TypeName.STRING, Types.StringType.get())
           .put(Schema.TypeName.BYTES, Types.BinaryType.get())
+          .put(Schema.TypeName.DATETIME, Types.TimestampType.withoutZone())
+          .build();
+
+  private static final Map<String, Type> BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES =
+      ImmutableMap.<String, Type>builder()
+          .put(SqlTypes.DATE.getIdentifier(), Types.DateType.get())
+          .put(SqlTypes.TIME.getIdentifier(), Types.TimeType.get())
+          .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
           .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
@@ -69,9 +83,15 @@ public class IcebergUtils {
       case DOUBLE:
         return Schema.FieldType.DOUBLE;
       case DATE:
+        return Schema.FieldType.logicalType(SqlTypes.DATE);
       case TIME:
-      case TIMESTAMP: // TODO: Logical types?
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(SqlTypes.TIME);
+      case TIMESTAMP:
+        // Beam has two 'DATETIME' types: SqlTypes.DATETIME and Schema.FieldType.DATETIME, but
+        // we have to choose one type to output.
+        // The former uses the `java.time` library and the latter uses the `org.joda.time` library
+        // Iceberg API leans towards `java.time`, so we output the SqlTypes.DATETIME logical type
+        return Schema.FieldType.logicalType(SqlTypes.DATETIME);
       case STRING:
         return Schema.FieldType.STRING;
       case UUID:
@@ -151,6 +171,14 @@ public class IcebergUtils {
       // other types.
       return new TypeAndMaxId(
           --nestedFieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
+    } else if (beamType.getTypeName().isLogicalType()) {
+      String logicalTypeIdentifier =
+          checkArgumentNotNull(beamType.getLogicalType()).getIdentifier();
+      @Nullable Type type = BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES.get(logicalTypeIdentifier);
+      if (type == null) {
+        throw new RuntimeException("Unsupported Beam logical type " + logicalTypeIdentifier);
+      }
+      return new TypeAndMaxId(--nestedFieldId, type);
     } else if (beamType.getTypeName().isCollectionType()) { // ARRAY or ITERABLE
       Schema.FieldType beamCollectionType =
           Preconditions.checkArgumentNotNull(beamType.getCollectionElementType());
@@ -282,12 +310,24 @@ public class IcebergUtils {
         Optional.ofNullable(value.getDouble(name)).ifPresent(v -> rec.setField(name, v));
         break;
       case DATE:
-        throw new UnsupportedOperationException("Date fields not yet supported");
+        Optional.ofNullable(value.getLogicalTypeValue(name, LocalDate.class))
+            .ifPresent(v -> rec.setField(name, v));
+        break;
       case TIME:
-        throw new UnsupportedOperationException("Time fields not yet supported");
+        Optional.ofNullable(value.getLogicalTypeValue(name, LocalTime.class))
+            .ifPresent(v -> rec.setField(name, v));
+        break;
       case TIMESTAMP:
-        Optional.ofNullable(value.getDateTime(name))
-            .ifPresent(v -> rec.setField(name, v.getMillis()));
+        Object val = value.getValue(name);
+        if (val instanceof Instant) { // case Schema.FieldType.DATETIME
+          rec.setField(name, ((Instant) val).getMillis());
+        } else if (val instanceof LocalDateTime) { // case SqlTypes.DATETIME
+          rec.setField(name, val);
+        } else {
+          String invalidType = val == null ? "unknown" : val.getClass().toString();
+          throw new IllegalStateException(
+              "Unexpected Beam type for Iceberg TIMESTAMP: " + invalidType);
+        }
         break;
       case STRING:
         Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
@@ -321,6 +361,15 @@ public class IcebergUtils {
         break;
     }
   }
+
+  static final Map<String, SerializableFunction<Object, Object>> LOGICAL_TYPE_CONVERTERS =
+      ImmutableMap.<String, SerializableFunction<Object, Object>>builder()
+          .put(SqlTypes.DATE.getIdentifier(), val -> SqlTypes.DATE.toBaseType((LocalDate) val))
+          .put(SqlTypes.TIME.getIdentifier(), val -> SqlTypes.TIME.toBaseType((LocalTime) val))
+          .put(
+              SqlTypes.DATETIME.getIdentifier(),
+              val -> SqlTypes.DATETIME.toBaseType((LocalDateTime) val))
+          .build();
 
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
@@ -369,8 +418,19 @@ public class IcebergUtils {
           rowBuilder.addValue(icebergRecordToBeamRow(nestedSchema, nestedRecord));
           break;
         case LOGICAL_TYPE:
-          throw new UnsupportedOperationException(
-              "Cannot convert iceberg field to Beam logical type");
+          Schema.LogicalType<?, ?> logicalType = field.getType().getLogicalType();
+          if (logicalType == null) {
+            throw new RuntimeException("Unexpected null Beam logical type " + field.getType());
+          }
+          @Nullable
+          SerializableFunction<Object, Object> converter =
+              LOGICAL_TYPE_CONVERTERS.get(logicalType.getIdentifier());
+          if (converter == null) {
+            throw new RuntimeException(
+                "Unsupported Beam logical type " + logicalType.getIdentifier());
+          }
+          rowBuilder.addValue(icebergValue);
+          break;
         default:
           throw new UnsupportedOperationException(
               "Unsupported Beam type: " + field.getType().getTypeName());
