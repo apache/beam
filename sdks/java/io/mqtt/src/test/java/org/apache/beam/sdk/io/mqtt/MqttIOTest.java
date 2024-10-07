@@ -230,16 +230,16 @@ public class MqttIOTest {
     final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithMetadata);
     PAssert.that(output)
         .containsInAnyOrder(
-            new MqttRecord(topic1, "This is test 0".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic1, "This is test 1".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic1, "This is test 2".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic1, "This is test 3".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic1, "This is test 4".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic2, "This is test 5".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic2, "This is test 6".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic2, "This is test 7".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic2, "This is test 8".getBytes(StandardCharsets.UTF_8)),
-            new MqttRecord(topic2, "This is test 9".getBytes(StandardCharsets.UTF_8)));
+            MqttRecord.of(topic1, "This is test 0".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic1, "This is test 1".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic1, "This is test 2".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic1, "This is test 3".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic1, "This is test 4".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic2, "This is test 5".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic2, "This is test 6".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic2, "This is test 7".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic2, "This is test 8".getBytes(StandardCharsets.UTF_8)),
+            MqttRecord.of(topic2, "This is test 9".getBytes(StandardCharsets.UTF_8)));
 
     // produce messages on the brokerService in another thread
     // This thread prevents to block the pipeline waiting for new messages

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mqtt;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -330,6 +332,8 @@ public class MqttIO {
 
     abstract boolean withMetadata();
 
+    abstract @Nullable Coder<T> coder();
+
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConnectionConfiguration(ConnectionConfiguration config);
@@ -339,6 +343,8 @@ public class MqttIO {
       abstract Builder<T> setMaxReadTime(Duration maxReadTime);
 
       abstract Builder<T> setWithMetadata(boolean withMetadata);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Read<T> build();
     }
@@ -367,12 +373,26 @@ public class MqttIO {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
       checkArgument(connectionConfiguration() != null, "connectionConfiguration can not be null");
       checkArgument(connectionConfiguration().getTopic() != null, "topic can not be null");
 
+      Coder<T> coder;
+      if (withMetadata()) {
+        try {
+          coder =
+              (Coder<T>) input.getPipeline().getSchemaRegistry().getSchemaCoder(MqttRecord.class);
+        } catch (NoSuchSchemaException e) {
+          throw new RuntimeException(e.getMessage());
+        }
+      } else {
+        coder = (Coder<T>) ByteArrayCoder.of();
+      }
+
       org.apache.beam.sdk.io.Read.Unbounded<T> unbounded =
-          org.apache.beam.sdk.io.Read.from(new UnboundedMqttSource<>(this));
+          org.apache.beam.sdk.io.Read.from(
+              new UnboundedMqttSource<>(this.builder().setCoder(coder).build()));
 
       PTransform<PBegin, PCollection<T>> transform = unbounded;
 
@@ -476,7 +496,7 @@ public class MqttIO {
             new UnboundedMqttReader<>(
                 this,
                 checkpointMark,
-                message -> (T) new MqttRecord(message.getTopic(), message.getPayload()));
+                message -> (T) MqttRecord.of(message.getTopic(), message.getPayload()));
       } else {
         unboundedMqttReader = new UnboundedMqttReader<>(this, checkpointMark);
       }
@@ -504,13 +524,8 @@ public class MqttIO {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Coder<T> getOutputCoder() {
-      if (spec.withMetadata()) {
-        return (Coder<T>) MqttRecordCoder.of();
-      } else {
-        return (Coder<T>) ByteArrayCoder.of();
-      }
+      return checkNotNull(this.spec.coder(), "coder can not be null");
     }
   }
 

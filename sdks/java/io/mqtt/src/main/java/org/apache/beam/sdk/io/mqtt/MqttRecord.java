@@ -17,42 +17,33 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
-import java.util.Arrays;
-import java.util.Objects;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /** A container class for MQTT message metadata, including the topic name and payload. */
-public class MqttRecord {
-  private final String topic;
-  private final byte[] payload;
+@DefaultSchema(AutoValueSchema.class)
+@AutoValue
+public abstract class MqttRecord {
+  public abstract String getTopic();
 
-  public MqttRecord(String topic, byte[] payload) {
-    this.topic = topic;
-    this.payload = payload;
+  @SuppressWarnings("mutable")
+  public abstract byte[] getPayload();
+
+  static Builder builder() {
+    return new AutoValue_MqttRecord.Builder();
   }
 
-  public String getTopic() {
-    return topic;
+  static MqttRecord of(String topic, byte[] payload) {
+    return builder().setTopic(topic).setPayload(payload).build();
   }
 
-  public byte[] getPayload() {
-    return payload;
-  }
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setTopic(String topic);
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(topic, Arrays.hashCode(payload));
-  }
+    abstract Builder setPayload(byte[] payload);
 
-  @Override
-  public boolean equals(@Nullable Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    MqttRecord that = (MqttRecord) o;
-    return Objects.equals(topic, that.topic) && Objects.deepEquals(payload, that.payload);
+    abstract MqttRecord build();
   }
 }
