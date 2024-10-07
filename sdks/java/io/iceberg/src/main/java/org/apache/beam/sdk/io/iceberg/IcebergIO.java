@@ -141,7 +141,13 @@ import org.joda.time.Duration;
  *     <td> DOUBLE </td> <td> DOUBLE </td>
  *   </tr>
  *   <tr>
- *     <td> DATETIME </td> <td> STRING </td>
+ *     <td> SqlTypes.DATETIME </td> <td> TIMESTAMP </td>
+ *   </tr>
+ *   <tr>
+ *     <td> SqlTypes.DATE </td> <td> DATE </td>
+ *   </tr>
+ *   <tr>
+ *     <td> SqlTypes.TIME </td> <td> TIME </td>
  *   </tr>
  *   <tr>
  *     <td> ITERABLE </td> <td> LIST </td>
