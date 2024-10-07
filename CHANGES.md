@@ -63,7 +63,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types
+* [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types ([#32688](https://github.com/apache/beam/pull/32688))
 
 ## New Features / Improvements
 
