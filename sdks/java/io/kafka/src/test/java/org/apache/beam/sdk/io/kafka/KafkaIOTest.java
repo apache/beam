@@ -1092,7 +1092,7 @@ public class KafkaIOTest {
 
   @Test
   public void testUnboundedSourceWithExceptionInKafkaFetch() {
-    // Similar testUnboundedSource, but with an injected exception inside Kafk Consumer poll.
+    // Similar testUnboundedSource, but with an injected exception inside Kafka Consumer poll.
 
     // The reader should throw an IOException:
     thrown.expectCause(isA(IOException.class));

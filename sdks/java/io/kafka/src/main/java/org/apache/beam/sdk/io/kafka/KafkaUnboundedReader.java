@@ -77,7 +77,7 @@ import org.slf4j.LoggerFactory;
  */
 class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
-  boolean atleastOnePollCompleted = false;
+  AtomicBoolean atleastOnePollCompleted = new AtomicBoolean();
 
   ///////////////////// Reader API ////////////////////////////////////////////////////////////
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -234,7 +234,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
       } else { // -- (b)
         nextBatch();
-        atleastOnePollCompleted = false; // Reset it for next call
+        atleastOnePollCompleted.set(false); // Reset it for next call
         if (!curBatch.hasNext()) {
           return false;
         }
@@ -571,26 +571,28 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         try {
           if (records.isEmpty()) {
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-            atleastOnePollCompleted = true;
-          } else if (availableRecordsQueue.offer(
-              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-            records = ConsumerRecords.empty();
+            atleastOnePollCompleted.set(true);
           }
-
+          if (!records.isEmpty()
+              && availableRecordsQueue.offer(
+                  records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
+            records = ConsumerRecords.empty();
+            atleastOnePollCompleted.set(true);
+          }
           commitCheckpointMark();
         } catch (InterruptedException e) {
-          atleastOnePollCompleted = true;
+          atleastOnePollCompleted.set(true);
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
         } catch (WakeupException e) {
-          atleastOnePollCompleted = true;
+          atleastOnePollCompleted.set(true);
           break;
         }
       }
       LOG.info("{}: Returning from consumer pool loop", this);
     } catch (Exception e) { // mostly an unrecoverable KafkaException.
       LOG.error("{}: Exception while reading from Kafka", this, e);
-      atleastOnePollCompleted = true;
+      atleastOnePollCompleted.set(true);
       consumerPollException.set(e);
       throw e;
     }
@@ -644,7 +646,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         return;
       }
 
-    } while (!atleastOnePollCompleted);
+    } while (!atleastOnePollCompleted.get());
 
     if (records == null) {
       // Check if the poll thread failed with an exception.
@@ -664,8 +666,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       LOG.debug("Record count: " + records.count());
     }
 
-    ConsumerRecords<byte[], byte[]> finalRecords = records;
-    partitionStates.forEach(p -> p.recordIter = finalRecords.records(p.topicPartition).iterator());
+    for (PartitionState<K, V> p : partitionStates) {
+      p.recordIter = records.records(p.topicPartition).iterator();
+    }
 
     // cycle through the partitions in order to interleave records from each.
     curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
