@@ -36,9 +36,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Serializable version of an Iceberg {@link DataFile}.
  *
- * <p>{@link DataFile} is not serializable and Iceberg doesn't offer an easy way to encode/decode
- * it. This class is an identical version that can be used as a PCollection element type. {@link
- * #createDataFile(PartitionSpec)} can be used to reconstruct the original {@link DataFile}.
+ * <p>{@link DataFile} is not serializable and the Iceberg API doesn't offer an easy way to
+ * encode/decode it. This class is an identical version that can be used as a PCollection element
+ * type.
+ *
+ * <p>Use {@link #from(DataFile, PartitionKey)} to create a {@link SerializableDataFile} and {@link
+ * #createDataFile(PartitionSpec)} to reconstruct the original {@link DataFile}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
