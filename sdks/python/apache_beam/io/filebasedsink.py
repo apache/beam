@@ -294,6 +294,7 @@ class FileBasedSink(iobase.Sink):
         FileSystems.report_sink_lineage(dst)
     else:
       dst = dst_glob
+      # dst_glob has a wildcard for shard number (see _shard_name_template)
       sep = dst_glob.find('*')
       if sep > 0:
         dst = dst[:sep]

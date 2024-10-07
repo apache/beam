@@ -324,6 +324,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       }
     } else {
       for (Metadata metadata : expandedFiles) {
+        // TODO(yathu) Currently it simply report one level up if num of files exceeded 100.
+        //  Consider more dedicated strategy (e.g. resolve common ancestor) for accurancy, and work
+        //  with metrics size limit.
         FileSystems.reportSourceLineage(metadata.resourceId().getCurrentDirectory());
       }
     }
