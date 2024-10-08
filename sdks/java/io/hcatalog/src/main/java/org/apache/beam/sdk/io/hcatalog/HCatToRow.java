@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -25,8 +27,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.hive.hcatalog.data.HCatRecord;
-import java.util.stream.Collectors;
-import java.util.List;
 import org.joda.time.Instant;
 
 /** Utilities to convert {@link HCatRecord HCatRecords} to {@link Row Rows}. */
@@ -91,7 +91,8 @@ public class HCatToRow {
     @ProcessElement
     public void processElement(ProcessContext c) {
       HCatRecord hCatRecord = c.element();
-      List<Object> recordValues = hCatRecord.getAll().stream().map(this::castHDate).collect(Collectors.toList());
+      List<Object> recordValues =
+          hCatRecord.getAll().stream().map(this::castHDate).collect(Collectors.toList());
       c.output(Row.withSchema(schema).addValues(recordValues).build());
     }
   }

@@ -27,8 +27,6 @@ import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getConfig
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecords;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getReaderContext;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTestData;
-import org.apache.beam.sdk.io.hcatalog.HCatToRow;
-import org.apache.beam.sdk.values.Row;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -57,13 +55,14 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
-import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
@@ -241,16 +240,17 @@ public class HCatalogIOTest implements Serializable {
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 date)");
 
     defaultPipeline
-      .apply(Create.of(buildHCatRecordsWithDate(TEST_RECORDS_COUNT)))
-      .apply(
-          HCatalogIO.write()
-              .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-              .withDatabase(TEST_DATABASE)
-              .withTable(TEST_TABLE)
-              .withPartition(new java.util.HashMap<>()));
+        .apply(Create.of(buildHCatRecordsWithDate(TEST_RECORDS_COUNT)))
+        .apply(
+            HCatalogIO.write()
+                .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                .withDatabase(TEST_DATABASE)
+                .withTable(TEST_TABLE)
+                .withPartition(new java.util.HashMap<>()));
     defaultPipeline.run().waitUntilFinish();
 
-    final PCollection<String> output = readAfterWritePipeline
+    final PCollection<String> output =
+        readAfterWritePipeline
             .apply(
                 HCatToRow.fromSpec(
                     HCatalogIO.read()
