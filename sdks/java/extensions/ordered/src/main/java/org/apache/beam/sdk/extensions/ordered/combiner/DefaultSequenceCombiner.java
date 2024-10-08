@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Default global sequence combiner.
  *
- * <p>Produces {@link ContiguousSequenceRange} of contiguous longs starting from the initial event
+ * <p>Produces the largest {@link ContiguousSequenceRange} of contiguous longs which starts from the initial event
  * identified by {@link EventExaminer#isInitialEvent(long, EventT)}.
  *
  * <p>This combiner currently doesn't use {@link EventExaminer#isLastEvent(long, EventT)}.
