@@ -28,7 +28,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
  */
 public class PartitionMetadataTableNames {
 
-  /** PostgreSQL max table and index length is 63 bytes */
+  /** PostgreSQL max table and index length is 63 bytes. */
   @VisibleForTesting static final int MAX_NAME_LENGTH = 63;
 
   private static final String PARTITION_METADATA_TABLE_NAME_FORMAT = "Metadata_%s_%s";
