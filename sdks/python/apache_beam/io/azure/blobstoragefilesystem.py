@@ -317,14 +317,15 @@ class BlobStorageFileSystem(FileSystem):
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
 
-  def report_lineage(self, path, lineage):
+  def report_lineage(self, path, lineage, level=None):
     try:
       components = blobstorageio.parse_azfs_path(
           path, blob_optional=True, get_account=True)
     except ValueError:
       # report lineage is fail-safe
       return
-    if len(components) > 1 and components[-1] == '':
+    if level == FileSystem.LineageLevel.TOP_LEVEL \
+      or(len(components) > 1 and components[-1] == ''):
       # bucket only
       components = components[:-1]
     lineage.add('abs', *components)

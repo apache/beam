@@ -39,6 +39,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.FileSystem.LineageLevel;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -398,12 +399,36 @@ public class FileSystems {
 
   /** Report source {@link Lineage} metrics for resource id. */
   public static void reportSourceLineage(ResourceId resourceId) {
-    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.getSources());
+    reportSourceLineage(resourceId, LineageLevel.FILE);
   }
 
   /** Report sink {@link Lineage} metrics for resource id. */
   public static void reportSinkLineage(ResourceId resourceId) {
-    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.getSinks());
+    reportSinkLineage(resourceId, LineageLevel.FILE);
+  }
+
+  /**
+   * Report source {@link Lineage} metrics for resource id at given level.
+   *
+   * <p>Internal API, no backward compatibility guaranteed.
+   */
+  public static void reportSourceLineage(ResourceId resourceId, LineageLevel level) {
+    reportLineage(resourceId, Lineage.getSources(), level);
+  }
+
+  /**
+   * Report source {@link Lineage} metrics for resource id at given level.
+   *
+   * <p>Internal API, no backward compatibility guaranteed.
+   */
+  public static void reportSinkLineage(ResourceId resourceId, LineageLevel level) {
+    reportLineage(resourceId, Lineage.getSinks(), level);
+  }
+
+  /** Report {@link Lineage} metrics for resource id at given level to given Lineage container. */
+  private static void reportLineage(ResourceId resourceId, Lineage lineage, LineageLevel level) {
+    FileSystem fileSystem = getFileSystemInternal(resourceId.getScheme());
+    fileSystem.reportLineage(resourceId, lineage, level);
   }
 
   private static class FilterResult {

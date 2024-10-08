@@ -38,6 +38,7 @@ from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -169,23 +170,36 @@ class FileBasedSource(iobase.BoundedSource):
             splittable=splittable)
         single_file_sources.append(single_file_source)
 
+      self._report_source_lineage(files_metadata)
       self._concat_source = concat_source.ConcatSource(single_file_sources)
 
-      # Report source Lineage. depend on the number of files, report full file
-      # name or only dir
-      if len(files_metadata) <= 100:
-        for file_metadata in files_metadata:
-          FileSystems.report_source_lineage(file_metadata.path)
-      else:
-        for file_metadata in files_metadata:
-          try:
-            base, _ = FileSystems.split(file_metadata.path)
-          except ValueError:
-            pass
-          else:
-            FileSystems.report_source_lineage(base)
-
     return self._concat_source
+
+  def _report_source_lineage(self, files_metadata):
+    """
+    Report source Lineage. depend on the number of files, report full file
+    name, only dir, or only top level
+    """
+    if len(files_metadata) <= 100:
+      for file_metadata in files_metadata:
+        FileSystems.report_source_lineage(file_metadata.path)
+    else:
+      size_track = set()
+      for file_metadata in files_metadata:
+        if len(size_track) >= 100:
+          FileSystems.report_source_lineage(
+              file_metadata.path, level=FileSystem.LineageLevel.TOP_LEVEL)
+          return
+
+        try:
+          base, _ = FileSystems.split(file_metadata.path)
+        except ValueError:
+          pass
+        else:
+          size_track.add(base)
+
+      for base in size_track:
+        FileSystems.report_source_lineage(base)
 
   def open_file(self, file_name):
     return FileSystems.open(
@@ -358,6 +372,7 @@ class _ExpandIntoRanges(DoFn):
     self._min_bundle_size = min_bundle_size
     self._splittable = splittable
     self._compression_type = compression_type
+    self._size_track = None
 
   def process(self, element: Union[str, FileMetadata], *args,
               **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
@@ -367,13 +382,7 @@ class _ExpandIntoRanges(DoFn):
       match_results = FileSystems.match([element])
       metadata_list = match_results[0].metadata_list
     for metadata in metadata_list:
-      # fail-safely report source lineage
-      try:
-        base, _ = FileSystems.split(metadata.path)
-      except ValueError:
-        pass
-      else:
-        FileSystems.report_source_lineage(base)
+      self._report_source_lineage(metadata.path)
 
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
@@ -387,6 +396,28 @@ class _ExpandIntoRanges(DoFn):
         yield (
             metadata,
             OffsetRange(0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
+
+  def _report_source_lineage(self, path):
+    """
+    Report source Lineage. Due to the size limit of Beam metrics, report full
+    file name or only top level depend on the number of files.
+
+    * Number of files<=100, report full file paths;
+
+    * Otherwise, report top level only.
+    """
+    if self._size_track is None:
+      self._size_track = set()
+    elif len(self._size_track) == 0:
+      FileSystems.report_source_lineage(
+          path, level=FileSystem.LineageLevel.TOP_LEVEL)
+      return
+
+    self._size_track.add(path)
+    FileSystems.report_source_lineage(path)
+
+    if len(self._size_track) >= 100:
+      self._size_track.clear()
 
 
 class _ReadRange(DoFn):

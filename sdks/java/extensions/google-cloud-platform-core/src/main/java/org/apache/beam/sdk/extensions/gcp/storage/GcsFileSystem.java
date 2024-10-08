@@ -217,11 +217,16 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
 
   @Override
   protected void reportLineage(GcsResourceId resourceId, Lineage lineage) {
+    reportLineage(resourceId, lineage, LineageLevel.FILE);
+  }
+
+  @Override
+  protected void reportLineage(GcsResourceId resourceId, Lineage lineage, LineageLevel level) {
     GcsPath path = resourceId.getGcsPath();
     if (!path.getBucket().isEmpty()) {
       ImmutableList.Builder<String> segments =
           ImmutableList.<String>builder().add(path.getBucket());
-      if (!path.getObject().isEmpty()) {
+      if (level != LineageLevel.TOP_LEVEL && !path.getObject().isEmpty()) {
         segments.add(path.getObject());
       }
       lineage.add("gcs", segments.build());
