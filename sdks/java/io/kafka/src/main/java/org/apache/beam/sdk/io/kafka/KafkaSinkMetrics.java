@@ -34,7 +34,7 @@ import org.apache.beam.sdk.util.HistogramData;
 // TODO, refactor out common parts for BQ sink, so it can be reused with other sinks, eg, GCS?
 // @SuppressWarnings("unused")
 public class KafkaSinkMetrics {
-  private static boolean supportKafkaMetrics = true;
+  private static boolean supportKafkaMetrics = false;
 
   public static final String METRICS_NAMESPACE = "KafkaSink";
 

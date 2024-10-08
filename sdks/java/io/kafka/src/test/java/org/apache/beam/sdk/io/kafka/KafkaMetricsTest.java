@@ -94,6 +94,8 @@ public class KafkaMetricsTest {
     TestMetricsContainer testContainer = new TestMetricsContainer();
     MetricsEnvironment.setCurrentContainer(testContainer);
 
+    KafkaSinkMetrics.setSupportKafkaMetrics(true);
+
     KafkaMetrics results = KafkaSinkMetrics.kafkaMetrics();
 
     results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
@@ -108,5 +110,20 @@ public class KafkaMetricsTest {
     assertThat(
         testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
         containsInAnyOrder(Double.valueOf(10.0)));
+  }
+
+  @Test
+  public void testKafkaRPCLatencyMetricsAreNotRecorded() throws Exception {
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+
+    KafkaSinkMetrics.setSupportKafkaMetrics(false);
+
+    KafkaMetrics results = KafkaSinkMetrics.kafkaMetrics();
+
+    results.updateSuccessfulRpcMetrics("test-topic", Duration.ofMillis(10));
+
+    results.updateKafkaMetrics();
+    assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
   }
 }
