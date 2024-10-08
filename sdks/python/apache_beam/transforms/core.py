@@ -3163,11 +3163,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         # stages when using cloudpickle.
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
-        except TypeError as e:
-          logging.warning(
-              'Failed to copy combine function. Ensure python dependencies are'
-              ' properly set up: %s',
-              e)
+        except Exception:
           self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
 
         self.setup = self._combine_fn_copy.setup
@@ -3188,11 +3184,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         # stages when using cloudpickle.
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
-        except TypeError as e:
-          logging.warning(
-              'Failed to copy combine function. Ensure python dependencies are'
-              ' properly set up: %s',
-              e)
+        except Exception:
           self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
 
         self.setup = self._combine_fn_copy.setup

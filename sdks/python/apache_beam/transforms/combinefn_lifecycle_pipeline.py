@@ -21,6 +21,7 @@ from typing import Set
 from typing import Tuple
 
 import apache_beam as beam
+import math
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -122,6 +123,38 @@ def run_combine(pipeline, input_elements=5, lift_combiners=True):
             CallSequenceEnforcingCombineFn(), CallSequenceEnforcingCombineFn()),
         None).with_fanout(fanout=1)
     assert_that(pcoll, equal_to([(expected_result, expected_result)]))
+
+
+def run_combine_uncopyable_attr(
+    pipeline, input_elements=5, lift_combiners=True):
+  # Calculate the expected result, which is the sum of an arithmetic sequence.
+  # By default, this is equal to: 0 + 1 + 2 + 3 + 4 = 10
+  expected_result = input_elements * (input_elements - 1) / 2
+
+  # Enable runtime type checking in order to cover TypeCheckCombineFn by
+  # the test.
+  pipeline.get_pipeline_options().view_as(TypeOptions).runtime_type_check = True
+  pipeline.get_pipeline_options().view_as(
+      TypeOptions).allow_unsafe_triggers = True
+
+  with pipeline as p:
+    pcoll = p | 'Start' >> beam.Create(range(input_elements))
+
+    # Certain triggers, such as AfterCount, are incompatible with combiner
+    # lifting. We can use that fact to prevent combiners from being lifted.
+    if not lift_combiners:
+      pcoll |= beam.WindowInto(
+          window.GlobalWindows(),
+          trigger=trigger.AfterCount(input_elements),
+          accumulation_mode=trigger.AccumulationMode.DISCARDING)
+
+    combine_fn = CallSequenceEnforcingCombineFn()
+    # Modules are not deep copyable. Ensure fanout falls back to pickling for
+    # copying combine_fn.
+    combine_fn.module_attribute = math
+    pcoll |= 'Do' >> beam.CombineGlobally(combine_fn).with_fanout(fanout=1)
+
+    assert_that(pcoll, equal_to([expected_result]))
 
 
 def run_pardo(pipeline, input_elements=10):
