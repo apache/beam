@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -73,6 +75,12 @@ class AppendFilesToTables
       extends DoFn<KV<String, Iterable<FileWriteResult>>, KV<String, SnapshotInfo>> {
     private final Counter snapshotsCreated =
         Metrics.counter(AppendFilesToTables.class, "snapshotsCreated");
+    private final Counter dataFilesCommitted =
+        Metrics.counter(AppendFilesToTables.class, "dataFilesCommitted");
+    private final Distribution committedDataFileByteSize =
+        Metrics.distribution(RecordWriter.class, "committedDataFileByteSize");
+    private final Distribution committedDataFileRecordCount =
+        Metrics.distribution(RecordWriter.class, "committedDataFileRecordCount");
 
     private final IcebergCatalogConfig catalogConfig;
 
@@ -94,18 +102,28 @@ class AppendFilesToTables
         @Element KV<String, Iterable<FileWriteResult>> element,
         OutputReceiver<KV<String, SnapshotInfo>> out,
         BoundedWindow window) {
-      if (!element.getValue().iterator().hasNext()) {
+      String tableStringIdentifier = element.getKey();
+      Iterable<FileWriteResult> fileWriteResults = element.getValue();
+      if (!fileWriteResults.iterator().hasNext()) {
         return;
       }
 
       Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
       AppendFiles update = table.newAppend();
-      for (FileWriteResult writtenFile : element.getValue()) {
-        update.appendManifest(writtenFile.getManifestFile());
+      long numFiles = 0;
+      for (FileWriteResult result : fileWriteResults) {
+        DataFile dataFile = result.getDataFile(table.spec());
+        update.appendFile(dataFile);
+        committedDataFileByteSize.update(dataFile.fileSizeInBytes());
+        committedDataFileRecordCount.update(dataFile.recordCount());
+        numFiles++;
       }
+      // this commit will create a ManifestFile. we don't need to manually create one.
       update.commit();
+      dataFilesCommitted.inc(numFiles);
+
       Snapshot snapshot = table.currentSnapshot();
-      LOG.info("Created new snapshot for table '{}': {}", element.getKey(), snapshot);
+      LOG.info("Created new snapshot for table '{}': {}", tableStringIdentifier, snapshot);
       snapshotsCreated.inc();
       out.outputWithTimestamp(
           KV.of(element.getKey(), SnapshotInfo.fromSnapshot(snapshot)), window.maxTimestamp());

@@ -318,7 +318,7 @@ public class IcebergIO {
      * org.apache.iceberg.Snapshot} is produced.
      *
      * <p>Roughly every triggeringFrequency duration, records are written to data files and appended
-     * to the respective table. Each append operation created a new table snapshot.
+     * to the respective table. Each append operation creates a new table snapshot.
      *
      * <p>Generally speaking, increasing this duration will result in fewer, larger data files and
      * fewer snapshots.
