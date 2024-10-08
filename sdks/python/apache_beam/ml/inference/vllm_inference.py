@@ -197,7 +197,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
 
   async def _async_run_inference(
       self,
-      batch: Sequence[Sequence[OpenAIChatMessage]],
+      batch: Sequence[str],
       model: _VLLMModelServer,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
