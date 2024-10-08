@@ -1397,4 +1397,60 @@ public class TestJavaBeans {
               Schema.Field.nullable("value", FieldType.FLOAT)
                   .withDescription("This value is the value stored in the object as a float."))
           .build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class SimpleParameterizedBean<T, V, W, X> {
+    @Nullable private W value1;
+    @Nullable private T value2;
+    @Nullable private V value3;
+    @Nullable private X value4;
+
+    public W getValue1() {
+      return value1;
+    }
+
+    public void setValue1(W value1) {
+      this.value1 = value1;
+    }
+
+    public T getValue2() {
+      return value2;
+    }
+
+    public void setValue2(T value2) {
+      this.value2 = value2;
+    }
+
+    public V getValue3() {
+      return value3;
+    }
+
+    public void setValue3(V value3) {
+      this.value3 = value3;
+    }
+
+    public X getValue4() {
+      return value4;
+    }
+
+    public void setValue4(X value4) {
+      this.value4 = value4;
+    }
+  }
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class SimpleParameterizedBeanSubclass<T>
+      extends SimpleParameterizedBean<String, Long, Boolean, SimpleBean> {
+    @Nullable private T value5;
+
+    public SimpleParameterizedBeanSubclass() {}
+
+    public T getValue5() {
+      return value5;
+    }
+
+    public void setValue5(T value5) {
+      this.value5 = value5;
+    }
+  }
 }

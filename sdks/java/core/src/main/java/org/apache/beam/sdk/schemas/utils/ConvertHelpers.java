@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.ServiceLoader;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -148,7 +149,8 @@ public class ConvertHelpers {
       TypeDescriptor<?> outputTypeDescriptor,
       TypeConversionsFactory typeConversionsFactory) {
     FieldType expectedFieldType =
-        StaticSchemaInference.fieldFromType(outputTypeDescriptor, JavaFieldTypeSupplier.INSTANCE);
+        StaticSchemaInference.fieldFromType(
+            outputTypeDescriptor, JavaFieldTypeSupplier.INSTANCE, Collections.emptyMap());
     if (!expectedFieldType.equals(fieldType)) {
       throw new IllegalArgumentException(
           "Element argument type "

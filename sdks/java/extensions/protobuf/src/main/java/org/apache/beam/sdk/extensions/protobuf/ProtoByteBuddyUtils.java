@@ -39,6 +39,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -1045,7 +1046,8 @@ class ProtoByteBuddyUtils {
     } else {
       Method method = getProtoSetter(methods, field.getName(), field.getType());
       return JavaBeanUtils.createSetter(
-          FieldValueTypeInformation.forSetter(method, protoSetterPrefix(field.getType())),
+          FieldValueTypeInformation.forSetter(
+              method, protoSetterPrefix(field.getType()), Collections.emptyMap()),
           new ProtoTypeConversionsFactory());
     }
   }

@@ -19,7 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
@@ -85,14 +86,17 @@ public class StaticSchemaInference {
    * public getter methods, or special annotations on the class.
    */
   public static Schema schemaFromClass(
-      TypeDescriptor<?> typeDescriptor, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return schemaFromClass(typeDescriptor, fieldValueTypeSupplier, new HashMap<>());
+      TypeDescriptor<?> typeDescriptor,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      Map<Type, Type> boundTypes) {
+    return schemaFromClass(typeDescriptor, fieldValueTypeSupplier, new HashMap<>(), boundTypes);
   }
 
   private static Schema schemaFromClass(
       TypeDescriptor<?> typeDescriptor,
       FieldValueTypeSupplier fieldValueTypeSupplier,
-      Map<TypeDescriptor<?>, Schema> alreadyVisitedSchemas) {
+      Map<TypeDescriptor<?>, Schema> alreadyVisitedSchemas,
+      Map<Type, Type> boundTypes) {
     if (alreadyVisitedSchemas.containsKey(typeDescriptor)) {
       Schema existingSchema = alreadyVisitedSchemas.get(typeDescriptor);
       if (existingSchema == null) {
@@ -106,7 +110,7 @@ public class StaticSchemaInference {
     Schema.Builder builder = Schema.builder();
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(typeDescriptor)) {
       Schema.FieldType fieldType =
-          fieldFromType(type.getType(), fieldValueTypeSupplier, alreadyVisitedSchemas);
+          fieldFromType(type.getType(), fieldValueTypeSupplier, alreadyVisitedSchemas, boundTypes);
       Schema.Field f =
           type.isNullable()
               ? Schema.Field.nullable(type.getName(), fieldType)
@@ -123,15 +127,18 @@ public class StaticSchemaInference {
 
   /** Map a Java field type to a Beam Schema FieldType. */
   public static Schema.FieldType fieldFromType(
-      TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return fieldFromType(type, fieldValueTypeSupplier, new HashMap<>());
+      TypeDescriptor<?> type,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      Map<Type, Type> boundTypes) {
+    return fieldFromType(type, fieldValueTypeSupplier, new HashMap<>(), boundTypes);
   }
 
   // TODO(https://github.com/apache/beam/issues/21567): support type inference for logical types
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,
-      Map<TypeDescriptor<?>, Schema> alreadyVisitedSchemas) {
+      Map<TypeDescriptor<?>, Schema> alreadyVisitedSchemas,
+      Map<Type, Type> boundTypes) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;
@@ -152,27 +159,25 @@ public class StaticSchemaInference {
       } else {
         // Otherwise this is an array type.
         return FieldType.array(
-            fieldFromType(component, fieldValueTypeSupplier, alreadyVisitedSchemas));
+            fieldFromType(component, fieldValueTypeSupplier, alreadyVisitedSchemas, boundTypes));
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(Map.class))) {
-      TypeDescriptor<Collection<?>> map = type.getSupertype(Map.class);
-      if (map.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) map.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        checkArgument(params.length == 2);
-        FieldType keyType =
-            fieldFromType(
-                TypeDescriptor.of(params[0]), fieldValueTypeSupplier, alreadyVisitedSchemas);
-        FieldType valueType =
-            fieldFromType(
-                TypeDescriptor.of(params[1]), fieldValueTypeSupplier, alreadyVisitedSchemas);
-        checkArgument(
-            keyType.getTypeName().isPrimitiveType(),
-            "Only primitive types can be map keys. type: " + keyType.getTypeName());
-        return FieldType.map(keyType, valueType);
-      } else {
-        throw new RuntimeException("Cannot infer schema from unparameterized map.");
-      }
+      FieldType keyType =
+          fieldFromType(
+              ReflectUtils.getMapType(type, 0, boundTypes),
+              fieldValueTypeSupplier,
+              alreadyVisitedSchemas,
+              boundTypes);
+      FieldType valueType =
+          fieldFromType(
+              ReflectUtils.getMapType(type, 1, boundTypes),
+              fieldValueTypeSupplier,
+              alreadyVisitedSchemas,
+              boundTypes);
+      checkArgument(
+          keyType.getTypeName().isPrimitiveType(),
+          "Only primitive types can be map keys. type: " + keyType.getTypeName());
+      return FieldType.map(keyType, valueType);
     } else if (type.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
       return FieldType.STRING;
     } else if (type.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
@@ -180,26 +185,22 @@ public class StaticSchemaInference {
     } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
       return FieldType.BYTES;
     } else if (type.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
-      TypeDescriptor<Iterable<?>> iterable = type.getSupertype(Iterable.class);
-      if (iterable.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) iterable.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        checkArgument(params.length == 1);
-        // TODO: should this be AbstractCollection?
-        if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-          return FieldType.array(
-              fieldFromType(
-                  TypeDescriptor.of(params[0]), fieldValueTypeSupplier, alreadyVisitedSchemas));
-        } else {
-          return FieldType.iterable(
-              fieldFromType(
-                  TypeDescriptor.of(params[0]), fieldValueTypeSupplier, alreadyVisitedSchemas));
-        }
+      FieldType elementType =
+          fieldFromType(
+              Preconditions.checkArgumentNotNull(
+                  ReflectUtils.getIterableComponentType(type, boundTypes)),
+              fieldValueTypeSupplier,
+              alreadyVisitedSchemas,
+              boundTypes);
+      // TODO: should this be AbstractCollection?
+      if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+        return FieldType.array(elementType);
       } else {
-        throw new RuntimeException("Cannot infer schema from unparameterized collection.");
+        return FieldType.iterable(elementType);
       }
     } else {
-      return FieldType.row(schemaFromClass(type, fieldValueTypeSupplier, alreadyVisitedSchemas));
+      return FieldType.row(
+          schemaFromClass(type, fieldValueTypeSupplier, alreadyVisitedSchemas, boundTypes));
     }
   }
 }

@@ -68,6 +68,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -624,5 +625,42 @@ public class JavaBeanSchemaTest {
     assertEquals(output, row);
     assertEquals(
         registry.getFromRowFunction(BeanWithCaseFormat.class).apply(row), beanWithCaseFormat);
+  }
+
+  @Test
+  public void testRegisterBeamWithTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_BEAN_SCHEMA)
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testRegisterBeanWithInheritedTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<TestJavaBeans.SimpleParameterizedBeanSubclass<Short>> typeDescriptor =
+        new TypeDescriptor<TestJavaBeans.SimpleParameterizedBeanSubclass<Short>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_BEAN_SCHEMA)
+            .addInt16Field("value5")
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
   }
 }
