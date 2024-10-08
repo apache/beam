@@ -49,6 +49,7 @@ github:
 
   protected_branches:
     master: {}
+    release-2.60.0: {}
     release-2.59.0: {}
     release-2.58.1: {}
     release-2.58.0: {}

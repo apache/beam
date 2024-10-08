@@ -211,7 +211,7 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
+    name: Build python ${{matrix.py_version}} wheels on ${{matrix.os_python.arch}} for ${{ matrix.os_python.os }}
     needs:
       - check_env_variables
       - build_source

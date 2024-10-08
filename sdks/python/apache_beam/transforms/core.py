@@ -1156,7 +1156,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def compact(self, accumulator, *args, **kwargs):
-    """Optionally returns a more compact represenation of the accumulator.
+    """Optionally returns a more compact representation of the accumulator.
 
     This is called before an accumulator is sent across the wire, and can
     be useful in cases where values are buffered or otherwise lazily
@@ -1461,9 +1461,15 @@ class CallableWrapperPartitionFn(PartitionFn):
 
 def _get_function_body_without_inners(func):
   source_lines = inspect.getsourcelines(func)[0]
-  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
-  def_line = next(source_lines).strip()
-  if def_line.startswith("def ") and def_line.endswith(":"):
+  source_lines = dropwhile(lambda x: x.strip().startswith("@"), source_lines)
+  first_def_line = next(source_lines).strip()
+  if first_def_line.startswith("def "):
+    last_def_line_without_comment = first_def_line.split("#")[0] \
+        .split("\"\"\"")[0]
+    while not last_def_line_without_comment.strip().endswith(":"):
+      last_def_line_without_comment = next(source_lines).split("#")[0] \
+        .split("\"\"\"")[0]
+
     first_line = next(source_lines)
     indentation = len(first_line) - len(first_line.lstrip())
     final_lines = [first_line[indentation:]]
@@ -1487,7 +1493,7 @@ def _get_function_body_without_inners(func):
 
     return "".join(final_lines)
   else:
-    return def_line.rsplit(":")[-1].strip()
+    return first_def_line.rsplit(":")[-1].strip()
 
 
 def _check_fn_use_yield_and_return(fn):
@@ -1497,15 +1503,26 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
+    return_none_warning = (
+        "No iterator is returned by the process method in %s.",
+        fn.__self__.__class__)
     for line in source_code.split("\n"):
-      if line.lstrip().startswith("yield ") or line.lstrip().startswith(
+      lstripped_line = line.lstrip()
+      if lstripped_line.startswith("yield ") or lstripped_line.startswith(
           "yield("):
         has_yield = True
-      if line.lstrip().startswith("return ") or line.lstrip().startswith(
+      if lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
         has_return = True
+        if lstripped_line.startswith(
+            "return None") or lstripped_line.rstrip() == "return":
+          _LOGGER.warning(return_none_warning)
       if has_yield and has_return:
         return True
+
+    if not has_yield and not has_return:
+      _LOGGER.warning(return_none_warning)
+
     return False
   except Exception as e:
     _LOGGER.debug(str(e))
@@ -2594,11 +2611,23 @@ class _TimeoutDoFn(DoFn):
   def process(self, *args, **kwargs):
     if self._pool is None:
       self._pool = concurrent.futures.ThreadPoolExecutor(10)
+
+    # Import here to avoid circular dependency
+    from apache_beam.runners.worker.statesampler import get_current_tracker, set_current_tracker
+
+    # State sampler/tracker is stored as a thread local variable, and is used
+    # when incrementing counter metrics.
+    dispatching_thread_state_sampler = get_current_tracker()
+
+    def wrapped_process():
+      """Makes the dispatching thread local state sampler available to child
+      thread"""
+      set_current_tracker(dispatching_thread_state_sampler)
+      return list(self._fn.process(*args, **kwargs))
+
     # Ensure we iterate over the entire output list in the given amount of time.
     try:
-      return self._pool.submit(
-          lambda: list(self._fn.process(*args, **kwargs))).result(
-              self._timeout)
+      return self._pool.submit(wrapped_process).result(self._timeout)
     except TimeoutError:
       self._pool.shutdown(wait=False)
       self._pool = None

@@ -21,13 +21,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
@@ -38,17 +36,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalN
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.OutputFile;
 
 /**
  * A writer that manages multiple {@link RecordWriter}s to write to multiple tables and partitions.
@@ -66,19 +59,13 @@ import org.apache.iceberg.io.OutputFile;
  *
  * <ol>
  *   <li>Close all underlying {@link RecordWriter}s
- *   <li>Collect all {@link DataFile}s
- *   <li>Create a new {@link ManifestFile} referencing these {@link DataFile}s
+ *   <li>Collect all {@link DataFile}s as {@link SerializableDataFile}s (a more Beam-friendly type)
  * </ol>
  *
- * <p>After closing, the resulting {@link ManifestFile}s can be retrieved using {@link
- * #getManifestFiles()}.
+ * <p>After closing, the resulting {@link SerializableDataFile}s can be retrieved using {@link
+ * #getSerializableDataFiles()}.
  */
 class RecordWriterManager implements AutoCloseable {
-  private final Counter dataFilesWritten =
-      Metrics.counter(RecordWriterManager.class, "dataFilesWritten");
-  private final Counter manifestFilesWritten =
-      Metrics.counter(RecordWriterManager.class, "manifestFilesWritten");
-
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -90,11 +77,9 @@ class RecordWriterManager implements AutoCloseable {
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;
     private final PartitionKey partitionKey;
-    private final String tableLocation;
-    private final FileIO fileIO;
     private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
-    private final List<DataFile> dataFiles = Lists.newArrayList();
+    private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Cache<PartitionKey, RecordWriter> writers;
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
 
@@ -103,8 +88,6 @@ class RecordWriterManager implements AutoCloseable {
       this.schema = table.schema();
       this.spec = table.spec();
       this.partitionKey = new PartitionKey(spec, schema);
-      this.tableLocation = table.location();
-      this.fileIO = table.io();
       this.table = table;
 
       // build a cache of RecordWriters.
@@ -128,8 +111,7 @@ class RecordWriterManager implements AutoCloseable {
                           e);
                     }
                     openWriters--;
-                    dataFiles.add(recordWriter.getDataFile());
-                    dataFilesWritten.inc();
+                    dataFiles.add(SerializableDataFile.from(recordWriter.getDataFile(), pk));
                   })
               .build();
     }
@@ -191,13 +173,6 @@ class RecordWriterManager implements AutoCloseable {
             e);
       }
     }
-
-    private String getManifestFileLocation(PaneInfo paneInfo) {
-      return FileFormat.AVRO.addExtension(
-          String.format(
-              "%s/metadata/%s-%s-%s.manifest",
-              tableLocation, filePrefix, stateToken, paneInfo.getIndex()));
-    }
   }
 
   private final Catalog catalog;
@@ -209,8 +184,8 @@ class RecordWriterManager implements AutoCloseable {
   @VisibleForTesting
   final Map<WindowedValue<IcebergDestination>, DestinationState> destinations = Maps.newHashMap();
 
-  private final Map<WindowedValue<IcebergDestination>, List<ManifestFile>> totalManifestFiles =
-      Maps.newHashMap();
+  private final Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+      totalSerializableDataFiles = Maps.newHashMap();
 
   private boolean isClosed = false;
 
@@ -249,7 +224,6 @@ class RecordWriterManager implements AutoCloseable {
   public void close() throws IOException {
     for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
         windowedDestinationAndState : destinations.entrySet()) {
-      WindowedValue<IcebergDestination> windowedDestination = windowedDestinationAndState.getKey();
       DestinationState state = windowedDestinationAndState.getValue();
 
       // removing writers from the state's cache will trigger the logic to collect each writer's
@@ -259,21 +233,8 @@ class RecordWriterManager implements AutoCloseable {
         continue;
       }
 
-      OutputFile outputFile =
-          state.fileIO.newOutputFile(state.getManifestFileLocation(windowedDestination.getPane()));
-
-      ManifestWriter<DataFile> manifestWriter;
-      try (ManifestWriter<DataFile> openWriter = ManifestFiles.write(state.spec, outputFile)) {
-        openWriter.addAll(state.dataFiles);
-        manifestWriter = openWriter;
-      }
-      ManifestFile manifestFile = manifestWriter.toManifestFile();
-      manifestFilesWritten.inc();
-
-      totalManifestFiles
-          .computeIfAbsent(windowedDestination, dest -> Lists.newArrayList())
-          .add(manifestFile);
-
+      totalSerializableDataFiles.put(
+          windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
       state.dataFiles.clear();
     }
     destinations.clear();
@@ -285,15 +246,16 @@ class RecordWriterManager implements AutoCloseable {
   }
 
   /**
-   * Returns a list of accumulated windowed {@link ManifestFile}s for each windowed {@link
+   * Returns a list of accumulated serializable {@link DataFile}s for each windowed {@link
    * IcebergDestination}. The {@link RecordWriterManager} must first be closed before this is
    * called.
    */
-  public Map<WindowedValue<IcebergDestination>, List<ManifestFile>> getManifestFiles() {
+  public Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+      getSerializableDataFiles() {
     checkState(
         isClosed,
-        "Please close this %s before retrieving its manifest files.",
+        "Please close this %s before retrieving its data files.",
         getClass().getSimpleName());
-    return totalManifestFiles;
+    return totalSerializableDataFiles;
   }
 }

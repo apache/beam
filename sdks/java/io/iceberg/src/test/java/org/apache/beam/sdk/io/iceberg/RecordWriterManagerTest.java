@@ -31,11 +31,10 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -147,9 +146,10 @@ public class RecordWriterManagerTest {
     writerManager.close();
     assertEquals(0, writerManager.openWriters);
 
-    // We should only have 3 manifest files (one for each destination we wrote to)
-    assertEquals(3, writerManager.getManifestFiles().keySet().size());
-    assertThat(writerManager.getManifestFiles().keySet(), containsInAnyOrder(dest1, dest2, dest3));
+    // We should only have 3 data files (one for each destination we wrote to)
+    assertEquals(3, writerManager.getSerializableDataFiles().keySet().size());
+    assertThat(
+        writerManager.getSerializableDataFiles().keySet(), containsInAnyOrder(dest1, dest2, dest3));
   }
 
   @Test
@@ -195,16 +195,21 @@ public class RecordWriterManagerTest {
     assertFalse(writeSuccess);
     assertEquals(3, writerManager.openWriters);
 
-    // Closing PartitionRecordWriter will close all writers.
+    // Closing RecordWriterManager will close all writers.
     writerManager.close();
     assertEquals(0, writerManager.openWriters);
 
-    assertEquals(1, writerManager.getManifestFiles().size());
-    ManifestFile manifestFile =
-        Iterables.getOnlyElement(writerManager.getManifestFiles().get(windowedDestination));
-
-    assertEquals(3, manifestFile.addedFilesCount().intValue());
-    assertEquals(4, manifestFile.addedRowsCount().intValue());
+    // We should have only one destination
+    assertEquals(1, writerManager.getSerializableDataFiles().size());
+    assertTrue(writerManager.getSerializableDataFiles().containsKey(windowedDestination));
+    // We should have 3 data files (one for each partition we wrote to)
+    assertEquals(3, writerManager.getSerializableDataFiles().get(windowedDestination).size());
+    long totalRows = 0;
+    for (SerializableDataFile dataFile :
+        writerManager.getSerializableDataFiles().get(windowedDestination)) {
+      totalRows += dataFile.getRecordCount();
+    }
+    assertEquals(4L, totalRows);
   }
 
   @Test
@@ -255,12 +260,50 @@ public class RecordWriterManagerTest {
   }
 
   @Test
-  public void testRequireClosingBeforeFetchingManifestFiles() {
+  public void testRequireClosingBeforeFetchingDataFiles() {
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     writerManager.write(windowedDestination, row);
     assertEquals(1, writerManager.openWriters);
 
-    assertThrows(IllegalStateException.class, writerManager::getManifestFiles);
+    assertThrows(IllegalStateException.class, writerManager::getSerializableDataFiles);
+  }
+
+  @Test
+  public void testSerializableDataFileRoundTripEquality() throws IOException {
+    PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "abcxyz", true).build();
+    // same partition for both records (name_trunc=abc, bool=true)
+    partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+
+    RecordWriter writer =
+        new RecordWriter(catalog, windowedDestination.getValue(), "test_file_name", partitionKey);
+    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row2));
+
+    writer.close();
+    DataFile datafile = writer.getDataFile();
+    assertEquals(2L, datafile.recordCount());
+
+    DataFile roundTripDataFile =
+        SerializableDataFile.from(datafile, partitionKey).createDataFile(PARTITION_SPEC);
+    // DataFile doesn't implement a .equals() method. Check equality manually
+    assertEquals(datafile.path(), roundTripDataFile.path());
+    assertEquals(datafile.format(), roundTripDataFile.format());
+    assertEquals(datafile.recordCount(), roundTripDataFile.recordCount());
+    assertEquals(datafile.partition(), roundTripDataFile.partition());
+    assertEquals(datafile.specId(), roundTripDataFile.specId());
+    assertEquals(datafile.keyMetadata(), roundTripDataFile.keyMetadata());
+    assertEquals(datafile.splitOffsets(), roundTripDataFile.splitOffsets());
+    assertEquals(datafile.columnSizes(), roundTripDataFile.columnSizes());
+    assertEquals(datafile.valueCounts(), roundTripDataFile.valueCounts());
+    assertEquals(datafile.nullValueCounts(), roundTripDataFile.nullValueCounts());
+    assertEquals(datafile.nanValueCounts(), roundTripDataFile.nanValueCounts());
+    assertEquals(datafile.equalityFieldIds(), roundTripDataFile.equalityFieldIds());
+    assertEquals(datafile.fileSequenceNumber(), roundTripDataFile.fileSequenceNumber());
+    assertEquals(datafile.dataSequenceNumber(), roundTripDataFile.dataSequenceNumber());
+    assertEquals(datafile.pos(), roundTripDataFile.pos());
   }
 }
