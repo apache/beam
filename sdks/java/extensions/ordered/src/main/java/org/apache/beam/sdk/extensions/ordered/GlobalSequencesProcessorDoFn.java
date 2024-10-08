@@ -81,6 +81,8 @@ class GlobalSequencesProcessorDoFn<
 
   private final PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput;
 
+  private final Duration maxLateness;
+
   GlobalSequencesProcessorDoFn(
       EventExaminer<EventT, StateT> eventExaminer,
       Coder<EventT> eventCoder,
@@ -92,7 +94,8 @@ class GlobalSequencesProcessorDoFn<
       TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
       boolean produceStatusUpdateOnEveryEvent,
       long maxNumberOfResultsToProduce,
-      PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput) {
+      PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput,
+      Duration maxLateness) {
     super(
         eventExaminer,
         mainOutputTupleTag,
@@ -107,6 +110,7 @@ class GlobalSequencesProcessorDoFn<
     this.processingStateSpec = StateSpecs.value(ProcessingStateCoder.of(keyCoder));
     this.mutableStateSpec = StateSpecs.value(stateCoder);
     this.windowClosedSpec = StateSpecs.value(BooleanCoder.of());
+    this.maxLateness = maxLateness;
   }
 
   @Override
@@ -197,7 +201,7 @@ class GlobalSequencesProcessorDoFn<
     ContiguousSequenceRange lastCompleteGlobalSequence = processingState.getLastContiguousRange();
     if (lastCompleteGlobalSequence != null
         && processingState.thereAreGloballySequencedEventsToBeProcessed()) {
-      batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
+      batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp().plus(maxLateness));
     }
   }
 

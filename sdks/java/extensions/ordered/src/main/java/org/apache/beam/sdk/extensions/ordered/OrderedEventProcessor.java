@@ -278,7 +278,8 @@ public abstract class OrderedEventProcessor<
                         unprocessedEventOutput,
                         handler.isProduceStatusUpdateOnEveryEvent(),
                         handler.getMaxOutputElementsPerBundle(),
-                        latestContiguousRange))
+                        latestContiguousRange,
+                        input.getWindowingStrategy().getAllowedLateness()))
                 .withOutputTags(
                     mainOutput,
                     TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
