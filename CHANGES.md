@@ -67,6 +67,8 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add new meta-transform FlattenWith and Tee that allow one to introduce branching
+  without breaking the linear/chaining style of pipeline construction.
 
 ## Breaking Changes
 

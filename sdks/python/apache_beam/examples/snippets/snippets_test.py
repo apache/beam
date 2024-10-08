@@ -917,6 +917,12 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_multiple_pcollections_flatten(contents, result_path)
     self.assertEqual(contents, self.get_output(result_path))
 
+  def test_model_multiple_pcollections_flatten_with(self):
+    contents = ['a', 'b', 'c', 'd', 'e', 'f']
+    result_path = self.create_temp_file()
+    snippets.model_multiple_pcollections_flatten_with(contents, result_path)
+    self.assertEqual(contents, self.get_output(result_path))
+
   def test_model_multiple_pcollections_partition(self):
     contents = [17, 42, 64, 32, 0, 99, 53, 89]
     result_path = self.create_temp_file()
