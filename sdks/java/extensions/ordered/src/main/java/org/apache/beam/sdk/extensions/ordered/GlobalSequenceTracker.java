@@ -89,8 +89,7 @@ class GlobalSequenceTracker<
                       (WindowFn<? super TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ?>)
                           input.getWindowingStrategy().getWindowFn())
                   .accumulatingFiredPanes()
-                  // TODO: verify that we don't need to have the lateness parameterized
-                  .withAllowedLateness(Duration.ZERO)
+                  .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                   .triggering(
                       Repeatedly.forever(
                           AfterFirst.of(
