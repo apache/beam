@@ -327,10 +327,12 @@ abstract class ProcessorDoFn<
 
       EventT bufferedEvent = timestampedEvent.getValue();
       boolean skipProcessing = false;
+      boolean beforeInitialSequence = false;
 
       if (contiguousSequenceRange != null && eventSequence < contiguousSequenceRange.getStart()) {
         // In case of global sequence processing - remove the elements below the range start
         skipProcessing = true;
+        beforeInitialSequence = true;
         endClearRange = fromLong(eventSequence);
       }
       if (processingState.checkForDuplicateBatchedEvent(eventSequence)) {
@@ -346,7 +348,12 @@ abstract class ProcessorDoFn<
                 KV.of(
                     processingState.getKey(),
                     KV.of(
-                        eventSequence, UnprocessedEvent.create(bufferedEvent, Reason.duplicate))));
+                        eventSequence,
+                        UnprocessedEvent.create(
+                            bufferedEvent,
+                            beforeInitialSequence
+                                ? Reason.before_initial_sequence
+                                : Reason.duplicate))));
         // TODO: When there is a large number of duplicates this can cause a situation where
         // we produce too much output and the runner will start throwing unrecoverable errors.
         // Need to add counting logic to accumulate both the normal and DLQ outputs.

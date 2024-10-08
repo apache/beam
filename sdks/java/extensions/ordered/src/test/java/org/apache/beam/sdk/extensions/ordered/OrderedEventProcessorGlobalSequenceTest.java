@@ -170,8 +170,14 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
     expectedOutput.add(KV.of("id-1", "abcd"));
 
     Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> duplicates = new ArrayList<>();
-    duplicates.add(KV.of("id-1", KV.of(-1L, UnprocessedEvent.create("early-1", Reason.duplicate))));
-    duplicates.add(KV.of("id-1", KV.of(-2L, UnprocessedEvent.create("early-2", Reason.duplicate))));
+    duplicates.add(
+        KV.of(
+            "id-1",
+            KV.of(-1L, UnprocessedEvent.create("early-1", Reason.before_initial_sequence))));
+    duplicates.add(
+        KV.of(
+            "id-1",
+            KV.of(-2L, UnprocessedEvent.create("early-2", Reason.before_initial_sequence))));
 
     testGlobalSequenceProcessing(
         events,
