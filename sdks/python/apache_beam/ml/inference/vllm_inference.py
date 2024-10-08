@@ -36,7 +36,8 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils import subprocess_server
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI
+from openai import OpenAI
 
 try:
   import vllm  # pylint: disable=unused-import
