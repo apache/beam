@@ -125,7 +125,7 @@ class TensorRTEngine:
     # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
     # Clean up when fixed upstream.
     try:
-      _ = np.bool  # type: ignore
+      _ = np.bool
     except AttributeError:
       # numpy >= 1.24.0
       np.bool = np.bool_  # type: ignore
@@ -258,7 +258,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
         GPU capacity and want to maximize resource utilization.
-      max_batch_duration_secs: the maximum amount of time to buffer 
+      max_batch_duration_secs: the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
         currently supported. 'env_vars' can be used to set environment variables
