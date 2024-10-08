@@ -326,7 +326,7 @@ class ProcessingState<KeyT> {
     return bufferedEventCount > 0
         && lastCompleteGlobalSequence != null
         && earliestBufferedSequence != null
-        && earliestBufferedSequence <= lastCompleteGlobalSequence.getEnd();
+        && earliestBufferedSequence < lastCompleteGlobalSequence.getEnd();
   }
 
   /**

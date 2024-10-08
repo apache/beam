@@ -359,7 +359,7 @@ abstract class ProcessorDoFn<
       boolean continueProcessing =
           checkForSequenceGapInBufferedEvents()
               ? currentEventIsNextInSequence
-              : (eventSequence <= contiguousSequenceRange.getEnd() || currentEventIsNextInSequence);
+              : (eventSequence < contiguousSequenceRange.getEnd() || currentEventIsNextInSequence);
       if (!continueProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element

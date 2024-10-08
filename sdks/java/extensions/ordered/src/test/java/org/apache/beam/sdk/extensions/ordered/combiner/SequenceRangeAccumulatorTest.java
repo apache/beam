@@ -68,7 +68,7 @@ public class SequenceRangeAccumulatorTest {
           new Event(3, nextTimestamp())
         };
 
-    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, eventTimestamp(events, 3)), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 4, eventTimestamp(events, 3)), 1);
   }
 
   @Test
@@ -81,7 +81,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     Instant timestampOfEventNumber1 = eventTimestamp(events, 1);
-    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, timestampOfEventNumber1), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 4, timestampOfEventNumber1), 1);
   }
 
   @Test
@@ -95,7 +95,7 @@ public class SequenceRangeAccumulatorTest {
           new Event(7, nextTimestamp()),
         };
 
-    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, eventTimestamp(events, 3)), 3);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 4, eventTimestamp(events, 3)), 3);
   }
 
   @Test
@@ -110,7 +110,7 @@ public class SequenceRangeAccumulatorTest {
           new Event(6, nextTimestamp()),
         };
 
-    doTestAccumulation(events, ContiguousSequenceRange.of(1, 3, eventTimestamp(events, 3)), 2);
+    doTestAccumulation(events, ContiguousSequenceRange.of(1, 4, eventTimestamp(events, 3)), 2);
   }
 
   @Test
@@ -150,7 +150,7 @@ public class SequenceRangeAccumulatorTest {
           new Event(7, nextTimestamp(), true),
         };
 
-    doTestAccumulation(events, ContiguousSequenceRange.of(7, 7, eventTimestamp(events, 7)), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(7, 8, eventTimestamp(events, 7)), 1);
   }
 
   @Test
@@ -174,7 +174,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     Instant timestampOfTheLastEvent = events[events.length - 1].timestamp;
-    doTestAccumulation(events, ContiguousSequenceRange.of(7, 8, timestampOfTheLastEvent), 1);
+    doTestAccumulation(events, ContiguousSequenceRange.of(7, 9, timestampOfTheLastEvent), 1);
   }
 
   private static void doTestAccumulation(
@@ -210,7 +210,7 @@ public class SequenceRangeAccumulatorTest {
     Event[] set2 = new Event[] {};
 
     ContiguousSequenceRange expectedResult =
-        ContiguousSequenceRange.of(1, 3, eventTimestamp(set1, 1L));
+        ContiguousSequenceRange.of(1, 4, eventTimestamp(set1, 1L));
     int expectedNumberOfRanges = 1;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -230,7 +230,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     ContiguousSequenceRange expectedResult =
-        ContiguousSequenceRange.of(1, 2, eventTimestamp(set1, 2L));
+        ContiguousSequenceRange.of(1, 3, eventTimestamp(set1, 2L));
     int expectedNumberOfRanges = 2;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -270,7 +270,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     ContiguousSequenceRange expectedResult =
-        ContiguousSequenceRange.of(1, 6, eventTimestamp(set2, 6L));
+        ContiguousSequenceRange.of(1, 7, eventTimestamp(set2, 6L));
     int expectedNumberOfRanges = 1;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -291,7 +291,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     ContiguousSequenceRange expectedResult =
-        ContiguousSequenceRange.of(3, 6, eventTimestamp(set2, 6L));
+        ContiguousSequenceRange.of(3, 7, eventTimestamp(set2, 6L));
     int expectedNumberOfRanges = 1;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -315,7 +315,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     ContiguousSequenceRange expectedResult =
-        ContiguousSequenceRange.of(1, 6, eventTimestamp(set2, 6L));
+        ContiguousSequenceRange.of(1, 7, eventTimestamp(set2, 6L));
     int expectedNumberOfRanges = 1;
 
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
@@ -362,7 +362,7 @@ public class SequenceRangeAccumulatorTest {
         };
 
     ContiguousSequenceRange expectedResult =
-        ContiguousSequenceRange.of(1, 6, eventTimestamp(set1, 2L));
+        ContiguousSequenceRange.of(1, 7, eventTimestamp(set1, 2L));
     int expectedNumberOfRanges = 1;
     doTestMerging(set1, set2, expectedResult, expectedNumberOfRanges);
   }

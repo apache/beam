@@ -56,6 +56,12 @@ public class SequenceRangeAccumulator {
               + sequence);
     }
 
+    if(sequence == Long.MAX_VALUE) {
+      // This is an invalid value and DoFns will not process this element. This will also allow
+      // to produce a ContiguousSequenceRange with the exclusive end value.
+      return;
+    }
+
     if (isInitialSequence) {
       this.initialSequence = sequence;
       clearRangesBelowInitialSequence(sequence, timestamp);
@@ -122,7 +128,9 @@ public class SequenceRangeAccumulator {
     Long start = firstEntry.getKey();
     Long end = firstEntry.getValue().getLeft();
     Instant latestTimestamp = firstEntry.getValue().getRight();
-    return ContiguousSequenceRange.of(start, end, latestTimestamp);
+    // Upper bound is inclusive, but the ContiguousSequenceRange's end is exclusive.
+    // The numeric overflow is prevented by dropping the value of Long.MAX.
+    return ContiguousSequenceRange.of(start, end + 1, latestTimestamp);
   }
 
   public int numberOfRanges() {

@@ -40,7 +40,7 @@ public abstract class ContiguousSequenceRange {
   /** @return inclusive starting sequence */
   public abstract long getStart();
 
-  /** @return inclusive end sequence */
+  /** @return exclusive end sequence */
   public abstract long getEnd();
 
   /** @return latest timestamp of all events in the range */
