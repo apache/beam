@@ -243,7 +243,9 @@ public abstract class OrderedEventProcessor<
                 streamingProcessing
                     ? new GlobalSequenceTracker<>(
                         globalSequenceHandler.getGlobalSequenceCombiner(),
-                        globalSequenceHandler.getGlobalSequenceGenerationFrequency())
+                        globalSequenceHandler.getContiguousSequenceRangeReevaluationFrequency(),
+                        globalSequenceHandler
+                            .getMaxElementCountToTriggerContinuousSequenceRangeReevaluation())
                     : new GlobalSequenceTracker<>(
                         globalSequenceHandler.getGlobalSequenceCombiner()));
 
@@ -254,7 +256,7 @@ public abstract class OrderedEventProcessor<
               new PerKeyTickerGenerator<>(
                   keyCoder,
                   eventCoder,
-                  globalSequenceHandler.getFrequencyOfCheckingForNewGlobalSequence()));
+                  globalSequenceHandler.getContiguousSequenceRangeReevaluationFrequency()));
 
       input =
           PCollectionList.of(input)

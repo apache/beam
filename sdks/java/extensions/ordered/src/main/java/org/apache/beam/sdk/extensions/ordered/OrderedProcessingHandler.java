@@ -261,8 +261,13 @@ public abstract class OrderedProcessingHandler<
     }
 
     /**
-     * How frequently the combiner should generate a new sequence? This parameter only affects the
-     * behaviour of streaming pipelines.
+     * How frequently the combiner should reevaluate the maximum range? This parameter only affects
+     * the behaviour of streaming pipelines.
+     *
+     * <p>This parameter is used together with {@link
+     * OrderedProcessingGlobalSequenceHandler#getMaxElementCountToTriggerContinuousSequenceRangeReevaluation()}.
+     * The re-evaluation will occur as soon as the number of new elements exceeds the threshold or
+     * the time exceeds the frequency.
      *
      * <p>Notice that some runners cache the output of side inputs and this parameter might not
      * appear to have an effect unless the cache time-to-live is equal or less than this frequency.
@@ -270,14 +275,26 @@ public abstract class OrderedProcessingHandler<
      * href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowStreamingPipelineOptions.html#getStreamingSideInputCacheExpirationMillis--">this
      * Dataflow streaming pipeline option</a>}
      *
-     * @return frequency of generating new global sequence. Default - every second.
+     * @return frequency of reevaluating the {@link ContiguousSequenceRange}. Default - every
+     *     second.
+     * @see
+     *     OrderedProcessingGlobalSequenceHandler#getMaxElementCountToTriggerContinuousSequenceRangeReevaluation()
      */
-    public Duration getFrequencyOfCheckingForNewGlobalSequence() {
+    public Duration getContiguousSequenceRangeReevaluationFrequency() {
       return Duration.standardSeconds(1);
     }
 
-    public Duration getGlobalSequenceGenerationFrequency() {
-      return Duration.standardSeconds(1);
+    /**
+     * Number of new elements to trigger the re-evaluation.
+     *
+     * <p>See {@link
+     * OrderedProcessingGlobalSequenceHandler#getContiguousSequenceRangeReevaluationFrequency()} for
+     * additional details.
+     *
+     * @return batch size. Default - 1000.
+     */
+    public int getMaxElementCountToTriggerContinuousSequenceRangeReevaluation() {
+      return 1000;
     }
   }
 }

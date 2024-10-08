@@ -74,7 +74,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 5, new Instant()));
+        ContiguousSequenceRange.of(0, 6, new Instant()));
   }
 
   @Test
@@ -108,7 +108,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 8, new Instant()));
+        ContiguousSequenceRange.of(0, 9, new Instant()));
   }
 
   @Test
@@ -147,7 +147,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 3, new Instant()));
+        ContiguousSequenceRange.of(0, 4, new Instant()));
   }
 
   @Test
@@ -180,7 +180,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 3, new Instant()));
+        ContiguousSequenceRange.of(0, 4, new Instant()));
   }
 
   @Test
@@ -218,7 +218,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         // Sequence matcher doesn't know if the element is valid or not.
         // That's why the elements that are get rejected in the processor still count  when
         // calculating the global sequence
-        ContiguousSequenceRange.of(0, 3, new Instant()));
+        ContiguousSequenceRange.of(0, 4, new Instant()));
   }
 
   @Test
@@ -245,7 +245,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_OTHER_EVENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 5, new Instant()));
+        ContiguousSequenceRange.of(0, 6, new Instant()));
   }
 
   @Test
@@ -279,7 +279,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
         maxResultsPerOutput,
-        ContiguousSequenceRange.of(1, sequences.length, new Instant()));
+        ContiguousSequenceRange.of(1, sequences.length + 1, new Instant()));
   }
 
   @Test
@@ -312,7 +312,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
         maxResultsPerOutput,
-        ContiguousSequenceRange.of(1, 10, new Instant()));
+        ContiguousSequenceRange.of(1, 11, new Instant()));
   }
 
   @Test
@@ -345,7 +345,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 2, Instant.now()));
+        ContiguousSequenceRange.of(0, 3, Instant.now()));
   }
 
   @Test
@@ -368,7 +368,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 2, new Instant()));
+        ContiguousSequenceRange.of(0, 3, new Instant()));
   }
 
   private void testGlobalSequenceProcessing(
@@ -399,20 +399,18 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
       ContiguousSequenceRange expectedLastCompleteRange)
       throws CannotProvideCoderException {
     // Test a streaming pipeline
-    if (false) {
-      doTest(
-          events,
-          null /* expectedStatuses */,
-          expectedOutput,
-          expectedUnprocessedEvents,
-          emissionFrequency,
-          initialSequence,
-          maxResultsPerOutput,
-          false /* produceStatusOnEveryEvent */,
-          STREAMING,
-          GLOBAL_SEQUENCE,
-          expectedLastCompleteRange);
-    }
+    doTest(
+        events,
+        null /* expectedStatuses */,
+        expectedOutput,
+        expectedUnprocessedEvents,
+        emissionFrequency,
+        initialSequence,
+        maxResultsPerOutput,
+        false /* produceStatusOnEveryEvent */,
+        STREAMING,
+        GLOBAL_SEQUENCE,
+        expectedLastCompleteRange);
 
     // Test a batch pipeline
     if (runTestsOnDataflowRunner()) {

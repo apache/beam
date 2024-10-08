@@ -51,22 +51,31 @@ class GlobalSequenceTracker<
           TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
       sideInputProducer;
   private final @Nullable Duration frequencyOfGeneration;
+  private final int maxElementsBeforeReevaluatingGlobalSequence;
 
+  /**
+   * Constructor used in batch pipelines.
+   *
+   * @param sideInputProducer
+   */
   public GlobalSequenceTracker(
       Combine.GloballyAsSingletonView<
               TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
           sideInputProducer) {
     this.sideInputProducer = sideInputProducer;
     this.frequencyOfGeneration = null;
+    this.maxElementsBeforeReevaluatingGlobalSequence = 0;
   }
 
   public GlobalSequenceTracker(
       Combine.GloballyAsSingletonView<
               TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
           sideInputProducer,
-      Duration globalSequenceGenerationFrequency) {
+      Duration globalSequenceGenerationFrequency,
+      int maxElementsBeforeReevaluatingGlobalSequence) {
     this.sideInputProducer = sideInputProducer;
     this.frequencyOfGeneration = globalSequenceGenerationFrequency;
+    this.maxElementsBeforeReevaluatingGlobalSequence = maxElementsBeforeReevaluatingGlobalSequence;
   }
 
   @Override
@@ -93,7 +102,8 @@ class GlobalSequenceTracker<
                   .triggering(
                       Repeatedly.forever(
                           AfterFirst.of(
-                              AfterPane.elementCountAtLeast(1),
+                              AfterPane.elementCountAtLeast(
+                                  maxElementsBeforeReevaluatingGlobalSequence),
                               AfterProcessingTime.pastFirstElementInPane()
                                   .plusDelayOf(frequencyOfGeneration)))));
     }
