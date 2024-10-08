@@ -97,7 +97,6 @@ public final class GrpcGetWorkerMetadataStream
             getWorkerMetadataThrottleTimer,
             serverMappingUpdater);
     getWorkerMetadataStream.startStream();
-    LOG.info("Started GetWorkerMetadataStream. {}", getWorkerMetadataStream);
     return getWorkerMetadataStream;
   }
 

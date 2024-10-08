@@ -27,6 +27,4 @@ public interface GetWorkBudgetSpender {
   default void setBudget(GetWorkBudget adjustment) {
     setBudget(adjustment.items(), adjustment.bytes());
   }
-
-  GetWorkBudget remainingBudget();
 }

@@ -56,7 +56,7 @@ import org.joda.time.Instant;
 /**
  * Represents the state of an attempt to process a {@link WorkItem} by executing user code.
  *
- * @implNote Not thread safe, should not be executed or accessed by more than 1 thread at a time.
+ * @implNote Not thread safe, should not be modified by more than 1 thread at a time.
  */
 @NotThreadSafe
 @Internal
@@ -70,7 +70,7 @@ public final class Work implements RefreshableWork {
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
   private final String latencyTrackingId;
-  private TimedState currentState;
+  private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
 
@@ -112,7 +112,7 @@ public final class Work implements RefreshableWork {
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender) {
     return ProcessingContext.create(
-        computationId, getDataClient, workCommitter, heartbeatSender, "");
+        computationId, getDataClient, workCommitter, heartbeatSender, /* backendWorkerToken= */ "");
   }
 
   public static ProcessingContext createProcessingContext(

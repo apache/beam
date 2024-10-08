@@ -57,7 +57,7 @@ public interface WindmillStream {
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {
     /** Adjusts the {@link GetWorkBudget} for the stream. */
-    void setBudget(long itemsDelta, long bytesDelta);
+    void setBudget(long newItems, long newBytes);
 
     default void setBudget(GetWorkBudget newBudget) {
       setBudget(newBudget.items(), newBudget.bytes());

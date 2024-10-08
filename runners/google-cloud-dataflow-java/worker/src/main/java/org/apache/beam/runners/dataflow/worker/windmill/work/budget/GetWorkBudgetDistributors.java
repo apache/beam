@@ -17,17 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import java.util.function.Supplier;
 import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 public final class GetWorkBudgetDistributors {
-  public static GetWorkBudgetDistributor distributeEvenly(
-      Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
-    return new EvenGetWorkBudgetDistributor(activeWorkBudgetSupplier, true);
-  }
-
   public static GetWorkBudgetDistributor distributeEvenly() {
-    return new EvenGetWorkBudgetDistributor(GetWorkBudget::noBudget, false);
+    return new EvenGetWorkBudgetDistributor();
   }
 }

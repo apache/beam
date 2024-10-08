@@ -162,11 +162,6 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
     }
   }
 
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return started.get() ? getWorkStream.get().remainingBudget() : getWorkBudget.get();
-  }
-
   long getAndResetThrottleTime() {
     return streamingEngineThrottleTimers.getAndResetThrottleTime();
   }

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
 import com.google.auto.value.AutoValue;
 import java.net.Inet6Address;
@@ -27,8 +27,8 @@ import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,12 +53,12 @@ public abstract class WindmillEndpoints {
                             endpoint.getValue(),
                             workerMetadataResponseProto.getExternalEndpoint())));
 
-    ImmutableList<WindmillEndpoints.Endpoint> windmillServers =
+    ImmutableSet<WindmillEndpoints.Endpoint> windmillServers =
         workerMetadataResponseProto.getWorkEndpointsList().stream()
             .map(
                 endpointProto ->
                     Endpoint.from(endpointProto, workerMetadataResponseProto.getExternalEndpoint()))
-            .collect(toImmutableList());
+            .collect(toImmutableSet());
 
     return WindmillEndpoints.builder()
         .setVersion(workerMetadataResponseProto.getMetadataVersion())
@@ -142,7 +142,7 @@ public abstract class WindmillEndpoints {
    * Windmill servers. Returns a list of endpoints used to communicate with the corresponding
    * Windmill servers.
    */
-  public abstract ImmutableList<Endpoint> windmillEndpoints();
+  public abstract ImmutableSet<Endpoint> windmillEndpoints();
 
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
@@ -214,9 +214,9 @@ public abstract class WindmillEndpoints {
         ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers);
 
     public abstract Builder setWindmillEndpoints(
-        ImmutableList<WindmillEndpoints.Endpoint> windmillServers);
+        ImmutableSet<WindmillEndpoints.Endpoint> windmillServers);
 
-    abstract ImmutableList.Builder<WindmillEndpoints.Endpoint> windmillEndpointsBuilder();
+    abstract ImmutableSet.Builder<WindmillEndpoints.Endpoint> windmillEndpointsBuilder();
 
     public final Builder addWindmillEndpoint(WindmillEndpoints.Endpoint endpoint) {
       windmillEndpointsBuilder().add(endpoint);

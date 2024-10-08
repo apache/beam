@@ -245,7 +245,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void setBudget(long itemsDelta, long bytesDelta) {
+      public void setBudget(long newItems, long newBytes) {
         // no-op.
       }
 

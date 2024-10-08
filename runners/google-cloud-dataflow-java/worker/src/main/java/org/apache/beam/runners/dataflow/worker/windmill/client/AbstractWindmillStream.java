@@ -185,25 +185,27 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   /** Send a request to the server. */
-  protected final synchronized void send(RequestT request) {
-    if (isShutdown()) {
-      return;
-    }
-
-    if (streamClosed.get()) {
-      throw new IllegalStateException("Send called on a client closed stream.");
-    }
-
-    try {
-      lastSendTimeMs.set(Instant.now().getMillis());
-      requestObserver.onNext(request);
-    } catch (StreamObserverCancelledException e) {
+  protected final void send(RequestT request) {
+    synchronized (this) {
       if (isShutdown()) {
-        logger.debug("Stream was closed or shutdown during send.", e);
         return;
       }
 
-      requestObserver.onError(e);
+      if (streamClosed.get()) {
+        throw new IllegalStateException("Send called on a client closed stream.");
+      }
+
+      try {
+        lastSendTimeMs.set(Instant.now().getMillis());
+        requestObserver.onNext(request);
+      } catch (StreamObserverCancelledException e) {
+        if (isShutdown()) {
+          logger.debug("Stream was closed or shutdown during send.", e);
+          return;
+        }
+
+        requestObserver.onError(e);
+      }
     }
   }
 

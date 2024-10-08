@@ -34,6 +34,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.CheckReturnValue;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -61,12 +62,10 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +80,8 @@ import org.slf4j.LoggerFactory;
 public final class FanOutStreamingEngineWorkerHarness implements StreamingWorkerHarness {
   private static final Logger LOG =
       LoggerFactory.getLogger(FanOutStreamingEngineWorkerHarness.class);
-  private static final String WORKER_METADATA_CONSUMER_THREAD_NAME = "WorkerMetadataConsumerThread";
+  private static final String WORKER_METADATA_CONSUMER_THREAD_NAME =
+      "WindmillWorkerMetadataConsumerThread";
   private static final String STREAM_MANAGER_THREAD_NAME = "WindmillStreamManager-%d";
 
   private final JobHeader jobHeader;
@@ -92,7 +92,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final GetWorkBudgetDistributor getWorkBudgetDistributor;
   private final GetWorkBudget totalGetWorkBudget;
   private final ThrottleTimer getWorkerMetadataThrottleTimer;
-  private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
   private final ExecutorService windmillStreamManager;
@@ -110,6 +109,10 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   @GuardedBy("this")
   private boolean started;
+
+  /** Set once when {@link #start()} is called. */
+  @GuardedBy("this")
+  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream = null;
 
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
@@ -139,7 +142,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
-    this.getWorkerMetadataStream = Suppliers.memoize(createGetWorkerMetadataStream()::get);
     this.workCommitterFactory = workCommitterFactory;
     this.metadataLock = new Object();
   }
@@ -201,13 +203,16 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "StreamingEngineClient cannot start twice.");
-    // Starts the stream, this value is memoized.
-    getWorkerMetadataStream.get();
+    getWorkerMetadataStream =
+        streamFactory.createGetWorkerMetadataStream(
+            dispatcherClient.getWindmillMetadataServiceStubBlocking(),
+            getWorkerMetadataThrottleTimer,
+            this::consumeWorkerMetadata);
     started = true;
   }
 
   public ImmutableSet<HostAndPort> currentWindmillEndpoints() {
-    return connections.get().windmillConnections().keySet().stream()
+    return connections.get().windmillStreams().keySet().stream()
         .map(Endpoint::directEndpoint)
         .filter(Optional::isPresent)
         .map(Optional::get)
@@ -239,24 +244,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void shutdown() {
     Preconditions.checkState(started, "StreamingEngineClient never started.");
-    getWorkerMetadataStream.get().halfClose();
+    Preconditions.checkNotNull(getWorkerMetadataStream).halfClose();
     workerMetadataConsumer.shutdownNow();
     channelCachingStubFactory.shutdown();
-  }
-
-  @SuppressWarnings("methodref.receiver.bound")
-  private Supplier<GetWorkerMetadataStream> createGetWorkerMetadataStream(
-      @UnderInitialization FanOutStreamingEngineWorkerHarness this) {
-    // Checker Framework complains about reference to "this" in the constructor since the instance
-    // is "UnderInitialization" here, which we pass as a lambda to GetWorkerMetadataStream for
-    // processing new worker metadata. Supplier.get() is only called in start(), after we have
-    // constructed the FanOutStreamingEngineWorkerHarness.
-    return () ->
-        checkNotNull(streamFactory)
-            .createGetWorkerMetadataStream(
-                checkNotNull(dispatcherClient).getWindmillMetadataServiceStubBlocking(),
-                checkNotNull(getWorkerMetadataThrottleTimer),
-                this::consumeWorkerMetadata);
   }
 
   private void consumeWorkerMetadata(WindmillEndpoints windmillEndpoints) {
@@ -281,37 +271,31 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     }
 
     long previousMetadataVersion = activeMetadataVersion;
-    LOG.info("Consuming new windmill endpoints: {}", newWindmillEndpoints);
-    ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
-        createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
-    closeStaleStreams(newWindmillConnections.values(), connections.get().windmillStreams());
-    ImmutableMap<WindmillConnection, WindmillStreamSender> newStreams =
-        createAndStartNewStreams(newWindmillConnections.values()).join();
+    LOG.debug(
+        "Consuming new endpoints: {}. previous metadata version: {}, current metadata version: {}",
+        newWindmillEndpoints,
+        previousMetadataVersion,
+        activeMetadataVersion);
+    closeStaleStreams(
+        newWindmillEndpoints.windmillEndpoints(), connections.get().windmillStreams());
+    ImmutableMap<Endpoint, WindmillStreamSender> newStreams =
+        createAndStartNewStreams(newWindmillEndpoints.windmillEndpoints()).join();
     StreamingEngineConnectionState newConnectionsState =
         StreamingEngineConnectionState.builder()
-            .setWindmillConnections(newWindmillConnections)
             .setWindmillStreams(newStreams)
             .setGlobalDataStreams(
                 createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
             .build();
-    LOG.info(
-        "Setting new connections: {}. Previous connections: {}.",
-        newConnectionsState,
-        connections.get());
     connections.set(newConnectionsState);
     getWorkBudgetDistributor.distributeBudget(newStreams.values(), totalGetWorkBudget);
     activeMetadataVersion = newWindmillEndpoints.version();
-    LOG.info(
-        "Consumed new endpoints. previous metadata version: {}, current metadata version: {}",
-        previousMetadataVersion,
-        activeMetadataVersion);
   }
 
   /** Close the streams that are no longer valid asynchronously. */
   @SuppressWarnings("FutureReturnValueIgnored")
   private void closeStaleStreams(
-      Collection<WindmillConnection> newWindmillConnections,
-      ImmutableMap<WindmillConnection, WindmillStreamSender> currentStreams) {
+      Collection<Endpoint> newWindmillConnections,
+      ImmutableMap<Endpoint, WindmillStreamSender> currentStreams) {
     currentStreams.entrySet().stream()
         .filter(
             connectionAndStream -> !newWindmillConnections.contains(connectionAndStream.getKey()))
@@ -334,27 +318,24 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                     windmillStreamManager));
   }
 
-  private synchronized CompletableFuture<ImmutableMap<WindmillConnection, WindmillStreamSender>>
-      createAndStartNewStreams(Collection<WindmillConnection> newWindmillConnections) {
-    ImmutableMap<WindmillConnection, WindmillStreamSender> currentStreams =
+  private synchronized CompletableFuture<ImmutableMap<Endpoint, WindmillStreamSender>>
+      createAndStartNewStreams(Collection<Endpoint> newWindmillConnections) {
+    ImmutableMap<Endpoint, WindmillStreamSender> currentStreams =
         connections.get().windmillStreams();
-    CompletionStage<List<Pair<WindmillConnection, WindmillStreamSender>>>
-        connectionAndSenderFuture =
-            MoreFutures.allAsList(
-                newWindmillConnections.stream()
-                    .map(
-                        connection ->
-                            MoreFutures.supplyAsync(
-                                () ->
-                                    Pair.of(
-                                        connection,
-                                        Optional.ofNullable(currentStreams.get(connection))
-                                            .orElseGet(
-                                                () ->
-                                                    createAndStartWindmillStreamSender(
-                                                        connection))),
-                                windmillStreamManager))
-                    .collect(Collectors.toList()));
+    CompletionStage<List<Pair<Endpoint, WindmillStreamSender>>> connectionAndSenderFuture =
+        MoreFutures.allAsList(
+            newWindmillConnections.stream()
+                .map(
+                    connection ->
+                        MoreFutures.supplyAsync(
+                            () ->
+                                Pair.of(
+                                    connection,
+                                    Optional.ofNullable(currentStreams.get(connection))
+                                        .orElseGet(
+                                            () -> createAndStartWindmillStreamSender(connection))),
+                            windmillStreamManager))
+                .collect(Collectors.toList()));
 
     return connectionAndSenderFuture
         .thenApply(
@@ -384,23 +365,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     return connections.get();
   }
 
-  private synchronized ImmutableMap<Endpoint, WindmillConnection> createNewWindmillConnections(
-      List<Endpoint> newWindmillEndpoints) {
-    ImmutableMap<Endpoint, WindmillConnection> currentConnections =
-        connections.get().windmillConnections();
-    return newWindmillEndpoints.stream()
-        .collect(
-            toImmutableMap(
-                Function.identity(),
-                endpoint ->
-                    // Reuse existing stubs if they exist. Optional.orElseGet only calls the
-                    // supplier if the value is not present, preventing constructing expensive
-                    // objects.
-                    Optional.ofNullable(currentConnections.get(endpoint))
-                        .orElseGet(
-                            () -> WindmillConnection.from(endpoint, this::createWindmillStub))));
-  }
-
   private ImmutableMap<String, Supplier<GetDataStream>> createNewGlobalDataStreams(
       ImmutableMap<String, Endpoint> newGlobalDataEndpoints) {
     ImmutableMap<String, Supplier<GetDataStream>> currentGlobalDataStreams =
@@ -421,19 +385,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             keyedEndpoint.getKey(),
             () ->
                 streamFactory.createGetDataStream(
-                    newOrExistingStubFor(keyedEndpoint.getValue()), new ThrottleTimer())));
+                    createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer())));
   }
 
-  private CloudWindmillServiceV1Alpha1Stub newOrExistingStubFor(Endpoint endpoint) {
-    return Optional.ofNullable(connections.get().windmillConnections().get(endpoint))
-        .map(WindmillConnection::stub)
-        .orElseGet(() -> createWindmillStub(endpoint));
-  }
-
-  private WindmillStreamSender createAndStartWindmillStreamSender(WindmillConnection connection) {
+  private WindmillStreamSender createAndStartWindmillStreamSender(Endpoint connection) {
     WindmillStreamSender windmillStreamSender =
         WindmillStreamSender.create(
-            connection,
+            WindmillConnection.from(connection, this::createWindmillStub),
             GetWorkRequest.newBuilder()
                 .setClientId(jobHeader.getClientId())
                 .setJobId(jobHeader.getJobId())

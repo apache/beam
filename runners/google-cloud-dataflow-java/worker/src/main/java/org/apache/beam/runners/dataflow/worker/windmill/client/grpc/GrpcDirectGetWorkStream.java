@@ -286,10 +286,10 @@ public final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public void setBudget(long items, long bytes) {
+  public void setBudget(long newItems, long newBytes) {
     GetWorkBudget currentMaxGetWorkBudget =
         maxGetWorkBudget.updateAndGet(
-            ignored -> GetWorkBudget.builder().setItems(items).setBytes(bytes).build());
+            ignored -> GetWorkBudget.builder().setItems(newItems).setBytes(newBytes).build());
     GetWorkBudget extension = budgetTracker.computeBudgetExtension(currentMaxGetWorkBudget);
     sendRequestExtension(extension);
   }

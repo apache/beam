@@ -220,11 +220,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     StreamingEngineConnectionState currentConnections =
         fanOutStreamingEngineWorkProvider.getCurrentConnections();
 
-    assertEquals(2, currentConnections.windmillConnections().size());
     assertEquals(2, currentConnections.windmillStreams().size());
     Set<String> workerTokens =
-        currentConnections.windmillConnections().values().stream()
-            .map(WindmillConnection::backendWorkerToken)
+        currentConnections.windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
             .collect(Collectors.toSet());
 
     assertTrue(workerTokens.contains(workerToken));
@@ -294,12 +293,11 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
     StreamingEngineConnectionState currentConnections =
         fanOutStreamingEngineWorkProvider.getCurrentConnections();
-    assertEquals(1, currentConnections.windmillConnections().size());
     assertEquals(1, currentConnections.windmillStreams().size());
     Set<String> workerTokens =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections().windmillConnections().values()
+        fanOutStreamingEngineWorkProvider.getCurrentConnections().windmillStreams().keySet()
             .stream()
-            .map(WindmillConnection::backendWorkerToken)
+            .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
             .collect(Collectors.toSet());
 
     assertFalse(workerTokens.contains(workerToken));
