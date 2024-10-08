@@ -60,7 +60,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
-    // single unique prefix per pipeline
+    // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
 

@@ -104,9 +104,9 @@ abstract class SerializableDataFile {
 
     abstract Builder setNanValueCounts(Map<Integer, Long> nanValueCounts);
 
-    abstract Builder setLowerBounds(Map<Integer, byte[]> lowerBounds);
+    abstract Builder setLowerBounds(@Nullable Map<Integer, byte[]> lowerBounds);
 
-    abstract Builder setUpperBounds(Map<Integer, byte[]> upperBounds);
+    abstract Builder setUpperBounds(@Nullable Map<Integer, byte[]> upperBounds);
 
     abstract SerializableDataFile build();
   }
@@ -116,39 +116,22 @@ abstract class SerializableDataFile {
    * PartitionKey}.
    */
   static SerializableDataFile from(DataFile f, PartitionKey key) {
-    SerializableDataFile.Builder builder =
-        SerializableDataFile.builder()
-            .setPath(f.path().toString())
-            .setFileFormat(f.format().toString())
-            .setRecordCount(f.recordCount())
-            .setFileSizeInBytes(f.fileSizeInBytes())
-            .setPartitionPath(key.toPath())
-            .setPartitionSpecId(f.specId())
-            .setKeyMetadata(f.keyMetadata())
-            .setSplitOffsets(f.splitOffsets())
-            .setColumnSizes(f.columnSizes())
-            .setValueCounts(f.valueCounts())
-            .setNullValueCounts(f.nullValueCounts())
-            .setNanValueCounts(f.nanValueCounts());
-
-    // ByteBuddyUtils has trouble converting Map value type ByteBuffer
-    // to byte[] and back to ByteBuffer, so we perform this conversion manually
-    // here.
-    if (f.lowerBounds() != null) {
-      Map<Integer, byte[]> lowerBounds = new HashMap<>(f.lowerBounds().size());
-      for (Map.Entry<Integer, ByteBuffer> e : f.lowerBounds().entrySet()) {
-        lowerBounds.put(e.getKey(), e.getValue().array());
-      }
-      builder = builder.setLowerBounds(lowerBounds);
-    }
-    if (f.upperBounds() != null) {
-      Map<Integer, byte[]> upperBounds = new HashMap<>(f.upperBounds().size());
-      for (Map.Entry<Integer, ByteBuffer> e : f.upperBounds().entrySet()) {
-        upperBounds.put(e.getKey(), e.getValue().array());
-      }
-      builder = builder.setUpperBounds(upperBounds);
-    }
-    return builder.build();
+    return SerializableDataFile.builder()
+        .setPath(f.path().toString())
+        .setFileFormat(f.format().toString())
+        .setRecordCount(f.recordCount())
+        .setFileSizeInBytes(f.fileSizeInBytes())
+        .setPartitionPath(key.toPath())
+        .setPartitionSpecId(f.specId())
+        .setKeyMetadata(f.keyMetadata())
+        .setSplitOffsets(f.splitOffsets())
+        .setColumnSizes(f.columnSizes())
+        .setValueCounts(f.valueCounts())
+        .setNullValueCounts(f.nullValueCounts())
+        .setNanValueCounts(f.nanValueCounts())
+        .setLowerBounds(toByteArrayMap(f.lowerBounds()))
+        .setUpperBounds(toByteArrayMap(f.upperBounds()))
+        .build();
   }
 
   /**
@@ -165,24 +148,6 @@ abstract class SerializableDataFile {
         partitionSpec.specId(),
         getPartitionSpecId());
 
-    // ByteBuddyUtils has trouble converting Map value type ByteBuffer
-    // to byte[] and back to ByteBuffer, so we perform this conversion manually
-    // here.
-    Map<Integer, ByteBuffer> lowerBounds = null;
-    Map<Integer, ByteBuffer> upperBounds = null;
-    if (getLowerBounds() != null) {
-      lowerBounds = new HashMap<>(getLowerBounds().size());
-      for (Map.Entry<Integer, byte[]> e : getLowerBounds().entrySet()) {
-        lowerBounds.put(e.getKey(), ByteBuffer.wrap(e.getValue()));
-      }
-    }
-    if (getUpperBounds() != null) {
-      upperBounds = new HashMap<>(getUpperBounds().size());
-      for (Map.Entry<Integer, byte[]> e : getUpperBounds().entrySet()) {
-        upperBounds.put(e.getKey(), ByteBuffer.wrap(e.getValue()));
-      }
-    }
-
     Metrics dataFileMetrics =
         new Metrics(
             getRecordCount(),
@@ -190,8 +155,8 @@ abstract class SerializableDataFile {
             getValueCounts(),
             getNullValueCounts(),
             getNanValueCounts(),
-            lowerBounds,
-            upperBounds);
+            toByteBufferMap(getLowerBounds()),
+            toByteBufferMap(getUpperBounds()));
 
     return DataFiles.builder(partitionSpec)
         .withFormat(FileFormat.fromString(getFileFormat()))
@@ -202,5 +167,32 @@ abstract class SerializableDataFile {
         .withMetrics(dataFileMetrics)
         .withSplitOffsets(getSplitOffsets())
         .build();
+  }
+
+  // ByteBuddyUtils has trouble converting Map value type ByteBuffer
+  // to byte[] and back to ByteBuffer, so we perform these conversions manually
+  // TODO(https://github.com/apache/beam/issues/32701)
+  private static @Nullable Map<Integer, byte[]> toByteArrayMap(
+      @Nullable Map<Integer, ByteBuffer> input) {
+    if (input == null) {
+      return null;
+    }
+    Map<Integer, byte[]> output = new HashMap<>(input.size());
+    for (Map.Entry<Integer, ByteBuffer> e : input.entrySet()) {
+      output.put(e.getKey(), e.getValue().array());
+    }
+    return output;
+  }
+
+  private static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
+      @Nullable Map<Integer, byte[]> input) {
+    if (input == null) {
+      return null;
+    }
+    Map<Integer, ByteBuffer> output = new HashMap<>(input.size());
+    for (Map.Entry<Integer, byte[]> e : input.entrySet()) {
+      output.put(e.getKey(), ByteBuffer.wrap(e.getValue()));
+    }
+    return output;
   }
 }
