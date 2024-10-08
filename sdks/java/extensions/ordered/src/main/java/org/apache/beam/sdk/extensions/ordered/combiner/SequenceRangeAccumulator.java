@@ -44,17 +44,17 @@ public class SequenceRangeAccumulator {
     return a.isAfter(b) ? a : b;
   }
 
-
   /**
    * The tree contains a set of non-overlapping contiguous ranges, where the key is the lower
-   * inclusive start of the range, left value of the pair is the inclusive end of the range and
-   * the right value of the pair is the maximum timestamp in the range.
+   * inclusive start of the range, left value of the pair is the inclusive end of the range and the
+   * right value of the pair is the maximum timestamp in the range.
    *
-   * The maximum timestamp is critical for the correctness of the ordered processing.
-   * During the merge process the merged range is assigned the maximum timestamp of
-   * the two ranges that created this new range.
+   * <p>The maximum timestamp is critical for the correctness of the ordered processing. During the
+   * merge process the merged range is assigned the maximum timestamp of the two ranges that created
+   * this new range.
    */
   private final TreeMap<Long, Pair<Long, Instant>> data = new TreeMap<>();
+
   private @Nullable Long initialSequence = null;
 
   public void add(long sequence, Instant timestamp, boolean isInitialSequence) {
