@@ -56,7 +56,7 @@ public class SequenceRangeAccumulator {
               + sequence);
     }
 
-    if(sequence == Long.MAX_VALUE) {
+    if (sequence == Long.MAX_VALUE) {
       // This is an invalid value and DoFns will not process this element. This will also allow
       // to produce a ContiguousSequenceRange with the exclusive end value.
       return;
