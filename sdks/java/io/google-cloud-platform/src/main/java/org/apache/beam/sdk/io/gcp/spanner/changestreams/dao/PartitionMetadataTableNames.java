@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -26,7 +27,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
  * Configuration for a partition metadata table. It encapsulates the name of the metadata table and
  * indexes.
  */
-public class PartitionMetadataTableNames {
+public class PartitionMetadataTableNames implements Serializable {
+
+  private static final long serialVersionUID = 8848098877671834584L;
 
   /** PostgreSQL max table and index length is 63 bytes. */
   @VisibleForTesting static final int MAX_NAME_LENGTH = 63;
