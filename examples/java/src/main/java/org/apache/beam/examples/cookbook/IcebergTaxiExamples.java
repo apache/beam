@@ -22,7 +22,6 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.iceberg.IcebergIO;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -45,7 +44,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Reads real-time NYC taxi ride information from {@code
  * projects/pubsub-public-data/topics/taxirides-realtime} and writes to Iceberg tables using Beam's
- * {@link Managed} {@link IcebergIO} sink.
+ * {@link Managed} IcebergIO sink.
  *
  * <p>We'd like to have a distribution of taxi ride cost for each case of number of passengers. A
  * car can have up to six passengers, so first we create six Iceberg tables to represent each case.
