@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  * #getSerializableDataFiles()}.
  */
 class RecordWriterManager implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -229,8 +229,7 @@ class RecordWriterManager implements AutoCloseable {
               IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
           // TODO(ahmedabu98): support creating a table with a specified partition spec
           table = catalog.createTable(identifier, tableSchema);
-          LOG.info(
-              "Successfully created Iceberg table '{}' with schema: {}", identifier, tableSchema);
+          LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
         } catch (AlreadyExistsException alreadyExistsException) {
           // handle race condition where workers are concurrently creating the same table.
           // if running into already exists exception, we perform one last load
