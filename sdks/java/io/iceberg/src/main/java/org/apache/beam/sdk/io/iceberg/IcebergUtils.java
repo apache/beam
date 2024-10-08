@@ -38,17 +38,15 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 
-/** Utilities for converting between Beam and Iceberg types. */
+/** Utilities for converting between Beam and Iceberg types, made public for user's convenience. */
 public class IcebergUtils {
-  // This is made public for users convenience, as many may have more experience working with
-  // Iceberg types.
-
   private IcebergUtils() {}
 
   private static final Map<Schema.TypeName, Type> BEAM_TYPES_TO_ICEBERG_TYPES =
@@ -255,8 +253,6 @@ public class IcebergUtils {
    *
    * <p>The following unsupported Beam types will be defaulted to {@link Types.StringType}:
    * <li>{@link Schema.TypeName.DECIMAL}
-   * <li>{@link Schema.TypeName.DATETIME}
-   * <li>{@link Schema.TypeName.LOGICAL_TYPE}
    */
   public static org.apache.iceberg.Schema beamSchemaToIcebergSchema(final Schema schema) {
     List<Types.NestedField> fields = new ArrayList<>(schema.getFieldCount());
@@ -320,7 +316,7 @@ public class IcebergUtils {
       case TIMESTAMP:
         Object val = value.getValue(name);
         if (val instanceof Instant) { // case Schema.FieldType.DATETIME
-          rec.setField(name, ((Instant) val).getMillis());
+          rec.setField(name, DateTimeUtil.timestampFromMicros(((Instant) val).getMillis()));
         } else if (val instanceof LocalDateTime) { // case SqlTypes.DATETIME
           rec.setField(name, val);
         } else {

@@ -47,6 +47,7 @@ import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Test class for {@link IcebergUtils}. */
 @RunWith(Enclosed.class)
 public class IcebergUtilsTest {
 
@@ -128,7 +129,7 @@ public class IcebergUtilsTest {
           Schema.FieldType.DATETIME,
           dateTime.toInstant(),
           Types.TimestampType.withoutZone(),
-          dateTime.getMillis());
+          DateTimeUtil.timestampFromMicros(dateTime.getMillis()));
 
       checkRowValueToRecordValue(
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
@@ -266,6 +267,11 @@ public class IcebergUtilsTest {
           dateTime.getMillis(),
           Schema.FieldType.DATETIME,
           dateTime.toInstant());
+
+      checkRecordValueToRowValue(
+          Types.TimestampType.withoutZone(),
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          DateTimeUtil.timestampFromMicros(123456789L));
     }
 
     @Test
@@ -452,7 +458,7 @@ public class IcebergUtilsTest {
               new BeamFieldTypeTestCase(
                   1,
                   Schema.FieldType.row(BEAM_SCHEMA_PRIMITIVE),
-                  7,
+                  10,
                   Types.StructType.of(ICEBERG_SCHEMA_PRIMITIVE.columns())),
               new BeamFieldTypeTestCase(
                   15,
