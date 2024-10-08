@@ -163,6 +163,12 @@ import org.joda.time.Duration;
  *   </tr>
  * </table>
  *
+ * <p><b>Note:</b> {@code SqlTypes} are Beam logical types.
+ *
+ * <p><b>Note:</b> Both of Beam's {@code DATETIME} and {@code SqlTypes.DATETIME} types will convert
+ * to Iceberg's {@code TIMESTAMP} type. In the opposite direction, Iceberg's {@code TIMESTAMP} will
+ * only convert to Beam's {@code SqlTypes.DATETIME}.
+ *
  * <h3>Dynamic Destinations</h3>
  *
  * <p>Managed Iceberg supports writing to dynamic destinations. To do so, please provide an
