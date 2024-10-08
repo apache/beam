@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -55,6 +56,7 @@ import java.util.List;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -1066,6 +1068,21 @@ public class S3FileSystemTest {
     byte[] readArray = bb2.array();
     assertArrayEquals(readArray, writtenArray);
     open.close();
+  }
+
+  @Test
+  public void testReportLineageOnBucket() {
+    verifyLineage("s3://testbucket", ImmutableList.of("testbucket"));
+    verifyLineage("s3://testbucket/", ImmutableList.of("testbucket"));
+    verifyLineage("s3://testbucket/foo/bar.txt", ImmutableList.of("testbucket", "foo/bar.txt"));
+  }
+
+  private void verifyLineage(String uri, List<String> expected) {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("mys3"), client);
+    S3ResourceId path = S3ResourceId.fromUri(uri);
+    Lineage mockLineage = mock(Lineage.class);
+    s3FileSystem.reportLineage(path, mockLineage);
+    verify(mockLineage, times(1)).add("s3", expected);
   }
 
   /** A mockito argument matcher to implement equality on GetHeadObjectRequest. */
