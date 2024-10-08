@@ -85,7 +85,7 @@ public class PartitionMetadataAdminDao {
   private final DatabaseAdminClient databaseAdminClient;
   private final String instanceId;
   private final String databaseId;
-  private final PartitionMetadataTableNames config;
+  private final PartitionMetadataTableNames names;
   private final Dialect dialect;
 
   /**
@@ -106,7 +106,7 @@ public class PartitionMetadataAdminDao {
     this.databaseAdminClient = databaseAdminClient;
     this.instanceId = instanceId;
     this.databaseId = databaseId;
-    this.config = names;
+    this.names = names;
     this.dialect = dialect;
   }
 
@@ -123,7 +123,7 @@ public class PartitionMetadataAdminDao {
       // Literals need be added around literals to preserve casing.
       ddl.add(
           "CREATE TABLE \""
-              + config.getTableName()
+              + names.getTableName()
               + "\"(\""
               + COLUMN_PARTITION_TOKEN
               + "\" text NOT NULL,\""
@@ -158,9 +158,9 @@ public class PartitionMetadataAdminDao {
               + "\"");
       ddl.add(
           "CREATE INDEX \""
-              + config.getWatermarkIndexName()
+              + names.getWatermarkIndexName()
               + "\" on \""
-              + config.getTableName()
+              + names.getTableName()
               + "\" (\""
               + COLUMN_WATERMARK
               + "\") INCLUDE (\""
@@ -168,9 +168,9 @@ public class PartitionMetadataAdminDao {
               + "\")");
       ddl.add(
           "CREATE INDEX \""
-              + config.getCreatedAtIndexName()
+              + names.getCreatedAtIndexName()
               + "\" ON \""
-              + config.getTableName()
+              + names.getTableName()
               + "\" (\""
               + COLUMN_CREATED_AT
               + "\",\""
@@ -179,7 +179,7 @@ public class PartitionMetadataAdminDao {
     } else {
       ddl.add(
           "CREATE TABLE "
-              + config.getTableName()
+              + names.getTableName()
               + " ("
               + COLUMN_PARTITION_TOKEN
               + " STRING(MAX) NOT NULL,"
@@ -213,9 +213,9 @@ public class PartitionMetadataAdminDao {
               + " DAY))");
       ddl.add(
           "CREATE INDEX "
-              + config.getWatermarkIndexName()
+              + names.getWatermarkIndexName()
               + " on "
-              + config.getTableName()
+              + names.getTableName()
               + " ("
               + COLUMN_WATERMARK
               + ") STORING ("
@@ -223,9 +223,9 @@ public class PartitionMetadataAdminDao {
               + ")");
       ddl.add(
           "CREATE INDEX "
-              + config.getCreatedAtIndexName()
+              + names.getCreatedAtIndexName()
               + " ON "
-              + config.getTableName()
+              + names.getTableName()
               + " ("
               + COLUMN_CREATED_AT
               + ","
@@ -258,13 +258,13 @@ public class PartitionMetadataAdminDao {
   public void deletePartitionMetadataTable() {
     List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
-      ddl.add("DROP INDEX \"" + config.getCreatedAtIndexName() + "\"");
-      ddl.add("DROP INDEX \"" + config.getWatermarkIndexName() + "\"");
-      ddl.add("DROP TABLE \"" + config.getTableName() + "\"");
+      ddl.add("DROP INDEX \"" + names.getCreatedAtIndexName() + "\"");
+      ddl.add("DROP INDEX \"" + names.getWatermarkIndexName() + "\"");
+      ddl.add("DROP TABLE \"" + names.getTableName() + "\"");
     } else {
-      ddl.add("DROP INDEX " + config.getCreatedAtIndexName());
-      ddl.add("DROP INDEX " + config.getWatermarkIndexName());
-      ddl.add("DROP TABLE " + config.getTableName());
+      ddl.add("DROP INDEX " + names.getCreatedAtIndexName());
+      ddl.add("DROP INDEX " + names.getWatermarkIndexName());
+      ddl.add("DROP TABLE " + names.getTableName());
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddl, null);
