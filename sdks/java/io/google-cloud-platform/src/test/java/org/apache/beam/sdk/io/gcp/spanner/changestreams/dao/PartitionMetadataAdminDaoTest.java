@@ -58,6 +58,8 @@ public class PartitionMetadataAdminDaoTest {
   private static final String DATABASE_ID = "SPANNER_DATABASE";
 
   private static final String TABLE_NAME = "SPANNER_TABLE";
+  private static final String WATERMARK_INDEX_NAME = "WATERMARK_INDEX";
+  private static final String CREATED_AT_INDEX_NAME = "CREATED_AT_INDEX";
 
   private static final int TIMEOUT_MINUTES = 10;
 
@@ -68,12 +70,14 @@ public class PartitionMetadataAdminDaoTest {
   @Before
   public void setUp() {
     databaseAdminClient = mock(DatabaseAdminClient.class);
+    PartitionMetadataTableNames names =
+        new PartitionMetadataTableNames(TABLE_NAME, WATERMARK_INDEX_NAME, CREATED_AT_INDEX_NAME);
     partitionMetadataAdminDao =
         new PartitionMetadataAdminDao(
-            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, Dialect.GOOGLE_STANDARD_SQL);
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, names, Dialect.GOOGLE_STANDARD_SQL);
     partitionMetadataAdminDaoPostgres =
         new PartitionMetadataAdminDao(
-            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, Dialect.POSTGRESQL);
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, names, Dialect.POSTGRESQL);
     op = (OperationFuture<Void, UpdateDatabaseDdlMetadata>) mock(OperationFuture.class);
     statements = ArgumentCaptor.forClass(Iterable.class);
     when(databaseAdminClient.updateDatabaseDdl(
