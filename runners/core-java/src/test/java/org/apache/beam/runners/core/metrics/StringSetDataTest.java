@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,6 +83,14 @@ public class StringSetDataTest {
   }
 
   @Test
+  public void testStringSetDataEmptyCanAdd() {
+    ImmutableSet<String> contents = ImmutableSet.of("ab", "cd");
+    StringSetData stringSetData = StringSetData.empty();
+    stringSetData = stringSetData.addAll(contents.toArray(new String[] {}));
+    assertEquals(stringSetData.stringSet(), contents);
+  }
+
+  @Test
   public void testEmptyExtract() {
     assertTrue(StringSetData.empty().extractResult().getStringSet().isEmpty());
   }
@@ -94,9 +103,26 @@ public class StringSetDataTest {
   }
 
   @Test
-  public void testExtractReturnsImmutable() {
-    StringSetData stringSetData = StringSetData.create(ImmutableSet.of("ab", "cd"));
-    // check that immutable copy is returned
-    assertThrows(UnsupportedOperationException.class, () -> stringSetData.stringSet().add("aa"));
+  public void testStringSetAddUntilCapacity() {
+    StringSetData combined = StringSetData.empty();
+    @SuppressWarnings("InlineMeInliner") // Inline representation is Java11+ only
+    String commonPrefix = Strings.repeat("*", 1000);
+    long stringSize = 0;
+    for (int i = 0; i < 1000; ++i) {
+      String s = commonPrefix + i;
+      stringSize += s.length();
+      combined = combined.addAll(s);
+    }
+    assertTrue(combined.stringSize() < stringSize);
+    assertTrue(combined.stringSize() > StringSetData.STRING_SET_SIZE_LIMIT);
+  }
+
+  @Test
+  public void testStringSetAddSizeTrackedCorrectly() {
+    StringSetData combined = StringSetData.empty();
+    combined = combined.addAll("a", "b", "c", "b");
+    assertEquals(3, combined.stringSize());
+    combined = combined.addAll("c", "d", "e");
+    assertEquals(5, combined.stringSize());
   }
 }
