@@ -31,6 +31,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
+from apache_beam.metrics.cells import StringSetData
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import metrics_pb2
 
@@ -305,10 +306,12 @@ def user_set_string(namespace, name, metric, ptransform=None):
   Args:
     namespace: User-defined namespace of StringSet.
     name: Name of StringSet.
-    metric: The set representing the metrics.
+    metric: The StringSetData representing the metrics.
     ptransform: The ptransform id used as a label.
   """
   labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  if isinstance(metric, StringSetData):
+    metric = metric.string_set
   if isinstance(metric, set):
     metric = list(metric)
   if isinstance(metric, list):
