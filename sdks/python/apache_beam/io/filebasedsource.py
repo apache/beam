@@ -38,8 +38,8 @@ from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import FileMetadata
+from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.options.value_provider import StaticValueProvider
