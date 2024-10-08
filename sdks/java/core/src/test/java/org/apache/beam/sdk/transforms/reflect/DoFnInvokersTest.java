@@ -520,10 +520,10 @@ public class DoFnInvokersTest {
     when(fn.processElement(mockProcessContext, tracker, watermarkEstimator)).thenReturn(resume());
     when(fn.getSize()).thenReturn(2.0);
 
-    assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
+    assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault(null)));
     assertEquals(
         watermarkEstimatorStateCoder,
-        invoker.invokeGetWatermarkEstimatorStateCoder(CoderRegistry.createDefault()));
+        invoker.invokeGetWatermarkEstimatorStateCoder(CoderRegistry.createDefault(null)));
     assertEquals(
         restriction,
         invoker.invokeGetInitialRestriction(
@@ -768,7 +768,7 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
-    CoderRegistry coderRegistry = CoderRegistry.createDefault();
+    CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
     coderRegistry.registerCoderProvider(
         CoderProviders.fromStaticMethods(
             RestrictionWithBoundedDefaultTracker.class, CoderForDefaultTracker.class));
@@ -871,7 +871,7 @@ public class DoFnInvokersTest {
     BoundedMockFn fn = mock(BoundedMockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
-    CoderRegistry coderRegistry = CoderRegistry.createDefault();
+    CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
     coderRegistry.registerCoderProvider(
         CoderProviders.fromStaticMethods(
             RestrictionWithBoundedDefaultTracker.class, CoderForDefaultTracker.class));
@@ -949,7 +949,7 @@ public class DoFnInvokersTest {
     UnboundedMockFn fn = mock(UnboundedMockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
-    CoderRegistry coderRegistry = CoderRegistry.createDefault();
+    CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
     coderRegistry.registerCoderProvider(
         CoderProviders.fromStaticMethods(
             RestrictionWithUnboundedDefaultTracker.class, CoderForDefaultTracker.class));
@@ -1019,7 +1019,7 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
-    CoderRegistry coderRegistry = CoderRegistry.createDefault();
+    CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
     coderRegistry.registerCoderProvider(
         CoderProviders.fromStaticMethods(
             RestrictionWithBoundedDefaultTracker.class, CoderForDefaultTracker.class));

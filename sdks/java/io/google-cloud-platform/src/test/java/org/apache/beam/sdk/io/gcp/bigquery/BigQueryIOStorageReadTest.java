@@ -319,7 +319,7 @@ public class BigQueryIOStorageReadTest {
 
     assertEquals(
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(ReadSession.class)),
-        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
+        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault(null)));
   }
 
   @Test

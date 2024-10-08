@@ -1192,6 +1192,6 @@ public class BigQueryIOReadTest implements Serializable {
 
     assertEquals(
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),
-        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
+        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault(null)));
   }
 }

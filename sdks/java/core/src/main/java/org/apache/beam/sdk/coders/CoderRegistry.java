@@ -42,6 +42,8 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MetadataCoder;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdCoder;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -195,11 +197,12 @@ public class CoderRegistry {
    *       the lexicographically smallest {@link Class#getName() class name} being used.
    * </ul>
    */
-  public static CoderRegistry createDefault() {
-    return new CoderRegistry();
+  public static CoderRegistry createDefault(@Nullable SchemaRegistry schemaRegistry) {
+    return new CoderRegistry(schemaRegistry);
   }
 
-  private CoderRegistry() {
+  private CoderRegistry(@Nullable SchemaRegistry schemaRegistry) {
+    this.schemaRegistry = schemaRegistry;
     coderProviders = new ArrayDeque<>(REGISTERED_CODER_FACTORIES);
   }
 
@@ -590,6 +593,8 @@ public class CoderRegistry {
   /** The list of {@link CoderProvider coder providers} to use to provide Coders. */
   private ArrayDeque<CoderProvider> coderProviders;
 
+  private final @Nullable SchemaRegistry schemaRegistry;
+
   /**
    * Returns a {@link Coder} to use for values of the given type, in a context where the given types
    * use the given coders.
@@ -650,16 +655,28 @@ public class CoderRegistry {
 
     List<Coder<?>> typeArgumentCoders = new ArrayList<>();
     for (Type typeArgument : type.getActualTypeArguments()) {
-      try {
-        Coder<?> typeArgumentCoder =
-            getCoderFromTypeDescriptor(TypeDescriptor.of(typeArgument), typeCoderBindings);
-        typeArgumentCoders.add(typeArgumentCoder);
-      } catch (CannotProvideCoderException exc) {
-        throw new CannotProvideCoderException(
-            String.format(
-                "Cannot provide coder for parameterized type %s: %s", type, exc.getMessage()),
-            exc);
+      Coder<?> typeArgumentCoder = null;
+      if (schemaRegistry != null) {
+        TypeDescriptor<?> typeDescriptor = TypeDescriptor.of(typeArgument);
+        try {
+          typeArgumentCoder = schemaRegistry.getSchemaCoder(typeDescriptor);
+        } catch (NoSuchSchemaException e) {
+          // No schema.
+        }
       }
+
+      if (typeArgumentCoder == null) {
+        try {
+          typeArgumentCoder =
+              getCoderFromTypeDescriptor(TypeDescriptor.of(typeArgument), typeCoderBindings);
+        } catch (CannotProvideCoderException exc) {
+          throw new CannotProvideCoderException(
+              String.format(
+                  "Cannot provide coder for parameterized type %s: %s", type, exc.getMessage()),
+              exc);
+        }
+      }
+      typeArgumentCoders.add(typeArgumentCoder);
     }
     return getCoderFromFactories(TypeDescriptor.of(type), typeArgumentCoders);
   }

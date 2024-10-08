@@ -28,6 +28,6 @@ import org.junit.runners.JUnit4;
 public class BigQueryCoderProviderRegistrarTest {
   @Test
   public void testTableRowCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getCoder(TableRow.class);
+    CoderRegistry.createDefault(null).getCoder(TableRow.class);
   }
 }
