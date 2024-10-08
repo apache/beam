@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -105,6 +106,14 @@ import org.joda.time.Duration;
  *
  * <p><b>Additional configuration options are provided in the `Pre-filtering Options` section below,
  * for Iceberg writes.</b>
+ *
+ * <h3>Creating Tables</h3>
+ *
+ * <p>If an Iceberg table does not exist at the time of writing, this connector will automatically
+ * create one with the data's schema.
+ *
+ * <p>Note that this is a best-effort operation that depends on the {@link Catalog} implementation.
+ * Some implementations may not support creating a table using the Iceberg API.
  *
  * <h3>Beam Rows</h3>
  *
@@ -318,7 +327,7 @@ public class IcebergIO {
      * org.apache.iceberg.Snapshot} is produced.
      *
      * <p>Roughly every triggeringFrequency duration, records are written to data files and appended
-     * to the respective table. Each append operation created a new table snapshot.
+     * to the respective table. Each append operation creates a new table snapshot.
      *
      * <p>Generally speaking, increasing this duration will result in fewer, larger data files and
      * fewer snapshots.
