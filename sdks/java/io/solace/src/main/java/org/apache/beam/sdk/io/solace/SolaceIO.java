@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -40,15 +41,28 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
+import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
+import org.apache.beam.sdk.io.solace.write.RecordToPublishResultDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
+import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
+import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -352,6 +366,10 @@ import org.slf4j.LoggerFactory;
  * href="https://cloud.google.com/dataflow/docs/streaming-engine">Streaming Engine</a> to use this
  * connector.
  *
+ * <p>For full control over all the properties, use {@link SubmissionMode#CUSTOM}. The connector
+ * will not override any property that you set, and you will have full control over all the JCSMP
+ * properties.
+ *
  * <h3>Authentication</h3>
  *
  * <p>When writing to Solace, the user must use {@link
@@ -445,6 +463,7 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
   }
+
   /**
    * Create a {@link Read} transform, to read from Solace. Specify a {@link SerializableFunction} to
    * map incoming {@link BytesXMLMessage} records, to the object of your choice. You also need to
@@ -805,7 +824,9 @@ public class SolaceIO {
 
   public enum SubmissionMode {
     HIGHER_THROUGHPUT,
-    LOWER_LATENCY
+    LOWER_LATENCY,
+    CUSTOM, // Don't override any property set by the user
+    TESTING // Send acks 1 by 1, this will be very slow, never use this in an actual pipeline!
   }
 
   public enum WriterType {
@@ -815,6 +836,8 @@ public class SolaceIO {
 
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, SolaceOutput> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Write.class);
 
     public static final TupleTag<Solace.PublishResult> FAILED_PUBLISH_TAG =
         new TupleTag<Solace.PublishResult>() {};
@@ -921,15 +944,19 @@ public class SolaceIO {
      * <p>For full details, please check <a
      * href="https://docs.solace.com/API/API-Developer-Guide/Java-API-Best-Practices.htm">https://docs.solace.com/API/API-Developer-Guide/Java-API-Best-Practices.htm</a>.
      *
-     * <p>The Solace JCSMP client libraries can dispatch messages using two different modes:
+     * <p>The Solace JCSMP client libraries can dispatch messages using three different modes:
      *
      * <p>One of the modes dispatches messages directly from the same thread that is doing the rest
      * of I/O work. This mode favors lower latency but lower throughput. Set this to LOWER_LATENCY
      * to use that mode (MESSAGE_CALLBACK_ON_REACTOR set to True).
      *
-     * <p>The other mode uses a parallel thread to accumulate and dispatch messages. This mode
-     * favors higher throughput but also has higher latency. Set this to HIGHER_THROUGHPUT to use
-     * that mode. This is the default mode (MESSAGE_CALLBACK_ON_REACTOR set to False).
+     * <p>Another mode uses a parallel thread to accumulate and dispatch messages. This mode favors
+     * higher throughput but also has higher latency. Set this to HIGHER_THROUGHPUT to use that
+     * mode. This is the default mode (MESSAGE_CALLBACK_ON_REACTOR set to False).
+     *
+     * <p>If you prefer to have full control over all the JCSMP properties, set this to CUSTOM, and
+     * override the classes {@link SessionServiceFactory} and {@link SessionService} to have full
+     * control on how to create the JCSMP sessions and producers used by the connector.
      *
      * <p>This is optional, the default value is HIGHER_THROUGHPUT.
      */
@@ -1026,8 +1053,173 @@ public class SolaceIO {
 
     @Override
     public SolaceOutput expand(PCollection<T> input) {
-      // TODO: will be sent in upcoming PR
-      return SolaceOutput.in(input.getPipeline(), null, null);
+      boolean usingSolaceRecord =
+          TypeDescriptor.of(Solace.Record.class)
+              .isSupertypeOf(checkNotNull(input.getTypeDescriptor()));
+
+      validateWriteTransform(usingSolaceRecord);
+
+      boolean usingDynamicDestinations = getDestination() == null;
+      SerializableFunction<Solace.Record, Destination> destinationFn;
+      if (usingDynamicDestinations) {
+        destinationFn = x -> SolaceIO.convertToJcsmpDestination(checkNotNull(x.getDestination()));
+      } else {
+        // Constant destination for all messages (same topic or queue)
+        // This should not be non-null, as nulls would have been flagged by the
+        // validateWriteTransform method
+        destinationFn = x -> checkNotNull(getDestination());
+      }
+
+      @SuppressWarnings("unchecked")
+      PCollection<Solace.Record> records =
+          usingSolaceRecord
+              ? (PCollection<Solace.Record>) input
+              : input.apply(
+                  "Format records",
+                  MapElements.into(TypeDescriptor.of(Solace.Record.class))
+                      .via(checkNotNull(getFormatFunction())));
+
+      // Store the current window used by the input
+      PCollection<Solace.PublishResult> captureWindow =
+          records.apply("Capture window", ParDo.of(new RecordToPublishResultDoFn()));
+
+      @SuppressWarnings("unchecked")
+      WindowingStrategy<Solace.PublishResult, BoundedWindow> windowingStrategy =
+          (WindowingStrategy<Solace.PublishResult, BoundedWindow>)
+              captureWindow.getWindowingStrategy();
+
+      PCollection<Solace.Record> withGlobalWindow =
+          records.apply("Global window", Window.into(new GlobalWindows()));
+
+      PCollection<KV<Integer, Solace.Record>> withShardKeys =
+          withGlobalWindow.apply(
+              "Add shard key", ParDo.of(new AddShardKeyDoFn(getMaxNumOfUsedWorkers())));
+
+      String label =
+          getWriterType() == WriterType.STREAMING ? "Publish (streaming)" : "Publish (batched)";
+
+      PCollectionTuple solaceOutput = withShardKeys.apply(label, getWriterTransform(destinationFn));
+
+      SolaceOutput output;
+      if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+        PCollection<Solace.PublishResult> failedPublish = solaceOutput.get(FAILED_PUBLISH_TAG);
+        PCollection<Solace.PublishResult> successfulPublish =
+            solaceOutput.get(SUCCESSFUL_PUBLISH_TAG);
+        output =
+            rewindow(
+                SolaceOutput.in(input.getPipeline(), failedPublish, successfulPublish),
+                windowingStrategy);
+      } else {
+        LOG.info(
+            "Solace.Write: omitting writer output because delivery mode is {}", getDeliveryMode());
+        output = SolaceOutput.in(input.getPipeline(), null, null);
+      }
+
+      return output;
+    }
+
+    private ParDo.MultiOutput<KV<Integer, Solace.Record>, Solace.PublishResult> getWriterTransform(
+        SerializableFunction<Solace.Record, Destination> destinationFn) {
+
+      ParDo.SingleOutput<KV<Integer, Solace.Record>, Solace.PublishResult> writer =
+          ParDo.of(
+              getWriterType() == WriterType.STREAMING
+                  ? new UnboundedStreamingSolaceWriter(
+                      destinationFn,
+                      checkNotNull(getSessionServiceFactory()),
+                      getDeliveryMode(),
+                      getDispatchMode(),
+                      getNumberOfClientsPerWorker(),
+                      getPublishLatencyMetrics())
+                  : new UnboundedBatchedSolaceWriter(
+                      destinationFn,
+                      checkNotNull(getSessionServiceFactory()),
+                      getDeliveryMode(),
+                      getDispatchMode(),
+                      getNumberOfClientsPerWorker(),
+                      getPublishLatencyMetrics()));
+
+      return writer.withOutputTags(FAILED_PUBLISH_TAG, TupleTagList.of(SUCCESSFUL_PUBLISH_TAG));
+    }
+
+    private SolaceOutput rewindow(
+        SolaceOutput solacePublishResult,
+        WindowingStrategy<Solace.PublishResult, BoundedWindow> strategy) {
+      PCollection<Solace.PublishResult> correct = solacePublishResult.getSuccessfulPublish();
+      PCollection<Solace.PublishResult> failed = solacePublishResult.getFailedPublish();
+
+      PCollection<Solace.PublishResult> correctWithWindow = null;
+      PCollection<Solace.PublishResult> failedWithWindow = null;
+
+      if (correct != null) {
+        correctWithWindow = applyOriginalWindow(correct, strategy, "Rewindow correct");
+      }
+
+      if (failed != null) {
+        failedWithWindow = applyOriginalWindow(failed, strategy, "Rewindow failed");
+      }
+
+      return SolaceOutput.in(
+          solacePublishResult.getPipeline(), failedWithWindow, correctWithWindow);
+    }
+
+    private static PCollection<Solace.PublishResult> applyOriginalWindow(
+        PCollection<Solace.PublishResult> pcoll,
+        WindowingStrategy<Solace.PublishResult, BoundedWindow> strategy,
+        String label) {
+      Window<Solace.PublishResult> originalWindow = captureWindowDetails(strategy);
+
+      if (strategy.getMode() == WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES) {
+        originalWindow = originalWindow.accumulatingFiredPanes();
+      } else {
+        originalWindow = originalWindow.discardingFiredPanes();
+      }
+
+      return pcoll.apply(label, originalWindow);
+    }
+
+    private static Window<Solace.PublishResult> captureWindowDetails(
+        WindowingStrategy<Solace.PublishResult, BoundedWindow> strategy) {
+      return Window.<Solace.PublishResult>into(strategy.getWindowFn())
+          .withAllowedLateness(strategy.getAllowedLateness())
+          .withOnTimeBehavior(strategy.getOnTimeBehavior())
+          .withTimestampCombiner(strategy.getTimestampCombiner())
+          .triggering(strategy.getTrigger());
+    }
+
+    /**
+     * Called before running the Pipeline to verify this transform is fully and correctly specified.
+     */
+    private void validateWriteTransform(boolean usingSolaceRecords) {
+      if (!usingSolaceRecords) {
+        checkNotNull(
+            getFormatFunction(),
+            "SolaceIO.Write: If you are not using Solace.Record as the input type, you"
+                + " must set a format function using withFormatFunction().");
+      }
+
+      checkArgument(
+          getMaxNumOfUsedWorkers() > 0,
+          "SolaceIO.Write: The number of used workers must be positive.");
+      checkArgument(
+          getNumberOfClientsPerWorker() > 0,
+          "SolaceIO.Write: The number of clients per worker must be positive.");
+      checkArgument(
+          getDeliveryMode() == DeliveryMode.DIRECT || getDeliveryMode() == DeliveryMode.PERSISTENT,
+          String.format(
+              "SolaceIO.Write: Delivery mode must be either DIRECT or PERSISTENT. %s"
+                  + " not supported",
+              getDeliveryMode()));
+      if (getPublishLatencyMetrics()) {
+        checkArgument(
+            getDeliveryMode() == DeliveryMode.PERSISTENT,
+            "SolaceIO.Write: Publish latency metrics can only be enabled for PERSISTENT"
+                + " delivery mode.");
+      }
+      checkNotNull(
+          getSessionServiceFactory(),
+          "SolaceIO: You need to pass a session service factory. For basic"
+              + " authentication, you can use BasicAuthJcsmpSessionServiceFactory.");
     }
   }
 }

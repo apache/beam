@@ -29,7 +29,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -49,7 +48,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final SempClient sempClient;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
-  private @Nullable MessageReceiver messageReceiver;
   private @Nullable SessionService sessionService;
   AtomicBoolean active = new AtomicBoolean(true);
 
@@ -72,7 +70,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   @Override
   public boolean start() {
     populateSession();
-    populateMessageConsumer();
+    checkNotNull(sessionService).getReceiver().start();
     return advance();
   }
 
@@ -85,22 +83,11 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
   }
 
-  private void populateMessageConsumer() {
-    if (messageReceiver == null) {
-      messageReceiver = checkNotNull(sessionService).createReceiver();
-      messageReceiver.start();
-    }
-    MessageReceiver receiver = checkNotNull(messageReceiver);
-    if (receiver.isClosed()) {
-      receiver.start();
-    }
-  }
-
   @Override
   public boolean advance() {
     BytesXMLMessage receivedXmlMessage;
     try {
-      receivedXmlMessage = checkNotNull(messageReceiver).receive();
+      receivedXmlMessage = checkNotNull(sessionService).getReceiver().receive();
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Exception when pulling messages from the broker.", e);
       return false;
@@ -125,7 +112,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   @Override
   public Instant getWatermark() {
     // should be only used by a test receiver
-    if (checkNotNull(messageReceiver).isEOF()) {
+    if (checkNotNull(sessionService).getReceiver().isEOF()) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
     return watermarkPolicy.getWatermark();

@@ -17,37 +17,52 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.DeliveryMode;
+import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
-import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
+import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
+import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class MockSessionService extends SessionService {
+@AutoValue
+public abstract class MockSessionService extends SessionService {
+  public static int ackWindowSizeForTesting = 87;
+  public static boolean callbackOnReactor = true;
 
-  private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
+  public abstract @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn();
+
+  public abstract int minMessagesReceived();
+
+  public abstract @Nullable SubmissionMode mode();
+
+  public static Builder builder() {
+    return new AutoValue_MockSessionService.Builder().minMessagesReceived(0);
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder recordFn(
+        @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn);
+
+    public abstract Builder minMessagesReceived(int minMessagesReceived);
+
+    public abstract Builder mode(@Nullable SubmissionMode mode);
+
+    public abstract MockSessionService build();
+  }
+
   private MessageReceiver messageReceiver = null;
-  private final int minMessagesReceived;
-  private final @Nullable SubmissionMode mode;
-
-  public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
-      int minMessagesReceived,
-      @Nullable SubmissionMode mode) {
-    this.getRecordFn = getRecordFn;
-    this.minMessagesReceived = minMessagesReceived;
-    this.mode = mode;
-  }
-
-  public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
-    this(getRecordFn, minMessagesReceived, null);
-  }
+  private MockProducer messageProducer = null;
 
   @Override
   public void close() {}
@@ -58,17 +73,36 @@ public class MockSessionService extends SessionService {
   }
 
   @Override
-  public MessageReceiver createReceiver() {
+  public MessageReceiver getReceiver() {
     if (messageReceiver == null) {
-      messageReceiver = new MockReceiver(getRecordFn, minMessagesReceived);
+      messageReceiver = new MockReceiver(recordFn(), minMessagesReceived());
     }
     return messageReceiver;
   }
 
   @Override
+  public MessageProducer getProducer(SubmissionMode mode) {
+    if (messageProducer == null) {
+      messageProducer = new MockProducer(new PublishResultHandler());
+    }
+    return messageProducer;
+  }
+
+  @Override
   public void connect() {}
 
-  public static class MockReceiver implements MessageReceiver, Serializable {
+  @Override
+  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
+    // Let's override some properties that will be overriden by the connector
+    // Opposite of the mode, to test that is overriden
+    baseProperties.setProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, callbackOnReactor);
+
+    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, ackWindowSizeForTesting);
+
+    return baseProperties;
+  }
+
+  public static class MockReceiver implements MessageReceiver {
     private final AtomicInteger counter = new AtomicInteger();
     private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
     private final int minMessagesReceived;
@@ -101,15 +135,49 @@ public class MockSessionService extends SessionService {
     }
   }
 
-  @Override
-  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
-    // Let's override some properties that will be overriden by the connector
-    // Opposite of the mode, to test that is overriden
-    baseProperties.setProperty(
-        JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, mode == SubmissionMode.HIGHER_THROUGHPUT);
+  public static class MockProducer implements MessageProducer {
+    private final PublishResultHandler handler;
 
-    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, 87);
+    public MockProducer(PublishResultHandler handler) {
+      this.handler = handler;
+    }
 
-    return baseProperties;
+    @Override
+    public void publishSingleMessage(
+        Solace.Record msg,
+        Destination topicOrQueue,
+        boolean useCorrelationKeyLatency,
+        DeliveryMode deliveryMode) {
+      if (useCorrelationKeyLatency) {
+        handler.responseReceivedEx(
+            Solace.PublishResult.builder()
+                .setPublished(true)
+                .setMessageId(msg.getMessageId())
+                .build());
+      } else {
+        handler.responseReceivedEx(msg.getMessageId());
+      }
+    }
+
+    @Override
+    public int publishBatch(
+        List<Solace.Record> records,
+        boolean useCorrelationKeyLatency,
+        SerializableFunction<Solace.Record, Destination> destinationFn,
+        DeliveryMode deliveryMode) {
+      for (Solace.Record record : records) {
+        this.publishSingleMessage(
+            record, destinationFn.apply(record), useCorrelationKeyLatency, deliveryMode);
+      }
+      return records.size();
+    }
+
+    @Override
+    public boolean isClosed() {
+      return false;
+    }
+
+    @Override
+    public void close() {}
   }
 }
