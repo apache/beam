@@ -152,7 +152,6 @@ class _VLLMModelServer():
       time.sleep(5)
 
     if retries == 0:
-      raise Exception('test')
       self._server_started = False
       raise Exception(
           "Failed to start vLLM server, polling process exited with code " +
@@ -160,8 +159,6 @@ class _VLLMModelServer():
           self._server_process.poll())
     else:
       self.start_server(retries - 1)
-
-    raise Exception('test2')
 
 
 class VLLMCompletionsModelHandler(ModelHandler[str,
