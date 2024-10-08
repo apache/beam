@@ -36,6 +36,30 @@ class TestProtoUtils(unittest.TestCase):
         seconds=MAX_TIMESTAMP.seconds(), nanos=775000000)
     self.assertEqual(ts, expected)
 
+  def test_to_micros_duration(self):
+    dur = duration_pb2.Duration(seconds=MAX_TIMESTAMP.seconds(), nanos=775000000)
+    ts = proto_utils.to_micros(dur)
+    expected = MAX_TIMESTAMP.micros
+    self.assertEqual(ts, expected)
+  
+  def test_to_micros_timestamp(self):
+    dur = timestamp_pb2.Timestamp(seconds=MAX_TIMESTAMP.seconds(), nanos=775000000)
+    ts = proto_utils.to_micros(dur)
+    expected = MAX_TIMESTAMP.micros
+    self.assertEqual(ts, expected)
+
+  def test_round_trip_duration(self):
+    expected = 919336704
+    dur = proto_utils.from_micros(duration_pb2.Duration, expected)
+    ms = proto_utils.to_micros(dur)
+    self.assertEqual(ms, expected)
+  
+  def test_round_trip_timestamp(self):
+    expected = 919336704
+    ts = proto_utils.from_micros(timestamp_pb2.Timestamp, expected)
+    ms = proto_utils.to_micros(ts)
+    self.assertEqual(ms, expected)
+  
 
 if __name__ == '__main__':
   unittest.main()
