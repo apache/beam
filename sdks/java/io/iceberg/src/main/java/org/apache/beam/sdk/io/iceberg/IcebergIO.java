@@ -196,9 +196,9 @@ import org.joda.time.Duration;
  * Beam to create a table with Iceberg timestamps (without tz), please use either {@code DATETIME}
  * or {@code SqlTypes.DATETIME}.
  *
- * <p>For Iceberg reads, the connector will convert Iceberg's {@code timestamp} and {@code
- * timestamptz} types to Beam's {@code SqlTypes.DATETIME}. This is sufficient because Iceberg stores
- * all timestamp values as UTC and does not retain the timezone anyway.
+ * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for both of
+ * Iceberg's {@code timestamp} and {@code timestamptz}. This is sufficient because Iceberg does not
+ * retain timezone information and only produces UTC timestamps.
  *
  * <h3>Dynamic Destinations</h3>
  *
