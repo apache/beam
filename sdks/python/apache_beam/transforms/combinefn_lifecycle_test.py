@@ -31,8 +31,8 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.combinefn_lifecycle_pipeline import CallSequenceEnforcingCombineFn
 from apache_beam.transforms.combinefn_lifecycle_pipeline import run_combine
-from apache_beam.transforms.combinefn_lifecycle_pipeline import run_pardo
 from apache_beam.transforms.combinefn_lifecycle_pipeline import run_combine_uncopyable_attr
+from apache_beam.transforms.combinefn_lifecycle_pipeline import run_pardo
 
 
 @pytest.mark.it_validatesrunner

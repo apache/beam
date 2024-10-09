@@ -17,11 +17,11 @@
 
 # pytype: skip-file
 
+import math
 from typing import Set
 from typing import Tuple
 
 import apache_beam as beam
-import math
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
