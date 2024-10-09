@@ -77,11 +77,16 @@ public class HCatToRow {
   private static class HCatToRowFn extends DoFn<HCatRecord, Row> {
     private final Schema schema;
 
-    private Object castHDate(Object obj) {
+    private Object maybeCastHDate(Object obj) {
       if (obj instanceof org.apache.hadoop.hive.common.type.Date) {
         return new Instant(((org.apache.hadoop.hive.common.type.Date) obj).toEpochMilli());
       }
       return obj;
+    }
+
+    /** Cast objects of the types that aren't supported by {@link Row}. */
+    private List<Object> castTypes(List<Object> values) {
+      return values.stream().map(this::maybeCastHDate).collect(Collectors.toList());
     }
 
     HCatToRowFn(Schema schema) {
@@ -91,9 +96,7 @@ public class HCatToRow {
     @ProcessElement
     public void processElement(ProcessContext c) {
       HCatRecord hCatRecord = c.element();
-      List<Object> recordValues =
-          hCatRecord.getAll().stream().map(this::castHDate).collect(Collectors.toList());
-      c.output(Row.withSchema(schema).addValues(recordValues).build());
+      c.output(Row.withSchema(schema).addValues(castTypes(hCatRecord.getAll())).build());
     }
   }
 }
