@@ -24,9 +24,8 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 public class PartitionMetadataTableNamesTest {
-
   @Test
-  public void testGenerateMetadataConfigRemovesHyphens() {
+  public void testPartitionMetadataNamesRemovesHyphens() {
     PartitionMetadataTableNames names = PartitionMetadataTableNames.from("my-database-id-12345");
     assertFalse(names.getTableName().contains("-"));
     assertFalse(names.getWatermarkIndexName().contains("-"));
@@ -34,9 +33,15 @@ public class PartitionMetadataTableNamesTest {
   }
 
   @Test
-  public void testGenerateMetadataConfigIsShorterThan64Characters() {
+  public void testPartitionMetadataNamesIsShorterThan64Characters() {
     PartitionMetadataTableNames names =
-        PartitionMetadataTableNames.from("my-database-id1-maximum-length");
+        PartitionMetadataTableNames.from(
+            "my-database-id-larger-than-maximum-length-1234567890-1234567890-1234567890");
+    assertTrue(names.getTableName().length() <= MAX_NAME_LENGTH);
+    assertTrue(names.getWatermarkIndexName().length() <= MAX_NAME_LENGTH);
+    assertTrue(names.getCreatedAtIndexName().length() <= MAX_NAME_LENGTH);
+
+    names = PartitionMetadataTableNames.from("d");
     assertTrue(names.getTableName().length() <= MAX_NAME_LENGTH);
     assertTrue(names.getWatermarkIndexName().length() <= MAX_NAME_LENGTH);
     assertTrue(names.getCreatedAtIndexName().length() <= MAX_NAME_LENGTH);

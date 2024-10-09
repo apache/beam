@@ -49,18 +49,11 @@ public class PartitionMetadataTableNames implements Serializable {
    */
   public static PartitionMetadataTableNames from(String databaseId) {
     UUID uuid = UUID.randomUUID();
-    String table =
-        String.format(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, uuid)
-            .replaceAll("-", "_")
-            .substring(0, MAX_NAME_LENGTH);
-    String watermarkIndex =
-        String.format(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid)
-            .replaceAll("-", "_")
-            .substring(0, MAX_NAME_LENGTH);
+
+    String table = generateName(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, uuid);
+    String watermarkIndex = generateName(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid);
     String createdAtIndex =
-        String.format(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid)
-            .replaceAll("-", "_")
-            .substring(0, MAX_NAME_LENGTH);
+        generateName(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid);
 
     return new PartitionMetadataTableNames(table, watermarkIndex, createdAtIndex);
   }
@@ -76,16 +69,19 @@ public class PartitionMetadataTableNames implements Serializable {
    */
   public static PartitionMetadataTableNames from(String databaseId, String table) {
     UUID uuid = UUID.randomUUID();
-    String watermarkIndex =
-        String.format(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid)
-            .replaceAll("-", "_")
-            .substring(0, MAX_NAME_LENGTH);
+    String watermarkIndex = generateName(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid);
     String createdAtIndex =
-        String.format(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid)
-            .replaceAll("-", "_")
-            .substring(0, MAX_NAME_LENGTH);
+        generateName(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid);
 
     return new PartitionMetadataTableNames(table, watermarkIndex, createdAtIndex);
+  }
+
+  private static String generateName(String template, String databaseId, UUID uuid) {
+    String name = String.format(template, databaseId, uuid).replaceAll("-", "_");
+    if (name.length() > MAX_NAME_LENGTH) {
+      return name.substring(0, MAX_NAME_LENGTH);
+    }
+    return name;
   }
 
   private final String tableName;
