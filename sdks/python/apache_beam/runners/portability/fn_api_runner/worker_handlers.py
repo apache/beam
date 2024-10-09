@@ -1078,6 +1078,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         # Compute full_state only when no continuation token is provided.
         # If there is continuation token, full_state is already in
         # continuation cache. No need to recompute.
+        full_state = []  # type: List[bytes]
         if state_key.WhichOneof('type') == 'ordered_list_user_state':
           maybe_start = state_key.ordered_list_user_state.range.start
           maybe_end = state_key.ordered_list_user_state.range.end
@@ -1088,7 +1089,6 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
           available_keys = self._ordered_list_keys[self._to_key(
               persistent_state_key)]
 
-          full_state = []  # type: List[bytes]
           for i in available_keys.irange(maybe_start,
                                          maybe_end,
                                          inclusive=(True, False)):
@@ -1096,7 +1096,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
                 persistent_state_key, i)]
             full_state.extend(entries)
         else:
-          full_state = self._state[self._to_key(state_key)]
+          full_state.extend(self._state[self._to_key(state_key)])
 
       if self._use_continuation_tokens:
         # The token is "nonce:index".
