@@ -149,9 +149,9 @@ postCommitPyDep.dependsOn "testPy39tft-113"
 // postCommitPyDep.dependsOn "testPy39onnx-113"
 
 // Create a test task for each minor version of tensorflow
-toxTask "testPy39tensorflow-213", "py39-tensorflow-213", "${posargs}"
-test.dependsOn "testPy39tensorflow-213"
-postCommitPyDep.dependsOn "testPy39tensorflow-213"
+toxTask "testPy39tensorflow-212", "py39-tensorflow-212", "${posargs}"
+test.dependsOn "testPy39tensorflow-212"
+postCommitPyDep.dependsOn "testPy39tensorflow-212"
 
 // Create a test task for each minor version of transformers
 toxTask "testPy39transformers-428", "py39-transformers-428", "${posargs}"
