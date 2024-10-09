@@ -157,7 +157,7 @@ public class TextIOIT {
 
     Set<String> sources = Lineage.query(result.metrics(), Lineage.Type.SOURCE);
     Set<String> sinks = Lineage.query(result.metrics(), Lineage.Type.SINK);
-    if (numShards <= 100) {
+    if (numShards != null && numShards <= 100) {
       // both should be the full files, if supported by the runner
       assertEquals(sources, sinks);
     } else {
