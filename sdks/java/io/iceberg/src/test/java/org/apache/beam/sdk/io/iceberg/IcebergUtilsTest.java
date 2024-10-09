@@ -147,16 +147,48 @@ public class IcebergUtilsTest {
           micros,
           Types.TimestampType.withoutZone(),
           DateTimeUtil.timestampFromMicros(micros));
+
+      // Schema.FieldType.STRING
+      String val = "2024-10-08T13:18:20.053";
+      LocalDateTime localDateTime = LocalDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000);
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING, val, Types.TimestampType.withoutZone(), localDateTime);
     }
 
     @Test
     public void testTimestampWithZone() {
       String val = "2024-10-08T13:18:20.053+03:27";
-      OffsetDateTime offsetDateTime =
-          OffsetDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000, ZoneOffset.ofHoursMinutes(3, 27));
-      // Schema.FieldType.String
+      DateTime dateTime = DateTime.parse(val);
+      OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
+      LocalDateTime localDateTime =
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      // SqlTypes.DATETIME
       checkRowValueToRecordValue(
-          Schema.FieldType.STRING, val, Types.TimestampType.withZone(), offsetDateTime);
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime,
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.DATETIME
+      checkRowValueToRecordValue(
+          Schema.FieldType.DATETIME,
+          dateTime,
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.INT64
+      checkRowValueToRecordValue(
+          Schema.FieldType.INT64,
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.STRING
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          val,
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
     }
 
     @Test
@@ -290,34 +322,49 @@ public class IcebergUtilsTest {
       // Schema.FieldType.DATETIME
       DateTime dateTime =
           new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
           dateTime.getMillis() * 1000L,
           Schema.FieldType.DATETIME,
           dateTime);
-
-      // Schema.FieldType.INT64
-      long micros = 1234567890L;
-      checkRecordValueToRowValue(
-          Types.TimestampType.withoutZone(),
-          DateTimeUtil.timestamptzFromMicros(micros),
-          Schema.FieldType.INT64,
-          micros);
     }
 
     @Test
     public void testTimestampWithZone() {
-      String val = "2007-12-03T10:15:30+01:00";
-      OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
-      LocalDateTime expectedDateTime =
+      String timestamp = "2024-10-08T13:18:20.053+03:27";
+      OffsetDateTime offsetDateTime = OffsetDateTime.parse(timestamp);
+      LocalDateTime localDateTime =
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
-      // Schema.FieldType.String
+      // SqlTypes.DATETIME
       checkRecordValueToRowValue(
           Types.TimestampType.withZone(),
           offsetDateTime,
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
-          expectedDateTime);
+          localDateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          localDateTime,
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime);
+
+      // Schema.FieldType.DATETIME
+      DateTime dateTime = DateTime.parse(timestamp).withZone(DateTimeZone.UTC);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), offsetDateTime, Schema.FieldType.DATETIME, dateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), localDateTime, Schema.FieldType.DATETIME, dateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Schema.FieldType.DATETIME,
+          dateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), timestamp, Schema.FieldType.DATETIME, dateTime);
     }
 
     @Test
@@ -655,13 +702,13 @@ public class IcebergUtilsTest {
       Schema beamSchema =
           Schema.builder()
               .addDateTimeField("datetime")
-              .addLogicalTypeField("sql_datetime", SqlTypes.DATETIME)
+              .addLogicalTypeField("datetime_tz", SqlTypes.DATETIME)
               .build();
 
       org.apache.iceberg.Schema icebergSchema =
           new org.apache.iceberg.Schema(
-              required(1, "datetime", Types.TimestampType.withoutZone()),
-              required(2, "sql_datetime", Types.TimestampType.withoutZone()));
+              required(1, "datetime", Types.TimestampType.withZone()),
+              required(2, "datetime_tz", Types.TimestampType.withoutZone()));
 
       org.apache.iceberg.Schema convertedIcebergSchema =
           IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
@@ -680,7 +727,7 @@ public class IcebergUtilsTest {
       Schema expectedBeamSchema =
           Schema.builder()
               .addLogicalTypeField("timestamp", SqlTypes.DATETIME)
-              .addLogicalTypeField("timestamp_tz", SqlTypes.DATETIME)
+              .addDateTimeField("timestamp_tz")
               .build();
       Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema);
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -25,8 +26,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -75,9 +74,10 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
-import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -112,11 +112,11 @@ public class IcebergIOIT implements Serializable {
           .addBooleanField("bool")
           .addInt32Field("int")
           .addRowField("row", NESTED_ROW_SCHEMA)
-          .addArrayField("arr_long", org.apache.beam.sdk.schemas.Schema.FieldType.INT64)
+          .addArrayField("arr_long", FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
+          .addDateTimeField("datetime_tz")
           .addLogicalTypeField("datetime", SqlTypes.DATETIME)
-          .addStringField("datetime_tz")
           .addLogicalTypeField("date", SqlTypes.DATE)
           .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
@@ -148,19 +148,13 @@ public class IcebergIOIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
+              .addValue(new DateTime(num).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
               .addValue(DateTimeUtil.timestampFromMicros(num))
-              .addValue(
-                  // increment minutes. in testWritePartitionedData, we will partition by hours
-                  OffsetDateTime.of(2024, 9, 10, 12, 30, 30, 0, ZONE_OFFSET)
-                      .plusMinutes(num)
-                      .toString())
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
         }
       };
-
-  private static final ZoneOffset ZONE_OFFSET = ZoneOffset.ofHoursMinutes(3, 25);
 
   private static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
       IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA);
@@ -205,26 +199,6 @@ public class IcebergIOIT implements Serializable {
     catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
   }
 
-  /**
-   * Currently, Iceberg's timestamptz is only supported with the Beam String type. However, our
-   * {@link IcebergUtils} naturally converts a Beam String to an Iceberg String. This method
-   * replaces a String field with it's intended timestamp type.
-   */
-  private Schema getIcebergSchemaWithTimestampTz() {
-    List<Types.NestedField> fields = new ArrayList<>(ICEBERG_SCHEMA.columns());
-    Types.NestedField datetimeTz = ICEBERG_SCHEMA.findField("datetime_tz");
-    int index = fields.indexOf(datetimeTz);
-    fields.set(
-        index,
-        Types.NestedField.of(
-            datetimeTz.fieldId(),
-            datetimeTz.isOptional(),
-            datetimeTz.name(),
-            Types.TimestampType.withZone()));
-
-    return new Schema(fields);
-  }
-
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */
   private List<Row> populateTable(Table table) throws IOException {
     double recordsPerShardFraction = NUM_RECORDS.doubleValue() / NUM_SHARDS;
@@ -263,10 +237,6 @@ public class IcebergIOIT implements Serializable {
   }
 
   private List<Record> readRecords(Table table) {
-    return readRecords(table, false);
-  }
-
-  private List<Record> readRecords(Table table, boolean adjustBackToZone) {
     Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
     List<Record> writtenRecords = new ArrayList<>();
@@ -285,13 +255,6 @@ public class IcebergIOIT implements Serializable {
                 .build();
 
         for (Record rec : iterable) {
-          // Iceberg returns timestamps in UTC, so we apply the zone offset again to check
-          // correctness with our initial Beam rows
-          if (adjustBackToZone) {
-            OffsetDateTime dt = (OffsetDateTime) rec.getField("datetime_tz");
-            dt = dt.withOffsetSameInstant(ZONE_OFFSET);
-            rec.setField("datetime_tz", dt);
-          }
           writtenRecords.add(rec);
         }
       }
@@ -319,8 +282,7 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testRead() throws Exception {
-    Schema schema = getIcebergSchemaWithTimestampTz();
-    Table table = catalog.createTable(TableIdentifier.parse(tableId), schema);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
 
@@ -343,38 +305,33 @@ public class IcebergIOIT implements Serializable {
   @Test
   public void testWrite() {
     // Write with Beam
-    // These lines are needed to inject a TimestampType.withZone() type in the table schema.
-    // Beam doesn't support creating tables with this type, so we need to create it beforehand
-    Schema newSchema = getIcebergSchemaWithTimestampTz();
-    Table table = catalog.createTable(TableIdentifier.parse(tableId), newSchema);
-
+    // Expect the sink to create the table
     Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId));
+    assertTrue(table.schema().sameSchema(ICEBERG_SCHEMA));
+
     // Read back and check records are correct
-    List<Record> returnedRecords = readRecords(table, true);
+    List<Record> returnedRecords = readRecords(table);
     assertThat(
-        returnedRecords,
-        containsInAnyOrder(
-            INPUT_ROWS.stream()
-                .map(row -> IcebergUtils.beamRowToIcebergRecord(newSchema, row))
-                .toArray()));
+        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
   @Test
   public void testWritePartitionedData() {
     // For an example row where bool=true, modulo_5=3, str=value_303,
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
-    Schema newSchema = getIcebergSchemaWithTimestampTz();
     PartitionSpec partitionSpec =
-        PartitionSpec.builderFor(newSchema)
+        PartitionSpec.builderFor(ICEBERG_SCHEMA)
             .identity("bool")
             .identity("modulo_5")
             .truncate("str", "value_x".length())
             .build();
-    Table table = catalog.createTable(TableIdentifier.parse(tableId), newSchema, partitionSpec);
+    Table table =
+        catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
 
     // Write with Beam
     Map<String, Object> config = managedIcebergConfig(tableId);
@@ -383,13 +340,9 @@ public class IcebergIOIT implements Serializable {
     pipeline.run().waitUntilFinish();
 
     // Read back and check records are correct
-    List<Record> returnedRecords = readRecords(table, true);
+    List<Record> returnedRecords = readRecords(table);
     assertThat(
-        returnedRecords,
-        containsInAnyOrder(
-            INPUT_ROWS.stream()
-                .map(row -> IcebergUtils.beamRowToIcebergRecord(newSchema, row))
-                .toArray()));
+        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
   private PeriodicImpulse getStreamingSource() {

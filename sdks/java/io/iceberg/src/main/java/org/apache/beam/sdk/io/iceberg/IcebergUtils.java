@@ -58,7 +58,7 @@ public class IcebergUtils {
           .put(Schema.TypeName.DOUBLE, Types.DoubleType.get())
           .put(Schema.TypeName.STRING, Types.StringType.get())
           .put(Schema.TypeName.BYTES, Types.BinaryType.get())
-          .put(Schema.TypeName.DATETIME, Types.TimestampType.withoutZone())
+          .put(Schema.TypeName.DATETIME, Types.TimestampType.withZone())
           .build();
 
   private static final Map<String, Type> BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES =
@@ -85,10 +85,10 @@ public class IcebergUtils {
       case TIME:
         return Schema.FieldType.logicalType(SqlTypes.TIME);
       case TIMESTAMP:
-        // Beam has two 'DATETIME' types: SqlTypes.DATETIME (uses java.time) and
-        // Schema.FieldType.DATETIME (uses org.joda.time).
-        // We choose SqlTypes.DATETIME because Iceberg API leans towards `java.time`.
-        // Also, Iceberg stores timestampts as UTC and does not retain timezone
+        Types.TimestampType ts = (Types.TimestampType) type.asPrimitiveType();
+        if (ts.shouldAdjustToUTC()) {
+          return Schema.FieldType.DATETIME;
+        }
         return Schema.FieldType.logicalType(SqlTypes.DATETIME);
       case STRING:
         return Schema.FieldType.STRING;
@@ -319,37 +319,7 @@ public class IcebergUtils {
           break;
         }
         Types.TimestampType ts = (Types.TimestampType) field.type().asPrimitiveType();
-        // timestamp with timezone
-        if (ts.shouldAdjustToUTC()) {
-          // currently only string is supported because other types
-          // do not maintain timezone information
-          if (val instanceof String) {
-            // e.g. 2007-12-03T10:15:30+01:00
-            rec.setField(name, OffsetDateTime.parse((String) val));
-            break;
-          } else {
-            throw new UnsupportedOperationException(
-                "Unsupported Beam type for Iceberg timestamp with timezone: " + val.getClass());
-          }
-        }
-
-        // timestamp
-        // SqlTypes.DATETIME
-        if (val instanceof LocalDateTime) {
-          rec.setField(name, val);
-          break;
-        }
-
-        long micros;
-        if (val instanceof Instant) { // Schema.FieldType.DATETIME
-          micros = ((Instant) val).getMillis() * 1000L;
-        } else if (val instanceof Long) { // Schema.FieldType.INT64
-          micros = (long) val;
-        } else {
-          throw new UnsupportedOperationException(
-              "Unsupported Beam type for Iceberg timestamp: " + val.getClass());
-        }
-        rec.setField(name, DateTimeUtil.timestampFromMicros(micros));
+        rec.setField(name, getIcebergTimestampValue(val, ts.shouldAdjustToUTC()));
         break;
       case STRING:
         Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
@@ -384,6 +354,55 @@ public class IcebergUtils {
     }
   }
 
+  /**
+   * Returns the appropriate value for an Iceberg timestamp field
+   *
+   * <p>If `timestamp`, we resolve incoming values to a {@link LocalDateTime}.
+   *
+   * <p>If `timestamptz`, we resolve to a UTC {@link OffsetDateTime}. Iceberg already resolves all
+   * incoming timestamps to UTC, so there is no harm in doing it from our side.
+   *
+   * <p>Valid types are:
+   *
+   * <ul>
+   *   <li>{@link SqlTypes.DATETIME} --> {@link LocalDateTime}
+   *   <li>{@link Schema.FieldType.DATETIME} --> {@link Instant}
+   *   <li>{@link Schema.FieldType.INT64} --> {@link Long}
+   *   <li>{@link Schema.FieldType.STRING} --> {@link String}
+   * </ul>
+   */
+  private static Object getIcebergTimestampValue(Object beamValue, boolean shouldAdjustToUtc) {
+    // timestamptz
+    if (shouldAdjustToUtc) {
+      if (beamValue instanceof LocalDateTime) { // SqlTypes.DATETIME
+        return OffsetDateTime.of((LocalDateTime) beamValue, ZoneOffset.UTC);
+      } else if (beamValue instanceof Instant) { // FieldType.DATETIME
+        return DateTimeUtil.timestamptzFromMicros(((Instant) beamValue).getMillis() * 1000L);
+      } else if (beamValue instanceof Long) { // FieldType.INT64
+        return DateTimeUtil.timestamptzFromMicros((Long) beamValue);
+      } else if (beamValue instanceof String) { // FieldType.STRING
+        return OffsetDateTime.parse((String) beamValue).withOffsetSameInstant(ZoneOffset.UTC);
+      } else {
+        throw new UnsupportedOperationException(
+            "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
+      }
+    }
+
+    // timestamp
+    if (beamValue instanceof LocalDateTime) { // SqlType.DATETIME
+      return beamValue;
+    } else if (beamValue instanceof Instant) { // FieldType.DATETIME
+      return DateTimeUtil.timestampFromMicros(((Instant) beamValue).getMillis() * 1000L);
+    } else if (beamValue instanceof Long) { // FieldType.INT64
+      return DateTimeUtil.timestampFromMicros((Long) beamValue);
+    } else if (beamValue instanceof String) { // FieldType.STRING
+      return LocalDateTime.parse((String) beamValue);
+    } else {
+      throw new UnsupportedOperationException(
+          "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
+    }
+  }
+
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);
@@ -402,6 +421,7 @@ public class IcebergUtils {
         case BYTE:
         case INT16:
         case INT32:
+        case INT64:
         case DECIMAL: // Iceberg and Beam both use BigDecimal
         case FLOAT: // Iceberg and Beam both use float
         case DOUBLE: // Iceberg and Beam both use double
@@ -412,17 +432,6 @@ public class IcebergUtils {
         case MAP:
           rowBuilder.addValue(icebergValue);
           break;
-        case INT64:
-          Object value = icebergValue;
-          if (icebergValue instanceof OffsetDateTime) {
-            value = DateTimeUtil.microsFromTimestamptz((OffsetDateTime) icebergValue);
-          } else if (icebergValue instanceof LocalDateTime) {
-            value = DateTimeUtil.microsFromTimestamp((LocalDateTime) icebergValue);
-          } else if (icebergValue instanceof LocalTime) {
-            value = DateTimeUtil.microsFromTime((LocalTime) icebergValue);
-          }
-          rowBuilder.addValue(value);
-          break;
         case DATETIME:
           long micros;
           if (icebergValue instanceof OffsetDateTime) {
@@ -431,6 +440,9 @@ public class IcebergUtils {
             micros = DateTimeUtil.microsFromTimestamp((LocalDateTime) icebergValue);
           } else if (icebergValue instanceof Long) {
             micros = (long) icebergValue;
+          } else if (icebergValue instanceof String) {
+            rowBuilder.addValue(DateTime.parse((String) icebergValue));
+            break;
           } else {
             throw new UnsupportedOperationException(
                 "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());

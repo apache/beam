@@ -153,7 +153,7 @@ import org.joda.time.Duration;
  *     <td> SqlTypes.DATETIME </td> <td> TIMESTAMP </td>
  *   </tr>
  *   <tr>
- *     <td> STRING </td> <td> TIMESTAMPTZ </td>
+ *     <td> DATETIME </td> <td> TIMESTAMPTZ </td>
  *   </tr>
  *   <tr>
  *     <td> SqlTypes.DATE </td> <td> DATE </td>
@@ -179,27 +179,27 @@ import org.joda.time.Duration;
  *
  * <h3>Note on timestamps</h3>
  *
- * <p>Iceberg has two timestamp types: {@code timestamp} and {@code timestamptz} (the latter cares
- * about timezones). Beam's native schema extends two types for timestamps: {@code DATETIME} and
- * {@code SqlTypes.DATETIME} -- both are supported for writing to the former {@code timestamp} type.
- * They are not supported for {@code timestamptz} however because when a Beam Row stores timestamp
- * values, it resolves them to UTC and drops the timezone information.
+ * <p>Iceberg has two timestamp types: {@code timestamp} and {@code timestamptz}. For the latter,
+ * Iceberg will first resolve the timestamp to UTC before storing it.
  *
- * <p>If your use-case requires timestamps <b>with timezone</b>, you can provide {@code STRING}
- * timestamp representations, which will be parsed with {@link
- * java.time.OffsetDateTime#parse(CharSequence)} and written to Iceberg.
+ * <p>For an existing table, the following Beam types are supported for both {@code timestamp} and
+ * {@code timestamptz}:
  *
- * <p>Otherwise, you may write timestamps using any of {@code DATETIME}, {@code SqlTypes.DATETIME},
- * or {@code INT64}.
+ * <ul>
+ *   <li>{@code SqlTypes.DATETIME} --> Using a java.time.LocalDateTime object
+ *   <li>{@code DATETIME} --> Using a org.joda.time.DateTime object
+ *   <li>{@code INT64} --> Using a long representing micros since EPOCH
+ *   <li>{@code STRING} --> Using a timestamp string representation (e.g. {@code
+ *       "2024-10-08T13:18:20.053+03:27"})
+ * </ul>
  *
- * <p><b>Note</b>: Beam does not support creating a table with a timestamptz field. If the table
- * does not exist, Beam will treat {@code STRING} and {@code INT64} at face-value. If you expect
- * Beam to create a table with Iceberg timestamps (without tz), please use either {@code DATETIME}
- * or {@code SqlTypes.DATETIME}.
+ * <p><b>Note</b>: If you expect Beam to create the Iceberg table at runtime, please provide {@code
+ * SqlTypes.DATETIME} and for a {@code timestamp} column and {@code DATETIME} for a {@code
+ * timestamptz} column. If the table does not exist, Beam will treat {@code STRING} and {@code
+ * INT64} at face-value and create equivalent column types.
  *
- * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for both of
- * Iceberg's {@code timestamp} and {@code timestamptz}. This is sufficient because Iceberg does not
- * retain timezone information and only produces UTC timestamps.
+ * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for
+ * Iceberg's {@code timestamp} and {@code DATETIME} types for {@code timestamptz}.
  *
  * <h3>Dynamic Destinations</h3>
  *
