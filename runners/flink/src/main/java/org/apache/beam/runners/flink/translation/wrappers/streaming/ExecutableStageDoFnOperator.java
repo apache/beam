@@ -111,7 +111,6 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -138,7 +137,8 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
+public class ExecutableStageDoFnOperator<InputT, OutputT>
+    extends DoFnOperator<InputT, InputT, OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutableStageDoFnOperator.class);
 
@@ -247,7 +247,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
     hasSdfProcessFn = hasSDF(executableStage);
-    initializeUserState(executableStage, getKeyedStateBackend(), pipelineOptions);
+    initializeUserState(executableStage, getKeyedStateBackend(), pipelineOptions, windowCoder);
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
@@ -1280,14 +1280,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private static void initializeUserState(
       ExecutableStage executableStage,
       @Nullable KeyedStateBackend keyedStateBackend,
-      SerializablePipelineOptions pipelineOptions) {
+      SerializablePipelineOptions pipelineOptions,
+      Coder<? extends BoundedWindow> windowCoder) {
     executableStage
         .getUserStates()
         .forEach(
             ref -> {
               try {
                 keyedStateBackend.getOrCreateKeyedState(
-                    StringSerializer.INSTANCE,
+                    new FlinkStateInternals.FlinkStateNamespaceKeySerializer(windowCoder),
                     new ListStateDescriptor<>(
                         ref.localName(),
                         new CoderTypeSerializer<>(ByteStringCoder.of(), pipelineOptions)));
