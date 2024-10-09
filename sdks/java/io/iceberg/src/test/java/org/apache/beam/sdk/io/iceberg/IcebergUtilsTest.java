@@ -28,6 +28,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -309,9 +310,14 @@ public class IcebergUtilsTest {
     public void testTimestampWithZone() {
       String val = "2007-12-03T10:15:30+01:00";
       OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
+      LocalDateTime expectedDateTime =
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
       // Schema.FieldType.String
       checkRecordValueToRowValue(
-          Types.TimestampType.withZone(), offsetDateTime, Schema.FieldType.STRING, val);
+          Types.TimestampType.withZone(),
+          offsetDateTime,
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          expectedDateTime);
     }
 
     @Test
@@ -646,7 +652,6 @@ public class IcebergUtilsTest {
     @Test
     public void testDatetimeBeamToIceberg() {
       // Support converting both DATETIME types to Iceberg TIMESTAMP type
-      // The other way around only supports Iceberg TIMESTAMP to Beam SqlTypes.DATETIME
       Schema beamSchema =
           Schema.builder()
               .addDateTimeField("datetime")
@@ -662,6 +667,24 @@ public class IcebergUtilsTest {
           IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
 
       assertTrue(convertedIcebergSchema.sameSchema(icebergSchema));
+    }
+
+    @Test
+    public void testTimestampIcebergToBeam() {
+      // Both timestamp and timestamptz types will convert to Beam SqlTypes.DATETIME
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(
+              required(1, "timestamp", Types.TimestampType.withoutZone()),
+              required(2, "timestamp_tz", Types.TimestampType.withZone()));
+
+      Schema expectedBeamSchema =
+          Schema.builder()
+              .addLogicalTypeField("timestamp", SqlTypes.DATETIME)
+              .addLogicalTypeField("timestamp_tz", SqlTypes.DATETIME)
+              .build();
+      Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema);
+
+      assertEquals(expectedBeamSchema, convertedBeamSchema);
     }
 
     static final Schema BEAM_SCHEMA_LIST =
