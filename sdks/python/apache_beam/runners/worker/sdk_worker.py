@@ -654,15 +654,30 @@ class SdkWorker(object):
       instruction_id  # type: str
   ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
+    _LOGGER.info(f"Processing bundle with instruction_id: {instruction_id}")
+    _LOGGER.info(f"ProcessBundleRequest details: {request}")
     bundle_processor = self.bundle_processor_cache.get(
         instruction_id, request.process_bundle_descriptor_id)
+    
+    _LOGGER.info(f"Retrieved bundle processor for instruction_id {instruction_id}. "
+                  f"Descriptor ID: {request.process_bundle_descriptor_id}")
+    
     try:
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id, request.cache_tokens):
+        _LOGGER.info(f"Processing state for instruction_id: {instruction_id} "
+                          f"with cache tokens: {request.cache_tokens}")
         with self.maybe_profile(instruction_id):
+          _LOGGER.info(f"Starting bundle processing with instruction_id: {instruction_id}")
           delayed_applications, requests_finalization = (
               bundle_processor.process_bundle(instruction_id))
+          
+          _LOGGER.info(f"Bundle processing completed for instruction_id {instruction_id}. "
+                              f"Delayed applications: {delayed_applications}, "
+                              f"Requests finalization: {requests_finalization}")
+
           monitoring_infos = bundle_processor.monitoring_infos()
+          _LOGGER.info(f"Monitoring information for instruction_id {instruction_id}: {monitoring_infos}")
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -675,10 +690,16 @@ class SdkWorker(object):
                   requires_finalization=requests_finalization))
       # Don't release here if finalize is needed.
       if not requests_finalization:
+        _LOGGER.info(f"Releasing bundle processor for instruction_id {instruction_id} "
+                      f"since finalization is not required.")
         self.bundle_processor_cache.release(instruction_id)
+      else:
+        _LOGGER.info(f"Bundle processor for instruction_id {instruction_id} retained for finalization.")
       return response
     except:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
+      _LOGGER.error(f"Error encountered during bundle processing for instruction_id: {instruction_id}. "
+                      f"Discarding bundle processor.")
       self.bundle_processor_cache.discard(instruction_id)
       raise
 
