@@ -289,6 +289,7 @@ public final class StreamingWorkScheduler {
       }
 
       resetWorkLoggingContext(work.getLatencyTrackingId());
+      work.setProcessingThreadName("");
     }
   }
 

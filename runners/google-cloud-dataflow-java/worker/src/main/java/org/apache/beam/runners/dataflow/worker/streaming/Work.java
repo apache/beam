@@ -72,7 +72,7 @@ public final class Work implements RefreshableWork {
   private final String latencyTrackingId;
   private TimedState currentState;
   private volatile boolean isFailed;
-  private volatile String processingThreadName = "not set";
+  private volatile String processingThreadName = "";
 
   private Work(
       WorkItem workItem,
