@@ -181,8 +181,9 @@ import org.joda.time.Duration;
  *
  * <p>Iceberg has two timestamp types: {@code timestamp} and {@code timestamptz} (the latter cares
  * about timezones). Beam's native schema extends two types for timestamps: {@code DATETIME} and
- * {@code SqlTypes.DATETIME}; unfortunately when values in these two fields are processed in Beam
- * Rows, timezone information is dropped and a UTC timestamp is produced.
+ * {@code SqlTypes.DATETIME} -- both are supported for writing to the former {@code timestamp} type.
+ * They are not supported for {@code timestamptz} however because when a Beam Row stores timestamp
+ * values, it resolves them to UTC and drops the timezone information.
  *
  * <p>If your use-case requires timestamps <b>with timezone</b>, you can provide {@code STRING}
  * timestamp representations, which will be parsed with {@link
