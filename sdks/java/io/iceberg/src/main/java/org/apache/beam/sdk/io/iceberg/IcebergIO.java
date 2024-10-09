@@ -194,9 +194,9 @@ import org.joda.time.Duration;
  * </ul>
  *
  * <p><b>Note</b>: If you expect Beam to create the Iceberg table at runtime, please provide {@code
- * SqlTypes.DATETIME} and for a {@code timestamp} column and {@code DATETIME} for a {@code
- * timestamptz} column. If the table does not exist, Beam will treat {@code STRING} and {@code
- * INT64} at face-value and create equivalent column types.
+ * SqlTypes.DATETIME} for a {@code timestamp} column and {@code DATETIME} for a {@code timestamptz}
+ * column. If the table does not exist, Beam will treat {@code STRING} and {@code INT64} at
+ * face-value and create equivalent column types.
  *
  * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for
  * Iceberg's {@code timestamp} and {@code DATETIME} types for {@code timestamptz}.
