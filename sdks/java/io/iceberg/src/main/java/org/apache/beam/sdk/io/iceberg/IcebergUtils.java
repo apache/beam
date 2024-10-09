@@ -23,6 +23,8 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +44,6 @@ import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 
 /** Utilities for converting between Beam and Iceberg types, made public for user's convenience. */
@@ -85,11 +86,17 @@ public class IcebergUtils {
       case TIME:
         return Schema.FieldType.logicalType(SqlTypes.TIME);
       case TIMESTAMP:
-        // Beam has two 'DATETIME' types: SqlTypes.DATETIME and Schema.FieldType.DATETIME, but
-        // we have to choose one type to output.
-        // The former uses the `java.time` library and the latter uses the `org.joda.time` library
-        // Iceberg API leans towards `java.time`, so we output the SqlTypes.DATETIME logical type
-        return Schema.FieldType.logicalType(SqlTypes.DATETIME);
+        Types.TimestampType ts = (Types.TimestampType) type.asPrimitiveType();
+        if (ts.shouldAdjustToUTC()) {
+          // String timestamps can hold timezone information
+          return Schema.FieldType.STRING;
+        } else {
+          // Beam has two 'DATETIME' types: SqlTypes.DATETIME (uses java.time) and
+          // Schema.FieldType.DATETIME (uses org.joda.time).
+          // We choose SqlTypes.DATETIME because Iceberg API leans towards `java.time`
+          // Unfortunately neither of these types maintains timezone information
+          return Schema.FieldType.logicalType(SqlTypes.DATETIME);
+        }
       case STRING:
         return Schema.FieldType.STRING;
       case UUID:
@@ -315,15 +322,41 @@ public class IcebergUtils {
         break;
       case TIMESTAMP:
         Object val = value.getValue(name);
-        if (val instanceof Instant) { // case Schema.FieldType.DATETIME
-          rec.setField(name, DateTimeUtil.timestampFromMicros(((Instant) val).getMillis()));
-        } else if (val instanceof LocalDateTime) { // case SqlTypes.DATETIME
-          rec.setField(name, val);
-        } else {
-          String invalidType = val == null ? "unknown" : val.getClass().toString();
-          throw new IllegalStateException(
-              "Unexpected Beam type for Iceberg TIMESTAMP: " + invalidType);
+        if (val == null) {
+          break;
         }
+        Types.TimestampType ts = (Types.TimestampType) field.type().asPrimitiveType();
+        // timestamp with timezone
+        if (ts.shouldAdjustToUTC()) {
+          // currently only string is supported because other types
+          // do not maintain timezone information
+          if (val instanceof String) {
+            // e.g. 2007-12-03T10:15:30+01:00
+            rec.setField(name, OffsetDateTime.parse((String) val));
+            break;
+          } else {
+            throw new UnsupportedOperationException(
+                "Unsupported Beam type for Iceberg timestamp with timezone: " + val.getClass());
+          }
+        }
+
+        // timestamp
+        // SqlTypes.DATETIME
+        if (val instanceof LocalDateTime) {
+          rec.setField(name, val);
+          break;
+        }
+
+        long micros;
+        if (val instanceof Instant) { // Schema.FieldType.DATETIME
+          micros = ((Instant) val).getMillis() * 1000L;
+        } else if (val instanceof Long) { // Schema.FieldType.INT64
+          micros = (long) val;
+        } else {
+          throw new UnsupportedOperationException(
+              "Unsupported Beam type for Iceberg timestamp: " + val.getClass());
+        }
+        rec.setField(name, DateTimeUtil.timestampFromMicros(micros));
         break;
       case STRING:
         Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
@@ -385,21 +418,51 @@ public class IcebergUtils {
         case BYTE:
         case INT16:
         case INT32:
-        case INT64:
         case DECIMAL: // Iceberg and Beam both use BigDecimal
         case FLOAT: // Iceberg and Beam both use float
         case DOUBLE: // Iceberg and Beam both use double
-        case STRING: // Iceberg and Beam both use String
         case BOOLEAN: // Iceberg and Beam both use String
         case ARRAY:
         case ITERABLE:
         case MAP:
           rowBuilder.addValue(icebergValue);
           break;
+        case STRING: // Iceberg and Beam both use String
+          // first handle timestamp with timezone case
+          if (icebergValue instanceof OffsetDateTime) {
+            rowBuilder.addValue(((OffsetDateTime) icebergValue).toString());
+          } else {
+            rowBuilder.addValue(icebergValue);
+          }
+          break;
+        case INT64:
+          long val;
+          if (icebergValue instanceof Long) {
+            val = (long) icebergValue;
+          } else if (icebergValue instanceof OffsetDateTime) {
+            val = DateTimeUtil.microsFromTimestamptz((OffsetDateTime) icebergValue);
+          } else {
+            throw new UnsupportedOperationException(
+                "Unsupported Iceberg type for Beam type INT64: " + icebergValue.getClass());
+          }
+          rowBuilder.addValue(val);
+          break;
         case DATETIME:
-          // Iceberg uses a long for millis; Beam uses joda time DateTime
-          long millis = (long) icebergValue;
-          rowBuilder.addValue(new DateTime(millis, DateTimeZone.UTC));
+          long millis;
+          if (icebergValue instanceof OffsetDateTime) {
+            millis = ((OffsetDateTime) icebergValue).toInstant().toEpochMilli();
+          } else if (icebergValue instanceof LocalDateTime) {
+            millis = ((LocalDateTime) icebergValue).toInstant(ZoneOffset.UTC).toEpochMilli();
+          } else if (icebergValue instanceof Long) {
+            // Iceberg uses a long for micros
+            // Beam DATETIME uses joda's DateTime, which only supports millis,
+            // so we do lose some precision here
+            millis = ((long) icebergValue) / 1000L;
+          } else {
+            throw new UnsupportedOperationException(
+                "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());
+          }
+          rowBuilder.addValue(new DateTime(millis));
           break;
         case BYTES:
           // Iceberg uses ByteBuffer; Beam uses byte[]

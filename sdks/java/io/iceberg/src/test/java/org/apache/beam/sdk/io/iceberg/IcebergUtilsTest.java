@@ -28,6 +28,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -122,19 +124,38 @@ public class IcebergUtilsTest {
 
     @Test
     public void testTimestamp() {
-      DateTime dateTime =
-          new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-
-      checkRowValueToRecordValue(
-          Schema.FieldType.DATETIME,
-          dateTime.toInstant(),
-          Types.TimestampType.withoutZone(),
-          DateTimeUtil.timestampFromMicros(dateTime.getMillis()));
-
+      // SqlTypes.DATETIME
       checkRowValueToRecordValue(
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
           Types.TimestampType.withoutZone(),
           DateTimeUtil.timestampFromMicros(123456789L));
+
+      // Schema.FieldType.DATETIME
+      DateTime dateTime =
+          new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+      checkRowValueToRecordValue(
+          Schema.FieldType.DATETIME,
+          dateTime,
+          Types.TimestampType.withoutZone(),
+          DateTimeUtil.timestampFromMicros(dateTime.getMillis() * 1000L));
+
+      // Schema.FieldType.INT64
+      long micros = 1234567890L;
+      checkRowValueToRecordValue(
+          Schema.FieldType.INT64,
+          micros,
+          Types.TimestampType.withoutZone(),
+          DateTimeUtil.timestampFromMicros(micros));
+    }
+
+    @Test
+    public void testTimestampWithZone() {
+      String val = "2024-10-08T13:18:20.053+03:27";
+      OffsetDateTime offsetDateTime =
+          OffsetDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000, ZoneOffset.ofHoursMinutes(3, 27));
+      // Schema.FieldType.String
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING, val, Types.TimestampType.withZone(), offsetDateTime);
     }
 
     @Test
@@ -259,19 +280,38 @@ public class IcebergUtilsTest {
 
     @Test
     public void testTimestamp() {
+      // SqlTypes.DATETIME
+      checkRecordValueToRowValue(
+          Types.TimestampType.withoutZone(),
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          DateTimeUtil.timestampFromMicros(123456789L));
+
+      // Schema.FieldType.DATETIME
       DateTime dateTime =
           new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
 
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
-          dateTime.getMillis(),
+          dateTime.getMillis() * 1000L,
           Schema.FieldType.DATETIME,
-          dateTime.toInstant());
+          dateTime);
 
+      // Schema.FieldType.INT64
+      long micros = 1234567890L;
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
-          Schema.FieldType.logicalType(SqlTypes.DATETIME),
-          DateTimeUtil.timestampFromMicros(123456789L));
+          DateTimeUtil.timestamptzFromMicros(micros),
+          Schema.FieldType.INT64,
+          micros);
+    }
+
+    @Test
+    public void testTimestampWithZone() {
+      String val = "2007-12-03T10:15:30+01:00";
+      OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
+      // Schema.FieldType.String
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), offsetDateTime, Schema.FieldType.STRING, val);
     }
 
     @Test

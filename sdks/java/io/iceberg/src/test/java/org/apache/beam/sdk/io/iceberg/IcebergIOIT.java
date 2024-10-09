@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -112,6 +113,7 @@ public class IcebergIOIT implements Serializable {
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
           .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+          .addStringField("datetime_tz")
           .addLogicalTypeField("date", SqlTypes.DATE)
           .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
@@ -144,6 +146,10 @@ public class IcebergIOIT implements Serializable {
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
               .addValue(DateTimeUtil.timestampFromMicros(num))
+              .addValue(
+                  DateTimeUtil.timestamptzFromMicros(num)
+                      .withOffsetSameInstant(ZoneOffset.ofHoursMinutes(3, 38))
+                      .toString())
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
