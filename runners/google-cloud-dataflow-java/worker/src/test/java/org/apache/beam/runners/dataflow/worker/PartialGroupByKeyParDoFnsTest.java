@@ -306,7 +306,7 @@ public class PartialGroupByKeyParDoFnsTest {
             kvCoder,
             AppliedCombineFn.withInputCoder(
                 Sum.ofIntegers(),
-                CoderRegistry.createDefault(ull),
+                CoderRegistry.createDefault(null),
                 kvCoder,
                 ImmutableList.<PCollectionView<?>>of(),
                 WindowingStrategy.globalDefault()),
