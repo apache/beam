@@ -150,6 +150,17 @@ class CombiningValueStateSpec(StateSpec):
             urn=common_urns.user_state.BAG.urn))
 
 
+class OrderedListStateSpec(StateSpec):
+  """Specification for a user DoFn ordered list state cell."""
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
+    return beam_runner_api_pb2.StateSpec(
+        ordered_list_spec=beam_runner_api_pb2.OrderedListStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.ORDERED_LIST.urn))
+
+
 # TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
 Timer = NamedTuple(
     'Timer',
@@ -370,6 +381,24 @@ class SetRuntimeState(AccumulatingRuntimeState):
 
 class CombiningValueRuntimeState(AccumulatingRuntimeState):
   """Combining value state interface object passed to user code."""
+
+
+class OrderedListRuntimeState(AccumulatingRuntimeState):
+  """Ordered list state interface object passed to user code."""
+  def read(self) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def add(self, value: Tuple[Timestamp, Any]) -> None:
+    raise NotImplementedError(type(self))
+
+  def read_range(
+      self, min_time_stamp: Timestamp,
+      limit_time_stamp: Timestamp) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def clear_range(
+      self, min_time_stamp: Timestamp, limit_time_stamp: Timestamp) -> None:
+    raise NotImplementedError(type(self))
 
 
 class UserStateContext(object):
