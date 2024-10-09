@@ -18,32 +18,44 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataTableNames.MAX_NAME_LENGTH;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
 public class PartitionMetadataTableNamesTest {
   @Test
-  public void testPartitionMetadataNamesRemovesHyphens() {
-    PartitionMetadataTableNames names = PartitionMetadataTableNames.from("my-database-id-12345");
+  public void testGeneratePartitionMetadataNamesRemovesHyphens() {
+    PartitionMetadataTableNames names =
+        PartitionMetadataTableNames.generateRandom("my-database-id-12345");
     assertFalse(names.getTableName().contains("-"));
     assertFalse(names.getWatermarkIndexName().contains("-"));
     assertFalse(names.getCreatedAtIndexName().contains("-"));
   }
 
   @Test
-  public void testPartitionMetadataNamesIsShorterThan64Characters() {
+  public void testGeneratePartitionMetadataNamesIsShorterThan64Characters() {
     PartitionMetadataTableNames names =
-        PartitionMetadataTableNames.from(
+        PartitionMetadataTableNames.generateRandom(
             "my-database-id-larger-than-maximum-length-1234567890-1234567890-1234567890");
     assertTrue(names.getTableName().length() <= MAX_NAME_LENGTH);
     assertTrue(names.getWatermarkIndexName().length() <= MAX_NAME_LENGTH);
     assertTrue(names.getCreatedAtIndexName().length() <= MAX_NAME_LENGTH);
 
-    names = PartitionMetadataTableNames.from("d");
+    names = PartitionMetadataTableNames.generateRandom("d");
     assertTrue(names.getTableName().length() <= MAX_NAME_LENGTH);
     assertTrue(names.getWatermarkIndexName().length() <= MAX_NAME_LENGTH);
     assertTrue(names.getCreatedAtIndexName().length() <= MAX_NAME_LENGTH);
+  }
+
+  @Test
+  public void testPartitionMetadataNamesFromExistingTable() {
+    PartitionMetadataTableNames names = PartitionMetadataTableNames.fromExistingTable("mytable");
+
+    assertEquals("mytable", names.getTableName());
+    assertNull(names.getWatermarkIndexName());
+    assertNull(names.getCreatedAtIndexName());
   }
 }

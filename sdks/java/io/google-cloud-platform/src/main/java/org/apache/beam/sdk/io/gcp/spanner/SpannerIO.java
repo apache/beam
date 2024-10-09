@@ -1775,10 +1775,8 @@ public class SpannerIO {
               + metadataDatabaseDialect);
       PartitionMetadataTableNames partitionMetadataTableNames =
           Optional.ofNullable(getMetadataTable())
-              .map(
-                  tableName ->
-                      PartitionMetadataTableNames.from(partitionMetadataDatabaseId, tableName))
-              .orElse(PartitionMetadataTableNames.from(partitionMetadataDatabaseId));
+              .map(PartitionMetadataTableNames::fromExistingTable)
+              .orElse(PartitionMetadataTableNames.generateRandom(partitionMetadataDatabaseId));
       final String changeStreamName = getChangeStreamName();
       final Timestamp startTimestamp = getInclusiveStartAt();
       // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the

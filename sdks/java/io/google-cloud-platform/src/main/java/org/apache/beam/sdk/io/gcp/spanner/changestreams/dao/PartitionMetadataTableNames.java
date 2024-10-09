@@ -47,7 +47,7 @@ public class PartitionMetadataTableNames implements Serializable {
    * @param databaseId The database id where the table will be created
    * @return the unique generated names of the partition metadata ddl
    */
-  public static PartitionMetadataTableNames from(String databaseId) {
+  public static PartitionMetadataTableNames generateRandom(String databaseId) {
     UUID uuid = UUID.randomUUID();
 
     String table = generateName(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, uuid);
@@ -59,21 +59,13 @@ public class PartitionMetadataTableNames implements Serializable {
   }
 
   /**
-   * Generates a unique name for the partition metadata indexes. Uses the given table name. The
-   * watermark index will be in the form of {@code "WatermarkIdx_<databaseId>_<uuid>}. The createdAt
-   * / start timestamp index will be in the form of {@code "CreatedAtIdx_<databaseId>_<uuid>}.
+   * Encapsulates an existing table name. Index names are not generated here, and will be null.
    *
-   * @param databaseId The database id where the table will be created
    * @param table The table name to be used
-   * @return the unique generated names of the partition metadata ddl
+   * @return an instance with the table name only
    */
-  public static PartitionMetadataTableNames from(String databaseId, String table) {
-    UUID uuid = UUID.randomUUID();
-    String watermarkIndex = generateName(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid);
-    String createdAtIndex =
-        generateName(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid);
-
-    return new PartitionMetadataTableNames(table, watermarkIndex, createdAtIndex);
+  public static PartitionMetadataTableNames fromExistingTable(String table) {
+    return new PartitionMetadataTableNames(table);
   }
 
   private static String generateName(String template, String databaseId, UUID uuid) {
@@ -85,8 +77,14 @@ public class PartitionMetadataTableNames implements Serializable {
   }
 
   private final String tableName;
-  private final String watermarkIndexName;
-  private final String createdAtIndexName;
+  @Nullable private final String watermarkIndexName;
+  @Nullable private final String createdAtIndexName;
+
+  public PartitionMetadataTableNames(String tableName) {
+    this.tableName = tableName;
+    this.watermarkIndexName = null;
+    this.createdAtIndexName = null;
+  }
 
   public PartitionMetadataTableNames(
       String tableName, String watermarkIndexName, String createdAtIndexName) {
@@ -99,10 +97,12 @@ public class PartitionMetadataTableNames implements Serializable {
     return tableName;
   }
 
+  @Nullable
   public String getWatermarkIndexName() {
     return watermarkIndexName;
   }
 
+  @Nullable
   public String getCreatedAtIndexName() {
     return createdAtIndexName;
   }
