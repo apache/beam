@@ -95,7 +95,7 @@ class BigtableServiceFactory implements Serializable {
 
     static BigtableServiceEntry create(ConfigId configId, BigtableService service) {
       return new AutoValue_BigtableServiceFactory_BigtableServiceEntry(
-          configId, service, CloseMode.INLINE);
+          configId, service, CloseMode.INLINE, null);
     }
 
     static BigtableServiceEntry create(
@@ -304,6 +304,7 @@ class BigtableServiceFactory implements Serializable {
     private ScheduledExecutorService executor = null;
     private int numOutstanding = 0;
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     synchronized void enqueue(BigtableServiceEntry entry, Duration closeDelay) {
       if (numOutstanding == 0) {
         executor = Executors.newScheduledThreadPool(1);
