@@ -540,10 +540,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, stream, nested):
     # type: (create_InputStream, bool) -> Any
     t = stream.read_byte()
-    _LOGGER.info(f"Decoding type tag {t} (hex: {hex(t)}) from stream at position {stream.tell()}")
 
     _LOGGER.info(f"Type tag t is of type {type(t)}")
-    _LOGGER.info(f"Type taf t has a value of {t}")
+    _LOGGER.info(f"Type tag t has a value of {t}")
     if t == NONE_TYPE:
       return None
     elif t == INT_TYPE:

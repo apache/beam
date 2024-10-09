@@ -223,7 +223,6 @@ class DataInputOperation(RunnerIOOperation):
     # type: (bytes) -> None
     _LOGGER.info(f"Start processing encoded values. Total bytes: {len(encoded_windowed_values)}")
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
-    _LOGGER.info(f"Initial stream position: {input_stream.tell()}, Stream size: {input_stream.size()} bytes")
 
     while input_stream.size() > 0:
         with self.splitting_lock:
@@ -232,12 +231,10 @@ class DataInputOperation(RunnerIOOperation):
                 return
             self.index += 1
 
-        _LOGGER.info(f"Decoding at index {self.index}. Stream position before decoding: {input_stream.tell()}")
         decoded_value = self.windowed_coder_impl.decode_from_stream(input_stream, True)
         
         _LOGGER.info(f"Decoded value at index {self.index}: {decoded_value}")
         self.output(decoded_value)
-        _LOGGER.info(f"Stream position after decoding: {input_stream.tell()}, Remaining size: {input_stream.size()} bytes")
 
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
