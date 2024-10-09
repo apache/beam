@@ -32,18 +32,18 @@ import org.junit.runners.JUnit4;
 public class HBaseCoderProviderRegistrarTest {
   @Test
   public void testResultCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getCoder(Result.class);
+    CoderRegistry.createDefault(null).getCoder(Result.class);
   }
 
   @Test
   public void testMutationCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getCoder(Mutation.class);
-    CoderRegistry.createDefault().getCoder(Put.class);
-    CoderRegistry.createDefault().getCoder(Delete.class);
+    CoderRegistry.createDefault(null).getCoder(Mutation.class);
+    CoderRegistry.createDefault(null).getCoder(Put.class);
+    CoderRegistry.createDefault(null).getCoder(Delete.class);
   }
 
   @Test
   public void testRowMutationsCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getCoder(RowMutations.class);
+    CoderRegistry.createDefault(null).getCoder(RowMutations.class);
   }
 }

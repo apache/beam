@@ -97,7 +97,7 @@ public class BatchGroupAlsoByWindowFnsTest {
     AppliedCombineFn<String, Long, ?, Long> appliedFn =
         AppliedCombineFn.withInputCoder(
             Sum.ofLongs(),
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
@@ -112,7 +112,7 @@ public class BatchGroupAlsoByWindowFnsTest {
     AppliedCombineFn<String, Long, ?, Long> appliedFn =
         AppliedCombineFn.withInputCoder(
             Sum.ofLongs(),
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)));
@@ -127,7 +127,7 @@ public class BatchGroupAlsoByWindowFnsTest {
     AppliedCombineFn<String, Long, ?, Long> appliedFn =
         AppliedCombineFn.withInputCoder(
             Sum.ofLongs(),
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))

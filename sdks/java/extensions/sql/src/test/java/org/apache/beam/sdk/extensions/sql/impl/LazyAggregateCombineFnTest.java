@@ -52,7 +52,8 @@ public class LazyAggregateCombineFnTest {
   public void getAccumulatorCoderInfersCoderForWildcardTypeParameter()
       throws CannotProvideCoderException {
     LazyAggregateCombineFn<Long, ?, ?> combiner = new LazyAggregateCombineFn<>(new Sum());
-    Coder<?> coder = combiner.getAccumulatorCoder(CoderRegistry.createDefault(), VarLongCoder.of());
+    Coder<?> coder =
+        combiner.getAccumulatorCoder(CoderRegistry.createDefault(null), VarLongCoder.of());
     assertThat(coder, instanceOf(VarLongCoder.class));
   }
 

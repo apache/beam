@@ -505,7 +505,7 @@ public class FlinkBatchPortablePipelineTranslator
     Concatenate<V> combineFn = new Concatenate<>();
     Coder<List<V>> accumulatorCoder =
         combineFn.getAccumulatorCoder(
-            CoderRegistry.createDefault(), inputElementCoder.getValueCoder());
+            CoderRegistry.createDefault(null), inputElementCoder.getValueCoder());
 
     Coder<WindowedValue<KV<K, List<V>>>> outputCoder =
         WindowedValue.getFullCoder(

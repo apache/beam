@@ -57,7 +57,8 @@ public class CountIfTest {
   @Test
   public void testCreatesAccumulatorCoder() throws CannotProvideCoderException {
     assertNotNull(
-        CountIf.combineFn().getAccumulatorCoder(CoderRegistry.createDefault(), BooleanCoder.of()));
+        CountIf.combineFn()
+            .getAccumulatorCoder(CoderRegistry.createDefault(null), BooleanCoder.of()));
   }
 
   @Test

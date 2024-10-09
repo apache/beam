@@ -69,7 +69,7 @@ public class CombiningGroupAlsoByWindowsViaOutputBufferDoFnTest {
     AppliedCombineFn<String, Long, ?, Long> appliedFn =
         AppliedCombineFn.withInputCoder(
             combineFn,
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
     GroupAlsoByWindowProperties.combinesElementsInSlidingWindows(
@@ -82,7 +82,7 @@ public class CombiningGroupAlsoByWindowsViaOutputBufferDoFnTest {
     AppliedCombineFn<String, Long, ?, Long> appliedFn =
         AppliedCombineFn.withInputCoder(
             combineFn,
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
     GroupAlsoByWindowProperties.combinesElementsPerSession(
@@ -95,7 +95,7 @@ public class CombiningGroupAlsoByWindowsViaOutputBufferDoFnTest {
     AppliedCombineFn<String, Long, ?, Long> appliedFn =
         AppliedCombineFn.withInputCoder(
             combineFn,
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
     GroupAlsoByWindowProperties.combinesElementsPerSessionWithEndOfWindowTimestamp(

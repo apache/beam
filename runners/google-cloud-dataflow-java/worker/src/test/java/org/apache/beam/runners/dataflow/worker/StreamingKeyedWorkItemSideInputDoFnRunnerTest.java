@@ -176,7 +176,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
   private StreamingKeyedWorkItemSideInputDoFnRunner<
           String, Integer, KV<String, Integer>, IntervalWindow>
       createRunner(DoFnRunners.OutputManager outputManager) throws Exception {
-    CoderRegistry registry = CoderRegistry.createDefault();
+    CoderRegistry registry = CoderRegistry.createDefault(null);
     Coder<String> keyCoder = StringUtf8Coder.of();
     Coder<Integer> inputCoder = BigEndianIntegerCoder.of();
 

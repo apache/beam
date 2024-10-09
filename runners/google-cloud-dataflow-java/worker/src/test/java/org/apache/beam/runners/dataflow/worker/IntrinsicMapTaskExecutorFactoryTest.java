@@ -641,7 +641,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     AppliedCombineFn<?, ?, ?, ?> combineFn =
         AppliedCombineFn.withInputCoder(
             Sum.ofIntegers(),
-            CoderRegistry.createDefault(),
+            CoderRegistry.createDefault(null),
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
     CloudObject cloudCombineFn = CloudObject.forClassName("CombineFn");
     addString(

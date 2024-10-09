@@ -50,7 +50,7 @@ import org.apache.flink.api.java.operators.MapOperator;
 /** An adapter class that allows one to apply Apache Beam PTransforms directly to Flink DataSets. */
 public class BeamFlinkDataSetAdapter {
   private final PipelineOptions pipelineOptions;
-  private final CoderRegistry coderRegistry = CoderRegistry.createDefault();
+  private final CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
 
   public BeamFlinkDataSetAdapter() {
     this(PipelineOptionsFactory.create());

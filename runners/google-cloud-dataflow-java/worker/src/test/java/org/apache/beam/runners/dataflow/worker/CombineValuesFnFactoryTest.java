@@ -349,7 +349,7 @@ public class CombineValuesFnFactoryTest {
 
   @Test
   public void testCombineValuesFnCoders() throws Exception {
-    CoderRegistry registry = CoderRegistry.createDefault();
+    CoderRegistry registry = CoderRegistry.createDefault(null);
 
     MeanInts meanInts = new MeanInts();
     CountSum countSum = new CountSum(6, 27);
