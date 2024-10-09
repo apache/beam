@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataTableNames.MAX_NAME_LENGTH;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -52,10 +51,11 @@ public class PartitionMetadataTableNamesTest {
 
   @Test
   public void testPartitionMetadataNamesFromExistingTable() {
-    PartitionMetadataTableNames names = PartitionMetadataTableNames.fromExistingTable("mytable");
+    PartitionMetadataTableNames names =
+        PartitionMetadataTableNames.fromExistingTable("databaseid", "mytable");
 
     assertEquals("mytable", names.getTableName());
-    assertNull(names.getWatermarkIndexName());
-    assertNull(names.getCreatedAtIndexName());
+    assertFalse(names.getWatermarkIndexName().contains("-"));
+    assertFalse(names.getCreatedAtIndexName().contains("-"));
   }
 }
