@@ -265,6 +265,15 @@ class S3FileSystemTest(unittest.TestCase):
     src_dest_pairs = list(zip(sources, destinations))
     s3io_mock.rename_files.assert_called_once_with(src_dest_pairs)
 
+  def test_lineage(self):
+    self._verify_lineage("s3://bucket/", ("bucket", ))
+    self._verify_lineage("s3://bucket/foo/bar.txt", ("bucket", "foo/bar.txt"))
+
+  def _verify_lineage(self, uri, expected_segments):
+    lineage_mock = mock.MagicMock()
+    self.fs.report_lineage(uri, lineage_mock)
+    lineage_mock.add.assert_called_once_with("s3", *expected_segments)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
