@@ -1074,74 +1074,47 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
           'Unknown state type: ' + state_key.WhichOneof('type'))
 
     with self._lock:
-      if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        maybe_start = state_key.ordered_list_user_state.range.start
-        maybe_end = state_key.ordered_list_user_state.range.end
-        persistent_state_key = beam_fn_api_pb2.StateKey()
-        persistent_state_key.CopyFrom(state_key)
-        persistent_state_key.ordered_list_user_state.ClearField("range")
+      if not continuation_token:
+        # Compute full_state only when no continuation token is provided.
+        # If there is continuation token, full_state is already in
+        # continuation cache. No need to recompute.
+        if state_key.WhichOneof('type') == 'ordered_list_user_state':
+          maybe_start = state_key.ordered_list_user_state.range.start
+          maybe_end = state_key.ordered_list_user_state.range.end
+          persistent_state_key = beam_fn_api_pb2.StateKey()
+          persistent_state_key.CopyFrom(state_key)
+          persistent_state_key.ordered_list_user_state.ClearField("range")
 
-        available_keys = self._ordered_list_keys[self._to_key(
-            persistent_state_key)]
+          available_keys = self._ordered_list_keys[self._to_key(
+              persistent_state_key)]
 
-        if self._use_continuation_tokens and continuation_token:
-          # The token is "key_idx", suggesting the next start
-          key_start = int(continuation_token)
+          full_state = []  # type: List[bytes]
+          for i in available_keys.irange(maybe_start,
+                                         maybe_end,
+                                         inclusive=(True, False)):
+            entries = self._state[self._get_one_interval_key(
+                persistent_state_key, i)]
+            full_state.extend(entries)
         else:
-          key_start = maybe_start
+          full_state = self._state[self._to_key(state_key)]
 
-        # Find the exact starting boundary of the current key query.
-        key_start = next(
-            iter(
-                available_keys.irange(
-                    key_start, maybe_end, inclusive=(True, False))),
-            maybe_end)
-
-        if key_start >= maybe_end:
-          return b'', None
-
-        if self._use_continuation_tokens:
-          # Find the exact stopping boundary of the current key query.
-          # For simplicity, we always return all entries under the same key
-          # with one continuation token.
-          key_end = next(
-              iter(
-                  available_keys.irange(
-                      key_start + 1, maybe_end, inclusive=(True, False))),
-              maybe_end)
-          next_token = b"%d" % key_end  # type: Optional[bytes]
+      if self._use_continuation_tokens:
+        # The token is "nonce:index".
+        if not continuation_token:
+          token_base = b'token_%x' % len(self._continuations)
+          self._continuations[token_base] = tuple(full_state)
+          return b'', b'%s:0' % token_base
         else:
-          key_end = maybe_end
-          next_token = None
-
-        output = []  # type: List[bytes]
-        for i in available_keys.irange(key_start,
-                                       key_end,
-                                       inclusive=(True, False)):
-          entries = self._state[self._get_one_interval_key(
-              persistent_state_key, i)]
-          output.extend(entries)
-
-        return b''.join(output), next_token
-      else:
-        full_state = self._state[self._to_key(state_key)]
-        if self._use_continuation_tokens:
-          # The token is "nonce:index".
-          if not continuation_token:
-            token_base = b'token_%x' % len(self._continuations)
-            self._continuations[token_base] = tuple(full_state)
-            return b'', b'%s:0' % token_base
+          token_base, index = continuation_token.split(b':')
+          ix = int(index)
+          full_state_cont = self._continuations[token_base]
+          if ix == len(full_state_cont):
+            return b'', None
           else:
-            token_base, index = continuation_token.split(b':')
-            ix = int(index)
-            full_state_cont = self._continuations[token_base]
-            if ix == len(full_state_cont):
-              return b'', None
-            else:
-              return full_state_cont[ix], b'%s:%d' % (token_base, ix + 1)
-        else:
-          assert not continuation_token
-          return b''.join(full_state), None
+            return full_state_cont[ix], b'%s:%d' % (token_base, ix + 1)
+      else:
+        assert not continuation_token
+        return b''.join(full_state), None
 
   def append_raw(
       self,
