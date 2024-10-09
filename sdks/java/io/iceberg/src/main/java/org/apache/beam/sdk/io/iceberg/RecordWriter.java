@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -38,9 +37,8 @@ import org.slf4j.LoggerFactory;
 class RecordWriter {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
   private final Counter activeIcebergWriters =
-      Metrics.counter(RecordWriterManager.class, "activeIcebergWriters");
-  private final Distribution dataFileByteSize =
-      Metrics.distribution(RecordWriter.class, "dataFileByteSize");
+      Metrics.counter(RecordWriter.class, "activeIcebergWriters");
+  private final Counter dataFilesWritten = Metrics.counter(RecordWriter.class, "dataFilesWritten");
   private final DataWriter<Record> icebergDataWriter;
   private final Table table;
   private final String absoluteFilename;
@@ -128,7 +126,7 @@ class RecordWriter {
         dataFile.recordCount(),
         dataFile.fileSizeInBytes(),
         absoluteFilename);
-    dataFileByteSize.update(dataFile.fileSizeInBytes());
+    dataFilesWritten.inc();
   }
 
   public long bytesWritten() {
