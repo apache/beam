@@ -255,15 +255,13 @@ public class PartitionMetadataAdminDao {
    * Drops the metadata table. This operation should complete in {@link
    * PartitionMetadataAdminDao#TIMEOUT_MINUTES} minutes.
    */
-  public void deletePartitionMetadataTable() {
+  public void deletePartitionMetadataTable(List<String> indexes) {
     List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
-      ddl.add("DROP INDEX \"" + names.getCreatedAtIndexName() + "\"");
-      ddl.add("DROP INDEX \"" + names.getWatermarkIndexName() + "\"");
+      indexes.forEach(index -> ddl.add("DROP INDEX \"" + index + "\""));
       ddl.add("DROP TABLE \"" + names.getTableName() + "\"");
     } else {
-      ddl.add("DROP INDEX " + names.getCreatedAtIndexName());
-      ddl.add("DROP INDEX " + names.getWatermarkIndexName());
+      indexes.forEach(index -> ddl.add("DROP INDEX " + index));
       ddl.add("DROP TABLE " + names.getTableName());
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =

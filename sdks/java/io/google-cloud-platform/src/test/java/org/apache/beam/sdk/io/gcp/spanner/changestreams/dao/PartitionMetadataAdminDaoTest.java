@@ -33,7 +33,9 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -137,7 +139,8 @@ public class PartitionMetadataAdminDaoTest {
   @Test
   public void testDeletePartitionMetadataTable() throws Exception {
     when(op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES)).thenReturn(null);
-    partitionMetadataAdminDao.deletePartitionMetadataTable();
+    partitionMetadataAdminDao.deletePartitionMetadataTable(
+        Arrays.asList(WATERMARK_INDEX_NAME, CREATED_AT_INDEX_NAME));
     verify(databaseAdminClient, times(1))
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(3, ((Collection<?>) statements.getValue()).size());
@@ -148,9 +151,21 @@ public class PartitionMetadataAdminDaoTest {
   }
 
   @Test
+  public void testDeletePartitionMetadataTableWithNoIndexes() throws Exception {
+    when(op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES)).thenReturn(null);
+    partitionMetadataAdminDao.deletePartitionMetadataTable(Collections.emptyList());
+    verify(databaseAdminClient, times(1))
+        .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
+    assertEquals(1, ((Collection<?>) statements.getValue()).size());
+    Iterator<String> it = statements.getValue().iterator();
+    assertTrue(it.next().contains("DROP TABLE"));
+  }
+
+  @Test
   public void testDeletePartitionMetadataTablePostgres() throws Exception {
     when(op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES)).thenReturn(null);
-    partitionMetadataAdminDaoPostgres.deletePartitionMetadataTable();
+    partitionMetadataAdminDaoPostgres.deletePartitionMetadataTable(
+        Arrays.asList(WATERMARK_INDEX_NAME, CREATED_AT_INDEX_NAME));
     verify(databaseAdminClient, times(1))
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(3, ((Collection<?>) statements.getValue()).size());
@@ -161,10 +176,22 @@ public class PartitionMetadataAdminDaoTest {
   }
 
   @Test
+  public void testDeletePartitionMetadataTablePostgresWithNoIndexes() throws Exception {
+    when(op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES)).thenReturn(null);
+    partitionMetadataAdminDaoPostgres.deletePartitionMetadataTable(Collections.emptyList());
+    verify(databaseAdminClient, times(1))
+        .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
+    assertEquals(1, ((Collection<?>) statements.getValue()).size());
+    Iterator<String> it = statements.getValue().iterator();
+    assertTrue(it.next().contains("DROP TABLE \""));
+  }
+
+  @Test
   public void testDeletePartitionMetadataTableWithTimeoutException() throws Exception {
     when(op.get(10, TimeUnit.MINUTES)).thenThrow(new TimeoutException(TIMED_OUT));
     try {
-      partitionMetadataAdminDao.deletePartitionMetadataTable();
+      partitionMetadataAdminDao.deletePartitionMetadataTable(
+          Arrays.asList(WATERMARK_INDEX_NAME, CREATED_AT_INDEX_NAME));
       fail();
     } catch (SpannerException e) {
       assertTrue(e.getMessage().contains(TIMED_OUT));
@@ -175,7 +202,8 @@ public class PartitionMetadataAdminDaoTest {
   public void testDeletePartitionMetadataTableWithInterruptedException() throws Exception {
     when(op.get(10, TimeUnit.MINUTES)).thenThrow(new InterruptedException(INTERRUPTED));
     try {
-      partitionMetadataAdminDao.deletePartitionMetadataTable();
+      partitionMetadataAdminDao.deletePartitionMetadataTable(
+          Arrays.asList(WATERMARK_INDEX_NAME, CREATED_AT_INDEX_NAME));
       fail();
     } catch (SpannerException e) {
       assertEquals(ErrorCode.CANCELLED, e.getErrorCode());
