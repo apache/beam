@@ -3170,33 +3170,48 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
     class PreCombineFn(CombineFn):
+      def __init__(self):
+        # Deepcopy of the combine_fn to avoid sharing state between lifted
+        # stages when using cloudpickle.
+        try:
+          self._combine_fn_copy = copy.deepcopy(combine_fn)
+        except Exception:
+          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+
+        self.setup = self._combine_fn_copy.setup
+        self.create_accumulator = self._combine_fn_copy.create_accumulator
+        self.add_input = self._combine_fn_copy.add_input
+        self.merge_accumulators = self._combine_fn_copy.merge_accumulators
+        self.compact = self._combine_fn_copy.compact
+        self.teardown = self._combine_fn_copy.teardown
+
       @staticmethod
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
 
-      setup = combine_fn.setup
-      create_accumulator = combine_fn.create_accumulator
-      add_input = combine_fn.add_input
-      merge_accumulators = combine_fn.merge_accumulators
-      compact = combine_fn.compact
-      teardown = combine_fn.teardown
-
     class PostCombineFn(CombineFn):
-      @staticmethod
-      def add_input(accumulator, element):
+      def __init__(self):
+        # Deepcopy of the combine_fn to avoid sharing state between lifted
+        # stages when using cloudpickle.
+        try:
+          self._combine_fn_copy = copy.deepcopy(combine_fn)
+        except Exception:
+          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+
+        self.setup = self._combine_fn_copy.setup
+        self.create_accumulator = self._combine_fn_copy.create_accumulator
+        self.merge_accumulators = self._combine_fn_copy.merge_accumulators
+        self.compact = self._combine_fn_copy.compact
+        self.extract_output = self._combine_fn_copy.extract_output
+        self.teardown = self._combine_fn_copy.teardown
+
+      def add_input(self, accumulator, element):
         is_accumulator, value = element
         if is_accumulator:
-          return combine_fn.merge_accumulators([accumulator, value])
+          return self._combine_fn_copy.merge_accumulators([accumulator, value])
         else:
-          return combine_fn.add_input(accumulator, value)
-
-      setup = combine_fn.setup
-      create_accumulator = combine_fn.create_accumulator
-      merge_accumulators = combine_fn.merge_accumulators
-      compact = combine_fn.compact
-      extract_output = combine_fn.extract_output
-      teardown = combine_fn.teardown
+          return self._combine_fn_copy.add_input(accumulator, value)
 
     def StripNonce(nonce_key_value):
       (_, key), value = nonce_key_value
