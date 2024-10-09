@@ -51,6 +51,8 @@ class ProcessingState<KeyT> {
 
   private long resultCount;
 
+  @Nullable private ContiguousSequenceRange lastCompleteGlobalSequence;
+
   private KeyT key;
 
   public ProcessingState(KeyT key) {
@@ -59,6 +61,7 @@ class ProcessingState<KeyT> {
     this.lastOutputSequence = null;
     this.earliestBufferedSequence = null;
     this.latestBufferedSequence = null;
+    this.lastCompleteGlobalSequence = null;
   }
 
   /**
@@ -128,6 +131,15 @@ class ProcessingState<KeyT> {
 
   public KeyT getKey() {
     return key;
+  }
+
+  public @Nullable ContiguousSequenceRange getLastContiguousRange() {
+    return lastCompleteGlobalSequence;
+  }
+
+  public void setLastCompleteGlobalSequence(
+      @Nullable ContiguousSequenceRange lastCompleteGlobalSequence) {
+    this.lastCompleteGlobalSequence = lastCompleteGlobalSequence;
   }
 
   /**
@@ -229,6 +241,32 @@ class ProcessingState<KeyT> {
         key);
   }
 
+  @Override
+  public String toString() {
+    return "ProcessingState{"
+        + "lastOutputSequence="
+        + lastOutputSequence
+        + ", latestBufferedSequence="
+        + latestBufferedSequence
+        + ", earliestBufferedSequence="
+        + earliestBufferedSequence
+        + ", bufferedEventCount="
+        + bufferedEventCount
+        + ", lastEventReceived="
+        + lastEventReceived
+        + ", eventsReceived="
+        + eventsReceived
+        + ", duplicates="
+        + duplicates
+        + ", resultCount="
+        + resultCount
+        + ", lastCompleteGlobalSequence="
+        + lastCompleteGlobalSequence
+        + ", key="
+        + key
+        + '}';
+  }
+
   public boolean isProcessingCompleted() {
     return lastEventReceived && bufferedEventCount == 0;
   }
@@ -274,6 +312,23 @@ class ProcessingState<KeyT> {
     return resultCount - numberOfResultsBeforeBundleStart;
   }
 
+  public void updateGlobalSequenceDetails(ContiguousSequenceRange updated) {
+    if (thereAreGloballySequencedEventsToBeProcessed()) {
+      // We don't update the timer if we can already process events in the onTimer batch.
+      // Otherwise, it's possible that we will be pushing the timer to later timestamps
+      // without a chance to run and produce output.
+      return;
+    }
+    this.lastCompleteGlobalSequence = updated;
+  }
+
+  public boolean thereAreGloballySequencedEventsToBeProcessed() {
+    return bufferedEventCount > 0
+        && lastCompleteGlobalSequence != null
+        && earliestBufferedSequence != null
+        && earliestBufferedSequence < lastCompleteGlobalSequence.getEnd();
+  }
+
   /**
    * Coder for the processing status.
    *
@@ -286,6 +341,9 @@ class ProcessingState<KeyT> {
     private static final Coder<Long> LONG_CODER = VarLongCoder.of();
     private static final VarIntCoder INTEGER_CODER = VarIntCoder.of();
     private static final BooleanCoder BOOLEAN_CODER = BooleanCoder.of();
+
+    private static final NullableCoder<ContiguousSequenceRange> SEQUENCE_AND_TIMESTAMP_CODER =
+        NullableCoder.of(ContiguousSequenceRange.CompletedSequenceRangeCoder.of());
 
     private Coder<KeyT> keyCoder;
 
@@ -308,6 +366,7 @@ class ProcessingState<KeyT> {
       LONG_CODER.encode(value.getResultCount(), outStream);
       BOOLEAN_CODER.encode(value.isLastEventReceived(), outStream);
       keyCoder.encode(value.getKey(), outStream);
+      SEQUENCE_AND_TIMESTAMP_CODER.encode(value.getLastContiguousRange(), outStream);
     }
 
     @Override
@@ -321,17 +380,23 @@ class ProcessingState<KeyT> {
       long resultCount = LONG_CODER.decode(inStream);
       boolean isLastEventReceived = BOOLEAN_CODER.decode(inStream);
       KeyT key = keyCoder.decode(inStream);
+      ContiguousSequenceRange lastCompleteGlobalSequence =
+          SEQUENCE_AND_TIMESTAMP_CODER.decode(inStream);
 
-      return new ProcessingState<>(
-          key,
-          lastOutputSequence,
-          earliestBufferedSequence,
-          latestBufferedSequence,
-          bufferedRecordCount,
-          recordsReceivedCount,
-          duplicates,
-          resultCount,
-          isLastEventReceived);
+      ProcessingState<KeyT> result =
+          new ProcessingState<>(
+              key,
+              lastOutputSequence,
+              earliestBufferedSequence,
+              latestBufferedSequence,
+              bufferedRecordCount,
+              recordsReceivedCount,
+              duplicates,
+              resultCount,
+              isLastEventReceived);
+      result.setLastCompleteGlobalSequence(lastCompleteGlobalSequence);
+
+      return result;
     }
 
     @Override

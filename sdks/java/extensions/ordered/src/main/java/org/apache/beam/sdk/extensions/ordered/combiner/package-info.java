@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 /**
- * Provides a transform for ordered processing. For a detailed reference implementation which uses
- * this transform visit {@link <a
- * href="">https://github.com/GoogleCloudPlatform/dataflow-ordered-processing</a>}
- *
- * @see org.apache.beam.sdk.extensions.ordered.OrderedEventProcessor
+ * Default implementation of the global sequence combiner used by {@link
+ * org.apache.beam.sdk.extensions.ordered.OrderedEventProcessor} when processing events using global
+ * sequences.
  */
-package org.apache.beam.sdk.extensions.ordered;
+package org.apache.beam.sdk.extensions.ordered.combiner;
