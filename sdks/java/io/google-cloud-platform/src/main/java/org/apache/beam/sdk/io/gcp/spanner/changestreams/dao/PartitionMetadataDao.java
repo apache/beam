@@ -102,11 +102,22 @@ public class PartitionMetadataDao {
    * @return a list of index names for the metadata table.
    */
   public List<String> findAllTableIndexes() {
-    final String indexesStmt =
-        "SELECT index_name FROM information_schema.indexes "
-            + "WHERE table_name = '"
-            + metadataTableName
-            + "' AND index_type != 'PRIMARY_KEY'";
+    String indexesStmt;
+    if (this.isPostgres()) {
+      indexesStmt =
+          "SELECT index_name FROM information_schema.indexes"
+              + " WHERE table_schema = 'public'"
+              + " AND table_name = '"
+              + metadataTableName
+              + "' AND index_type != 'PRIMARY_KEY'";
+    } else {
+      indexesStmt =
+          "SELECT index_name FROM information_schema.indexes"
+              + " WHERE table_schema = ''"
+              + " AND table_name = '"
+              + metadataTableName
+              + "' AND index_type != 'PRIMARY_KEY'";
+    }
 
     List<String> result = new ArrayList<>();
     try (ResultSet queryResultSet =
