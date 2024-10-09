@@ -72,6 +72,7 @@ public final class Work implements RefreshableWork {
   private final String latencyTrackingId;
   private TimedState currentState;
   private volatile boolean isFailed;
+  private volatile String processingThreadName = "not set";
 
   private Work(
       WorkItem workItem,
@@ -186,6 +187,14 @@ public final class Work implements RefreshableWork {
         (s, d) ->
             new Duration(this.currentState.startTime(), now).plus(d == null ? Duration.ZERO : d));
     this.currentState = TimedState.create(state, now);
+  }
+
+  public String getProcessingThreadName() {
+    return processingThreadName;
+  }
+
+  public void setProcessingThreadName(String processingThreadName) {
+    this.processingThreadName = processingThreadName;
   }
 
   @Override

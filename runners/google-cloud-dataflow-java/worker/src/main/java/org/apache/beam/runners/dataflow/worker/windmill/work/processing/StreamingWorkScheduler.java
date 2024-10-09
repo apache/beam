@@ -225,6 +225,7 @@ public final class StreamingWorkScheduler {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
+    work.setProcessingThreadName(Thread.currentThread().getName());
     work.setState(Work.State.PROCESSING);
     setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
