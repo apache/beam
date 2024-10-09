@@ -77,6 +77,8 @@ import org.slf4j.LoggerFactory;
  */
 class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
+  AtomicBoolean atleastOnePollCompleted = new AtomicBoolean();
+
   ///////////////////// Reader API ////////////////////////////////////////////////////////////
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
@@ -232,7 +234,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
       } else { // -- (b)
         nextBatch();
-
+        atleastOnePollCompleted.set(false); // Reset it for next call
         if (!curBatch.hasNext()) {
           return false;
         }
@@ -330,7 +332,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private final KafkaUnboundedSource<K, V> source;
   private final String name;
-  private @Nullable Consumer<byte[], byte[]> consumer = null;
+  @VisibleForTesting @Nullable Consumer<byte[], byte[]> consumer = null;
   private final List<PartitionState<K, V>> partitionStates;
   private @Nullable KafkaRecord<K, V> curRecord = null;
   private @Nullable Instant curTimestamp = null;
@@ -569,22 +571,28 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         try {
           if (records.isEmpty()) {
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          } else if (availableRecordsQueue.offer(
-              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-            records = ConsumerRecords.empty();
+            atleastOnePollCompleted.set(true);
           }
-
+          if (!records.isEmpty()
+              && availableRecordsQueue.offer(
+                  records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
+            records = ConsumerRecords.empty();
+            atleastOnePollCompleted.set(true);
+          }
           commitCheckpointMark();
         } catch (InterruptedException e) {
+          atleastOnePollCompleted.set(true);
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
         } catch (WakeupException e) {
+          atleastOnePollCompleted.set(true);
           break;
         }
       }
       LOG.info("{}: Returning from consumer pool loop", this);
     } catch (Exception e) { // mostly an unrecoverable KafkaException.
       LOG.error("{}: Exception while reading from Kafka", this, e);
+      atleastOnePollCompleted.set(true);
       consumerPollException.set(e);
       throw e;
     }
@@ -621,19 +629,24 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     checkpointMarkCommitsEnqueued.inc();
   }
 
+  // Ensure atleast one consumer poll has completed since this was last called.
   private void nextBatch() throws IOException {
     curBatch = Collections.emptyIterator();
-
     ConsumerRecords<byte[], byte[]> records;
-    try {
-      // poll available records, wait (if necessary) up to the specified timeout.
-      records =
-          availableRecordsQueue.poll(recordsDequeuePollTimeout.getMillis(), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOG.warn("{}: Unexpected", this, e);
-      return;
-    }
+    do {
+      // try until background poll has completed atleast once
+      try {
+        // poll available records, wait (if necessary) up to the specified timeout.
+        records =
+            availableRecordsQueue.poll(
+                recordsDequeuePollTimeout.getMillis(), TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOG.warn("{}: Unexpected", this, e);
+        return;
+      }
+
+    } while (!atleastOnePollCompleted.get());
 
     if (records == null) {
       // Check if the poll thread failed with an exception.
@@ -653,7 +666,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       LOG.debug("Record count: " + records.count());
     }
 
-    partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
+    for (PartitionState<K, V> p : partitionStates) {
+      p.recordIter = records.records(p.topicPartition).iterator();
+    }
 
     // cycle through the partitions in order to interleave records from each.
     curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
