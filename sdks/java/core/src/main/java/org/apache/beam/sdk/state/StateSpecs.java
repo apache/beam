@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class StateSpecs {
 
-  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault(null);
+  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   private StateSpecs() {}
 

@@ -90,7 +90,7 @@ public class SingleStoreUtilTest {
   @Test
   public void testInferCoderFromRowMapper() {
     SchemaRegistry sr = SchemaRegistry.createDefault();
-    CoderRegistry cr = CoderRegistry.createDefault(null);
+    CoderRegistry cr = CoderRegistry.createDefault();
     Coder<TestRow> c = SerializableCoder.of(TestRow.class);
 
     assertEquals(c, SingleStoreUtil.inferCoder(new TestRowMapperWithCoder(), cr, sr, LOG));
@@ -99,7 +99,7 @@ public class SingleStoreUtilTest {
   @Test
   public void testInferCoderFromSchemaRegistry() {
     SchemaRegistry sr = SchemaRegistry.createDefault();
-    CoderRegistry cr = CoderRegistry.createDefault(null);
+    CoderRegistry cr = CoderRegistry.createDefault();
     Coder<TestRow> c = SerializableCoder.of(TestRow.class);
     cr.registerCoderForClass(TestRow.class, c);
 
@@ -109,7 +109,7 @@ public class SingleStoreUtilTest {
   @Test
   public void testInferCoderFromCoderRegistry() throws NoSuchSchemaException {
     SchemaRegistry sr = SchemaRegistry.createDefault();
-    CoderRegistry cr = CoderRegistry.createDefault(null);
+    CoderRegistry cr = CoderRegistry.createDefault();
     sr.registerPOJO(TestRow.class);
     Coder<TestRow> c = sr.getSchemaCoder(TestRow.class);
 

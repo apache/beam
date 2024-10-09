@@ -59,7 +59,7 @@ import org.joda.time.Instant;
  */
 public class BeamFlinkDataStreamAdapter {
   private final PipelineOptions pipelineOptions;
-  private final CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
+  private final CoderRegistry coderRegistry = CoderRegistry.createDefault();
 
   public BeamFlinkDataStreamAdapter() {
     this(PipelineOptionsFactory.create());

@@ -249,7 +249,7 @@ public class SerializableCoderTest implements Serializable {
   @Test
   public void testSerializableCoderProviderIsRegistered() throws Exception {
     assertThat(
-        CoderRegistry.createDefault(null).getCoder(AutoRegistration.class),
+        CoderRegistry.createDefault().getCoder(AutoRegistration.class),
         instanceOf(SerializableCoder.class));
   }
 

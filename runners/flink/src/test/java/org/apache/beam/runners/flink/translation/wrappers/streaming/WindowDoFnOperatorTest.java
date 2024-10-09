@@ -206,7 +206,7 @@ public class WindowDoFnOperatorTest {
             VarLongCoder.of(),
             AppliedCombineFn.withInputCoder(
                 Sum.ofLongs(),
-                CoderRegistry.createDefault(null),
+                CoderRegistry.createDefault(),
                 KvCoder.of(VarLongCoder.of(), VarLongCoder.of())));
 
     Coder<IntervalWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();

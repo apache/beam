@@ -109,7 +109,7 @@ public class DefaultCoderTest {
 
   @Test
   public void testCodersWithoutComponents() throws Exception {
-    CoderRegistry registry = CoderRegistry.createDefault(null);
+    CoderRegistry registry = CoderRegistry.createDefault();
     registry.registerCoderProvider(new DefaultCoderProvider());
     assertThat(registry.getCoder(AvroRecord.class), instanceOf(MockDefaultCoder.class));
     assertThat(registry.getCoder(SerializableRecord.class), instanceOf(SerializableCoder.class));
@@ -120,7 +120,7 @@ public class DefaultCoderTest {
 
   @Test
   public void testDefaultCoderInCollection() throws Exception {
-    CoderRegistry registry = CoderRegistry.createDefault(null);
+    CoderRegistry registry = CoderRegistry.createDefault();
     registry.registerCoderProvider(new DefaultCoderProvider());
     Coder<List<AvroRecord>> avroRecordCoder =
         registry.getCoder(new TypeDescriptor<List<AvroRecord>>() {});

@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 /** Tests for Sum. */
 @RunWith(JUnit4.class)
 public class SumTest {
-  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault(null);
+  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   @Test
   public void testSumGetNames() {

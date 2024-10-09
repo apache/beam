@@ -93,8 +93,7 @@ public class VarianceFnTest {
 
   @Test
   public void testCreatesAccumulatorCoder() {
-    assertNotNull(
-        varianceFn.getAccumulatorCoder(CoderRegistry.createDefault(null), VarIntCoder.of()));
+    assertNotNull(varianceFn.getAccumulatorCoder(CoderRegistry.createDefault(), VarIntCoder.of()));
   }
 
   @Test

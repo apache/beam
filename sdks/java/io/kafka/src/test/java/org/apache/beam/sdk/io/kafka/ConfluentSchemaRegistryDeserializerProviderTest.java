@@ -44,7 +44,7 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     String schemaRegistryUrl = "mock://my-scope-name";
     String subject = "mytopic";
     SchemaRegistryClient mockRegistryClient = mockSchemaRegistryClient(schemaRegistryUrl, subject);
-    CoderRegistry coderRegistry = CoderRegistry.createDefault(null);
+    CoderRegistry coderRegistry = CoderRegistry.createDefault();
 
     AvroCoder<Object> coderV0 =
         (AvroCoder<Object>)

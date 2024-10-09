@@ -41,7 +41,7 @@ public class LocalDeserializerProviderTest {
 
   @Test
   public void testInferKeyCoder() {
-    CoderRegistry registry = CoderRegistry.createDefault(null);
+    CoderRegistry registry = CoderRegistry.createDefault();
     assertTrue(
         LocalDeserializerProvider.of(LongDeserializer.class)
                 .getNullableCoder(registry)
@@ -68,7 +68,7 @@ public class LocalDeserializerProviderTest {
   public void testInferKeyCoderFailure() throws Exception {
     cannotInferException.expect(RuntimeException.class);
 
-    CoderRegistry registry = CoderRegistry.createDefault(null);
+    CoderRegistry registry = CoderRegistry.createDefault();
     LocalDeserializerProvider.of(NonInferableObjectDeserializer.class).getCoder(registry);
   }
 

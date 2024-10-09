@@ -535,7 +535,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
   public void testSessionsCombine() throws Exception {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new SumLongs();
-    CoderRegistry registry = CoderRegistry.createDefault(null);
+    CoderRegistry registry = CoderRegistry.createDefault();
 
     AppliedCombineFn<String, Long, ?, Long> appliedCombineFn =
         AppliedCombineFn.withInputCoder(

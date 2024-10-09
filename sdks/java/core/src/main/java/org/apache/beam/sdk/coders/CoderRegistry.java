@@ -201,6 +201,11 @@ public class CoderRegistry {
     return new CoderRegistry(schemaRegistry);
   }
 
+  /** Backwards compatible version of createDefault. */
+  public static CoderRegistry createDefault() {
+    return new CoderRegistry(null);
+  }
+
   private CoderRegistry(@Nullable SchemaRegistry schemaRegistry) {
     this.schemaRegistry = schemaRegistry;
     coderProviders = new ArrayDeque<>(REGISTERED_CODER_FACTORIES);
