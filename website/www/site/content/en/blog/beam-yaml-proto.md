@@ -41,7 +41,7 @@ aspect of the pipeline configuration.
 *   **Reusability:** It is much simpler to reuse the same components across different pipelines.
 *   **Maintainability:** It simplifies pipeline maintenance and updates.
 
-The following template shows an example of reading events from a [Kafka](https://kafka.apache.org/intro) topic and 
+The following template shows an example of reading events from a [Kafka](https://kafka.apache.org/intro) topic and
 writing them into [BigQuery](https://cloud.google.com/bigquery?hl=en).
 
 ```yaml
