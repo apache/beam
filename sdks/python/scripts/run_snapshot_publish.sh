@@ -30,8 +30,10 @@ DEP_SNAPSHOT_FILE_NAME="beam-py-requirements-$time.txt"
 # and located under Gradle build directory.
 cd $WORKSPACE/sdks/python/build
 
-# Rename the file to be apache-beam-{VERSION}-{datetime}.tar.gz
-for file in "apache-beam-$VERSION*.tar.gz"; do
+# Rename the file to be apache_beam-{VERSION}-{datetime}.tar.gz
+# Notice that the distribution name of beam has been normalized as "apache_beam"
+# since setuptools 69.3.0.
+for file in "apache_beam-$VERSION*.tar.gz"; do
   mv $file $SNAPSHOT
 done
 
