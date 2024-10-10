@@ -18,6 +18,7 @@ package internal
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -438,11 +439,13 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 			t := comps.GetTransforms()[link.Transform]
 
 			var sis map[string]*pipepb.SideInput
-			if t.GetSpec().GetUrn() == urns.TransformParDo {
+			switch t.GetSpec().GetUrn() {
+			case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
 				pardo := &pipepb.ParDoPayload{}
 				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
 				}
+				stg.finalize = pardo.RequestsFinalization
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
 				}
@@ -485,7 +488,17 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		// Quick check that this is lead by a flatten node, and that it's handled runner side.
 		t := comps.GetTransforms()[stg.transforms[0]]
 		if !(t.GetSpec().GetUrn() == urns.TransformFlatten && t.GetEnvironmentId() == "") {
-			return fmt.Errorf("expected runner flatten node, but wasn't: %v -- %v", stg.transforms, mainInputs)
+			formatMap := func(in map[string]string) string {
+				var b strings.Builder
+				for k, v := range in {
+					b.WriteString(k)
+					b.WriteString(" : ")
+					b.WriteString(v)
+					b.WriteString("\n\t")
+				}
+				return b.String()
+			}
+			return fmt.Errorf("stage requires multiple parallel inputs but wasn't a flatten:\n\ttransforms\n\t%v\n\tmain inputs\n\t%v\n\tsidinputs\n\t%v", strings.Join(stg.transforms, "\n\t\t"), formatMap(mainInputs), sideInputs)
 		}
 	}
 	return nil

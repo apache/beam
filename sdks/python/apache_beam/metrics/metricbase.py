@@ -38,7 +38,13 @@ from typing import Dict
 from typing import Optional
 
 __all__ = [
-    'Metric', 'Counter', 'Distribution', 'Gauge', 'Histogram', 'MetricName'
+    'Metric',
+    'Counter',
+    'Distribution',
+    'Gauge',
+    'StringSet',
+    'Histogram',
+    'MetricName'
 ]
 
 
@@ -135,6 +141,14 @@ class Gauge(Metric):
   Allows tracking of the latest value of a variable during pipeline
   execution."""
   def set(self, value):
+    raise NotImplementedError
+
+
+class StringSet(Metric):
+  """StringSet Metric interface.
+
+  Reports set of unique string values during pipeline execution.."""
+  def add(self, value):
     raise NotImplementedError
 
 

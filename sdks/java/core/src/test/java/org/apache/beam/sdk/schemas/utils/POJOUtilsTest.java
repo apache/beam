@@ -51,6 +51,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -69,20 +70,25 @@ public class POJOUtilsTest {
   @Test
   public void testNullables() {
     Schema schema =
-        POJOUtils.schemaFromPojoClass(POJOWithNullables.class, JavaFieldTypeSupplier.INSTANCE);
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<POJOWithNullables>() {}, JavaFieldTypeSupplier.INSTANCE);
     assertTrue(schema.getField("str").getType().getNullable());
     assertFalse(schema.getField("anInt").getType().getNullable());
   }
 
   @Test
   public void testSimplePOJO() {
-    Schema schema = POJOUtils.schemaFromPojoClass(SimplePOJO.class, JavaFieldTypeSupplier.INSTANCE);
+    Schema schema =
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<SimplePOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     assertEquals(SIMPLE_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedPOJO() {
-    Schema schema = POJOUtils.schemaFromPojoClass(NestedPOJO.class, JavaFieldTypeSupplier.INSTANCE);
+    Schema schema =
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<NestedPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_POJO_SCHEMA, schema);
   }
 
@@ -90,42 +96,48 @@ public class POJOUtilsTest {
   public void testNestedPOJOWithSimplePOJO() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            TestPOJOs.NestedPOJOWithSimplePOJO.class, JavaFieldTypeSupplier.INSTANCE);
+            new TypeDescriptor<TestPOJOs.NestedPOJOWithSimplePOJO>() {},
+            JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveArray() {
     Schema schema =
-        POJOUtils.schemaFromPojoClass(PrimitiveArrayPOJO.class, JavaFieldTypeSupplier.INSTANCE);
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<PrimitiveArrayPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_ARRAY_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedArray() {
     Schema schema =
-        POJOUtils.schemaFromPojoClass(NestedArrayPOJO.class, JavaFieldTypeSupplier.INSTANCE);
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<NestedArrayPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_ARRAY_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedCollection() {
     Schema schema =
-        POJOUtils.schemaFromPojoClass(NestedCollectionPOJO.class, JavaFieldTypeSupplier.INSTANCE);
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<NestedCollectionPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_COLLECTION_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveMap() {
     Schema schema =
-        POJOUtils.schemaFromPojoClass(PrimitiveMapPOJO.class, JavaFieldTypeSupplier.INSTANCE);
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<PrimitiveMapPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_MAP_POJO_SCHEMA, schema);
   }
 
   @Test
   public void testNestedMap() {
     Schema schema =
-        POJOUtils.schemaFromPojoClass(NestedMapPOJO.class, JavaFieldTypeSupplier.INSTANCE);
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<NestedMapPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_MAP_POJO_SCHEMA, schema);
   }
 
@@ -148,7 +160,7 @@ public class POJOUtilsTest {
 
     List<FieldValueGetter> getters =
         POJOUtils.getGetters(
-            SimplePOJO.class,
+            new TypeDescriptor<SimplePOJO>() {},
             SIMPLE_POJO_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -174,7 +186,7 @@ public class POJOUtilsTest {
     SimplePOJO simplePojo = new SimplePOJO();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(
-            SimplePOJO.class,
+            new TypeDescriptor<SimplePOJO>() {},
             SIMPLE_POJO_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -213,7 +225,7 @@ public class POJOUtilsTest {
 
     List<FieldValueGetter> getters =
         POJOUtils.getGetters(
-            POJOWithBoxedFields.class,
+            new TypeDescriptor<POJOWithBoxedFields>() {},
             POJO_WITH_BOXED_FIELDS_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -229,7 +241,7 @@ public class POJOUtilsTest {
     POJOWithBoxedFields pojo = new POJOWithBoxedFields();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(
-            POJOWithBoxedFields.class,
+            new TypeDescriptor<POJOWithBoxedFields>() {},
             POJO_WITH_BOXED_FIELDS_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -252,7 +264,7 @@ public class POJOUtilsTest {
     POJOWithByteArray pojo = new POJOWithByteArray();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(
-            POJOWithByteArray.class,
+            new TypeDescriptor<POJOWithByteArray>() {},
             POJO_WITH_BYTE_ARRAY_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());

@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -80,19 +81,24 @@ func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[str
 	return wvcID, nil
 }
 
-// makeWindowCoders makes the coder pair but behavior is ultimately determined by the strategy's windowFn.
-func makeWindowCoders(wc *pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
+// makeWindowCoders categorizes and provides the encoder, decoder pair for the type of window.
+func makeWindowCoders(wc *pipepb.Coder) (engine.WinCoderType, exec.WindowDecoder, exec.WindowEncoder) {
 	var cwc *coder.WindowCoder
+	var winCoder engine.WinCoderType
 	switch wc.GetSpec().GetUrn() {
 	case urns.CoderGlobalWindow:
+		winCoder = engine.WinGlobal
 		cwc = coder.NewGlobalWindow()
 	case urns.CoderIntervalWindow:
+		winCoder = engine.WinInterval
 		cwc = coder.NewIntervalWindow()
 	default:
+		// TODO(https://github.com/apache/beam/issues/31921): Support custom windowfns instead of panicking here.
+		winCoder = engine.WinCustom
 		slog.LogAttrs(context.TODO(), slog.LevelError, "makeWindowCoders: unknown urn", slog.String("urn", wc.GetSpec().GetUrn()))
 		panic(fmt.Sprintf("makeWindowCoders, unknown urn: %v", prototext.Format(wc)))
 	}
-	return exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
+	return winCoder, exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
 }
 
 // lpUnknownCoders takes a coder, and populates coders with any new coders

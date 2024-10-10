@@ -49,6 +49,9 @@ public interface MessageReceiver {
    */
   BytesXMLMessage receive() throws IOException;
 
+  /** Closes the message receiver. */
+  void close();
+
   /**
    * Test clients may return {@literal true} to signal that all expected messages have been pulled
    * and the test may complete. Real clients should always return {@literal false}.

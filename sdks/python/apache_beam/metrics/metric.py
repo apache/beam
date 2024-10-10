@@ -28,6 +28,7 @@ and displayed as part of their pipeline execution.
 # mypy: disallow-untyped-defs
 
 import logging
+import re
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
@@ -39,17 +40,19 @@ from typing import Type
 from typing import Union
 
 from apache_beam.metrics import cells
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.metricbase import StringSet
 
 if TYPE_CHECKING:
   from apache_beam.metrics.execution import MetricKey
   from apache_beam.metrics.metricbase import Metric
 
-__all__ = ['Metrics', 'MetricsFilter']
+__all__ = ['Metrics', 'MetricsFilter', 'Lineage']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,6 +118,23 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingGauge(MetricName(namespace, name))
 
+  @staticmethod
+  def string_set(
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingStringSet':
+    """Obtains or creates a String set metric.
+
+    String set metrics are restricted to string values.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A StringSet object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingStringSet(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
     def __init__(
@@ -138,11 +158,18 @@ class Metrics(object):
       super().__init__(metric_name)
       self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
 
+  class DelegatingStringSet(StringSet):
+    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    def __init__(self, metric_name: MetricName) -> None:
+      super().__init__(metric_name)
+      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[assignment]
+
 
 class MetricResults(object):
   COUNTERS = "counters"
   DISTRIBUTIONS = "distributions"
   GAUGES = "gauges"
+  STRINGSETS = "string_sets"
 
   @staticmethod
   def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
@@ -198,7 +225,7 @@ class MetricResults(object):
   def query(
       self,
       filter: Optional['MetricsFilter'] = None
-  ) -> Dict[str, List['MetricResults']]:
+  ) -> Dict[str, List['MetricResult']]:
     """Queries the runner for existing user metrics that match the filter.
 
     It should return a dictionary, with lists of each kind of metric, and
@@ -207,11 +234,13 @@ class MetricResults(object):
         {
           "counters": [MetricResult(counter_key, committed, attempted), ...],
           "distributions": [MetricResult(dist_key, committed, attempted), ...],
-          "gauges": []  // Empty list if nothing matched the filter.
+          "gauges": [],  // Empty list if nothing matched the filter.
+          "string_sets": [] [MetricResult(string_set_key, committed, attempted),
+                            ...]
         }
 
     The committed / attempted values are DistributionResult / GaugeResult / int
-    objects.
+    / set objects.
     """
     raise NotImplementedError
 
@@ -278,3 +307,104 @@ class MetricsFilter(object):
 
     self._steps.update(steps)
     return self
+
+
+class Lineage:
+  """Standard collection of metrics used to record source and sinks information
+  for lineage tracking."""
+
+  LINEAGE_NAMESPACE = "lineage"
+  SOURCE = "sources"
+  SINK = "sinks"
+
+  _METRICS = {
+      SOURCE: Metrics.string_set(LINEAGE_NAMESPACE, SOURCE),
+      SINK: Metrics.string_set(LINEAGE_NAMESPACE, SINK)
+  }
+
+  def __init__(self, label: str) -> None:
+    """Create a Lineage with valid label (:data:`~Lineage.SOURCE` or
+    :data:`~Lineage.SINK`)
+    """
+    self.metric = Lineage._METRICS[label]
+
+  @classmethod
+  def sources(cls) -> 'Lineage':
+    return cls(Lineage.SOURCE)
+
+  @classmethod
+  def sinks(cls) -> 'Lineage':
+    return cls(Lineage.SINK)
+
+  _RESERVED_CHARS = re.compile(r'[:\s.]')
+
+  @staticmethod
+  def wrap_segment(segment: str) -> str:
+    """Wrap segment to valid segment name.
+
+    Specifically, If there are reserved chars (colon, whitespace, dot), escape
+    with backtick. If the segment is already wrapped, return the original.
+    """
+    if segment.startswith("`") and segment.endswith("`"): return segment
+    if Lineage._RESERVED_CHARS.search(segment):
+      return "`" + segment + "`"
+    return segment
+
+  @staticmethod
+  def get_fq_name(
+      system: str, *segments: str, subtype: Optional[str] = None) -> str:
+    """Assemble fully qualified name
+    (`FQN <https://cloud.google.com/data-catalog/docs/fully-qualified-names>`_).
+    Format:
+
+    - `system:segment1.segment2`
+    - `system:subtype:segment1.segment2`
+    - `system:`segment1.with.dots:colons`.segment2`
+
+    This helper method is for internal and testing usage only.
+    """
+    segs = '.'.join(map(Lineage.wrap_segment, segments))
+    if subtype:
+      return ':'.join((system, subtype, segs))
+    return ':'.join((system, segs))
+
+  def add(
+      self, system: str, *segments: str, subtype: Optional[str] = None) -> None:
+    """
+    Adds the given details as Lineage.
+
+    For asset level lineage the resource location should be specified as
+    Dataplex FQN, see
+    https://cloud.google.com/data-catalog/docs/fully-qualified-names
+
+    Example of adding FQN components:
+
+    - `add("system", "segment1", "segment2")`
+    - `add("system", "segment1", "segment2", subtype="subtype")`
+
+    Example of adding a FQN:
+
+    - `add("system:segment1.segment2")`
+    - `add("system:subtype:segment1.segment2")`
+
+    The first positional argument serves as system, if full segments are
+    provided, or the full FQN if it is provided as a single argument.
+    """
+    system_or_details = system
+    if len(segments) == 0 and subtype is None:
+      self.metric.add(system_or_details)
+    else:
+      self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
+
+  @staticmethod
+  def query(results: MetricResults, label: str) -> Set[str]:
+    if not label in Lineage._METRICS:
+      raise ValueError("Label {} does not exist for Lineage", label)
+    response = results.query(
+        MetricsFilter().with_namespace(Lineage.LINEAGE_NAMESPACE).with_name(
+            label))[MetricResults.STRINGSETS]
+    result = set()
+    for metric in response:
+      result.update(metric.committed)
+      result.update(metric.attempted)
+    return result

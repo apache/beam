@@ -26,9 +26,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * queue property and mandates the implementation of a create() method in concrete subclasses.
  */
 public abstract class SessionServiceFactory implements Serializable {
-
   /**
-   * A reference to a Queue object. This is set when the pipline is constructed (in the {@link
+   * A reference to a Queue object. This is set when the pipeline is constructed (in the {@link
    * org.apache.beam.sdk.io.solace.SolaceIO.Read#expand(org.apache.beam.sdk.values.PBegin)} method).
    * This could be used to associate the created SessionService with a specific queue for message
    * handling.

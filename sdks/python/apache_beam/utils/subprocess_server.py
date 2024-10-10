@@ -385,7 +385,8 @@ class JavaJarServer(SubprocessServer):
           os.rename(cached_jar + '.tmp', cached_jar)
         except URLError as e:
           raise RuntimeError(
-              'Unable to fetch remote job server jar at %s: %s' % (url, e))
+              f'Unable to fetch remote job server jar at {url}: {e}. If no '
+              f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod

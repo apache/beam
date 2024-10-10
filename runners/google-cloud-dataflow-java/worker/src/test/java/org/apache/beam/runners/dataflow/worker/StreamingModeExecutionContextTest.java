@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -58,10 +59,15 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfi
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -82,7 +88,6 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingModeExecutionContext}. */
@@ -105,6 +110,8 @@ public class StreamingModeExecutionContextTest {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    StreamingGlobalConfigHandle globalConfigHandle =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
         new StreamingModeExecutionContext(
@@ -125,7 +132,9 @@ public class StreamingModeExecutionContextTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -133,9 +142,7 @@ public class StreamingModeExecutionContextTest {
         workItem,
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID,
-            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-            ignored -> {}),
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -241,8 +248,8 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void extractMsecCounters() {
-    MetricsContainer metricsContainer = Mockito.mock(MetricsContainer.class);
-    ProfileScope profileScope = Mockito.mock(ProfileScope.class);
+    MetricsContainer metricsContainer = mock(MetricsContainer.class);
+    ProfileScope profileScope = mock(ProfileScope.class);
     ExecutionState start1 =
         executionContext.executionStateRegistry.getState(
             NameContext.create("stage", "original-1", "system-1", "user-1"),

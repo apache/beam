@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -61,7 +62,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -311,7 +311,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       Schema schema =
           generateSchemaFromFieldValues(
               kwargsMap.values().toArray(), kwargsMap.keySet().toArray(new String[] {}));
-      schema.setUUID(UUID.randomUUID());
       return Row.withSchema(schema)
           .addValues(convertComplexTypesToRows(kwargsMap.values().toArray()))
           .build();
@@ -367,7 +366,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   @VisibleForTesting
   Row buildOrGetArgsRow() {
     Schema schema = generateSchemaFromFieldValues(argsArray, null);
-    schema.setUUID(UUID.randomUUID());
     Object[] convertedValues = convertComplexTypesToRows(argsArray);
     return Row.withSchema(schema).addValues(convertedValues).build();
   }
@@ -421,7 +419,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
     }
     Schema payloadSchema = schemaBuilder.build();
-    payloadSchema.setUUID(UUID.randomUUID());
     Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
     payloadRowBuilder.addValue(fullyQualifiedName);
     if (argsRow.getValues().size() > 0) {
@@ -499,7 +496,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           requirementsFile.deleteOnExit();
           try (Writer fout =
               new OutputStreamWriter(
-                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+                  new FileOutputStream(requirementsFile.getAbsolutePath()),
+                  StandardCharsets.UTF_8)) {
             for (String pkg : extraPackages) {
               fout.write(pkg);
               fout.write('\n');

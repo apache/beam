@@ -28,7 +28,7 @@ requires = [
     # Numpy headers
     "numpy>=1.14.3,<1.27", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
-    "cython==0.29.36",
+    "cython>=3.0,<4",
     ## deps for generating external transform wrappers:
     # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
     'pyyaml>=3.12,<7.0.0',

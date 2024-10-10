@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work;
 
 import java.util.Collection;
-import java.util.function.Consumer;
 import javax.annotation.CheckReturnValue;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -36,8 +35,6 @@ public interface WorkItemScheduler {
    * @param workItem {@link WorkItem} to be processed.
    * @param watermarks processing watermarks for the workItem.
    * @param processingContext for processing the workItem.
-   * @param ackWorkItemQueued Called after an attempt to queue the work item for processing. Used to
-   *     free up pending budget.
    * @param getWorkStreamLatencies Latencies per processing stage for the WorkItem for reporting
    *     back to Streaming Engine backend.
    */
@@ -45,6 +42,5 @@ public interface WorkItemScheduler {
       WorkItem workItem,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
-      Consumer<WorkItem> ackWorkItemQueued,
       Collection<LatencyAttribution> getWorkStreamLatencies);
 }

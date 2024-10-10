@@ -21,11 +21,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
-import java.time.DateTimeException;
-import java.time.Instant;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.collections.keyvalue.DefaultMapEntry;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,18 +35,19 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CsvIOParseHelpersTest {
 
-  /** Tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
+  /** Tests for {@link CsvIOParseHelpers#validateCsvFormat(CSVFormat)}. */
   @Test
   public void givenCSVFormatWithHeader_validates() {
     CSVFormat format = csvFormatWithHeader();
-    CsvIOParseHelpers.validate(format);
+    CsvIOParseHelpers.validateCsvFormat(format);
   }
 
   @Test
   public void givenCSVFormatWithNullHeader_throwsException() {
     CSVFormat format = csvFormat();
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals("Illegal class org.apache.commons.csv.CSVFormat: header is required", gotMessage);
   }
@@ -54,7 +56,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatWithEmptyHeader_throwsException() {
     CSVFormat format = csvFormat().withHeader();
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: header cannot be empty", gotMessage);
@@ -64,7 +67,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatWithHeaderContainingEmptyString_throwsException() {
     CSVFormat format = csvFormat().withHeader("", "bar");
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: column name is required", gotMessage);
@@ -74,7 +78,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatWithHeaderContainingNull_throwsException() {
     CSVFormat format = csvFormat().withHeader(null, "bar");
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: column name is required", gotMessage);
@@ -84,7 +89,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatThatAllowsMissingColumnNames_throwsException() {
     CSVFormat format = csvFormatWithHeader().withAllowMissingColumnNames(true);
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: cannot allow missing column names",
@@ -95,7 +101,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatThatIgnoresHeaderCase_throwsException() {
     CSVFormat format = csvFormatWithHeader().withIgnoreHeaderCase(true);
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: cannot ignore header case", gotMessage);
@@ -105,15 +112,147 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatThatAllowsDuplicateHeaderNames_throwsException() {
     CSVFormat format = csvFormatWithHeader().withAllowDuplicateHeaderNames(true);
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: cannot allow duplicate header names",
         gotMessage);
   }
 
-  /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
+  @Test
+  public void givenCSVFormatThatSkipsHeaderRecord_throwsException() {
+    CSVFormat format = csvFormatWithHeader().withSkipHeaderRecord(true);
+    String gotMessage =
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: cannot skip header record because the header is already accounted for",
+        gotMessage);
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#validateCsvFormat(CSVFormat)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
+
+  /** Tests for {@link CsvIOParseHelpers#validateCsvFormatWithSchema(CSVFormat, Schema)}. */
+  @Test
+  public void givenNullableSchemaFieldNotPresentInHeader_validates() {
+    CSVFormat format = csvFormat().withHeader("foo", "bar");
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("foo", Schema.FieldType.STRING),
+            Schema.Field.of("bar", Schema.FieldType.STRING),
+            Schema.Field.nullable("baz", Schema.FieldType.STRING));
+    CsvIOParseHelpers.validateCsvFormatWithSchema(format, schema);
+  }
+
+  @Test
+  public void givenRequiredSchemaFieldNotPresentInHeader_throwsException() {
+    CSVFormat format = csvFormat().withHeader("foo", "bar");
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("foo", Schema.FieldType.STRING),
+            Schema.Field.of("bar", Schema.FieldType.STRING),
+            Schema.Field.of("baz", Schema.FieldType.STRING));
+    String gotMessage =
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CsvIOParseHelpers.validateCsvFormatWithSchema(format, schema))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: required org.apache.beam.sdk.schemas.Schema field 'baz' not found in header",
+        gotMessage);
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#validateCsvFormatWithSchema(CSVFormat, Schema)}. */
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  /** Tests for {@link CsvIOParseHelpers#mapFieldPositions(CSVFormat, Schema)}. */
+  @Test
+  public void testHeaderWithComments() {
+    String[] comments = {"first line", "second line", "third line"};
+    Schema schema =
+        Schema.builder().addStringField("a_string").addStringField("another_string").build();
+    ImmutableMap<Integer, Schema.Field> want =
+        ImmutableMap.of(0, schema.getField("a_string"), 1, schema.getField("another_string"));
+    Map<Integer, Schema.Field> got =
+        CsvIOParseHelpers.mapFieldPositions(
+            csvFormat()
+                .withHeader("a_string", "another_string")
+                .withHeaderComments((Object) comments),
+            schema);
+    assertEquals(want, got);
+  }
+
+  @Test
+  public void givenMatchingHeaderAndSchemaField_mapsPositions() {
+    Schema schema =
+        Schema.builder()
+            .addStringField("a_string")
+            .addDoubleField("a_double")
+            .addInt32Field("an_integer")
+            .build();
+    ImmutableMap<Integer, Schema.Field> want =
+        ImmutableMap.of(
+            0,
+            schema.getField("a_string"),
+            1,
+            schema.getField("an_integer"),
+            2,
+            schema.getField("a_double"));
+    Map<Integer, Schema.Field> got =
+        CsvIOParseHelpers.mapFieldPositions(
+            csvFormat().withHeader("a_string", "an_integer", "a_double"), schema);
+    assertEquals(want, got);
+  }
+
+  @Test
+  public void givenSchemaContainsNullableFieldTypes() {
+    Schema schema =
+        Schema.builder()
+            .addNullableStringField("a_string")
+            .addDoubleField("a_double")
+            .addInt32Field("an_integer")
+            .addDateTimeField("a_datetime")
+            .addNullableStringField("another_string")
+            .build();
+    ImmutableMap<Integer, Schema.Field> want =
+        ImmutableMap.of(
+            0,
+            schema.getField("an_integer"),
+            1,
+            schema.getField("a_double"),
+            2,
+            schema.getField("a_datetime"));
+    Map<Integer, Schema.Field> got =
+        CsvIOParseHelpers.mapFieldPositions(
+            csvFormat().withHeader("an_integer", "a_double", "a_datetime"), schema);
+    assertEquals(want, got);
+  }
+
+  @Test
+  public void givenNonNullableHeaderAndSchemaFieldMismatch_throws() {
+    Schema schema =
+        Schema.builder()
+            .addStringField("another_string")
+            .addInt32Field("an_integer")
+            .addStringField("a_string")
+            .build();
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CsvIOParseHelpers.mapFieldPositions(
+                    csvFormat().withHeader("an_integer", "a_string"), schema));
+    assertEquals(
+        "header does not contain required class org.apache.beam.sdk.schemas.Schema field: "
+            + schema.getField("another_string").getName(),
+        e.getMessage());
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#mapFieldPositions(CSVFormat, Schema)} */
+
+  ////////////////////////////////////////////////////////////////////////////////////////////
 
   /** Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   @Test
@@ -242,20 +381,20 @@ public class CsvIOParseHelpersTest {
   }
 
   @Test
-  public void givenDatetimeWithSurroundingSpaces() throws DateTimeException {
+  public void givenDatetimeWithSurroundingSpaces() {
     Instant datetime = Instant.parse("1234-01-23T10:00:05.000Z");
     DefaultMapEntry cellToExpectedValue =
         new DefaultMapEntry("   1234-01-23T10:00:05.000Z   ", datetime);
     Schema schema =
         Schema.builder().addDateTimeField("a_datetime").addStringField("a_string").build();
-    DateTimeException e =
+    IllegalArgumentException e =
         assertThrows(
-            DateTimeException.class,
+            IllegalArgumentException.class,
             () ->
                 CsvIOParseHelpers.parseCell(
                     cellToExpectedValue.getKey().toString(), schema.getField("a_datetime")));
     assertEquals(
-        "Text " + "'   1234-01-23T10:00:05.000Z   '" + " could not be parsed at index 0",
+        "Invalid format: \"   1234-01-23T10:00:05.000Z   \" field a_datetime was received -- type mismatch",
         e.getMessage());
   }
 

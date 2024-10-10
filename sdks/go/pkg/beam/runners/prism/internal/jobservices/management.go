@@ -73,12 +73,14 @@ func (e *joinError) Error() string {
 	return string(b)
 }
 
-func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jobpb.PrepareJobResponse, error) {
+func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *jobpb.PrepareJobResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Since jobs execute in the background, they should not be tied to a request's context.
 	rootCtx, cancelFn := context.WithCancelCause(context.Background())
+	// Wrap in a Once so it will only be invoked a single time for the job.
+	terminalOnceWrap := sync.OnceFunc(s.jobTerminated)
 	job := &Job{
 		key:        s.nextId(),
 		Pipeline:   req.GetPipeline(),
@@ -86,9 +88,15 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		options:    req.GetPipelineOptions(),
 		streamCond: sync.NewCond(&sync.Mutex{}),
 		RootCtx:    rootCtx,
-		CancelFn:   cancelFn,
-
+		CancelFn: func(err error) {
+			cancelFn(err)
+			terminalOnceWrap()
+		},
 		artifactEndpoint: s.Endpoint(),
+	}
+	// Stop the idle timer when a new job appears.
+	if idleTimer := s.idleTimer.Load(); idleTimer != nil {
+		idleTimer.Stop()
 	}
 
 	// Queue initial state of the job.
@@ -155,24 +163,37 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		case urns.TransformParDo:
 			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pardo); err != nil {
-				return nil, fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				wrapped := fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				job.Failed(wrapped)
+				return nil, wrapped
 			}
+
+			isStateful := false
 
 			// Validate all the state features
 			for _, spec := range pardo.GetStateSpecs() {
+				isStateful = true
 				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
+				isStateful = true
 				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
 
 			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
 
+			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
+			if pardo.GetRestrictionCoderId() != "" && isStateful {
+				check("Splittable+Stateful DoFn", "See https://github.com/apache/beam/issues/32139 for information.", "")
+			}
+
 		case urns.TransformTestStream:
 			var testStream pipepb.TestStreamPayload
 			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &testStream); err != nil {
-				return nil, fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				wrapped := fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+				job.Failed(wrapped)
+				return nil, wrapped
 			}
 
 			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.
@@ -180,12 +201,21 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 
 		default:
 			// Composites can often have some unknown urn, permit those.
-			// Eg. The Python SDK has urns "beam:transform:generic_composite:v1", "beam:transform:pickled_python:v1", as well as the deprecated "beam:transform:read:v1",
-			// but they are composites. Since we don't do anything special with the high level, we simply use their internal subgraph.
+			// Eg. The Python SDK has urns "beam:transform:generic_composite:v1", "beam:transform:pickled_python:v1",
+			// as well as the deprecated "beam:transform:read:v1", but they are composites.
+			// We don't do anything special with these high level composites, but
+			// we may be dealing with their internal subgraph already, so we ignore this transform.
 			if len(t.GetSubtransforms()) > 0 {
 				continue
 			}
-			// But if not, fail.
+			// This may be an "empty" composite without subtransforms or a payload.
+			// These just do PCollection manipulation which is already represented in the Pipeline graph.
+			// Simply ignore the composite at this stage, since the runner does nothing with them.
+			if len(t.GetSpec().GetPayload()) == 0 {
+				continue
+			}
+			// Otherwise fail.
+			slog.Warn("unknown transform, with payload", "urn", urn, "name", t.GetUniqueName(), "payload", t.GetSpec().GetPayload())
 			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
 		}
 	}

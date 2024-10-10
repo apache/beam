@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATASTORE_EMULATOR_VERSION: '423.0.0'
-      PYTHON_VERSION: '3.8'
+      PYTHON_VERSION: '3.9'
       JAVA_VERSION: '11'
     steps:
       - name: Check out the repo
@@ -60,7 +60,7 @@ jobs:
           sudo apt-get install sbt --yes
           sudo wget https://codeload.github.com/spotify/scio.g8/zip/7c1ba7c1651dfd70976028842e721da4107c0d6d -O scio.g8.zip && unzip scio.g8.zip && mv scio.g8-7c1ba7c1651dfd70976028842e721da4107c0d6d /opt/scio.g8
       - name: Set up Cloud SDK and its components
-        uses: google-github-actions/setup-gcloud@v0
+        uses: google-github-actions/setup-gcloud@v2
         with:
           install_components: 'beta,cloud-datastore-emulator'
           version: '${{ env.DATASTORE_EMULATOR_VERSION }}'

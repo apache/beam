@@ -39,16 +39,21 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.BiConsumer;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -82,6 +87,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -1118,6 +1124,20 @@ public class BigtableIO {
           .build();
     }
 
+    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    @Deprecated
+    public Write withThrottlingTargetMs(int throttlingTargetMs) {
+      LOG.warn("withThrottlingTargetMs has been removed and does not have effect.");
+      return this;
+    }
+
+    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    @Deprecated
+    public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
+      LOG.warn("withThrottlingReportTargetMs has been removed and does not have an effect.");
+      return this;
+    }
+
     public Write withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
@@ -1282,11 +1302,14 @@ public class BigtableIO {
     private final BigtableServiceFactory.ConfigId id;
     private final Coder<KV<ByteString, Iterable<Mutation>>> inputCoder;
     private final BadRecordRouter badRecordRouter;
-
-    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
+    private transient ConcurrentLinkedQueue<KV<BigtableWriteException, BoundedWindow>> badRecords =
+        null;
+    private transient boolean reportedLineage;
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
+
+    private transient Queue<CompletableFuture<?>> outstandingWrites;
 
     BigtableWriterFn(
         BigtableServiceFactory factory,
@@ -1309,25 +1332,48 @@ public class BigtableIO {
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
 
-      if (bigtableWriter == null) {
+      // Ideally this would be in @Setup, but we need access to PipelineOptions and there is no easy
+      // way to plumb it to @Setup.
+      if (serviceEntry == null) {
         serviceEntry =
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+      }
+
+      if (bigtableWriter == null) {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
-      badRecords = new HashSet<>();
+      badRecords = new ConcurrentLinkedQueue<>();
+      outstandingWrites = new ArrayDeque<>();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      drainCompletedElementFutures();
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
-      bigtableWriter.writeRecord(record).whenComplete(handleMutationException(record, window));
+      CompletableFuture<Void> f =
+          bigtableWriter
+              .writeRecord(record)
+              // transform the next CompletionStage to have its own status
+              // this allows us to capture any unexpected errors in the handler
+              .handle(handleMutationException(record, window));
+      outstandingWrites.add(f);
       ++recordsWritten;
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
     }
 
-    private BiConsumer<MutateRowResponse, Throwable> handleMutationException(
+    private void drainCompletedElementFutures() throws ExecutionException, InterruptedException {
+      // burn down the completed futures to avoid unbounded memory growth
+      for (Future<?> f = outstandingWrites.peek();
+          f != null && f.isDone();
+          f = outstandingWrites.peek()) {
+        // Also ensure that errors in the handler get bubbled up
+        outstandingWrites.remove().get();
+      }
+    }
+
+    private BiFunction<MutateRowResponse, Throwable, Void> handleMutationException(
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
@@ -1337,6 +1383,7 @@ public class BigtableIO {
             failures.add(new BigtableWriteException(record, exception));
           }
         }
+        return null;
       };
     }
 
@@ -1344,7 +1391,7 @@ public class BigtableIO {
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       try {
         bigtableWriter.writeSingleRecord(record);
-      } catch (ApiException e) {
+      } catch (Throwable e) {
         if (isDataException(e)) {
           // if we get another NotFoundException, we know this is the bad record.
           badRecords.add(KV.of(new BigtableWriteException(record, e), window));
@@ -1370,52 +1417,60 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      try {
-
-        if (bigtableWriter != null) {
-          try {
-            bigtableWriter.close();
-          } catch (IOException e) {
-            // If the writer fails due to a batching exception, but no failures were detected
-            // it means that error handling was enabled, and that errors were detected and routed
-            // to the error queue. Bigtable will successfully write other failures in the batch,
-            // so this exception should be ignored
-            if (!(e.getCause() instanceof BatchingException)) {
-              throw e;
-            }
-          }
-          bigtableWriter = null;
-        }
-
-        for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
-          try {
-            badRecordRouter.route(
-                c,
-                badRecord.getKey().getRecord(),
-                inputCoder,
-                (Exception) badRecord.getKey().getCause(),
-                "Failed to write malformed mutation to Bigtable",
-                badRecord.getValue());
-          } catch (Exception e) {
-            failures.add(badRecord.getKey());
+      if (bigtableWriter != null) {
+        try {
+          bigtableWriter.close();
+        } catch (IOException e) {
+          // If the writer fails due to a batching exception, but no failures were detected
+          // it means that error handling was enabled, and that errors were detected and routed
+          // to the error queue. Bigtable will successfully write other failures in the batch,
+          // so this exception should be ignored
+          if (!(e.getCause() instanceof BatchingException)) {
+            throw e;
           }
         }
 
-        checkForFailures();
-
-        LOG.debug("Wrote {} records", recordsWritten);
-
-        for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
-          c.output(
-              BigtableWriteResult.create(entry.getValue()),
-              entry.getKey().maxTimestamp(),
-              entry.getKey());
+        // Sanity check: ensure that all element futures are resolved. This should be already be the
+        // case once bigtableWriter.close() finishes.
+        try {
+          CompletableFuture.allOf(outstandingWrites.toArray(new CompletableFuture<?>[0]))
+              .get(1, TimeUnit.MINUTES);
+        } catch (TimeoutException e) {
+          throw new IllegalStateException(
+              "Unexpected timeout waiting for element future to resolve after the writer was closed",
+              e);
         }
-      } finally {
-        if (serviceEntry != null) {
-          serviceEntry.close();
-          serviceEntry = null;
+
+        if (!reportedLineage) {
+          bigtableWriter.reportLineage();
+          reportedLineage = true;
         }
+        bigtableWriter = null;
+      }
+
+      for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
+        try {
+          badRecordRouter.route(
+              c,
+              badRecord.getKey().getRecord(),
+              inputCoder,
+              (Exception) badRecord.getKey().getCause(),
+              "Failed to write malformed mutation to Bigtable",
+              badRecord.getValue());
+        } catch (Exception e) {
+          failures.add(badRecord.getKey());
+        }
+      }
+
+      checkForFailures();
+
+      LOG.debug("Wrote {} records", recordsWritten);
+
+      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+        c.output(
+            BigtableWriteResult.create(entry.getValue()),
+            entry.getKey().maxTimestamp(),
+            entry.getKey());
       }
     }
 
@@ -1516,6 +1571,7 @@ public class BigtableIO {
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
+    private transient boolean reportedLineage;
 
     private final BigtableServiceFactory.ConfigId configId;
 
@@ -1893,6 +1949,13 @@ public class BigtableIO {
     public ValueProvider<String> getTableId() {
       return readOptions.getTableId();
     }
+
+    void reportLineageOnce(BigtableService.Reader reader) {
+      if (!reportedLineage) {
+        reader.reportLineage();
+        reportedLineage = true;
+      }
+    }
   }
 
   private static class BigtableReader extends BoundedReader<Row> {
@@ -1923,6 +1986,7 @@ public class BigtableIO {
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
+        source.reportLineageOnce(reader);
       }
       return hasRecord;
     }
@@ -2015,7 +2079,7 @@ public class BigtableIO {
       super(
           String.format(
               "Error mutating row %s with mutations %s",
-              record.getKey().toStringUtf8(), record.getValue()),
+              record.getKey().toStringUtf8(), StringUtils.leftTruncate(record.getValue(), 100)),
           cause);
       this.record = record;
     }

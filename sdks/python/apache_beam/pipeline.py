@@ -243,6 +243,7 @@ class Pipeline(HasDisplayData):
     self.contains_external_transforms = False
 
     self._display_data = display_data or {}
+    self._error_handlers = []
 
   def display_data(self):
     # type: () -> Dict[str, Any]
@@ -257,6 +258,9 @@ class Pipeline(HasDisplayData):
   def allow_unsafe_triggers(self):
     # type: () -> bool
     return self._options.view_as(TypeOptions).allow_unsafe_triggers
+
+  def _register_error_handler(self, error_handler):
+    self._error_handlers.append(error_handler)
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -531,6 +535,9 @@ class Pipeline(HasDisplayData):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
+    for error_handler in self._error_handlers:
+      error_handler.verify_closed()
+
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
@@ -611,7 +618,13 @@ class Pipeline(HasDisplayData):
     try:
       if not exc_type:
         self.result = self.run()
-        self.result.wait_until_finish()
+        if not self._options.view_as(StandardOptions).no_wait_until_finish:
+          self.result.wait_until_finish()
+        else:
+          logging.info(
+              'Job execution continues without waiting for completion.'
+              ' Use "wait_until_finish" in PipelineResult to block'
+              ' until finished.')
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 

@@ -80,7 +80,6 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -225,7 +224,7 @@ public class WindmillStateInternalsTest {
                 .forComputation("comp")
                 .forKey(
                     WindmillComputationKey.create(
-                        "comp", ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123),
+                        "comp", ByteString.copyFrom("dummyKey", StandardCharsets.UTF_8), 123),
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
@@ -240,7 +239,7 @@ public class WindmillStateInternalsTest {
                 .forComputation("comp")
                 .forKey(
                     WindmillComputationKey.create(
-                        "comp", ByteString.copyFrom("dummyNewKey", Charsets.UTF_8), 123),
+                        "comp", ByteString.copyFrom("dummyNewKey", StandardCharsets.UTF_8), 123),
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
@@ -255,7 +254,7 @@ public class WindmillStateInternalsTest {
                 .forComputation("comp")
                 .forKey(
                     WindmillComputationKey.create(
-                        "comp", ByteString.copyFrom("dummyNewKey", Charsets.UTF_8), 123),
+                        "comp", ByteString.copyFrom("dummyNewKey", StandardCharsets.UTF_8), 123),
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
@@ -2004,7 +2003,9 @@ public class WindmillStateInternalsTest {
     }
 
     // clear cache and recreate multimapState
-    cache.forComputation("comp").invalidate(ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123);
+    cache
+        .forComputation("comp")
+        .invalidate(ByteString.copyFrom("dummyKey", StandardCharsets.UTF_8), 123);
     resetUnderTest();
     multimapState = underTest.state(NAMESPACE, addr);
 

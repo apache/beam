@@ -35,6 +35,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -93,7 +94,6 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ShardedKey;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -1035,7 +1035,8 @@ public class WriteFilesTest {
     List<String> actual = Lists.newArrayList();
     for (File outputFile : outputFiles) {
       List<String> actualShard = Lists.newArrayList();
-      try (BufferedReader reader = Files.newBufferedReader(outputFile.toPath(), Charsets.UTF_8)) {
+      try (BufferedReader reader =
+          Files.newBufferedReader(outputFile.toPath(), StandardCharsets.UTF_8)) {
         for (; ; ) {
           String line = reader.readLine();
           if (line == null) {

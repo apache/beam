@@ -47,7 +47,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/hooks/perf"
-	"github.com/golang/protobuf/proto"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -235,7 +234,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
-		log.Info(ctx, proto.MarshalTextString(model))
+		log.Info(ctx, model.String())
 		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
 		if err != nil {
 			return nil, err

@@ -25,9 +25,7 @@
 # Consider constraining requirements of Beam itself when necessary.
 
 bs4  # Commonly used HTML processing tool.
-# Don't upgrade to Cython 3.x, until it's released, stable and we have consensus
-# to upgrade. Use 0.xx for now.
-cython<1
+cython>=3,<4
 # future is no longer a Beam dependency, but is an implicit dependency in
 # some versions of libraries that launch Beam pipelines, like tensorflow-transform.
 # Leaving 'future' in our containers for now prevent breaking tft users.

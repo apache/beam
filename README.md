@@ -65,6 +65,7 @@ Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/ap
 Beam supports executing programs on multiple distributed processing backends through PipelineRunners. Currently, the following PipelineRunners are available:
 
 - The `DirectRunner` runs the pipeline on your local machine.
+- The `PrismRunner` runs the pipeline on your local machine using Beam Portability.
 - The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
 - The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
 - The `SparkRunner` runs the pipeline on an Apache Spark cluster.
@@ -109,7 +110,7 @@ Here are some resources actively maintained by the Beam community to help you ge
     <td>A comprehensive, interactive learning experience covering Beam concepts in depth.</td>
   </tr>
   <tr>
-    <td><a href="https://www.cloudskillsboost.google/quests/310" target="_blank" rel="noopener noreferrer">Beam Quest </a></td>
+    <td><a href="https://www.cloudskillsboost.google/course_templates/724" target="_blank" rel="noopener noreferrer">Beam Quest </a></td>
     <td>A certification granted by Google Cloud, certifying proficiency in Beam.</td>
   </tr>
   <tr>

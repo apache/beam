@@ -30,7 +30,9 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,6 +41,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PrismLocatorTest {
 
+  private static final ReleaseInfo RELEASE_INFO = ReleaseInfo.getReleaseInfo();
   private static final Path DESTINATION_DIRECTORY = prismBinDirectory();
 
   @Before
@@ -60,29 +63,66 @@ public class PrismLocatorTest {
   }
 
   @Test
-  public void givenVersionOverride_thenResolves() throws IOException {
-    assertThat(Files.exists(DESTINATION_DIRECTORY)).isFalse();
+  public void givenVersionOverride_thenResolvesLocation() throws IOException {
     PrismPipelineOptions options = options();
-    options.setPrismVersionOverride("2.57.0");
+    options.setPrismVersionOverride("2.57.0-RC1");
+
     PrismLocator underTest = new PrismLocator(options);
-    String got = underTest.resolve();
-    assertThat(got).contains(DESTINATION_DIRECTORY.toString());
-    assertThat(got).contains("2.57.0");
-    Path gotPath = Paths.get(got);
-    assertThat(Files.exists(gotPath)).isTrue();
+    String got = underTest.resolveSource();
+
+    assertThat(got)
+        .contains(
+            "https://github.com/apache/beam/releases/download/v" + RELEASE_INFO.getSdkVersion());
+    assertThat(got).contains("apache_beam-v2.57.0-RC1-prism");
+    assertThat(got).contains(".zip");
+  }
+
+  // This testcase validates a user override to download a different release version specifically.
+  @Test
+  public void givenHttpPrismLocationOption_thenResolvesLocation() throws IOException {
+    PrismPipelineOptions options = options();
+    String want =
+        "https://github.com/apache/beam/releases/download/v2.57.0/apache_beam-v2.57.0-prism-darwin-arm64.zip";
+    options.setPrismLocation(want);
+
+    PrismLocator underTest = new PrismLocator(options);
+    String got = underTest.resolveSource();
+
+    assertThat(got).isEqualTo(want);
+  }
+
+  // This testcase is the Release Validation behavior, where we provide an RC option, but
+  // need to resolve the download for the non-RC version.
+  // Copy the URL directly, and set the location, override the file's RC version with the final
+  // version.
+  @Test
+  public void givenRCGithubTagPrismLocationOption_thenResolvesLocation() {
+    PrismPipelineOptions options = options();
+    options.setPrismLocation("https://github.com/apache/beam/releases/tag/v2.57.0-RC1/");
+    options.setPrismVersionOverride("2.57.0");
+
+    PrismLocator underTest = new PrismLocator(options);
+    String got = underTest.resolveSource();
+
+    assertThat(got)
+        .contains(
+            "https://github.com/apache/beam/releases/download/v2.57.0-RC1/apache_beam-v2.57.0-prism");
+    assertThat(got).contains(".zip");
   }
 
   @Test
-  public void givenHttpPrismLocationOption_thenResolves() throws IOException {
-    assertThat(Files.exists(DESTINATION_DIRECTORY)).isFalse();
+  public void givenRCGithubTagPrismLocationOptionNoTrailingSlash_thenResolvesLocation() {
     PrismPipelineOptions options = options();
-    options.setPrismLocation(
-        "https://github.com/apache/beam/releases/download/v2.57.0/apache_beam-v2.57.0-prism-darwin-arm64.zip");
+    options.setPrismLocation("https://github.com/apache/beam/releases/tag/v2.57.0-RC2");
+    options.setPrismVersionOverride("2.57.0");
+
     PrismLocator underTest = new PrismLocator(options);
-    String got = underTest.resolve();
-    assertThat(got).contains(DESTINATION_DIRECTORY.toString());
-    Path gotPath = Paths.get(got);
-    assertThat(Files.exists(gotPath)).isTrue();
+    String got = underTest.resolveSource();
+
+    assertThat(got)
+        .contains(
+            "https://github.com/apache/beam/releases/download/v2.57.0-RC2/apache_beam-v2.57.0-prism");
+    assertThat(got).contains(".zip");
   }
 
   @Test
@@ -90,30 +130,35 @@ public class PrismLocatorTest {
     assertThat(Files.exists(DESTINATION_DIRECTORY)).isFalse();
     PrismPipelineOptions options = options();
     options.setPrismLocation(getLocalPrismBuildOrIgnoreTest());
+
     PrismLocator underTest = new PrismLocator(options);
     String got = underTest.resolve();
+
     assertThat(got).contains(DESTINATION_DIRECTORY.toString());
     Path gotPath = Paths.get(got);
     assertThat(Files.exists(gotPath)).isTrue();
   }
 
   @Test
-  public void givenGithubTagPrismLocationOption_thenThrows() {
+  public void givenIncorrectGithubPrismLocationOption_thenThrows() {
     PrismPipelineOptions options = options();
+    // This is an incorrect github download path. Downloads are under /download/ not tag.
     options.setPrismLocation(
         "https://github.com/apache/beam/releases/tag/v2.57.0/apache_beam-v2.57.0-prism-darwin-amd64.zip");
+
     PrismLocator underTest = new PrismLocator(options);
-    IllegalArgumentException error =
-        assertThrows(IllegalArgumentException.class, underTest::resolve);
-    assertThat(error.getMessage())
-        .contains(
-            "Provided --prismLocation URL is not an Apache Beam Github Release page URL or download URL");
+
+    RuntimeException error = assertThrows(RuntimeException.class, underTest::resolve);
+    // Message should contain the incorrectly constructed download link.
+    assertThat(error.getMessage()).contains(".zip/apache_beam");
   }
 
   @Test
+  @Ignore // TODO: use mock site. Currently failing with response code 500 instead of 404
   public void givenPrismLocation404_thenThrows() {
     PrismPipelineOptions options = options();
     options.setPrismLocation("https://example.com/i/dont/exist.zip");
+
     PrismLocator underTest = new PrismLocator(options);
     RuntimeException error = assertThrows(RuntimeException.class, underTest::resolve);
     assertThat(error.getMessage()).contains("NotFoundException");

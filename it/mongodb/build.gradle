@@ -46,4 +46,8 @@ dependencies {
     permitUsedUndeclared library.java.guava
     testImplementation library.java.commons_lang3
     testRuntimeOnly library.java.slf4j_simple
+
+    // Otherwise checkerframework crashes on Java11
+    compileOnly library.java.error_prone_annotations
+    permitUsedUndeclared library.java.error_prone_annotations
 }

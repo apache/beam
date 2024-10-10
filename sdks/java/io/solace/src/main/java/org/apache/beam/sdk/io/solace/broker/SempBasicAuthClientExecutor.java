@@ -30,8 +30,11 @@ import com.google.api.client.http.json.JsonHttpContent;
 import com.google.api.client.json.gson.GsonFactory;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.net.CookieManager;
 import java.net.HttpCookie;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -78,16 +81,20 @@ class SempBasicAuthClientExecutor implements Serializable {
     COOKIE_MANAGER_MAP.putIfAbsent(this.cookieManagerKey, new CookieManager());
   }
 
-  private static String getQueueEndpoint(String messageVpn, String queueName) {
-    return String.format("/monitor/msgVpns/%s/queues/%s", messageVpn, queueName);
+  private static String getQueueEndpoint(String messageVpn, String queueName)
+      throws UnsupportedEncodingException {
+    return String.format(
+        "/monitor/msgVpns/%s/queues/%s", urlEncode(messageVpn), urlEncode(queueName));
   }
 
-  private static String createQueueEndpoint(String messageVpn) {
-    return String.format("/config/msgVpns/%s/queues", messageVpn);
+  private static String createQueueEndpoint(String messageVpn) throws UnsupportedEncodingException {
+    return String.format("/config/msgVpns/%s/queues", urlEncode(messageVpn));
   }
 
-  private static String subscriptionEndpoint(String messageVpn, String queueName) {
-    return String.format("/config/msgVpns/%s/queues/%s/subscriptions", messageVpn, queueName);
+  private static String subscriptionEndpoint(String messageVpn, String queueName)
+      throws UnsupportedEncodingException {
+    return String.format(
+        "/config/msgVpns/%s/queues/%s/subscriptions", urlEncode(messageVpn), urlEncode(queueName));
   }
 
   BrokerResponse getQueueResponse(String queueName) throws IOException {
@@ -186,6 +193,10 @@ class SempBasicAuthClientExecutor implements Serializable {
             .add(null, HttpCookie.parse(cookie).get(0));
       }
     }
+  }
+
+  private static String urlEncode(String queueName) throws UnsupportedEncodingException {
+    return URLEncoder.encode(queueName, StandardCharsets.UTF_8.name());
   }
 
   private static class CookieManagerKey implements Serializable {

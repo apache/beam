@@ -69,4 +69,11 @@ public class SolaceMessageReceiver implements MessageReceiver {
       throw new IOException(e);
     }
   }
+
+  @Override
+  public void close() {
+    if (!isClosed()) {
+      this.flowReceiver.close();
+    }
+  }
 }

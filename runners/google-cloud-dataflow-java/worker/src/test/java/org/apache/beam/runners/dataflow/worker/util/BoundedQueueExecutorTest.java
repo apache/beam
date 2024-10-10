@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
@@ -31,6 +32,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Instant;
@@ -65,24 +68,23 @@ public class BoundedQueueExecutorTest {
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
                 "computationId",
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             Instant::now,
             Collections.emptyList()),
         executeWorkFn);
   }
 
   private Runnable createSleepProcessWorkFn(CountDownLatch start, CountDownLatch stop) {
-    Runnable runnable =
-        () -> {
-          start.countDown();
-          try {
-            stop.await();
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        };
-    return runnable;
+    return () -> {
+      start.countDown();
+      try {
+        stop.await();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
   }
 
   @Before
@@ -290,41 +292,5 @@ public class BoundedQueueExecutorTest {
             + "Work Queue Size: 0/102<br>/n"
             + "Work Queue Bytes: 0/10000000<br>/n";
     assertEquals(expectedSummaryHtml, executor.summaryHtml());
-  }
-
-  @Test
-  public void testExecute_updatesThreadNameForExecutableWork() throws InterruptedException {
-    CountDownLatch waitForWorkExecution = new CountDownLatch(1);
-    ExecutableWork executableWork =
-        createWork(
-            work -> {
-              assertTrue(
-                  Thread.currentThread()
-                      .getName()
-                      .contains(
-                          BoundedQueueExecutor.debugFormattedWorkToken(
-                              work.getWorkItem().getWorkToken())));
-              waitForWorkExecution.countDown();
-            });
-    executor.execute(executableWork, executableWork.getWorkItem().getSerializedSize());
-    waitForWorkExecution.await();
-  }
-
-  @Test
-  public void testForceExecute_updatesThreadNameForExecutableWork() throws InterruptedException {
-    CountDownLatch waitForWorkExecution = new CountDownLatch(1);
-    ExecutableWork executableWork =
-        createWork(
-            work -> {
-              assertTrue(
-                  Thread.currentThread()
-                      .getName()
-                      .contains(
-                          BoundedQueueExecutor.debugFormattedWorkToken(
-                              work.getWorkItem().getWorkToken())));
-              waitForWorkExecution.countDown();
-            });
-    executor.forceExecute(executableWork, executableWork.getWorkItem().getSerializedSize());
-    waitForWorkExecution.await();
   }
 }

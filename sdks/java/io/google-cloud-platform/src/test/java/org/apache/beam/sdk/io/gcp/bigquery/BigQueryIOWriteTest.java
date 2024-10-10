@@ -35,6 +35,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.api.core.ApiFuture;
@@ -80,9 +81,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.LongFunction;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.Schema.Field;
@@ -118,9 +121,6 @@ import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -285,16 +285,8 @@ public class BigQueryIOWriteTest implements Serializable {
           .withJobService(fakeJobService);
 
   private void checkLineageSinkMetric(PipelineResult pipelineResult, String tableName) {
-    MetricQueryResults lineageMetrics =
-        pipelineResult
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(Lineage.LINEAGE_NAMESPACE, Lineage.SINK_METRIC_NAME))
-                    .build());
     assertThat(
-        lineageMetrics.getStringSets().iterator().next().getCommitted().getStringSet(),
+        Lineage.query(pipelineResult.metrics(), Lineage.Type.SINK),
         hasItem("bigquery:" + tableName.replace(':', '.')));
   }
 
@@ -1601,6 +1593,107 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
     storageWriteWithErrorHandling(true);
+  }
+
+  private void storageWriteWithSuccessHandling(boolean columnSubset) throws Exception {
+    assumeTrue(useStorageApi);
+    if (!useStreaming) {
+      assumeFalse(useStorageApiApproximate);
+    }
+    List<TableRow> elements =
+        IntStream.range(0, 30)
+            .mapToObj(Integer::toString)
+            .map(
+                i ->
+                    new TableRow()
+                        .set("number", i)
+                        .set("string", i)
+                        .set("nested", new TableRow().set("number", i)))
+            .collect(Collectors.toList());
+
+    List<TableRow> expectedSuccessElements = elements;
+    if (columnSubset) {
+      expectedSuccessElements =
+          elements.stream()
+              .map(
+                  tr ->
+                      new TableRow()
+                          .set("number", tr.get("number"))
+                          .set("nested", new TableRow().set("number", tr.get("number"))))
+              .collect(Collectors.toList());
+    }
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("string").setType("STRING"),
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("RECORD")
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER")))));
+
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceWatermarkToInfinity();
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withTestServices(fakeBqServices)
+            .withPropagateSuccessfulStorageApiWrites(true)
+            .withoutValidation();
+    if (columnSubset) {
+      write =
+          write.withPropagateSuccessfulStorageApiWrites(
+              (Serializable & Predicate<String>)
+                  s -> s.equals("number") || s.equals("nested") || s.equals("nested.number"));
+    }
+    if (useStreaming) {
+      if (useStorageApiApproximate) {
+        write = write.withMethod(Method.STORAGE_API_AT_LEAST_ONCE);
+      } else {
+        write = write.withAutoSharding();
+      }
+    }
+
+    PTransform<PBegin, PCollection<TableRow>> source =
+        useStreaming ? testStream : Create.of(elements).withCoder(TableRowJsonCoder.of());
+    PCollection<TableRow> success =
+        p.apply(source).apply("WriteToBQ", write).getSuccessfulStorageApiInserts();
+
+    PAssert.that(success)
+        .containsInAnyOrder(Iterables.toArray(expectedSuccessElements, TableRow.class));
+
+    p.run().waitUntilFinish();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testStorageApiWriteWithSuccessfulRows() throws Exception {
+    storageWriteWithSuccessHandling(false);
+  }
+
+  @Test
+  public void testStorageApiWriteWithSuccessfulRowsColumnSubset() throws Exception {
+    storageWriteWithSuccessHandling(true);
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -3076,7 +3169,312 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testStorageApiErrors() throws Exception {
+  public void testStorageApiErrorsWriteProto() throws Exception {
+    assumeTrue(useStorageApi);
+    final Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+
+    final int failFrom = 10;
+
+    Function<Integer, Proto3SchemaMessages.Primitive> getPrimitive =
+        (Integer i) ->
+            Proto3SchemaMessages.Primitive.newBuilder()
+                .setPrimitiveDouble(i)
+                .setPrimitiveFloat(i)
+                .setPrimitiveInt32(i)
+                .setPrimitiveInt64(i)
+                .setPrimitiveUint32(i)
+                .setPrimitiveUint64(i)
+                .setPrimitiveSint32(i)
+                .setPrimitiveSint64(i)
+                .setPrimitiveFixed32(i)
+                .setPrimitiveFixed64(i)
+                .setPrimitiveBool(true)
+                .setPrimitiveString(Integer.toString(i))
+                .setPrimitiveBytes(
+                    ByteString.copyFrom(Integer.toString(i).getBytes(StandardCharsets.UTF_8)))
+                .build();
+    List<Proto3SchemaMessages.Primitive> goodRows =
+        IntStream.range(1, 20).mapToObj(getPrimitive::apply).collect(Collectors.toList());
+
+    Function<Integer, TableRow> getPrimitiveRow =
+        (Integer i) ->
+            new TableRow()
+                .set("primitive_double", Double.valueOf(i))
+                .set("primitive_float", Float.valueOf(i).doubleValue())
+                .set("primitive_int32", i.intValue())
+                .set("primitive_int64", i.toString())
+                .set("primitive_uint32", i.toString())
+                .set("primitive_uint64", i.toString())
+                .set("primitive_sint32", i.toString())
+                .set("primitive_sint64", i.toString())
+                .set("primitive_fixed32", i.toString())
+                .set("primitive_fixed64", i.toString())
+                .set("primitive_bool", true)
+                .set("primitive_string", i.toString())
+                .set(
+                    "primitive_bytes",
+                    BaseEncoding.base64()
+                        .encode(
+                            ByteString.copyFrom(i.toString().getBytes(StandardCharsets.UTF_8))
+                                .toByteArray()));
+
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr ->
+                tr.containsKey("primitive_int32")
+                    && (Integer) tr.get("primitive_int32") >= failFrom;
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    SerializableFunction<Proto3SchemaMessages.Primitive, TableRow> formatRecordOnFailureFunction =
+        input -> {
+          TableRow failedTableRow = new TableRow().set("testFailureFunctionField", "testValue");
+          failedTableRow.set("originalValue", input.getPrimitiveFixed32());
+          return failedTableRow;
+        };
+
+    WriteResult result =
+        p.apply(Create.of(goodRows))
+            .apply(
+                BigQueryIO.writeProtos(Proto3SchemaMessages.Primitive.class)
+                    .to("project-id:dataset-id.table")
+                    .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                    .withMethod(method)
+                    .withoutValidation()
+                    .withFormatRecordOnFailureFunction(formatRecordOnFailureFunction)
+                    .withPropagateSuccessfulStorageApiWrites(true)
+                    .withTestServices(fakeBqServices));
+
+    PCollection<TableRow> deadRows =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+
+    List<TableRow> expectedFailedRows =
+        goodRows.stream()
+            .filter(primitive -> primitive.getPrimitiveFixed32() >= failFrom)
+            .map(formatRecordOnFailureFunction::apply)
+            .collect(Collectors.toList());
+    PAssert.that(deadRows).containsInAnyOrder(expectedFailedRows);
+    p.run();
+
+    // Round trip through the coder to make sure the types match our expected types.
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table").stream()
+            .map(
+                tr -> {
+                  try {
+                    byte[] bytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), tr);
+                    return CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList()),
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(
+                    goodRows.stream()
+                        .map(primitive -> getPrimitiveRow.apply(primitive.getPrimitiveFixed32()))
+                        .collect(Collectors.toList()),
+                    r -> !shouldFailRow.apply(r)),
+                TableRow.class)));
+  }
+
+  @Test
+  public void testStorageApiErrorsWriteBeamRow() throws Exception {
+    assumeTrue(useStorageApi);
+    final Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+
+    final int failFrom = 10;
+    final String shouldFailName = "failme";
+
+    List<SchemaPojo> goodRows =
+        Lists.newArrayList(
+            new SchemaPojo("a", 1),
+            new SchemaPojo("b", 2),
+            new SchemaPojo("c", 10),
+            new SchemaPojo("d", 11),
+            new SchemaPojo(shouldFailName, 1));
+
+    String nameField = "name";
+    String numberField = "number";
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr ->
+                shouldFailName.equals(tr.get(nameField))
+                    || (Integer.valueOf((String) tr.get(numberField)) >= failFrom);
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    SerializableFunction<SchemaPojo, TableRow> formatRecordOnFailureFunction =
+        input -> {
+          TableRow failedTableRow = new TableRow().set("testFailureFunctionField", "testValue");
+          failedTableRow.set("originalName", input.name);
+          failedTableRow.set("originalNumber", input.number);
+          return failedTableRow;
+        };
+
+    WriteResult result =
+        p.apply(Create.of(goodRows))
+            .apply(
+                BigQueryIO.<SchemaPojo>write()
+                    .to("project-id:dataset-id.table")
+                    .withMethod(method)
+                    .useBeamSchema()
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                    .withPropagateSuccessfulStorageApiWrites(true)
+                    .withTestServices(fakeBqServices)
+                    .withFormatRecordOnFailureFunction(formatRecordOnFailureFunction)
+                    .withoutValidation());
+
+    PCollection<TableRow> deadRows =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+    PCollection<TableRow> successfulRows = result.getSuccessfulStorageApiInserts();
+
+    List<TableRow> expectedFailedRows =
+        goodRows.stream()
+            .filter(pojo -> shouldFailName.equals(pojo.name) || pojo.number >= failFrom)
+            .map(formatRecordOnFailureFunction::apply)
+            .collect(Collectors.toList());
+    PAssert.that(deadRows).containsInAnyOrder(expectedFailedRows);
+    PAssert.that(successfulRows)
+        .containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(
+                    goodRows.stream()
+                        .map(
+                            pojo -> {
+                              TableRow tableRow = new TableRow();
+                              tableRow.set(nameField, pojo.name);
+                              tableRow.set(numberField, String.valueOf(pojo.number));
+                              return tableRow;
+                            })
+                        .collect(Collectors.toList()),
+                    r -> !shouldFailRow.apply(r)),
+                TableRow.class));
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table"),
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(
+                    goodRows.stream()
+                        .map(
+                            pojo -> {
+                              TableRow tableRow = new TableRow();
+                              tableRow.set(nameField, pojo.name);
+                              tableRow.set(numberField, String.valueOf(pojo.number));
+                              return tableRow;
+                            })
+                        .collect(Collectors.toList()),
+                    r -> !shouldFailRow.apply(r)),
+                TableRow.class)));
+  }
+
+  @Test
+  public void testStorageApiErrorsWriteGenericRecord() throws Exception {
+    assumeTrue(useStorageApi);
+    final Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+
+    final long failFrom = 10L;
+    List<Long> goodRows = LongStream.range(0, 20).boxed().collect(Collectors.toList());
+
+    String fieldName = "number";
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr -> (Long.valueOf((String) tr.get(fieldName))) >= failFrom;
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    SerializableFunction<Long, TableRow> formatRecordOnFailureFunction =
+        input -> {
+          TableRow failedTableRow = new TableRow().set("testFailureFunctionField", "testValue");
+          failedTableRow.set("originalElement", input);
+          return failedTableRow;
+        };
+
+    WriteResult result =
+        p.apply(Create.of(goodRows))
+            .apply(
+                BigQueryIO.<Long>write()
+                    .to("project-id:dataset-id.table")
+                    .withMethod(method)
+                    .withAvroFormatFunction(
+                        (SerializableFunction<AvroWriteRequest<Long>, GenericRecord>)
+                            input ->
+                                new GenericRecordBuilder(avroSchema)
+                                    .set(fieldName, input.getElement())
+                                    .build())
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName(fieldName).setType("INTEGER"))))
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                    .withPropagateSuccessfulStorageApiWrites(true)
+                    .withTestServices(fakeBqServices)
+                    .withFormatRecordOnFailureFunction(formatRecordOnFailureFunction)
+                    .withoutValidation());
+
+    PCollection<TableRow> deadRows =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+    PCollection<TableRow> successfulRows = result.getSuccessfulStorageApiInserts();
+
+    List<TableRow> expectedFailedRows =
+        goodRows.stream()
+            .filter(l -> l >= failFrom)
+            .map(formatRecordOnFailureFunction::apply)
+            .collect(Collectors.toList());
+    PAssert.that(deadRows).containsInAnyOrder(expectedFailedRows);
+    PAssert.that(successfulRows)
+        .containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(
+                    goodRows.stream()
+                        .map(
+                            l -> {
+                              TableRow tableRow = new TableRow();
+                              tableRow.set(fieldName, String.valueOf(l));
+                              return tableRow;
+                            })
+                        .collect(Collectors.toList()),
+                    r -> !shouldFailRow.apply(r)),
+                TableRow.class));
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table"),
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(
+                    goodRows.stream()
+                        .map(
+                            l -> {
+                              TableRow tableRow = new TableRow();
+                              tableRow.set(fieldName, String.valueOf(l));
+                              return tableRow;
+                            })
+                        .collect(Collectors.toList()),
+                    r -> !shouldFailRow.apply(r)),
+                TableRow.class)));
+  }
+
+  @Test
+  public void testStorageApiErrorsWriteTableRows() throws Exception {
     assumeTrue(useStorageApi);
     final Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
@@ -3143,6 +3541,22 @@ public class BigQueryIOWriteTest implements Serializable {
             tr -> tr.containsKey("name") && tr.get("name").equals(failValue);
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
+    SerializableFunction<TableRow, TableRow> formatRecordOnFailureFunction =
+        input -> {
+          TableRow failedTableRow = new TableRow().set("testFailureFunctionField", "testValue");
+          if (input != null) {
+            Object name = input.get("name");
+            if (name != null) {
+              failedTableRow.set("name", name);
+            }
+            Object number = input.get("number");
+            if (number != null) {
+              failedTableRow.set("number", number);
+            }
+          }
+          return failedTableRow;
+        };
+
     WriteResult result =
         p.apply(Create.of(Iterables.concat(goodRows, badRows)))
             .apply(
@@ -3154,6 +3568,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
                     .withPropagateSuccessfulStorageApiWrites(true)
                     .withTestServices(fakeBqServices)
+                    .withFormatRecordOnFailureFunction(formatRecordOnFailureFunction)
                     .withoutValidation());
 
     PCollection<TableRow> deadRows =
@@ -3164,9 +3579,14 @@ public class BigQueryIOWriteTest implements Serializable {
                     .via(BigQueryStorageApiInsertError::getRow));
     PCollection<TableRow> successfulRows = result.getSuccessfulStorageApiInserts();
 
-    PAssert.that(deadRows)
-        .containsInAnyOrder(
-            Iterables.concat(badRows, Iterables.filter(goodRows, shouldFailRow::apply)));
+    List<TableRow> expectedFailedRows =
+        badRows.stream().map(formatRecordOnFailureFunction::apply).collect(Collectors.toList());
+    expectedFailedRows.addAll(
+        goodRows.stream()
+            .filter(shouldFailRow::apply)
+            .map(formatRecordOnFailureFunction::apply)
+            .collect(Collectors.toList()));
+    PAssert.that(deadRows).containsInAnyOrder(expectedFailedRows);
     PAssert.that(successfulRows)
         .containsInAnyOrder(
             Iterables.toArray(

@@ -21,12 +21,14 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.Instant;
 
 /** A utility class containing shared methods for parsing CSV records. */
 final class CsvIOParseHelpers {
@@ -35,7 +37,7 @@ final class CsvIOParseHelpers {
    * "Reading CSV Files" section of the {@link CsvIO} documentation for information regarding which
    * {@link CSVFormat} parameters are checked during validation.
    */
-  static void validate(CSVFormat format) {
+  static void validateCsvFormat(CSVFormat format) {
     String[] header =
         checkArgumentNotNull(format.getHeader(), "Illegal %s: header is required", CSVFormat.class);
 
@@ -60,22 +62,63 @@ final class CsvIOParseHelpers {
           "Illegal %s: column name is required",
           CSVFormat.class);
     }
+    checkArgument(
+        !format.getSkipHeaderRecord(),
+        "Illegal %s: cannot skip header record because the header is already accounted for",
+        CSVFormat.class);
   }
 
   /**
    * Validate the {@link CSVFormat} in relation to the {@link Schema} for CSV record parsing
    * requirements.
    */
-  // TODO(https://github.com/apache/beam/issues/31716): implement method.
-  static void validate(CSVFormat format, Schema schema) {}
+  static void validateCsvFormatWithSchema(CSVFormat format, Schema schema) {
+    List<String> header = Arrays.asList(format.getHeader());
+    for (Schema.Field field : schema.getFields()) {
+      String fieldName = field.getName();
+      if (!field.getType().getNullable()) {
+        checkArgument(
+            header.contains(fieldName),
+            "Illegal %s: required %s field '%s' not found in header",
+            CSVFormat.class,
+            Schema.class.getTypeName(),
+            fieldName);
+      }
+    }
+  }
 
   /**
    * Build a {@link List} of {@link Schema.Field}s corresponding to the expected position of each
    * field within the CSV record.
    */
-  // TODO(https://github.com/apache/beam/issues/31718): implement method.
-  static List<Schema.Field> mapFieldPositions(CSVFormat format, Schema schema) {
-    return new ArrayList<>();
+  static Map<Integer, Schema.Field> mapFieldPositions(CSVFormat format, Schema schema) {
+    List<String> header = Arrays.asList(format.getHeader());
+    Map<Integer, Schema.Field> indexToFieldMap = new HashMap<>();
+    for (Schema.Field field : schema.getFields()) {
+      int index = getIndex(header, field);
+      if (index >= 0) {
+        indexToFieldMap.put(index, field);
+      }
+    }
+    return indexToFieldMap;
+  }
+
+  /**
+   * Attains expected index from {@link CSVFormat's} header matching a given {@link Schema.Field}.
+   */
+  private static int getIndex(List<String> header, Schema.Field field) {
+    String fieldName = field.getName();
+    boolean presentInHeader = header.contains(fieldName);
+    boolean isNullable = field.getType().getNullable();
+    if (presentInHeader) {
+      return header.indexOf(fieldName);
+    }
+    if (isNullable) {
+      return -1;
+    }
+
+    throw new IllegalArgumentException(
+        String.format("header does not contain required %s field: %s", Schema.class, fieldName));
   }
 
   /**

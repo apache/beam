@@ -18,23 +18,35 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class MockSessionService implements SessionService {
+public class MockSessionService extends SessionService {
 
   private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
   private MessageReceiver messageReceiver = null;
   private final int minMessagesReceived;
+  private final @Nullable SubmissionMode mode;
+
+  public MockSessionService(
+      SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
+      int minMessagesReceived,
+      @Nullable SubmissionMode mode) {
+    this.getRecordFn = getRecordFn;
+    this.minMessagesReceived = minMessagesReceived;
+    this.mode = mode;
+  }
 
   public MockSessionService(
       SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
-    this.getRecordFn = getRecordFn;
-    this.minMessagesReceived = minMessagesReceived;
+    this(getRecordFn, minMessagesReceived, null);
   }
 
   @Override
@@ -81,8 +93,23 @@ public class MockSessionService implements SessionService {
     }
 
     @Override
+    public void close() {}
+
+    @Override
     public boolean isEOF() {
       return counter.get() >= minMessagesReceived;
     }
+  }
+
+  @Override
+  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
+    // Let's override some properties that will be overriden by the connector
+    // Opposite of the mode, to test that is overriden
+    baseProperties.setProperty(
+        JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, mode == SubmissionMode.HIGHER_THROUGHPUT);
+
+    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, 87);
+
+    return baseProperties;
   }
 }

@@ -20,13 +20,14 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -65,9 +66,11 @@ public class ScanSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    Properties props = new Properties();
-    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
-    props.setProperty("warehouse", warehouse.location);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     BoundedSource<Row> source =
         new ScanSource(
@@ -75,11 +78,11 @@ public class ScanSourceTest {
                 .setCatalogConfig(
                     IcebergCatalogConfig.builder()
                         .setCatalogName("name")
-                        .setProperties(props)
+                        .setCatalogProperties(catalogProps)
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
-                .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+                .setSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .build());
 
     BoundedSource.BoundedReader<Row> reader = source.createReader(options);
@@ -107,9 +110,11 @@ public class ScanSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    Properties props = new Properties();
-    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
-    props.setProperty("warehouse", warehouse.location);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     BoundedSource<Row> source =
         new ScanSource(
@@ -117,11 +122,11 @@ public class ScanSourceTest {
                 .setCatalogConfig(
                     IcebergCatalogConfig.builder()
                         .setCatalogName("name")
-                        .setProperties(props)
+                        .setCatalogProperties(catalogProps)
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
-                .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+                .setSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .build());
 
     // Input data for this test is tiny so try a number of very small split sizes
@@ -153,9 +158,11 @@ public class ScanSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    Properties props = new Properties();
-    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
-    props.setProperty("warehouse", warehouse.location);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     BoundedSource<Row> source =
         new ScanSource(
@@ -163,11 +170,11 @@ public class ScanSourceTest {
                 .setCatalogConfig(
                     IcebergCatalogConfig.builder()
                         .setCatalogName("name")
-                        .setProperties(props)
+                        .setCatalogProperties(catalogProps)
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
-                .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+                .setSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .build());
 
     // Input data for this test is tiny so make sure to split and get a few, but so they can be

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.csv;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -35,8 +36,13 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaProvider;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -44,6 +50,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 
@@ -74,6 +81,9 @@ import org.apache.commons.csv.CSVFormat;
  *   <li>{@code boolean} <a
  *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withIgnoreHeaderCase--">ignoreHeaderCase</a>
  *       - must be false.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withSkipHeaderRecord--">skipHeaderRecord</a>
+ *       - must be false. The header is already accounted for during parsing.
  * </ul>
  *
  * <h4>Ignored CSVFormat parameters</h4>
@@ -335,6 +345,161 @@ public class CsvIO {
         .setTextIOWrite(createDefaultTextIOWrite(to))
         .setCSVFormat(csvFormat)
         .build();
+  }
+
+  /**
+   * Instantiates a {@link CsvIOParse} for parsing CSV string records into custom {@link
+   * Schema}-mapped {@code Class<T>}es from the records' assumed <a
+   * href="https://www.javadoc.io/doc/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html">CsvFormat</a>.
+   * See the <a
+   * href="https://beam.apache.org/documentation/programming-guide/#inferring-schemas">Beam
+   * Programming Guide</a> on how to configure your custom {@code Class<T>} for Beam to infer its
+   * {@link Schema} using a {@link SchemaProvider} annotation such as {@link AutoValueSchema} or
+   * {@link JavaBeanSchema}.
+   *
+   * <h2>Example usage</h2>
+   *
+   * The example below illustrates parsing <a
+   * href="https://www.javadoc.io/doc/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#DEFAULT">CsvFormat#DEFAULT</a>
+   * formatted CSV string records, read from {@link TextIO.Read}, into an {@link AutoValueSchema}
+   * annotated <a
+   * href="https://github.com/google/auto/blob/main/value/userguide/index.md">AutoValue</a> data
+   * class {@link PCollection}.
+   *
+   * <pre>{@code
+   * // SomeDataClass is a data class configured for Beam to automatically infer its Schema.
+   * @DefaultSchema(AutoValueSchema.class)
+   * @AutoValue
+   * abstract class SomeDataClass {
+   *
+   *    abstract String getSomeString();
+   *    abstract Integer getSomeInteger();
+   *
+   *    @AutoValue.Builder
+   *    abstract static class Builder {
+   *      abstract Builder setSomeString(String value);
+   *      abstract Builder setSomeInteger(Integer value);
+   *
+   *      abstract SomeDataClass build();
+   *    }
+   * }
+   *
+   * // Pipeline example reads CSV string records from Google Cloud storage and writes to BigQuery.
+   * Pipeline pipeline = Pipeline.create();
+   *
+   * // Read CSV records from Google Cloud storage using TextIO.
+   * PCollection<String> csvRecords = pipeline
+   *  .apply(TextIO.read().from("gs://bucket/folder/*.csv");
+   *
+   * // Apply the CSV records PCollection<String> to the CsvIOParse transform instantiated using CsvIO.parse.
+   * CsvIOParseResult<SomeDataClass> result = csvRecords.apply(CsvIO.parse(
+   *      SomeDataClass.class,
+   *      CsvFormat.DEFAULT.withHeader("someString", "someInteger")
+   * ));
+   *
+   * // Acquire any processing errors to either write to logs or apply to a downstream dead letter queue such as BigQuery.
+   * result.getErrors().apply(BigQueryIO.<CsvIOParseError>write()
+   *  .to("project:dataset.table_of_errors")
+   *  .useBeamSchema()
+   *  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+   *  .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+   *
+   * // Acquire the successful PCollection<SomeDataClass> output.
+   * PCollection<SomeDataClass> output = result.getOutput();
+   *
+   * // Do something with the output such as write to BigQuery.
+   * output.apply(BigQueryIO.<SomeDataClass>write()
+   *  .to("project:dataset.table_of_output")
+   *  .useBeamSchema()
+   *  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+   *  .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+   * }</pre>
+   */
+  public static <T> CsvIOParse<T> parse(Class<T> klass, CSVFormat csvFormat) {
+    CsvIOParseHelpers.validateCsvFormat(csvFormat);
+    SchemaProvider provider = new DefaultSchema.DefaultSchemaProvider();
+    TypeDescriptor<T> type = TypeDescriptor.of(klass);
+    Schema schema =
+        checkStateNotNull(
+            provider.schemaFor(type),
+            "Illegal %s: Schema could not be generated from given %s class",
+            Schema.class,
+            klass);
+    CsvIOParseHelpers.validateCsvFormatWithSchema(csvFormat, schema);
+    SerializableFunction<Row, T> fromRowFn =
+        checkStateNotNull(
+            provider.fromRowFunction(type),
+            "FromRowFn could not be generated from the given %s class",
+            klass);
+    SerializableFunction<T, Row> toRowFn =
+        checkStateNotNull(
+            provider.toRowFunction(type),
+            "ToRowFn could not be generated from the given %s class",
+            klass);
+    SchemaCoder<T> coder = SchemaCoder.of(schema, type, toRowFn, fromRowFn);
+    CsvIOParseConfiguration.Builder<T> builder = CsvIOParseConfiguration.builder();
+    builder.setCsvFormat(csvFormat).setSchema(schema).setCoder(coder).setFromRowFn(fromRowFn);
+    return CsvIOParse.<T>builder().setConfigBuilder(builder).build();
+  }
+
+  /**
+   * Instantiates a {@link CsvIOParse} for parsing CSV string records into {@link Row}s from the
+   * records' assumed <a
+   * href="https://www.javadoc.io/doc/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html">CsvFormat</a>
+   * and expected {@link Schema}.
+   *
+   * <h2>Example usage</h2>
+   *
+   * The example below illustrates parsing <a
+   * href="https://www.javadoc.io/doc/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#DEFAULT">CsvFormat#DEFAULT</a>
+   * formatted CSV string records, read from {@link TextIO.Read}, into a {@link Row} {@link
+   * PCollection}.
+   *
+   * <pre>{@code
+   * // Define the expected Schema.
+   * Schema schema = Schema.of(
+   *  Schema.Field.of("someString", FieldType.STRING),
+   *  Schema.Field.of("someInteger", FieldType.INT32)
+   * );
+   *
+   * // Pipeline example reads CSV string records from Google Cloud storage and writes to BigQuery.
+   * Pipeline pipeline = Pipeline.create();
+   *
+   * // Read CSV records from Google Cloud storage using TextIO.
+   * PCollection<String> csvRecords = pipeline
+   *  .apply(TextIO.read().from("gs://bucket/folder/*.csv");
+   *
+   * // Apply the CSV records PCollection<String> to the CsvIOParse transform instantiated using CsvIO.parseRows.
+   * CsvIOParseResult<Row> result = csvRecords.apply(CsvIO.parseRow(
+   *      schema,
+   *      CsvFormat.DEFAULT.withHeader("someString", "someInteger")
+   * ));
+   *
+   * // Acquire any processing errors to either write to logs or apply to a downstream dead letter queue such as BigQuery.
+   * result.getErrors().apply(BigQueryIO.<CsvIOParseError>write()
+   *  .to("project:dataset.table_of_errors")
+   *  .useBeamSchema()
+   *  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+   *  .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+   *
+   * // Acquire the successful PCollection<Row> output.
+   * PCollection<Row> output = result.getOutput();
+   *
+   * // Do something with the output such as write to BigQuery.
+   * output.apply(BigQueryIO.<Row>write()
+   *  .to("project:dataset.table_of_output")
+   *  .useBeamSchema()
+   *  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+   *  .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+   * }</pre>
+   */
+  public static CsvIOParse<Row> parseRows(Schema schema, CSVFormat csvFormat) {
+    CsvIOParseHelpers.validateCsvFormat(csvFormat);
+    CsvIOParseHelpers.validateCsvFormatWithSchema(csvFormat, schema);
+    RowCoder coder = RowCoder.of(schema);
+    CsvIOParseConfiguration.Builder<Row> builder = CsvIOParseConfiguration.builder();
+    builder.setCsvFormat(csvFormat).setSchema(schema).setCoder(coder).setFromRowFn(row -> row);
+    return CsvIOParse.<Row>builder().setConfigBuilder(builder).build();
   }
 
   /** {@link PTransform} for writing CSV files. */

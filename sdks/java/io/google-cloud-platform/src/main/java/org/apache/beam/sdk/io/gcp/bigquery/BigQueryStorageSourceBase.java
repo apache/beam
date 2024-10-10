@@ -28,14 +28,10 @@ import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import java.io.IOException;
 import java.util.List;
-import org.apache.avro.Schema;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -109,12 +105,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     @Nullable Table targetTable = getTargetTable(bqOptions);
 
     ReadSession.Builder readSessionBuilder = ReadSession.newBuilder();
-    StringSet lineageSources = Lineage.getSources();
+    Lineage lineage = Lineage.getSources();
     if (targetTable != null) {
       TableReference tableReference = targetTable.getTableReference();
       readSessionBuilder.setTable(BigQueryHelpers.toTableResourceName(tableReference));
       // register the table as lineage source
-      lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference, bqOptions));
+      lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
     } else {
       // If the table does not exist targetTable will be null.
       // Construct the table id if we can generate it. For error recording/logging.
@@ -123,21 +119,20 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         readSessionBuilder.setTable(tableReferenceId);
         // register the table as lineage source
         TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
-        lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference, bqOptions));
+        lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
       }
     }
 
-    if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
-      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =
-          ReadSession.TableReadOptions.newBuilder();
-      if (selectedFieldsProvider != null) {
-        tableReadOptionsBuilder.addAllSelectedFields(selectedFieldsProvider.get());
-      }
-      if (rowRestrictionProvider != null) {
-        tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
-      }
-      readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
+    ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =
+        ReadSession.TableReadOptions.newBuilder();
+    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+      tableReadOptionsBuilder.addAllSelectedFields(selectedFieldsProvider.get());
     }
+    if (rowRestrictionProvider != null && rowRestrictionProvider.isAccessible()) {
+      tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
+    }
+    readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
+
     if (format != null) {
       readSessionBuilder.setDataFormat(format);
     }
@@ -183,30 +178,18 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
-    Schema sessionSchema;
-    if (readSession.getDataFormat() == DataFormat.ARROW) {
-      org.apache.arrow.vector.types.pojo.Schema schema =
-          ArrowConversion.arrowSchemaFromInput(
-              readSession.getArrowSchema().getSerializedSchema().newInput());
-      org.apache.beam.sdk.schemas.Schema beamSchema =
-          ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
-      sessionSchema = AvroUtils.toAvroSchema(beamSchema);
-    } else if (readSession.getDataFormat() == DataFormat.AVRO) {
-      sessionSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
-    } else {
-      throw new IllegalArgumentException(
-          "data is not in a supported dataFormat: " + readSession.getDataFormat());
+    // TODO: this is inconsistent with method above, where it can be null
+    Preconditions.checkStateNotNull(targetTable);
+    TableSchema tableSchema = targetTable.getSchema();
+    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+      tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFieldsProvider.get());
     }
 
-    Preconditions.checkStateNotNull(
-        targetTable); // TODO: this is inconsistent with method above, where it can be null
-    TableSchema trimmedSchema =
-        BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
     for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
+              readSession, readStream, tableSchema, parseFn, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);

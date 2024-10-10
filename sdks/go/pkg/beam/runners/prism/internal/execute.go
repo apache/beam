@@ -187,18 +187,19 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 			col := comps.GetPcollections()[onlyOut]
 			ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-			wDec, wEnc := getWindowValueCoders(comps, col, coders)
+			winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
 			var kd func(io.Reader) []byte
 			if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
 				kd = collectionPullDecoder(kcid, coders, comps)
 			}
 			stage.OutputsToCoders[onlyOut] = engine.PColInfo{
-				GlobalID: onlyOut,
-				WDec:     wDec,
-				WEnc:     wEnc,
-				EDec:     ed,
-				KeyDec:   kd,
+				GlobalID:    onlyOut,
+				WindowCoder: winCoder,
+				WDec:        wDec,
+				WEnc:        wEnc,
+				EDec:        ed,
+				KeyDec:      kd,
 			}
 
 			// There's either 0, 1 or many inputs, but they should be all the same
@@ -206,12 +207,13 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			for _, global := range t.GetInputs() {
 				col := comps.GetPcollections()[global]
 				ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-				wDec, wEnc := getWindowValueCoders(comps, col, coders)
+				winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 				stage.inputInfo = engine.PColInfo{
-					GlobalID: global,
-					WDec:     wDec,
-					WEnc:     wEnc,
-					EDec:     ed,
+					GlobalID:    global,
+					WindowCoder: winCoder,
+					WDec:        wDec,
+					WEnc:        wEnc,
+					EDec:        ed,
 				}
 				break
 			}
@@ -222,18 +224,19 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				for _, global := range t.GetInputs() {
 					col := comps.GetPcollections()[global]
 					ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-					wDec, wEnc := getWindowValueCoders(comps, col, coders)
+					winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
 					var kd func(io.Reader) []byte
 					if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
 						kd = collectionPullDecoder(kcid, coders, comps)
 					}
 					stage.inputInfo = engine.PColInfo{
-						GlobalID: global,
-						WDec:     wDec,
-						WEnc:     wEnc,
-						EDec:     ed,
-						KeyDec:   kd,
+						GlobalID:    global,
+						WindowCoder: winCoder,
+						WDec:        wDec,
+						WEnc:        wEnc,
+						EDec:        ed,
+						KeyDec:      kd,
 					}
 				}
 				em.StageAggregates(stage.ID)
@@ -378,7 +381,7 @@ func extractKVCoderID(coldCId string, coders map[string]*pipepb.Coder) (string, 
 	return "", false
 }
 
-func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
+func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (engine.WinCoderType, exec.WindowDecoder, exec.WindowEncoder) {
 	ws := comps.GetWindowingStrategies()[col.GetWindowingStrategyId()]
 	wcID, err := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
 	if err != nil {

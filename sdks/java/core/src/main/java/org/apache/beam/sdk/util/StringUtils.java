@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for working with JSON and other human-readable string formats. */
 @Internal
@@ -142,5 +143,39 @@ public class StringUtils {
     }
 
     return v1[t.length()];
+  }
+
+  /**
+   * Convert Array to new lined String. Truncate to first {@code maxLine} elements.
+   *
+   * <p>Useful to truncate stacktrace and for logging.
+   */
+  public static String arrayToNewlines(Object[] array, int maxLine) {
+    int n = (maxLine > 0 && array.length > maxLine) ? maxLine : array.length;
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; i < n; i++) {
+      b.append(array[i]);
+      b.append("\n");
+    }
+    if (array.length > maxLine) {
+      b.append("...\n");
+    }
+    return b.toString();
+  }
+
+  /**
+   * Truncate String if length greater than maxLen, and append "..." to the end. Handles null.
+   *
+   * <p>Useful to truncate long logging message.
+   */
+  public static String leftTruncate(@Nullable Object element, int maxLen) {
+    if (element == null) {
+      return "";
+    }
+    String s = element.toString();
+    if (s.length() > maxLen) {
+      return s.substring(0, maxLen) + "...";
+    }
+    return s;
   }
 }

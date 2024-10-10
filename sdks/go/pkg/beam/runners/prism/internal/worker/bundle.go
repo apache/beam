@@ -42,7 +42,7 @@ type B struct {
 	InputTransformID       string
 	Input                  []*engine.Block // Data and Timers for this bundle.
 	EstimatedInputElements int
-	HasTimers              []string
+	HasTimers              []struct{ Transform, TimerFamily string } // Timer streams to terminate.
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
@@ -175,7 +175,8 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	for _, tid := range b.HasTimers {
 		timers = append(timers, &fnpb.Elements_Timers{
 			InstructionId: b.InstID,
-			TransformId:   tid,
+			TransformId:   tid.Transform,
+			TimerFamilyId: tid.TimerFamily,
 			IsLast:        true,
 		})
 	}
@@ -203,6 +204,17 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Lock()
 	delete(wk.activeInstructions, b.InstID)
 	wk.mu.Unlock()
+}
+
+func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_FinalizeBundle{
+			FinalizeBundle: &fnpb.FinalizeBundleRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
+	return resp.GetFinalizeBundle(), nil
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.

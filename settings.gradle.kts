@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.17.5"
+  id("com.gradle.develocity") version "3.17.6"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
@@ -328,8 +328,6 @@ include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
 include("beam-test-infra-mock-apis")
 project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
-include("beam-test-infra-pipelines")
-project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
@@ -365,3 +363,7 @@ include("sdks:java:io:solace")
 findProject(":sdks:java:io:solace")?.name = "solace"
 include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
+include("sdks:java:io:iceberg:hive")
+findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:exec")
+findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"

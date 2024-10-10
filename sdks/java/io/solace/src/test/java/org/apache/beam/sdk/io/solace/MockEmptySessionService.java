@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 
-public class MockEmptySessionService implements SessionService {
+public class MockEmptySessionService extends SessionService {
 
   String exceptionMessage = "This is an empty client, use a MockSessionService instead.";
 
@@ -41,6 +42,11 @@ public class MockEmptySessionService implements SessionService {
 
   @Override
   public void connect() {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
+  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 }

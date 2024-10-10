@@ -1,6 +1,6 @@
 {
   "name": "apache-beam",
-  "version": "2.59.0-SNAPSHOT",
+  "version": "2.61.0-SNAPSHOT",
   "devDependencies": {
     "@google-cloud/bigquery": "^5.12.0",
     "@types/mocha": "^9.0.0",

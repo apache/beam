@@ -121,7 +121,8 @@ public class CreateTables<DestinationT, ElementT>
                 BigQueryOptions bqOptions = context.getPipelineOptions().as(BigQueryOptions.class);
                 Lineage.getSinks()
                     .add(
-                        BigQueryHelpers.dataCatalogName(
+                        "bigquery",
+                        BigQueryHelpers.dataCatalogSegments(
                             tableDestination1.getTableReference(), bqOptions));
                 return CreateTableHelpers.possiblyCreateTable(
                     bqOptions,

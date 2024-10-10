@@ -26,6 +26,7 @@ from typing import BinaryIO  # pylint: disable=unused-import
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.value_provider import RuntimeValueProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -388,3 +389,29 @@ class FileSystems(object):
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.CHUNK_SIZE
+
+  @staticmethod
+  def report_source_lineage(path, level=None):
+    """
+    Report source :class:`~apache_beam.metrics.metric.Lineage`.
+
+    Args:
+      path: string path to be reported.
+      level: the level of file path. default to
+        :class:`~apache_beam.io.filesystem.FileSystem.Lineage`.FILE.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    filesystem.report_lineage(path, Lineage.sources(), level=level)
+
+  @staticmethod
+  def report_sink_lineage(path, level=None):
+    """
+    Report sink :class:`~apache_beam.metrics.metric.Lineage`.
+
+    Args:
+      path: string path to be reported.
+      level: the level of file path. default to
+        :class:`~apache_beam.io.filesystem.FileSystem.Lineage`.FILE.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    filesystem.report_lineage(path, Lineage.sinks(), level=level)

@@ -733,6 +733,12 @@ class DataflowApplicationClient(object):
     # By default Dataflow pipelines use containers hosted in Dataflow GCR
     # instead of Docker Hub.
     image_suffix = beam_container_image_url.rsplit('/', 1)[1]
+
+    # trim "RCX" as release candidate tag exists on Docker Hub but not GCR
+    check_rc = image_suffix.lower().split('rc')
+    if len(check_rc) == 2:
+      image_suffix = image_suffix[:-2 - len(check_rc[1])]
+
     return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
 
   @staticmethod

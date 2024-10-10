@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import importlib
+import inspect
 import logging
 import os
 import secrets
@@ -92,7 +93,7 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ExternalTransformProviderIT(unittest.TestCase):
-  def test_generate_sequence_config_schema_and_description(self):
+  def test_generate_sequence_signature_and_doc(self):
     provider = ExternalTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
@@ -102,14 +103,14 @@ class ExternalTransformProviderIT(unittest.TestCase):
     ) in provider.get_available())
 
     GenerateSequence = provider.get('GenerateSequence')
-    config_schema = GenerateSequence.configuration_schema
+    signature = inspect.signature(GenerateSequence)
     for param in ['start', 'end', 'rate']:
-      self.assertTrue(param in config_schema)
+      self.assertTrue(param in signature.parameters.keys())
 
-    description_substring = (
+    doc_substring = (
         "Outputs a PCollection of Beam Rows, each "
         "containing a single INT64")
-    self.assertTrue(description_substring in GenerateSequence.description)
+    self.assertTrue(doc_substring in inspect.getdoc(GenerateSequence))
 
   def test_run_generate_sequence(self):
     provider = ExternalTransformProvider(
@@ -192,7 +193,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     expected_type_names = [('List[str]', True), ('numpy.int16', False),
                            ('str', False), ('Dict[str, numpy.float64]', False),
                            ('Dict[str, List[numpy.int64]]', True),
-                           ('Dict[int, Union[str, NoneType]]', False)]
+                           ('Dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
       self.assertEqual(

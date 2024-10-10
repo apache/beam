@@ -28,6 +28,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
@@ -166,12 +167,13 @@ abstract class AppendClientInfo {
     }
   }
 
-  public TableRow toTableRow(ByteString protoBytes) {
+  public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
           DynamicMessage.parseFrom(
               TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
-          true);
+          true,
+          includeField);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

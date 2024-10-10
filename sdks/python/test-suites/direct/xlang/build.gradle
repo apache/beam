@@ -44,7 +44,7 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
   args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
 }
 
-def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,

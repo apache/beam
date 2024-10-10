@@ -101,7 +101,7 @@ public @interface DefaultSchema {
                 try {
                   return new ProviderAndDescriptor(
                       providerClass.getDeclaredConstructor().newInstance(),
-                      TypeDescriptor.of(clazz));
+                      typeDescriptor.getSupertype((Class) clazz));
                 } catch (NoSuchMethodException
                     | InstantiationException
                     | IllegalAccessException

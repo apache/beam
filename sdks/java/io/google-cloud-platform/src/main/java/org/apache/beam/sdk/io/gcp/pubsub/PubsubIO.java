@@ -49,6 +49,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -84,6 +85,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -510,6 +512,10 @@ public class PubsubIO {
       } else {
         return topic;
       }
+    }
+
+    public List<String> dataCatalogSegments() {
+      return ImmutableList.of(project, topic);
     }
 
     @Override
@@ -1142,18 +1148,62 @@ public class PubsubIO {
               getNeedsOrderingKey());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
+      return expandReadContinued(preParse, topicPath, subscriptionPath);
+    }
+
+    /**
+     * Runner agnostic part of the Expansion.
+     *
+     * <p>Common logics (MapElements, SDK metrics, DLQ, etc) live here as PubsubUnboundedSource is
+     * overridden on Dataflow runner.
+     */
+    private PCollection<T> expandReadContinued(
+        PCollection<PubsubMessage> preParse,
+        @Nullable ValueProvider<TopicPath> topicPath,
+        @Nullable ValueProvider<SubscriptionPath> subscriptionPath) {
+
       TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
+      SerializableFunction<PubsubMessage, T> parseFnWrapped =
+          new SerializableFunction<PubsubMessage, T>() {
+            // flag that reported metrics
+            private final SerializableFunction<PubsubMessage, T> underlying =
+                Objects.requireNonNull(getParseFn());
+            private transient boolean reportedMetrics = false;
+
+            // public
+            @Override
+            public T apply(PubsubMessage input) {
+              if (!reportedMetrics) {
+                // report Lineage once
+                if (topicPath != null) {
+                  TopicPath topic = topicPath.get();
+                  if (topic != null) {
+                    Lineage.getSources().add("pubsub", "topic", topic.getDataCatalogSegments());
+                  }
+                }
+                if (subscriptionPath != null) {
+                  SubscriptionPath sub = subscriptionPath.get();
+                  if (sub != null) {
+                    Lineage.getSources()
+                        .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                  }
+                }
+                reportedMetrics = true;
+              }
+              return underlying.apply(input);
+            }
+          };
       PCollection<T> read;
       if (getDeadLetterTopicProvider() == null
           && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
-        read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
+        read = preParse.apply(MapElements.into(typeDescriptor).via(parseFnWrapped));
       } else {
         // parse PubSub messages, separating out exceptions
         Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
             preParse.apply(
                 "PubsubIO.Read/Map/Parse-Incoming-Messages",
                 MapElements.into(typeDescriptor)
-                    .via(getParseFn())
+                    .via(parseFnWrapped)
                     .exceptionsVia(new WithFailures.ThrowableHandler<PubsubMessage>() {}));
 
         // Emit parsed records
@@ -1168,7 +1218,7 @@ public class PubsubIO {
                       "Map Failures To BadRecords",
                       ParDo.of(new ParseReadFailuresToBadRecords(preParse.getCoder())));
           getBadRecordErrorHandler()
-              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(input.getPipeline())));
+              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(preParse.getPipeline())));
         } else {
           // Write out failures to the provided dead-letter topic.
           result
@@ -1209,7 +1259,6 @@ public class PubsubIO {
                       .withClientFactory(getPubsubClientFactory()));
         }
       }
-
       return read.setCoder(getCoder());
     }
 
@@ -1488,7 +1537,7 @@ public class PubsubIO {
                   .get(BAD_RECORD_TAG)
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
       PCollection<PubsubMessage> pubsubMessages =
-          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(new PubsubMessageWithTopicCoder());
+          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(PubsubMessageWithTopicCoder.of());
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(

@@ -30,17 +30,13 @@ from tempfile import mkdtemp
 import pytest
 
 import apache_beam as beam
-from apache_beam import Impulse
-from apache_beam import Map
-from apache_beam.io.external.generate_sequence import GenerateSequence
-from apache_beam.io.kafka import ReadFromKafka
-from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.sql import SqlTransform
+from apache_beam.transforms import window
+from apache_beam.utils import timestamp
 
 # Run as
 #
@@ -178,6 +174,26 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
 
     return options
 
+  # Slightly more robust session window test:
+  # Validates that an inner grouping doesn't duplicate data either.
+  # Copied also because the timestamp in fn_runner_test.py isn't being
+  # inferred correctly as seconds for some reason, but as micros.
+  # The belabored specification is validating the timestamp type works at least.
+  # See https://github.com/apache/beam/issues/32085
+  def test_windowing(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102, 123])
+          | beam.Map(
+              lambda t: window.TimestampedValue(
+                  ('k', t), timestamp.Timestamp.of(t).micros))
+          | beam.WindowInto(beam.transforms.window.Sessions(10))
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(
+          res, equal_to([('k', [1, 2]), ('k', [100, 101, 102]), ('k', [123])]))
+
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):
     print('name:', __name__)
@@ -186,79 +202,34 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
       assert_that(lines, lambda lines: len(lines) > 0)
 
   def test_external_transform(self):
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | GenerateSequence(
-              start=1, stop=10, expansion_service=self.get_expansion_service()))
-
-      assert_that(res, equal_to([i for i in range(1, 10)]))
+    raise unittest.SkipTest("Requires an expansion service to execute.")
 
   def test_expand_kafka_read(self):
-    # We expect to fail here because we do not have a Kafka cluster handy.
-    # Nevertheless, we check that the transform is expanded by the
-    # ExpansionService and that the pipeline fails during execution.
-    with self.assertRaises(Exception) as ctx:
-      self.enable_commit = True
-      with self.create_pipeline() as p:
-        # pylint: disable=expression-not-assigned
-        (
-            p
-            | ReadFromKafka(
-                consumer_config={
-                    'bootstrap.servers': 'notvalid1:7777, notvalid2:3531',
-                    'group.id': 'any_group'
-                },
-                topics=['topic1', 'topic2'],
-                key_deserializer='org.apache.kafka.'
-                'common.serialization.'
-                'ByteArrayDeserializer',
-                value_deserializer='org.apache.kafka.'
-                'common.serialization.'
-                'LongDeserializer',
-                commit_offset_in_finalize=True,
-                timestamp_policy=ReadFromKafka.create_time_policy,
-                expansion_service=self.get_expansion_service()))
-    self.assertTrue(
-        'No resolvable bootstrap urls given in bootstrap.servers' in str(
-            ctx.exception),
-        'Expected to fail due to invalid bootstrap.servers, but '
-        'failed due to:\n%s' % str(ctx.exception))
+    raise unittest.SkipTest("Requires an expansion service to execute.")
 
   def test_expand_kafka_write(self):
-    # We just test the expansion but do not execute.
-    # pylint: disable=expression-not-assigned
-    (
-        self.create_pipeline()
-        | Impulse()
-        | Map(lambda input: (1, input))
-        | WriteToKafka(
-            producer_config={
-                'bootstrap.servers': 'localhost:9092, notvalid2:3531'
-            },
-            topic='topic1',
-            key_serializer='org.apache.kafka.'
-            'common.serialization.'
-            'LongSerializer',
-            value_serializer='org.apache.kafka.'
-            'common.serialization.'
-            'ByteArraySerializer',
-            expansion_service=self.get_expansion_service()))
+    raise unittest.SkipTest("Requires an expansion service to execute.")
 
   def test_sql(self):
-    with self.create_pipeline() as p:
-      output = (
-          p
-          | 'Create' >> beam.Create([Row(x, str(x)) for x in range(5)])
-          | 'Sql' >> SqlTransform(
-              """SELECT col1, col2 || '*' || col2 as col2,
-                    power(col1, 2) as col3
-             FROM PCOLLECTION
-          """,
-              expansion_service=self.get_expansion_service()))
-      assert_that(
-          output,
-          equal_to([(x, '{x}*{x}'.format(x=x), x * x) for x in range(5)]))
+    raise unittest.SkipTest("Requires an expansion service to execute.")
+
+  # The following tests require additional implementation in Prism.
+
+  def test_custom_merging_window(self):
+    raise unittest.SkipTest(
+        "Requires Prism to support Custom Window " +
+        "Coders, and Merging Custom Windows. " +
+        "https://github.com/apache/beam/issues/31921")
+
+  def test_custom_window_type(self):
+    raise unittest.SkipTest(
+        "Requires Prism to support Custom Window Coders." +
+        " https://github.com/apache/beam/issues/31921")
+
+  def test_pack_combiners(self):
+    raise unittest.SkipTest(
+        "Requires Prism to support coder:" +
+        " 'beam:coder:tuple:v1'. https://github.com/apache/beam/issues/32636")
 
 
 # Inherits all other tests.

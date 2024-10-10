@@ -320,6 +320,18 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     src_dest_pairs = list(zip(sources, destinations))
     blobstorageio_mock.rename_files.assert_called_once_with(src_dest_pairs)
 
+  def test_lineage(self):
+    self._verify_lineage(
+        "azfs://storageaccount/container/", ("storageaccount", "container"))
+    self._verify_lineage(
+        "azfs://storageaccount/container/foo/bar.txt",
+        ("storageaccount", "container", "foo/bar.txt"))
+
+  def _verify_lineage(self, uri, expected_segments):
+    lineage_mock = mock.MagicMock()
+    self.fs.report_lineage(uri, lineage_mock)
+    lineage_mock.add.assert_called_once_with("abs", *expected_segments)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

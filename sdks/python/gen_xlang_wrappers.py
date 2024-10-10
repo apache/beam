@@ -22,6 +22,7 @@ SchemaTransforms)
 
 import argparse
 import datetime
+import inspect
 import logging
 import os
 import shutil
@@ -168,7 +169,7 @@ def generate_transforms_config(input_services, output_file):
           'destinations': transform_destinations,
           'default_service': target,
           'fields': fields,
-          'description': wrapper.description
+          'description': inspect.getdoc(wrapper)
       }
       transform_list.append(transform)
 

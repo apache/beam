@@ -56,7 +56,8 @@ public abstract class SnapshotInfo {
       return SchemaRegistry.createDefault()
           .getToRowFunction(SnapshotInfo.class)
           .apply(this)
-          .sorted();
+          .sorted()
+          .toSnakeCase();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
@@ -69,7 +70,7 @@ public abstract class SnapshotInfo {
     try {
       SchemaRegistry registry = SchemaRegistry.createDefault();
       CODER = registry.getSchemaCoder(SnapshotInfo.class);
-      SCHEMA = registry.getSchema(SnapshotInfo.class).sorted();
+      SCHEMA = registry.getSchema(SnapshotInfo.class).sorted().toSnakeCase();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }

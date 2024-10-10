@@ -57,6 +57,7 @@ public final class GrpcCommitWorkStream
   private final int streamingRpcBatchLimit;
 
   private GrpcCommitWorkStream(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
           startCommitWorkRpcFn,
       BackOff backoff,
@@ -68,11 +69,13 @@ public final class GrpcCommitWorkStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
     super(
+        "CommitWorkStream",
         startCommitWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
-        logEveryNStreamFailures);
+        logEveryNStreamFailures,
+        backendWorkerToken);
     pending = new ConcurrentHashMap<>();
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
@@ -81,6 +84,7 @@ public final class GrpcCommitWorkStream
   }
 
   public static GrpcCommitWorkStream create(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
           startCommitWorkRpcFn,
       BackOff backoff,
@@ -93,6 +97,7 @@ public final class GrpcCommitWorkStream
       int streamingRpcBatchLimit) {
     GrpcCommitWorkStream commitWorkStream =
         new GrpcCommitWorkStream(
+            backendWorkerToken,
             startCommitWorkRpcFn,
             backoff,
             streamObserverFactory,

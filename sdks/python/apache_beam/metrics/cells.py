@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """
 This file contains metric cell classes. A metric cell is used to accumulate
 in-memory changes to a metric. It represents a specific metric in a single
@@ -25,11 +23,14 @@ context.
 
 # pytype: skip-file
 
+import logging
 import threading
 import time
 from datetime import datetime
 from typing import Any
+from typing import Iterable
 from typing import Optional
+from typing import Set
 from typing import SupportsInt
 
 try:
@@ -48,6 +49,8 @@ __all__ = [
     'DistributionResult',
     'GaugeResult'
 ]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MetricCell(object):
@@ -268,6 +271,62 @@ class GaugeCell(MetricCell):
         ptransform=transform_id)
 
 
+class StringSetCell(MetricCell):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value for a StringSet metric.
+
+  Each cell tracks the state of a metric independently per context per bundle.
+  Therefore, each metric has a different cell in each bundle, that is later
+  aggregated.
+
+  This class is thread safe.
+  """
+  def __init__(self, *args):
+    super().__init__(*args)
+    self.data = StringSetAggregator.identity_element()
+
+  def add(self, value):
+    self.update(value)
+
+  def update(self, value):
+    # type: (str) -> None
+    if cython.compiled:
+      # We will hold the GIL throughout the entire _update.
+      self._update(value)
+    else:
+      with self._lock:
+        self._update(value)
+
+  def _update(self, value):
+    self.data.add(value)
+
+  def get_cumulative(self):
+    # type: () -> StringSetData
+    with self._lock:
+      return self.data.get_cumulative()
+
+  def combine(self, other):
+    # type: (StringSetCell) -> StringSetCell
+    combined = StringSetAggregator().combine(self.data, other.data)
+    result = StringSetCell()
+    result.data = combined
+    return result
+
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
+    from apache_beam.metrics import monitoring_infos
+
+    return monitoring_infos.user_set_string(
+        name.namespace,
+        name.name,
+        self.get_cumulative(),
+        ptransform=transform_id)
+
+  def reset(self):
+    # type: () -> None
+    self.data = StringSetAggregator.identity_element()
+
+
 class DistributionResult(object):
   """The result of a Distribution metric."""
   def __init__(self, data):
@@ -468,6 +527,98 @@ class DistributionData(object):
     return DistributionData(value, 1, value, value)
 
 
+class StringSetData(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  The data structure that holds data about a StringSet metric.
+
+  StringSet metrics are restricted to set of strings only.
+
+  This object is not thread safe, so it's not supposed to be modified
+  by other than the StringSetCell that contains it.
+
+  The summation of all string length for a StringSetData cannot exceed 1 MB.
+  Further addition of elements are dropped.
+  """
+
+  _STRING_SET_SIZE_LIMIT = 1_000_000
+
+  def __init__(self, string_set: Optional[Set] = None, string_size: int = 0):
+    self.string_set = string_set or set()
+    if not string_size:
+      string_size = 0
+      for s in self.string_set:
+        string_size += len(s)
+    self.string_size = string_size
+
+  def __eq__(self, other: object) -> bool:
+    if isinstance(other, StringSetData):
+      return (
+          self.string_size == other.string_size and
+          self.string_set == other.string_set)
+    else:
+      return False
+
+  def __hash__(self) -> int:
+    return hash(self.string_set)
+
+  def __repr__(self) -> str:
+    return 'StringSetData{}:{}'.format(self.string_set, self.string_size)
+
+  def get_cumulative(self) -> "StringSetData":
+    return StringSetData(set(self.string_set), self.string_size)
+
+  def add(self, *strings):
+    """
+    Add strings into this StringSetData and return the result StringSetData.
+    Reuse the original StringSetData's set.
+    """
+    self.string_size = self.add_until_capacity(
+        self.string_set, self.string_size, strings)
+    return self
+
+  def combine(self, other: "StringSetData") -> "StringSetData":
+    """
+    Combines this StringSetData with other, both original StringSetData are left
+    intact.
+    """
+    if other is None:
+      return self
+
+    combined = set(self.string_set)
+    string_size = self.add_until_capacity(
+        combined, self.string_size, other.string_set)
+    return StringSetData(combined, string_size)
+
+  @classmethod
+  def add_until_capacity(
+      cls, combined: set, current_size: int, others: Iterable[str]):
+    """
+    Add strings into set until reach capacity. Return the all string size of
+    added set.
+    """
+    if current_size > cls._STRING_SET_SIZE_LIMIT:
+      return current_size
+
+    for string in others:
+      if string not in combined:
+        combined.add(string)
+        current_size += len(string)
+        if current_size > cls._STRING_SET_SIZE_LIMIT:
+          _LOGGER.warning(
+              "StringSet metrics reaches capacity. Further incoming elements "
+              "won't be recorded. Current size: %d, last element size: %d.",
+              current_size,
+              len(string))
+          break
+    return current_size
+
+  @staticmethod
+  def singleton(value):
+    # type: (int) -> DistributionData
+    return DistributionData(value, 1, value, value)
+
+
 class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -553,3 +704,23 @@ class GaugeAggregator(MetricAggregator):
   def result(self, x):
     # type: (GaugeData) -> GaugeResult
     return GaugeResult(x.get_cumulative())
+
+
+class StringSetAggregator(MetricAggregator):
+  @staticmethod
+  def identity_element():
+    # type: () -> StringSetData
+    return StringSetData()
+
+  def combine(self, x, y):
+    # type: (StringSetData, StringSetData) -> StringSetData
+    if len(x.string_set) == 0:
+      return y
+    elif len(y.string_set) == 0:
+      return x
+    else:
+      return x.combine(y)
+
+  def result(self, x):
+    # type: (StringSetData) -> set
+    return set(x.string_set)

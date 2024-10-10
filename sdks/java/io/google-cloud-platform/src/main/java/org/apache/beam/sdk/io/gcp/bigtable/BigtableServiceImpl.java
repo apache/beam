@@ -24,6 +24,7 @@ import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.DeadlineExceededException;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.StreamController;
@@ -59,7 +60,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -70,6 +70,7 @@ import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -211,6 +212,11 @@ class BigtableServiceImpl implements BigtableService {
         exhausted = true;
       }
     }
+
+    @Override
+    public void reportLineage() {
+      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, tableId));
+    }
   }
 
   @VisibleForTesting
@@ -224,6 +230,9 @@ class BigtableServiceImpl implements BigtableService {
     private final int refillSegmentWaterMark;
     private final long maxSegmentByteSize;
     private ServiceCallMetric serviceCallMetric;
+    private final String projectId;
+    private final String instanceId;
+    private final String tableId;
 
     private static class UpstreamResults {
       private final List<Row> rows;
@@ -307,10 +316,18 @@ class BigtableServiceImpl implements BigtableService {
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.refillSegmentWaterMark =
           Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
+      this.projectId = projectId;
+      this.instanceId = instanceId;
+      this.tableId = tableId;
     }
 
     @Override
     public void close() {}
+
+    @Override
+    public void reportLineage() {
+      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, tableId));
+    }
 
     @Override
     public boolean start() throws IOException {
@@ -435,13 +452,18 @@ class BigtableServiceImpl implements BigtableService {
         int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(lastKey, true));
         int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(lastKey, true));
 
+        if (endCmp <= 0) {
+          // range end is on or left of the split: skip
+          continue;
+        }
+
+        RowRange.Builder newRange = rowRange.toBuilder();
         if (startCmp > 0) {
           // If the startKey is passed the split point than add the whole range
-          segment.addRowRanges(rowRange);
-        } else if (endCmp > 0) {
+          segment.addRowRanges(newRange.build());
+        } else {
           // Row is split, remove all read rowKeys and split RowSet at last buffered Row
-          RowRange subRange = rowRange.toBuilder().setStartKeyOpen(lastKey).build();
-          segment.addRowRanges(subRange);
+          segment.addRowRanges(newRange.setStartKeyOpen(lastKey).build());
         }
       }
       if (segment.getRowRangesCount() == 0) {
@@ -529,8 +551,8 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
 
       com.google.cloud.bigtable.data.v2.models.Mutation mutation =
           com.google.cloud.bigtable.data.v2.models.Mutation.fromProtoUnsafe(record.getValue());
@@ -572,6 +594,11 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
+    @Override
+    public void reportLineage() {
+      Lineage.getSinks().add("bigtable", ImmutableList.of(projectId, instanceId, tableId));
+    }
+
     private ServiceCallMetric createServiceCallMetric() {
       // Populate metrics
       HashMap<String, String> baseLabels = new HashMap<>();
@@ -611,6 +638,9 @@ class BigtableServiceImpl implements BigtableService {
         if (throwable instanceof StatusRuntimeException) {
           serviceCallMetric.call(
               ((StatusRuntimeException) throwable).getStatus().getCode().value());
+        } else if (throwable instanceof DeadlineExceededException) {
+          // incoming throwable can be a StatusRuntimeException or a specific grpc ApiException
+          serviceCallMetric.call(504);
         } else {
           serviceCallMetric.call("unknown");
         }

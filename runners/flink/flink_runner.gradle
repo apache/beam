@@ -335,6 +335,8 @@ def createValidatesRunnerTask(Map m) {
         // Extremely flaky: https://github.com/apache/beam/issues/19814
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
+        // TODO(https://github.com/apache/beam/issues/29972) due to runtimeContext initialized after initial split
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
       }
     }
   }

@@ -19,15 +19,15 @@ package org.apache.beam.sdk.io.googleads;
 
 /**
  * {@link GoogleAdsIO} provides an API for reading from the <a
- * href="https://developers.google.com/google-ads/api/docs/start">Google Ads API</a> over different
+ * href="https://developers.google.com/google-ads/api/docs/start">Google Ads API</a> over supported
  * versions of the Google Ads client libraries.
  *
- * @see GoogleAdsV14
+ * @see GoogleAdsV17
  */
 public class GoogleAdsIO {
   private GoogleAdsIO() {}
 
-  public static GoogleAdsV14 v14() {
-    return GoogleAdsV14.INSTANCE;
+  public static GoogleAdsV17 v17() {
+    return GoogleAdsV17.INSTANCE;
   }
 }

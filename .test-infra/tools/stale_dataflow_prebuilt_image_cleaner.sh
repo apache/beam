@@ -22,7 +22,7 @@ set -euo pipefail
 # Clean up private registry (us.gcr.io)
 # Images more than 5 day old and not the latest (either has latest label or newest)
 
-PUBLIC_REPOSITORIES=(beam-sdk beam_portability beamgrafana beammetricssyncjenkins beammetricssyncgithub)
+PUBLIC_REPOSITORIES=() # (beam-sdk beam_portability beamgrafana beammetricssyncjenkins beammetricssyncgithub)
 PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins github-actions)
 # set as the same as 6-week release period
 if [[ $OSTYPE == "linux-gnu"* ]]; then

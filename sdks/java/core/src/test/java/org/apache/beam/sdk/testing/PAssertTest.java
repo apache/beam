@@ -37,6 +37,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert.MatcherCheckerFn;
@@ -384,6 +385,36 @@ public class PAssertTest implements Serializable {
     assertThat(message, containsString("The value was not equal to 44"));
     assertThat(message, containsString("Expected: <44>"));
     assertThat(message, containsString("but: was <42>"));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertEqualsSingletonFailsForEmptyPCollection() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.empty(VarIntCoder.of()));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("expected singleton PCollection"));
+    assertThat(message, containsString("but was: empty PCollection"));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertEqualsSingletonFailsForNonSingletonPCollection() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(44, 44));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("expected one element"));
+    assertThat(message, containsString("but was: <44, 44>"));
   }
 
   /** Test that we throw an error for false assertion on singleton. */

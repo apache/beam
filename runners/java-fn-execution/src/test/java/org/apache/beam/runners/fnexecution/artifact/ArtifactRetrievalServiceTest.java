@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.artifact;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,7 +34,6 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -74,7 +74,7 @@ public class ArtifactRetrievalServiceTest {
     for (Map.Entry<String, String> entry : files.entrySet()) {
       Files.write(
           Paths.get(stagingDir.toString(), entry.getKey()),
-          entry.getValue().getBytes(Charsets.UTF_8));
+          entry.getValue().getBytes(StandardCharsets.UTF_8));
     }
   }
 

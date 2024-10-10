@@ -1,3 +1,5 @@
+import static org.apache.beam.gradle.BeamModulePlugin.getSupportedJavaVersion
+
 import org.apache.tools.ant.taskdefs.condition.Os
 
 /*
@@ -39,7 +41,8 @@ def createFlinkRunnerTestTask(String workerType) {
   task.configure {
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
     // The Java SDK worker is required to execute external transforms.
-    dependsOn ':sdks:java:container:java8:docker'
+    def suffix = getSupportedJavaVersion()
+    dependsOn ":sdks:java:container:${suffix}:docker"
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
     } else if (workerType == 'PROCESS') {
@@ -198,6 +201,56 @@ tasks.register("sparkValidatesRunner") {
   dependsOn 'sparkCompatibilityMatrixLOOPBACK'
 }
 
+def createPrismRunnerTestTask(String workerType) {
+  def taskName = "prismCompatibilityMatrix${workerType}"
+
+  def prismBin = "${rootDir}/runners/prism/build/tmp/prism"
+  def options = "--prism_bin=${prismBin} --environment_type=${workerType}"
+  if (workerType == 'PROCESS') {
+    options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
+  }
+  def task = toxTask(taskName, 'prism-runner-test', options)
+  task.configure {
+    dependsOn ":runners:prism:build"
+    // The Java SDK worker is required to execute external transforms.
+    def suffix = getSupportedJavaVersion()
+    dependsOn ":sdks:java:container:${suffix}:docker"
+    if (workerType == 'DOCKER') {
+      dependsOn pythonContainerTask
+    } else if (workerType == 'PROCESS') {
+      dependsOn createProcessWorker
+    }
+  }
+  return task
+}
+
+createPrismRunnerTestTask('DOCKER')
+createPrismRunnerTestTask('PROCESS')
+createPrismRunnerTestTask('LOOPBACK')
+
+tasks.register("prismValidatesRunner") {
+  dependsOn 'prismCompatibilityMatrixLOOPBACK'
+}
+
+tasks.register("prismTriggerTranscript") {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:prism:build'
+  def prismBin = "${rootDir}/runners/prism/build/tmp/prism"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e .[test] \\
+          && pytest \\
+              apache_beam/transforms/trigger_test.py::WeakTestStreamTranscriptTest \\
+              --test-pipeline-options='--runner=PrismRunner --environment_type=LOOPBACK --prism_location=${prismBin}'
+          """
+    }
+  }
+}
+
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
   dependsOn = [":sdks:python:container:py${pythonVersionSuffix}:docker",
                ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
@@ -272,6 +325,37 @@ project.tasks.register("sparkExamples") {
             "suite": "postCommitExamples-spark-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
             "collect": "examples_postcommit and not sickbay_spark"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+project.tasks.register("prismExamples") {
+  dependsOn = [
+          'setupVirtualenv',
+          'installGcpTest',
+          ':runners:prism:build',
+  ] 
+  def prismBin = "${rootDir}/runners/prism/build/tmp/prism"
+  doLast {
+    def testOpts = [
+            "--log-cli-level=INFO",
+    ]
+    def pipelineOpts = [
+            "--runner=PrismRunner",
+            "--project=apache-beam-testing",
+            "--environment_type=LOOPBACK",
+            "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+            "--prism_location=${prismBin}",
+    ]
+    def cmdArgs = mapToArgString([
+            "test_opts": testOpts,
+            "suite": "postCommitExamples-prism-py${pythonVersionSuffix}",
+            "pipeline_opts": pipelineOpts.join(" "),
+            "collect": "examples_postcommit and not sickbay_prism"
     ])
     exec {
       executable 'sh'

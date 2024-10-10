@@ -73,7 +73,7 @@ public class IcebergReadSchemaTransformProviderTest {
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     simpleTable
         .newFastAppend()
@@ -94,15 +94,15 @@ public class IcebergReadSchemaTransformProviderTest {
                 TestFixtures.FILE2SNAPSHOT1,
                 TestFixtures.FILE3SNAPSHOT1)
             .flatMap(List::stream)
-            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
     Map<String, String> properties = new HashMap<>();
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    IcebergReadSchemaTransformProvider.Config readConfig =
-        IcebergReadSchemaTransformProvider.Config.builder()
+    SchemaTransformConfiguration readConfig =
+        SchemaTransformConfiguration.builder()
             .setTable(identifier)
             .setCatalogName("name")
             .setCatalogProperties(properties)
@@ -129,7 +129,7 @@ public class IcebergReadSchemaTransformProviderTest {
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     simpleTable
         .newFastAppend()
@@ -150,7 +150,7 @@ public class IcebergReadSchemaTransformProviderTest {
                 TestFixtures.FILE2SNAPSHOT1,
                 TestFixtures.FILE3SNAPSHOT1)
             .flatMap(List::stream)
-            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
     String yamlConfig =

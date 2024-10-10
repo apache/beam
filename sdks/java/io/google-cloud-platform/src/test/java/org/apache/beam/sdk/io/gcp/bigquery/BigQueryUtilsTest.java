@@ -77,6 +77,10 @@ public class BigQueryUtilsTest {
           .addNullableField("timestamp_variant2", Schema.FieldType.DATETIME)
           .addNullableField("timestamp_variant3", Schema.FieldType.DATETIME)
           .addNullableField("timestamp_variant4", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant5", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant6", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant7", Schema.FieldType.DATETIME)
+          .addNullableField("timestamp_variant8", Schema.FieldType.DATETIME)
           .addNullableField("datetime", Schema.FieldType.logicalType(SqlTypes.DATETIME))
           .addNullableField("datetime0ms", Schema.FieldType.logicalType(SqlTypes.DATETIME))
           .addNullableField("datetime0s_ns", Schema.FieldType.logicalType(SqlTypes.DATETIME))
@@ -149,6 +153,22 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema TIMESTAMP_VARIANT4 =
       new TableFieldSchema()
           .setName("timestamp_variant4")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString());
+  private static final TableFieldSchema TIMESTAMP_VARIANT5 =
+      new TableFieldSchema()
+          .setName("timestamp_variant5")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString());
+  private static final TableFieldSchema TIMESTAMP_VARIANT6 =
+      new TableFieldSchema()
+          .setName("timestamp_variant6")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString());
+  private static final TableFieldSchema TIMESTAMP_VARIANT7 =
+      new TableFieldSchema()
+          .setName("timestamp_variant7")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString());
+  private static final TableFieldSchema TIMESTAMP_VARIANT8 =
+      new TableFieldSchema()
+          .setName("timestamp_variant8")
           .setType(StandardSQLTypeName.TIMESTAMP.toString());
 
   private static final TableFieldSchema DATETIME =
@@ -240,6 +260,10 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT2,
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
+                  TIMESTAMP_VARIANT5,
+                  TIMESTAMP_VARIANT6,
+                  TIMESTAMP_VARIANT7,
+                  TIMESTAMP_VARIANT8,
                   DATETIME,
                   DATETIME_0MS,
                   DATETIME_0S_NS,
@@ -271,6 +295,10 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT2,
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
+                  TIMESTAMP_VARIANT5,
+                  TIMESTAMP_VARIANT6,
+                  TIMESTAMP_VARIANT7,
+                  TIMESTAMP_VARIANT8,
                   DATETIME,
                   DATETIME_0MS,
                   DATETIME_0S_NS,
@@ -312,6 +340,18 @@ public class BigQueryUtilsTest {
                   .withZoneUTC()
                   .parseDateTime("2019-08-18T15:52:07.123"),
               new DateTime(123456),
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2024-08-10T16:52:07.1"),
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2024-08-10T16:52:07.12"),
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2024-08-10T16:52:07.1234"),
+              ISODateTimeFormat.dateHourMinuteSecondFraction()
+                  .withZoneUTC()
+                  .parseDateTime("2024-08-10T16:52:07.12345"),
               LocalDateTime.parse("2020-11-02T12:34:56.789876"),
               LocalDateTime.parse("2020-11-02T12:34:56"),
               LocalDateTime.parse("2020-11-02T12:34:00.789876"),
@@ -343,6 +383,11 @@ public class BigQueryUtilsTest {
               "timestamp_variant4",
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
+          .set("timestamp_variant5", "2024-08-10 16:52:07.1 UTC")
+          .set("timestamp_variant6", "2024-08-10 16:52:07.12 UTC")
+          // we'll loose precession, but it's something BigQuery can output!
+          .set("timestamp_variant7", "2024-08-10 16:52:07.1234 UTC")
+          .set("timestamp_variant8", "2024-08-10 16:52:07.12345 UTC")
           .set("datetime", "2020-11-02T12:34:56.789876")
           .set("datetime0ms", "2020-11-02T12:34:56")
           .set("datetime0s_ns", "2020-11-02T12:34:00.789876")
@@ -364,7 +409,7 @@ public class BigQueryUtilsTest {
       Row.withSchema(FLAT_TYPE)
           .addValues(
               null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-              null, null, null, null, null, null, null, null, null)
+              null, null, null, null, null, null, null, null, null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -376,6 +421,10 @@ public class BigQueryUtilsTest {
           .set("timestamp_variant2", null)
           .set("timestamp_variant3", null)
           .set("timestamp_variant4", null)
+          .set("timestamp_variant5", null)
+          .set("timestamp_variant6", null)
+          .set("timestamp_variant7", null)
+          .set("timestamp_variant8", null)
           .set("datetime", null)
           .set("datetime0ms", null)
           .set("datetime0s_ns", null)
@@ -459,6 +508,10 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT2,
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
+                  TIMESTAMP_VARIANT5,
+                  TIMESTAMP_VARIANT6,
+                  TIMESTAMP_VARIANT7,
+                  TIMESTAMP_VARIANT8,
                   DATETIME,
                   DATETIME_0MS,
                   DATETIME_0S_NS,
@@ -515,6 +568,10 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT2,
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
+            TIMESTAMP_VARIANT5,
+            TIMESTAMP_VARIANT6,
+            TIMESTAMP_VARIANT7,
+            TIMESTAMP_VARIANT8,
             DATETIME,
             DATETIME_0MS,
             DATETIME_0S_NS,
@@ -566,6 +623,10 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT2,
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
+            TIMESTAMP_VARIANT5,
+            TIMESTAMP_VARIANT6,
+            TIMESTAMP_VARIANT7,
+            TIMESTAMP_VARIANT8,
             DATETIME,
             DATETIME_0MS,
             DATETIME_0S_NS,
@@ -603,6 +664,10 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT2,
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
+            TIMESTAMP_VARIANT5,
+            TIMESTAMP_VARIANT6,
+            TIMESTAMP_VARIANT7,
+            TIMESTAMP_VARIANT8,
             DATETIME,
             DATETIME_0MS,
             DATETIME_0S_NS,
@@ -637,9 +702,17 @@ public class BigQueryUtilsTest {
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
-    assertThat(row.size(), equalTo(23));
+    assertThat(row.size(), equalTo(27));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
+    assertThat(row, hasEntry("timestamp_variant2", "2019-08-17 14:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant3", "2019-08-18 15:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant4", "1970-01-01 00:02:03.456 UTC"));
+    assertThat(row, hasEntry("timestamp_variant5", "2024-08-10 16:52:07.100 UTC"));
+    assertThat(row, hasEntry("timestamp_variant6", "2024-08-10 16:52:07.120 UTC"));
+    assertThat(row, hasEntry("timestamp_variant7", "2024-08-10 16:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant8", "2024-08-10 16:52:07.123 UTC"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -692,9 +765,17 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(23));
+    assertThat(row.size(), equalTo(27));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
+    assertThat(row, hasEntry("timestamp_variant2", "2019-08-17 14:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant3", "2019-08-18 15:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant4", "1970-01-01 00:02:03.456 UTC"));
+    assertThat(row, hasEntry("timestamp_variant5", "2024-08-10 16:52:07.100 UTC"));
+    assertThat(row, hasEntry("timestamp_variant6", "2024-08-10 16:52:07.120 UTC"));
+    assertThat(row, hasEntry("timestamp_variant7", "2024-08-10 16:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant8", "2024-08-10 16:52:07.123 UTC"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -720,9 +801,17 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(23));
+    assertThat(row.size(), equalTo(27));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
+    assertThat(row, hasEntry("timestamp_variant2", "2019-08-17 14:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant3", "2019-08-18 15:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant4", "1970-01-01 00:02:03.456 UTC"));
+    assertThat(row, hasEntry("timestamp_variant5", "2024-08-10 16:52:07.100 UTC"));
+    assertThat(row, hasEntry("timestamp_variant6", "2024-08-10 16:52:07.120 UTC"));
+    assertThat(row, hasEntry("timestamp_variant7", "2024-08-10 16:52:07.123 UTC"));
+    assertThat(row, hasEntry("timestamp_variant8", "2024-08-10 16:52:07.123 UTC"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -746,7 +835,7 @@ public class BigQueryUtilsTest {
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(23));
+    assertThat(row.size(), equalTo(27));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -754,6 +843,10 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("timestamp_variant2", null));
     assertThat(row, hasEntry("timestamp_variant3", null));
     assertThat(row, hasEntry("timestamp_variant4", null));
+    assertThat(row, hasEntry("timestamp_variant5", null));
+    assertThat(row, hasEntry("timestamp_variant6", null));
+    assertThat(row, hasEntry("timestamp_variant7", null));
+    assertThat(row, hasEntry("timestamp_variant8", null));
     assertThat(row, hasEntry("datetime", null));
     assertThat(row, hasEntry("datetime0ms", null));
     assertThat(row, hasEntry("datetime0s_ns", null));
@@ -1128,5 +1221,30 @@ public class BigQueryUtilsTest {
     assertNull(BigQueryUtils.toTableReference("projects/myproject"));
     assertNull(BigQueryUtils.toTableReference("projects/"));
     assertNull(BigQueryUtils.toTableReference("projects"));
+  }
+
+  @Test
+  public void testTrimSchema() {
+    assertEquals(BQ_FLAT_TYPE, BigQueryUtils.trimSchema(BQ_FLAT_TYPE, null));
+    assertEquals(BQ_FLAT_TYPE, BigQueryUtils.trimSchema(BQ_FLAT_TYPE, Collections.emptyList()));
+
+    {
+      TableSchema expected = new TableSchema().setFields(Arrays.asList(ID, VALUE, NAME));
+      assertEquals(
+          expected, BigQueryUtils.trimSchema(BQ_FLAT_TYPE, Arrays.asList("id", "value", "name")));
+    }
+
+    {
+      TableFieldSchema filteredRow =
+          new TableFieldSchema()
+              .setName("row")
+              .setType(StandardSQLTypeName.STRUCT.toString())
+              .setMode(Mode.NULLABLE.toString())
+              .setFields(Arrays.asList(ID, VALUE, NAME));
+      TableSchema expected = new TableSchema().setFields(Collections.singletonList(filteredRow));
+      assertEquals(
+          expected,
+          BigQueryUtils.trimSchema(BQ_ROW_TYPE, Arrays.asList("row.id", "row.value", "row.name")));
+    }
   }
 }

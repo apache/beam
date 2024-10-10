@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -73,7 +74,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -492,7 +492,7 @@ public class TextIOWriteTest {
     List<String> expectedElements = new ArrayList<>(elems.length);
     for (String elem : elems) {
       byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-      String line = new String(encodedElem, Charsets.UTF_8);
+      String line = new String(encodedElem, StandardCharsets.UTF_8);
       expectedElements.add(line);
     }
 
@@ -509,7 +509,7 @@ public class TextIOWriteTest {
 
   private static List<String> readLinesFromFile(File f) throws IOException {
     List<String> currentFile = new ArrayList<>();
-    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), Charsets.UTF_8)) {
+    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), StandardCharsets.UTF_8)) {
       while (true) {
         String line = reader.readLine();
         if (line == null) {

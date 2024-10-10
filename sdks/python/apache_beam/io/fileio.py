@@ -557,6 +557,8 @@ class WriteToFiles(beam.PTransform):
         class signature or an instance of FileSink to this parameter. If none is
         provided, a ``TextSink`` is used.
       shards (int): The number of shards per destination and trigger firing.
+      output_fn (callable, optional): A callable to process the output. This
+        parameter is currently unused and retained for backward compatibility.
       max_writers_per_bundle (int): The number of writers that can be open
         concurrently in a single worker that's processing one bundle.
     """
