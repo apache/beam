@@ -391,6 +391,7 @@ if __name__ == '__main__':
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
+          'pyyaml>=3.12,<7.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -417,7 +418,6 @@ if __name__ == '__main__':
               'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
-              'pyyaml>=3.12,<7.0.0',
               'requests_mock>=1.7,<2.0',
               'tenacity>=8.0.0,<9',
               'pytest>=7.1.2,<8.0',
@@ -525,7 +525,6 @@ if __name__ == '__main__':
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
-              'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
               # https://github.com/PiotrDabkowski/Js2Py/issues/317
               'js2py>=0.74,<1; python_version<"3.12"',
