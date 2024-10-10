@@ -93,7 +93,6 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        token_format: 'access_token'
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@v2
       with:
