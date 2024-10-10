@@ -123,6 +123,8 @@ kafkaVersions.each {kv ->
     outputs.upToDateWhen { false }
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath =  configurations."kafkaVersion${kv.key}" + sourceSets.test.runtimeClasspath
+    systemProperty "beam.target.kafka.version", kv.value
+
     include '**/KafkaIOTest.class'
   }
 }
