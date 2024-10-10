@@ -41,8 +41,8 @@ if [ "$SDK_TAG" == "$SDK_TAG_LOCAL" ]; then
   go mod edit -replace=$BEAM_PKG@v$SDK_TAG=$BEAM_SRC
 fi
 
-go get -x $BEAM_PKG/go/pkg/beam@v$SDK_TAG
-go get -x $BEAM_PKG/go/pkg/beam/io/bigqueryio@v$SDK_TAG
-go get -x $BEAM_PKG/go/test/integration@v$SDK_TAG
+go install -x $BEAM_PKG/go/pkg/beam@v$SDK_TAG
+go install -x $BEAM_PKG/go/pkg/beam/io/bigqueryio@v$SDK_TAG
+go install -x $BEAM_PKG/go/test/integration@v$SDK_TAG
 
 go mod download -x all
