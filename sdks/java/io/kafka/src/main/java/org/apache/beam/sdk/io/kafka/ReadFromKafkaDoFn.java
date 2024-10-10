@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
@@ -25,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
@@ -223,10 +223,13 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
   private transient @Nullable Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCache;
 
+  private static final Supplier<KafkaOffsetConsumerPollThreadCache> offsetConsumerPollThreadCache =
+      Suppliers.memoize(KafkaOffsetConsumerPollThreadCache::new);
+
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
 
-  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
+  private final HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<>();
 
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
@@ -244,46 +247,26 @@ abstract class ReadFromKafkaDoFn<K, V>
   private static class KafkaLatestOffsetEstimator
       implements GrowableOffsetRangeTracker.RangeEndEstimator {
 
-    private final Consumer<byte[], byte[]> offsetConsumer;
-    private final TopicPartition topicPartition;
-    private final Supplier<Long> memoizedBacklog;
-    private boolean closed;
+    private final KafkaOffsetConsumerPollThread offsetTrackerThread;
 
-    KafkaLatestOffsetEstimator(
-        Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
-      this.offsetConsumer = offsetConsumer;
-      this.topicPartition = topicPartition;
-      ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
-      memoizedBacklog =
-          Suppliers.memoizeWithExpiration(
-              () -> {
-                synchronized (offsetConsumer) {
-                  ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
-                  return offsetConsumer.position(topicPartition);
-                }
-              },
-              1,
-              TimeUnit.SECONDS);
-    }
-
-    @Override
-    protected void finalize() {
-      try {
-        Closeables.close(offsetConsumer, true);
-        closed = true;
-        LOG.info("Offset Estimator consumer was closed for {}", topicPartition);
-      } catch (Exception anyException) {
-        LOG.warn("Failed to close offset consumer for {}", topicPartition);
-      }
+    public KafkaLatestOffsetEstimator(
+        Map<String, Object> fullOffsetConsumerConfig,
+        SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn,
+        KafkaSourceDescriptor kafkaSourceDescriptor) {
+      this.offsetTrackerThread =
+          offsetConsumerPollThreadCache
+              .get()
+              .acquireOffsetTrackerThread(
+                  fullOffsetConsumerConfig, consumerFactoryFn, kafkaSourceDescriptor);
     }
 
     @Override
     public long estimate() {
-      return memoizedBacklog.get();
+      return offsetTrackerThread.readEndOffset();
     }
 
     public boolean isClosed() {
-      return closed;
+      return offsetTrackerThread.isClosed();
     }
   }
 
@@ -312,7 +295,6 @@ abstract class ReadFromKafkaDoFn<K, V>
       } else if (stopReadTime != null) {
         endOffset = ConsumerSpEL.offsetForTime(offsetConsumer, partition, stopReadTime);
       }
-      new OffsetRange(startOffset, endOffset);
       Lineage.getSources()
           .add(
               "kafka",
@@ -369,21 +351,23 @@ abstract class ReadFromKafkaDoFn<K, V>
     // so we want to minimize the amount of connections that we start and track with Kafka. Another
     // point is that it has a memoized backlog, and this should make that more reusable estimations.
     final Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCacheInstance =
-        Preconditions.checkStateNotNull(this.offsetEstimatorCache);
+        Preconditions.checkStateNotNull(offsetEstimatorCache);
 
     TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
     KafkaLatestOffsetEstimator offsetEstimator = offsetEstimatorCacheInstance.get(topicPartition);
     if (offsetEstimator == null || offsetEstimator.isClosed()) {
-      Map<String, Object> updatedConsumerConfig =
+      Map<String, Object> consumerConfigWithBootstrapServers =
           overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
 
-      LOG.info("Creating Kafka consumer for offset estimation for {}", topicPartition);
+      Map<String, Object> combinedConsumerConfigs =
+          KafkaIOUtils.getOffsetConsumerConfig(
+              "tracker-" + topicPartition,
+              offsetConsumerConfig,
+              consumerConfigWithBootstrapServers);
 
-      Consumer<byte[], byte[]> offsetConsumer =
-          consumerFactoryFn.apply(
-              KafkaIOUtils.getOffsetConsumerConfig(
-                  "tracker-" + topicPartition, offsetConsumerConfig, updatedConsumerConfig));
-      offsetEstimator = new KafkaLatestOffsetEstimator(offsetConsumer, topicPartition);
+      offsetEstimator =
+          new KafkaLatestOffsetEstimator(
+              combinedConsumerConfigs, consumerFactoryFn, kafkaSourceDescriptor);
       offsetEstimatorCacheInstance.put(topicPartition, offsetEstimator);
     }
 
@@ -454,6 +438,10 @@ abstract class ReadFromKafkaDoFn<K, V>
         if (rawRecords.isEmpty()) {
           if (!topicPartitionExists(
               kafkaSourceDescriptor.getTopicPartition(), consumer.listTopics())) {
+            LOG.info(
+                "Closing the offset thread for {} because the partition doesn't exist anymore",
+                kafkaSourceDescriptor.getTopicPartition());
+            offsetConsumerPollThreadCache.get().invalidate(kafkaSourceDescriptor);
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
@@ -644,7 +632,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
 
     if (offsetEstimatorCache != null) {
-      offsetEstimatorCache.clear();
+      checkNotNull(offsetEstimatorCache).clear();
     }
     if (checkStopReadingFn != null) {
       checkStopReadingFn.teardown();
@@ -666,8 +654,8 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   private static class AverageRecordSize {
-    private MovingAvg avgRecordSize;
-    private MovingAvg avgRecordGap;
+    private final MovingAvg avgRecordSize;
+    private final MovingAvg avgRecordGap;
 
     public AverageRecordSize() {
       this.avgRecordSize = new MovingAvg();
