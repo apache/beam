@@ -50,7 +50,7 @@ class ManagedIcebergIT(unittest.TestCase):
     expected_dicts = [row.as_dict() for row in rows]
 
     with beam.Pipeline() as write_pipeline:
-      (
+      _ = (
           write_pipeline
           | beam.Create(rows)
           | beam.managed.Write(beam.managed.ICEBERG, config=iceberg_config))
