@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -45,8 +44,8 @@ import org.joda.time.Duration;
  * A connector that reads and writes to <a href="https://iceberg.apache.org/">Apache Iceberg</a>
  * tables.
  *
- * <p>{@link IcebergIO} is offered as a {@link Managed} transform. This class is subject to change
- * and should not be used directly. Instead, use it via {@link Managed#ICEBERG} like so:
+ * <p>{@link IcebergIO} is offered as a Managed transform. This class is subject to change and
+ * should not be used directly. Instead, use it like so:
  *
  * <pre>{@code
  * Map<String, Object> config = Map.of(

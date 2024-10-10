@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
-
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
@@ -26,10 +25,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
-import java.util.Properties;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -156,7 +152,7 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   public String identifier() {
-      return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE);
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE);
   }
 
   static class IcebergWriteSchemaTransform extends SchemaTransform {

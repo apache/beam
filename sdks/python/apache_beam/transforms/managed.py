@@ -33,8 +33,8 @@ an inline :class:`dict` like so::
                     config={"table": "foo",
                             "catalog_name": "bar",
                             "catalog_properties": {
-                                "prop1": "value1",
-                                "prop2": "value2"}})
+                                "warehouse": "path/to/warehouse",
+                                "catalog-impl": "org.apache.my.CatalogImpl"}})
 
 A YAML configuration file can also be used to build a Managed transform. Say we
 have the following `config.yaml` file::
@@ -77,13 +77,9 @@ from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
-BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
 _EXPANSION_SERVICE_JAR_TARGETS = {
     "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
-    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
-        BIGQUERY
-    ],
 }
 
 __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
@@ -94,7 +90,6 @@ class Read(PTransform):
   _READ_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
-      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn,
   }
 
   def __init__(
@@ -135,7 +130,6 @@ class Write(PTransform):
   _WRITE_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_WRITE.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
-      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
   }
 
   def __init__(

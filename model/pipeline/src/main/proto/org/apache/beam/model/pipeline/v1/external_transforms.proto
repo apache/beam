@@ -70,10 +70,6 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:kafka_read:v1"];
     KAFKA_WRITE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:kafka_write:v1"];
-    BIGQUERY_READ = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-      "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"];
-    BIGQUERY_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-      "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"];
   }
 }
 
