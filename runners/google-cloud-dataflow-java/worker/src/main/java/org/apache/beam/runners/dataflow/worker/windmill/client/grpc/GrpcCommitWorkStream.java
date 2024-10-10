@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
@@ -45,6 +45,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,13 +163,15 @@ final class GrpcCommitWorkStream
   protected void onResponse(StreamingCommitResponse response) {
     commitWorkThrottleTimer.stop();
 
-    @Nullable RuntimeException failure = null;
+    CommitCompletionException failures = new CommitCompletionException();
     for (int i = 0; i < response.getRequestIdCount(); ++i) {
       long requestId = response.getRequestId(i);
       if (requestId == HEARTBEAT_REQUEST_ID) {
         continue;
       }
       PendingRequest pendingRequest = pending.remove(requestId);
+      CommitStatus commitStatus =
+          i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
       if (pendingRequest == null) {
         if (!isShutdown()) {
           // Skip responses when the stream is shutdown since they are now invalid.
@@ -176,23 +179,18 @@ final class GrpcCommitWorkStream
         }
       } else {
         try {
-          pendingRequest.completeWithStatus(
-              (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
+          pendingRequest.completeWithStatus(commitStatus);
         } catch (RuntimeException e) {
           // Catch possible exceptions to ensure that an exception for one commit does not prevent
           // other commits from being processed. Aggregate all the failures to throw after
           // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
-          if (failure == null) {
-            failure = e;
-          } else {
-            failure.addSuppressed(e);
-          }
+          failures.recordError(commitStatus, e);
         }
       }
     }
-    if (failure != null) {
-      throw failure;
+    if (failures.hasErrors()) {
+      throw failures;
     }
   }
 
@@ -387,6 +385,39 @@ final class GrpcCommitWorkStream
           && (queue.isEmpty()
               || (queue.size() < streamingRpcBatchLimit
                   && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE));
+    }
+  }
+
+  private static class CommitCompletionException extends RuntimeException {
+    private static final int MAX_PRINTABLE_ERRORS = 10;
+    private final Map<Pair<CommitStatus, Class<? extends Throwable>>, Integer> errorCounter;
+    private final EvictingQueue<Throwable> detailedErrors;
+
+    private CommitCompletionException() {
+      super("Exception while processing commit response.");
+      this.errorCounter = new HashMap<>();
+      this.detailedErrors = EvictingQueue.create(MAX_PRINTABLE_ERRORS);
+    }
+
+    private void recordError(CommitStatus commitStatus, Throwable error) {
+      errorCounter.compute(
+          Pair.of(commitStatus, error.getClass()),
+          (ignored, current) -> current == null ? 1 : current + 1);
+      detailedErrors.add(error);
+    }
+
+    private boolean hasErrors() {
+      return !errorCounter.isEmpty();
+    }
+
+    @Override
+    public final String getMessage() {
+      return "CommitCompletionException{"
+          + "errorCounter="
+          + errorCounter
+          + ", detailedErrors="
+          + detailedErrors
+          + '}';
     }
   }
 }

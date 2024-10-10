@@ -96,7 +96,7 @@ public class WindmillStreamSenderTest {
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
 
     verify(streamFactory)
         .createDirectGetWorkStream(
@@ -126,9 +126,9 @@ public class WindmillStreamSenderTest {
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
-    windmillStreamSender.startStreams();
-    windmillStreamSender.startStreams();
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
+    windmillStreamSender.start();
+    windmillStreamSender.start();
 
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
@@ -160,10 +160,10 @@ public class WindmillStreamSenderTest {
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
-    Thread startStreamThread = new Thread(windmillStreamSender::startStreams);
+    Thread startStreamThread = new Thread(windmillStreamSender::start);
     startStreamThread.start();
 
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
 
     startStreamThread.join();
 
@@ -193,7 +193,7 @@ public class WindmillStreamSenderTest {
     WindmillStreamSender windmillStreamSender =
         newWindmillStreamSender(GetWorkBudget.builder().setBytes(1L).setItems(1L).build());
 
-    windmillStreamSender.closeAllStreams();
+    windmillStreamSender.close();
 
     verifyNoInteractions(streamFactory);
   }
@@ -229,8 +229,8 @@ public class WindmillStreamSenderTest {
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build(),
             mockStreamFactory);
 
-    windmillStreamSender.startStreams();
-    windmillStreamSender.closeAllStreams();
+    windmillStreamSender.start();
+    windmillStreamSender.close();
 
     verify(mockGetWorkStream).shutdown();
     verify(mockGetDataStream).shutdown();

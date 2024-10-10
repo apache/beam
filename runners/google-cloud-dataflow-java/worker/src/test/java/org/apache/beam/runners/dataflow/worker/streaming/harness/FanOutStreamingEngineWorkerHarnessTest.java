@@ -217,12 +217,11 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
 
-    StreamingEngineConnectionState currentConnections =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections();
+    StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
 
-    assertEquals(2, currentConnections.windmillStreams().size());
+    assertEquals(2, currentBackends.windmillStreams().size());
     Set<String> workerTokens =
-        currentConnections.windmillStreams().keySet().stream()
+        currentBackends.windmillStreams().keySet().stream()
             .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
             .collect(Collectors.toSet());
 
@@ -284,24 +283,22 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken3)
                     .build())
-            .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
-    StreamingEngineConnectionState currentConnections =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections();
-    assertEquals(1, currentConnections.windmillStreams().size());
+    StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
+    assertEquals(1, currentBackends.windmillStreams().size());
     Set<String> workerTokens =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections().windmillStreams().keySet()
-            .stream()
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
             .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
             .collect(Collectors.toSet());
 
     assertFalse(workerTokens.contains(workerToken));
     assertFalse(workerTokens.contains(workerToken2));
+    assertTrue(currentBackends.globalDataStreams().isEmpty());
   }
 
   @Test

@@ -18,23 +18,21 @@
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import com.google.auto.value.AutoValue;
-import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * Represents the current state of connections to Streaming Engine. Connections are updated when
- * backend workers assigned to the key ranges being processed by this user worker change during
+ * Represents the current state of connections to the Streaming Engine backend. Backends are updated
+ * when backend workers assigned to the key ranges being processed by this user worker change during
  * pipeline execution. For example, changes can happen via autoscaling, load-balancing, or other
  * backend updates.
  */
 @AutoValue
-abstract class StreamingEngineConnectionState {
-  static final StreamingEngineConnectionState EMPTY = builder().build();
+abstract class StreamingEngineBackends {
+  static final StreamingEngineBackends EMPTY = builder().build();
 
   static Builder builder() {
-    return new AutoValue_StreamingEngineConnectionState.Builder()
+    return new AutoValue_StreamingEngineBackends.Builder()
         .setWindmillStreams(ImmutableMap.of())
         .setGlobalDataStreams(ImmutableMap.of());
   }
@@ -42,15 +40,15 @@ abstract class StreamingEngineConnectionState {
   abstract ImmutableMap<Endpoint, WindmillStreamSender> windmillStreams();
 
   /** Mapping of GlobalDataIds and the direct GetDataStreams used fetch them. */
-  abstract ImmutableMap<String, Supplier<GetDataStream>> globalDataStreams();
+  abstract ImmutableMap<String, GlobalDataStreamSender> globalDataStreams();
 
   @AutoValue.Builder
   abstract static class Builder {
     public abstract Builder setWindmillStreams(ImmutableMap<Endpoint, WindmillStreamSender> value);
 
     public abstract Builder setGlobalDataStreams(
-        ImmutableMap<String, Supplier<GetDataStream>> value);
+        ImmutableMap<String, GlobalDataStreamSender> value);
 
-    public abstract StreamingEngineConnectionState build();
+    public abstract StreamingEngineBackends build();
   }
 }

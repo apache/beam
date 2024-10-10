@@ -65,7 +65,6 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -85,7 +84,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -107,7 +105,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
@@ -603,20 +600,12 @@ public final class StreamingDataflowWorker {
 
   private static ChannelCachingStubFactory createStubFactory(
       DataflowWorkerHarnessOptions workerOptions) {
-    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
-        serviceAddress ->
-            remoteChannel(
-                serviceAddress, workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec());
-    ChannelCache channelCache =
+    return ChannelCachingRemoteStubFactory.create(
+        workerOptions.getGcpCredential(),
         ChannelCache.create(
             serviceAddress ->
-                // IsolationChannel will create and manage separate RPC channels to the same
-                // serviceAddress via calling the channelFactory, else just directly return the
-                // RPC channel.
-                workerOptions.getUseWindmillIsolatedChannels()
-                    ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
-                    : channelFactory.apply(serviceAddress));
-    return ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
+                remoteChannel(
+                    serviceAddress, workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec())));
   }
 
   @VisibleForTesting
