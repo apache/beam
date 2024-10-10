@@ -1578,7 +1578,7 @@ class ParDo(PTransformWithSideInputs):
       error_handler=None,
       on_failure_callback: typing.Optional[typing.Callable[
           [Exception, typing.Any], None]] = None):
-    """Automatically provides a dead letter PCollection for skipping bad inputs.
+    """Automatically provides a dead letter output for saving bad inputs.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
 
