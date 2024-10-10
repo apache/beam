@@ -336,6 +336,8 @@ include("beam-test-gha")
 project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
+include("sdks:java:io:kafka:kafka-312")
+findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
 include("com.google.api.gax.batching")
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"

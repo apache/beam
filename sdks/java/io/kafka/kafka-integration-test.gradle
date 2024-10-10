@@ -29,12 +29,14 @@ provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 dependencies {
-    implementation "org.apache.kafka:kafka-clients:$delimited"
-    permitUnusedDeclared "org.apache.kafka:kafka-clients:$delimited"
+    // implementation "org.apache.kafka:kafka-clients:$delimited"
+    // permitUnusedDeclared "org.apache.kafka:kafka-clients:$delimited"
     implementation project(":sdks:java:io:kafka")
     permitUnusedDeclared project(":sdks:java:io:kafka")
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation 'org.apache.kafka:kafka-clients:3.1.2'
+    testImplementation 'org.apache.kafka:kafka-clients:3.1.2'
 }
 
 configurations.create("kafkaVersion$undelimited")

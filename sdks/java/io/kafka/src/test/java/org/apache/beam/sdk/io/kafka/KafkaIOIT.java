@@ -532,7 +532,6 @@ public class KafkaIOIT {
               .apply("Get Partitions", Keys.create());
 
       PAssert.that(values).containsInAnyOrder(0, 1);
-
       PipelineResult readResult = sdfReadPipeline.run();
 
       PipelineResult.State readState =
@@ -812,6 +811,61 @@ public class KafkaIOIT {
       assertNotEquals(readState, PipelineResult.State.FAILED);
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
+    }
+  }
+
+  @Test
+  public void testReadAndWriteFromKafkaIOWithApplicationDefaultCredentials() throws IOException {
+    // AdminClient client =
+    // AdminClient.create(
+    // ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+    String bootstraps =
+        "bootstrap.fozzie-test-cluster.us-central1.managedkafka.dataflow-testing-311516.cloud.goog:9092";
+    String topicName = "beam-testing";
+    Map<Integer, String> records = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      records.put(i, String.valueOf(i));
+    }
+    // writePipeline.getOptions().as(Options.class).setRunner(DataflowRunner.class);
+    try {
+      // client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      writePipeline
+          .apply("Generate Write Elements", Create.of(records))
+          .apply(
+              "Write to Kafka",
+              KafkaIO.<Integer, String>write()
+                  .withBootstrapServers(bootstraps)
+                  .withTopic(topicName)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(StringSerializer.class)
+                  .withApplicationDefaultCredentials());
+
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+      // client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
+
+      sdfReadPipeline.apply(
+          "Read from Kafka",
+          KafkaIO.<Integer, String>read()
+              .withBootstrapServers(bootstraps)
+              .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+              .withTopic(topicName)
+              .withKeyDeserializer(IntegerDeserializer.class)
+              .withValueDeserializer(StringDeserializer.class)
+              .withApplicationDefaultCredentials()
+              .withoutMetadata());
+
+      PipelineResult readResult = sdfReadPipeline.run();
+
+      // Only waiting 5 seconds here because we don't expect any processing at this point
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
+
+      cancelIfTimeouted(readResult, readState);
+      // Fail the test if pipeline failed.
+      assertNotEquals(readState, PipelineResult.State.FAILED);
+    } finally {
+      // client.deleteTopics(ImmutableSet.of(topicName));
     }
   }
 

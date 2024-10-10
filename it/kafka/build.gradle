@@ -32,7 +32,7 @@ dependencies {
     implementation library.java.slf4j_api
     implementation library.java.testcontainers_base
     implementation library.java.testcontainers_kafka
-    implementation library.java.kafka_clients
+    // implementation library.java.kafka_clients
     implementation library.java.vendored_guava_32_1_2_jre
     // TODO: excluding Guava until Truth updates it to >32.1.x
     testImplementation(library.java.truth) {
@@ -51,6 +51,7 @@ dependencies {
     testImplementation project(path: ":sdks:java:testing:test-utils")
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testImplementation library.java.google_api_services_dataflow
+    testImplementation 'org.apache.kafka:kafka-clients:3.1.2'
 }
 
 tasks.register(
