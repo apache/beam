@@ -39,6 +39,7 @@ from urllib.request import urlopen
 import grpc
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.utils import retry
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
@@ -160,6 +161,7 @@ class SubprocessServer(object):
   def __exit__(self, *unused_args):
     self.stop()
 
+  @retry.with_exponential_backoff(num_retries=4, initial_delay_secs=2)
   def start(self):
     try:
       process, endpoint = self.start_process()
