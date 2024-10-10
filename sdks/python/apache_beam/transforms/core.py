@@ -1578,7 +1578,7 @@ class ParDo(PTransformWithSideInputs):
       error_handler=None,
       on_failure_callback: typing.Optional[typing.Callable[
           [Exception, typing.Any], None]] = None):
-    """Automatically provides a dead letter output for skipping bad records.
+    """Automatically provides a dead letter PCollection for skipping bad inputs.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
 
@@ -1589,17 +1589,18 @@ class ParDo(PTransformWithSideInputs):
 
     For example, one would write::
 
-        good, bad = Map(maybe_error_raising_function).with_exception_handling()
+        good, bad = inputs | Map(maybe_erroring_fn).with_exception_handling()
 
     and `good` will be a PCollection of mapped records and `bad` will contain
-    those that raised exceptions.
+    tuples of the form `(input, error_string`) for each input that raised an
+    exception.
 
 
     Args:
       main_tag: tag to be used for the main (good) output of the DoFn,
           useful to avoid possible conflicts if this DoFn already produces
           multiple outputs.  Optional, defaults to 'good'.
-      dead_letter_tag: tag to be used for the bad records, useful to avoid
+      dead_letter_tag: tag to be used for the bad inputs, useful to avoid
           possible conflicts if this DoFn already produces multiple outputs.
           Optional, defaults to 'bad'.
       exc_class: An exception class, or tuple of exception classes, to catch.
@@ -1618,9 +1619,9 @@ class ParDo(PTransformWithSideInputs):
           than a new process per element, so the overhead should be minimal
           (and can be amortized if there's any per-process or per-bundle
           initialization that needs to be done). Optional, defaults to False.
-      threshold: An upper bound on the ratio of records that can be bad before
+      threshold: An upper bound on the ratio of inputs that can be bad before
           aborting the entire pipeline. Optional, defaults to 1.0 (meaning
-          up to 100% of records can be bad and the pipeline will still succeed).
+          up to 100% of inputs can be bad and the pipeline will still succeed).
       threshold_windowing: Event-time windowing to use for threshold. Optional,
           defaults to the windowing of the input.
       timeout: If the element has not finished processing in timeout seconds,
