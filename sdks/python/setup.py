@@ -399,11 +399,9 @@ if __name__ == '__main__':
       extras_require={
           'docs': [
               'jinja2>=3.0,<3.2',
-              'Sphinx>=1.5.2,<2.0',
+              'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
-              # Pinning docutils as a workaround for Sphinx issue:
-              # https://github.com/sphinx-doc/sphinx/issues/9727
-              'docutils==0.17.1',
+              'docutils>=0.18.1',
               'pandas<2.2.0',
               'openai'
           ],
