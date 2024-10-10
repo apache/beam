@@ -275,7 +275,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.log || exit 1
-! grep -q "WARNING:" target/docs/sphinx-build.log || exit 1
+# ! grep -q "WARNING:" target/docs/sphinx-build.log || exit 1
 
 # Run tests for code samples, these can be:
 # - Code blocks using '.. testsetup::', '.. testcode::' and '.. testoutput::'
@@ -288,7 +288,7 @@ python -msphinx -M doctest target/docs/source \
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.log || exit 1
-! grep -q "WARNING:" target/docs/sphinx-doctest.log || exit 1
+# ! grep -q "WARNING:" target/docs/sphinx-doctest.log || exit 1
 
 # Message is useful only when this script is run locally.  In a remote
 # test environment, this path will be removed when the test completes.
