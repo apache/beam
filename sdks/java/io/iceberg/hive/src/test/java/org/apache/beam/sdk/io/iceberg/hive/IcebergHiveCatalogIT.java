@@ -67,6 +67,8 @@ import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.thrift.TException;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -102,6 +104,7 @@ public class IcebergHiveCatalogIT {
           .addArrayField("arr_long", Schema.FieldType.INT64)
           .addRowField("row", NESTED_ROW_SCHEMA)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
+          .addDateTimeField("datetime_tz")
           .addLogicalTypeField("datetime", SqlTypes.DATETIME)
           .addLogicalTypeField("date", SqlTypes.DATE)
           .addLogicalTypeField("time", SqlTypes.TIME)
@@ -132,6 +135,7 @@ public class IcebergHiveCatalogIT {
               .addValue(LongStream.range(1, num % 10).boxed().collect(Collectors.toList()))
               .addValue(nestedRow)
               .addValue(num % 2 == 0 ? null : nestedRow)
+              .addValue(new DateTime(num).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
               .addValue(DateTimeUtil.timestampFromMicros(num))
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
