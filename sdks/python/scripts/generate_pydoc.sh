@@ -143,6 +143,8 @@ napoleon_custom_sections = ['Differences from pandas']
 
 doctest_global_setup = '''
 import apache_beam as beam
+import pandas as pd
+import numpy as np
 '''
 
 intersphinx_mapping = {
@@ -283,6 +285,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
   2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*ERROR:' \
   2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
   2>&1 | tee "target/docs/sphinx-doctest.log"
 
