@@ -64,3 +64,7 @@ class ManagedIcebergIT(unittest.TestCase):
           | beam.Map(lambda row: row._asdict()))
 
       assert_that(output_dicts, equal_to(expected_dicts))
+
+
+if __name__ == '__main__':
+  unittest.main()
