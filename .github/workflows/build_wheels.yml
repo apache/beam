@@ -202,7 +202,6 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/download-artifact@v4.1.8
         with:
           name: source_zip
@@ -233,14 +232,12 @@ jobs:
         py_version: ["cp38-", "cp39-", "cp310-", "cp311-", "cp312-"]
     steps:
     - name: Download python source distribution from artifacts
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v4.1.8
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v4.1.8
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
@@ -279,7 +276,6 @@ jobs:
       shell: bash
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      # Pinned to v3 because of https://github.com/actions/upload-artifact?tab=readme-ov-file#breaking-changes
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.py_version }}${{ matrix.os_python.os }}-${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
@@ -305,7 +301,6 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.py_version }}${{ matrix.os_python.os }}-${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
@@ -320,7 +315,6 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Download wheels from artifacts
-      # Pinned to v3 because of https://github.com/actions/upload-artifact?tab=readme-ov-file#breaking-changes
       uses: actions/download-artifact@v4
       with:
         pattern: wheelhouse-*
