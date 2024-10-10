@@ -1,13 +1,15 @@
-import shutil
-import unittest
-import apache_beam as beam
 import os
-import time
 import secrets
+import tempfile
+import shutil
+import time
+import unittest
+
+import pytest
+
+import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-import tempfile
-import pytest
 
 
 @pytest.mark.uses_io_java_expansion_service
