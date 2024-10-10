@@ -433,24 +433,10 @@ public class IcebergUtils {
           rowBuilder.addValue(icebergValue);
           break;
         case DATETIME:
-          long micros;
-          if (icebergValue instanceof OffsetDateTime) {
-            micros = DateTimeUtil.microsFromTimestamptz((OffsetDateTime) icebergValue);
-          } else if (icebergValue instanceof LocalDateTime) {
-            micros = DateTimeUtil.microsFromTimestamp((LocalDateTime) icebergValue);
-          } else if (icebergValue instanceof Long) {
-            micros = (long) icebergValue;
-          } else if (icebergValue instanceof String) {
-            rowBuilder.addValue(DateTime.parse((String) icebergValue));
-            break;
-          } else {
-            throw new UnsupportedOperationException(
-                "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());
-          }
-          // Iceberg uses a long for micros
+          // Iceberg uses a long for micros.
           // Beam DATETIME uses joda's DateTime, which only supports millis,
           // so we do lose some precision here
-          rowBuilder.addValue(new DateTime(micros / 1000L));
+          rowBuilder.addValue(getBeamDateTimeValue(icebergValue));
           break;
         case BYTES:
           // Iceberg uses ByteBuffer; Beam uses byte[]
@@ -473,6 +459,23 @@ public class IcebergUtils {
       }
     }
     return rowBuilder.build();
+  }
+
+  private static DateTime getBeamDateTimeValue(Object icebergValue) {
+    long micros;
+    if (icebergValue instanceof OffsetDateTime) {
+      micros = DateTimeUtil.microsFromTimestamptz((OffsetDateTime) icebergValue);
+    } else if (icebergValue instanceof LocalDateTime) {
+      micros = DateTimeUtil.microsFromTimestamp((LocalDateTime) icebergValue);
+    } else if (icebergValue instanceof Long) {
+      micros = (long) icebergValue;
+    } else if (icebergValue instanceof String) {
+      return DateTime.parse((String) icebergValue);
+    } else {
+      throw new UnsupportedOperationException(
+          "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());
+    }
+    return new DateTime(micros / 1000L);
   }
 
   private static Object getLogicalTypeValue(Object icebergValue, Schema.FieldType type) {
