@@ -52,6 +52,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -158,7 +159,7 @@ public class POJOUtilsTest {
             new BigDecimal(42),
             new StringBuilder("stringBuilder"));
 
-    List<FieldValueGetter> getters =
+    List<FieldValueGetter<SimplePOJO, Object>> getters =
         POJOUtils.getGetters(
             new TypeDescriptor<SimplePOJO>() {},
             SIMPLE_POJO_SCHEMA,
@@ -184,7 +185,7 @@ public class POJOUtilsTest {
   @Test
   public void testGeneratedSimpleSetters() {
     SimplePOJO simplePojo = new SimplePOJO();
-    List<FieldValueSetter> setters =
+    List<FieldValueSetter<SimplePOJO, Object>> setters =
         POJOUtils.getSetters(
             new TypeDescriptor<SimplePOJO>() {},
             SIMPLE_POJO_SCHEMA,
@@ -223,7 +224,7 @@ public class POJOUtilsTest {
   public void testGeneratedSimpleBoxedGetters() {
     POJOWithBoxedFields pojo = new POJOWithBoxedFields((byte) 41, (short) 42, 43, 44L, true);
 
-    List<FieldValueGetter> getters =
+    List<FieldValueGetter<@NonNull POJOWithBoxedFields, Object>> getters =
         POJOUtils.getGetters(
             new TypeDescriptor<POJOWithBoxedFields>() {},
             POJO_WITH_BOXED_FIELDS_SCHEMA,
@@ -239,7 +240,7 @@ public class POJOUtilsTest {
   @Test
   public void testGeneratedSimpleBoxedSetters() {
     POJOWithBoxedFields pojo = new POJOWithBoxedFields();
-    List<FieldValueSetter> setters =
+    List<FieldValueSetter<POJOWithBoxedFields, Object>> setters =
         POJOUtils.getSetters(
             new TypeDescriptor<POJOWithBoxedFields>() {},
             POJO_WITH_BOXED_FIELDS_SCHEMA,
@@ -262,7 +263,7 @@ public class POJOUtilsTest {
   @Test
   public void testGeneratedByteBufferSetters() {
     POJOWithByteArray pojo = new POJOWithByteArray();
-    List<FieldValueSetter> setters =
+    List<FieldValueSetter<POJOWithByteArray, Object>> setters =
         POJOUtils.getSetters(
             new TypeDescriptor<POJOWithByteArray>() {},
             POJO_WITH_BYTE_ARRAY_SCHEMA,

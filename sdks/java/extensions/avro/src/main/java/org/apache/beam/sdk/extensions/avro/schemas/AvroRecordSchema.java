@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A {@link SchemaProvider} for AVRO generated SpecificRecords and POJOs.
@@ -44,8 +45,8 @@ public class AvroRecordSchema extends GetterBasedSchemaProviderV2 {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
     return AvroUtils.getGetters(targetTypeDescriptor, schema);
   }
 
