@@ -606,6 +606,21 @@ def with_docs_from(base_type, name=None, removed_method=False):
              "    :skipif: True"),
             re.sub(r"^", "    ", content, flags=re.MULTILINE),
         ])
+      elif "Examples" in content and ">>>" in content:
+        # some new examples don't have the correct heading
+        # this catches those examples
+        split_content = content.split("Examples")
+        content = '\n\n'.join([
+            split_content[0],
+            "Examples\n",
+            # Indent the code snippet under a doctest heading,
+            # add skipif option. This makes sure our doctest
+            # framework doesn't run these pandas tests.
+            (".. doctest::\n"
+             "    :skipif: True"),
+            re.sub(r"^", "    ", content, flags=re.MULTILINE),
+            split_content[1]
+        ])
       else:
         content = content.replace('DataFrame', 'DeferredDataFrame').replace(
             'Series', 'DeferredSeries')
