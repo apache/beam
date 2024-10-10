@@ -31,7 +31,7 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext {
     summary = "Library to read Kafka topics."
-    confluentVersion = "7.6.0"
+    confluentVersion = "7.6.3"
 }
 
 def kafkaVersions = [
