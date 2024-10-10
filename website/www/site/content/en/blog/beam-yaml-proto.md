@@ -20,7 +20,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-As streaming data processing grows, so do its maintenance, complexity, and costs. 
+As streaming data processing grows, so do its maintenance, complexity, and costs.
 This post will explain how to efficiently scale pipelines using [Protobuf](https://protobuf.dev/),
 ensuring they are reusable and quick to deploy. Our goal is to keep this process simple
 for engineers to implement using [Beam YAML](https://beam.apache.org/documentation/sdks/yaml/).
@@ -37,7 +37,7 @@ allowing you to focus solely on the most important part: data transformation.
 Some of the main key benefits include:
 
 *   **Readability:** By using a declarative language ([YAML](https://yaml.org/)), we improve the human readability
-    aspect of the pipeline configuration.
+aspect of the pipeline configuration.
 *   **Reusability:** It is much simpler to reuse the same components across different pipelines.
 *   **Maintainability:** It simplifies pipeline maintenance and updates.
 
@@ -107,14 +107,14 @@ message MovieEvent {
 ```
 
 As you can see here, there are important points to consider. Since we are planning to write these events to BigQuery,
-we have imported the *[bq_field](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_field.proto)* 
-and *[bq_table](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_table.proto)* proto. 
+we have imported the *[bq_field](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_field.proto)*
+and *[bq_table](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_table.proto)* proto.
 These proto files help generate the BigQuery JSON schema.
 In our example, we are also advocating for a shift-left approach, which means we want to move testing, quality,
 and performance as early as possible in the development process. This is why we have included the *buf.validate*
 elements to ensure that only valid events are generated from the source.
 
-Once we have our *movie_event.proto* in the *events/v1* folder, we can generate 
+Once we have our *movie_event.proto* in the *events/v1* folder, we can generate
 the necessary [file descriptor](https://buf.build/docs/reference/descriptors).
 Essentially, a file descriptor is a compiled representation of the schema that allows various tools and systems
 to understand and work with Protobuf data dynamically. To simplify the process, we are using Buf in this example,
@@ -169,7 +169,7 @@ Running the following two commands we will generate the necessary Java, Python, 
 // Generate the buf.lock file
 buf deps update
 
-// It will generate the descriptor in descriptor.binp. 
+// It will generate the descriptor in descriptor.binp.
 buf build . -o descriptor.binp --exclude-imports
 
 // It will generate the Java, Python and BigQuery schema as described in buf.gen.yaml
@@ -208,8 +208,8 @@ As you can see, we just changed the format to be *PROTO* and added the *file_des
 
 ### Let’s use Terraform to deploy it
 
-We can consider using [Terraform](https://www.terraform.io/) to deploy our Beam YAML pipeline 
-with [Dataflow](https://cloud.google.com/products/dataflow?hl=en) as the runner. 
+We can consider using [Terraform](https://www.terraform.io/) to deploy our Beam YAML pipeline
+with [Dataflow](https://cloud.google.com/products/dataflow?hl=en) as the runner.
 The following Terraform code example demonstrates how to achieve this:
 
 ```hcl
@@ -248,7 +248,7 @@ Kafka and writes them into BigQuery.
 
 Some potential improvements that can be done as part of community contributions to the previous Beam YAML code are:
 
-* **Supporting Schema Registries:** Integrate with schema registries such as Buf Registry or Apicurio for 
+* **Supporting Schema Registries:** Integrate with schema registries such as Buf Registry or Apicurio for
 better schema management. In the current solution, we generate the descriptors via Buf and store them in GCS.
 We could store them in a schema registry instead.
 
@@ -256,7 +256,7 @@ We could store them in a schema registry instead.
 * **Enhanced Monitoring:** Implement advanced monitoring and alerting mechanisms to quickly identify and address
 issues in the data pipeline.
 
-As a conclusion, by leveraging Beam YAML and Protobuf, we have streamlined the creation and maintenance of 
+As a conclusion, by leveraging Beam YAML and Protobuf, we have streamlined the creation and maintenance of
 data processing pipelines, significantly reducing complexity. This approach ensures that engineers can more
 efficiently implement and scale robust, reusable pipelines, compared to writing the equivalent Beam code manually.
 
