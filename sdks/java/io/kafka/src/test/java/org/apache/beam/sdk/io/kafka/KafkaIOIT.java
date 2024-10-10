@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -86,6 +87,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -99,10 +101,12 @@ import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -168,6 +172,13 @@ public class KafkaIOIT {
 
   @BeforeClass
   public static void setup() throws IOException {
+    // check kafka version first
+    @Nullable String targetVer = System.getProperty("beam.target.kafka.version");
+    if (!Strings.isNullOrEmpty(targetVer)) {
+      String actualVer = AppInfoParser.getVersion();
+      assertEquals(targetVer, actualVer);
+    }
+
     options = IOITHelper.readIOTestPipelineOptions(Options.class);
     sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
     if (options.isWithTestcontainers()) {
@@ -359,6 +370,10 @@ public class KafkaIOIT {
   // This test verifies that bad data from Kafka is properly sent to the error handler
   @Test
   public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
+    // TODO(https://github.com/apache/beam/issues/32704) re-enable when fixed, or remove the support
+    //  for these old kafka-client versions
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
     writePipeline
         .apply(Create.of(KV.of("key", "val")))
         .apply(
@@ -803,6 +818,62 @@ public class KafkaIOIT {
       for (String value : records.values()) {
         kafkaIOITExpectedLogs.verifyError(value);
       }
+
+      // Only waiting 5 seconds here because we don't expect any processing at this point
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
+
+      cancelIfTimeouted(readResult, readState);
+      // Fail the test if pipeline failed.
+      assertNotEquals(readState, PipelineResult.State.FAILED);
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
+    }
+  }
+
+  @Ignore(
+      "Test is ignored until GMK is utilized as part of this test suite (https://github.com/apache/beam/issues/32721).")
+  @Test
+  public void testReadAndWriteFromKafkaIOWithGCPApplicationDefaultCredentials() throws IOException {
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+
+    String topicName = "TestApplicationDefaultCreds-" + UUID.randomUUID();
+    Map<Integer, String> records = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      records.put(i, String.valueOf(i));
+    }
+
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      writePipeline
+          .apply("Generate Write Elements", Create.of(records))
+          .apply(
+              "Write to Kafka",
+              KafkaIO.<Integer, String>write()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withTopic(topicName)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(StringSerializer.class)
+                  .withGCPApplicationDefaultCredentials());
+
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
+
+      sdfReadPipeline.apply(
+          "Read from Kafka",
+          KafkaIO.<Integer, String>read()
+              .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+              .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+              .withTopic(topicName)
+              .withKeyDeserializer(IntegerDeserializer.class)
+              .withValueDeserializer(StringDeserializer.class)
+              .withGCPApplicationDefaultCredentials()
+              .withoutMetadata());
+
+      PipelineResult readResult = sdfReadPipeline.run();
 
       // Only waiting 5 seconds here because we don't expect any processing at this point
       PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
