@@ -179,17 +179,14 @@ import org.joda.time.Duration;
  *
  * <h3>Note on timestamps</h3>
  *
- * <p>Iceberg has two timestamp types: {@code timestamp} and {@code timestamptz}. For the latter,
- * Iceberg will first resolve the timestamp to UTC before storing it.
- *
  * <p>For an existing table, the following Beam types are supported for both {@code timestamp} and
  * {@code timestamptz}:
  *
  * <ul>
- *   <li>{@code SqlTypes.DATETIME} --> Using a java.time.LocalDateTime object
- *   <li>{@code DATETIME} --> Using a org.joda.time.DateTime object
- *   <li>{@code INT64} --> Using a long representing micros since EPOCH
- *   <li>{@code STRING} --> Using a timestamp string representation (e.g. {@code
+ *   <li>{@code SqlTypes.DATETIME} --> Using a {@link java.time.LocalDateTime} object
+ *   <li>{@code DATETIME} --> Using a {@link org.joda.time.DateTime} object
+ *   <li>{@code INT64} --> Using a {@link Long} representing micros since EPOCH
+ *   <li>{@code STRING} --> Using a timestamp {@link String} representation (e.g. {@code
  *       "2024-10-08T13:18:20.053+03:27"})
  * </ul>
  *
