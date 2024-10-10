@@ -93,7 +93,7 @@ from the [compatibility table](#flink-version-compatibility) below. For example:
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.17</artifactId>
+  <artifactId>beam-runners-flink-1.19</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -200,6 +200,7 @@ Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are availab
 [Flink 1.16](https://hub.docker.com/r/apache/beam_flink1.16_job_server).
 [Flink 1.17](https://hub.docker.com/r/apache/beam_flink1.17_job_server).
 [Flink 1.18](https://hub.docker.com/r/apache/beam_flink1.18_job_server).
+[Flink 1.19](https://hub.docker.com/r/apache/beam_flink1.19_job_server).
 {{< /paragraph >}}
 
 <!-- TODO(BEAM-10214): Use actual lists here and below. -->
@@ -325,6 +326,11 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Flink Version</th>
   <th>Artifact Id</th>
   <th>Supported Beam Versions</th>
+</tr>
+<tr>
+  <td>1.19.x</td>
+  <td>beam-runners-flink-1.19</td>
+  <td>&ge; 2.61.0</td>
 </tr>
 <tr>
   <td>1.18.x</td>
