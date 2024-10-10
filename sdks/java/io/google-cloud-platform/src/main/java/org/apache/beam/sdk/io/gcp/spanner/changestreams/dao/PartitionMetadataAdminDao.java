@@ -79,19 +79,13 @@ public class PartitionMetadataAdminDao {
    */
   public static final String COLUMN_FINISHED_AT = "FinishedAt";
 
-  /** Metadata table index for queries over the watermark column. */
-  public static final String WATERMARK_INDEX = "WatermarkIndex";
-
-  /** Metadata table index for queries over the created at / start timestamp columns. */
-  public static final String CREATED_AT_START_TIMESTAMP_INDEX = "CreatedAtStartTimestampIndex";
-
   private static final int TIMEOUT_MINUTES = 10;
   private static final int TTL_AFTER_PARTITION_FINISHED_DAYS = 1;
 
   private final DatabaseAdminClient databaseAdminClient;
   private final String instanceId;
   private final String databaseId;
-  private final String tableName;
+  private final PartitionMetadataTableNames names;
   private final Dialect dialect;
 
   /**
@@ -101,18 +95,18 @@ public class PartitionMetadataAdminDao {
    *     table
    * @param instanceId the instance where the metadata table will reside
    * @param databaseId the database where the metadata table will reside
-   * @param tableName the name of the metadata table
+   * @param names the names of the metadata table ddl objects
    */
   PartitionMetadataAdminDao(
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
       String databaseId,
-      String tableName,
+      PartitionMetadataTableNames names,
       Dialect dialect) {
     this.databaseAdminClient = databaseAdminClient;
     this.instanceId = instanceId;
     this.databaseId = databaseId;
-    this.tableName = tableName;
+    this.names = names;
     this.dialect = dialect;
   }
 
@@ -129,7 +123,7 @@ public class PartitionMetadataAdminDao {
       // Literals need be added around literals to preserve casing.
       ddl.add(
           "CREATE TABLE \""
-              + tableName
+              + names.getTableName()
               + "\"(\""
               + COLUMN_PARTITION_TOKEN
               + "\" text NOT NULL,\""
@@ -164,9 +158,9 @@ public class PartitionMetadataAdminDao {
               + "\"");
       ddl.add(
           "CREATE INDEX \""
-              + WATERMARK_INDEX
+              + names.getWatermarkIndexName()
               + "\" on \""
-              + tableName
+              + names.getTableName()
               + "\" (\""
               + COLUMN_WATERMARK
               + "\") INCLUDE (\""
@@ -174,9 +168,9 @@ public class PartitionMetadataAdminDao {
               + "\")");
       ddl.add(
           "CREATE INDEX \""
-              + CREATED_AT_START_TIMESTAMP_INDEX
+              + names.getCreatedAtIndexName()
               + "\" ON \""
-              + tableName
+              + names.getTableName()
               + "\" (\""
               + COLUMN_CREATED_AT
               + "\",\""
@@ -185,7 +179,7 @@ public class PartitionMetadataAdminDao {
     } else {
       ddl.add(
           "CREATE TABLE "
-              + tableName
+              + names.getTableName()
               + " ("
               + COLUMN_PARTITION_TOKEN
               + " STRING(MAX) NOT NULL,"
@@ -219,9 +213,9 @@ public class PartitionMetadataAdminDao {
               + " DAY))");
       ddl.add(
           "CREATE INDEX "
-              + WATERMARK_INDEX
+              + names.getWatermarkIndexName()
               + " on "
-              + tableName
+              + names.getTableName()
               + " ("
               + COLUMN_WATERMARK
               + ") STORING ("
@@ -229,9 +223,9 @@ public class PartitionMetadataAdminDao {
               + ")");
       ddl.add(
           "CREATE INDEX "
-              + CREATED_AT_START_TIMESTAMP_INDEX
+              + names.getCreatedAtIndexName()
               + " ON "
-              + tableName
+              + names.getTableName()
               + " ("
               + COLUMN_CREATED_AT
               + ","
@@ -261,16 +255,14 @@ public class PartitionMetadataAdminDao {
    * Drops the metadata table. This operation should complete in {@link
    * PartitionMetadataAdminDao#TIMEOUT_MINUTES} minutes.
    */
-  public void deletePartitionMetadataTable() {
+  public void deletePartitionMetadataTable(List<String> indexes) {
     List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
-      ddl.add("DROP INDEX \"" + CREATED_AT_START_TIMESTAMP_INDEX + "\"");
-      ddl.add("DROP INDEX \"" + WATERMARK_INDEX + "\"");
-      ddl.add("DROP TABLE \"" + tableName + "\"");
+      indexes.forEach(index -> ddl.add("DROP INDEX \"" + index + "\""));
+      ddl.add("DROP TABLE \"" + names.getTableName() + "\"");
     } else {
-      ddl.add("DROP INDEX " + CREATED_AT_START_TIMESTAMP_INDEX);
-      ddl.add("DROP INDEX " + WATERMARK_INDEX);
-      ddl.add("DROP TABLE " + tableName);
+      indexes.forEach(index -> ddl.add("DROP INDEX " + index));
+      ddl.add("DROP TABLE " + names.getTableName());
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddl, null);
