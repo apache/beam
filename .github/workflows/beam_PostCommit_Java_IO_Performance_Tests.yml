@@ -93,11 +93,6 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-    - name: Setup gcloud
-      uses: google-github-actions/setup-gcloud@v2
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-        skip_install: true
     - name: run scheduled javaPostcommitIOPerformanceTests script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
