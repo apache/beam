@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
@@ -30,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -39,9 +39,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
@@ -82,26 +80,23 @@ public class GrpcGetWorkerMetadataStreamTest {
   private static final String FAKE_SERVER_NAME = "Fake server for GrpcGetWorkerMetadataStreamTest";
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  private final Set<AbstractWindmillStream<?, ?>> streamRegistry = new HashSet<>();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private GrpcGetWorkerMetadataStream stream;
+  private Set<AbstractWindmillStream<?, ?>> streamRegistry;
 
   private GrpcGetWorkerMetadataStream getWorkerMetadataTestStream(
       GetWorkerMetadataTestStub getWorkerMetadataTestStub,
       Consumer<WindmillEndpoints> endpointsConsumer) {
     serviceRegistry.addService(getWorkerMetadataTestStub);
-    return GrpcGetWorkerMetadataStream.create(
-        responseObserver ->
-            CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel)
-                .getWorkerMetadata(responseObserver),
-        FluentBackoff.DEFAULT.backoff(),
-        StreamObserverFactory.direct(DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, 1),
-        streamRegistry,
-        1, // logEveryNStreamFailures
-        TEST_JOB_HEADER,
-        new ThrottleTimer(),
-        endpointsConsumer);
+    return (GrpcGetWorkerMetadataStream)
+        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+            .setStreamRegistry(streamRegistry)
+            .build()
+            .createGetWorkerMetadataStream(
+                CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
+                new ThrottleTimer(),
+                endpointsConsumer);
   }
 
   @Before
@@ -124,6 +119,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .setDirectEndpoint(IPV6_ADDRESS_1)
             .setBackendWorkerToken("worker_token")
             .build());
+    streamRegistry = ConcurrentHashMap.newKeySet();
   }
 
   @After

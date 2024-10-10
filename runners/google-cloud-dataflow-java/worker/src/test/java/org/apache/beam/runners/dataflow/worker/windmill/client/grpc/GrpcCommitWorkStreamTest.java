@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,15 +29,11 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
@@ -69,7 +64,6 @@ public class GrpcCommitWorkStreamTest {
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  private final Set<AbstractWindmillStream<?, ?>> streamRegistry = new HashSet<>();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
 
@@ -105,19 +99,11 @@ public class GrpcCommitWorkStreamTest {
 
   private GrpcCommitWorkStream createCommitWorkStream(CommitWorkStreamStreamTestStub testStub) {
     serviceRegistry.addService(testStub);
-    return GrpcCommitWorkStream.create(
-        "streamId",
-        responseObserver ->
-            CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel)
-                .commitWorkStream(responseObserver),
-        FluentBackoff.DEFAULT.backoff(),
-        StreamObserverFactory.direct(DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, 1),
-        streamRegistry,
-        1,
-        new ThrottleTimer(),
-        TEST_JOB_HEADER,
-        new AtomicLong(),
-        Integer.MAX_VALUE);
+    return (GrpcCommitWorkStream)
+        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+            .build()
+            .createCommitWorkStream(
+                CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel), new ThrottleTimer());
   }
 
   @Test

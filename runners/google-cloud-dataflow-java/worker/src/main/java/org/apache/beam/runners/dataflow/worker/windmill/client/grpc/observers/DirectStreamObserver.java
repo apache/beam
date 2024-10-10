@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
-  private static final long MAX_WAIT_SECONDS = 600; // 10 minutes.
+  private static final long OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS = 30;
 
   private final Phaser isReadyNotifier;
 
@@ -125,13 +125,13 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         }
 
         totalSecondsWaited += waitSeconds;
-        if (hasDeadlineExpired(totalSecondsWaited)) {
+        if (totalSecondsWaited > deadlineSeconds) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
           LOG.error(errorMessage);
           throw new StreamObserverCancelledException(errorMessage, e);
         }
 
-        if (totalSecondsWaited > 30) {
+        if (totalSecondsWaited > OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS) {
           LOG.info(
               "Output channel stalled for {}s, outbound thread {}.",
               totalSecondsWaited,
@@ -162,10 +162,6 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
     synchronized (lock) {
       outboundObserver.onCompleted();
     }
-  }
-
-  private boolean hasDeadlineExpired(long totalSecondsWaited) {
-    return totalSecondsWaited > (deadlineSeconds > 0 ? deadlineSeconds : MAX_WAIT_SECONDS);
   }
 
   private String constructStreamCancelledErrorMessage(long totalSecondsWaited) {

@@ -68,7 +68,6 @@ import org.slf4j.Logger;
  */
 public abstract class AbstractWindmillStream<RequestT, ResponseT> implements WindmillStream {
 
-  public static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
   // Default gRPC streams to 2MB chunks, which has shown to be a large enough chunk size to reduce
   // per-chunk overhead, and small enough that we can still perform granular flow-control.
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;

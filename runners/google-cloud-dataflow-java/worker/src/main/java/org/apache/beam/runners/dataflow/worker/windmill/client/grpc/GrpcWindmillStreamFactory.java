@@ -68,6 +68,8 @@ import org.joda.time.Instant;
 @ThreadSafe
 @Internal
 public class GrpcWindmillStreamFactory implements StatusDataProvider {
+
+  private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration DEFAULT_MAX_BACKOFF = Duration.standardSeconds(30);
   private static final int DEFAULT_LOG_EVERY_N_STREAM_FAILURES = 1;
@@ -75,9 +77,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private static final int DEFAULT_WINDMILL_MESSAGES_BETWEEN_IS_READY_CHECKS = 1;
   private static final int NO_HEALTH_CHECKS = -1;
   private static final String NO_BACKEND_WORKER_TOKEN = "";
-  private static final long NO_DEADLINE = -1;
-  private static final long DEFAULT_DEADLINE_SECONDS =
-      AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2;
   private static final String DISPATCHER_DEBUG_NAME = "Dispatcher";
 
   private final JobHeader jobHeader;
@@ -99,7 +98,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       int windmillMessagesBetweenIsReadyChecks,
       boolean sendKeyedGetDataRequests,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
-      Supplier<Duration> maxBackOffSupplier) {
+      Supplier<Duration> maxBackOffSupplier,
+      Set<AbstractWindmillStream<?, ?>> streamRegistry) {
     this.jobHeader = jobHeader;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -112,7 +112,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
                     .withInitialBackoff(MIN_BACKOFF)
                     .withMaxBackoff(maxBackOffSupplier.get())
                     .backoff());
-    this.streamRegistry = ConcurrentHashMap.newKeySet();
+    this.streamRegistry = streamRegistry;
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.processHeartbeatResponses = processHeartbeatResponses;
     this.streamIdGenerator = new AtomicLong();
@@ -127,7 +127,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       boolean sendKeyedGetDataRequests,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier,
-      int healthCheckIntervalMillis) {
+      int healthCheckIntervalMillis,
+      Set<AbstractWindmillStream<?, ?>> streamRegistry) {
     GrpcWindmillStreamFactory streamFactory =
         new GrpcWindmillStreamFactory(
             jobHeader,
@@ -136,7 +137,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
             windmillMessagesBetweenIsReadyChecks,
             sendKeyedGetDataRequests,
             processHeartbeatResponses,
-            maxBackOffSupplier);
+            maxBackOffSupplier,
+            streamRegistry);
 
     if (healthCheckIntervalMillis >= 0) {
       // Health checks are run on background daemon thread, which will only be cleaned up on JVM
@@ -173,14 +175,14 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setStreamingRpcBatchLimit(DEFAULT_STREAMING_RPC_BATCH_LIMIT)
         .setHealthCheckIntervalMillis(NO_HEALTH_CHECKS)
         .setSendKeyedGetDataRequests(true)
-        .setProcessHeartbeatResponses(ignored -> {});
+        .setProcessHeartbeatResponses(ignored -> {})
+        .setStreamRegistry(ConcurrentHashMap.newKeySet());
   }
 
   private static <T extends AbstractStub<T>> T withDefaultDeadline(T stub) {
     // Deadlines are absolute points in time, so generate a new one everytime this function is
     // called.
-    return stub.withDeadlineAfter(
-        AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
+    return stub.withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS);
   }
 
   private static void printSummaryHtmlForWorker(
@@ -206,7 +208,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         responseObserver -> withDefaultDeadline(stub).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
@@ -226,7 +228,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         responseObserver -> connection.stub().getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(NO_DEADLINE),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
@@ -242,7 +244,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         getDataThrottleTimer,
@@ -259,7 +261,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         connection.backendWorkerToken(),
         responseObserver -> connection.stub().getDataStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(NO_DEADLINE),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         getDataThrottleTimer,
@@ -276,7 +278,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).commitWorkStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         commitWorkThrottleTimer,
@@ -291,7 +293,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         connection.backendWorkerToken(),
         responseObserver -> connection.stub().commitWorkStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(NO_DEADLINE),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         commitWorkThrottleTimer,
@@ -307,7 +309,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return GrpcGetWorkerMetadataStream.create(
         responseObserver -> withDefaultDeadline(stub).getWorkerMetadata(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(DEFAULT_DEADLINE_SECONDS),
+        newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         jobHeader,
@@ -315,8 +317,9 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         onNewWindmillEndpoints);
   }
 
-  private StreamObserverFactory newStreamObserverFactory(long deadline) {
-    return StreamObserverFactory.direct(deadline, windmillMessagesBetweenIsReadyChecks);
+  private StreamObserverFactory newStreamObserverFactory() {
+    return StreamObserverFactory.direct(
+        DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, windmillMessagesBetweenIsReadyChecks);
   }
 
   @Override
@@ -349,6 +352,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses);
 
     Builder setHealthCheckIntervalMillis(int healthCheckIntervalMillis);
+
+    Builder setStreamRegistry(Set<AbstractWindmillStream<?, ?>> streamRegistry);
 
     GrpcWindmillStreamFactory build();
   }

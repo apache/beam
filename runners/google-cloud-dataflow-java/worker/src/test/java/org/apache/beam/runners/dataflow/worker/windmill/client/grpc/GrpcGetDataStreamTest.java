@@ -18,30 +18,23 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
@@ -71,7 +64,6 @@ public class GrpcGetDataStreamTest {
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  private final Set<AbstractWindmillStream<?, ?>> streamRegistry = new HashSet<>();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
 
@@ -98,21 +90,12 @@ public class GrpcGetDataStreamTest {
 
   private GrpcGetDataStream createGetDataStream(GetDataStreamTestStub testStub) {
     serviceRegistry.addService(testStub);
-    return GrpcGetDataStream.create(
-        "streamId",
-        responseObserver ->
-            CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel)
-                .getDataStream(responseObserver),
-        FluentBackoff.DEFAULT.backoff(),
-        StreamObserverFactory.direct(DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, 1),
-        streamRegistry,
-        1,
-        new ThrottleTimer(),
-        TEST_JOB_HEADER,
-        new AtomicLong(),
-        Integer.MAX_VALUE,
-        false,
-        ignored -> {});
+    return (GrpcGetDataStream)
+        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+            .setSendKeyedGetDataRequests(false)
+            .build()
+            .createGetDataStream(
+                CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel), new ThrottleTimer());
   }
 
   @Test
