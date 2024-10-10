@@ -119,7 +119,7 @@ public final class ActiveWorkRefresher {
     }
   }
 
-  private void invalidateStuckCommits() {
+  public void invalidateStuckCommits() {
     Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
     for (ComputationState computationState : computations.get()) {
       computationState.invalidateStuckCommits(stuckCommitDeadline);

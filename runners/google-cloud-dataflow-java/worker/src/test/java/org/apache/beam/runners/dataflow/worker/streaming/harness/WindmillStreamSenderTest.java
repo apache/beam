@@ -113,8 +113,8 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory).createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
-    verify(streamFactory).createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class));
+    verify(streamFactory).createDirectGetDataStream(eq(connection), any(ThrottleTimer.class));
+    verify(streamFactory).createDirectCommitWorkStream(eq(connection), any(ThrottleTimer.class));
   }
 
   @Test
@@ -146,9 +146,9 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler));
 
     verify(streamFactory, times(1))
-        .createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
+        .createDirectGetDataStream(eq(connection), any(ThrottleTimer.class));
     verify(streamFactory, times(1))
-        .createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class));
+        .createDirectCommitWorkStream(eq(connection), any(ThrottleTimer.class));
   }
 
   @Test
@@ -183,9 +183,9 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler));
 
     verify(streamFactory, times(1))
-        .createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
+        .createDirectGetDataStream(eq(connection), any(ThrottleTimer.class));
     verify(streamFactory, times(1))
-        .createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class));
+        .createDirectCommitWorkStream(eq(connection), any(ThrottleTimer.class));
   }
 
   @Test
@@ -219,9 +219,9 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
-    when(mockStreamFactory.createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class)))
+    when(mockStreamFactory.createDirectGetDataStream(eq(connection), any(ThrottleTimer.class)))
         .thenReturn(mockGetDataStream);
-    when(mockStreamFactory.createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class)))
+    when(mockStreamFactory.createDirectCommitWorkStream(eq(connection), any(ThrottleTimer.class)))
         .thenReturn(mockCommitWorkStream);
 
     WindmillStreamSender windmillStreamSender =

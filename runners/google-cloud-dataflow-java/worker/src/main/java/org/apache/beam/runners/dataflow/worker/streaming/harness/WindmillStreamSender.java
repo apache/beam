@@ -87,13 +87,13 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
     this.getDataStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createGetDataStream(
-                    connection.stub(), streamingEngineThrottleTimers.getDataThrottleTimer()));
+                streamingEngineStreamFactory.createDirectGetDataStream(
+                    connection, streamingEngineThrottleTimers.getDataThrottleTimer()));
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createCommitWorkStream(
-                    connection.stub(), streamingEngineThrottleTimers.commitWorkThrottleTimer()));
+                streamingEngineStreamFactory.createDirectCommitWorkStream(
+                    connection, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
     this.workCommitter =
         Suppliers.memoize(() -> workCommitterFactory.apply(commitWorkStream.get()));
     this.getWorkStream =
@@ -154,16 +154,12 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
-    getWorkBudget.set(getWorkBudget.get().apply(itemsDelta, bytesDelta));
+  public void setBudget(long items, long bytes) {
+    GetWorkBudget adjustment = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
+    getWorkBudget.set(adjustment);
     if (started.get()) {
-      getWorkStream.get().adjustBudget(itemsDelta, bytesDelta);
+      getWorkStream.get().setBudget(adjustment);
     }
-  }
-
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return started.get() ? getWorkStream.get().remainingBudget() : getWorkBudget.get();
   }
 
   long getAndResetThrottleTime() {
