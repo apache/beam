@@ -946,14 +946,23 @@ class PTransformWithSideInputs(PTransform):
           continue
         if not typehints.is_consistent_with(bindings.get(arg, typehints.Any),
                                             hint):
+          #raise TypeCheckError(
+          #'Type hint violation for \'{label}\': requires {hint} but got '
+          #'{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
+          #label=self.label,
+          #hint=hint,
+          #actual_type=bindings[arg],
+          #arg=arg,
+          #debug_str=type_hints.debug_str()))
+          transform_nest_level = self.label.count("/")
+          split_producer_label = pvalueish.producer.full_label.split("/")
+          producer_label = "/".join(
+              split_producer_label[:transform_nest_level + 1])
           raise TypeCheckError(
-              'Type hint violation for \'{label}\': requires {hint} but got '
-              '{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
-                  label=self.label,
-                  hint=hint,
-                  actual_type=bindings[arg],
-                  arg=arg,
-                  debug_str=type_hints.debug_str()))
+              f"The transform '{self.label}' only accepts PCollections of type '{hint}' "
+              f"but was applied to a PCollection of type '{bindings[arg]}' (produced by the transform '{producer_label}'). "
+              "Please ensure the input PCollection contains elements of the correct type."
+          )
 
   def _process_argspec_fn(self):
     """Returns an argspec of the function actually consuming the data.
