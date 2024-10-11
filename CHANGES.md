@@ -59,7 +59,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* [Python] Introduce Managed Transforms API ([#31495](https://github.com/apache/beam/pull/31495)) 
+* [Python] Introduce Managed Transforms API ([#31495](https://github.com/apache/beam/pull/31495))
 
 ## I/Os
 
