@@ -34,12 +34,11 @@ Setting up the project, managing dependencies, and so on can be challenging.
 By using Beam YAML, you can eliminate most of the boilerplate code,
 which allows you to focus on the most important part of the work: data transformation.
 
-Some of the main key benefits include:
+Some of the key benefits of Beam YAML include:
 
-*   **Readability:** By using a declarative language ([YAML](https://yaml.org/)), we improve the human readability
-aspect of the pipeline configuration.
-*   **Reusability:** It is much simpler to reuse the same components across different pipelines.
-*   **Maintainability:** It simplifies pipeline maintenance and updates.
+*   **Readability:** By using a declarative language ([YAML](https://yaml.org/)), the pipeline configuration is more human readable.
+*   **Reusability:** Reusing the same components across different pipelines is simplified.
+*   **Maintainability:** Pipeline maintenance and updates are easier.
 
 The following template shows an example of reading events from a [Kafka](https://kafka.apache.org/intro) topic and
 writing them into [BigQuery](https://cloud.google.com/bigquery?hl=en).
@@ -66,9 +65,11 @@ options:
   dataflow_service_options: [streaming_mode_at_least_once]
 ```
 
-# Bringing It All Together
+## The complete workflow
 
-### Let's create a simple proto event:
+This section demonstrates the complete workflow for this pipeline.
+
+### Create a simple proto event
 
 ```protobuf
 // events/v1/movie_event.proto
@@ -106,19 +107,18 @@ message MovieEvent {
 }
 ```
 
-As you can see here, there are important points to consider. Since we are planning to write these events to BigQuery,
-we have imported the *[bq_field](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_field.proto)*
-and *[bq_table](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_table.proto)* proto.
+Because these events are written to BigQuery,
+the [`bq_field`](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_field.proto) proto
+and the [`bq_table`](https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_table.proto) proto are imported.
 These proto files help generate the BigQuery JSON schema.
-In our example, we are also advocating for a shift-left approach, which means we want to move testing, quality,
-and performance as early as possible in the development process. This is why we have included the *buf.validate*
-elements to ensure that only valid events are generated from the source.
+This example also demonstrates a shift-left approach, which moves testing, quality,
+and performance as early as possible in the development process. For example, to ensure that only valid events are generated from the source, the `buf.validate` elements are included.
 
-Once we have our *movie_event.proto* in the *events/v1* folder, we can generate
+After you create the `movie_event.proto` proto in the `events/v1` folder, you can generate
 the necessary [file descriptor](https://buf.build/docs/reference/descriptors).
-Essentially, a file descriptor is a compiled representation of the schema that allows various tools and systems
-to understand and work with Protobuf data dynamically. To simplify the process, we are using Buf in this example,
-so we will need the following configuration files.
+A file descriptor is a compiled representation of the schema that allows various tools and systems
+to understand and work with protobuf data dynamically. To simplify the process, this example uses Buf,
+which requires the following configuration files.
 
 
 <b>Buf configuration:</b>
@@ -163,22 +163,22 @@ plugins:
 
 ```
 
-Running the following two commands we will generate the necessary Java, Python, BigQuery schema, and Descriptor File:
+Run the following two commands to generate the necessary Java, Python, BigQuery schema, and Descriptor file:
 
 ```bash
 // Generate the buf.lock file
 buf deps update
 
-// It will generate the descriptor in descriptor.binp.
+// It generates the descriptor in descriptor.binp.
 buf build . -o descriptor.binp --exclude-imports
 
-// It will generate the Java, Python and BigQuery schema as described in buf.gen.yaml
+// It generates the Java, Python and BigQuery schema as described in buf.gen.yaml
 buf generate --include-imports
 ```
 
-# Let’s make our Beam YAML read proto:
+### Make the Beam YAML read proto
 
-These are the modifications we need to make to the YAML file:
+Make the following modifications to the to the YAML file:
 
 ```yaml
 # movie_events_pipeline.yml
@@ -204,11 +204,11 @@ options:
   dataflow_service_options: [streaming_mode_at_least_once]
 ```
 
-As you can see, we just changed the format to be *PROTO* and added the *file_descriptor_path* and the *message_name*.
+This step changes the format to `PROTO` and adds the `file_descriptor_path` and the `message_name`.
 
-### Let’s use Terraform to deploy it
+### Deploy the pipeline with Terraform
 
-We can consider using [Terraform](https://www.terraform.io/) to deploy our Beam YAML pipeline
+You can use [Terraform](https://www.terraform.io/) to deploy the Beam YAML pipeline
 with [Dataflow](https://cloud.google.com/products/dataflow?hl=en) as the runner.
 The following Terraform code example demonstrates how to achieve this:
 
@@ -240,30 +240,30 @@ resource "google_dataflow_flex_template_job" "data_movie_job" {
 }
 ```
 
-Assuming we have created the BigQuery table, which can also be done using Terraform and Proto as described earlier,
-the previous code should create a Dataflow job using our Beam YAML code that reads Proto events from
+Assuming the BigQuery table exists, which you can do by using Terraform and Proto,
+this code creates a Dataflow job by using the Beam YAML code that reads Proto events from
 Kafka and writes them into BigQuery.
 
-# Improvements and Conclusions
+## Improvements and conclusions
 
-Some potential improvements that can be done as part of community contributions to the previous Beam YAML code are:
+The following community contributions could improve the Beam YAML code in this example:
 
-* **Supporting Schema Registries:** Integrate with schema registries such as Buf Registry or Apicurio for
-better schema management. In the current solution, we generate the descriptors via Buf and store them in GCS.
-We could store them in a schema registry instead.
+* **Support schema registries:** Integrate with schema registries such as Buf Registry or Apicurio for
+better schema management. The current workflow generates the descriptors by using Buf and store them in Google Cloud Storage.
+The descriptors could be stored in a schema registry instead.
 
 
 * **Enhanced Monitoring:** Implement advanced monitoring and alerting mechanisms to quickly identify and address
 issues in the data pipeline.
 
-As a conclusion, by leveraging Beam YAML and Protobuf, we have streamlined the creation and maintenance of
+Leveraging Beam YAML and Protobuf lets us streamline the creation and maintenance of
 data processing pipelines, significantly reducing complexity. This approach ensures that engineers can more
-efficiently implement and scale robust, reusable pipelines, compared to writing the equivalent Beam code manually.
+efficiently implement and scale robust, reusable pipelines without needs to manually write Beam code.
 
-## Contributing
+## Contribute
 
-Developers who wish to help build out and add functionalities are welcome to start contributing to the effort in the
-Beam YAML module found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml).
+Developers who want to help build out and add functionalities are welcome to start contributing to the effort in the
+[Beam YAML module](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml).
 
 There is also a list of open [bugs](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ayaml) found
 on the GitHub repo - now marked with the `yaml` tag.
