@@ -2481,6 +2481,7 @@ classes finally moved to &lt;code>extensions/avro&lt;/code>. In case if it&amp;r
 as a workaround, a copy of &amp;ldquo;old&amp;rdquo; &lt;code>CountingSource&lt;/code> class should be placed into a project code and used directly
 (&lt;a href="https://github.com/apache/beam/issues/25252">#25252&lt;/a>).&lt;/li>
 &lt;li>Renamed &lt;code>host&lt;/code> to &lt;code>firestoreHost&lt;/code> in &lt;code>FirestoreOptions&lt;/code> to avoid potential conflict of command line arguments (Java) (&lt;a href="https://github.com/apache/beam/pull/29201">#29201&lt;/a>).&lt;/li>
+&lt;li>Transforms which use &lt;code>SnappyCoder&lt;/code> are update incompatible with previous versions of the same transform (Java) on some runners. This includes PubSubIO&amp;rsquo;s read (&lt;a href="https://github.com/apache/beam/pull/28655#issuecomment-2407839769">#28655&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="bugfixes">Bugfixes&lt;/h2>
 &lt;ul>
@@ -2493,6 +2494,13 @@ as a workaround, a copy of &amp;ldquo;old&amp;rdquo; &lt;code>CountingSource&lt;
 &lt;ul>
 &lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2023-39325">CVE-2023-39325&lt;/a> (Java/Python/Go) (&lt;a href="https://github.com/apache/beam/issues/29118">#29118&lt;/a>).&lt;/li>
 &lt;li>Mitigated &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2023-47248">CVE-2023-47248&lt;/a> (Python) &lt;a href="https://github.com/apache/beam/issues/29392">#29392&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known issues&lt;/h2>
+&lt;ul>
+&lt;li>MLTransform drops the identical elements in the output PCollection. For any duplicate elements, a single element will be emitted downstream. (&lt;a href="https://github.com/apache/beam/issues/29600">#29600&lt;/a>).&lt;/li>
+&lt;li>Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the &lt;code>--max_cache_memory_usage_mb=0&lt;/code> pipeline option. (Python) (&lt;a href="https://github.com/apache/beam/issues/30360">#30360&lt;/a>).&lt;/li>
+&lt;li>Users who lauch Python pipelines in an environment without internet access and use the &lt;code>--setup_file&lt;/code> pipeline option might experience an increase in pipeline submission time. This has been fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/31070">#31070&lt;/a>).&lt;/li>
+&lt;li>Transforms which use &lt;code>SnappyCoder&lt;/code> are update incompatible with previous versions of the same transform (Java) on some runners. This includes PubSubIO&amp;rsquo;s read (&lt;a href="https://github.com/apache/beam/pull/28655#issuecomment-2407839769">#28655&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.52.0 release. Thank you to all contributors!&lt;/p>
