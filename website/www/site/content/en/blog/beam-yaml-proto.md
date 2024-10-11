@@ -27,7 +27,7 @@ for engineers to implement using [Beam YAML](https://beam.apache.org/documentati
 
 <!--more-->
 
-# Simplifying Pipelines with Beam YAML
+## Simplify pipelines with Beam YAML
 
 Creating a pipeline in Beam can be somewhat difficult, especially for newcomers with little experience with Beam.
 Setting up the project, managing dependencies, and so on can be challenging.
