@@ -21,7 +21,7 @@ limitations under the License.
 -->
 
 As streaming data processing grows, so do its maintenance, complexity, and costs.
-This post will explain how to efficiently scale pipelines using [Protobuf](https://protobuf.dev/),
+This post explains how to efficiently scale pipelines by using [Protobuf](https://protobuf.dev/),
 ensuring they are reusable and quick to deploy. Our goal is to keep this process simple
 for engineers to implement using [Beam YAML](https://beam.apache.org/documentation/sdks/yaml/).
 
