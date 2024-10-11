@@ -103,7 +103,6 @@ class RecordWriterManager implements AutoCloseable {
       @Nullable String targetSize = table.properties().get("write.target-file-size-bytes");
       this.maxFileSize =
           targetSize != null ? Long.parseLong(targetSize) : DEFAULT_MAX_BYTES_PER_FILE;
-      System.out.println("xxx max size: " + this.maxFileSize);
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
