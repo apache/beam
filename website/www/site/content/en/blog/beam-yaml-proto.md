@@ -271,4 +271,3 @@ on the GitHub repo - now marked with the `yaml` tag.
 Although Beam YAML is marked stable as of Beam 2.52, it is still under heavy development, with new features being
 added with each release. Those who want to be part of the design decisions and give insights to how the framework is
 being used are highly encouraged to join the [dev mailing list](https://beam.apache.org/community/contact-us/), where those discussions are occurring.
-the dev list can be found [here](https://beam.apache.org/community/contact-us/).
