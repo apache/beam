@@ -64,8 +64,6 @@ class WriteUngroupedRowsToFiles
    */
   @VisibleForTesting static final int DEFAULT_MAX_WRITERS_PER_BUNDLE = 20;
 
-  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
-
   private static final TupleTag<FileWriteResult> WRITTEN_FILES_TAG = new TupleTag<>("writtenFiles");
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
   private static final TupleTag<KV<ShardedKey<String>, Row>> SPILLED_ROWS_TAG =
@@ -94,8 +92,7 @@ class WriteUngroupedRowsToFiles
                         catalogConfig,
                         dynamicDestinations,
                         filePrefix,
-                        DEFAULT_MAX_WRITERS_PER_BUNDLE,
-                        DEFAULT_MAX_BYTES_PER_FILE))
+                        DEFAULT_MAX_WRITERS_PER_BUNDLE))
                 .withOutputTags(
                     WRITTEN_FILES_TAG,
                     TupleTagList.of(ImmutableList.of(WRITTEN_ROWS_TAG, SPILLED_ROWS_TAG))));
@@ -188,7 +185,6 @@ class WriteUngroupedRowsToFiles
     private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
     private final String filename;
     private final int maxWritersPerBundle;
-    private final long maxFileSize;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
@@ -199,13 +195,11 @@ class WriteUngroupedRowsToFiles
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         String filename,
-        int maximumWritersPerBundle,
-        long maxFileSize) {
+        int maximumWritersPerBundle) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filename = filename;
       this.maxWritersPerBundle = maximumWritersPerBundle;
-      this.maxFileSize = maxFileSize;
     }
 
     private org.apache.iceberg.catalog.Catalog getCatalog() {
@@ -217,8 +211,7 @@ class WriteUngroupedRowsToFiles
 
     @StartBundle
     public void startBundle() {
-      recordWriterManager =
-          new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+      recordWriterManager = new RecordWriterManager(getCatalog(), filename, maxWritersPerBundle);
       this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
     }
 

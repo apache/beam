@@ -75,6 +75,7 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -86,6 +87,7 @@ class RecordWriterManager implements AutoCloseable {
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;
     private final PartitionKey partitionKey;
+    private final long maxFileSize;
     private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
     final Cache<PartitionKey, RecordWriter> writers;
@@ -98,6 +100,10 @@ class RecordWriterManager implements AutoCloseable {
       this.spec = table.spec();
       this.partitionKey = new PartitionKey(spec, schema);
       this.table = table;
+      @Nullable String targetSize = table.properties().get("write.target-file-size-bytes");
+      this.maxFileSize =
+          targetSize != null ? Long.parseLong(targetSize) : DEFAULT_MAX_BYTES_PER_FILE;
+      System.out.println("xxx max size: " + this.maxFileSize);
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -186,7 +192,6 @@ class RecordWriterManager implements AutoCloseable {
 
   private final Catalog catalog;
   private final String filePrefix;
-  private final long maxFileSize;
   private final int maxNumWriters;
   @VisibleForTesting int openWriters = 0;
 
@@ -200,10 +205,9 @@ class RecordWriterManager implements AutoCloseable {
 
   private boolean isClosed = false;
 
-  RecordWriterManager(Catalog catalog, String filePrefix, long maxFileSize, int maxNumWriters) {
+  RecordWriterManager(Catalog catalog, String filePrefix, int maxNumWriters) {
     this.catalog = catalog;
     this.filePrefix = filePrefix;
-    this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
   }
 

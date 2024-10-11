@@ -22,6 +22,7 @@ import static org.apache.iceberg.hadoop.HadoopOutputFile.fromPath;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -146,8 +147,16 @@ public class TestDataWarehouse extends ExternalResource {
 
   public Table createTable(
       TableIdentifier tableId, Schema schema, @Nullable PartitionSpec partitionSpec) {
+    return createTable(tableId, schema, partitionSpec, null);
+  }
+
+  public Table createTable(
+      TableIdentifier tableId,
+      Schema schema,
+      @Nullable PartitionSpec partitionSpec,
+      @Nullable Map<String, String> properties) {
     someTableHasBeenCreated = true;
-    return catalog.createTable(tableId, schema, partitionSpec);
+    return catalog.createTable(tableId, schema, partitionSpec, properties);
   }
 
   public Table loadTable(TableIdentifier tableId) {

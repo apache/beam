@@ -36,8 +36,6 @@ class WriteGroupedRowsToFiles
     extends PTransform<
         PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
 
-  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
-
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
@@ -55,9 +53,7 @@ class WriteGroupedRowsToFiles
   public PCollection<FileWriteResult> expand(
       PCollection<KV<ShardedKey<String>, Iterable<Row>>> input) {
     return input.apply(
-        ParDo.of(
-            new WriteGroupedRowsToFilesDoFn(
-                catalogConfig, dynamicDestinations, DEFAULT_MAX_BYTES_PER_FILE, filePrefix)));
+        ParDo.of(new WriteGroupedRowsToFilesDoFn(catalogConfig, dynamicDestinations, filePrefix)));
   }
 
   private static class WriteGroupedRowsToFilesDoFn
@@ -67,17 +63,14 @@ class WriteGroupedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
     private final String filePrefix;
-    private final long maxFileSize;
 
     WriteGroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
-        long maxFileSize,
         String filePrefix) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
-      this.maxFileSize = maxFileSize;
     }
 
     private org.apache.iceberg.catalog.Catalog getCatalog() {
@@ -101,7 +94,7 @@ class WriteGroupedRowsToFiles
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
-          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
+          new RecordWriterManager(getCatalog(), filePrefix, Integer.MAX_VALUE)) {
         writer = openWriter;
         for (Row e : element.getValue()) {
           writer.write(windowedDestination, e);
