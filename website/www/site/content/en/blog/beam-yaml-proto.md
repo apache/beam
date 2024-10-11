@@ -20,6 +20,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+# Efficient Streaming Data Processing with Beam YAML and Protobuf
+
 As streaming data processing grows, so do its maintenance, complexity, and costs.
 This post explains how to efficiently scale pipelines by using [Protobuf](https://protobuf.dev/),
 which ensures that pipelines are reusable and quick to deploy. The goal is to keep this process simple
@@ -31,7 +33,7 @@ for engineers to implement using [Beam YAML](https://beam.apache.org/documentati
 
 Creating a pipeline in Beam can be somewhat difficult, especially for new Apache Beam users.
 Setting up the project, managing dependencies, and so on can be challenging.
-By using Beam YAML, you can eliminate most of the boilerplate code,
+Beam YAML eliminates most of the boilerplate code,
 which allows you to focus on the most important part of the work: data transformation.
 
 Some of the key benefits of Beam YAML include:
@@ -70,6 +72,8 @@ options:
 This section demonstrates the complete workflow for this pipeline.
 
 ### Create a simple proto event
+
+The following code creates a simple movie event.
 
 ```protobuf
 // events/v1/movie_event.proto
