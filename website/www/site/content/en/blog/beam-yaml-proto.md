@@ -266,7 +266,7 @@ Developers who wish to help build out and add functionalities are welcome to sta
 Beam YAML module found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml).
 
 There is also a list of open [bugs](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ayaml) found
-on the GitHub repo - now marked with the 'yaml' tag.
+on the GitHub repo - now marked with the `yaml` tag.
 
 While Beam YAML has been marked stable as of Beam 2.52, it is still under heavy development, with new features being
 added with each release. Those who wish to be part of the design decisions and give insights to how the framework is
