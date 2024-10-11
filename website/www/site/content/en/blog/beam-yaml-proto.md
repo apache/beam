@@ -32,7 +32,7 @@ for engineers to implement using [Beam YAML](https://beam.apache.org/documentati
 Creating a pipeline in Beam can be somewhat difficult, especially for new Apache Beam users.
 Setting up the project, managing dependencies, and so on can be challenging.
 By using Beam YAML, you can eliminate most of the boilerplate code,
-allowing you to focus solely on the most important part: data transformation.
+which allows you to focus on the most important part of the work: data transformation.
 
 Some of the main key benefits include:
 
