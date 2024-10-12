@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
@@ -35,7 +34,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.CheckReturnValue;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -98,6 +96,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final ExecutorService windmillStreamManager;
   private final ExecutorService workerMetadataConsumer;
   private final Object metadataLock;
+  private final GetWorkerMetadataStream getWorkerMetadataStream;
 
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineBackends> backends;
@@ -110,10 +109,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   @GuardedBy("this")
   private boolean started;
-
-  /** Set once when {@link #start()} is called. */
-  @GuardedBy("this")
-  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream = null;
 
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
@@ -145,6 +140,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
     this.metadataLock = new Object();
+    @SuppressWarnings("methodref.receiver.bound")
+    GetWorkerMetadataStream getWorkerMetadataStream =
+        streamFactory.createGetWorkerMetadataStream(
+            dispatcherClient::getWindmillMetadataServiceStubBlocking,
+            getWorkerMetadataThrottleTimer,
+            this::consumeWorkerMetadata);
+    this.getWorkerMetadataStream = getWorkerMetadataStream;
   }
 
   /**
@@ -203,12 +205,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @SuppressWarnings("ReturnValueIgnored")
   @Override
   public synchronized void start() {
-    Preconditions.checkState(!started, "StreamingEngineClient cannot start twice.");
-    getWorkerMetadataStream =
-        streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient.getWindmillMetadataServiceStubBlocking(),
-            getWorkerMetadataThrottleTimer,
-            this::consumeWorkerMetadata);
+    Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
+    getWorkerMetadataStream.start();
     started = true;
   }
 
@@ -235,7 +233,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @VisibleForTesting
   @Override
   public synchronized void shutdown() {
-    Preconditions.checkState(started, "StreamingEngineClient never started.");
+    Preconditions.checkState(started, "FanOutStreamingEngineWorkerHarness never started.");
     Preconditions.checkNotNull(getWorkerMetadataStream).halfClose();
     workerMetadataConsumer.shutdownNow();
     channelCachingStubFactory.shutdown();
@@ -371,20 +369,19 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             toImmutableMap(
                 Entry::getKey,
                 keyedEndpoint ->
-                    existingOrNewGetDataStreamFor(keyedEndpoint, currentGlobalDataStreams)));
+                    getOrCreateGlobalDataSteam(keyedEndpoint, currentGlobalDataStreams)));
   }
 
-  private GlobalDataStreamSender existingOrNewGetDataStreamFor(
+  private GlobalDataStreamSender getOrCreateGlobalDataSteam(
       Entry<String, Endpoint> keyedEndpoint,
       ImmutableMap<String, GlobalDataStreamSender> currentGlobalDataStreams) {
-    return checkNotNull(
-        currentGlobalDataStreams.getOrDefault(
-            keyedEndpoint.getKey(),
-            new GlobalDataStreamSender(
-                () ->
+    return Optional.ofNullable(currentGlobalDataStreams.get(keyedEndpoint.getKey()))
+        .orElseGet(
+            () ->
+                new GlobalDataStreamSender(
                     streamFactory.createGetDataStream(
                         createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer()),
-                keyedEndpoint.getValue())));
+                    keyedEndpoint.getValue()));
   }
 
   private WindmillStreamSender createAndStartWindmillStreamSender(Endpoint endpoint) {

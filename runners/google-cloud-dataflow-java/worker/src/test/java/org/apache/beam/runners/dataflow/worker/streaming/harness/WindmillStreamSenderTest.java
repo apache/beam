@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -186,16 +185,6 @@ public class WindmillStreamSenderTest {
         .createDirectGetDataStream(eq(connection), any(ThrottleTimer.class));
     verify(streamFactory, times(1))
         .createDirectCommitWorkStream(eq(connection), any(ThrottleTimer.class));
-  }
-
-  @Test
-  public void testCloseAllStreams_doesNotCloseUnstartedStreams() {
-    WindmillStreamSender windmillStreamSender =
-        newWindmillStreamSender(GetWorkBudget.builder().setBytes(1L).setItems(1L).build());
-
-    windmillStreamSender.close();
-
-    verifyNoInteractions(streamFactory);
   }
 
   @Test

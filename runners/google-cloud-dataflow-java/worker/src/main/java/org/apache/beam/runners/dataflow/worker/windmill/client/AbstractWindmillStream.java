@@ -91,6 +91,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final String backendWorkerToken;
   private final ResettableRequestObserver<RequestT> requestObserver;
   private final AtomicBoolean isShutdown;
+  private final AtomicBoolean started;
   private final AtomicReference<DateTime> shutdownTime;
 
   /**
@@ -122,6 +123,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.logEveryNStreamFailures = logEveryNStreamFailures;
     this.clientClosed = new AtomicBoolean();
     this.isShutdown = new AtomicBoolean(false);
+    this.started = new AtomicBoolean(false);
     this.streamClosed = new AtomicBoolean(false);
     this.startTimeMs = new AtomicLong();
     this.lastSendTimeMs = new AtomicLong();
@@ -177,7 +179,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private StreamObserver<RequestT> requestObserver() {
     if (requestObserver == null) {
       throw new NullPointerException(
-          "requestObserver cannot be null. Missing a call to startStream() to initialize.");
+          "requestObserver cannot be null. Missing a call to start() to initialize stream.");
     }
 
     return requestObserver;
@@ -208,8 +210,17 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
+  @Override
+  public final void start() {
+    if (!isShutdown.get() && started.compareAndSet(false, true)) {
+      // start() should only be executed once during the lifetime of the stream for idempotency and
+      // when shutdown() has not been called.
+      startStream();
+    }
+  }
+
   /** Starts the underlying stream. */
-  protected final void startStream() {
+  private void startStream() {
     // Add the stream to the registry after it has been fully constructed.
     streamRegistry.add(this);
     while (true) {

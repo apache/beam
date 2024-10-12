@@ -89,14 +89,17 @@ public class GrpcGetWorkerMetadataStreamTest {
       GetWorkerMetadataTestStub getWorkerMetadataTestStub,
       Consumer<WindmillEndpoints> endpointsConsumer) {
     serviceRegistry.addService(getWorkerMetadataTestStub);
-    return (GrpcGetWorkerMetadataStream)
-        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-            .setStreamRegistry(streamRegistry)
-            .build()
-            .createGetWorkerMetadataStream(
-                CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
-                new ThrottleTimer(),
-                endpointsConsumer);
+    GrpcGetWorkerMetadataStream getWorkerMetadataStream =
+        (GrpcGetWorkerMetadataStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .setStreamRegistry(streamRegistry)
+                .build()
+                .createGetWorkerMetadataStream(
+                    () -> CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
+                    new ThrottleTimer(),
+                    endpointsConsumer);
+    getWorkerMetadataStream.start();
+    return getWorkerMetadataStream;
   }
 
   @Before

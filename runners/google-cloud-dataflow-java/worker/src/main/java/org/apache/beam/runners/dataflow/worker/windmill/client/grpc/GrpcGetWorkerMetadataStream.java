@@ -86,18 +86,15 @@ public final class GrpcGetWorkerMetadataStream
       JobHeader jobHeader,
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingUpdater) {
-    GrpcGetWorkerMetadataStream getWorkerMetadataStream =
-        new GrpcGetWorkerMetadataStream(
-            startGetWorkerMetadataRpcFn,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            jobHeader,
-            getWorkerMetadataThrottleTimer,
-            serverMappingUpdater);
-    getWorkerMetadataStream.startStream();
-    return getWorkerMetadataStream;
+    return new GrpcGetWorkerMetadataStream(
+        startGetWorkerMetadataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        jobHeader,
+        getWorkerMetadataThrottleTimer,
+        serverMappingUpdater);
   }
 
   /**

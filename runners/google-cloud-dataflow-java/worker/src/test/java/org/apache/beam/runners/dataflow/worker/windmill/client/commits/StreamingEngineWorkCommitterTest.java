@@ -270,6 +270,10 @@ public class StreamingEngineWorkCommitterTest {
     Supplier<CommitWorkStream> fakeCommitWorkStream =
         () ->
             new CommitWorkStream() {
+
+              @Override
+              public void start() {}
+
               @Override
               public RequestBatcher batcher() {
                 return new RequestBatcher() {

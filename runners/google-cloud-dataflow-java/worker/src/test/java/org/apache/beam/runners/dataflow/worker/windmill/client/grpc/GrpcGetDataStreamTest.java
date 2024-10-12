@@ -90,12 +90,16 @@ public class GrpcGetDataStreamTest {
 
   private GrpcGetDataStream createGetDataStream(GetDataStreamTestStub testStub) {
     serviceRegistry.addService(testStub);
-    return (GrpcGetDataStream)
-        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-            .setSendKeyedGetDataRequests(false)
-            .build()
-            .createGetDataStream(
-                CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel), new ThrottleTimer());
+    GrpcGetDataStream getDataStream =
+        (GrpcGetDataStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .setSendKeyedGetDataRequests(false)
+                .build()
+                .createGetDataStream(
+                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel),
+                    new ThrottleTimer());
+    getDataStream.start();
+    return getDataStream;
   }
 
   @Test

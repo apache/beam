@@ -102,20 +102,17 @@ final class GrpcCommitWorkStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
-    GrpcCommitWorkStream commitWorkStream =
-        new GrpcCommitWorkStream(
-            backendWorkerToken,
-            startCommitWorkRpcFn,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            commitWorkThrottleTimer,
-            jobHeader,
-            idGenerator,
-            streamingRpcBatchLimit);
-    commitWorkStream.startStream();
-    return commitWorkStream;
+    return new GrpcCommitWorkStream(
+        backendWorkerToken,
+        startCommitWorkRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        commitWorkThrottleTimer,
+        jobHeader,
+        idGenerator,
+        streamingRpcBatchLimit);
   }
 
   @Override

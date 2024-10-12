@@ -95,19 +95,16 @@ final class GrpcGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
-    GrpcGetWorkStream getWorkStream =
-        new GrpcGetWorkStream(
-            backendWorkerToken,
-            startGetWorkRpcFn,
-            request,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            getWorkThrottleTimer,
-            receiver);
-    getWorkStream.startStream();
-    return getWorkStream;
+    return new GrpcGetWorkStream(
+        backendWorkerToken,
+        startGetWorkRpcFn,
+        request,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        getWorkThrottleTimer,
+        receiver);
   }
 
   private void sendRequestExtension(long moreItems, long moreBytes) {

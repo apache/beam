@@ -34,6 +34,12 @@ import org.joda.time.Instant;
 @ThreadSafe
 public interface WindmillStream {
 
+  /**
+   * Start the stream, opening a connection to the backend server. A call to start() is required for
+   * any further interactions on the stream.
+   */
+  void start();
+
   /** An identifier for the backend worker where the stream is sending/receiving RPCs. */
   String backendWorkerToken();
 

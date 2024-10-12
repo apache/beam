@@ -126,22 +126,19 @@ final class GrpcGetDataStream
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
-    GrpcGetDataStream getDataStream =
-        new GrpcGetDataStream(
-            backendWorkerToken,
-            startGetDataRpcFn,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            getDataThrottleTimer,
-            jobHeader,
-            idGenerator,
-            streamingRpcBatchLimit,
-            sendKeyedGetDataRequests,
-            processHeartbeatResponses);
-    getDataStream.startStream();
-    return getDataStream;
+    return new GrpcGetDataStream(
+        backendWorkerToken,
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        getDataThrottleTimer,
+        jobHeader,
+        idGenerator,
+        streamingRpcBatchLimit,
+        sendKeyedGetDataRequests,
+        processHeartbeatResponses);
   }
 
   @Override

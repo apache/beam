@@ -237,6 +237,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
+      public void start() {}
+
+      @Override
       public void shutdown() {}
 
       @Override
@@ -306,6 +309,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public String backendWorkerToken() {
         return "";
       }
+
+      @Override
+      public void start() {}
 
       @Override
       public void shutdown() {}
@@ -387,6 +393,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public String backendWorkerToken() {
         return "";
       }
+
+      @Override
+      public void start() {}
 
       @Override
       public void shutdown() {}

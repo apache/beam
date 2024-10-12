@@ -99,11 +99,15 @@ public class GrpcCommitWorkStreamTest {
 
   private GrpcCommitWorkStream createCommitWorkStream(CommitWorkStreamStreamTestStub testStub) {
     serviceRegistry.addService(testStub);
-    return (GrpcCommitWorkStream)
-        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-            .build()
-            .createCommitWorkStream(
-                CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel), new ThrottleTimer());
+    GrpcCommitWorkStream commitWorkStream =
+        (GrpcCommitWorkStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .build()
+                .createCommitWorkStream(
+                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel),
+                    new ThrottleTimer());
+    commitWorkStream.start();
+    return commitWorkStream;
   }
 
   @Test
