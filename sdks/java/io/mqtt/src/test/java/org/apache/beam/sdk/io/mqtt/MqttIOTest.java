@@ -69,6 +69,18 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class MqttIOTest {
 
+  /** Functional interface used to verify the connection status of an MQTT client. */
+  @FunctionalInterface
+  interface ConnectionCondition {
+    /**
+     * Evaluates whether the given {@link Connection} satisfies the condition.
+     *
+     * @param connection the MQTT connection to check
+     * @return {@code true} if the condition is met, {@code false} otherwise
+     */
+    boolean check(Connection connection);
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);
 
   private BrokerService brokerService;
@@ -123,18 +135,7 @@ public class MqttIOTest {
         new Thread(
             () -> {
               try {
-                LOG.info(
-                    "Waiting pipeline connected to the MQTT broker before sending "
-                        + "messages ...");
-                boolean pipelineConnected = false;
-                while (!pipelineConnected) {
-                  Thread.sleep(1000);
-                  for (Connection connection : brokerService.getBroker().getClients()) {
-                    if (!connection.getConnectionId().isEmpty()) {
-                      pipelineConnected = true;
-                    }
-                  }
-                }
+                doConnect(connection -> !connection.getConnectionId().isEmpty());
                 for (int i = 0; i < 10; i++) {
                   publishConnection.publish(
                       topicName,
@@ -185,18 +186,7 @@ public class MqttIOTest {
         new Thread(
             () -> {
               try {
-                LOG.info(
-                    "Waiting pipeline connected to the MQTT broker before sending "
-                        + "messages ...");
-                boolean pipelineConnected = false;
-                while (!pipelineConnected) {
-                  for (Connection connection : brokerService.getBroker().getClients()) {
-                    if (connection.getConnectionId().startsWith("READ_PIPELINE")) {
-                      pipelineConnected = true;
-                    }
-                  }
-                  Thread.sleep(1000);
-                }
+                doConnect(connection -> connection.getConnectionId().startsWith("READ_PIPELINE"));
                 for (int i = 0; i < 10; i++) {
                   publishConnection.publish(
                       "READ_TOPIC",
@@ -252,18 +242,7 @@ public class MqttIOTest {
         new Thread(
             () -> {
               try {
-                LOG.info(
-                    "Waiting pipeline connected to the MQTT broker before sending "
-                        + "messages ...");
-                boolean pipelineConnected = false;
-                while (!pipelineConnected) {
-                  for (Connection connection : brokerService.getBroker().getClients()) {
-                    if (!connection.getConnectionId().isEmpty()) {
-                      pipelineConnected = true;
-                    }
-                  }
-                  Thread.sleep(1000);
-                }
+                doConnect(connection -> !connection.getConnectionId().isEmpty());
                 for (int i = 0; i < 5; i++) {
                   publishConnection.publish(
                       topic1,
@@ -580,6 +559,30 @@ public class MqttIOTest {
     assertEquals(0, cp2.messages.size());
     assertEquals(cp1.clientId, cp2.clientId);
     assertEquals(cp1.oldestMessageTimestamp, cp2.oldestMessageTimestamp);
+  }
+
+  /**
+   * Attempts to establish a connection to the MQTT broker by checking each available client
+   * connection until the specified condition is met.
+   *
+   * <p>This method repeatedly checks the connection status of each MQTT client using the provided
+   * {@link ConnectionCondition}. It blocks execution within a loop, sleeping for 1 second between
+   * each check, until the condition is satisfied.
+   *
+   * @param condition the condition used to verify the connection status
+   * @throws Exception if any error occurs during the connection process
+   */
+  private void doConnect(ConnectionCondition condition) throws Exception {
+    LOG.info("Waiting pipeline connected to the MQTT broker before sending messages ...");
+    boolean pipelineConnected = false;
+    while (!pipelineConnected) {
+      for (Connection connection : brokerService.getBroker().getClients()) {
+        if (condition.check(connection)) {
+          pipelineConnected = true;
+        }
+      }
+      Thread.sleep(1000);
+    }
   }
 
   @After
