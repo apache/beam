@@ -85,7 +85,10 @@ $defs:
         items:
           properties:
             # Must be implicit.
-            input: { not: {} }
+            input:
+              oneOf:
+                - { "not": {} }
+                - { "enum": [ "__explicitly_empty__" ] }
             output: { not: {} }
       source:
         properties:
