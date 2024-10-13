@@ -107,7 +107,7 @@ export class PCollection<T> {
     return this.pipeline.applyAsyncTransform(transform, this);
   }
 
-  map<OutputT, ContextT>(
+  map<OutputT, ContextT extends Object | undefined>(
     fn:
       | (ContextT extends undefined ? (element: T) => OutputT : never)
       | ((element: T, context: ContextT) => OutputT),
@@ -135,7 +135,7 @@ export class PCollection<T> {
     );
   }
 
-  flatMap<OutputT, ContextT>(
+  flatMap<OutputT, ContextT extends Object | undefined>(
     fn:
       | (ContextT extends undefined ? (element: T) => Iterable<OutputT> : never)
       | ((element: T, context: ContextT) => Iterable<OutputT>),
