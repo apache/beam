@@ -630,6 +630,102 @@ public class TextIOReadTest {
     }
   }
 
+  /** Tests for reading files with various delimiters. */
+  @RunWith(Parameterized.class)
+  public static class ReadWithCustomNestedDelimiterTest {
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+    @Parameterized.Parameters(name = "{index}: {0}")
+    public static Iterable<Object[]> data() {
+      return ImmutableList.<Object[]>builder()
+          .add(new Object[] {"AABAZAABAA"})
+          .add(new Object[] {"AABAZAABAAABB"})
+          .add(new Object[] {"AABAZAABAAABAY"})
+          .add(new Object[] {"AABAZAABAAABBAABA"})
+          .add(new Object[] {"AABAZAABAAABBAABA"})
+          .add(new Object[] {"AABAZAABBAABAAABBAABAAABBAABA"})
+          .add(new Object[] {"AABAZAABBAABABABBABBBBAAABABAAABAAY"})
+          .add(new Object[] {"firstABAABAAsecondAABAAAABABAAthirdAABA"})
+          .add(new Object[] {"*firstAABAsecondAABAAABAthird"})
+          .add(new Object[] {"ZAABAfirstAABAA"})
+          .add(new Object[] {"ZYAABAfirstAAABAA"})
+          .add(new Object[] {"ZAABAfirstAAAABAB"})
+          .add(new Object[] {"ZAABAfirstABAAABAA"})
+          .build();
+    }
+
+    @Parameterized.Parameter(0)
+    public String testCase;
+
+    @Test
+    public void testReadLinesWithCustomDelimiter() throws Exception {
+      SourceTestUtils.assertSplitAtFractionExhaustive(
+          TextIOReadTest.prepareSource(
+              tempFolder, testCase.getBytes(UTF_8), new byte[] {'A', 'A', 'B', 'A'}, 0),
+          PipelineOptionsFactory.create());
+    }
+
+    @Test
+    public void testReadLinesWithCustomDelimiterAndHeaders() throws Exception {
+      SourceTestUtils.assertSplitAtFractionExhaustive(
+              TextIOReadTest.prepareSource(
+                      tempFolder, testCase.getBytes(UTF_8), new byte[] {'A', 'B'}, 3),
+              PipelineOptionsFactory.create());
+    }
+
+    @Test
+    public void testReadLinesWithCustomDelimiterAndZeroAndOneLengthReturningChannel()
+        throws Exception {
+      byte[] delimiter = new byte[] {'|', '*'};
+      Path path = tempFolder.newFile().toPath();
+      Files.write(path, testCase.getBytes(UTF_8));
+      Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
+      FileBasedSource source =
+          getTextSource(path.toString(), delimiter, 0)
+              .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
+      FileBasedReader<String> reader =
+          source.createSingleFileReader(PipelineOptionsFactory.create());
+      ReadableByteChannel channel =
+          FileSystems.open(
+              FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
+      InputStream stream = Channels.newInputStream(channel);
+      reader.startReading(
+          // Placeholder channel that only yields 0- and 1-length buffers.
+          // Data is read at most one byte at a time from testCase parameter.
+          new ReadableByteChannel() {
+            int readCount = 0;
+
+            @Override
+            public int read(ByteBuffer dst) throws IOException {
+              if (++readCount % 3 == 0) {
+                if (dst.hasRemaining()) {
+                  int value = stream.read();
+                  if (value == -1) {
+                    return -1;
+                  }
+                  dst.put((byte) value);
+                  return 1;
+                }
+              }
+              return 0;
+            }
+
+            @Override
+            public boolean isOpen() {
+              return channel.isOpen();
+            }
+
+            @Override
+            public void close() throws IOException {
+              stream.close();
+            }
+          });
+      assertEquals(
+          SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create()),
+          SourceTestUtils.readFromStartedReader(reader));
+    }
+  }
+
   /** Tests for some basic operations in {@link TextIO.Read}. */
   @RunWith(JUnit4.class)
   public static class BasicIOTest {
