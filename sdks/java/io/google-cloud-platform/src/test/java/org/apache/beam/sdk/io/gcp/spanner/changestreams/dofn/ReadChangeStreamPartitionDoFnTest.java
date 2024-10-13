@@ -41,12 +41,12 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -66,7 +66,7 @@ public class ReadChangeStreamPartitionDoFnTest {
   private ReadChangeStreamPartitionDoFn doFn;
   private PartitionMetadata partition;
   private TimestampRange restriction;
-  private RestrictionTracker<TimestampRange, Timestamp> tracker;
+  private ReadChangeStreamPartitionRangeTracker tracker;
   private OutputReceiver<DataChangeRecord> receiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private BundleFinalizer bundleFinalizer;
@@ -107,7 +107,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             .setScheduledAt(Timestamp.now())
             .build();
     restriction = mock(TimestampRange.class);
-    tracker = mock(RestrictionTracker.class);
+    tracker = mock(ReadChangeStreamPartitionRangeTracker.class);
     receiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
     bundleFinalizer = mock(BundleFinalizer.class);
