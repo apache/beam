@@ -24,6 +24,7 @@ import collections
 import copy
 import functools
 import itertools
+import json
 import logging
 import operator
 from builtins import object
@@ -71,6 +72,7 @@ _LOGGER = logging.getLogger(__name__)
 KNOWN_COMPOSITES = frozenset([
     common_urns.primitives.GROUP_BY_KEY.urn,
     common_urns.composites.COMBINE_PER_KEY.urn,
+    common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
     common_urns.primitives.PAR_DO.urn,  # After SDF expansion.
 ])
 
@@ -614,6 +616,7 @@ class TransformContext(object):
     }
 
 
+
 def leaf_transform_stages(
     root_ids,  # type: Iterable[str]
     components,  # type: beam_runner_api_pb2.Components
@@ -795,6 +798,7 @@ def standard_optimize_phases():
       annotate_downstream_side_inputs,
       annotate_stateful_dofns_as_roots,
       fix_side_input_pcoll_coders,
+      replace_gbk_combinevalue_pairs,
       pack_combiners,
       lift_combiners,
       expand_sdf,
@@ -1022,6 +1026,87 @@ def _eliminate_common_key_with_none(stages, context, can_pack=lambda s: True):
 
 
 _DEFAULT_PACK_COMBINERS_LIMIT = 128
+
+
+def replace_gbk_combinevalue_pairs(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+
+  """
+  Replaces GroupByKey + CombineValues pairs into CombinePerKeys
+
+  This replacement is only done if the GBK's output pcollection
+  is _only_ consumed by CombineValue(s). If the GBK's output
+  pcollection is consumed by any other transform, the GBK is
+  not replaced.
+  """
+  # First record the producers and consumers of each PCollection.
+  producers_by_pcoll = {}  # type: Dict[str, Stage]
+  consumers_by_pcoll = collections.defaultdict(
+      list)  # type: DefaultDict[str, List[Stage]]
+
+  for stage in stages:
+    for transform in stage.transforms:
+      for input in transform.inputs.values():
+        consumers_by_pcoll[input].append(stage)
+      for output in transform.outputs.values():
+        producers_by_pcoll[output] = stage
+
+  processed_stages_by_name = set()
+  for stage in stages:
+    transform = only_element(stage.transforms)
+    if transform.unique_name in processed_stages_by_name:
+      continue
+    if transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
+      consumer_transforms = [
+          only_transform(consumer.transforms)
+          for consumer in consumers_by_pcoll[only_element(
+              transform.outputs.values())]
+      ]
+      if not consumer_transforms:
+        yield stage
+        continue
+      if not all(consumer.spec.urn ==
+                 common_urns.combine_components.COMBINE_GROUPED_VALUES.urn
+                 for consumer in consumer_transforms):
+        yield stage
+        continue
+      for consumer in consumer_transforms:
+        # Replace GroupByKey + CombineValues with CombinePerKey.
+        # The name of the new merged stage is the GBK stage name joined with
+        # the CombineValues stage name, e.g. "GBK+CombineValues"
+        def label(transform):
+          if transform.unique_name == '':
+            return ''
+          try:
+            return transform.unique_name.rsplit('/', 1)[1]
+          except IndexError:
+            return transform.unique_name
+
+        name = '%s+%s' % (label(transform), label(consumer))
+        unique_name = consumer.unique_name.rsplit('/', 1)[0] + '/' + name
+        encoded_source_xforms_anno = json.dumps(
+            [transform.unique_name, consumer.unique_name]).encode('utf-8')
+        stage = Stage(
+            unique_name,
+            [
+                beam_runner_api_pb2.PTransform(
+                    unique_name=unique_name,
+                    inputs={'input': only_element(transform.inputs.values())},
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.composites.COMBINE_PER_KEY.urn),
+                    annotations={
+                        'pretranslated_xforms': encoded_source_xforms_anno
+                    },
+                    environment_id=transform.environment_id),
+            ],
+            downstream_side_inputs=frozenset(),
+            must_follow=stage.must_follow)
+        stage.transforms[0].outputs.MergeFrom(consumer.outputs)
+        processed_stages_by_name.add(consumer.unique_name)
+        yield stage
+      processed_stages_by_name.add(transform.unique_name)
+    else:
+      yield stage
 
 
 def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
