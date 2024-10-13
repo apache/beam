@@ -32,7 +32,7 @@ distTar {
 }
 
 dependencies {
-   implementation 'io.github.embeddedkafka:embedded-kafka_2.11:2.4.1.1'
+   implementation 'io.github.embeddedkafka:embedded-kafka_2.12:3.1.0'
    implementation 'org.scala-lang:scala-library:2.11.12'
 }
 
