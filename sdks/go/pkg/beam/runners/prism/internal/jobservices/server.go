@@ -58,7 +58,8 @@ type Server struct {
 	execute func(*Job)
 
 	// Artifact hack
-	artifacts map[string][]byte
+	artifacts   map[string][]byte
+	artifactsMu sync.RWMutex
 }
 
 // NewServer acquires the indicated port.
@@ -68,9 +69,10 @@ func NewServer(port int, execute func(*Job)) *Server {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
 	s := &Server{
-		lis:     lis,
-		jobs:    make(map[string]*Job),
-		execute: execute,
+		lis:       lis,
+		jobs:      make(map[string]*Job),
+		execute:   execute,
+		artifacts: map[string][]byte{},
 	}
 	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
 	opts := []grpc.ServerOption{

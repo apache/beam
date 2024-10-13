@@ -81,10 +81,9 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 					return err
 				}
 			}
-			if len(s.artifacts) == 0 {
-				s.artifacts = map[string][]byte{}
-			}
+			s.artifactsMu.Lock()
 			s.artifacts[string(dep.GetTypePayload())] = buf.Bytes()
+			s.artifactsMu.Unlock()
 		}
 	}
 	return nil
@@ -98,7 +97,9 @@ func (s *Server) ResolveArtifacts(_ context.Context, req *jobpb.ResolveArtifacts
 
 func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.ArtifactRetrievalService_GetArtifactServer) error {
 	info := req.GetArtifact()
+	s.artifactsMu.RLock()
 	buf, ok := s.artifacts[string(info.GetTypePayload())]
+	s.artifactsMu.RUnlock()
 	if !ok {
 		pt := prototext.Format(info)
 		slog.Warn("unable to provide artifact to worker", "artifact_info", pt)
