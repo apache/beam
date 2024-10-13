@@ -1,0 +1,49 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This examples reads from a public file stored on Google Cloud. This
+# requires authenticating with Google Cloud, or setting the file in
+#`ReadFromText` to a local file.
+#
+# To set up Application Default Credentials,
+# see https://cloud.google.com/docs/authentication/external/set-up-adc for more
+# information
+#
+# The following example reads data from a Mysql database
+# then load the results back to a Postgre database
+pipeline:
+  transforms:
+    - type: ReadFromCsv
+      name: ReadInputFile
+      config:
+        path: gs://apache-beam-samples/beam-yaml-blog/products.csv
+        delimiter: ","
+    - type: Sql
+      name: SqlCommand 
+      config:
+        query: "select category, count(*) as num_sold, sum(price) as revenue, max(price) as max_price from PCOLLECTION group by category"
+      input: ReadInputFile
+    - type: WriteToCsv
+      name: WriteOutputFile
+      input: SqlCommand
+      config:
+        path: output.csv
+        
+# Expected:
+#  Row(category='Apparel', num_sold=1, revenue=109.99, max_price=109.99)
+#  Row(category='Kitchen', num_sold=1, revenue=29.99, max_price=29.99)
+#  Row(category='Electronics', num_sold=3, revenue=369.97, max_price=249.99)
