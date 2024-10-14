@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.fn.data;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -30,6 +33,8 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -55,7 +60,13 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final ConcurrentMap<
           /*instructionId=*/ String, CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
       receivers;
-  private final ConcurrentMap<String, Boolean> erroredInstructionIds;
+  private final Cache</*instructionId=*/ String, /*unused=*/ Boolean> poisonedInstructionIds;
+
+  private static class PoisonedException extends RuntimeException {
+    public PoisonedException() {
+      super("Instruction poisoned");
+    }
+  };
 
   public BeamFnDataGrpcMultiplexer(
       Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
@@ -64,7 +75,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
           baseOutboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.receivers = new ConcurrentHashMap<>();
-    this.erroredInstructionIds = new ConcurrentHashMap<>();
+    this.poisonedInstructionIds =
+        CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(20)).build();
     this.inboundObserver = new InboundObserver();
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(baseOutboundObserverFactory, inboundObserver);
@@ -87,9 +99,24 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     return outboundObserver;
   }
 
-  private CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture(
+  /**
+   * Returns a future that can be awaited upon for processing elements for instruction id.
+   *
+   * @param instructionId
+   * @return null if the instruction id has been poisoned and elements should be ignored.
+   */
+  @SuppressWarnings("nullness")
+  private @Nullable CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture(
       String instructionId) {
-    return receivers.computeIfAbsent(instructionId, (unused) -> new CompletableFuture<>());
+    return receivers.computeIfAbsent(
+        instructionId,
+        (unused) -> {
+          if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
+            return null;
+          } else {
+            return new CompletableFuture<>();
+          }
+        });
   }
 
   /**
@@ -104,12 +131,43 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void registerConsumer(
       String instructionId, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
-    receiverFuture(instructionId).complete(receiver);
+    @Nullable
+    CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
+        receiverFuture(instructionId);
+    if (receiverFuture == null) {
+      throw new IllegalArgumentException("Instruction id was poisoned");
+    } else {
+      receiverFuture.complete(receiver);
+    }
   }
 
   /** Unregisters a consumer. */
   public void unregisterConsumer(String instructionId) {
-    receivers.remove(instructionId);
+    @Nullable
+    CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
+        receivers.remove(instructionId);
+    if (receiverFuture != null && !receiverFuture.isDone()) {
+      throw new IllegalStateException("Unregistering consumer which was not registered.");
+    }
+  }
+
+  public void poisonInstructionId(String instructionId) {
+    poisonedInstructionIds.put(instructionId, Boolean.TRUE);
+    @Nullable
+    CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
+        receivers.remove(instructionId);
+    if (receiverFuture != null) {
+      // Completing exceptionally has no effect if the future was already notified. In that case
+      // whatever registered the receiver needs to handle cancelling it.
+      receiverFuture.completeExceptionally(new PoisonedException());
+      if (!receiverFuture.isCompletedExceptionally()) {
+        try {
+          receiverFuture.get().close();
+        } catch (Exception e) {
+          LOG.warn("Unexpected error closing existing observer");
+        }
+      }
+    }
   }
 
   @VisibleForTesting
@@ -210,27 +268,42 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     }
 
     private void forwardToConsumerForInstructionId(String instructionId, BeamFnApi.Elements value) {
-      if (erroredInstructionIds.containsKey(instructionId)) {
-        LOG.debug("Ignoring inbound data for failed instruction {}", instructionId);
-        return;
-      }
       CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> consumerFuture =
           receiverFuture(instructionId);
+      if (consumerFuture == null) {
+        LOG.debug(
+            "Received data for instruction {} which was poisoned, dropping data.", instructionId);
+        return;
+      }
+      CloseableFnDataReceiver<BeamFnApi.Elements> consumer;
       if (!consumerFuture.isDone()) {
         LOG.debug(
             "Received data for instruction {} without consumer ready. "
                 + "Waiting for consumer to be registered.",
             instructionId);
       }
-      CloseableFnDataReceiver<BeamFnApi.Elements> consumer;
       try {
-        consumer = consumerFuture.get();
-
+        // The consumer may not be registered until the bundle processor is fully constructed so we
+        // conservatively set
+        // a high timeout.  Poisoning will prevent this for occurring for consumers that will not be
+        // registered.
+        consumer = consumerFuture.get(3, TimeUnit.HOURS);
         /*
          * TODO: On failure we should fail any bundles that were impacted eagerly
          * instead of relying on the Runner harness to do all the failure handling.
          */
+      } catch (TimeoutException e) {
+        LOG.error(
+            "Timed out waiting to observe consumer data stream for instruction {}",
+            instructionId,
+            e);
+        outboundObserver.onError(e);
+        return;
       } catch (ExecutionException | InterruptedException e) {
+        if (e.getCause() instanceof PoisonedException) {
+          LOG.debug("Received data for poisoned instruction {}. Dropping input.", instructionId);
+          return;
+        }
         LOG.error(
             "Client interrupted during handling of data for instruction {}", instructionId, e);
         outboundObserver.onError(e);
@@ -243,7 +316,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       try {
         consumer.accept(value);
       } catch (Exception e) {
-        erroredInstructionIds.put(instructionId, true);
+        poisonInstructionId(instructionId);
       }
     }
 
