@@ -17,14 +17,41 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import java.io.Closeable;
+import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Provides an interface to start streaming worker processing. */
 @Internal
-public interface StreamingWorkerHarness {
-  void start();
+@ThreadSafe
+final class GlobalDataStreamSender implements Closeable, Supplier<GetDataStream> {
+  private final Endpoint endpoint;
+  private final GetDataStream delegate;
+  private volatile boolean started;
 
-  void shutdown();
+  GlobalDataStreamSender(GetDataStream delegate, Endpoint endpoint) {
+    this.delegate = delegate;
+    this.started = false;
+    this.endpoint = endpoint;
+  }
 
-  long getAndResetThrottleTime();
+  @Override
+  public GetDataStream get() {
+    if (!started) {
+      started = true;
+      delegate.start();
+    }
+    return delegate;
+  }
+
+  @Override
+  public void close() {
+    delegate.shutdown();
+  }
+
+  Endpoint endpoint() {
+    return endpoint;
+  }
 }

@@ -103,7 +103,7 @@ final class GetWorkResponseChunkAssembler {
     private static ComputationMetadata fromProto(
         Windmill.ComputationWorkItemMetadata metadataProto) {
       return new AutoValue_GetWorkResponseChunkAssembler_ComputationMetadata(
-          metadataProto.getComputationId(),
+          Preconditions.checkNotNull(metadataProto.getComputationId()),
           WindmillTimeUtils.windmillToHarnessWatermark(metadataProto.getInputDataWatermark()),
           WindmillTimeUtils.windmillToHarnessWatermark(
               metadataProto.getDependentRealtimeInputWatermark()));

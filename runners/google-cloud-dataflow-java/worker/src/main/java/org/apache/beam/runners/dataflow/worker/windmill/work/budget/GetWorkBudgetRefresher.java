@@ -95,6 +95,7 @@ public final class GetWorkBudgetRefresher {
       if (currentBudgetRefreshPhase < 0) {
         return;
       }
+
       // Budget refreshes are paused during endpoint updates.
       if (!isBudgetRefreshPaused.get()) {
         redistributeBudget.run();

@@ -242,6 +242,9 @@ public class WindmillStreamPoolTest {
     }
 
     @Override
+    public void start() {}
+
+    @Override
     public boolean awaitTermination(int time, TimeUnit unit) {
       return false;
     }
