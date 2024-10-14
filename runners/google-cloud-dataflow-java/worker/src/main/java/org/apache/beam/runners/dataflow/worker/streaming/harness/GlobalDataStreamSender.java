@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import com.google.common.base.Suppliers;
 import java.io.Closeable;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
@@ -47,7 +46,6 @@ final class GlobalDataStreamSender implements Closeable, Supplier<GetDataStream>
     if (!started) {
       started = true;
     }
-
     return delegate.get();
   }
 
