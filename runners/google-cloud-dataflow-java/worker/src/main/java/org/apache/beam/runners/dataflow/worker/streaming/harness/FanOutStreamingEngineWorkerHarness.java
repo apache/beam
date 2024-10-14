@@ -307,7 +307,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   /** Add up all the throttle times of all streams including GetWorkerMetadataStream. */
-  public long getAndResetThrottleTimes() {
+  @Override
+  public long getAndResetThrottleTime() {
     return connections.get().windmillStreams().values().stream()
             .map(WindmillStreamSender::getAndResetThrottleTime)
             .reduce(0L, Long::sum)
