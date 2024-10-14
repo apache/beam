@@ -112,6 +112,7 @@ import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
@@ -175,6 +176,58 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = Mockito.mock(GcsUtil.class);
     pipelineOptions.setGcsUtil(gcsUtil);
     assertSame(gcsUtil, pipelineOptions.getGcsUtil());
+  }
+
+  @Test
+  public void testCreationWithDefaultGoogleCloudStorageReadOptions() throws Exception {
+    Configuration.addDefaultResource("test-hadoop-conf.xml");
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorage googleCloudStorageMock = Mockito.spy(GoogleCloudStorage.class);
+    Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
+        .thenReturn(Mockito.mock(SeekableByteChannel.class));
+    gcsUtil.setCloudStorageImpl(googleCloudStorageMock);
+
+    GoogleCloudStorageReadOptions expectedOptions =
+        GoogleCloudStorageReadOptions.builder()
+            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.AUTO)
+            .setSupportGzipEncoding(true)
+            .setFastFailOnNotFound(false)
+            .build();
+
+    assertEquals(expectedOptions, pipelineOptions.getGoogleCloudStorageReadOptions());
+
+    // Assert read options are passed to GCS calls
+    pipelineOptions.getGcsUtil().open(GcsPath.fromUri("gs://bucket/path"));
+    Mockito.verify(googleCloudStorageMock, Mockito.times(1))
+        .open(StorageResourceId.fromStringPath("gs://bucket/path"), expectedOptions);
+  }
+
+  @Test
+  public void testCreationWithExplicitGoogleCloudStorageReadOptions() throws Exception {
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder()
+            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.AUTO)
+            .setSupportGzipEncoding(true)
+            .setFastFailOnNotFound(false)
+            .build();
+
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGoogleCloudStorageReadOptions(readOptions);
+
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorage googleCloudStorageMock = Mockito.spy(GoogleCloudStorage.class);
+    Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
+        .thenReturn(Mockito.mock(SeekableByteChannel.class));
+    gcsUtil.setCloudStorageImpl(googleCloudStorageMock);
+
+    assertEquals(readOptions, pipelineOptions.getGoogleCloudStorageReadOptions());
+
+    // Assert read options are passed to GCS calls
+    pipelineOptions.getGcsUtil().open(GcsPath.fromUri("gs://bucket/path"));
+    Mockito.verify(googleCloudStorageMock, Mockito.times(1))
+        .open(StorageResourceId.fromStringPath("gs://bucket/path"), readOptions);
   }
 
   @Test
@@ -1630,7 +1683,8 @@ public class GcsUtilTest {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null));
+                  : null),
+          gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
     private GcsUtilMock(
@@ -1641,7 +1695,8 @@ public class GcsUtilTest {
         Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
-        GcsCountersOptions gcsCountersOptions) {
+        GcsCountersOptions gcsCountersOptions,
+        GoogleCloudStorageReadOptions gcsReadOptions) {
       super(
           storageClient,
           httpRequestInitializer,
@@ -1650,7 +1705,8 @@ public class GcsUtilTest {
           credentials,
           uploadBufferSizeBytes,
           rewriteDataOpBatchLimit,
-          gcsCountersOptions);
+          gcsCountersOptions,
+          gcsReadOptions);
     }
 
     @Override
