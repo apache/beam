@@ -991,13 +991,10 @@ class BundleProcessor(object):
 
   def process_bundle(self, instruction_id):
     # type: (str) -> Tuple[List[beam_fn_api_pb2.DelayedBundleApplication], bool]
-    _LOGGER.info("RTOP Investigation: entered process_bundle function")
 
     expected_input_ops = []  # type: List[DataInputOperation]
 
-    _LOGGER.info("RTOP Investigation: before itereating through ops")
     for op in self.ops.values():
-      _LOGGER.info(f"RTOP Investigation: Trying instruction_id: {instruction_id}")
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
@@ -1008,14 +1005,12 @@ class BundleProcessor(object):
         expected_input_ops.append(op)
 
     try:
-      _LOGGER.info(f"RTOP Investigation: Trying instruction_id: {instruction_id}")
       execution_context = ExecutionContext(instruction_id=instruction_id)
       self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
-      _LOGGER.info("RTOP Investigation: for op in reversed")
       for op in reversed(self.ops.values()):
-        _LOGGER.info('start %s', op)
+        _LOGGER.debug('start %s', op)
         op.execution_context = execution_context
         op.start()
 
@@ -1041,7 +1036,6 @@ class BundleProcessor(object):
         # Set up timer output stream for DoOperation.
         for ((transform_id, timer_family_id),
              timer_info) in self.timers_info.items():
-          _LOGGER.info(f"RTOP Investigation: transform_id: {transform_id}")
           output_stream = self.timer_data_channel.output_timer_stream(
               instruction_id, transform_id, timer_family_id)
           timer_info.output_stream = output_stream
@@ -1065,7 +1059,7 @@ class BundleProcessor(object):
 
       # Finish all operations.
       for op in self.ops.values():
-        _LOGGER.info('finish %s', op)
+        _LOGGER.debug('finish %s', op)
         op.finish()
 
       # Close every timer output stream
