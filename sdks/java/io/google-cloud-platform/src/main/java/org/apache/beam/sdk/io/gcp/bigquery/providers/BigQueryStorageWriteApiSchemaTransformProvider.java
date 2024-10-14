@@ -372,15 +372,27 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     }
 
     private static class RowDynamicDestinations extends DynamicDestinations<Row, String> {
-      Schema schema;
+      final Schema schema;
+      final String fixedDestination;
+      final List<String> primaryKey;
 
       RowDynamicDestinations(Schema schema) {
         this.schema = schema;
+        this.fixedDestination = null;
+        this.primaryKey = null;
+      }
+
+      public RowDynamicDestinations(
+          Schema schema, String fixedDestination, List<String> primaryKey) {
+        this.schema = schema;
+        this.fixedDestination = fixedDestination;
+        this.primaryKey = primaryKey;
       }
 
       @Override
       public String getDestination(ValueInSingleWindow<Row> element) {
-        return element.getValue().getString("destination");
+        return Optional.ofNullable(fixedDestination)
+            .orElseGet(() -> element.getValue().getString("destination"));
       }
 
       @Override
@@ -391,23 +403,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       @Override
       public TableSchema getSchema(String destination) {
         return BigQueryUtils.toTableSchema(schema);
-      }
-    }
-
-    private static class CdcWritesDynamicDestination extends RowDynamicDestinations {
-      final String fixedDestination;
-      final List<String> primaryKey;
-
-      public CdcWritesDynamicDestination(
-          Schema schema, String fixedDestination, List<String> primaryKey) {
-        super(schema);
-        this.fixedDestination = fixedDestination;
-        this.primaryKey = primaryKey;
-      }
-
-      @Override
-      public String getDestination(ValueInSingleWindow<Row> element) {
-        return Optional.ofNullable(fixedDestination).orElseGet(() -> super.getDestination(element));
       }
 
       @Override
@@ -572,19 +567,20 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               + "\""
               + ROW_PROPERTY_MUTATION_INFO
               + "\" Row field and a \"record\" Row field.");
+
+      Schema rowSchema = schema.getField(ROW_PROPERTY_MUTATION_INFO).getType().getRowSchema();
+
       checkArgument(
-          schema
-              .getField(ROW_PROPERTY_MUTATION_INFO)
-              .getType()
-              .getRowSchema()
-              .equals(ROW_SCHEMA_MUTATION_INFO),
+          rowSchema.equals(ROW_SCHEMA_MUTATION_INFO),
           "When writing using CDC functionality, we expect a \""
               + ROW_PROPERTY_MUTATION_INFO
-              + "\" field of Row type with fields \""
-              + ROW_PROPERTY_MUTATION_TYPE
-              + "\" and \""
-              + ROW_PROPERTY_MUTATION_SQN
-              + "\" both of type string.");
+              + "\" field of Row type with schema:\n"
+              + ROW_SCHEMA_MUTATION_INFO.toString()
+              + "\n"
+              + "Received \""
+              + ROW_PROPERTY_MUTATION_INFO
+              + "\" field with schema:\n"
+              + rowSchema.toString());
 
       String tableDestination = null;
 
@@ -596,7 +592,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       return write
           .to(
-              new CdcWritesDynamicDestination(
+              new RowDynamicDestinations(
                   schema.getField("record").getType().getRowSchema(),
                   tableDestination,
                   configuration.getPrimaryKey()))
