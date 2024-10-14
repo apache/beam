@@ -23,14 +23,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -276,6 +279,93 @@ public class BeamFnDataGrpcClientTest {
       assertThat(inboundServerValues, empty());
       // The consumer should have only been invoked once
       assertEquals(1, consumerInvoked.get());
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testForInboundConsumerThatIsPoisoned() throws Exception {
+    CountDownLatch waitForClientToConnect = new CountDownLatch(1);
+    CountDownLatch receivedAElement = new CountDownLatch(1);
+    Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
+    Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
+    AtomicReference<StreamObserver<BeamFnApi.Elements>> outboundServerObserver =
+        new AtomicReference<>();
+    CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
+        TestStreams.withOnNext(inboundServerValues::add).build();
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    waitForClientToConnect.countDown();
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
+    server.start();
+
+    try {
+      ManagedChannel channel =
+          InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
+
+      BeamFnDataInboundObserver observerA =
+          BeamFnDataInboundObserver.forConsumers(
+              Arrays.asList(
+                  DataEndpoint.create(
+                      TRANSFORM_ID_A,
+                      CODER,
+                      (WindowedValue<String> elem) -> {
+                        receivedAElement.countDown();
+                        inboundValuesA.add(elem);
+                      })),
+              Collections.emptyList());
+      CompletableFuture<Void> future =
+          CompletableFuture.runAsync(
+              () -> {
+                try {
+                  observerA.awaitCompletion();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+
+      clientFactory.registerReceiver(
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observerA);
+
+      waitForClientToConnect.await();
+      outboundServerObserver.get().onNext(ELEMENTS_B_1);
+      clientFactory.poisonInstructionId(INSTRUCTION_ID_B);
+
+      outboundServerObserver.get().onNext(ELEMENTS_B_1);
+      outboundServerObserver.get().onNext(ELEMENTS_A_1);
+      assertTrue(receivedAElement.await(5, TimeUnit.SECONDS));
+
+      clientFactory.poisonInstructionId(INSTRUCTION_ID_A);
+      try {
+        future.get();
+        fail(); // We expect the awaitCompletion to fail due to closing.
+      } catch (Exception ignored) {
+      }
+
+      outboundServerObserver.get().onNext(ELEMENTS_A_2);
+
+      assertThat(inboundValuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
     } finally {
       server.shutdownNow();
     }
