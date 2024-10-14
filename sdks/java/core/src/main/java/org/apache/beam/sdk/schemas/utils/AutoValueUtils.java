@@ -164,7 +164,6 @@ public class AutoValueUtils {
     // Verify that constructor parameters match (name and type) the inferred schema.
     for (Parameter parameter : constructor.getParameters()) {
       FieldValueTypeInformation type = typeMap.get(parameter.getName());
-      ;
       if (type == null || !type.getRawType().equals(parameter.getType())) {
         valid = false;
         break;
