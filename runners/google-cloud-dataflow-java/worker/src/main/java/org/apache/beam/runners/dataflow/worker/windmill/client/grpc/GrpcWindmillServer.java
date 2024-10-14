@@ -332,27 +332,36 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
   @Override
   public GetWorkStream getWorkStream(GetWorkRequest request, WorkItemReceiver receiver) {
-    return windmillStreamFactory.createGetWorkStream(
-        dispatcherClient.getWindmillServiceStub(),
-        GetWorkRequest.newBuilder(request)
-            .setJobId(options.getJobId())
-            .setProjectId(options.getProject())
-            .setWorkerId(options.getWorkerId())
-            .build(),
-        throttleTimers.getWorkThrottleTimer(),
-        receiver);
+    GetWorkStream getWorkStream =
+        windmillStreamFactory.createGetWorkStream(
+            dispatcherClient.getWindmillServiceStub(),
+            GetWorkRequest.newBuilder(request)
+                .setJobId(options.getJobId())
+                .setProjectId(options.getProject())
+                .setWorkerId(options.getWorkerId())
+                .build(),
+            throttleTimers.getWorkThrottleTimer(),
+            receiver);
+    getWorkStream.start();
+    return getWorkStream;
   }
 
   @Override
   public GetDataStream getDataStream() {
-    return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+    GetDataStream getDataStream =
+        windmillStreamFactory.createGetDataStream(
+            dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+    getDataStream.start();
+    return getDataStream;
   }
 
   @Override
   public CommitWorkStream commitWorkStream() {
-    return windmillStreamFactory.createCommitWorkStream(
-        dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+    CommitWorkStream commitWorkStream =
+        windmillStreamFactory.createCommitWorkStream(
+            dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+    commitWorkStream.start();
+    return commitWorkStream;
   }
 
   @Override
