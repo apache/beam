@@ -366,7 +366,7 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<1.27.0',  # Update pyproject.toml as well.
+          'numpy>=1.14.3,<2.2.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
@@ -381,13 +381,14 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<4.26.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
           'regex>=2020.6.8',
           'requests>=2.24.0,<3.0.0',
+          'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           # Dynamic dependencies must be specified in a separate list, otherwise
@@ -399,11 +400,9 @@ if __name__ == '__main__':
       extras_require={
           'docs': [
               'jinja2>=3.0,<3.2',
-              'Sphinx>=1.5.2,<2.0',
+              'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
-              # Pinning docutils as a workaround for Sphinx issue:
-              # https://github.com/sphinx-doc/sphinx/issues/9727
-              'docutils==0.17.1',
+              'docutils>=0.18.1',
               'pandas<2.2.0',
               'openai'
           ],

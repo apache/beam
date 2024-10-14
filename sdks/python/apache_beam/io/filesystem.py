@@ -934,7 +934,11 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
-  def report_lineage(self, path, unused_lineage):
+  class LineageLevel:
+    FILE = 'FILE'
+    TOP_LEVEL = 'TOP_LEVEL'
+
+  def report_lineage(self, path, unused_lineage, level=None):
     """
     Report Lineage metrics for path.
 

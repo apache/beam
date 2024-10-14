@@ -128,6 +128,7 @@ avroVersions.each { k, v ->
     description = "Runs Avro extension tests with Avro version $v"
     outputs.upToDateWhen { false }
     classpath = sourceSets."avro$k".runtimeClasspath
+    systemProperty "beam.target.avro.version", v
 
     include '**/*.class'
     exclude '**/AvroIOTest$NeedsRunnerTests$*.class'

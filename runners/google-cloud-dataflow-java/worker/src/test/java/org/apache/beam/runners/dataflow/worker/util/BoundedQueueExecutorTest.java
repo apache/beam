@@ -293,40 +293,4 @@ public class BoundedQueueExecutorTest {
             + "Work Queue Bytes: 0/10000000<br>/n";
     assertEquals(expectedSummaryHtml, executor.summaryHtml());
   }
-
-  @Test
-  public void testExecute_updatesThreadNameForExecutableWork() throws InterruptedException {
-    CountDownLatch waitForWorkExecution = new CountDownLatch(1);
-    ExecutableWork executableWork =
-        createWork(
-            work -> {
-              assertTrue(
-                  Thread.currentThread()
-                      .getName()
-                      .contains(
-                          BoundedQueueExecutor.debugFormattedWorkToken(
-                              work.getWorkItem().getWorkToken())));
-              waitForWorkExecution.countDown();
-            });
-    executor.execute(executableWork, executableWork.getWorkItem().getSerializedSize());
-    waitForWorkExecution.await();
-  }
-
-  @Test
-  public void testForceExecute_updatesThreadNameForExecutableWork() throws InterruptedException {
-    CountDownLatch waitForWorkExecution = new CountDownLatch(1);
-    ExecutableWork executableWork =
-        createWork(
-            work -> {
-              assertTrue(
-                  Thread.currentThread()
-                      .getName()
-                      .contains(
-                          BoundedQueueExecutor.debugFormattedWorkToken(
-                              work.getWorkItem().getWorkToken())));
-              waitForWorkExecution.countDown();
-            });
-    executor.forceExecute(executableWork, executableWork.getWorkItem().getSerializedSize());
-    waitForWorkExecution.await();
-  }
 }

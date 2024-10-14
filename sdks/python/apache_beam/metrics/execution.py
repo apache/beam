@@ -47,6 +47,7 @@ from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import StringSetCell
+from apache_beam.metrics.cells import StringSetData
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.statesampler import get_current_tracker
 
@@ -356,7 +357,7 @@ class MetricUpdates(object):
       counters=None,  # type: Optional[Dict[MetricKey, int]]
       distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
       gauges=None,  # type: Optional[Dict[MetricKey, GaugeData]]
-      string_sets=None,  # type: Optional[Dict[MetricKey, set]]
+      string_sets=None,  # type: Optional[Dict[MetricKey, StringSetData]]
   ):
     # type: (...) -> None
 

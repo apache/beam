@@ -375,6 +375,15 @@ class GCSFileSystemTest(unittest.TestCase):
       self.fs.delete(files)
     gcsio_mock.delete_batch.assert_called()
 
+  def test_lineage(self):
+    self._verify_lineage("gs://bucket/", ("bucket", ))
+    self._verify_lineage("gs://bucket/foo/bar.txt", ("bucket", "foo/bar.txt"))
+
+  def _verify_lineage(self, uri, expected_segments):
+    lineage_mock = mock.MagicMock()
+    self.fs.report_lineage(uri, lineage_mock)
+    lineage_mock.add.assert_called_once_with("gcs", *expected_segments)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
