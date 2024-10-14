@@ -221,21 +221,15 @@ class DataInputOperation(RunnerIOOperation):
 
   def process_encoded(self, encoded_windowed_values):
     # type: (bytes) -> None
-    _LOGGER.info(f"Start processing encoded values. Total bytes: {len(encoded_windowed_values)}")
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
-
     while input_stream.size() > 0:
-        with self.splitting_lock:
-            if self.index == self.stop - 1:
-                _LOGGER.info(f"Reached stopping index. Current index: {self.index}, Stop index: {self.stop}. Exiting processing.")
-                return
-            self.index += 1
-
-        decoded_value = self.windowed_coder_impl.decode_from_stream(input_stream, True)
-        
-        _LOGGER.info(f"Decoded value at index {self.index}: {decoded_value}")
-        self.output(decoded_value)
-
+      with self.splitting_lock:
+        if self.index == self.stop - 1:
+          return
+        self.index += 1
+      decoded_value = self.windowed_coder_impl.decode_from_stream(
+          input_stream, True)
+      self.output(decoded_value)
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
     # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
@@ -991,13 +985,10 @@ class BundleProcessor(object):
 
   def process_bundle(self, instruction_id):
     # type: (str) -> Tuple[List[beam_fn_api_pb2.DelayedBundleApplication], bool]
-    _LOGGER.info("RTOP Investigation: entered process_bundle function")
 
     expected_input_ops = []  # type: List[DataInputOperation]
 
-    _LOGGER.info("RTOP Investigation: before itereating through ops")
     for op in self.ops.values():
-      _LOGGER.info(f"RTOP Investigation: Trying instruction_id: {instruction_id}")
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
@@ -1008,14 +999,12 @@ class BundleProcessor(object):
         expected_input_ops.append(op)
 
     try:
-      _LOGGER.info(f"RTOP Investigation: Trying instruction_id: {instruction_id}")
       execution_context = ExecutionContext(instruction_id=instruction_id)
       self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
-      _LOGGER.info("RTOP Investigation: for op in reversed")
       for op in reversed(self.ops.values()):
-        _LOGGER.info('start %s', op)
+        _LOGGER.debug('start %s', op)
         op.execution_context = execution_context
         op.start()
 
@@ -1041,7 +1030,6 @@ class BundleProcessor(object):
         # Set up timer output stream for DoOperation.
         for ((transform_id, timer_family_id),
              timer_info) in self.timers_info.items():
-          _LOGGER.info(f"RTOP Investigation: transform_id: {transform_id}")
           output_stream = self.timer_data_channel.output_timer_stream(
               instruction_id, transform_id, timer_family_id)
           timer_info.output_stream = output_stream
@@ -1065,7 +1053,7 @@ class BundleProcessor(object):
 
       # Finish all operations.
       for op in self.ops.values():
-        _LOGGER.info('finish %s', op)
+        _LOGGER.debug('finish %s', op)
         op.finish()
 
       # Close every timer output stream
