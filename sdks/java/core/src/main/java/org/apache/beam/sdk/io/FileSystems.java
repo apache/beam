@@ -565,11 +565,13 @@ public class FileSystems {
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    *
-   * <p>This is expected only to be used by runners after {@code Pipeline.run}, or in tests.
+   * <p>Outside of workers where Beam FileSystem API is used (e.g. test methods, user code executed
+   * during pipeline submission), consider use {@link #registerFileSystemsOnce} if initialize
+   * FIleSystem of supported schema is the main goal.
    */
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
-    checkNotNull(options, "options");
+    checkNotNull(options, "options cannot be null");
     long id = options.getOptionsId();
     int nextRevision = options.revision();
 
@@ -590,6 +592,23 @@ public class FileSystems {
         SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
         return;
       }
+    }
+  }
+
+  /**
+   * Register file systems once if never done before.
+   *
+   * <p>This method executes {@link #setDefaultPipelineOptions} only if it has never been run,
+   * otherwise it returns immediately.
+   *
+   * <p>It is internally used by test setup to avoid repeated filesystem registrations (involves
+   * expensive ServiceLoader calls) when there are multiple pipeline and PipelineOptions object
+   * initialized, which is commonly seen in test execution.
+   */
+  @Internal
+  public static synchronized void registerFileSystemsOnce(PipelineOptions options) {
+    if (FILESYSTEM_REVISION.get() == null) {
+      setDefaultPipelineOptions(options);
     }
   }
 
