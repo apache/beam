@@ -628,7 +628,7 @@ public class JavaBeanSchemaTest {
   }
 
   @Test
-  public void testRegisterBeamWithTypeParameter() throws NoSuchSchemaException {
+  public void testBeanWithTypeParameter() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     TypeDescriptor<TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>
         typeDescriptor =
@@ -647,7 +647,7 @@ public class JavaBeanSchemaTest {
   }
 
   @Test
-  public void testRegisterBeanWithInheritedTypeParameter() throws NoSuchSchemaException {
+  public void testBeanWithInheritedTypeParameter() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     TypeDescriptor<TestJavaBeans.SimpleParameterizedBeanSubclass<Short>> typeDescriptor =
         new TypeDescriptor<TestJavaBeans.SimpleParameterizedBeanSubclass<Short>>() {};
@@ -661,6 +661,92 @@ public class JavaBeanSchemaTest {
             .addRowField("value4", SIMPLE_BEAN_SCHEMA)
             .addInt16Field("value5")
             .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testBeanWithNestedCollectionTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<
+            TestJavaBeans.NestedParameterizedCollectionBean<
+                TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>, String>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestJavaBeans.NestedParameterizedCollectionBean<
+                    TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>,
+                    String>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedInnerSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_BEAN_SCHEMA)
+            .build();
+    final Schema expectedSchema =
+        Schema.builder()
+            .addIterableField("nested", Schema.FieldType.row(expectedInnerSchema))
+            .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(expectedInnerSchema))
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testBeanWithDoublyNestedCollectionTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<
+            TestJavaBeans.NestedParameterizedCollectionBean<
+                Iterable<TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>,
+                String>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestJavaBeans.NestedParameterizedCollectionBean<
+                    Iterable<
+                        TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>,
+                    String>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedInnerSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_BEAN_SCHEMA)
+            .build();
+    final Schema expectedSchema =
+        Schema.builder()
+            .addIterableField(
+                "nested", Schema.FieldType.iterable(Schema.FieldType.row(expectedInnerSchema)))
+            .addMapField(
+                "map",
+                Schema.FieldType.STRING,
+                Schema.FieldType.iterable(Schema.FieldType.row(expectedInnerSchema)))
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testBeanWithNestedTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<
+            TestJavaBeans.NestedParameterizedBean<
+                TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestJavaBeans.NestedParameterizedBean<
+                    TestJavaBeans.SimpleParameterizedBean<String, Long, Boolean, SimpleBean>>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedInnerSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_BEAN_SCHEMA)
+            .build();
+    final Schema expectedSchema =
+        Schema.builder().addRowField("nested", expectedInnerSchema).build();
     assertTrue(expectedSchema.equivalent(schema));
   }
 }

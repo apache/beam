@@ -1453,4 +1453,39 @@ public class TestJavaBeans {
       this.value5 = value5;
     }
   }
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class NestedParameterizedCollectionBean<ElementT, KeyT> {
+    private Iterable<ElementT> nested;
+    private Map<KeyT, ElementT> map;
+
+    public Iterable<ElementT> getNested() {
+      return nested;
+    }
+
+    public Map<KeyT, ElementT> getMap() {
+      return map;
+    }
+
+    public void setNested(Iterable<ElementT> nested) {
+      this.nested = nested;
+    }
+
+    public void setMap(Map<KeyT, ElementT> map) {
+      this.map = map;
+    }
+  }
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class NestedParameterizedBean<T> {
+    private T nested;
+
+    public T getNested() {
+      return nested;
+    }
+
+    public void setNested(T nested) {
+      this.nested = nested;
+    }
+  }
 }

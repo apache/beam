@@ -37,6 +37,7 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -57,6 +58,7 @@ import org.slf4j.LoggerFactory;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
+@Internal
 public class ConvertHelpers {
   private static class SchemaInformationProviders {
     private static final ServiceLoader<SchemaInformationProvider> INSTANCE =

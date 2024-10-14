@@ -256,6 +256,10 @@ public class ReflectUtils {
         : typeDescriptor;
   }
 
+  /**
+   * If this (or a base class)is a paremeterized type, return a map of all TypeVariable->Type
+   * bindings. This allows us to resolve types in any contained fields or methods.
+   */
   public static <T> Map<Type, Type> getAllBoundTypes(TypeDescriptor<T> typeDescriptor) {
     Map<Type, Type> boundParameters = Maps.newHashMap();
     TypeDescriptor<?> currentType = typeDescriptor;
@@ -266,7 +270,7 @@ public class ReflectUtils {
         Type[] typeArguments = parameterizedType.getActualTypeArguments();
         ;
         if (typeArguments.length != typeVariables.length) {
-          throw new RuntimeException("Unmatching arguments lengths");
+          throw new RuntimeException("Unmatching arguments lengths in type " + typeDescriptor);
         }
         for (int i = 0; i < typeVariables.length; ++i) {
           boundParameters.put(typeVariables[i], typeArguments[i]);
