@@ -17,18 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath.roundToLong;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath.divide;
 
 import java.math.RoundingMode;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,22 +29,11 @@ import org.slf4j.LoggerFactory;
 @Internal
 final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
-  private final Supplier<GetWorkBudget> activeWorkBudgetSupplier;
-
-  EvenGetWorkBudgetDistributor(Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
-    this.activeWorkBudgetSupplier = activeWorkBudgetSupplier;
-  }
-
-  private static boolean isBelowFiftyPercentOfTarget(
-      GetWorkBudget remaining, GetWorkBudget target) {
-    return remaining.items() < roundToLong(target.items() * 0.5, RoundingMode.CEILING)
-        || remaining.bytes() < roundToLong(target.bytes() * 0.5, RoundingMode.CEILING);
-  }
 
   @Override
   public <T extends GetWorkBudgetSpender> void distributeBudget(
-      ImmutableCollection<T> budgetOwners, GetWorkBudget getWorkBudget) {
-    if (budgetOwners.isEmpty()) {
+      ImmutableCollection<T> budgetSpenders, GetWorkBudget getWorkBudget) {
+    if (budgetSpenders.isEmpty()) {
       LOG.debug("Cannot distribute budget to no owners.");
       return;
     }
@@ -61,38 +43,17 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
       return;
     }
 
-    Map<T, GetWorkBudget> desiredBudgets = computeDesiredBudgets(budgetOwners, getWorkBudget);
-
-    for (Entry<T, GetWorkBudget> streamAndDesiredBudget : desiredBudgets.entrySet()) {
-      GetWorkBudgetSpender getWorkBudgetSpender = streamAndDesiredBudget.getKey();
-      GetWorkBudget desired = streamAndDesiredBudget.getValue();
-      GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
-      if (isBelowFiftyPercentOfTarget(remaining, desired)) {
-        GetWorkBudget adjustment = desired.subtract(remaining);
-        getWorkBudgetSpender.adjustBudget(adjustment);
-      }
-    }
+    GetWorkBudget budgetPerStream = computeDesiredBudgets(budgetSpenders, getWorkBudget);
+    budgetSpenders.forEach(getWorkBudgetSpender -> getWorkBudgetSpender.setBudget(budgetPerStream));
   }
 
-  private <T extends GetWorkBudgetSpender> ImmutableMap<T, GetWorkBudget> computeDesiredBudgets(
+  private <T extends GetWorkBudgetSpender> GetWorkBudget computeDesiredBudgets(
       ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
-    GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
-    LOG.info("Current active work budget: {}", activeWorkBudget);
     // TODO: Fix possibly non-deterministic handing out of budgets.
     // Rounding up here will drift upwards over the lifetime of the streams.
-    GetWorkBudget budgetPerStream =
-        GetWorkBudget.builder()
-            .setItems(
-                divide(
-                    totalGetWorkBudget.items() - activeWorkBudget.items(),
-                    streams.size(),
-                    RoundingMode.CEILING))
-            .setBytes(
-                divide(
-                    totalGetWorkBudget.bytes() - activeWorkBudget.bytes(),
-                    streams.size(),
-                    RoundingMode.CEILING))
-            .build();
-    return streams.stream().collect(toImmutableMap(Function.identity(), unused -> budgetPerStream));
+    return GetWorkBudget.builder()
+        .setItems(divide(totalGetWorkBudget.items(), streams.size(), RoundingMode.CEILING))
+        .setBytes(divide(totalGetWorkBudget.bytes(), streams.size(), RoundingMode.CEILING))
+        .build();
   }
 }
