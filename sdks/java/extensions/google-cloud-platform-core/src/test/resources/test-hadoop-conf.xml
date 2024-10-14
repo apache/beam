@@ -1,0 +1,14 @@
+<configuration>
+    <property>
+        <name>fs.gs.inputstream.fast.fail.on.not.found.enable</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>fs.gs.inputstream.support.gzip.encoding.enable</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>fs.gs.inputstream.fadvise</name>
+        <value>AUTO</value>
+    </property>
+</configuration>
