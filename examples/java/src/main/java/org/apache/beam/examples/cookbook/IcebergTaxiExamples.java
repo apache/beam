@@ -32,30 +32,18 @@ import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.CatalogUtil;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.exceptions.AlreadyExistsException;
-import org.apache.iceberg.types.Types;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Reads real-time NYC taxi ride information from {@code
  * projects/pubsub-public-data/topics/taxirides-realtime} and writes to Iceberg tables using Beam's
  * {@link Managed} IcebergIO sink.
  *
- * <p>We'd like to have a distribution of taxi ride cost for each case of number of passengers. A
- * car can have up to six passengers, so first we create six Iceberg tables to represent each case.
- * Then we execute the pipeline, which writes records to Iceberg tables dynamically depending on
- * each record's passenger count.
- *
- * <p>In this streaming pipeline, we set a triggering frequency of 10s. Around this interval, the
- * Iceberg sink will write accumulated records and create a new snapshot for each table.
+ * <p>This is a streaming pipeline that writes records to Iceberg tables dynamically, depending on
+ * each record's passenger count. New tables are created as needed. We set a triggering frequency of
+ * 10s; at around this interval, the sink will accumulate records and write them to the appropriate
+ * table, creating a new snapshot each time.
  */
 public class IcebergTaxiExamples {
-  private static final Logger LOG = LoggerFactory.getLogger(IcebergTaxiExamples.class);
   private static final String TAXI_RIDES_TOPIC =
       "projects/pubsub-public-data/topics/taxirides-realtime";
   private static final Schema TAXI_RIDE_INFO_SCHEMA =
@@ -78,9 +66,8 @@ public class IcebergTaxiExamples {
 
     // each record's 'passenger_count' value will be substituted in to determine
     // its final table destination
+    // e.g. an event with 3 passengers will be written to 'iceberg_taxi.3_passengers'
     String tableIdentifierTemplate = "iceberg_taxi.{passenger_count}_passengers";
-
-    createTables(options, tableIdentifierTemplate);
 
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()
@@ -107,35 +94,7 @@ public class IcebergTaxiExamples {
         .apply(Filter.<Row>create().whereFieldName("ride_status", "dropoff"::equals))
         // Write to Iceberg tables
         .apply(Managed.write(Managed.ICEBERG).withConfig(icebergWriteConfig));
-    p.run().waitUntilFinish();
-  }
-
-  private static void createTables(IcebergPipelineOptions options, String tableIdentifierTemplate) {
-    Catalog catalog =
-        CatalogUtil.loadCatalog(
-            options.getCatalogImpl(),
-            options.getCatalogName(),
-            ImmutableMap.of("warehouse", options.getWarehouse()),
-            new Configuration());
-
-    org.apache.iceberg.Schema tableSchema =
-        new org.apache.iceberg.Schema(
-            Types.NestedField.required(1, "ride_id", Types.StringType.get()),
-            Types.NestedField.required(2, "meter_reading", Types.DoubleType.get()));
-    for (int i = 1; i <= 6; i++) {
-      String table = tableIdentifierTemplate.replace("{passenger_count}", String.valueOf(i));
-      TableIdentifier identifier = TableIdentifier.parse(table);
-      try {
-        catalog.createTable(identifier, tableSchema);
-        LOG.info("Successfully created table '{}'", identifier);
-      } catch (AlreadyExistsException e) {
-        if (catalog.loadTable(identifier).schema().sameSchema(tableSchema)) {
-          LOG.info("Table already exists: '{}'", identifier);
-          continue;
-        }
-        throw new RuntimeException("Table exists with a different schema: " + identifier, e);
-      }
-    }
+    p.run();
   }
 
   public interface IcebergPipelineOptions extends GcpOptions {
