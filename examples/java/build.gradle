@@ -102,9 +102,6 @@ dependencies {
   implementation "org.apache.httpcomponents:httpcore:4.4.13"
   implementation "com.fasterxml.jackson.core:jackson-annotations:2.14.1"
   implementation "com.fasterxml.jackson.core:jackson-core:2.14.1"
-  implementation "org.apache.iceberg:iceberg-api:1.4.2"
-  implementation "org.apache.iceberg:iceberg-core:1.4.2"
-  implementation library.java.hadoop_common
   runtimeOnly library.java.hadoop_client
   runtimeOnly library.java.bigdataoss_gcs_connector
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
