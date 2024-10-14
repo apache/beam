@@ -21,7 +21,6 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
@@ -105,6 +104,7 @@ final class GrpcDirectGetWorkStream
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler) {
     super(
+        LOG,
         "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
@@ -144,22 +144,19 @@ final class GrpcDirectGetWorkStream
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler) {
-    GrpcDirectGetWorkStream getWorkStream =
-        new GrpcDirectGetWorkStream(
-            backendWorkerToken,
-            startGetWorkRpcFn,
-            request,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            getWorkThrottleTimer,
-            heartbeatSender,
-            getDataClient,
-            workCommitter,
-            workItemScheduler);
-    getWorkStream.startStream();
-    return getWorkStream;
+    return new GrpcDirectGetWorkStream(
+        backendWorkerToken,
+        startGetWorkRpcFn,
+        request,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        getWorkThrottleTimer,
+        heartbeatSender,
+        getDataClient,
+        workCommitter,
+        workItemScheduler);
   }
 
   private static Watermarks createWatermarks(
@@ -207,8 +204,7 @@ final class GrpcDirectGetWorkStream
       StreamingGetWorkRequest request =
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
-                  requestHeader
-                      .toBuilder()
+                  requestHeader.toBuilder()
                       .setMaxItems(initialGetWorkBudget.items())
                       .setMaxBytes(initialGetWorkBudget.bytes())
                       .build())
@@ -236,6 +232,11 @@ final class GrpcDirectGetWorkStream
   @Override
   public void sendHealthCheck() {
     send(HEALTH_CHECK_REQUEST);
+  }
+
+  @Override
+  protected void shutdownInternal() {
+    workItemAssemblers.clear();
   }
 
   @Override
@@ -275,14 +276,6 @@ final class GrpcDirectGetWorkStream
   public void setBudget(GetWorkBudget newBudget) {
     GetWorkBudget extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
     maybeSendRequestExtension(extension);
-  }
-
-  private void executeSafely(Runnable runnable) {
-    try {
-      executor().execute(runnable);
-    } catch (RejectedExecutionException e) {
-      LOG.debug("{} has been shutdown.", getClass());
-    }
   }
 
   /**
