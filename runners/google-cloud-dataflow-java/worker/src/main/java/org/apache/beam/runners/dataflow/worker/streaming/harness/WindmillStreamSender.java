@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -49,7 +50,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
  * {@link GetWorkBudget} is set.
  *
  * <p>Once started, the underlying streams are "alive" until they are manually closed via {@link
- * #closeAllStreams()}.
+ * #close()}.
  *
  * <p>If closed, it means that the backend endpoint is no longer in the worker set. Once closed,
  * these instances are not reused.
@@ -59,7 +60,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
  */
 @Internal
 @ThreadSafe
-final class WindmillStreamSender implements GetWorkBudgetSpender {
+final class WindmillStreamSender implements GetWorkBudgetSpender, Closeable {
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final Supplier<GetWorkStream> getWorkStream;
@@ -87,13 +88,13 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
     this.getDataStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createGetDataStream(
-                    connection.stub(), streamingEngineThrottleTimers.getDataThrottleTimer()));
+                streamingEngineStreamFactory.createDirectGetDataStream(
+                    connection, streamingEngineThrottleTimers.getDataThrottleTimer()));
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createCommitWorkStream(
-                    connection.stub(), streamingEngineThrottleTimers.commitWorkThrottleTimer()));
+                streamingEngineStreamFactory.createDirectCommitWorkStream(
+                    connection, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
     this.workCommitter =
         Suppliers.memoize(() -> workCommitterFactory.apply(commitWorkStream.get()));
     this.getWorkStream =
@@ -132,7 +133,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
   }
 
   @SuppressWarnings("ReturnValueIgnored")
-  void startStreams() {
+  void start() {
     getWorkStream.get();
     getDataStream.get();
     commitWorkStream.get();
@@ -141,7 +142,8 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
     started.set(true);
   }
 
-  void closeAllStreams() {
+  @Override
+  public void close() {
     // Supplier<Stream>.get() starts the stream which is an expensive operation as it initiates the
     // streaming RPCs by possibly making calls over the network. Do not close the streams unless
     // they have already been started.
@@ -154,16 +156,12 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
-    getWorkBudget.set(getWorkBudget.get().apply(itemsDelta, bytesDelta));
+  public void setBudget(long items, long bytes) {
+    GetWorkBudget adjustment = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
+    getWorkBudget.set(adjustment);
     if (started.get()) {
-      getWorkStream.get().adjustBudget(itemsDelta, bytesDelta);
+      getWorkStream.get().setBudget(adjustment);
     }
-  }
-
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return started.get() ? getWorkStream.get().remainingBudget() : getWorkBudget.get();
   }
 
   long getAndResetThrottleTime() {
