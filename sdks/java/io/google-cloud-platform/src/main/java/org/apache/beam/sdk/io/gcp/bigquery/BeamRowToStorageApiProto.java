@@ -30,7 +30,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -222,7 +221,7 @@ public class BeamRowToStorageApiProto {
       case ITERABLE:
         @Nullable FieldType elementType = field.getType().getCollectionElementType();
         if (elementType == null) {
-          throw new RuntimeException("Unexpected null element type!");
+          throw new RuntimeException("Unexpected null element type on " + field.getName());
         }
         Preconditions.checkState(
             !Preconditions.checkNotNull(elementType.getTypeName()).isCollectionType(),
@@ -247,8 +246,13 @@ public class BeamRowToStorageApiProto {
       case MAP:
         @Nullable FieldType keyType = field.getType().getMapKeyType();
         @Nullable FieldType valueType = field.getType().getMapValueType();
-        if (keyType == null || valueType == null) {
-          throw new RuntimeException("Unexpected null element type!");
+        if (keyType == null) {
+          throw new RuntimeException(
+              "Unexpected null element type for the map's key on " + field.getName());
+        }
+        if (valueType == null) {
+          throw new RuntimeException(
+              "Unexpected null element type for the map's value on " + field.getName());
         }
 
         builder =
@@ -287,7 +291,7 @@ public class BeamRowToStorageApiProto {
       if (fieldDescriptor.isOptional()) {
         return null;
       } else if (fieldDescriptor.isRepeated()) {
-        return Collections.emptyList();
+        return null;
       } else {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
@@ -302,37 +306,36 @@ public class BeamRowToStorageApiProto {
       case ROW:
         return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value, null, -1);
       case ARRAY:
-        List<Object> list = (List<Object>) value;
-        @Nullable FieldType arrayElementType = beamFieldType.getCollectionElementType();
-        if (arrayElementType == null) {
-          throw new RuntimeException("Unexpected null element type!");
-        }
-        boolean shouldFlatMap =
-            arrayElementType.getTypeName().isCollectionType()
-                || arrayElementType.getTypeName().isMapType();
-
-        Stream<Object> valueStream =
-            list.stream().map(v -> toProtoValue(fieldDescriptor, arrayElementType, v));
-
-        if (shouldFlatMap) {
-          valueStream = valueStream.flatMap(vs -> ((List) vs).stream());
-        }
-        return valueStream.collect(Collectors.toList());
       case ITERABLE:
         Iterable<Object> iterable = (Iterable<Object>) value;
         @Nullable FieldType iterableElementType = beamFieldType.getCollectionElementType();
         if (iterableElementType == null) {
-          throw new RuntimeException("Unexpected null element type!");
+          throw new RuntimeException("Unexpected null element type: " + fieldDescriptor.getName());
         }
-        return StreamSupport.stream(iterable.spliterator(), false)
-            .map(v -> toProtoValue(fieldDescriptor, iterableElementType, v))
-            .collect(Collectors.toList());
+        // We currently only support maps as non-row or non-scalar element types
+        // given that BigQuery does not support nested arrays. If the element type is of map type
+        // we should flatten it given how is being translated (as a list of proto(key, value).
+        boolean shouldFlattenIterable = iterableElementType.getTypeName().isMapType();
+
+        Stream<Object> iterableValueStream =
+            StreamSupport.stream(iterable.spliterator(), false)
+                .map(v -> toProtoValue(fieldDescriptor, iterableElementType, v));
+
+        if (shouldFlattenIterable) {
+          iterableValueStream = iterableValueStream.flatMap(vs -> ((List) vs).stream());
+        }
+
+        return iterableValueStream.collect(Collectors.toList());
       case MAP:
         Map<Object, Object> map = (Map<Object, Object>) value;
         @Nullable FieldType keyType = beamFieldType.getMapKeyType();
         @Nullable FieldType valueType = beamFieldType.getMapValueType();
-        if (keyType == null || valueType == null) {
-          throw new RuntimeException("Unexpected null element type!");
+        if (keyType == null) {
+          throw new RuntimeException("Unexpected null for key type: " + fieldDescriptor.getName());
+        }
+        if (valueType == null) {
+          throw new RuntimeException(
+              "Unexpected null for value type: " + fieldDescriptor.getName());
         }
 
         return map.entrySet().stream()

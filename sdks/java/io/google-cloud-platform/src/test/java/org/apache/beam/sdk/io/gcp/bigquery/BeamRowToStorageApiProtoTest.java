@@ -392,6 +392,63 @@ public class BeamRowToStorageApiProtoTest {
     assertEquals(expectedBaseTypes, nestedTypes4);
   }
 
+  @Test
+  public void testMapArrayFromSchemas() {
+    Schema nestedMapSchemaVariations =
+        Schema.builder()
+            .addField(
+                "nestedArrayOfMaps",
+                FieldType.array(FieldType.map(FieldType.STRING, FieldType.STRING)))
+            .addField(
+                "nestedMapNullable",
+                FieldType.map(FieldType.STRING, FieldType.DOUBLE).withNullable(true))
+            .build();
+
+    DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema((nestedMapSchemaVariations)),
+            true,
+            false);
+
+    Map<String, Type> types =
+        descriptor.getFieldList().stream()
+            .collect(
+                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
+    Map<String, String> typeNames =
+        descriptor.getFieldList().stream()
+            .collect(
+                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getTypeName));
+    Map<String, Label> typeLabels =
+        descriptor.getFieldList().stream()
+            .collect(
+                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getLabel));
+
+    Map<String, DescriptorProto> nestedTypes =
+        descriptor.getNestedTypeList().stream()
+            .collect(Collectors.toMap(DescriptorProto::getName, Functions.identity()));
+    assertEquals(2, nestedTypes.size());
+
+    assertEquals(Type.TYPE_MESSAGE, types.get("nestedarrayofmaps"));
+    assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedarrayofmaps"));
+    String nestedArrayOfMapsName = typeNames.get("nestedarrayofmaps");
+    // expects 2 fields for the nested array of maps, key and value
+    assertEquals(2, nestedTypes.get(nestedArrayOfMapsName).getFieldList().size());
+    Supplier<Stream<FieldDescriptorProto>> stream =
+        () -> nestedTypes.get(nestedArrayOfMapsName).getFieldList().stream();
+    assertTrue(stream.get().filter(fdp -> fdp.getName().equals("key")).count() == 1);
+    assertTrue(stream.get().filter(fdp -> fdp.getName().equals("value")).count() == 1);
+
+    assertEquals(Type.TYPE_MESSAGE, types.get("nestedmapnullable"));
+    // even though the field is marked as optional in the row we will should see repeated in proto
+    assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedmapnullable"));
+    String nestedMapNullableName = typeNames.get("nestedmapnullable");
+    // expects 2 fields in the nullable maps, key and value
+    assertEquals(2, nestedTypes.get(nestedMapNullableName).getFieldList().size());
+    stream = () -> nestedTypes.get(nestedMapNullableName).getFieldList().stream();
+    assertTrue(stream.get().filter(fdp -> fdp.getName().equals("key")).count() == 1);
+    assertTrue(stream.get().filter(fdp -> fdp.getName().equals("value")).count() == 1);
+  }
+
   private void assertBaseRecord(DynamicMessage msg) {
     Map<String, Object> recordFields =
         msg.getAllFields().entrySet().stream()
@@ -413,6 +470,64 @@ public class BeamRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
     assertBaseRecord(nestedMsg);
+  }
+
+  @Test
+  public void testMessageFromTableRowForArraysAndMaps() throws Exception {
+    Schema nestedMapSchemaVariations =
+        Schema.builder()
+            .addField(
+                "nestedArrayOfMaps",
+                FieldType.array(FieldType.map(FieldType.STRING, FieldType.STRING)))
+            .addField("nestedArrayNullable", FieldType.array(FieldType.STRING).withNullable(true))
+            .addField("nestedMap", FieldType.map(FieldType.STRING, FieldType.STRING))
+            .addField(
+                "nestedMapNullable",
+                FieldType.map(FieldType.STRING, FieldType.DOUBLE).withNullable(true))
+            .build();
+
+    Row nestedRow =
+        Row.withSchema(nestedMapSchemaVariations)
+            .withFieldValue(
+                "nestedArrayOfMaps", ImmutableList.of(ImmutableMap.of("key1", "value1")))
+            .withFieldValue("nestedArrayNullable", null)
+            .withFieldValue("nestedMap", ImmutableMap.of("key1", "value1"))
+            .withFieldValue("nestedMapNullable", null)
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(nestedMapSchemaVariations),
+            true,
+            false);
+    DynamicMessage msg =
+        BeamRowToStorageApiProto.messageFromBeamRow(descriptor, nestedRow, null, -1);
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+
+    DynamicMessage nestedArrayOfMapEntryMsg =
+        (DynamicMessage) msg.getRepeatedField(fieldDescriptors.get("nestedarrayofmaps"), 0);
+    String value =
+        (String)
+            nestedArrayOfMapEntryMsg.getField(
+                fieldDescriptors
+                    .get("nestedarrayofmaps")
+                    .getMessageType()
+                    .findFieldByName("value"));
+    assertEquals("value1", value);
+
+    DynamicMessage nestedMapEntryMsg =
+        (DynamicMessage) msg.getRepeatedField(fieldDescriptors.get("nestedmap"), 0);
+    value =
+        (String)
+            nestedMapEntryMsg.getField(
+                fieldDescriptors.get("nestedmap").getMessageType().findFieldByName("value"));
+    assertEquals("value1", value);
+
+    assertTrue(msg.getRepeatedFieldCount(fieldDescriptors.get("nestedarraynullable")) == 0);
+    assertTrue(msg.getRepeatedFieldCount(fieldDescriptors.get("nestedmapnullable")) == 0);
   }
 
   @Test
