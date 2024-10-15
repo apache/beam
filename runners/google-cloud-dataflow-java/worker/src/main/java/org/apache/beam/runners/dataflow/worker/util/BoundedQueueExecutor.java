@@ -21,6 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
@@ -37,6 +38,7 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
+  private final AtomicLong numQueued;
 
   @GuardedBy("this")
   private int maximumElementsOutstanding;
@@ -61,6 +63,7 @@ public class BoundedQueueExecutor {
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
     this.maximumPoolSize = maximumPoolSize;
+    this.numQueued = new AtomicLong();
     executor =
         new ThreadPoolExecutor(
             maximumPoolSize,
@@ -99,6 +102,7 @@ public class BoundedQueueExecutor {
   // Before adding a Work to the queue, check that there are enough bytes of space or no other
   // outstanding elements of work.
   public void execute(Runnable work, long workBytes) {
+    numQueued.incrementAndGet();
     monitor.enterWhenUninterruptibly(
         new Guard(monitor) {
           @Override
@@ -108,6 +112,7 @@ public class BoundedQueueExecutor {
                     && elementsOutstanding < maximumElementsOutstanding());
           }
         });
+    numQueued.decrementAndGet();
     executeMonitorHeld(work, workBytes);
   }
 
@@ -193,6 +198,10 @@ public class BoundedQueueExecutor {
 
       builder.append("Active Threads: ");
       builder.append(executor.getActiveCount());
+      builder.append("<br>/n");
+
+      builder.append("Queued Work awaiting execution: ");
+      builder.append(numQueued.get());
       builder.append("<br>/n");
 
       builder.append("Work Queue Size: ");
