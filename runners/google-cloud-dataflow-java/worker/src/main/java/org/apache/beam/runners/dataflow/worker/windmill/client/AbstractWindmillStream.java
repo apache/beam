@@ -90,7 +90,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final int logEveryNStreamFailures;
   private final String backendWorkerToken;
   private final ResettableRequestObserver<RequestT> requestObserver;
+
+  /** Guards {@link #start()} and {@link #shutdown()} methods. */
+  private final Object shutdownLock = new Object();
+
+  /** Reads are lock free, writes are guarded by shutdownLock. */
   private final AtomicBoolean isShutdown;
+
   private final AtomicBoolean started;
   private final AtomicReference<DateTime> shutdownTime;
 
@@ -193,6 +199,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       }
 
       if (streamClosed.get()) {
+        // TODO(m-trieu): throw a more specific exception here (i.e StreamClosedException)
         throw new IllegalStateException("Send called on a client closed stream.");
       }
 
@@ -201,7 +208,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         requestObserver.onNext(request);
       } catch (StreamObserverCancelledException e) {
         if (isShutdown()) {
-          logger.debug("Stream was closed or shutdown during send.", e);
+          logger.debug("Stream was shutdown during send.", e);
           return;
         }
 
@@ -212,10 +219,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final void start() {
-    if (!isShutdown.get() && started.compareAndSet(false, true)) {
-      // start() should only be executed once during the lifetime of the stream for idempotency and
-      // when shutdown() has not been called.
-      startStream();
+    synchronized (shutdownLock) {
+      if (!isShutdown.get() && started.compareAndSet(false, true)) {
+        // start() should only be executed once during the lifetime of the stream for idempotency
+        // and when shutdown() has not been called.
+        startStream();
+      }
     }
   }
 
@@ -248,7 +257,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
           logger.info(
-              "Interrupted during stream creation backoff. The stream will not be created.");
+              "Interrupted during {} creation backoff. The stream will not be created.",
+              getClass());
           break;
         } catch (IOException ioe) {
           // Keep trying to create the stream.
@@ -324,6 +334,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final synchronized void halfClose() {
+    // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed.set(true);
     requestObserver.onCompleted();
     streamClosed.set(true);
@@ -346,13 +357,15 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final void shutdown() {
-    // Don't lock here as isShutdown checks are used in the stream to free blocked
+    // Don't lock on "this" as isShutdown checks are used in the stream to free blocked
     // threads or as exit conditions to loops.
-    if (isShutdown.compareAndSet(false, true)) {
-      requestObserver()
-          .onError(new WindmillStreamShutdownException("Explicit call to shutdown stream."));
-      shutdownInternal();
-      shutdownTime.set(DateTime.now());
+    synchronized (shutdownLock) {
+      if (isShutdown.compareAndSet(false, true)) {
+        shutdownTime.set(DateTime.now());
+        requestObserver()
+            .onError(new WindmillStreamShutdownException("Explicit call to shutdown stream."));
+        shutdownInternal();
+      }
     }
   }
 

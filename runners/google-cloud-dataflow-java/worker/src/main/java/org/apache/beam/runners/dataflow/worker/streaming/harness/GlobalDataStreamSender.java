@@ -23,20 +23,16 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
 @Internal
 @ThreadSafe
-// TODO (m-trieu): replace Supplier<Stream> with Stream after github.com/apache/beam/pull/32774/ is
-// merged
 final class GlobalDataStreamSender implements Closeable, Supplier<GetDataStream> {
   private final Endpoint endpoint;
-  private final Supplier<GetDataStream> delegate;
+  private final GetDataStream delegate;
   private volatile boolean started;
 
-  GlobalDataStreamSender(Supplier<GetDataStream> delegate, Endpoint endpoint) {
-    // Ensures that the Supplier is thread-safe
-    this.delegate = Suppliers.memoize(delegate::get);
+  GlobalDataStreamSender(GetDataStream delegate, Endpoint endpoint) {
+    this.delegate = delegate;
     this.started = false;
     this.endpoint = endpoint;
   }
@@ -44,16 +40,23 @@ final class GlobalDataStreamSender implements Closeable, Supplier<GetDataStream>
   @Override
   public GetDataStream get() {
     if (!started) {
-      started = true;
+      startStream();
     }
-    return delegate.get();
+
+    return delegate;
+  }
+
+  private synchronized void startStream() {
+    // Check started again after we acquire the lock.
+    if (!started) {
+      started = true;
+      delegate.start();
+    }
   }
 
   @Override
   public void close() {
-    if (started) {
-      delegate.get().shutdown();
-    }
+    delegate.shutdown();
   }
 
   Endpoint endpoint() {

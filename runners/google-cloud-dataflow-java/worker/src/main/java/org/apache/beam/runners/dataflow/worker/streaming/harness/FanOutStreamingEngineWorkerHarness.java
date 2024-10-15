@@ -32,10 +32,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.CheckReturnValue;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -102,6 +102,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineBackends> backends;
 
+  private final GetWorkerMetadataStream getWorkerMetadataStream;
+
   @GuardedBy("this")
   private long activeMetadataVersion;
 
@@ -110,8 +112,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   @GuardedBy("this")
   private boolean started;
-
-  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream;
 
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
@@ -142,7 +142,14 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
-    this.getWorkerMetadataStream = null;
+    // To satisfy CheckerFramework complaining about reference to "this" in constructor.
+    @SuppressWarnings("methodref.receiver.bound")
+    Consumer<WindmillEndpoints> newEndpointsConsumer = this::consumeWorkerMetadata;
+    this.getWorkerMetadataStream =
+        streamFactory.createGetWorkerMetadataStream(
+            dispatcherClient::getWindmillMetadataServiceStubBlocking,
+            getWorkerMetadataThrottleTimer,
+            newEndpointsConsumer);
   }
 
   /**
@@ -201,11 +208,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
-    getWorkerMetadataStream =
-        streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient::getWindmillMetadataServiceStubBlocking,
-            getWorkerMetadataThrottleTimer,
-            this::consumeWorkerMetadata);
     getWorkerMetadataStream.start();
     started = true;
   }
@@ -393,9 +395,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         .orElseGet(
             () ->
                 new GlobalDataStreamSender(
-                    () ->
-                        streamFactory.createGetDataStream(
-                            createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer()),
+                    streamFactory.createGetDataStream(
+                        createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer()),
                     keyedEndpoint.getValue()));
   }
 
