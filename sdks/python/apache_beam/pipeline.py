@@ -107,6 +107,7 @@ if TYPE_CHECKING:
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
+_LOGGER = logging.getLogger(__name__)
 
 class Pipeline(object):
   """A pipeline object that manages a DAG of
@@ -285,7 +286,14 @@ class Pipeline(object):
       def __init__(self, pipeline):
         # type: (Pipeline) -> None
         self.pipeline = pipeline
+        self.transform_map = {}
 
+      def set_transform_map(self):
+        for transform in self.transforms_stack:
+            self.transform_map[transform.transform_id] = transform.full_label
+        for transform_id, label in self.transform_map.items():
+            _LOGGER.info(f"RTOP Investigation: Transform: {label} -> ID: {transform_id}")
+      
       def _replace_if_needed(self, original_transform_node):
         # type: (AppliedPTransform) -> None
         if override.matches(original_transform_node):
@@ -624,6 +632,10 @@ class Pipeline(object):
 
     visited = set()  # type: Set[pvalue.PValue]
     self._root_transform().visit(visitor, self, visited)
+
+    # Log transform information using the mapping
+    for transform_id, label in self.transform_map.items():
+        _LOGGER.info(f"RTOP Investigation: Visited Transform: {label} -> ID: {transform_id}")
 
   def apply(
       self,
