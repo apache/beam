@@ -44,6 +44,8 @@ ext.summary = "Expansion service serving several Java IOs"
 dependencies {
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:managed")
+  permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
   implementation project(":sdks:java:io:iceberg")
   permitUnusedDeclared project(":sdks:java:io:iceberg") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
