@@ -3925,7 +3925,6 @@ class Create(PTransform):
     return (
         self.get_type_hints().simple_output_type(self.label) or
         self.infer_output_type(None))
-
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     serialized_values = [self._coder.encode(v) for v in self.values]
@@ -3935,20 +3934,16 @@ class Create(PTransform):
     # These special cases are often used in building up more complex
     # transforms (e.g. Write).
 
-    class MaybeReshuffle(PTransform):
-      def expand(self, pcoll):
-        if len(serialized_values) > 1 and reshuffle:
-          from apache_beam.transforms.util import Reshuffle
-          return pcoll | Reshuffle()
-        else:
-          return pcoll
-
-    return (
+    pcol = (
         pbegin
         | Impulse()
-        | FlatMap(lambda _: serialized_values).with_output_types(bytes)
-        | MaybeReshuffle().with_output_types(bytes)
-        | Map(self._coder.decode).with_output_types(self.get_output_type()))
+        | FlatMap(lambda _: serialized_values).with_output_types(bytes))
+
+    if len(serialized_values) > 1 and reshuffle:
+      from apache_beam.transforms.util import Reshuffle
+      pcol = pcol | Reshuffle()
+
+    return pcol | Map(self._coder.decode).with_output_types(self.get_output_type())
 
   def as_read(self):
     from apache_beam.io import iobase
