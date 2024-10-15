@@ -238,12 +238,12 @@ class StreamCoderImpl(CoderImpl):
 
   def decode(self, encoded):
     # type: (bytes) -> Any
-    _LOGGER.info(f"Starting decode process. Encoded data length: {len(encoded)} bytes")
-    _LOGGER.info(f"Encoded data (first 20 bytes): {encoded[:20]}")
+    _LOGGER.info(f"RTOP Investigation: Starting decode process. Encoded data length: {len(encoded)} bytes")
+    _LOGGER.info(f"RTOP Investigation: Encoded data (first 20 bytes): {encoded[:20]}")
     try:
         return self.decode_from_stream(create_InputStream(encoded), False)
     except Exception as e:
-        _LOGGER.error(f"Error during decode. Data length: {len(encoded)} bytes. Exception: {str(e)}")
+        _LOGGER.error(f"RTOP Investigation: Error during decode. Data length: {len(encoded)} bytes. Exception: {str(e)}")
         raise
 
   def estimate_size(self, value, nested=False):
@@ -541,8 +541,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     # type: (create_InputStream, bool) -> Any
     t = stream.read_byte()
 
-    _LOGGER.info(f"Type tag t has a value of {t}")
-    _LOGGER.info(f"Type tag t has a hex value of {hex(t)}")
+    _LOGGER.info(f"RTOP Investigation: Type tag t has a value of {t}")
+    _LOGGER.info(f"RTOP Investigation: Type tag t has a hex value of {hex(t)}")
     if t == NONE_TYPE:
       return None
     elif t == INT_TYPE:
