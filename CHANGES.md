@@ -67,6 +67,7 @@
 * [Managed Iceberg] Support creating tables if needed ([#32686](https://github.com/apache/beam/pull/32686))
 * [Managed Iceberg] Now available in Python SDK ([#31495](https://github.com/apache/beam/pull/31495))
 * [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types ([#32688](https://github.com/apache/beam/pull/32688))
+* gcs-connector config options can be set via GcsOptions; otherwise will be automatically loaded from default Configuration (Java)
 
 ## New Features / Improvements
 
