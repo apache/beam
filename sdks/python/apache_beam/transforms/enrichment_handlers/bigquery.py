@@ -171,6 +171,14 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
     except RuntimeError as e:
       raise RuntimeError(f"Could not complete the query request: {query}. {e}")
 
+  def create_row_key(self, row: beam.Row):
+    if self.condition_value_fn:
+      return tuple(self.condition_value_fn(row))
+    if self.fields:
+      row_dict = row._asdict()
+      return (tuple(row_dict[field] for field in self.fields))
+    raise ValueError("Either fields or condition_value_fn must be specified")
+
   def __call__(self, request: Union[beam.Row, List[beam.Row]], *args, **kwargs):
     if isinstance(request, List):
       values = []
@@ -180,7 +188,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       raw_query = self.query_template
       if batch_size > 1:
         batched_condition_template = ' or '.join(
-            [self.row_restriction_template] * batch_size)
+            [fr'({self.row_restriction_template})'] * batch_size)
         raw_query = self.query_template.replace(
             self.row_restriction_template, batched_condition_template)
       for req in request:
@@ -194,14 +202,16 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
               "Make sure the values passed in `fields` are the "
               "keys in the input `beam.Row`." + str(e))
         values.extend(current_values)
-        requests_map.update((val, req) for val in current_values)
+        requests_map.update(
+            (self.create_row_key(req), req) for val in current_values)
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
       for response in responses_dict:
-        for value in response.values():
-          if value in requests_map:
-            responses.append((requests_map[value], beam.Row(**response)))
+        response_row = beam.Row(**response)
+        response_key = self.create_row_key(response_row)
+        if response_key in requests_map:
+          responses.append((requests_map[response_key], response_row))
       return responses
     else:
       request_dict = request._asdict()
