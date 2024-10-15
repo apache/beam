@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import com.google.common.base.Suppliers;
 import java.io.Closeable;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
