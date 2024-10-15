@@ -67,6 +67,7 @@
 * [Managed Iceberg] Support creating tables if needed ([#32686](https://github.com/apache/beam/pull/32686))
 * [Managed Iceberg] Now available in Python SDK ([#31495](https://github.com/apache/beam/pull/31495))
 * [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types ([#32688](https://github.com/apache/beam/pull/32688))
+* BigQuery CDC writes are now available in Python SDK, only supported when using StorageWrite API at least once mode ([#32527](https://github.com/apache/beam/issues/32527))
 
 ## New Features / Improvements
 
