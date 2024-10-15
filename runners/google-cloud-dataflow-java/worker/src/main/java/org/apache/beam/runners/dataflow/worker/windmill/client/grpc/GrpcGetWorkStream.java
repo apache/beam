@@ -190,11 +190,7 @@ final class GrpcGetWorkStream
   }
 
   @Override
-<<<<<<< HEAD
   public void setBudget(long newItems, long newBytes) {
-=======
-  public void adjustBudget(long newItems, long newBytes) {
->>>>>>> 9eea71ad7a (add shutdown and start mechanics to WindmillStreams)
     // no-op
   }
 }

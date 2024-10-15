@@ -56,6 +56,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.VerifyException;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -403,6 +404,15 @@ final class GrpcGetDataStream
         verify(batch == batches.peekFirst());
         batch.markFinalized();
       }
+      trySendBatch(batch);
+    } else {
+      // Wait for this batch to be sent before parsing the response.
+      batch.waitForSendOrFailNotification();
+    }
+  }
+
+  void trySendBatch(QueuedBatch batch) {
+    try {
       sendBatch(batch.requests());
       synchronized (batches) {
         verify(batch == batches.pollFirst());
@@ -410,9 +420,9 @@ final class GrpcGetDataStream
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
       batch.notifySent();
-    } else {
-      // Wait for this batch to be sent before parsing the response.
-      batch.waitForSendOrFailNotification();
+    } catch (Exception e) {
+      LOG.error("Error occurred sending batch.", e);
+      batch.notifyFailed();
     }
   }
 
@@ -423,6 +433,7 @@ final class GrpcGetDataStream
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
       for (QueuedRequest request : requests) {
+        Preconditions.checkState(!isShutdown(), "Cannot send on shutdown stream.");
         // Map#put returns null if there was no previous mapping for the key, meaning we have not
         // seen it before.
         verify(pending.put(request.id(), request.getResponseStream()) == null);
