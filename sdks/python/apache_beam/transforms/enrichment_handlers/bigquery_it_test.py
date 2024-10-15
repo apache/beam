@@ -16,10 +16,9 @@
 #
 import functools
 import logging
-import unittest
 import secrets
 import time
-
+import unittest
 from unittest.mock import MagicMock
 
 import pytest
@@ -55,6 +54,7 @@ def query_fn(table, row: beam.Row):
   return f"SELECT * FROM `{table}` WHERE id = {row.id}"  # type: ignore[attr-defined]
 
 
+@pytest.mark.uses_testcontainer
 class BigQueryEnrichmentIT(unittest.TestCase):
   bigquery_dataset_id = 'python_enrichment_transform_read_table_'
   project = "apache-beam-testing"

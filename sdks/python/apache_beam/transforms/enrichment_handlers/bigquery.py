@@ -202,8 +202,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
               "Make sure the values passed in `fields` are the "
               "keys in the input `beam.Row`." + str(e))
         values.extend(current_values)
-        requests_map.update(
-            (self.create_row_key(req), req) for val in current_values)
+        requests_map[self.create_row_key(req)] = req
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
