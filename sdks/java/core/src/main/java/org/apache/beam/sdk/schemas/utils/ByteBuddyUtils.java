@@ -344,19 +344,22 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertCollection(TypeDescriptor<?> type) {
-      TypeDescriptor ret = createCollectionType(ReflectUtils.getIterableComponentType(type));
+      TypeDescriptor ret =
+          createCollectionType(ReflectUtils.getIterableComponentType(type, Collections.emptyMap()));
       return returnRawTypes ? ret.getRawType() : ret.getType();
     }
 
     @Override
     protected Type convertList(TypeDescriptor<?> type) {
-      TypeDescriptor ret = createCollectionType(ReflectUtils.getIterableComponentType(type));
+      TypeDescriptor ret =
+          createCollectionType(ReflectUtils.getIterableComponentType(type, Collections.emptyMap()));
       return returnRawTypes ? ret.getRawType() : ret.getType();
     }
 
     @Override
     protected Type convertIterable(TypeDescriptor<?> type) {
-      TypeDescriptor ret = createIterableType(ReflectUtils.getIterableComponentType(type));
+      TypeDescriptor ret =
+          createIterableType(ReflectUtils.getIterableComponentType(type, Collections.emptyMap()));
       return returnRawTypes ? ret.getRawType() : ret.getType();
     }
 
@@ -687,7 +690,8 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertIterable(TypeDescriptor<?> type) {
-      TypeDescriptor componentType = ReflectUtils.getIterableComponentType(type);
+      TypeDescriptor componentType =
+          ReflectUtils.getIterableComponentType(type, Collections.emptyMap());
       Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
 
       final TypeDescriptor finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
@@ -707,7 +711,8 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
-      TypeDescriptor componentType = ReflectUtils.getIterableComponentType(type);
+      TypeDescriptor componentType =
+          ReflectUtils.getIterableComponentType(type, Collections.emptyMap());
       Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
       final TypeDescriptor finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
       if (!finalComponentType.hasUnresolvedParameters()) {
@@ -726,7 +731,8 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertList(TypeDescriptor<?> type) {
-      TypeDescriptor componentType = ReflectUtils.getIterableComponentType(type);
+      TypeDescriptor componentType =
+          ReflectUtils.getIterableComponentType(type, Collections.emptyMap());
       Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
       final TypeDescriptor finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
       if (!finalComponentType.hasUnresolvedParameters()) {
@@ -745,8 +751,8 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertMap(TypeDescriptor<?> type) {
-      final TypeDescriptor keyType = ReflectUtils.getMapType(type, 0);
-      final TypeDescriptor valueType = ReflectUtils.getMapType(type, 1);
+      final TypeDescriptor keyType = ReflectUtils.getMapType(type, 0, Collections.emptyMap());
+      final TypeDescriptor valueType = ReflectUtils.getMapType(type, 1, Collections.emptyMap());
 
       Type convertedKeyType = getFactory().createTypeConversion(true).convert(keyType);
       Type convertedValueType = getFactory().createTypeConversion(true).convert(valueType);
@@ -1038,8 +1044,9 @@ public class ByteBuddyUtils {
       Type rowElementType =
           getFactory()
               .createTypeConversion(false)
-              .convert(ReflectUtils.getIterableComponentType(type));
-      final TypeDescriptor iterableElementType = ReflectUtils.getIterableComponentType(type);
+              .convert(ReflectUtils.getIterableComponentType(type, Collections.emptyMap()));
+      final TypeDescriptor iterableElementType =
+          ReflectUtils.getIterableComponentType(type, Collections.emptyMap());
       if (!iterableElementType.hasUnresolvedParameters()) {
         ForLoadedType conversionFunction =
             new ForLoadedType(
@@ -1060,8 +1067,9 @@ public class ByteBuddyUtils {
       Type rowElementType =
           getFactory()
               .createTypeConversion(false)
-              .convert(ReflectUtils.getIterableComponentType(type));
-      final TypeDescriptor collectionElementType = ReflectUtils.getIterableComponentType(type);
+              .convert(ReflectUtils.getIterableComponentType(type, Collections.emptyMap()));
+      final TypeDescriptor collectionElementType =
+          ReflectUtils.getIterableComponentType(type, Collections.emptyMap());
 
       if (!collectionElementType.hasUnresolvedParameters()) {
         ForLoadedType conversionFunction =
@@ -1083,8 +1091,9 @@ public class ByteBuddyUtils {
       Type rowElementType =
           getFactory()
               .createTypeConversion(false)
-              .convert(ReflectUtils.getIterableComponentType(type));
-      final TypeDescriptor collectionElementType = ReflectUtils.getIterableComponentType(type);
+              .convert(ReflectUtils.getIterableComponentType(type, Collections.emptyMap()));
+      final TypeDescriptor collectionElementType =
+          ReflectUtils.getIterableComponentType(type, Collections.emptyMap());
 
       StackManipulation readTrasformedValue = readValue;
       if (!collectionElementType.hasUnresolvedParameters()) {
@@ -1113,11 +1122,17 @@ public class ByteBuddyUtils {
     @Override
     protected StackManipulation convertMap(TypeDescriptor<?> type) {
       Type rowKeyType =
-          getFactory().createTypeConversion(false).convert(ReflectUtils.getMapType(type, 0));
-      final TypeDescriptor keyElementType = ReflectUtils.getMapType(type, 0);
+          getFactory()
+              .createTypeConversion(false)
+              .convert(ReflectUtils.getMapType(type, 0, Collections.emptyMap()));
+      final TypeDescriptor keyElementType =
+          ReflectUtils.getMapType(type, 0, Collections.emptyMap());
       Type rowValueType =
-          getFactory().createTypeConversion(false).convert(ReflectUtils.getMapType(type, 1));
-      final TypeDescriptor valueElementType = ReflectUtils.getMapType(type, 1);
+          getFactory()
+              .createTypeConversion(false)
+              .convert(ReflectUtils.getMapType(type, 1, Collections.emptyMap()));
+      final TypeDescriptor valueElementType =
+          ReflectUtils.getMapType(type, 1, Collections.emptyMap());
 
       StackManipulation readTrasformedValue = readValue;
       if (!keyElementType.hasUnresolvedParameters()
@@ -1475,7 +1490,7 @@ public class ByteBuddyUtils {
           Parameter parameter = parameters.get(i);
           ForLoadedType convertedType =
               new ForLoadedType(
-                  (Class) convertType.convert(TypeDescriptor.of(parameter.getType())));
+                  (Class) convertType.convert(TypeDescriptor.of(parameter.getParameterizedType())));
 
           // The instruction to read the parameter. Use the fieldMapping to reorder parameters as
           // necessary.
