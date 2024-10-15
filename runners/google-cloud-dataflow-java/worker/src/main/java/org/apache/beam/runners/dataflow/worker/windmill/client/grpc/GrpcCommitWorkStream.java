@@ -206,7 +206,7 @@ final class GrpcCommitWorkStream
     commitWorkThrottleTimer.start();
   }
 
-  private void flushInternal(Map<Long, PendingRequest> requests) throws InterruptedException {
+  private void flushInternal(Map<Long, PendingRequest> requests) {
     if (requests.isEmpty()) {
       return;
     }
@@ -363,8 +363,6 @@ final class GrpcCommitWorkStream
         if (!isShutdown()) {
           flushInternal(queue);
         }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
       } finally {
         queuedBytes = 0;
         queue.clear();
