@@ -66,7 +66,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -245,16 +244,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void adjustBudget(long itemsDelta, long bytesDelta) {
+      public void setBudget(long newItems, long newBytes) {
         // no-op.
-      }
-
-      @Override
-      public GetWorkBudget remainingBudget() {
-        return GetWorkBudget.builder()
-            .setItems(request.getMaxItems())
-            .setBytes(request.getMaxBytes())
-            .build();
       }
 
       @Override

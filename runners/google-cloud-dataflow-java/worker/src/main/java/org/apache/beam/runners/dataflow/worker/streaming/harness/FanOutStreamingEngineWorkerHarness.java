@@ -96,7 +96,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
   private final ExecutorService windmillStreamManager;
   private final ExecutorService workerMetadataConsumer;
-  private final Object metadataLock;
+  private final Object metadataLock = new Object();
 
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineBackends> backends;
@@ -142,7 +142,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
-    this.metadataLock = new Object();
     this.getWorkerMetadataStream = null;
   }
 

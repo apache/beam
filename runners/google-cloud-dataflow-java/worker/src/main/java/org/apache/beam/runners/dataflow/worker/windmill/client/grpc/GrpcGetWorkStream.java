@@ -33,7 +33,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkRespo
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 
@@ -194,15 +193,7 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
+  public void setBudget(long newItems, long newBytes) {
     // no-op
-  }
-
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return GetWorkBudget.builder()
-        .setBytes(request.getMaxBytes() - inflightBytes.get())
-        .setItems(request.getMaxItems() - inflightMessages.get())
-        .build();
   }
 }

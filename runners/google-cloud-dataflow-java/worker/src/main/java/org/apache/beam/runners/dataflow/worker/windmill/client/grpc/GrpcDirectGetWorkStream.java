@@ -175,7 +175,7 @@ final class GrpcDirectGetWorkStream
    *     which can deadlock since we send on the stream beneath the synchronization. {@link
    *     AbstractWindmillStream#send(Object)} is synchronized so the sends are already guarded.
    */
-  private void sendRequestExtension(GetWorkBudget extension) {
+  private void maybeSendRequestExtension(GetWorkBudget extension) {
     if (extension.items() > 0 || extension.bytes() > 0) {
       executeSafely(
           () -> {
@@ -203,7 +203,8 @@ final class GrpcDirectGetWorkStream
       StreamingGetWorkRequest request =
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
-                  requestHeader.toBuilder()
+                  requestHeader
+                      .toBuilder()
                       .setMaxItems(initialGetWorkBudget.items())
                       .setMaxBytes(initialGetWorkBudget.bytes())
                       .build())
@@ -262,7 +263,7 @@ final class GrpcDirectGetWorkStream
         assembledWorkItem.latencyAttributions());
     budgetTracker.recordBudgetReceived(assembledWorkItem.bufferedSize());
     GetWorkBudget extension = budgetTracker.computeBudgetExtension(maxGetWorkBudget.get());
-    sendRequestExtension(extension);
+    maybeSendRequestExtension(extension);
   }
 
   private Work.ProcessingContext createProcessingContext(String computationId) {
@@ -276,17 +277,12 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public void adjustBudget(long newItems, long newBytes) {
+  public void setBudget(long newItems, long newBytes) {
     GetWorkBudget currentMaxGetWorkBudget =
         maxGetWorkBudget.updateAndGet(
             ignored -> GetWorkBudget.builder().setItems(newItems).setBytes(newBytes).build());
     GetWorkBudget extension = budgetTracker.computeBudgetExtension(currentMaxGetWorkBudget);
-    sendRequestExtension(extension);
-  }
-
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return maxGetWorkBudget.get().subtract(budgetTracker.inFlightBudget());
+    maybeSendRequestExtension(extension);
   }
 
   /**

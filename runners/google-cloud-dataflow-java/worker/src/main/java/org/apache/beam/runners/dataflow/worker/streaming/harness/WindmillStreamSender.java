@@ -159,7 +159,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, Closeable {
   public void setBudget(long items, long bytes) {
     getWorkBudget.set(getWorkBudget.get().apply(items, bytes));
     if (started.get()) {
-      getWorkStream.get().adjustBudget(items, bytes);
+      getWorkStream.get().setBudget(items, bytes);
     }
   }
 
