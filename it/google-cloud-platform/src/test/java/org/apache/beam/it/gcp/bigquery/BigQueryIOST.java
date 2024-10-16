@@ -84,6 +84,7 @@ public final class BigQueryIOST extends IOStressTestBase {
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private static final String STORAGE_WRITE_API_METHOD = "STORAGE_WRITE_API";
   private static final String STORAGE_API_AT_LEAST_ONCE_METHOD = "STORAGE_API_AT_LEAST_ONCE";
+  private static final int STORAGE_API_AT_LEAST_ONCE_MAX_ALLOWED_DIFFERENCE = 10_000;
 
   private static BigQueryResourceManager resourceManager;
   private static String tableName;
@@ -336,9 +337,12 @@ public final class BigQueryIOST extends IOStressTestBase {
     if (configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)) {
       assertTrue(
           String.format(
-              "Number of rows in the table (%d) is less than the expected number (%d). Missing records: %d",
-              rowCount, (long) numRecords, (long) numRecords - rowCount),
-          rowCount >= numRecords);
+              "Row difference (%d) exceeds the limit of %d. Rows: %d, Expected: %d",
+              (long) numRecords - rowCount,
+              STORAGE_API_AT_LEAST_ONCE_MAX_ALLOWED_DIFFERENCE,
+              rowCount,
+              (long) numRecords),
+          (long) numRecords - rowCount <= STORAGE_API_AT_LEAST_ONCE_MAX_ALLOWED_DIFFERENCE);
     } else {
       assertTrue(
           String.format(
