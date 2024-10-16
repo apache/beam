@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
