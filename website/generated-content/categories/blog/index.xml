@@ -1,4 +1,39 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Fri, 13 Sep 2024 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Unit Testing in Beam: An opinionated guide</title><link>/blog/unit-testing-in-beam/</link><pubDate>Fri, 13 Sep 2024 00:00:01 -0800</pubDate><guid>/blog/unit-testing-in-beam/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 16 Oct 2024 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam Summit 2024: Unlocking the power of ML for data processing</title><link>/blog/beam-summit-2024-overview/</link><pubDate>Wed, 16 Oct 2024 00:00:01 -0800</pubDate><guid>/blog/beam-summit-2024-overview/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>At the recently concluded &lt;a href="https://beamsummit.org/">Beam Summit 2024&lt;/a>, a two-day event held from September 4 to 5, numerous captivating presentations showcased the potential of Beam to address a wide range of challenges, with an emphasis on machine learning (ML). These challenges included feature engineering, data enrichment, and model inference for large-scale distributed data. In all, the summit included &lt;a href="https://beamsummit.org/sessions/2024/">47 talks&lt;/a>, with 16 focused specifically on ML use cases or features and many more touching on these topics.&lt;/p>
+&lt;p>The talks displayed the breadth and diversity of the Beam community. Among the speakers and attendees, &lt;a href="https://docs.google.com/presentation/d/1IJ1sExHzrzIFF5QXKWlcAuPdp7lKOepRQKl9BnfHxJw/edit#slide=id.g3058d3e2f5f_0_10">23 countries&lt;/a> were represented. Attendees included Beam users, committers in the Beam project, Beam Google Summer of Code contributors, and data processing/machine learning experts.&lt;/p>
+&lt;h2 id="user-friendly-turnkey-transforms-for-ml">User-friendly turnkey transforms for ML&lt;/h2>
+&lt;p>With the features recently added to Beam, Beam now offers a set of rich turn-key transforms for ML users that handle a wide range of ML-Ops tasks. These transforms include:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/ml/overview/#prediction-and-inference">RunInference&lt;/a>: deploy ML models on CPUs and GPUs&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/ml/overview/#data-processing">Enrichment&lt;/a>: enrich data for ML feature enhancements&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/documentation/ml/overview/#data-processing">MLTransform&lt;/a>: transform data into ML features&lt;/li>
+&lt;/ul>
+&lt;p>The Summit talks covering both how to use these features and how people are already using them. Highlights included:&lt;/p>
+&lt;ul>
+&lt;li>A talk about &lt;a href="https://beamsummit.org/slides/2024/ScalingAutonomousDrivingwithApacheBeam.pdf">scaling autonomous driving at Cruise&lt;/a>&lt;/li>
+&lt;li>Multiple talks about deploying LLMs for batch and streaming inference&lt;/li>
+&lt;li>Three different talks about streaming processing for &lt;a href="https://cloud.google.com/use-cases/retrieval-augmented-generation">RAG&lt;/a> (including &lt;a href="https://www.youtube.com/watch?v=X_VzKQOcpC4">a talk&lt;/a> from one of Beam&amp;rsquo;s Google Summer of Code contributors!)&lt;/li>
+&lt;/ul>
+&lt;h2 id="beam-yaml-simplifying-ml-data-processing">Beam YAML: Simplifying ML data processing&lt;/h2>
+&lt;p>Beam pipeline creation can be challenging and often requires learning concepts, managing dependencies, debugging, and maintaining code for ML tasks. To simplify the entry point, &lt;a href="https://beam.apache.org/blog/beam-yaml-release/">Beam YAML&lt;/a> introduces a declarative approach that uses YAML configuration files to create data processing pipelines. No coding is required.&lt;/p>
+&lt;p>Beam Summit was the first opportunity that the Beam community had to show off some of the use cases of Beam YAML. It featured several talks about how Beam YAML is already a core part of many users&amp;rsquo; workflows at companies like &lt;a href="https://beamsummit.org/slides/2024/ALowCodeStructuredApproachtoDeployingApacheBeamMLWorkloadsonKubernetesusingBeamStack.pdf">MavenCode&lt;/a> and &lt;a href="https://youtu.be/avSXvbScbW0">ChartBoost&lt;/a>. With Beam YAML, these companies are able to build configuration-based data processing systems, significantly lowering the bar for entry at their companies.&lt;/p>
+&lt;h2 id="prism-provide-a-unified-ml-pipeline-development-framework-for-local-and-remote-runner-environments">Prism: Provide a unified ML pipeline development framework for local and remote runner environments&lt;/h2>
+&lt;p>Beam provides a variety of support for portable runners, but developing a local pipeline has traditionally been painful. Local runners are often incomplete and incompatible with remote runners, such as DataflowRunner and FlinkRunner.&lt;/p>
+&lt;p>At Beam Summit, Beam contributors introduced &lt;a href="https://youtu.be/R4iNwLBa3VQ">the Prism local runner&lt;/a> to the community. Prism greatly improves the local developer experience and reduces the gap between local and remote execution. In particular, when handling complicated ML tasks, Prism guarantees consistent runner behavior across these runners, a task that had previously lacked consistent support.&lt;/p>
+&lt;h2 id="summary">Summary&lt;/h2>
+&lt;p>Beam Summit 2024 showcased the tremendous potential of Apache Beam for addressing a wide range of data processing and machine learning challenges. We look forward to seeing even more innovative use cases and contributions in the future.&lt;/p>
+&lt;p>To stay updated on the latest Beam developments and events, visit &lt;a href="https://beam.apache.org/get-started/">the Apache Beam website&lt;/a> and follow us on &lt;a href="https://www.linkedin.com/company/apache-beam/">social media&lt;/a>. We encourage you to join &lt;a href="https://beam.apache.org/community/contact-us/">the Beam community&lt;/a> and &lt;a href="https://beam.apache.org/contribute/">contribute to the project&lt;/a>. Together, let&amp;rsquo;s unlock the full potential of Beam and shape the future of data processing and machine learning.&lt;/p></description></item><item><title>Blog: Unit Testing in Beam: An opinionated guide</title><link>/blog/unit-testing-in-beam/</link><pubDate>Fri, 13 Sep 2024 00:00:01 -0800</pubDate><guid>/blog/unit-testing-in-beam/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7230,63 +7265,4 @@ the API, guided by your
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.32.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Ajo Thomas, Alex Amato, Alexey Romanenko, Alex Koay, allenpradeep, Anant Damle, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, Benjamin Gonzalez, BenWhitehead, Blake Williams, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Daniel Oliveira, Daniel Thevessen, daria-malkova, David Cavazos, David Huntsperger, dennisylyung, Dennis Yung, dmkozh, egalpin, emily, Esun Kim, Gabriel Melo de Paula, Harch Vardhan, Heejong Lee, heidimhurst, hoshimura, Iñigo San Jose Visiers, Ismaël Mejía, Jack McCluskey, Jan Lukavský, Justin King, Kenneth Knowles, KevinGG, Ke Wu, kileys, Kyle Weaver, Luke Cwik, Maksym Skorupskyi, masahitojp, Matthew Ouyang, Matthias Baetens, Matt Rudary, MiguelAnzoWizeline, Miguel Hernandez, Nikita Petunin, Ning Ding, Ning Kang, odidev, Pablo Estrada, Pascal Gillet, rafal.ochyra, raphael.sanamyan, Reuven Lax, Robert Bradshaw, Robert Burke, roger-mike, Ryan McDowell, Sam Rohde, Sam Whittle, Siyuan Chen, Teng Qiu, Tianzi Cai, Tobias Hermann, Tomo Suzuki, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vitaly Terentyev, Yichi Zhang, Yifan Mai, yoshiki.obata, Yu Feng, YuqiHuai, yzhang559, Zachary Houfek, zhoufek&lt;/p></description></item><item><title>Blog: Apache Beam 2.31.0</title><link>/blog/beam-2.31.0/</link><pubDate>Thu, 08 Jul 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.31.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.31.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2310-2021-07-08">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.31.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349991">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Fixed bug in ReadFromBigQuery when a RuntimeValueProvider is used as value of table argument (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12514">BEAM-12514&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;code>CREATE FUNCTION&lt;/code> DDL statement added to Calcite SQL syntax. &lt;code>JAR&lt;/code> and &lt;code>AGGREGATE&lt;/code> are now reserved keywords. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12339">BEAM-12339&lt;/a>).&lt;/li>
-&lt;li>Flink 1.13 is now supported by the Flink runner (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12277">BEAM-12277&lt;/a>).&lt;/li>
-&lt;li>DatastoreIO: Write and delete operations now follow automatic gradual ramp-up,
-in line with best practices (Java/Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12260">BEAM-12260&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-12272">BEAM-12272&lt;/a>).&lt;/li>
-&lt;li>Python &lt;code>TriggerFn&lt;/code> has a new &lt;code>may_lose_data&lt;/code> method to signal potential data loss. Default behavior assumes safe (necessary for backwards compatibility). See Deprecations for potential impact of overriding this. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Python Row objects are now sensitive to field order. So &lt;code>Row(x=3, y=4)&lt;/code> is no
-longer considered equal to &lt;code>Row(y=4, x=3)&lt;/code> (BEAM-11929).&lt;/li>
-&lt;li>Kafka Beam SQL tables now ascribe meaning to the LOCATION field; previously
-it was ignored if provided.&lt;/li>
-&lt;li>&lt;code>TopCombineFn&lt;/code> disallow &lt;code>compare&lt;/code> as its argument (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7372">BEAM-7372&lt;/a>).&lt;/li>
-&lt;li>Drop support for Flink 1.10 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12281">BEAM-12281&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.33. This can be overriden with &lt;code>--allow_unsafe_triggers&lt;/code>. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
-&lt;li>Python GBK will start requiring safe triggers or the &lt;code>--allow_unsafe_triggers&lt;/code> flag starting with Beam 2.33. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>See a full list of &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.31.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to &lt;code>git shortlog&lt;/code>, the following people contributed to the 2.31.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, ajo thomas, Alan Myrvold, Alex Amato, Alexey Romanenko,
-AlikRodriguez, Anant Damle, Andrew Pilloud, Benjamin Gonzalez, Boyuan Zhang,
-Brian Hulette, Chamikara Jayalath, Daniel Oliveira, David Cavazos,
-David Huntsperger, David Moravek, Dmytro Kozhevin, dpcollins-google, Emily Ye,
-Ernesto Valentino, Evan Galpin, Fernando Morales, Heejong Lee, Ismaël Mejía,
-Jan Lukavský, Josias Rico, jrynd, Kenneth Knowles, Ke Wu, kileys, Kyle Weaver,
-masahitojp, Matthias Baetens, Maximilian Michels, Milena Bukal,
-Nathan J. Mehl, Pablo Estrada, Peter Sobot, Reuven Lax, Robert Bradshaw,
-Robert Burke, roger-mike, Sam Rohde, Sam Whittle, Stephan Hoyer, Tom Underhill,
-tvalentyn, Uday Singh, Udi Meiri, Vitaly Terentyev, Xinyu Liu, Yichi Zhang,
-Yifan Mai, yoshiki.obata, zhoufek&lt;/p></description></item></channel></rss>
+&lt;p>Ahmet Altay, Ajo Thomas, Alex Amato, Alexey Romanenko, Alex Koay, allenpradeep, Anant Damle, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, Benjamin Gonzalez, BenWhitehead, Blake Williams, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Daniel Oliveira, Daniel Thevessen, daria-malkova, David Cavazos, David Huntsperger, dennisylyung, Dennis Yung, dmkozh, egalpin, emily, Esun Kim, Gabriel Melo de Paula, Harch Vardhan, Heejong Lee, heidimhurst, hoshimura, Iñigo San Jose Visiers, Ismaël Mejía, Jack McCluskey, Jan Lukavský, Justin King, Kenneth Knowles, KevinGG, Ke Wu, kileys, Kyle Weaver, Luke Cwik, Maksym Skorupskyi, masahitojp, Matthew Ouyang, Matthias Baetens, Matt Rudary, MiguelAnzoWizeline, Miguel Hernandez, Nikita Petunin, Ning Ding, Ning Kang, odidev, Pablo Estrada, Pascal Gillet, rafal.ochyra, raphael.sanamyan, Reuven Lax, Robert Bradshaw, Robert Burke, roger-mike, Ryan McDowell, Sam Rohde, Sam Whittle, Siyuan Chen, Teng Qiu, Tianzi Cai, Tobias Hermann, Tomo Suzuki, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vitaly Terentyev, Yichi Zhang, Yifan Mai, yoshiki.obata, Yu Feng, YuqiHuai, yzhang559, Zachary Houfek, zhoufek&lt;/p></description></item></channel></rss>
