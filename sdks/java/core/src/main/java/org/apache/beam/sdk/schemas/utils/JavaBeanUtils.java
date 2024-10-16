@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +42,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -63,15 +61,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
-@Internal
 public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
   public static Schema schemaFromJavaBeanClass(
-      TypeDescriptor<?> typeDescriptor,
-      FieldValueTypeSupplier fieldValueTypeSupplier,
-      Map<Type, Type> boundTypes) {
-    return StaticSchemaInference.schemaFromClass(
-        typeDescriptor, fieldValueTypeSupplier, boundTypes);
+      TypeDescriptor<?> typeDescriptor, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return StaticSchemaInference.schemaFromClass(typeDescriptor, fieldValueTypeSupplier);
   }
 
   private static final String CONSTRUCTOR_HELP_STRING =

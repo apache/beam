@@ -21,10 +21,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -64,11 +62,9 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
           ReflectUtils.getFields(typeDescriptor.getRawType()).stream()
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
-
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(fields.size());
-      Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
       for (int i = 0; i < fields.size(); ++i) {
-        types.add(FieldValueTypeInformation.forField(fields.get(i), i, boundTypes));
+        types.add(FieldValueTypeInformation.forField(fields.get(i), i));
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
@@ -115,9 +111,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
-    return POJOUtils.schemaFromPojoClass(
-        typeDescriptor, JavaFieldTypeSupplier.INSTANCE, boundTypes);
+    return POJOUtils.schemaFromPojoClass(typeDescriptor, JavaFieldTypeSupplier.INSTANCE);
   }
 
   @Override
