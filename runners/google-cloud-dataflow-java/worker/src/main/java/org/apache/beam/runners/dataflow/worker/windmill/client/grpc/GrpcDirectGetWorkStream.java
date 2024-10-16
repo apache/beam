@@ -188,7 +188,11 @@ final class GrpcDirectGetWorkStream
                     .build();
             lastRequest.set(request);
             budgetTracker.recordBudgetRequested(extension);
-            send(request);
+            try {
+              send(request);
+            } catch (IllegalStateException e) {
+              // Stream was closed.
+            }
           });
     }
   }

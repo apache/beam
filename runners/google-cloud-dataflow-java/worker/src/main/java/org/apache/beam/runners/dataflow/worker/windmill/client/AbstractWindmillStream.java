@@ -280,8 +280,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       executor.execute(runnable);
     } catch (RejectedExecutionException e) {
       logger.debug("{}-{} has been shutdown.", getClass(), backendWorkerToken);
-    } catch (IllegalStateException e) {
-      // Stream was closed.
     }
   }
 
