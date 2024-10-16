@@ -65,7 +65,8 @@ createCrossLanguageValidatesRunnerTask(
   ],
   goScriptOptions: [
     "--runner portable",
-    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+    // TODO: Re-enable when https://github.com/apache/beam/issues/28972 is fixed (for example, by using Prism runner).
+    // "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--endpoint localhost:${jobPort}",
   ],
 )
