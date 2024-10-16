@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -479,8 +480,14 @@ public class BeamRowToStorageApiProtoTest {
             .addField(
                 "nestedArrayOfMaps",
                 FieldType.array(FieldType.map(FieldType.STRING, FieldType.STRING)))
+            .addField(
+                "nestedIterableOfMaps",
+                FieldType.iterable(FieldType.map(FieldType.STRING, FieldType.STRING)))
             .addField("nestedArrayNullable", FieldType.array(FieldType.STRING).withNullable(true))
             .addField("nestedMap", FieldType.map(FieldType.STRING, FieldType.STRING))
+            .addField(
+                "nestedMultiMap",
+                FieldType.map(FieldType.STRING, FieldType.iterable(FieldType.STRING)))
             .addField(
                 "nestedMapNullable",
                 FieldType.map(FieldType.STRING, FieldType.DOUBLE).withNullable(true))
@@ -489,9 +496,15 @@ public class BeamRowToStorageApiProtoTest {
     Row nestedRow =
         Row.withSchema(nestedMapSchemaVariations)
             .withFieldValue(
-                "nestedArrayOfMaps", ImmutableList.of(ImmutableMap.of("key1", "value1")))
+                "nestedArrayOfMaps", ImmutableList.of(ImmutableMap.of("arraykey1", "arrayvalue1")))
+            .withFieldValue(
+                "nestedIterableOfMaps",
+                ImmutableList.of(ImmutableMap.of("iterablekey1", "iterablevalue1")))
             .withFieldValue("nestedArrayNullable", null)
             .withFieldValue("nestedMap", ImmutableMap.of("key1", "value1"))
+            .withFieldValue(
+                "nestedMultiMap",
+                ImmutableMap.of("multikey1", ImmutableList.of("multivalue1", "multivalue2")))
             .withFieldValue("nestedMapNullable", null)
             .build();
 
@@ -516,7 +529,18 @@ public class BeamRowToStorageApiProtoTest {
                     .get("nestedarrayofmaps")
                     .getMessageType()
                     .findFieldByName("value"));
-    assertEquals("value1", value);
+    assertEquals("arrayvalue1", value);
+
+    DynamicMessage nestedIterableOfMapEntryMsg =
+        (DynamicMessage) msg.getRepeatedField(fieldDescriptors.get("nestediterableofmaps"), 0);
+    value =
+        (String)
+            nestedIterableOfMapEntryMsg.getField(
+                fieldDescriptors
+                    .get("nestediterableofmaps")
+                    .getMessageType()
+                    .findFieldByName("value"));
+    assertEquals("iterablevalue1", value);
 
     DynamicMessage nestedMapEntryMsg =
         (DynamicMessage) msg.getRepeatedField(fieldDescriptors.get("nestedmap"), 0);
@@ -525,6 +549,15 @@ public class BeamRowToStorageApiProtoTest {
             nestedMapEntryMsg.getField(
                 fieldDescriptors.get("nestedmap").getMessageType().findFieldByName("value"));
     assertEquals("value1", value);
+
+    DynamicMessage nestedMultiMapEntryMsg =
+        (DynamicMessage) msg.getRepeatedField(fieldDescriptors.get("nestedmultimap"), 0);
+    List<String> values =
+        (List<String>)
+            nestedMultiMapEntryMsg.getField(
+                fieldDescriptors.get("nestedmultimap").getMessageType().findFieldByName("value"));
+    assertTrue(values.size() == 2);
+    assertEquals("multivalue1", values.get(0));
 
     assertTrue(msg.getRepeatedFieldCount(fieldDescriptors.get("nestedarraynullable")) == 0);
     assertTrue(msg.getRepeatedFieldCount(fieldDescriptors.get("nestedmapnullable")) == 0);
