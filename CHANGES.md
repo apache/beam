@@ -151,7 +151,7 @@
 
 * The beam interactive runner does not correctly run on flink ([#31168](https://github.com/apache/beam/issues/31168)).
 * When using the Flink runner from Python, 1.17 is not supported and 1.12/13 do not work correctly. Support for 1.17 will be added in 2.57.0, and the ability to choose 1.12/13 will be cleaned up and fully removed in 2.57.0 as well ([#31168](https://github.com/apache/beam/issues/31168)).
-* Some streaming pipeline's coder may throw and surface a NullPointerException ([#32566](https://github.com/apache/beam/pull/32566)).
+* Some streaming pipelines' coders may throw and surface a NullPointerException ([#32566](https://github.com/apache/beam/pull/32566)).
 
 # [2.55.1] - 2024-04-08
 
