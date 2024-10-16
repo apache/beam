@@ -26,6 +26,7 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.utils import subprocess_server
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
+from apache_beam.version import __version__ as beam_version
 
 
 def _singular(name):
@@ -217,9 +218,11 @@ def main():
     json_config_schemas = []
     markdown_out = io.StringIO()
     providers = yaml_provider.standard_providers()
+    markdown_map = {}
     for transform_base, transforms in itertools.groupby(
         sorted(providers.keys(), key=io_grouping_key),
         key=lambda s: s.split('-')[0]):
+      markdown_current = io.StringIO()
       transforms = list(transforms)
       if include(transform_base) and not exclude(transform_base):
         print(transform_base)
@@ -229,9 +232,12 @@ def main():
                 t.split('-')[-1] for t in sorted(transforms))
           else:
             extra_docs = ''
-          markdown_out.write(
+          markdown_current.write(
               transform_docs(transform_base, transforms, providers, extra_docs))
-          markdown_out.write('\n\n')
+          markdown_current.write('\n\n')
+        markdown_map[transform_base] = markdown_current.getvalue()
+        if options.markdown_file:
+          markdown_out.write(markdown_current.getvalue())
         if options.schema_file:
           for transform in transforms:
             schema = providers[transform][0].config_schema(transform)
@@ -284,62 +290,179 @@ def main():
               markdown.extensions.toc.TocExtension(toc_depth=2),
               'codehilite',
           ])
-      html = md.convert(markdown_out.getvalue())
       pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
           '.codehilite')
       extra_style = '''
-          .nav {
-            height: 100%;
-            width: 12em;
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Roboto', sans-serif;
+            font-weight: normal;
+            color: #404040;
+            background: #edf0f2;
+          }
+          .body-for-nav {
+            background: #fcfcfc;
+          }
+          .grid-for-nav {
+            width: 100%;
+          }
+          .nav-side {
             position: fixed;
             top: 0;
             left: 0;
-            overflow-x: hidden;
+            width: 300px;
+            height: 100%;
+            padding-bottom: 2em;
+            color: #9b9b9b;
+            background: #343131;
           }
-          .nav a {
-            color: #333;
-            padding: .2em;
+          .nav-header {
             display: block;
-            text-decoration: none;
+            width: 300px;
+            padding: 1em;
+            background-color: #2980B9;
+            text-align: center;
+            color: #fcfcfc;
           }
-          .nav a:hover {
-            color: #888;
+          .nav-header a {
+            color: #fcfcfc;
+            font-weight: bold;
+            display: inline-block;
+            padding: 4px 6px;
+            margin-bottom: 1em;
           }
-          .nav li {
-            list-style-type: none;
+          .nav-header>div.version {
+            margin-top: -.5em;
+            margin-bottom: 1em;
+            font-weight: normal;
+            color: rgba(255, 255, 255, 0.3);
+          }
+          .nav-transform-list {
+            width: 300px;
+            text-align: left;
+            overflow-y: auto;
+            max-height: calc(100% - 4.3em);
+            scrollbar-width: thin;
+            scrollbar-color: #9b9b9b #343131;
+          }
+          .nav-transform-list ul {
             margin: 0;
             padding: 0;
+            list-style: none;
           }
-          .content {
-            margin-left: 12em;
+          .nav-transform-list li {
+            border-bottom: 1px solid #4e4a4a;
+            margin-left: 1em;
           }
-          h2 {
-            margin-top: 2em;
+          .nav-transform-list a {
+            display: block;
+            line-height: 36px;
+            font-size: 90%;
+            color: #d9d9d9;
+            padding: .1em 0.6em;
+            text-decoration: none;
+            transition: background-color 0.3s ease, color 0.3s ease;
+          }
+          .nav-transform-list a:hover {
+            background-color: #4e4a4a;
+            color: #ffffff;
+          }
+          .transform-content-wrap {
+            margin-left: 300px;
+            background: #fcfcfc;
+          }
+          .transform-content {
+            padding: 1.5em 3em;
+            margin: 20px;
+            padding-top: 2em;
+            padding-bottom: 2em;
+          }  
+          .transform-content li::marker {
+            display: inline-block;
+            width: 0.5em;
+          }
+          .transform-content ul {
+            margin-left: 0.75em;
+            text-align: left;
+            list-style-type: disc;
+          }
+          .codehilite {
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.2em 1em;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
           }
           '''
 
-      with open(options.html_file, 'w') as fout:
-        fout.write(
-            f'''
-            <html>
-              <head>
-                <title>{title}</title>
-                <style>
-                {pygments_style}
-                {extra_style}
-                </style>
-              </head>
-              <body>
-                <div class="nav">
-                  {md.toc}
-                </div>
-                <div class="content">
-                  <h1>{title}</h1>
-                  {html}
-                </div>
-              </body>
-            </html>
-            ''')
+      html = '''
+          <html>
+            <head>
+              <title>{title}</title>
+              <style>
+              {pygments_style}
+              {extra_style}
+              </style>
+            </head>
+            <body class="body-for-nav">
+              <div class="grid-for-nav">
+                <nav class="nav-side">
+                  <div class="nav-header">
+                    <a>Beam YAML Transform Index</a>
+                    <div class="version">
+                      {beam_version}
+                    </div>
+                  </div>
+                  <div class="nav-transform-list">
+                    <ul>
+                      {nav_transform_list}
+                    </ul>
+                  </div>
+                </nav>
+                <section class="transform-content-wrap">
+                  <div class="transform-content">
+                    {transform_content}
+                  </div>
+                </section>
+              </div>
+            </body>
+          </html>
+          '''
+
+      def transform_html_file(transform):
+        return f'{transform}_{options.html_file.split("/")[-1]}'
+
+      nav_transform_list = '\n'.join([
+          f'<li><a href="{transform_html_file(transform)}">{transform}</a></li>'
+          for transform in markdown_map
+      ])
+
+      def write_html(html_file, transform_content):
+        with open(html_file, 'w') as html_out:
+          html_out.write(
+              html.format(
+                  title=title,
+                  pygments_style=pygments_style,
+                  extra_style=extra_style,
+                  beam_version=beam_version,
+                  nav_transform_list=nav_transform_list,
+                  transform_content=transform_content))
+
+      output_path = "/".join(options.html_file.split("/")[:-1])
+      for i, (transform_name, transform_md) in enumerate(markdown_map.items()):
+        if not i:
+          write_html(options.html_file, md.convert(transform_md))
+        write_html(
+            '/'.join([
+                p for p in [output_path, transform_html_file(transform_name)]
+                if p != ''
+            ]),
+            md.convert(transform_md))
 
 
 if __name__ == '__main__':

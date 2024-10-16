@@ -377,6 +377,7 @@ jobs:
             echo "............Copying generated yamldoc into beam-site.........."
             mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
             cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/*_yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/
             # Update current symlink to point to the latest release
             unlink yamldoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
