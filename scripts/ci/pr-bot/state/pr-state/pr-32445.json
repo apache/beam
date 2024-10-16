@@ -1,8 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "liferoad",
-    "java": "Abacn"
+    "python": "tvalentyn",
+    "java": "damondouglas",
+    "website": "melap"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
