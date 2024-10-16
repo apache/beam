@@ -17,34 +17,32 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import java.nio.ByteBuffer;
-import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 
 /**
- * {@link KeySelector} that retrieves a key from a {@link KeyedWorkItem}. This will return the key
- * as encoded by the provided {@link Coder} in a {@link ByteBuffer}. This ensures that all key
+ * {@link KeySelector} that retrieves a key from a {@link KV}. This will return the key as encoded
+ * by the provided {@link Coder} in a {@link FlinkKey}. This ensures that all key
  * comparisons/hashing happen on the encoded form.
  */
-public class WorkItemKeySelector<K, V>
-    implements KeySelector<WindowedValue<KeyedWorkItem<K, V>>, FlinkKey>,
-        ResultTypeQueryable<FlinkKey> {
+public class KvToFlinkKeyKeySelector<K, V>
+    implements KeySelector<WindowedValue<KV<K, V>>, FlinkKey>, ResultTypeQueryable<FlinkKey> {
 
   private final Coder<K> keyCoder;
 
-  public WorkItemKeySelector(Coder<K> keyCoder) {
+  public KvToFlinkKeyKeySelector(Coder<K> keyCoder) {
     this.keyCoder = keyCoder;
   }
 
   @Override
-  public FlinkKey getKey(WindowedValue<KeyedWorkItem<K, V>> value) throws Exception {
-    K key = value.getValue().key();
+  public FlinkKey getKey(WindowedValue<KV<K, V>> value) {
+    K key = value.getValue().getKey();
     return FlinkKey.of(key, keyCoder);
   }
 

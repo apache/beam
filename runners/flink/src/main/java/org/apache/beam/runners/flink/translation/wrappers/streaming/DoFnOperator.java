@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,6 +56,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
@@ -149,7 +149,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     extends AbstractStreamOperator<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<PreInputT>, WindowedValue<OutputT>>,
         TwoInputStreamOperator<WindowedValue<PreInputT>, RawUnionValue, WindowedValue<OutputT>>,
-        Triggerable<ByteBuffer, TimerData> {
+        Triggerable<FlinkKey, TimerData> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOperator.class);
   private final boolean isStreaming;
@@ -1146,19 +1146,19 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   @Override
-  public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) {
+  public void onEventTime(InternalTimer<FlinkKey, TimerData> timer) {
     checkInvokeStartBundle();
     fireTimerInternal(timer.getKey(), timer.getNamespace());
   }
 
   @Override
-  public void onProcessingTime(InternalTimer<ByteBuffer, TimerData> timer) {
+  public void onProcessingTime(InternalTimer<FlinkKey, TimerData> timer) {
     checkInvokeStartBundle();
     fireTimerInternal(timer.getKey(), timer.getNamespace());
   }
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
-  protected void fireTimerInternal(ByteBuffer key, TimerData timerData) {
+  protected void fireTimerInternal(FlinkKey key, TimerData timerData) {
     long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
     fireTimer(timerData);
     emitWatermarkIfHoldChanged(oldHold);
@@ -1533,7 +1533,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         keyedStateBackend.setCurrentKey(internalTimer.getKey());
         TimerData timer = internalTimer.getNamespace();
         checkInvokeStartBundle();
-        fireTimerInternal((ByteBuffer) internalTimer.getKey(), timer);
+        fireTimerInternal((FlinkKey) internalTimer.getKey(), timer);
       }
     }
 

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
 import org.apache.beam.sdk.coders.Coder;
@@ -97,7 +97,7 @@ import org.joda.time.Instant;
  * {@link StateInternals} that uses a Flink {@link KeyedStateBackend} to manage state.
  *
  * <p>Note: In the Flink streaming runner the key is always encoded using an {@link Coder} and
- * stored in a {@link ByteBuffer}.
+ * stored in a {@link FlinkKey}.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -108,7 +108,7 @@ public class FlinkStateInternals<K> implements StateInternals {
   private static final StateNamespace globalWindowNamespace =
       StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
 
-  private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+  private final KeyedStateBackend<FlinkKey> flinkStateBackend;
   private final Coder<K> keyCoder;
   FlinkStateNamespaceKeySerializer namespaceKeySerializer;
 
@@ -174,7 +174,7 @@ public class FlinkStateInternals<K> implements StateInternals {
   private final boolean fasterCopy;
 
   public FlinkStateInternals(
-      KeyedStateBackend<ByteBuffer> flinkStateBackend,
+      KeyedStateBackend<FlinkKey> flinkStateBackend,
       Coder<K> keyCoder,
       Coder<? extends BoundedWindow> windowCoder,
       SerializablePipelineOptions pipelineOptions)
@@ -203,8 +203,8 @@ public class FlinkStateInternals<K> implements StateInternals {
 
   @Override
   public K getKey() {
-    ByteBuffer keyBytes = flinkStateBackend.getCurrentKey();
-    return FlinkKeyUtils.decodeKey(keyBytes, keyCoder);
+    FlinkKey keyBytes = flinkStateBackend.getCurrentKey();
+    return FlinkKeyUtils.decodeKey(keyBytes.getSerializedKey(), keyCoder);
   }
 
   @Override
@@ -517,11 +517,11 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final String stateId;
     private final ValueStateDescriptor<T> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkValueState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
         Coder<T> coder,
@@ -600,11 +600,11 @@ public class FlinkStateInternals<K> implements StateInternals {
   private static class FlinkOrderedListState<T> implements OrderedListState<T> {
     private final StateNamespace namespace;
     private final ListStateDescriptor<TimestampedValue<T>> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkOrderedListState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
         Coder<T> coder,
@@ -723,12 +723,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final String stateId;
     private final ListStateDescriptor<T> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final boolean storesVoidValues;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkBagState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
         Coder<T> coder,
@@ -864,11 +864,11 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final String stateId;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkCombiningState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -1026,12 +1026,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final String stateId;
     private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final CombineWithContext.Context context;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkCombiningStateWithContext(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -1192,7 +1192,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     private org.apache.flink.api.common.state.MapState<String, Instant> watermarkHoldsState;
 
     public FlinkWatermarkHoldState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor,
         String stateId,
         StateNamespace namespace,
@@ -1314,11 +1314,11 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final String stateId;
     private final MapStateDescriptor<KeyT, ValueT> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkMapState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
         Coder<KeyT> mapKeyCoder,
@@ -1533,11 +1533,11 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final String stateId;
     private final MapStateDescriptor<T, Boolean> flinkStateDescriptor;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final KeyedStateBackend<FlinkKey> flinkStateBackend;
     private final FlinkStateNamespaceKeySerializer namespaceSerializer;
 
     FlinkSetState(
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
+        KeyedStateBackend<FlinkKey> flinkStateBackend,
         String stateId,
         StateNamespace namespace,
         Coder<T> coder,
@@ -1690,9 +1690,9 @@ public class FlinkStateInternals<K> implements StateInternals {
     org.apache.flink.api.common.state.MapState<String, Instant> mapState =
         flinkStateBackend.getPartitionedState(
             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, watermarkHoldStateDescriptor);
-    try (Stream<ByteBuffer> keys =
+    try (Stream<FlinkKey> keys =
         flinkStateBackend.getKeys(watermarkHoldStateDescriptor.getName(), VoidNamespace.INSTANCE)) {
-      Iterator<ByteBuffer> iterator = keys.iterator();
+      Iterator<FlinkKey> iterator = keys.iterator();
       while (iterator.hasNext()) {
         flinkStateBackend.setCurrentKey(iterator.next());
         mapState.values().forEach(this::addWatermarkHoldUsage);

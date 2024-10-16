@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +27,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
+
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -399,7 +399,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
           // create effective key in the same way Beam/Flink will do so we can see if it gets
           // allocated to the partition we want
-          ByteBuffer effectiveKey = FlinkKeyUtils.encodeKey(shk, shardedKeyCoder);
+          FlinkKey effectiveKey = FlinkKey.of(shk, shardedKeyCoder);
 
           int partition =
               KeyGroupRangeAssignment.assignKeyToParallelOperator(

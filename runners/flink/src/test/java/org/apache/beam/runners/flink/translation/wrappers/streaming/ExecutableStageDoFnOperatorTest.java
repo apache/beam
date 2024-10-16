@@ -63,6 +63,7 @@ import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.streaming.FlinkStateInternalsTest;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
@@ -109,6 +110,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -683,7 +685,7 @@ public class ExecutableStageDoFnOperatorTest {
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
     Mockito.verify(stateBackendLock).lock();
-    ByteBuffer key = FlinkKeyUtils.encodeKey("key", keyCoder);
+    FlinkKey key = FlinkKey.of("key", keyCoder);
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
@@ -707,9 +709,9 @@ public class ExecutableStageDoFnOperatorTest {
     }
     ImmutableList<BagState<String>> bagStates = bagStateBuilder.build();
 
-    MutableObject<ByteBuffer> key =
+    MutableObject<FlinkKey> key =
         new MutableObject<>(
-            ByteBuffer.wrap(stateInternals.getKey().getBytes(StandardCharsets.UTF_8)));
+            FlinkKey.of(ByteBuffer.wrap(stateInternals.getKey().getBytes(StandardCharsets.UTF_8))));
 
     // Test that state is cleaned up correctly
     ExecutableStageDoFnOperator.StateCleaner stateCleaner =
@@ -786,21 +788,20 @@ public class ExecutableStageDoFnOperatorTest {
     when(bundle.getTimerReceivers()).thenReturn(ImmutableMap.of(timerInputKey, timerReceiver));
 
     KeyedOneInputStreamOperatorTestHarness<
-            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
+            FlinkKey, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
                 operator,
                 operator.keySelector,
-                new CoderTypeInformation<>(
-                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
+                ValueTypeInfo.of(FlinkKey.class));
 
     testHarness.open();
 
     Lock stateBackendLock = Whitebox.getInternalState(operator, "stateBackendLock");
     stateBackendLock.lock();
 
-    KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
-    ByteBuffer key = FlinkKeyUtils.encodeKey(windowedValue.getValue().getKey(), keyCoder);
+    KeyedStateBackend<FlinkKey> keyedStateBackend = operator.getKeyedStateBackend();
+    FlinkKey key = FlinkKey.of(windowedValue.getValue().getKey(), keyCoder);
     keyedStateBackend.setCurrentKey(key);
 
     DoFnOperator.FlinkTimerInternals timerInternals =
@@ -937,13 +938,12 @@ public class ExecutableStageDoFnOperatorTest {
             WindowedValue.getFullCoder(kvCoder, windowCoder));
 
     KeyedOneInputStreamOperatorTestHarness<
-            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
+            FlinkKey, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
                 operator,
                 operator.keySelector,
-                new CoderTypeInformation<>(
-                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
+                ValueTypeInfo.of(FlinkKey.class));
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(bundle.getInputReceivers())
@@ -955,8 +955,8 @@ public class ExecutableStageDoFnOperatorTest {
 
     testHarness.open();
 
-    KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
-    ByteBuffer key = FlinkKeyUtils.encodeKey("key1", keyCoder);
+    KeyedStateBackend<FlinkKey> keyedStateBackend = operator.getKeyedStateBackend();
+    FlinkKey key = FlinkKey.of("key1", keyCoder);
     keyedStateBackend.setCurrentKey(key);
 
     // create some state which can be cleaned up
@@ -981,7 +981,7 @@ public class ExecutableStageDoFnOperatorTest {
   @Test
   public void testCacheTokenHandling() throws Exception {
     InMemoryStateInternals test = InMemoryStateInternals.forKey("test");
-    KeyedStateBackend<ByteBuffer> stateBackend = FlinkStateInternalsTest.createStateBackend();
+    KeyedStateBackend<FlinkKey> stateBackend = FlinkStateInternalsTest.createStateBackend();
 
     ExecutableStageDoFnOperator.BagUserStateFactory<Integer, GlobalWindow> bagUserStateFactory =
         new ExecutableStageDoFnOperator.BagUserStateFactory<>(
@@ -1254,7 +1254,7 @@ public class ExecutableStageDoFnOperatorTest {
             createOutputMap(mainOutput, additionalOutputs),
             windowingStrategy,
             keyCoder,
-            keyCoder != null ? new KvToByteBufferKeySelector<>(keyCoder, null) : null);
+            keyCoder != null ? new KvToFlinkKeyKeySelector<>(keyCoder) : null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;

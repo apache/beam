@@ -30,10 +30,12 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -52,7 +54,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -73,7 +75,7 @@ public class WindowDoFnOperatorTest {
   public void testRestore() throws Exception {
     // test harness
     KeyedOneInputStreamOperatorTestHarness<
-            ByteBuffer, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
+        FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
         testHarness = createTestHarness(getWindowDoFnOperator(true));
     testHarness.open();
 
@@ -125,7 +127,7 @@ public class WindowDoFnOperatorTest {
     // test harness
     WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator(true);
     KeyedOneInputStreamOperatorTestHarness<
-            ByteBuffer, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
+            FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
         testHarness = createTestHarness(windowDoFnOperator);
     testHarness.open();
 
@@ -233,22 +235,22 @@ public class WindowDoFnOperatorTest {
         emptyList(),
         options,
         VarLongCoder.of(),
-        new WorkItemKeySelector(VarLongCoder.of(), new SerializablePipelineOptions(options)));
+        new WorkItemKeySelector(VarLongCoder.of()));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<
-          ByteBuffer, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
+          FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
       createTestHarness(WindowDoFnOperator<Long, Long, Long> windowDoFnOperator) throws Exception {
     return new KeyedOneInputStreamOperatorTestHarness<>(
         windowDoFnOperator,
-        (KeySelector<WindowedValue<KV<Long, Long>>, ByteBuffer>)
+        (KeySelector<WindowedValue<KV<Long, Long>>, FlinkKey>)
             o -> {
               try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
                 VarLongCoder.of().encode(o.getValue().getKey(), baos);
-                return ByteBuffer.wrap(baos.toByteArray());
+                return FlinkKey.of(ByteBuffer.wrap(baos.toByteArray()));
               }
             },
-        new GenericTypeInfo<>(ByteBuffer.class));
+        ValueTypeInfo.of(FlinkKey.class));
   }
 
   private static class Item {

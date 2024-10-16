@@ -33,11 +33,12 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToFlinkKeyKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDoFnOperator;
@@ -106,6 +107,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -262,17 +264,17 @@ class FlinkStreamingTransformTranslators {
   }
 
   static class ValueWithRecordIdKeySelector<T>
-      implements KeySelector<WindowedValue<ValueWithRecordId<T>>, ByteBuffer>,
-          ResultTypeQueryable<ByteBuffer> {
+      implements KeySelector<WindowedValue<ValueWithRecordId<T>>, FlinkKey>,
+          ResultTypeQueryable<FlinkKey> {
 
     @Override
-    public ByteBuffer getKey(WindowedValue<ValueWithRecordId<T>> value) throws Exception {
-      return ByteBuffer.wrap(value.getValue().getId());
+    public FlinkKey getKey(WindowedValue<ValueWithRecordId<T>> value) throws Exception {
+      return FlinkKey.of(ByteBuffer.wrap(value.getValue().getId()));
     }
 
     @Override
-    public TypeInformation<ByteBuffer> getProducedType() {
-      return new GenericTypeInfo<>(ByteBuffer.class);
+    public TypeInformation<FlinkKey> getProducedType() {
+      return ValueTypeInfo.of(FlinkKey.class);
     }
   }
 
@@ -590,8 +592,7 @@ class FlinkStreamingTransformTranslators {
         // that it is also keyed
         keyCoder = ((KvCoder) input.getCoder()).getKeyCoder();
         keySelector =
-            new KvToByteBufferKeySelector(
-                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+            new KvToFlinkKeyKeySelector<>(keyCoder);
         final PTransform<?, PCollection<InputT>> producer = context.getProducer(input);
         final String previousUrn =
             producer != null
@@ -609,8 +610,7 @@ class FlinkStreamingTransformTranslators {
         // we know that it is keyed on byte[]
         keyCoder = ByteArrayCoder.of();
         keySelector =
-            new WorkItemKeySelector<>(
-                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+            new WorkItemKeySelector<>(keyCoder);
         stateful = true;
       }
 
@@ -963,16 +963,13 @@ class FlinkStreamingTransformTranslators {
       // Pre-aggregate before shuffle similar to group combine
       if (!context.isStreaming()) {
         outDataStream =
-            FlinkStreamingAggregationsTranslators.batchCombinePerKeyNoSideInputs(
+            FlinkStreamingAggregationsTranslators.batchGroupByKey(
                 context,
-                transform,
-                new FlinkStreamingAggregationsTranslators.ConcatenateAsIterable<>());
+                transform);
       } else {
         // No pre-aggregation in Streaming mode.
-        KvToByteBufferKeySelector<K, InputT> keySelector =
-            new KvToByteBufferKeySelector<>(
-                inputKvCoder.getKeyCoder(),
-                new SerializablePipelineOptions(context.getPipelineOptions()));
+        KvToFlinkKeyKeySelector<K, InputT> keySelector =
+            new KvToFlinkKeyKeySelector<>(inputKvCoder.getKeyCoder());
 
         Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
             WindowedValue.getFullCoder(
@@ -1039,9 +1036,6 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
 
-      SerializablePipelineOptions serializablePipelineOptions =
-          new SerializablePipelineOptions(context.getPipelineOptions());
-
       @SuppressWarnings("unchecked")
       GlobalCombineFn<InputT, ?, OutputT> combineFn = ((Combine.PerKey) transform).getFn();
 
@@ -1051,9 +1045,9 @@ class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       List<PCollectionView<?>> sideInputs = ((Combine.PerKey) transform).getSideInputs();
 
-      KeyedStream<WindowedValue<KV<K, InputT>>, ByteBuffer> keyedStream =
+      KeyedStream<WindowedValue<KV<K, InputT>>, FlinkKey> keyedStream =
           inputDataStream.keyBy(
-              new KvToByteBufferKeySelector<>(keyCoder, serializablePipelineOptions));
+              new KvToFlinkKeyKeySelector<>(keyCoder));
 
       if (sideInputs.isEmpty()) {
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream;
@@ -1152,11 +1146,9 @@ class FlinkStreamingTransformTranslators {
               .returns(workItemTypeInfo)
               .name("ToKeyedWorkItem");
 
-      KeyedStream<WindowedValue<KeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream =
+      KeyedStream<WindowedValue<KeyedWorkItem<K, InputT>>, FlinkKey> keyedWorkItemStream =
           workItemStream.keyBy(
-              new WorkItemKeySelector<>(
-                  inputKvCoder.getKeyCoder(),
-                  new SerializablePipelineOptions(context.getPipelineOptions())));
+              new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
 
       context.setOutputDataStream(context.getOutput(transform), keyedWorkItemStream);
     }

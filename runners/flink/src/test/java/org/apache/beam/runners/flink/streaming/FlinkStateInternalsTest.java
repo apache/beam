@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -64,7 +66,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
   @Override
   protected StateInternals createStateInternals() {
     try {
-      KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
+      KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
       return new FlinkStateInternals<>(
           keyedStateBackend,
           StringUtf8Coder.of(),
@@ -77,7 +79,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Test
   public void testWatermarkHoldsPersistence() throws Exception {
-    KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
+    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
     FlinkStateInternals stateInternals =
         new FlinkStateInternals<>(
             keyedStateBackend,
@@ -116,9 +118,9 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     assertThat(stateInternals.minWatermarkHoldMs(), is(low.getMillis()));
 
     // Watermark hold should be computed across all keys
-    ByteBuffer firstKey = keyedStateBackend.getCurrentKey();
+    FlinkKey firstKey = keyedStateBackend.getCurrentKey();
     changeKey(keyedStateBackend);
-    ByteBuffer secondKey = keyedStateBackend.getCurrentKey();
+    FlinkKey secondKey = keyedStateBackend.getCurrentKey();
     assertThat(firstKey, is(Matchers.not(secondKey)));
     assertThat(stateInternals.minWatermarkHoldMs(), is(low.getMillis()));
     // ..but be tracked per key / window
@@ -171,7 +173,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Test
   public void testGlobalWindowWatermarkHoldClear() throws Exception {
-    KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
+    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
     FlinkStateInternals<String> stateInternals =
         new FlinkStateInternals<>(
             keyedStateBackend,
@@ -187,13 +189,13 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     assertThat(state.read(), is((Instant) null));
   }
 
-  public static KeyedStateBackend<ByteBuffer> createStateBackend() throws Exception {
-    AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend =
+  public static KeyedStateBackend<FlinkKey> createStateBackend() throws Exception {
+    AbstractKeyedStateBackend<FlinkKey> keyedStateBackend =
         MemoryStateBackendWrapper.createKeyedStateBackend(
             new DummyEnvironment("test", 1, 0),
             new JobID(),
             "test_op",
-            new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
+            new ValueTypeInfo<>(FlinkKey.class).createSerializer(new ExecutionConfig()),
             2,
             new KeyGroupRange(0, 1),
             new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
@@ -207,10 +209,10 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     return keyedStateBackend;
   }
 
-  private static void changeKey(KeyedStateBackend<ByteBuffer> keyedStateBackend)
+  private static void changeKey(KeyedStateBackend<FlinkKey> keyedStateBackend)
       throws CoderException {
     keyedStateBackend.setCurrentKey(
-        ByteBuffer.wrap(
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), UUID.randomUUID().toString())));
+        FlinkKey.of(ByteBuffer.wrap(
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), UUID.randomUUID().toString()))));
   }
 }
