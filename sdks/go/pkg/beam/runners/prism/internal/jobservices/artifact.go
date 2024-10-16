@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
