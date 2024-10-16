@@ -110,11 +110,12 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(
         set(all_values), {v.value
                           for _, v in cumulative.gauges.items()})
-    self.assertEqual({str(i % 7)
-                      for i in all_values},
-                     functools.reduce(
-                         set.union,
-                         (v for _, v in cumulative.string_sets.items())))
+    self.assertEqual(
+        {str(i % 7)
+         for i in all_values},
+        functools.reduce(
+            set.union,
+            (v.string_set for _, v in cumulative.string_sets.items())))
 
 
 if __name__ == '__main__':

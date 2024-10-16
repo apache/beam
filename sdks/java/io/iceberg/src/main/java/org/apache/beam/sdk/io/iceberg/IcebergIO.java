@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -25,15 +24,8 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.AfterFirst;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -41,6 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -51,8 +44,8 @@ import org.joda.time.Duration;
  * A connector that reads and writes to <a href="https://iceberg.apache.org/">Apache Iceberg</a>
  * tables.
  *
- * <p>{@link IcebergIO} is offered as a {@link Managed} transform. This class is subject to change
- * and should not be used directly. Instead, use it via {@link Managed#ICEBERG} like so:
+ * <p>{@link IcebergIO} is offered as a Managed transform. This class is subject to change and
+ * should not be used directly. Instead, use it like so:
  *
  * <pre>{@code
  * Map<String, Object> config = Map.of(
@@ -113,6 +106,14 @@ import org.joda.time.Duration;
  * <p><b>Additional configuration options are provided in the `Pre-filtering Options` section below,
  * for Iceberg writes.</b>
  *
+ * <h3>Creating Tables</h3>
+ *
+ * <p>If an Iceberg table does not exist at the time of writing, this connector will automatically
+ * create one with the data's schema.
+ *
+ * <p>Note that this is a best-effort operation that depends on the {@link Catalog} implementation.
+ * Some implementations may not support creating a table using the Iceberg API.
+ *
  * <h3>Beam Rows</h3>
  *
  * <p>Being a Managed transform, this IO exclusively writes and reads using Beam {@link Row}s.
@@ -148,7 +149,16 @@ import org.joda.time.Duration;
  *     <td> DOUBLE </td> <td> DOUBLE </td>
  *   </tr>
  *   <tr>
- *     <td> DATETIME </td> <td> STRING </td>
+ *     <td> SqlTypes.DATETIME </td> <td> TIMESTAMP </td>
+ *   </tr>
+ *   <tr>
+ *     <td> DATETIME </td> <td> TIMESTAMPTZ </td>
+ *   </tr>
+ *   <tr>
+ *     <td> SqlTypes.DATE </td> <td> DATE </td>
+ *   </tr>
+ *   <tr>
+ *     <td> SqlTypes.TIME </td> <td> TIME </td>
  *   </tr>
  *   <tr>
  *     <td> ITERABLE </td> <td> LIST </td>
@@ -163,6 +173,29 @@ import org.joda.time.Duration;
  *     <td> ROW </td> <td> STRUCT </td>
  *   </tr>
  * </table>
+ *
+ * <p><b>Note:</b> {@code SqlTypes} are Beam logical types.
+ *
+ * <h3>Note on timestamps</h3>
+ *
+ * <p>For an existing table, the following Beam types are supported for both {@code timestamp} and
+ * {@code timestamptz}:
+ *
+ * <ul>
+ *   <li>{@code SqlTypes.DATETIME} --> Using a {@link java.time.LocalDateTime} object
+ *   <li>{@code DATETIME} --> Using a {@link org.joda.time.DateTime} object
+ *   <li>{@code INT64} --> Using a {@link Long} representing micros since EPOCH
+ *   <li>{@code STRING} --> Using a timestamp {@link String} representation (e.g. {@code
+ *       "2024-10-08T13:18:20.053+03:27"})
+ * </ul>
+ *
+ * <p><b>Note</b>: If you expect Beam to create the Iceberg table at runtime, please provide {@code
+ * SqlTypes.DATETIME} for a {@code timestamp} column and {@code DATETIME} for a {@code timestamptz}
+ * column. If the table does not exist, Beam will treat {@code STRING} and {@code INT64} at
+ * face-value and create equivalent column types.
+ *
+ * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for
+ * Iceberg's {@code timestamp} and {@code DATETIME} types for {@code timestamptz}.
  *
  * <h3>Dynamic Destinations</h3>
  *
@@ -288,7 +321,6 @@ public class IcebergIO {
 
   @AutoValue
   public abstract static class WriteRows extends PTransform<PCollection<Row>, IcebergWriteResult> {
-    private static final int TRIGGERING_RECORD_COUNT = 50_000;
 
     abstract IcebergCatalogConfig getCatalogConfig();
 
@@ -322,12 +354,14 @@ public class IcebergIO {
     }
 
     /**
-     * Sets the frequency at which data is committed and a new {@link org.apache.iceberg.Snapshot}
-     * is produced.
+     * Sets the frequency at which data is written to files and a new {@link
+     * org.apache.iceberg.Snapshot} is produced.
      *
-     * <p>Roughly every triggeringFrequency duration, this connector will try to accumulate all
-     * {@link org.apache.iceberg.ManifestFile}s and commit them to the table as appended files. Each
-     * commit results in a new table {@link org.apache.iceberg.Snapshot}.
+     * <p>Roughly every triggeringFrequency duration, records are written to data files and appended
+     * to the respective table. Each append operation creates a new table snapshot.
+     *
+     * <p>Generally speaking, increasing this duration will result in fewer, larger data files and
+     * fewer snapshots.
      *
      * <p>This is only applicable when writing an unbounded {@link PCollection} (i.e. a streaming
      * pipeline).
@@ -350,34 +384,13 @@ public class IcebergIO {
                 Preconditions.checkNotNull(getTableIdentifier()), input.getSchema());
       }
 
-      // Assign destinations before re-windowing to global because
+      // Assign destinations before re-windowing to global in WriteToDestinations because
       // user's dynamic destination may depend on windowing properties
-      PCollection<Row> assignedRows =
-          input.apply("Set Destination Metadata", new AssignDestinations(destinations));
-
-      if (assignedRows.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
-        Duration triggeringFrequency = getTriggeringFrequency();
-        checkArgumentNotNull(
-            triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
-        assignedRows =
-            assignedRows.apply(
-                "WindowIntoGlobal",
-                Window.<Row>into(new GlobalWindows())
-                    .triggering(
-                        Repeatedly.forever(
-                            AfterFirst.of(
-                                AfterProcessingTime.pastFirstElementInPane()
-                                    .plusDelayOf(triggeringFrequency),
-                                AfterPane.elementCountAtLeast(TRIGGERING_RECORD_COUNT))))
-                    .discardingFiredPanes());
-      } else {
-        Preconditions.checkArgument(
-            getTriggeringFrequency() == null,
-            "Triggering frequency is only applicable for streaming pipelines.");
-      }
-      return assignedRows.apply(
-          "Write Rows to Destinations",
-          new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
+      return input
+          .apply("Assign Table Destinations", new AssignDestinations(destinations))
+          .apply(
+              "Write Rows to Destinations",
+              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
     }
   }
 

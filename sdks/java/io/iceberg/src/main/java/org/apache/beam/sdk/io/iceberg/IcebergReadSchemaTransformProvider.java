@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -53,7 +55,7 @@ public class IcebergReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return ManagedTransformConstants.ICEBERG_READ;
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ);
   }
 
   static class IcebergReadSchemaTransform extends SchemaTransform {

@@ -80,9 +80,6 @@ public class IcebergIOWriteTest implements Serializable {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
-    // Create a table and add records to it.
-    Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()
             .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
@@ -104,6 +101,7 @@ public class IcebergIOWriteTest implements Serializable {
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");
 
+    Table table = warehouse.loadTable(tableId);
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
 
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
@@ -116,11 +114,6 @@ public class IcebergIOWriteTest implements Serializable {
     final TableIdentifier table1Id = TableIdentifier.of("default", "table1-" + salt);
     final TableIdentifier table2Id = TableIdentifier.of("default", "table2-" + salt);
     final TableIdentifier table3Id = TableIdentifier.of("default", "table3-" + salt);
-
-    // Create a table and add records to it.
-    Table table1 = warehouse.createTable(table1Id, TestFixtures.SCHEMA);
-    Table table2 = warehouse.createTable(table2Id, TestFixtures.SCHEMA);
-    Table table3 = warehouse.createTable(table3Id, TestFixtures.SCHEMA);
 
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()
@@ -176,6 +169,10 @@ public class IcebergIOWriteTest implements Serializable {
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");
+
+    Table table1 = warehouse.loadTable(table1Id);
+    Table table2 = warehouse.loadTable(table2Id);
+    Table table3 = warehouse.loadTable(table3Id);
 
     List<Record> writtenRecords1 = ImmutableList.copyOf(IcebergGenerics.read(table1).build());
     List<Record> writtenRecords2 = ImmutableList.copyOf(IcebergGenerics.read(table2).build());
@@ -320,9 +317,6 @@ public class IcebergIOWriteTest implements Serializable {
         TableIdentifier.of(
             "default", "streaming_" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
-    // Create a table and add records to it.
-    Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()
             .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
@@ -362,8 +356,10 @@ public class IcebergIOWriteTest implements Serializable {
             .getSnapshots();
     // verify that 2 snapshots are created (one per triggering interval)
     PCollection<Long> snapshots = output.apply(Count.globally());
-    PAssert.that(snapshots).containsInAnyOrder(1L, 1L);
+    PAssert.that(snapshots).containsInAnyOrder(2L);
     testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
 
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));

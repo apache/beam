@@ -213,6 +213,24 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_sql(self):
     raise unittest.SkipTest("Requires an expansion service to execute.")
 
+  # The following tests require additional implementation in Prism.
+
+  def test_custom_merging_window(self):
+    raise unittest.SkipTest(
+        "Requires Prism to support Custom Window " +
+        "Coders, and Merging Custom Windows. " +
+        "https://github.com/apache/beam/issues/31921")
+
+  def test_custom_window_type(self):
+    raise unittest.SkipTest(
+        "Requires Prism to support Custom Window Coders." +
+        " https://github.com/apache/beam/issues/31921")
+
+  def test_pack_combiners(self):
+    raise unittest.SkipTest(
+        "Requires Prism to support coder:" +
+        " 'beam:coder:tuple:v1'. https://github.com/apache/beam/issues/32636")
+
 
 # Inherits all other tests.
 

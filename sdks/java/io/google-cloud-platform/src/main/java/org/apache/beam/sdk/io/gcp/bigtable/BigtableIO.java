@@ -2021,10 +2021,9 @@ public class BigtableIO {
         reader.close();
         reader = null;
       }
-      if (serviceEntry != null) {
-        serviceEntry.close();
-        serviceEntry = null;
-      }
+      // Skipping closing the service entry on each bundle.
+      // In the future we'll close the Bigtable client in
+      // teardown.
     }
 
     @Override

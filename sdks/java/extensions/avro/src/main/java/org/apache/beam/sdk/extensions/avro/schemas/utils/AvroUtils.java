@@ -814,6 +814,9 @@ public class AvroUtils {
 
     @Override
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      Map<java.lang.reflect.Type, java.lang.reflect.Type> boundTypes =
+          ReflectUtils.getAllBoundTypes(typeDescriptor);
+
       Map<String, String> mapping = getMapping(schema);
       List<Method> methods = ReflectUtils.getMethods(typeDescriptor.getRawType());
       List<FieldValueTypeInformation> types = Lists.newArrayList();
@@ -821,7 +824,7 @@ public class AvroUtils {
         Method method = methods.get(i);
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
-              FieldValueTypeInformation.forGetter(method, i);
+              FieldValueTypeInformation.forGetter(method, i, boundTypes);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
             types.add(fieldValueTypeInformation.withName(name));
@@ -865,13 +868,16 @@ public class AvroUtils {
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      Map<java.lang.reflect.Type, java.lang.reflect.Type> boundTypes =
+          ReflectUtils.getAllBoundTypes(typeDescriptor);
       List<java.lang.reflect.Field> classFields =
           ReflectUtils.getFields(typeDescriptor.getRawType());
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (int i = 0; i < classFields.size(); ++i) {
         java.lang.reflect.Field f = classFields.get(i);
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
-          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f, i);
+          FieldValueTypeInformation typeInformation =
+              FieldValueTypeInformation.forField(f, i, boundTypes);
           AvroName avroname = f.getAnnotation(AvroName.class);
           if (avroname != null) {
             typeInformation = typeInformation.withName(avroname.value());
