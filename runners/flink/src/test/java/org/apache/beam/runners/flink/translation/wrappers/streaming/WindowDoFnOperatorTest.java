@@ -30,7 +30,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
-
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -75,7 +74,7 @@ public class WindowDoFnOperatorTest {
   public void testRestore() throws Exception {
     // test harness
     KeyedOneInputStreamOperatorTestHarness<
-        FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
+            FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
         testHarness = createTestHarness(getWindowDoFnOperator(true));
     testHarness.open();
 

@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.flink.adapter;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -25,12 +30,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
-
-import javax.annotation.Nullable;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 public class FlinkKey implements Value {
 
@@ -77,7 +76,7 @@ public class FlinkKey implements Value {
 
   @Override
   public int hashCode() {
-//    return underlying.hashCode();
+    //    return underlying.hashCode();
     return Hashing.murmur3_128().hashBytes(underlying.array()).asInt();
   }
 

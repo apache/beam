@@ -17,10 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import java.nio.ByteBuffer;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
-import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -32,8 +29,8 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 /**
  * {@link KeySelector} that retrieves a key from a {@code KV<KV<element, KV<restriction,
  * watermarkState>>, size>}. This will return the element as encoded by the provided {@link Coder}
- * in a {@link FlinkKey}. This ensures that all key comparisons/hashing happen on the encoded
- * form. Note that the reason we don't use the whole {@code KV<KV<element, KV<restriction,
+ * in a {@link FlinkKey}. This ensures that all key comparisons/hashing happen on the encoded form.
+ * Note that the reason we don't use the whole {@code KV<KV<element, KV<restriction,
  * watermarkState>>, Double>} as the key is when checkpoint happens, we will get different
  * restriction/watermarkState/size, which Flink treats as a new key. Using new key to set state and
  * timer may cause defined behavior.

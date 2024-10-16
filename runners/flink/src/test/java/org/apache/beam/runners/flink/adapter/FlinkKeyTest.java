@@ -17,6 +17,16 @@
  */
 package org.apache.beam.runners.flink.adapter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -26,17 +36,6 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.util.MathUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Test;
-
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.not;
 
 public class FlinkKeyTest {
   @Test
@@ -48,7 +47,8 @@ public class FlinkKeyTest {
 
     assertThat(tpe, IsInstanceOf.instanceOf(ValueTypeInfo.class));
 
-    TypeInformation<Tuple2<FlinkKey, byte[]>> tupleTpe = TypeExtractor.getForObject(Tuple2.of(key, bs));
+    TypeInformation<Tuple2<FlinkKey, byte[]>> tupleTpe =
+        TypeExtractor.getForObject(Tuple2.of(key, bs));
     assertThat(tupleTpe, not(IsInstanceOf.instanceOf(GenericTypeInfo.class)));
   }
 
@@ -67,10 +67,11 @@ public class FlinkKeyTest {
   private void checkDistribution(int numKeys) {
     int paralellism = 2100;
 
-    Set<Integer> hashcodes = IntStream.range(0, numKeys)
-        .mapToObj(i -> FlinkKey.of(i, VarIntCoder.of()))
-        .map(k -> k.hashCode())
-        .collect(Collectors.toSet());
+    Set<Integer> hashcodes =
+        IntStream.range(0, numKeys)
+            .mapToObj(i -> FlinkKey.of(i, VarIntCoder.of()))
+            .map(k -> k.hashCode())
+            .collect(Collectors.toSet());
 
     Set<Integer> keyGroups =
         hashcodes.stream()

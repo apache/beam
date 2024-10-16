@@ -434,8 +434,7 @@ public class FlinkStreamingPortablePipelineTranslator
         new WorkItemKeySelector<>(inputElementCoder.getKeyCoder());
 
     KeyedStream<WindowedValue<KV<K, V>>, FlinkKey> keyedWorkItemStream =
-        inputDataStream.keyBy(
-            new KvToFlinkKeyKeySelector(inputElementCoder.getKeyCoder()));
+        inputDataStream.keyBy(new KvToFlinkKeyKeySelector(inputElementCoder.getKeyCoder()));
 
     SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn =
         SystemReduceFn.buffering(inputElementCoder.getValueCoder());
@@ -829,8 +828,7 @@ public class FlinkStreamingPortablePipelineTranslator
       }
       if (stateful) {
         keyCoder = ((KvCoder) valueCoder).getKeyCoder();
-        keySelector =
-            new KvToFlinkKeyKeySelector(keyCoder);
+        keySelector = new KvToFlinkKeyKeySelector(keyCoder);
       } else {
         // For an SDF, we know that the input element should be
         // KV<KV<element, KV<restriction, watermarkState>>, size>. We are going to use the element
@@ -844,8 +842,7 @@ public class FlinkStreamingPortablePipelineTranslator
                   valueCoder.getClass().getSimpleName()));
         }
         keyCoder = ((KvCoder) ((KvCoder) valueCoder).getKeyCoder()).getKeyCoder();
-        keySelector =
-            new SdfFlinkKeyKeySelector(keyCoder);
+        keySelector = new SdfFlinkKeyKeySelector(keyCoder);
       }
       inputDataStream = inputDataStream.keyBy(keySelector);
     }

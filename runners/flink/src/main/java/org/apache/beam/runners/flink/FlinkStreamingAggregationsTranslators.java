@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -58,14 +63,9 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 public class FlinkStreamingAggregationsTranslators {
-  public static class ConcatenateAsIterable<T> extends Combine.CombineFn<T, Iterable<T>, Iterable<T>> {
+  public static class ConcatenateAsIterable<T>
+      extends Combine.CombineFn<T, Iterable<T>, Iterable<T>> {
     @Override
     public Iterable<T> createAccumulator() {
       return new ArrayList<>();
@@ -214,8 +214,7 @@ public class FlinkStreamingAggregationsTranslators {
         WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
     // Key selector
-    WorkItemKeySelector<K, InputAccumT> workItemKeySelector =
-        new WorkItemKeySelector<>(keyCoder);
+    WorkItemKeySelector<K, InputAccumT> workItemKeySelector = new WorkItemKeySelector<>(keyCoder);
 
     return new WindowDoFnOperator<>(
         reduceFn,
@@ -257,29 +256,30 @@ public class FlinkStreamingAggregationsTranslators {
   }
 
   private static class FlattenIterable<K, InputT>
-      implements FlatMapFunction<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>, WindowedValue<KV<K, Iterable<InputT>>>> {
+      implements FlatMapFunction<
+          WindowedValue<KV<K, Iterable<Iterable<InputT>>>>,
+          WindowedValue<KV<K, Iterable<InputT>>>> {
     @Override
     public void flatMap(
         WindowedValue<KV<K, Iterable<Iterable<InputT>>>> w,
-        Collector<WindowedValue<KV<K, Iterable<InputT>>>> collector) throws Exception {
-      WindowedValue<KV<K, Iterable<InputT>>> flattened = w.withValue(
-          KV.of(
-              w.getValue().getKey(),
-              Iterables.concat(w.getValue().getValue())));
+        Collector<WindowedValue<KV<K, Iterable<InputT>>>> collector)
+        throws Exception {
+      WindowedValue<KV<K, Iterable<InputT>>> flattened =
+          w.withValue(KV.of(w.getValue().getKey(), Iterables.concat(w.getValue().getValue())));
       collector.collect(flattened);
     }
   }
 
   public static <K, InputT, AccumT, OutputT>
-    SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> getBatchCombinePerKeyOperator(
-        FlinkStreamingTranslationContext context,
-        PCollection<KV<K, InputT>> input,
-        Map<Integer, PCollectionView<?>> sideInputTagMapping,
-        List<PCollectionView<?>> sideInputs,
-        Coder<WindowedValue<KV<K, AccumT>>> windowedAccumCoder,
-        CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
-        WindowDoFnOperator<K, AccumT, OutputT> finalDoFnOperator,
-        TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo){
+      SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> getBatchCombinePerKeyOperator(
+          FlinkStreamingTranslationContext context,
+          PCollection<KV<K, InputT>> input,
+          Map<Integer, PCollectionView<?>> sideInputTagMapping,
+          List<PCollectionView<?>> sideInputs,
+          Coder<WindowedValue<KV<K, AccumT>>> windowedAccumCoder,
+          CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
+          WindowDoFnOperator<K, AccumT, OutputT> finalDoFnOperator,
+          TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo) {
 
     String fullName = FlinkStreamingTransformTranslators.getCurrentTransformName(context);
     DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
@@ -314,50 +314,55 @@ public class FlinkStreamingAggregationsTranslators {
     if (sideInputs.isEmpty()) {
       return inputDataStream
           .transform(partialName, partialTypeInfo, partialDoFnOperator)
-          .uid(partialName).name(partialName)
+          .uid(partialName)
+          .name(partialName)
           .keyBy(accumKeySelector)
           .transform(fullName, outputTypeInfo, finalDoFnOperator)
-          .uid(fullName).name(fullName);
+          .uid(fullName)
+          .name(fullName);
     } else {
 
       Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs =
           FlinkStreamingTransformTranslators.transformSideInputs(sideInputs, context);
 
       TwoInputTransformation<
-          WindowedValue<KV<K, InputT>>, RawUnionValue, WindowedValue<KV<K, AccumT>>> rawPartialFlinkTransform =
-          new TwoInputTransformation<>(
-              inputDataStream.getTransformation(),
-              transformSideInputs.f1.broadcast().getTransformation(),
-              partialName,
-              partialDoFnOperator,
-              partialTypeInfo,
-              inputDataStream.getParallelism());
+              WindowedValue<KV<K, InputT>>, RawUnionValue, WindowedValue<KV<K, AccumT>>>
+          rawPartialFlinkTransform =
+              new TwoInputTransformation<>(
+                  inputDataStream.getTransformation(),
+                  transformSideInputs.f1.broadcast().getTransformation(),
+                  partialName,
+                  partialDoFnOperator,
+                  partialTypeInfo,
+                  inputDataStream.getParallelism());
 
       SingleOutputStreamOperator<WindowedValue<KV<K, AccumT>>> partialyCombinedStream =
           new SingleOutputStreamOperator<WindowedValue<KV<K, AccumT>>>(
               inputDataStream.getExecutionEnvironment(),
               rawPartialFlinkTransform) {}; // we have to cheat around the ctor being protected
 
-        inputDataStream.getExecutionEnvironment().addOperator(rawPartialFlinkTransform);
+      inputDataStream.getExecutionEnvironment().addOperator(rawPartialFlinkTransform);
 
-        return buildTwoInputStream(
-            partialyCombinedStream.keyBy(accumKeySelector),
-            transformSideInputs.f1,
-            fullName,
-            finalDoFnOperator,
-            outputTypeInfo);
+      return buildTwoInputStream(
+          partialyCombinedStream.keyBy(accumKeySelector),
+          transformSideInputs.f1,
+          fullName,
+          finalDoFnOperator,
+          outputTypeInfo);
     }
   }
 
   /**
-   * Creates a two-steps GBK operation. Elements are first aggregated locally to save on serialized size since in batch
-   * it's very likely that all the elements will be within the same window and pane.
-   * The only difference with batchCombinePerKey is the nature of the SystemReduceFn used. It uses SystemReduceFn.buffering()
-   * instead of SystemReduceFn.combining() so that new element can simply be appended without accessing the existing state.
+   * Creates a two-steps GBK operation. Elements are first aggregated locally to save on serialized
+   * size since in batch it's very likely that all the elements will be within the same window and
+   * pane. The only difference with batchCombinePerKey is the nature of the SystemReduceFn used. It
+   * uses SystemReduceFn.buffering() instead of SystemReduceFn.combining() so that new element can
+   * simply be appended without accessing the existing state.
    */
-  public static <K, InputT> SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> batchGroupByKey(
-      FlinkStreamingTranslationContext context,
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform) {
+  public static <K, InputT>
+      SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> batchGroupByKey(
+          FlinkStreamingTranslationContext context,
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform) {
 
     Map<Integer, PCollectionView<?>> sideInputTagMapping = new HashMap<>();
     List<PCollectionView<?>> sideInputs = Collections.emptyList();
@@ -372,7 +377,8 @@ public class FlinkStreamingAggregationsTranslators {
         context.getTypeInfo(context.getOutput(transform));
 
     Coder<Iterable<InputT>> accumulatorCoder = IterableCoder.of(inputKvCoder.getValueCoder());
-    KvCoder<K, Iterable<InputT>> accumKvCoder = KvCoder.of(inputKvCoder.getKeyCoder(), accumulatorCoder);
+    KvCoder<K, Iterable<InputT>> accumKvCoder =
+        KvCoder.of(inputKvCoder.getKeyCoder(), accumulatorCoder);
 
     Coder<WindowedValue<KV<K, Iterable<InputT>>>> windowedAccumCoder =
         WindowedValue.getFullCoder(
@@ -380,50 +386,55 @@ public class FlinkStreamingAggregationsTranslators {
 
     Coder<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>> outputCoder =
         WindowedValue.getFullCoder(
-            KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(accumulatorCoder)) , input.getWindowingStrategy().getWindowFn().windowCoder());
+            KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(accumulatorCoder)),
+            input.getWindowingStrategy().getWindowFn().windowCoder());
 
     TypeInformation<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>> accumulatedTypeInfo =
         new CoderTypeInformation<>(
-          WindowedValue.getFullCoder(
-              KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(IterableCoder.of(inputKvCoder.getValueCoder()))), input.getWindowingStrategy().getWindowFn().windowCoder()),
+            WindowedValue.getFullCoder(
+                KvCoder.of(
+                    inputKvCoder.getKeyCoder(),
+                    IterableCoder.of(IterableCoder.of(inputKvCoder.getValueCoder()))),
+                input.getWindowingStrategy().getWindowFn().windowCoder()),
             serializablePipelineOptions);
 
     // final aggregation
     WindowDoFnOperator<K, Iterable<InputT>, Iterable<Iterable<InputT>>> finalDoFnOperator =
-          getWindowedAccumulateDoFnOperator(
-              context,
-              transform,
-              accumKvCoder,
-              outputCoder,
-              sideInputTagMapping,
-              sideInputs);
+        getWindowedAccumulateDoFnOperator(
+            context, transform, accumKvCoder, outputCoder, sideInputTagMapping, sideInputs);
 
-    return
-        getBatchCombinePerKeyOperator(
-          context,
-          input,
-          sideInputTagMapping,
-          sideInputs,
-          windowedAccumCoder,
-          new ConcatenateAsIterable<>(),
-          finalDoFnOperator,
-          accumulatedTypeInfo
-      )
-      .flatMap(new FlattenIterable<>(), outputTypeInfo)
-      .name("concatenate");
+    return getBatchCombinePerKeyOperator(
+            context,
+            input,
+            sideInputTagMapping,
+            sideInputs,
+            windowedAccumCoder,
+            new ConcatenateAsIterable<>(),
+            finalDoFnOperator,
+            accumulatedTypeInfo)
+        .flatMap(new FlattenIterable<>(), outputTypeInfo)
+        .name("concatenate");
   }
 
-  private static <InputT, K> WindowDoFnOperator<K, Iterable<InputT>, Iterable<Iterable<InputT>>> getWindowedAccumulateDoFnOperator(
-      FlinkStreamingTranslationContext context,
-      PTransform<PCollection<KV<K,InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
-      KvCoder<K, Iterable<InputT>> accumKvCoder,
-      Coder<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>> outputCoder,
-      Map<Integer, PCollectionView<?>> sideInputTagMapping,
-      List<PCollectionView<?>> sideInputs) {
+  private static <InputT, K>
+      WindowDoFnOperator<K, Iterable<InputT>, Iterable<Iterable<InputT>>>
+          getWindowedAccumulateDoFnOperator(
+              FlinkStreamingTranslationContext context,
+              PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>
+                  transform,
+              KvCoder<K, Iterable<InputT>> accumKvCoder,
+              Coder<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>> outputCoder,
+              Map<Integer, PCollectionView<?>> sideInputTagMapping,
+              List<PCollectionView<?>> sideInputs) {
 
-      // Combining fn
-    SystemReduceFn<K, Iterable<InputT>, Iterable<Iterable<InputT>>, Iterable<Iterable<InputT>>, BoundedWindow> reduceFn =
-        SystemReduceFn.buffering(accumKvCoder.getValueCoder());
+    // Combining fn
+    SystemReduceFn<
+            K,
+            Iterable<InputT>,
+            Iterable<Iterable<InputT>>,
+            Iterable<Iterable<InputT>>,
+            BoundedWindow>
+        reduceFn = SystemReduceFn.buffering(accumKvCoder.getValueCoder());
 
     return getWindowedAggregateDoFnOperator(
         context, transform, accumKvCoder, outputCoder, reduceFn, sideInputTagMapping, sideInputs);
@@ -482,8 +493,7 @@ public class FlinkStreamingAggregationsTranslators {
         windowedAccumCoder,
         combineFn,
         finalDoFnOperator,
-        outputTypeInfo
-    );
+        outputTypeInfo);
   }
 
   @SuppressWarnings({

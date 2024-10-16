@@ -791,9 +791,7 @@ public class ExecutableStageDoFnOperatorTest {
             FlinkKey, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
-                operator,
-                operator.keySelector,
-                ValueTypeInfo.of(FlinkKey.class));
+                operator, operator.keySelector, ValueTypeInfo.of(FlinkKey.class));
 
     testHarness.open();
 
@@ -941,9 +939,7 @@ public class ExecutableStageDoFnOperatorTest {
             FlinkKey, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
-                operator,
-                operator.keySelector,
-                ValueTypeInfo.of(FlinkKey.class));
+                operator, operator.keySelector, ValueTypeInfo.of(FlinkKey.class));
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(bundle.getInputReceivers())

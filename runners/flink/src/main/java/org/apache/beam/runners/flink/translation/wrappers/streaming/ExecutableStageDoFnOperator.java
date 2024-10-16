@@ -562,8 +562,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
     @Override
     public TimerInternals timerInternalsForKey(InputT key) {
       try {
-        FlinkKey encodedKey =
-            (FlinkKey) keySelector.getKey(WindowedValue.valueInGlobalWindow(key));
+        FlinkKey encodedKey = (FlinkKey) keySelector.getKey(WindowedValue.valueInGlobalWindow(key));
         return new SdfFlinkTimerInternals(encodedKey);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't get a timer internals", e);
@@ -659,8 +658,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
     @Override
     public StateInternals stateInternalsForKey(InputT key) {
       try {
-        FlinkKey encodedKey =
-            (FlinkKey) keySelector.getKey(WindowedValue.valueInGlobalWindow(key));
+        FlinkKey encodedKey = (FlinkKey) keySelector.getKey(WindowedValue.valueInGlobalWindow(key));
         return new SdfFlinkStateInternals(encodedKey);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't get a state internals", e);
@@ -1259,7 +1257,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
           cleanupTimer.setCleanupTimer(window);
         } else {
           if (LOG.isDebugEnabled()) {
-            LOG.debug("State cleanup for {} {}", Arrays.toString(kv.getKey().getSerializedKey().array()), window);
+            LOG.debug(
+                "State cleanup for {} {}",
+                Arrays.toString(kv.getKey().getSerializedKey().array()),
+                window);
           }
           // No more timers (finally!). Time to clean up.
           for (String userState : userStateNames) {

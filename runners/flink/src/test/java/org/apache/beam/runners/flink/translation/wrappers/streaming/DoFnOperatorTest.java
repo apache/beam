@@ -376,9 +376,7 @@ public class DoFnOperatorTest {
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            keySelector,
-            ValueTypeInfo.of(FlinkKey.class));
+            doFnOperator, keySelector, ValueTypeInfo.of(FlinkKey.class));
 
     testHarness.setup(
         new CoderTypeSerializer<>(
@@ -544,9 +542,7 @@ public class DoFnOperatorTest {
             WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness<>(
-                doFnOperator,
-                keySelector,
-                ValueTypeInfo.of(FlinkKey.class));
+                doFnOperator, keySelector, ValueTypeInfo.of(FlinkKey.class));
 
     testHarness.setup();
 
@@ -638,9 +634,7 @@ public class DoFnOperatorTest {
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            keySelector,
-            ValueTypeInfo.of(FlinkKey.class));
+            doFnOperator, keySelector, ValueTypeInfo.of(FlinkKey.class));
 
     testHarness.open();
 
@@ -887,9 +881,7 @@ public class DoFnOperatorTest {
             Collections.emptyMap());
 
     return new KeyedOneInputStreamOperatorTestHarness<>(
-        doFnOperator,
-        keySelector,
-        ValueTypeInfo.of(FlinkKey.class));
+        doFnOperator, keySelector, ValueTypeInfo.of(FlinkKey.class));
   }
 
   @Test
@@ -943,10 +935,7 @@ public class DoFnOperatorTest {
       // we use a dummy key for the second input since it is considered to be broadcast
       testHarness =
           new KeyedTwoInputStreamOperatorTestHarness<>(
-              doFnOperator,
-              keySelector,
-              null,
-              ValueTypeInfo.of(FlinkKey.class));
+              doFnOperator, keySelector, null, ValueTypeInfo.of(FlinkKey.class));
     }
 
     testHarness.open();
@@ -1035,16 +1024,14 @@ public class DoFnOperatorTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>("main-output");
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToFlinkKeyKeySelector<String, Long> keySelector =
-        new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvToFlinkKeyKeySelector<String, Long> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
 
     KvCoder<String, Long> coder = KvCoder.of(keyCoder, VarLongCoder.of());
 
     FullWindowedValueCoder<KV<String, Long>> kvCoder =
         WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
 
-    TypeInformation<FlinkKey> keyCoderInfo =
-        ValueTypeInfo.of(FlinkKey.class);
+    TypeInformation<FlinkKey> keyCoderInfo = ValueTypeInfo.of(FlinkKey.class);
 
     OneInputStreamOperatorTestHarness<
             WindowedValue<KV<String, Long>>, WindowedValue<KV<String, Long>>>
@@ -1666,8 +1653,7 @@ public class DoFnOperatorTest {
   public void testBundleKeyed() throws Exception {
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToFlinkKeyKeySelector<String, String> keySelector =
-        new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
     KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
     WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(kvCoder);
@@ -2114,8 +2100,7 @@ public class DoFnOperatorTest {
     TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToFlinkKeyKeySelector<String, String> keySelector =
-        new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
     KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
     WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(kvCoder);
@@ -2246,8 +2231,7 @@ public class DoFnOperatorTest {
     TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToFlinkKeyKeySelector<String, String> keySelector =
-        new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
     KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
     WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(kvCoder);

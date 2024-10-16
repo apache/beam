@@ -105,7 +105,6 @@ import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTim
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.configuration.Configuration;
@@ -591,8 +590,7 @@ class FlinkStreamingTransformTranslators {
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed
         keyCoder = ((KvCoder) input.getCoder()).getKeyCoder();
-        keySelector =
-            new KvToFlinkKeyKeySelector<>(keyCoder);
+        keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
         final PTransform<?, PCollection<InputT>> producer = context.getProducer(input);
         final String previousUrn =
             producer != null
@@ -609,8 +607,7 @@ class FlinkStreamingTransformTranslators {
       } else if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
         // we know that it is keyed on byte[]
         keyCoder = ByteArrayCoder.of();
-        keySelector =
-            new WorkItemKeySelector<>(keyCoder);
+        keySelector = new WorkItemKeySelector<>(keyCoder);
         stateful = true;
       }
 
@@ -962,10 +959,7 @@ class FlinkStreamingTransformTranslators {
       SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> outDataStream;
       // Pre-aggregate before shuffle similar to group combine
       if (!context.isStreaming()) {
-        outDataStream =
-            FlinkStreamingAggregationsTranslators.batchGroupByKey(
-                context,
-                transform);
+        outDataStream = FlinkStreamingAggregationsTranslators.batchGroupByKey(context, transform);
       } else {
         // No pre-aggregation in Streaming mode.
         KvToFlinkKeyKeySelector<K, InputT> keySelector =
@@ -1046,8 +1040,7 @@ class FlinkStreamingTransformTranslators {
       List<PCollectionView<?>> sideInputs = ((Combine.PerKey) transform).getSideInputs();
 
       KeyedStream<WindowedValue<KV<K, InputT>>, FlinkKey> keyedStream =
-          inputDataStream.keyBy(
-              new KvToFlinkKeyKeySelector<>(keyCoder));
+          inputDataStream.keyBy(new KvToFlinkKeyKeySelector<>(keyCoder));
 
       if (sideInputs.isEmpty()) {
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream;
@@ -1147,8 +1140,7 @@ class FlinkStreamingTransformTranslators {
               .name("ToKeyedWorkItem");
 
       KeyedStream<WindowedValue<KeyedWorkItem<K, InputT>>, FlinkKey> keyedWorkItemStream =
-          workItemStream.keyBy(
-              new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
+          workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
 
       context.setOutputDataStream(context.getOutput(transform), keyedWorkItemStream);
     }

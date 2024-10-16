@@ -40,7 +40,6 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -212,7 +211,8 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
   private static void changeKey(KeyedStateBackend<FlinkKey> keyedStateBackend)
       throws CoderException {
     keyedStateBackend.setCurrentKey(
-        FlinkKey.of(ByteBuffer.wrap(
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), UUID.randomUUID().toString()))));
+        FlinkKey.of(
+            ByteBuffer.wrap(
+                CoderUtils.encodeToByteArray(StringUtf8Coder.of(), UUID.randomUUID().toString()))));
   }
 }
