@@ -8,7 +8,7 @@ aliases:
 authors:
   - liferoad
   - damccorm
-  - rezarokni
+  - rez
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

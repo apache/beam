@@ -27,8 +27,8 @@ require (
 	cloud.google.com/go/bigtable v1.33.0
 	cloud.google.com/go/datastore v1.19.0
 	cloud.google.com/go/profiler v0.4.1
-	cloud.google.com/go/pubsub v1.43.0
-	cloud.google.com/go/spanner v1.67.0
+	cloud.google.com/go/pubsub v1.44.0
+	cloud.google.com/go/spanner v1.70.0
 	cloud.google.com/go/storage v1.44.0
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.43
@@ -49,7 +49,7 @@ require (
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.8.1
 	github.com/testcontainers/testcontainers-go v0.33.0
-	github.com/tetratelabs/wazero v1.8.0
+	github.com/tetratelabs/wazero v1.8.1
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	go.mongodb.org/mongo-driver v1.17.1
