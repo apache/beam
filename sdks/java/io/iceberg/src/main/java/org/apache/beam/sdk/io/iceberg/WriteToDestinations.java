@@ -139,6 +139,6 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)
-        .apply("Flatten Written Files", Flatten.pCollections());
+        .apply("Flatten Written Files ", Flatten.pCollections());
   }
 }
