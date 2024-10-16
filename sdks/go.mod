@@ -20,7 +20,7 @@
 // directory.
 module github.com/apache/beam/sdks/v2
 
-go 1.21
+go 1.21.0
 
 require (
 	cloud.google.com/go/bigquery v1.63.0
@@ -69,6 +69,8 @@ require (
 require (
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/fsouza/fake-gcs-server v1.49.2
+	github.com/golang-cz/devslog v0.0.11
+	github.com/golang/protobuf v1.5.4
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 )
 
