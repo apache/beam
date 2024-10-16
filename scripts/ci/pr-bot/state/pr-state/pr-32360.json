@@ -4,7 +4,7 @@
     "java": "Abacn",
     "io": "johnjcasey"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
