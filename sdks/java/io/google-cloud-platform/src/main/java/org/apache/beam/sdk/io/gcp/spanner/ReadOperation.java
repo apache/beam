@@ -24,6 +24,9 @@ import com.google.cloud.spanner.Statement;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a spanner read operation. */
@@ -115,5 +118,29 @@ public abstract class ReadOperation implements Serializable {
 
   public ReadOperation withPartitionOptions(PartitionOptions partitionOptions) {
     return toBuilder().setPartitionOptions(partitionOptions).build();
+  }
+
+  private static final Pattern queryPattern =
+      Pattern.compile(
+          "SELECT\\s+.+FROM\\s+\\[?(?<table>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+  /**
+   * Get table name associated with this operation.
+   *
+   * <p>Currently only supports explicitly set table, and limited cases of set query. Return null
+   * for unsupported cases.
+   */
+  @Nullable
+  String tryGetTableName() {
+    if (!Strings.isNullOrEmpty(getTable())) {
+      return getTable();
+    } else if (getQuery() != null) {
+      String query = getQuery().getSql();
+      System.err.println(query);
+      Matcher matcher = queryPattern.matcher(query);
+      if (matcher.find()) {
+        return matcher.group("table");
+      }
+    }
+    return null;
   }
 }

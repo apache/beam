@@ -202,7 +202,6 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/download-artifact@v4.1.8
         with:
           name: source_zip
@@ -211,7 +210,7 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
+    name: Build python ${{matrix.py_version}} wheels on ${{matrix.os_python.arch}} for ${{ matrix.os_python.os }}
     needs:
       - check_env_variables
       - build_source
@@ -229,18 +228,16 @@ jobs:
           {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
           {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
-        # Keep in sync with PY_VERSIONS_FULL env var abvove - if changed, change that as well.
-        py_version: ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
+        # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
+        py_version: ["cp38-", "cp39-", "cp310-", "cp311-", "cp312-"]
     steps:
     - name: Download python source distribution from artifacts
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v4.1.8
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v4.1.8
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
@@ -260,7 +257,7 @@ jobs:
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source
       env:
-        CIBW_BUILD: ${{ matrix.py_version }}
+        CIBW_BUILD: ${{ matrix.py_version }}*
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
@@ -279,17 +276,16 @@ jobs:
       shell: bash
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      # Pinned to v3 because of https://github.com/actions/upload-artifact?tab=readme-ov-file#breaking-changes
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
+        name: wheelhouse-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
     - name: Build RC wheels
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ needs.build_source.outputs.is_rc == 1 && contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source-rc
       env:
-        CIBW_BUILD: ${{ matrix.py_version }}
+        CIBW_BUILD: ${{ matrix.py_version }}*
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
@@ -305,10 +301,9 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
+        name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source-rc/wheelhouse/
 
   upload_wheels_to_gcs:
@@ -318,21 +313,12 @@ jobs:
       - check_env_variables
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
-    strategy:
-      matrix:
-        # Temporarily pin to macos-13 because macos-latest breaks this build
-        # TODO(https://github.com/apache/beam/issues/31114)
-        os : [ubuntu-20.04, macos-13, windows-latest]
-        arch: [auto]
-        include:
-          - os: ubuntu-20.04
-            arch: aarch64
     steps:
     - name: Download wheels from artifacts
-      # Pinned to v3 because of https://github.com/actions/upload-artifact?tab=readme-ov-file#breaking-changes
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
+        pattern: wheelhouse-*
+        merge-multiple: true
         path: wheelhouse/
     - name: Copy wheels to GCS bucket
       run: gsutil cp -r -a public-read wheelhouse/* ${{ env.GCP_PATH }}

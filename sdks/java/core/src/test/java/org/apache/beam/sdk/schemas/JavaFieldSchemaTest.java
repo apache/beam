@@ -76,6 +76,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -780,5 +781,124 @@ public class JavaFieldSchemaTest {
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),
         containsString("TestPOJOs$FirstCircularNestedPOJO"));
+  }
+
+  @Test
+  public void testPojoWithTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_POJO_SCHEMA)
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testPojoWithInheritedTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<TestPOJOs.SimpleParameterizedPOJOSubclass<Short>> typeDescriptor =
+        new TypeDescriptor<TestPOJOs.SimpleParameterizedPOJOSubclass<Short>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_POJO_SCHEMA)
+            .addInt16Field("value5")
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testPojoWithNestedCollectionTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<
+            TestPOJOs.NestedParameterizedCollectionPOJO<
+                TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>, String>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestPOJOs.NestedParameterizedCollectionPOJO<
+                    TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>,
+                    String>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedInnerSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_POJO_SCHEMA)
+            .build();
+    final Schema expectedSchema =
+        Schema.builder()
+            .addIterableField("nested", FieldType.row(expectedInnerSchema))
+            .addMapField("map", FieldType.STRING, FieldType.row(expectedInnerSchema))
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testPojoWithDoublyNestedCollectionTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<
+            TestPOJOs.NestedParameterizedCollectionPOJO<
+                Iterable<TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>>,
+                String>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestPOJOs.NestedParameterizedCollectionPOJO<
+                    Iterable<TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>>,
+                    String>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedInnerSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_POJO_SCHEMA)
+            .build();
+    final Schema expectedSchema =
+        Schema.builder()
+            .addIterableField("nested", FieldType.iterable(FieldType.row(expectedInnerSchema)))
+            .addMapField(
+                "map", FieldType.STRING, FieldType.iterable(FieldType.row(expectedInnerSchema)))
+            .build();
+    assertTrue(expectedSchema.equivalent(schema));
+  }
+
+  @Test
+  public void testPojoWithNestedTypeParameter() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    TypeDescriptor<
+            TestPOJOs.NestedParameterizedPOJO<
+                TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>>>
+        typeDescriptor =
+            new TypeDescriptor<
+                TestPOJOs.NestedParameterizedPOJO<
+                    TestPOJOs.SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO>>>() {};
+    Schema schema = registry.getSchema(typeDescriptor);
+
+    final Schema expectedInnerSchema =
+        Schema.builder()
+            .addBooleanField("value1")
+            .addStringField("value2")
+            .addInt64Field("value3")
+            .addRowField("value4", SIMPLE_POJO_SCHEMA)
+            .build();
+    final Schema expectedSchema =
+        Schema.builder().addRowField("nested", expectedInnerSchema).build();
+    assertTrue(expectedSchema.equivalent(schema));
   }
 }

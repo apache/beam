@@ -32,8 +32,8 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   @Description(
       "Path or URL to a prism binary, or zipped binary for the current "
           + "platform (Operating System and Architecture). May also be an Apache "
-          + "Beam Github Release page URL, with a matching --prismVersionOverride "
-          + "set. This option overrides all others for finding a prism binary.")
+          + "Beam Github Release page URL, which be used to construct  download URL for "
+          + " the current platform. ")
   String getPrismLocation();
 
   void setPrismLocation(String prismLocation);
@@ -41,7 +41,8 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   @Description(
       "Override the SDK's version for deriving the Github Release URLs for "
           + "downloading a zipped prism binary, for the current platform. If "
-          + "set to a Github Release page URL, then it will use that release page as a base when constructing the download URL.")
+          + "the --prismLocation flag is set to a Github Release page URL, "
+          + "then it will use that release page as a base when constructing the download URL.")
   String getPrismVersionOverride();
 
   void setPrismVersionOverride(String prismVersionOverride);

@@ -449,8 +449,8 @@ class FixedWindows(NonMergingWindowFn):
       standard_window_fns_pb2.FixedWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context) -> 'FixedWindows':
     return FixedWindows(
-        size=Duration(micros=fn_parameter.size.ToMicroseconds()),
-        offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()))
+        size=Duration(micros=proto_utils.to_micros(fn_parameter.size)),
+        offset=Timestamp(micros=proto_utils.to_micros(fn_parameter.offset)))
 
 
 class SlidingWindows(NonMergingWindowFn):
@@ -522,9 +522,9 @@ class SlidingWindows(NonMergingWindowFn):
   def from_runner_api_parameter(
       fn_parameter, unused_context) -> 'SlidingWindows':
     return SlidingWindows(
-        size=Duration(micros=fn_parameter.size.ToMicroseconds()),
-        offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()),
-        period=Duration(micros=fn_parameter.period.ToMicroseconds()))
+        size=Duration(micros=proto_utils.to_micros(fn_parameter.size)),
+        offset=Timestamp(micros=proto_utils.to_micros(fn_parameter.offset)),
+        period=Duration(micros=proto_utils.to_micros(fn_parameter.period)))
 
 
 class Sessions(WindowFn):
@@ -589,4 +589,4 @@ class Sessions(WindowFn):
       standard_window_fns_pb2.SessionWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context) -> 'Sessions':
     return Sessions(
-        gap_size=Duration(micros=fn_parameter.gap_size.ToMicroseconds()))
+        gap_size=Duration(micros=proto_utils.to_micros(fn_parameter.gap_size)))

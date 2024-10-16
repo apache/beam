@@ -1174,7 +1174,6 @@ public class PubsubIO {
             @Override
             public T apply(PubsubMessage input) {
               if (!reportedMetrics) {
-                LOG.info("reportling lineage...");
                 // report Lineage once
                 if (topicPath != null) {
                   TopicPath topic = topicPath.get();

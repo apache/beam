@@ -160,7 +160,8 @@ public class JavaRowUdf implements Serializable {
 
     public FunctionAndType(TypeDescriptor<?> outputType, Function<Row, Object> function) {
       this(
-          StaticSchemaInference.fieldFromType(outputType, new EmptyFieldValueTypeSupplier()),
+          StaticSchemaInference.fieldFromType(
+              outputType, new EmptyFieldValueTypeSupplier(), Collections.emptyMap()),
           function);
     }
 

@@ -254,7 +254,11 @@ public final class GrpcDirectGetWorkStream
 
   private Work.ProcessingContext createProcessingContext(String computationId) {
     return Work.createProcessingContext(
-        computationId, getDataClient.get(), workCommitter.get()::commit, heartbeatSender.get());
+        computationId,
+        getDataClient.get(),
+        workCommitter.get()::commit,
+        heartbeatSender.get(),
+        backendWorkerToken());
   }
 
   @Override

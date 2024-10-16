@@ -89,6 +89,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -2177,7 +2178,8 @@ public class SpannerIO {
 
     // SpannerAccessor can not be serialized so must be initialized at runtime in setup().
     private transient SpannerAccessor spannerAccessor;
-
+    // resolved at runtime for metrics report purpose. SpannerConfig may not have projectId set.
+    private transient String projectId;
     /* Number of times an aborted write to spanner could be retried */
     private static final int ABORTED_RETRY_ATTEMPTS = 5;
     /* Error string in Aborted exception during schema change */
@@ -2250,6 +2252,8 @@ public class SpannerIO {
                       return buildWriteServiceCallMetric(spannerConfig, tableName);
                     }
                   });
+
+      projectId = resolveSpannerProjectId(spannerConfig);
     }
 
     @Teardown
@@ -2302,15 +2306,29 @@ public class SpannerIO {
      to retry silently. These must not be counted against retry backoff.
     */
     private void spannerWriteWithRetryIfSchemaChange(List<Mutation> batch) throws SpannerException {
+      Set<String> tableNames = batch.stream().map(Mutation::getTable).collect(Collectors.toSet());
       for (int retry = 1; ; retry++) {
         try {
           spannerAccessor
               .getDatabaseClient()
               .writeAtLeastOnceWithOptions(batch, getTransactionOptions());
-          reportServiceCallMetricsForBatch(batch, "ok");
+          // Get names of all tables in batch of mutations.
+          reportServiceCallMetricsForBatch(tableNames, "ok");
+          for (String tableName : tableNames) {
+            Lineage.getSinks()
+                .add(
+                    "spanner",
+                    ImmutableList.of(
+                        projectId,
+                        spannerAccessor.getInstanceConfigId(),
+                        spannerConfig.getInstanceId().get(),
+                        spannerConfig.getDatabaseId().get(),
+                        tableName));
+          }
           return;
         } catch (AbortedException e) {
-          reportServiceCallMetricsForBatch(batch, e.getErrorCode().getGrpcStatusCode().toString());
+          reportServiceCallMetricsForBatch(
+              tableNames, e.getErrorCode().getGrpcStatusCode().toString());
           if (retry >= ABORTED_RETRY_ATTEMPTS) {
             throw e;
           }
@@ -2321,7 +2339,8 @@ public class SpannerIO {
           }
           throw e;
         } catch (SpannerException e) {
-          reportServiceCallMetricsForBatch(batch, e.getErrorCode().getGrpcStatusCode().toString());
+          reportServiceCallMetricsForBatch(
+              tableNames, e.getErrorCode().getGrpcStatusCode().toString());
           throw e;
         }
       }
@@ -2342,9 +2361,7 @@ public class SpannerIO {
           .toArray(Options.TransactionOption[]::new);
     }
 
-    private void reportServiceCallMetricsForBatch(List<Mutation> batch, String statusCode) {
-      // Get names of all tables in batch of mutations.
-      Set<String> tableNames = batch.stream().map(Mutation::getTable).collect(Collectors.toSet());
+    private void reportServiceCallMetricsForBatch(Set<String> tableNames, String statusCode) {
       for (String tableName : tableNames) {
         writeMetricsByTableName.getUnchecked(tableName).call(statusCode);
       }
@@ -2424,16 +2441,19 @@ public class SpannerIO {
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
     baseLabels.put(
-        MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID,
-        config.getProjectId() == null
-                || config.getProjectId().get() == null
-                || config.getProjectId().get().isEmpty()
-            ? SpannerOptions.getDefaultProjectId()
-            : config.getProjectId().get());
+        MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, resolveSpannerProjectId(config));
     baseLabels.put(
         MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, config.getInstanceId().get());
     baseLabels.put(
         MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, config.getDatabaseId().get());
     return baseLabels;
+  }
+
+  static String resolveSpannerProjectId(SpannerConfig config) {
+    return config.getProjectId() == null
+            || config.getProjectId().get() == null
+            || config.getProjectId().get().isEmpty()
+        ? SpannerOptions.getDefaultProjectId()
+        : config.getProjectId().get();
   }
 }
