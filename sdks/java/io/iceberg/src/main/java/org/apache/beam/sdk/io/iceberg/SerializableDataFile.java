@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
+
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +47,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-abstract class SerializableDataFile {
+abstract class SerializableDataFile implements Serializable {
   public static Builder builder() {
     return new AutoValue_SerializableDataFile.Builder();
   }

@@ -26,9 +26,11 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
+import java.io.Serializable;
+
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
-abstract class FileWriteResult {
+abstract class FileWriteResult implements Serializable {
 
   private transient @MonotonicNonNull TableIdentifier cachedTableIdentifier;
   private transient @MonotonicNonNull DataFile cachedDataFile;
