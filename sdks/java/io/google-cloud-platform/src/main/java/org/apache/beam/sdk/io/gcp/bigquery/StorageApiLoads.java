@@ -356,36 +356,33 @@ public class StorageApiLoads<DestinationT, ElementT>
                 badRecordRouter));
 
     PCollection<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRows =
-      convertMessagesResult
-          .get(successfulConvertedRowsTag);
+        convertMessagesResult.get(successfulConvertedRowsTag);
 
     if (numShards > 0) {
-        successfulConvertedRows =
-            successfulConvertedRows
-              .apply(
-                  "ResdistibuteNumShards",
-                  Redistribute.<KV<DestinationT, StorageApiWritePayload>>arbitrarily()
-                      .withNumBuckets(numShards));
+      successfulConvertedRows =
+          successfulConvertedRows.apply(
+              "ResdistibuteNumShards",
+              Redistribute.<KV<DestinationT, StorageApiWritePayload>>arbitrarily()
+                  .withNumBuckets(numShards));
     }
 
     PCollectionTuple writeRecordsResult =
-        successfulConvertedRows
-            .apply(
-                "StorageApiWriteUnsharded",
-                new StorageApiWriteUnshardedRecords<>(
-                    dynamicDestinations,
-                    bqServices,
-                    failedRowsTag,
-                    successfulWrittenRowsTag,
-                    successfulRowsPredicate,
-                    BigQueryStorageApiInsertErrorCoder.of(),
-                    TableRowJsonCoder.of(),
-                    autoUpdateSchema,
-                    ignoreUnknownValues,
-                    createDisposition,
-                    kmsKey,
-                    usesCdc,
-                    defaultMissingValueInterpretation));
+        successfulConvertedRows.apply(
+            "StorageApiWriteUnsharded",
+            new StorageApiWriteUnshardedRecords<>(
+                dynamicDestinations,
+                bqServices,
+                failedRowsTag,
+                successfulWrittenRowsTag,
+                successfulRowsPredicate,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                TableRowJsonCoder.of(),
+                autoUpdateSchema,
+                ignoreUnknownValues,
+                createDisposition,
+                kmsKey,
+                usesCdc,
+                defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
