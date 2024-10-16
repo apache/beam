@@ -26,6 +26,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import net.jcip.annotations.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -70,7 +71,6 @@ final class GrpcDirectGetWorkStream
                   .build())
           .build();
 
-  private final AtomicReference<GetWorkBudget> maxGetWorkBudget;
   private final GetWorkBudgetTracker budgetTracker;
   private final GetWorkRequest requestHeader;
   private final WorkItemScheduler workItemScheduler;
@@ -120,14 +120,13 @@ final class GrpcDirectGetWorkStream
     this.heartbeatSender = heartbeatSender;
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
-    this.maxGetWorkBudget =
-        new AtomicReference<>(
+    this.lastRequest = new AtomicReference<>();
+    this.budgetTracker =
+        GetWorkBudgetTracker.create(
             GetWorkBudget.builder()
                 .setItems(requestHeader.getMaxItems())
                 .setBytes(requestHeader.getMaxBytes())
                 .build());
-    this.lastRequest = new AtomicReference<>();
-    this.budgetTracker = GetWorkBudgetTracker.create();
   }
 
   static GrpcDirectGetWorkStream create(
@@ -146,19 +145,22 @@ final class GrpcDirectGetWorkStream
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler) {
-    return new GrpcDirectGetWorkStream(
-        backendWorkerToken,
-        startGetWorkRpcFn,
-        request,
-        backoff,
-        streamObserverFactory,
-        streamRegistry,
-        logEveryNStreamFailures,
-        getWorkThrottleTimer,
-        heartbeatSender,
-        getDataClient,
-        workCommitter,
-        workItemScheduler);
+    GrpcDirectGetWorkStream getWorkStream =
+        new GrpcDirectGetWorkStream(
+            backendWorkerToken,
+            startGetWorkRpcFn,
+            request,
+            backoff,
+            streamObserverFactory,
+            streamRegistry,
+            logEveryNStreamFailures,
+            getWorkThrottleTimer,
+            heartbeatSender,
+            getDataClient,
+            workCommitter,
+            workItemScheduler);
+    getWorkStream.startStream();
+    return getWorkStream;
   }
 
   private static Watermarks createWatermarks(
@@ -188,7 +190,11 @@ final class GrpcDirectGetWorkStream
                     .build();
             lastRequest.set(request);
             budgetTracker.recordBudgetRequested(extension);
-            send(request);
+            try {
+              send(request);
+            } catch (IllegalStateException e) {
+              // Stream was closed.
+            }
           });
     }
   }
@@ -198,8 +204,7 @@ final class GrpcDirectGetWorkStream
     workItemAssemblers.clear();
     if (!isShutdown()) {
       budgetTracker.reset();
-      GetWorkBudget initialGetWorkBudget =
-          budgetTracker.computeBudgetExtension(maxGetWorkBudget.get());
+      GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
       StreamingGetWorkRequest request =
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
@@ -231,7 +236,7 @@ final class GrpcDirectGetWorkStream
             + "total budget received: %s,"
             + "last sent request: %s. ",
         workItemAssemblers.size(),
-        maxGetWorkBudget.get(),
+        budgetTracker.maxGetWorkBudget().get(),
         budgetTracker.inFlightBudget(),
         budgetTracker.totalRequestedBudget(),
         budgetTracker.totalReceivedBudget(),
@@ -262,7 +267,7 @@ final class GrpcDirectGetWorkStream
         createProcessingContext(metadata.computationId()),
         assembledWorkItem.latencyAttributions());
     budgetTracker.recordBudgetReceived(assembledWorkItem.bufferedSize());
-    GetWorkBudget extension = budgetTracker.computeBudgetExtension(maxGetWorkBudget.get());
+    GetWorkBudget extension = budgetTracker.computeBudgetExtension();
     maybeSendRequestExtension(extension);
   }
 
@@ -277,25 +282,37 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public void setBudget(long newItems, long newBytes) {
-    GetWorkBudget currentMaxGetWorkBudget =
-        maxGetWorkBudget.updateAndGet(
-            ignored -> GetWorkBudget.builder().setItems(newItems).setBytes(newBytes).build());
-    GetWorkBudget extension = budgetTracker.computeBudgetExtension(currentMaxGetWorkBudget);
+  public void setBudget(GetWorkBudget newBudget) {
+    GetWorkBudget extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
     maybeSendRequestExtension(extension);
   }
 
+  private void executeSafely(Runnable runnable) {
+    try {
+      executor().execute(runnable);
+    } catch (RejectedExecutionException e) {
+      LOG.debug("{} has been shutdown.", getClass());
+    }
+  }
+
   /**
-   * Tracks sent and received GetWorkBudget and uses this information to generate request
+   * Tracks sent, received, max {@link GetWorkBudget} and uses this information to generate request
    * extensions.
    */
+  @ThreadSafe
   @AutoValue
   abstract static class GetWorkBudgetTracker {
 
-    private static GetWorkBudgetTracker create() {
+    private static GetWorkBudgetTracker create(GetWorkBudget initialMaxGetWorkBudget) {
       return new AutoValue_GrpcDirectGetWorkStream_GetWorkBudgetTracker(
-          new AtomicLong(), new AtomicLong(), new AtomicLong(), new AtomicLong());
+          new AtomicReference<>(initialMaxGetWorkBudget),
+          new AtomicLong(),
+          new AtomicLong(),
+          new AtomicLong(),
+          new AtomicLong());
     }
+
+    abstract AtomicReference<GetWorkBudget> maxGetWorkBudget();
 
     abstract AtomicLong itemsRequested();
 
@@ -305,19 +322,25 @@ final class GrpcDirectGetWorkStream
 
     abstract AtomicLong bytesReceived();
 
-    private void reset() {
+    private synchronized void reset() {
       itemsRequested().set(0);
       bytesRequested().set(0);
       itemsReceived().set(0);
       bytesReceived().set(0);
     }
 
-    private void recordBudgetRequested(GetWorkBudget budgetRequested) {
+    /** Consumes the new budget and computes an extension based on the new budget. */
+    private synchronized GetWorkBudget consumeAndComputeBudgetUpdate(GetWorkBudget newBudget) {
+      maxGetWorkBudget().set(newBudget);
+      return computeBudgetExtension();
+    }
+
+    private synchronized void recordBudgetRequested(GetWorkBudget budgetRequested) {
       itemsRequested().addAndGet(budgetRequested.items());
       bytesRequested().addAndGet(budgetRequested.bytes());
     }
 
-    private void recordBudgetReceived(long bytesReceived) {
+    private synchronized void recordBudgetReceived(long bytesReceived) {
       itemsReceived().incrementAndGet();
       bytesReceived().addAndGet(bytesReceived);
     }
@@ -327,7 +350,8 @@ final class GrpcDirectGetWorkStream
      * GetWorkExtension. The goal is to keep the limits relatively close to their maximum values
      * without sending too many extension requests.
      */
-    private GetWorkBudget computeBudgetExtension(GetWorkBudget maxGetWorkBudget) {
+    private synchronized GetWorkBudget computeBudgetExtension() {
+      GetWorkBudget maxGetWorkBudget = maxGetWorkBudget().get();
       // Expected items and bytes can go negative here, since WorkItems returned might be larger
       // than the initially requested budget.
       long inFlightItems = itemsRequested().get() - itemsReceived().get();
@@ -361,16 +385,6 @@ final class GrpcDirectGetWorkStream
           .setItems(itemsReceived().get())
           .setBytes(bytesReceived().get())
           .build();
-    }
-  }
-
-  private void executeSafely(Runnable runnable) {
-    try {
-      executor().execute(runnable);
-    } catch (RejectedExecutionException e) {
-      LOG.debug("{} has been shutdown.", getClass());
-    } catch (IllegalStateException e) {
-      // Stream was closed.
     }
   }
 }

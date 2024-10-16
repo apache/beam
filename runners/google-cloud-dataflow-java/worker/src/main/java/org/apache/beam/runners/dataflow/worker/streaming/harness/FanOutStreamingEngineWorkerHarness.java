@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -198,7 +199,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     return fanOutStreamingEngineWorkProvider;
   }
 
-  @SuppressWarnings("ReturnValueIgnored")
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
@@ -234,9 +234,29 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void shutdown() {
     Preconditions.checkState(started, "FanOutStreamingEngineWorkerHarness never started.");
-    Preconditions.checkNotNull(getWorkerMetadataStream).halfClose();
+    Preconditions.checkNotNull(getWorkerMetadataStream).shutdown();
     workerMetadataConsumer.shutdownNow();
+    closeStreamsNotIn(WindmillEndpoints.none());
     channelCachingStubFactory.shutdown();
+
+    try {
+      Preconditions.checkNotNull(getWorkerMetadataStream).awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("Interrupted waiting for GetWorkerMetadataStream to shutdown.", e);
+    }
+
+    windmillStreamManager.shutdown();
+    boolean isStreamManagerShutdown = false;
+    try {
+      isStreamManagerShutdown = windmillStreamManager.awaitTermination(30, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("Interrupted waiting for windmillStreamManager to shutdown.", e);
+    }
+    if (!isStreamManagerShutdown) {
+      windmillStreamManager.shutdownNow();
+    }
   }
 
   private void consumeWorkerMetadata(WindmillEndpoints windmillEndpoints) {
@@ -265,7 +285,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         newWindmillEndpoints,
         activeMetadataVersion,
         newWindmillEndpoints.version());
-    closeStaleStreams(newWindmillEndpoints);
+    closeStreamsNotIn(newWindmillEndpoints);
     ImmutableMap<Endpoint, WindmillStreamSender> newStreams =
         createAndStartNewStreams(newWindmillEndpoints.windmillEndpoints()).join();
     StreamingEngineBackends newBackends =
@@ -280,29 +300,30 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   /** Close the streams that are no longer valid asynchronously. */
-  @SuppressWarnings("FutureReturnValueIgnored")
-  private void closeStaleStreams(WindmillEndpoints newWindmillEndpoints) {
+  private void closeStreamsNotIn(WindmillEndpoints newWindmillEndpoints) {
     StreamingEngineBackends currentBackends = backends.get();
-    ImmutableMap<Endpoint, WindmillStreamSender> currentWindmillStreams =
-        currentBackends.windmillStreams();
-    currentWindmillStreams.entrySet().stream()
+    currentBackends.windmillStreams().entrySet().stream()
         .filter(
             connectionAndStream ->
                 !newWindmillEndpoints.windmillEndpoints().contains(connectionAndStream.getKey()))
         .forEach(
-            entry ->
-                CompletableFuture.runAsync(
-                    () -> closeStreamSender(entry.getKey(), entry.getValue()),
-                    windmillStreamManager));
+            entry -> {
+              CompletableFuture<Void> ignored =
+                  CompletableFuture.runAsync(
+                      () -> closeStreamSender(entry.getKey(), entry.getValue()),
+                      windmillStreamManager);
+            });
 
     Set<Endpoint> newGlobalDataEndpoints =
         new HashSet<>(newWindmillEndpoints.globalDataEndpoints().values());
     currentBackends.globalDataStreams().values().stream()
         .filter(sender -> !newGlobalDataEndpoints.contains(sender.endpoint()))
         .forEach(
-            sender ->
-                CompletableFuture.runAsync(
-                    () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager));
+            sender -> {
+              CompletableFuture<Void> ignored =
+                  CompletableFuture.runAsync(
+                      () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager);
+            });
   }
 
   private void closeStreamSender(Endpoint endpoint, Closeable sender) {

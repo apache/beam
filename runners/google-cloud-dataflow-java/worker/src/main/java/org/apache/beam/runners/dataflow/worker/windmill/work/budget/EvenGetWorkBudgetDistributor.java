@@ -49,8 +49,6 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
 
   private <T extends GetWorkBudgetSpender> GetWorkBudget computeDesiredBudgets(
       ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
-    // TODO: Fix possibly non-deterministic handing out of budgets.
-    // Rounding up here will drift upwards over the lifetime of the streams.
     return GetWorkBudget.builder()
         .setItems(divide(totalGetWorkBudget.items(), streams.size(), RoundingMode.CEILING))
         .setBytes(divide(totalGetWorkBudget.bytes(), streams.size(), RoundingMode.CEILING))

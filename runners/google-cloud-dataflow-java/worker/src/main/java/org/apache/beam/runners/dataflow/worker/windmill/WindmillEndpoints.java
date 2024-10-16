@@ -41,6 +41,14 @@ import org.slf4j.LoggerFactory;
 public abstract class WindmillEndpoints {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
 
+  public static WindmillEndpoints none() {
+    return WindmillEndpoints.builder()
+        .setVersion(Long.MAX_VALUE)
+        .setWindmillEndpoints(ImmutableSet.of())
+        .setGlobalDataEndpoints(ImmutableMap.of())
+        .build();
+  }
+
   public static WindmillEndpoints from(
       Windmill.WorkerMetadataResponse workerMetadataResponseProto) {
     ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers =

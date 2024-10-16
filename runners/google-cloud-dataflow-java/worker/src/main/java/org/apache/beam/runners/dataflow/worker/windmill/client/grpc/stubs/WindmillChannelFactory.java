@@ -64,7 +64,7 @@ public final class WindmillChannelFactory {
             windmillServiceRpcChannelTimeoutSec);
       default:
         throw new UnsupportedOperationException(
-            "Only IPV6, GCP_SERVICE_ADDRESS, AUTHENTICATED_GCP_SERVICE_ADDRESS are supported"
+            "Only GCP_SERVICE_ADDRESS and AUTHENTICATED_GCP_SERVICE_ADDRESS are supported"
                 + " WindmillServiceAddresses.");
     }
   }
