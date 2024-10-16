@@ -48,7 +48,6 @@ import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -481,11 +480,11 @@ public final class BigQueryIOLT extends IOLoadTestBase {
     @JsonProperty public String writeMethod = "DEFAULT";
 
     /** BigQuery number of streams for write method STORAGE_WRITE_API. 0 let's the runner determine the number of streams.
-     * Remark : max limit for open connections per hour is 10K streams
+     * Remark : max limit for open connections per hour is 10K streams.
     */
     @JsonProperty public int numStorageWriteApiStreams = 0;
 
-    /** BigQuery triggering frequency in second in combination with the number of streams for write method STORAGE_WRITE_API */
+    /** BigQuery triggering frequency in second in combination with the number of streams for write method STORAGE_WRITE_API. */
     @JsonProperty public int storageWriteApiTriggeringFrequencySec = 20;
 
     /** BigQuery write format: AVRO/JSON. */
