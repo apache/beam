@@ -97,8 +97,8 @@ LogOutput "Installing python and dependencies."
 export DEBIAN_FRONTEND=noninteractive
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
-apt install -y python3.9 python3.9-distutils python3-pip > /dev/null 2>&1
-apt install -y --reinstall python3.9-distutils > /dev/null 2>&1
+apt install -y python3.9 python3-distutils python3-pip > /dev/null 2>&1
+apt install -y --reinstall python3-distutils > /dev/null 2>&1
 apt install -y python3-virtualenv
 virtualenv play_venv
 source play_venv/bin/activate

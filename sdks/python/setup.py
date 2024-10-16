@@ -155,7 +155,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3;python_version>="3.9"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
 
@@ -273,7 +273,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.9'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 12:
+if sys.version_info.major == 3 and sys.version_info.minor >= 13:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
