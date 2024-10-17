@@ -39,6 +39,8 @@ class Repositories {
       mavenCentral()
       mavenLocal()
 
+      maven { url "${project.rootDir}/tempLib" }
+
       // Release staging repository
       maven { url "https://oss.sonatype.org/content/repositories/staging/" }
 

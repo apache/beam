@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+        http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+  -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.beam</groupId>
+  <artifactId>beam-vendor-grpc-1_60_1</artifactId>
+  <version>0.3</version>
+  <name>Apache Beam :: Vendored Dependencies :: gRPC :: 1.60.1</name>
+  <url>http://beam.apache.org</url>
+  <inceptionYear>2016</inceptionYear>
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>The Apache Beam Team</name>
+      <email>dev@beam.apache.org</email>
+      <url>http://beam.apache.org</url>
+      <organization>Apache Software Foundation</organization>
+      <organizationUrl>http://www.apache.org</organizationUrl>
+    </developer>
+  </developers>
+  <mailingLists>
+    <mailingList>
+      <name>Beam Dev</name>
+      <subscribe>dev-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>dev-unsubscribe@beam.apache.org</unsubscribe>
+      <post>dev@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/dev%beam.apache.org</archive>
+    </mailingList>
+    <mailingList>
+      <name>Beam User</name>
+      <subscribe>user-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>user-unsubscribe@beam.apache.org</unsubscribe>
+      <post>user@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/user%beam.apache.org</archive>
+    </mailingList>
+    <mailingList>
+      <name>Beam Commits</name>
+      <subscribe>commits-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>commits-unsubscribe@beam.apache.org</unsubscribe>
+      <post>commits@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/commits%beam.apache.org</archive>
+    </mailingList>
+  </mailingLists>
+  <scm>
+    <connection>scm:git:https://gitbox.apache.org/repos/asf/beam.git</connection>
+    <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/beam.git</developerConnection>
+    <url>https://gitbox.apache.org/repos/asf?p=beam.git;a=summary</url>
+  </scm>
+  <issueManagement>
+    <system>github</system>
+    <url>https://github.com/apache/beam/issues</url>
+  </issueManagement>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value-annotations</artifactId>
+      <version>1.8.2</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_annotations</artifactId>
+      <version>2.20.0</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.13</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpcore</artifactId>
+      <version>4.4.15</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.conscrypt</groupId>
+      <artifactId>conscrypt-openjdk-uber</artifactId>
+      <version>2.5.2</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+</project>
