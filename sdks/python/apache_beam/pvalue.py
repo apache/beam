@@ -682,7 +682,8 @@ class Row(object):
         type(self) == type(other) and
         len(self.__dict__) == len(other.__dict__) and all(
             s == o for s,
-            o in zip(self.__dict__.items(), other.__dict__.items())))
+            o in zip(
+                sorted(self.__dict__.items()), sorted(other.__dict__.items()))))
 
   def __reduce__(self):
     return _make_Row, tuple(self.__dict__.items())
