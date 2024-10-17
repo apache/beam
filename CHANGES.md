@@ -82,6 +82,7 @@
 
 ## Deprecations
 
+* Removed support for Flink 1.15
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes

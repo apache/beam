@@ -125,10 +125,6 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.15
-include(":runners:flink:1.15")
-include(":runners:flink:1.15:job-server")
-include(":runners:flink:1.15:job-server-container")
 // Flink 1.16
 include(":runners:flink:1.16")
 include(":runners:flink:1.16:job-server")
