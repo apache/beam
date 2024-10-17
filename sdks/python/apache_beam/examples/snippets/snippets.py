@@ -1176,6 +1176,27 @@ def model_multiple_pcollections_flatten_with(contents, output_path):
     merged | beam.io.WriteToText(output_path)
 
 
+def model_multiple_pcollections_flatten_with_transform(contents, output_path):
+  """Merging output of PTransform with FlattenWith."""
+  some_hash_fn = lambda s: ord(s[0])
+  partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
+  import apache_beam as beam
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
+
+    pcoll = pipeline | beam.Create(contents)
+    SomeTransform = lambda: beam.Map(lambda x: x)
+    SomeOtherTransform = lambda: beam.Map(lambda x: x)
+
+    # [START model_multiple_pcollections_flatten_with]
+    merged = (
+        pcoll
+        | SomeTransform()
+        | beam.FlattenWith(beam.Create(['x', 'y', 'z']))
+        | SomeOtherTransform())
+    # [END model_multiple_pcollections_flatten_with]
+    merged | beam.io.WriteToText(output_path)
+
+
 def model_multiple_pcollections_partition(contents, output_path):
   """Splitting a PCollection with Partition."""
   some_hash_fn = lambda s: ord(s[0])

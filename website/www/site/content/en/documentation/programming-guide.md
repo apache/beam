@@ -2077,6 +2077,17 @@ transform to merge PCollections into an output PCollection in a manner more comp
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with >}}
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+`FlattenWith` can take root `PCollection`-producing transforms
+(such as `Create` and `Read`) as well as already constructed PCollections,
+and will apply them and flatten their outputs into the resulting output
+PCollection.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transforms >}}
+{{< /highlight >}}
+
 {{< highlight go >}}
 // Flatten accepts any number of PCollections of the same element type.
 // Returns a single PCollection that contains all of the elements in input PCollections.
