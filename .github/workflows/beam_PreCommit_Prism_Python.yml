@@ -21,12 +21,7 @@ on:
     branches: ['master', 'release-*']
     paths:
       - 'model/**'
-      - 'runners/core-construction-java/**'
-      - 'runners/core-java/**'
-      - 'runners/extensions-java/**'
-      - 'runners/flink/**'
-      - 'runners/java-fn-execution/**'
-      - 'runners/reference/**'
+      - 'sdks/go/pkg/beam/runners/prism/**'
       - 'sdks/python/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Prism_Python.yml'
@@ -34,12 +29,7 @@ on:
     branches: ['master', 'release-*']
     paths:
       - 'model/**'
-      - 'runners/core-construction-java/**'
-      - 'runners/core-java/**'
-      - 'runners/extensions-java/**'
-      - 'runners/flink/**'
-      - 'runners/java-fn-execution/**'
-      - 'runners/reference/**'
+      - 'sdks/go/pkg/beam/runners/prism/**'
       - 'sdks/python/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
