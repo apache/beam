@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -114,6 +115,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -145,12 +147,14 @@ import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.common.utils.Utils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -512,6 +516,15 @@ public class KafkaIOTest {
 
     PAssert.that(input).containsInAnyOrder(inputs);
     p.run();
+  }
+
+  @Test
+  public void testKafkaVersion() {
+    // KafkaIO compatibility tests run unit tests in KafkaIOTest
+    @Nullable String targetVer = System.getProperty("beam.target.kafka.version");
+    Assume.assumeTrue(!Strings.isNullOrEmpty(targetVer));
+    String actualVer = AppInfoParser.getVersion();
+    assertEquals(targetVer, actualVer);
   }
 
   @Test
@@ -970,8 +983,9 @@ public class KafkaIOTest {
     thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(instanceOf(IllegalStateException.class));
     thrown.expectMessage(
-        "Could not find any partitions info. Please check Kafka configuration and make sure that "
-            + "provided topics exist.");
+        matchesPattern(
+            ".*Could not find any partitions(?: info)?\\. Please check Kafka "
+                + "configuration and (?:make sure that provided topics exist|topic names).*"));
 
     int numElements = 1000;
     KafkaIO.Read<Integer, Long> reader =
@@ -1579,6 +1593,11 @@ public class KafkaIOTest {
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
       // intentionally left blank for compatibility with older kafka versions
+    }
+
+    @Override
+    public void close() {
+      // intentionally left blank for compatibility with kafka-client v2.2 or older
     }
   }
 

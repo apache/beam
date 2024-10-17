@@ -453,7 +453,12 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   @Override
   protected void reportLineage(AzfsResourceId resourceId, Lineage lineage) {
-    if (!Strings.isNullOrEmpty(resourceId.getBlob())) {
+    reportLineage(resourceId, lineage, LineageLevel.FILE);
+  }
+
+  @Override
+  protected void reportLineage(AzfsResourceId resourceId, Lineage lineage, LineageLevel level) {
+    if (level != LineageLevel.TOP_LEVEL && !Strings.isNullOrEmpty(resourceId.getBlob())) {
       lineage.add(
           "abs",
           ImmutableList.of(

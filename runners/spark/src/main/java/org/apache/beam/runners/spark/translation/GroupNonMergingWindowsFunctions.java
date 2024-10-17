@@ -275,17 +275,18 @@ public class GroupNonMergingWindowsFunctions {
                 new Tuple2<>(
                     new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder)),
                     CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder)));
-    return rawKeyValues
-        .groupByKey()
-        .map(
-            kvs ->
-                WindowedValue.timestampedValueInGlobalWindow(
-                    KV.of(
-                        CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
-                        Iterables.transform(
-                            kvs._2,
-                            encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
-                    GlobalWindow.INSTANCE.maxTimestamp(),
-                    PaneInfo.ON_TIME_AND_ONLY_FIRING));
+
+    JavaPairRDD<ByteArray, Iterable<byte[]>> grouped =
+        (partitioner == null) ? rawKeyValues.groupByKey() : rawKeyValues.groupByKey(partitioner);
+    return grouped.map(
+        kvs ->
+            WindowedValue.timestampedValueInGlobalWindow(
+                KV.of(
+                    CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
+                    Iterables.transform(
+                        kvs._2,
+                        encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
+                GlobalWindow.INSTANCE.maxTimestamp(),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING));
   }
 }

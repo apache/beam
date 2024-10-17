@@ -44,7 +44,7 @@ def orc_version = "1.9.2"
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":sdks:java:managed")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
@@ -55,6 +55,7 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
 
+    testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_gcs_connector

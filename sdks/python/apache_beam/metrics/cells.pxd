@@ -45,7 +45,7 @@ cdef class GaugeCell(MetricCell):
 
 
 cdef class StringSetCell(MetricCell):
-  cdef readonly set data
+  cdef readonly object data
 
   cdef inline bint _update(self, value) except -1
 

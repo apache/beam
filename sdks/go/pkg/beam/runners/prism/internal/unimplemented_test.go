@@ -83,6 +83,7 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Checkpoints},
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
+		{pipeline: primitives.ParDoProcessElementBundleFinalizer},
 
 		// The following have been "allowed" to unblock further development
 		// But it's not clear these tests truly validate the expected behavior

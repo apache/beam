@@ -1019,13 +1019,13 @@ class WithKeysTest(unittest.TestCase):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys('k')
-    assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
 
   def test_callable_k(self):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x * x)
-    assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+      assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
   @staticmethod
   def _test_args_kwargs_fn(x, multiply, subtract):
@@ -1036,7 +1036,7 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(
           WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
-    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+      assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
 
   def test_sideinputs(self):
     with TestPipeline() as p:
@@ -1049,7 +1049,7 @@ class WithKeysTest(unittest.TestCase):
           the_singleton: x + sum(the_list) + the_singleton,
           si1,
           the_singleton=si2)
-    assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
+      assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
 
 
 class GroupIntoBatchesTest(unittest.TestCase):

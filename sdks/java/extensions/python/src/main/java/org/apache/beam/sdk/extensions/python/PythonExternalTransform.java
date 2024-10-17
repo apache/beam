@@ -25,6 +25,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -311,7 +312,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       Schema schema =
           generateSchemaFromFieldValues(
               kwargsMap.values().toArray(), kwargsMap.keySet().toArray(new String[] {}));
-      schema.setUUID(UUID.randomUUID());
       return Row.withSchema(schema)
           .addValues(convertComplexTypesToRows(kwargsMap.values().toArray()))
           .build();
@@ -367,7 +367,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   @VisibleForTesting
   Row buildOrGetArgsRow() {
     Schema schema = generateSchemaFromFieldValues(argsArray, null);
-    schema.setUUID(UUID.randomUUID());
     Object[] convertedValues = convertComplexTypesToRows(argsArray);
     return Row.withSchema(schema).addValues(convertedValues).build();
   }
@@ -391,7 +390,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
             fieldName,
             StaticSchemaInference.fieldFromType(
                 TypeDescriptor.of(field.getClass()),
-                JavaFieldSchema.JavaFieldTypeSupplier.INSTANCE));
+                JavaFieldSchema.JavaFieldTypeSupplier.INSTANCE,
+                Collections.emptyMap()));
       }
 
       counter++;
@@ -421,7 +421,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
     }
     Schema payloadSchema = schemaBuilder.build();
-    payloadSchema.setUUID(UUID.randomUUID());
     Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
     payloadRowBuilder.addValue(fullyQualifiedName);
     if (argsRow.getValues().size() > 0) {

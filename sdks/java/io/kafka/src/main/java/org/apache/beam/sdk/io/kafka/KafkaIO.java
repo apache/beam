@@ -109,6 +109,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -118,6 +119,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -1451,6 +1453,24 @@ public class KafkaIO {
     public Read<K, V> withConsumerPollingTimeout(long duration) {
       checkState(duration > 0, "Consumer polling timeout must be greater than 0.");
       return toBuilder().setConsumerPollingTimeout(duration).build();
+    }
+
+    /**
+     * Creates and sets the Application Default Credentials for a Kafka consumer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
+     */
+    public Read<K, V> withGCPApplicationDefaultCredentials() {
+
+      return withConsumerConfigUpdates(
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
+              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+              SaslConfigs.SASL_JAAS_CONFIG,
+              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
@@ -3360,6 +3380,23 @@ public class KafkaIO {
     public Write<K, V> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return withWriteRecordsTransform(
           getWriteRecordsTransform().withBadRecordErrorHandler(badRecordErrorHandler));
+    }
+
+    /**
+     * Creates and sets the Application Default Credentials for a Kafka producer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
+     */
+    public Write<K, V> withGCPApplicationDefaultCredentials() {
+      return withProducerConfigUpdates(
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
+              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+              SaslConfigs.SASL_JAAS_CONFIG,
+              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
     @Override

@@ -48,7 +48,9 @@ from typing import cast
 from typing import overload
 
 import grpc
+from sortedcontainers import SortedSet
 
+from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
@@ -959,7 +961,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       'multimap_keys_values_side_input',
       'iterable_side_input',
       'bag_user_state',
-      'multimap_user_state'
+      'multimap_user_state',
+      'ordered_list_user_state'
   ])
 
   class CopyOnWriteState(object):
@@ -1021,6 +1024,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     self._checkpoint = None  # type: Optional[StateServicer.StateType]
     self._use_continuation_tokens = False
     self._continuations = {}  # type: Dict[bytes, Tuple[bytes, ...]]
+    self._ordered_list_keys = collections.defaultdict(
+        SortedSet)  # type: DefaultDict[bytes, SortedSet]
 
   def checkpoint(self):
     # type: () -> None
@@ -1050,6 +1055,14 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     # type: (Any) -> Iterator
     yield
 
+  def _get_one_interval_key(self, state_key, start):
+    # type: (beam_fn_api_pb2.StateKey, int) -> bytes
+    state_key_copy = beam_fn_api_pb2.StateKey()
+    state_key_copy.CopyFrom(state_key)
+    state_key_copy.ordered_list_user_state.range.start = start
+    state_key_copy.ordered_list_user_state.range.end = start + 1
+    return self._to_key(state_key_copy)
+
   def get_raw(self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token=None  # type: Optional[bytes]
@@ -1061,7 +1074,30 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
           'Unknown state type: ' + state_key.WhichOneof('type'))
 
     with self._lock:
-      full_state = self._state[self._to_key(state_key)]
+      if not continuation_token:
+        # Compute full_state only when no continuation token is provided.
+        # If there is continuation token, full_state is already in
+        # continuation cache. No need to recompute.
+        full_state = []  # type: List[bytes]
+        if state_key.WhichOneof('type') == 'ordered_list_user_state':
+          maybe_start = state_key.ordered_list_user_state.range.start
+          maybe_end = state_key.ordered_list_user_state.range.end
+          persistent_state_key = beam_fn_api_pb2.StateKey()
+          persistent_state_key.CopyFrom(state_key)
+          persistent_state_key.ordered_list_user_state.ClearField("range")
+
+          available_keys = self._ordered_list_keys[self._to_key(
+              persistent_state_key)]
+
+          for i in available_keys.irange(maybe_start,
+                                         maybe_end,
+                                         inclusive=(True, False)):
+            entries = self._state[self._get_one_interval_key(
+                persistent_state_key, i)]
+            full_state.extend(entries)
+        else:
+          full_state.extend(self._state[self._to_key(state_key)])
+
       if self._use_continuation_tokens:
         # The token is "nonce:index".
         if not continuation_token:
@@ -1087,14 +1123,40 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
   ):
     # type: (...) -> _Future
     with self._lock:
-      self._state[self._to_key(state_key)].append(data)
+      if state_key.WhichOneof('type') == 'ordered_list_user_state':
+        coder = coders.TupleCoder([
+            coders.VarIntCoder(),
+            coders.coders.LengthPrefixCoder(coders.BytesCoder())
+        ]).get_impl()
+
+        for key, value in coder.decode_all(data):
+          self._state[self._get_one_interval_key(state_key, key)].append(
+              coder.encode((key, value)))
+          self._ordered_list_keys[self._to_key(state_key)].add(key)
+      else:
+        self._state[self._to_key(state_key)].append(data)
     return _Future.done()
 
   def clear(self, state_key):
     # type: (beam_fn_api_pb2.StateKey) -> _Future
     with self._lock:
       try:
-        del self._state[self._to_key(state_key)]
+        if state_key.WhichOneof('type') == 'ordered_list_user_state':
+          start = state_key.ordered_list_user_state.range.start
+          end = state_key.ordered_list_user_state.range.end
+          persistent_state_key = beam_fn_api_pb2.StateKey()
+          persistent_state_key.CopyFrom(state_key)
+          persistent_state_key.ordered_list_user_state.ClearField("range")
+          available_keys = self._ordered_list_keys[self._to_key(
+              persistent_state_key)]
+
+          for i in list(available_keys.irange(start,
+                                              end,
+                                              inclusive=(True, False))):
+            del self._state[self._get_one_interval_key(persistent_state_key, i)]
+            available_keys.remove(i)
+        else:
+          del self._state[self._to_key(state_key)]
       except KeyError:
         # This may happen with the caching layer across bundles. Caching may
         # skip this storage layer for a blocking_get(key) request. Without

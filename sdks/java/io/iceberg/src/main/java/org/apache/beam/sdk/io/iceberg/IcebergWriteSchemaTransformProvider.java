@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -41,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -54,7 +55,7 @@ public class IcebergWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<Configuration> {
 
   static final String INPUT_TAG = "input";
-  static final String OUTPUT_TAG = "output";
+  static final String SNAPSHOTS_TAG = "snapshots";
 
   static final Schema OUTPUT_SCHEMA =
       Schema.builder().addStringField("table").addFields(SnapshotInfo.SCHEMA.getFields()).build();
@@ -89,6 +90,21 @@ public class IcebergWriteSchemaTransformProvider
         "For a streaming pipeline, sets the frequency at which snapshots are produced.")
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
+    @SchemaFieldDescription(
+        "A list of field names to keep in the input record. All other fields are dropped before writing. "
+            + "Is mutually exclusive with 'drop' and 'only'.")
+    public abstract @Nullable List<String> getKeep();
+
+    @SchemaFieldDescription(
+        "A list of field names to drop from the input record before writing. "
+            + "Is mutually exclusive with 'keep' and 'only'.")
+    public abstract @Nullable List<String> getDrop();
+
+    @SchemaFieldDescription(
+        "The name of a single record field that should be written. "
+            + "Is mutually exclusive with 'keep' and 'drop'.")
+    public abstract @Nullable String getOnly();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -100,6 +116,12 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setConfigProperties(Map<String, String> confProperties);
 
       public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
+
+      public abstract Builder setKeep(List<String> keep);
+
+      public abstract Builder setDrop(List<String> drop);
+
+      public abstract Builder setOnly(String only);
 
       public abstract Configuration build();
     }
@@ -125,12 +147,12 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(OUTPUT_TAG);
+    return Collections.singletonList(SNAPSHOTS_TAG);
   }
 
   @Override
   public String identifier() {
-    return ManagedTransformConstants.ICEBERG_WRITE;
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE);
   }
 
   static class IcebergWriteSchemaTransform extends SchemaTransform {
@@ -160,7 +182,14 @@ public class IcebergWriteSchemaTransformProvider
 
       IcebergIO.WriteRows writeTransform =
           IcebergIO.writeRows(configuration.getIcebergCatalog())
-              .to(TableIdentifier.parse(configuration.getTable()));
+              .to(
+                  new PortableIcebergDestinations(
+                      configuration.getTable(),
+                      FileFormat.PARQUET.toString(),
+                      rows.getSchema(),
+                      configuration.getDrop(),
+                      configuration.getKeep(),
+                      configuration.getOnly()));
 
       Integer trigFreq = configuration.getTriggeringFrequencySeconds();
       if (trigFreq != null) {
@@ -176,7 +205,7 @@ public class IcebergWriteSchemaTransformProvider
               .apply(MapElements.via(new SnapshotToRow()))
               .setRowSchema(OUTPUT_SCHEMA);
 
-      return PCollectionRowTuple.of(OUTPUT_TAG, snapshots);
+      return PCollectionRowTuple.of(SNAPSHOTS_TAG, snapshots);
     }
 
     @VisibleForTesting
