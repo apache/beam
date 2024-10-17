@@ -33,13 +33,16 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkRespo
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class GrpcGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcGetWorkStream.class);
 
   private final GetWorkRequest request;
   private final WorkItemReceiver receiver;
@@ -62,6 +65,7 @@ final class GrpcGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
+        LOG,
         "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
@@ -90,19 +94,16 @@ final class GrpcGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
-    GrpcGetWorkStream getWorkStream =
-        new GrpcGetWorkStream(
-            backendWorkerToken,
-            startGetWorkRpcFn,
-            request,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            getWorkThrottleTimer,
-            receiver);
-    getWorkStream.startStream();
-    return getWorkStream;
+    return new GrpcGetWorkStream(
+        backendWorkerToken,
+        startGetWorkRpcFn,
+        request,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        getWorkThrottleTimer,
+        receiver);
   }
 
   private void sendRequestExtension(long moreItems, long moreBytes) {
@@ -114,15 +115,14 @@ final class GrpcGetWorkStream
                     .setMaxBytes(moreBytes))
             .build();
 
-    executor()
-        .execute(
-            () -> {
-              try {
-                send(extension);
-              } catch (IllegalStateException e) {
-                // Stream was closed.
-              }
-            });
+    executeSafely(
+        () -> {
+          try {
+            send(extension);
+          } catch (IllegalStateException e) {
+            // Stream was closed.
+          }
+        });
   }
 
   @Override
@@ -132,6 +132,9 @@ final class GrpcGetWorkStream
     inflightBytes.set(request.getMaxBytes());
     send(StreamingGetWorkRequest.newBuilder().setRequest(request).build());
   }
+
+  @Override
+  protected void shutdownInternal() {}
 
   @Override
   protected boolean hasPendingRequests() {
@@ -194,15 +197,7 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
+  public void setBudget(long newItems, long newBytes) {
     // no-op
-  }
-
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return GetWorkBudget.builder()
-        .setBytes(request.getMaxBytes() - inflightBytes.get())
-        .setItems(request.getMaxItems() - inflightMessages.get())
-        .build();
   }
 }

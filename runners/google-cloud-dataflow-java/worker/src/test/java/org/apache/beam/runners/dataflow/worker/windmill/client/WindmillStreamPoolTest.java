@@ -260,5 +260,8 @@ public class WindmillStreamPoolTest {
     public void shutdown() {
       halfClose();
     }
+
+    @Override
+    public void start() {}
   }
 }
