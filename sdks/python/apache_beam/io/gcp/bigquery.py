@@ -366,6 +366,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -1882,6 +1883,10 @@ class _StreamToBigQuery(PTransform):
 
 # Flag to be passed to WriteToBigQuery to force schema autodetection
 SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
+
+CdcWritesWithRows = Callable[[beam.Row], beam.Row]
+CdcWritesWithDicts = Callable[[Dict], Dict]
+UseCdcWrites = Union[bool, CdcWritesWithRows, CdcWritesWithRows]
 
 
 class WriteToBigQuery(PTransform):
