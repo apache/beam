@@ -31,12 +31,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -224,9 +222,16 @@ public class BeamRowToStorageApiProto {
         if (elementType == null) {
           throw new RuntimeException("Unexpected null element type on " + field.getName());
         }
+        TypeName containedTypeName =
+            Preconditions.checkNotNull(
+                elementType.getTypeName(),
+                "Null type name found in contained type at " + field.getName());
         Preconditions.checkState(
-            !Preconditions.checkNotNull(elementType.getTypeName()).isCollectionType(),
-            "Nested arrays not supported by BigQuery.");
+            !(containedTypeName.isCollectionType() || containedTypeName.isMapType()),
+            "Nested container types are not supported by BigQuery. Field "
+                + field.getName()
+                + " contains a type "
+                + containedTypeName.name());
         TableFieldSchema elementFieldSchema =
             fieldDescriptorFromBeamField(Field.of(field.getName(), elementType));
         builder = builder.setType(elementFieldSchema.getType());
@@ -313,20 +318,10 @@ public class BeamRowToStorageApiProto {
         if (iterableElementType == null) {
           throw new RuntimeException("Unexpected null element type: " + fieldDescriptor.getName());
         }
-        // We currently only support maps as non-row or non-scalar element types
-        // given that BigQuery does not support nested arrays. If the element type is of map type
-        // we should flatten it given how is being translated (as a list of proto(key, value).
-        boolean shouldFlattenIterable = iterableElementType.getTypeName().isMapType();
 
-        Stream<Object> iterableValueStream =
-            StreamSupport.stream(iterable.spliterator(), false)
-                .map(v -> toProtoValue(fieldDescriptor, iterableElementType, v));
-
-        if (shouldFlattenIterable) {
-          iterableValueStream = iterableValueStream.flatMap(vs -> ((List) vs).stream());
-        }
-
-        return iterableValueStream.collect(Collectors.toList());
+        return StreamSupport.stream(iterable.spliterator(), false)
+            .map(v -> toProtoValue(fieldDescriptor, iterableElementType, v))
+            .collect(Collectors.toList());
       case MAP:
         Map<Object, Object> map = (Map<Object, Object>) value;
         @Nullable FieldType keyType = beamFieldType.getMapKeyType();
