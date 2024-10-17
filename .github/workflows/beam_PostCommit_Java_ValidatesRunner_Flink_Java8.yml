@@ -80,11 +80,11 @@ jobs:
             11
       - name: run jar Java8 script
         run: |
-          ./gradlew :runners:flink:1.15:jar :runners:flink:1.15:testJar
+          ./gradlew :runners:flink:1.19:jar :runners:flink:1.19:testJar
       - name: run validatesRunner Java8 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.15:validatesRunner
+          gradle-command: :runners:flink:1.19:validatesRunner
           arguments: |
             -x shadowJar \
             -x shadowTestJar \
