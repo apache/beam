@@ -1187,13 +1187,13 @@ def model_multiple_pcollections_flatten_with_transform(contents, output_path):
     SomeTransform = lambda: beam.Map(lambda x: x)
     SomeOtherTransform = lambda: beam.Map(lambda x: x)
 
-    # [START model_multiple_pcollections_flatten_with]
+    # [START model_multiple_pcollections_flatten_with_transform]
     merged = (
         pcoll
         | SomeTransform()
         | beam.FlattenWith(beam.Create(['x', 'y', 'z']))
         | SomeOtherTransform())
-    # [END model_multiple_pcollections_flatten_with]
+    # [END model_multiple_pcollections_flatten_with_transform]
     merged | beam.io.WriteToText(output_path)
 
 

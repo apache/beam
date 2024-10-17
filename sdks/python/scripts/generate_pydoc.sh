@@ -244,6 +244,9 @@ ignore_identifiers = [
 
   # IPython Magics py:class reference target not found
   'IPython.core.magic.Magics',
+
+  # Type variables.
+  'apache_beam.transforms.util.T',
 ]
 ignore_references = [
   'BeamIOError',

@@ -2085,7 +2085,7 @@ PCollection.
 {{< /paragraph >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transforms >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transform >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
