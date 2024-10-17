@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -34,7 +35,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -311,7 +311,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
-			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
+			j.Logger.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
@@ -322,9 +322,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				em.StageProcessingTimeTimers(stage.ID, stage.processingTimeTimers)
 			}
 		default:
-			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
-			slog.Error("Execute", err)
-			return err
+			return fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 		}
 	}
 
@@ -344,11 +342,13 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	for {
 		select {
 		case <-ctx.Done():
-			return context.Cause(ctx)
+			err := context.Cause(ctx)
+			j.Logger.Debug("context canceled", slog.Any("cause", err))
+			return err
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				slog.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err))
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Any("topo", topo))
 				return err
 			}
 			eg.Go(func() error {

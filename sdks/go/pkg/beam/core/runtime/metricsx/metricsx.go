@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"golang.org/x/exp/slog"
 )
 
 // FromMonitoringInfos extracts metrics from monitored states and

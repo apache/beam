@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
-	"golang.org/x/exp/slog"
 )
 
 // SideInputKey is for data lookups for a given bundle.
