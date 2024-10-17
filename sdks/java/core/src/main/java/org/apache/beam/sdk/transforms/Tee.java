@@ -23,7 +23,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 
 /**
  * A PTransform that returns its input, but also applies its input to an auxiliary PTransform, akin
- * to the shell {@code tee} command.
+ * to the shell {@code tee} command, which is named after the T-splitter used in plumbing.
  *
  * <p>This can be useful to write out or otherwise process an intermediate transform without
  * breaking the linear flow of a chain of transforms, e.g.

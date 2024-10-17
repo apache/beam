@@ -84,7 +84,7 @@ public class Flatten {
   }
 
   /**
-   * Returns a {@link PTransform} that flattens the input {@link PCollection} with a given a {@link
+   * Returns a {@link PTransform} that flattens the input {@link PCollection} with a given {@link
    * PCollection} resulting in a {@link PCollection} containing all the elements of both {@link
    * PCollection}s as its output.
    *
@@ -134,7 +134,7 @@ public class Flatten {
    * output of {@code other} and then applying {@link #pCollections()}, but has the advantage that
    * it can be more easily used inline.
    *
-   * <p>Both {@cpde PCollections} must have equal {@link WindowFn}s. The output elements of {@code
+   * <p>Both {@code PCollections} must have equal {@link WindowFn}s. The output elements of {@code
    * Flatten<T>} are in the same windows and have the same timestamps as their corresponding input
    * elements. The output {@code PCollection} will have the same {@link WindowFn} as both inputs.
    *
