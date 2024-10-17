@@ -2077,10 +2077,15 @@ may change at any point and are not guaranteed to remain compatible across versi
 &lt;p>Additionally, any API may change before the first stable release, i.e., between
 versions denoted &lt;code>0.x.y&lt;/code>.&lt;/p>
 &lt;h2 id="releases">Releases&lt;/h2>
+&lt;h3 id="2600-2024-10-17">2.60.0 (2024-10-17)&lt;/h3>
+&lt;p>Official &lt;a href="https://downloads.apache.org/beam/2.60.0/apache-beam-2.60.0-source-release.zip">source code download&lt;/a>.
+&lt;a href="https://downloads.apache.org/beam/2.60.0/apache-beam-2.60.0-source-release.zip.sha512">SHA-512&lt;/a>.
+&lt;a href="https://downloads.apache.org/beam/2.60.0/apache-beam-2.60.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
+&lt;p>&lt;a href="https://github.com/apache/beam/releases/tag/v2.60.0">Release notes&lt;/a>&lt;/p>
 &lt;h3 id="2590-2024-09-11">2.59.0 (2024-09-11)&lt;/h3>
-&lt;p>Official &lt;a href="https://downloads.apache.org/beam/2.59.0/apache-beam-2.59.0-source-release.zip">source code download&lt;/a>.
-&lt;a href="https://downloads.apache.org/beam/2.59.0/apache-beam-2.59.0-source-release.zip.sha512">SHA-512&lt;/a>.
-&lt;a href="https://downloads.apache.org/beam/2.59.0/apache-beam-2.59.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
+&lt;p>Official &lt;a href="https://archive.apache.org/dist/beam/2.59.0/apache-beam-2.59.0-source-release.zip">source code download&lt;/a>.
+&lt;a href="https://archive.apache.org/dist/beam/2.59.0/apache-beam-2.59.0-source-release.zip.sha512">SHA-512&lt;/a>.
+&lt;a href="https://archive.apache.org/dist/beam/2.59.0/apache-beam-2.59.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
 &lt;p>&lt;a href="https://github.com/apache/beam/releases/tag/v2.59.0">Release notes&lt;/a>&lt;/p>
 &lt;h3 id="2581-2024-08-15">2.58.1 (2024-08-15)&lt;/h3>
 &lt;p>Official &lt;a href="https://archive.apache.org/dist/beam/2.58.1/apache-beam-2.58.1-source-release.zip">source code download&lt;/a>.
