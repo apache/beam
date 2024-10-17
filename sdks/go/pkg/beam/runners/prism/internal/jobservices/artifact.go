@@ -77,7 +77,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 
 				case *jobpb.ArtifactResponseWrapper_ResolveArtifactResponse:
 					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
-					slog.Error("GetArtifact failure", err)
+					slog.Error("GetArtifact failure", slog.Any("error", err))
 					return err
 				}
 			}

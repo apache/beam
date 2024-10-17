@@ -312,7 +312,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
 				b.Respond(resp)
 			} else {
-				slog.Debug("ctrl.Recv: %v", resp)
+				slog.Debug("ctrl.Recv", slog.Any("response", resp))
 			}
 			wk.mu.Unlock()
 		}
@@ -369,7 +369,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 				case codes.Canceled:
 					return
 				default:
-					slog.Error("data.Recv failed", err, "worker", wk)
+					slog.Error("data.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
 					panic(err)
 				}
 			}
@@ -448,7 +448,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case codes.Canceled:
 					return
 				default:
-					slog.Error("state.Recv failed", err, "worker", wk)
+					slog.Error("state.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
 					panic(err)
 				}
 			}
@@ -598,7 +598,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 	}()
 	for resp := range responses {
 		if err := state.Send(resp); err != nil {
-			slog.Error("state.Send error", err)
+			slog.Error("state.Send", slog.Any("error", err))
 		}
 	}
 	return nil
