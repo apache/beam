@@ -198,9 +198,9 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection,
       GetWorkRequest request,
       ThrottleTimer getWorkThrottleTimer,
-      Supplier<HeartbeatSender> heartbeatSender,
-      Supplier<GetDataClient> getDataClient,
-      Supplier<WorkCommitter> workCommitter,
+      HeartbeatSender heartbeatSender,
+      GetDataClient getDataClient,
+      WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
