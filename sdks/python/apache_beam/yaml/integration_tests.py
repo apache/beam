@@ -69,7 +69,7 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  yield f'{project}:{dataset_id}.tmp_table'
+  yield f'{project}.{dataset_id}.tmp_table'
   request = bigquery.BigqueryDatasetsDeleteRequest(
       projectId=project, datasetId=dataset_id, deleteContents=True)
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
