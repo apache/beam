@@ -428,7 +428,7 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/prism">Runner documentation&lt;/a>&lt;/li>
 &lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aprism">prism&lt;/a>&lt;/li>
-&lt;li>CLI &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/cmd/prism">Code&lt;/a>, CLI Binaries are available as assets on &lt;a href="https://github.com/apache/beam/releases/tag/v2.59.0">Github Releases&lt;/a>.&lt;/li>
+&lt;li>CLI &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/cmd/prism">Code&lt;/a>, CLI Binaries are available as assets on &lt;a href="https://github.com/apache/beam/releases/tag/v2.60.0">Github Releases&lt;/a>.&lt;/li>
 &lt;li>Core &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism">Code&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/runners/prism/internal/README.md">Prism Internals Deep Dive&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Python SDK Roadmap</title><link>/roadmap/python-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/python-sdk/</guid><description>
