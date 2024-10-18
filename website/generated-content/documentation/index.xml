@@ -8407,7 +8407,7 @@ PerKey must be an associative reduction function or a
 &lt;/div>
 &lt;h4 id="flatten">4.2.5. Flatten&lt;/h4>
 &lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.60.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
-&lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
+&lt;span class="language-py">&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-go">&lt;a href="https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-typescript">&lt;code>Flatten&lt;/code>&lt;/span>
 is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the same data type.
@@ -8430,6 +8430,23 @@ is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the sa
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">merged&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">collections&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Flatten&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">pCollections&lt;/span>&lt;span class="o">());&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;p class="language-java">One can also use the &lt;a href="https://beam.apache.org/releases/javadoc/2.60.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>FlattenWith&lt;/code>&lt;/a>
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">merged&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pc1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(...)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Merges the elements of pc2 in at this point...
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">FlattenWith&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pc2&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(...)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// and the elements of pc3 at this point.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">FlattenWith&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pc3&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(...);&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8442,6 +8459,36 @@ is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the sa
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="n">pcoll1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll3&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># A list of tuples can be &amp;#34;piped&amp;#34; directly into a Flatten transform.&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Flatten&lt;/span>&lt;span class="p">())&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-py">One can also use the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlattenWith">&lt;code>FlattenWith&lt;/code>&lt;/a>
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="n">merged&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pcoll1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">SomeTransform&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">FlattenWith&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll3&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">SomeOtherTransform&lt;/span>&lt;span class="p">())&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-py">&lt;code>FlattenWith&lt;/code> can take root &lt;code>PCollection&lt;/code>-producing transforms
+(such as &lt;code>Create&lt;/code> and &lt;code>Read&lt;/code>) as well as already constructed PCollections,
+and will apply them and flatten their outputs into the resulting output
+PCollection.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="n">merged&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pcoll&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">SomeTransform&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">FlattenWith&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;x&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;y&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;z&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">SomeOtherTransform&lt;/span>&lt;span class="p">())&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;div class='language-go snippet'>
