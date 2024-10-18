@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 
@@ -33,6 +34,7 @@ public class CleanUpReadChangeStreamDoFn extends DoFn<byte[], Void> implements S
 
   @ProcessElement
   public void processElement(OutputReceiver<Void> receiver) {
-    daoFactory.getPartitionMetadataAdminDao().deletePartitionMetadataTable();
+    List<String> indexes = daoFactory.getPartitionMetadataDao().findAllTableIndexes();
+    daoFactory.getPartitionMetadataAdminDao().deletePartitionMetadataTable(indexes);
   }
 }
