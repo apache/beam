@@ -191,6 +191,10 @@ dependencies {
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
   implementation "org.apache.flink:flink-java:$flink_version"
 
+  if (flink_version.compareTo("1.20") >= 0) {
+    implementation "org.apache.flink:flink-core-api:$flink_version"
+  }
+
   implementation "org.apache.flink:flink-runtime:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
   testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
