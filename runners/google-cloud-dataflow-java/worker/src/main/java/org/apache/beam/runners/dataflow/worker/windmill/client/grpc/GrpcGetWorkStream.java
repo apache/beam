@@ -194,15 +194,7 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  public void adjustBudget(long itemsDelta, long bytesDelta) {
+  public void setBudget(GetWorkBudget newBudget) {
     // no-op
-  }
-
-  @Override
-  public GetWorkBudget remainingBudget() {
-    return GetWorkBudget.builder()
-        .setBytes(request.getMaxBytes() - inflightBytes.get())
-        .setItems(request.getMaxItems() - inflightMessages.get())
-        .build();
   }
 }

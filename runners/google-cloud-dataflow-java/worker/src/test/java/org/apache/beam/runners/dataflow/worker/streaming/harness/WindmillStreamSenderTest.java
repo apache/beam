@@ -193,7 +193,7 @@ public class WindmillStreamSenderTest {
     WindmillStreamSender windmillStreamSender =
         newWindmillStreamSender(GetWorkBudget.builder().setBytes(1L).setItems(1L).build());
 
-    windmillStreamSender.closeAllStreams();
+    windmillStreamSender.close();
 
     verifyNoInteractions(streamFactory);
   }
@@ -230,7 +230,7 @@ public class WindmillStreamSenderTest {
             mockStreamFactory);
 
     windmillStreamSender.startStreams();
-    windmillStreamSender.closeAllStreams();
+    windmillStreamSender.close();
 
     verify(mockGetWorkStream).shutdown();
     verify(mockGetDataStream).shutdown();
