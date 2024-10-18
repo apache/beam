@@ -152,7 +152,7 @@ def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject.replaceAll(':', '/')}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
 def dockerPythonImageContainer = "${dockerImageRoot}/python"
-def dockerTag = project.findProperty('dockerTag') ?: new Date().format('yyyyMMddHHmmss')
+def dockerTag = new Date().format('yyyyMMddHHmmss')
 ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
 ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
