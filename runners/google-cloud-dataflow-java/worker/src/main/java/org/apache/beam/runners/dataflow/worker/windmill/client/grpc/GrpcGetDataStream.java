@@ -355,8 +355,6 @@ final class GrpcGetDataStream
       }
     }
 
-    // If we have exited the loop here, the stream has been shutdown. Cancel the response stream.
-    request.getResponseStream().cancel();
     throw new WindmillStreamShutdownException(
         "Cannot send request=[" + request + "] on closed stream.");
   }
@@ -422,7 +420,10 @@ final class GrpcGetDataStream
       batch.notifySent();
     } catch (Exception e) {
       LOG.error("Error occurred sending batch.", e);
+      // Free waiters if the send() failed.
       batch.notifyFailed();
+      // Propagate the exception to the calling thread.
+      throw e;
     }
   }
 
@@ -443,6 +444,12 @@ final class GrpcGetDataStream
       } catch (IllegalStateException e) {
         // The stream broke before this call went through; onNewStream will retry the fetch.
         LOG.warn("GetData stream broke before call started.", e);
+      } finally {
+        if (isShutdown()) {
+          // Stream was shutdown during send, clear all the pending requests.
+          pending.values().forEach(AppendableInputStream::cancel);
+          pending.clear();
+        }
       }
     }
   }

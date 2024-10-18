@@ -94,10 +94,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   /** Guards {@link #start()} and {@link #shutdown()} methods. */
   private final Object shutdownLock = new Object();
 
-  /** Reads are lock free, writes are guarded by shutdownLock. */
-  private final AtomicBoolean isShutdown;
-
-  private final AtomicBoolean started;
   private final AtomicReference<DateTime> shutdownTime;
 
   /**
@@ -107,6 +103,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final AtomicBoolean streamClosed;
 
   private final Logger logger;
+  private volatile boolean isShutdown;
+  private volatile boolean started;
 
   protected AbstractWindmillStream(
       Logger logger,
@@ -128,8 +126,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.streamRegistry = streamRegistry;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
     this.clientClosed = new AtomicBoolean();
-    this.isShutdown = new AtomicBoolean(false);
-    this.started = new AtomicBoolean(false);
+    this.isShutdown = false;
+    this.started = false;
     this.streamClosed = new AtomicBoolean(false);
     this.startTimeMs = new AtomicLong();
     this.lastSendTimeMs = new AtomicLong();
@@ -179,7 +177,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   /** Reflects that {@link #shutdown()} was explicitly called. */
   protected boolean isShutdown() {
-    return isShutdown.get();
+    return isShutdown;
   }
 
   private StreamObserver<RequestT> requestObserver() {
@@ -194,7 +192,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   /** Send a request to the server. */
   protected final void send(RequestT request) {
     synchronized (this) {
-      if (isShutdown()) {
+      if (isShutdown) {
         return;
       }
 
@@ -207,7 +205,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         lastSendTimeMs.set(Instant.now().getMillis());
         requestObserver.onNext(request);
       } catch (StreamObserverCancelledException e) {
-        if (isShutdown()) {
+        if (isShutdown) {
           logger.debug("Stream was shutdown during send.", e);
           return;
         }
@@ -220,10 +218,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   @Override
   public final void start() {
     synchronized (shutdownLock) {
-      if (!isShutdown.get() && started.compareAndSet(false, true)) {
+      if (!isShutdown && !started) {
         // start() should only be executed once during the lifetime of the stream for idempotency
         // and when shutdown() has not been called.
         startStream();
+        started = true;
       }
     }
   }
@@ -235,7 +234,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     while (true) {
       try {
         synchronized (this) {
-          if (isShutdown.get()) {
+          if (isShutdown) {
             break;
           }
           startTimeMs.set(Instant.now().getMillis());
@@ -322,7 +321,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         debugDuration(nowMs, lastSendTimeMs.get()),
         debugDuration(nowMs, lastResponseTimeMs.get()),
         streamClosed.get(),
-        isShutdown.get(),
+        isShutdown,
         shutdownTime.get());
   }
 
@@ -360,7 +359,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     // Don't lock on "this" as isShutdown checks are used in the stream to free blocked
     // threads or as exit conditions to loops.
     synchronized (shutdownLock) {
-      if (isShutdown.compareAndSet(false, true)) {
+      if (!isShutdown) {
+        isShutdown = true;
         shutdownTime.set(DateTime.now());
         requestObserver()
             .onError(new WindmillStreamShutdownException("Explicit call to shutdown stream."));
@@ -517,7 +517,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     /** Returns true if the stream was torn down and should not be restarted internally. */
     private synchronized boolean maybeTeardownStream() {
-      if (isShutdown() || (clientClosed.get() && !hasPendingRequests())) {
+      if (isShutdown || (clientClosed.get() && !hasPendingRequests())) {
         streamRegistry.remove(AbstractWindmillStream.this);
         finishLatch.countDown();
         executor.shutdownNow();
