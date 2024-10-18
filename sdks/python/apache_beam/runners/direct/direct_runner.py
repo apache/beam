@@ -154,12 +154,16 @@ class SwitchingDirectRunner(PipelineRunner):
     if tryingPrism:
       try: 
         pr = runner.run_pipeline(pipeline, options)
+        # This is non-blocking, so if the state is *already* finished, something 
+        # probably failed on job submission.
         if pr.state.is_terminal() and pr.state != PipelineState.DONE:
           _LOGGER.info('Pipeline failed on PrismRunner, falling back toDirectRunner.')
           runner = BundleBasedDirectRunner()
         else:
           return pr
       except Exception as e:
+        # If prism fails in Preparing the portable job, then the PortableRunner
+        # code raises an exception. Catch it, log it, and use the Direct runner instead.
         _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
