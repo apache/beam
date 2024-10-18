@@ -1099,7 +1099,7 @@ def SamplePTransform(pcoll):
 class PTransformLabelsTest(unittest.TestCase):
   class CustomTransform(beam.PTransform):
 
-    pardo = None  # type: Optional[beam.PTransform]
+    pardo: Optional[beam.PTransform] = None
 
     def expand(self, pcoll):
       self.pardo = '*Do*' >> beam.FlatMap(lambda x: [x + 1])
