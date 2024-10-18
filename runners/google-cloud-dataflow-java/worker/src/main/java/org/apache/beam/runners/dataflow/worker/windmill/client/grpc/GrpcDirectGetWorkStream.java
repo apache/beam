@@ -208,7 +208,8 @@ final class GrpcDirectGetWorkStream
       StreamingGetWorkRequest request =
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
-                  requestHeader.toBuilder()
+                  requestHeader
+                      .toBuilder()
                       .setMaxItems(initialGetWorkBudget.items())
                       .setMaxBytes(initialGetWorkBudget.bytes())
                       .build())

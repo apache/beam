@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,7 +54,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
  */
 @Internal
 @ThreadSafe
-final class WindmillStreamSender implements GetWorkBudgetSpender, Closeable {
+final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private static final String STREAM_STARTER_THREAD_NAME = "StartWindmillStreamThread-%d";
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
@@ -149,10 +148,10 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, Closeable {
 
   @Override
   public void setBudget(long items, long bytes) {
-    GetWorkBudget adjustment = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
-    getWorkBudget.set(adjustment);
+    GetWorkBudget budget = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
+    getWorkBudget.set(budget);
     if (started.get()) {
-      getWorkStream.setBudget(adjustment);
+      getWorkStream.setBudget(budget);
     }
   }
 

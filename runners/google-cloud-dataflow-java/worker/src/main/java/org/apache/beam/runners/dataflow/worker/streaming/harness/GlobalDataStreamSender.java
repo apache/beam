@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import java.io.Closeable;
-import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -26,7 +24,7 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 @ThreadSafe
-final class GlobalDataStreamSender implements Closeable, Supplier<GetDataStream> {
+final class GlobalDataStreamSender implements StreamSender {
   private final Endpoint endpoint;
   private final GetDataStream delegate;
   private volatile boolean started;
@@ -37,9 +35,10 @@ final class GlobalDataStreamSender implements Closeable, Supplier<GetDataStream>
     this.endpoint = endpoint;
   }
 
-  @Override
-  public GetDataStream get() {
+  GetDataStream stream() {
     if (!started) {
+      // Starting the stream possibly perform IO. Start the stream lazily since not all pipeline
+      // implementations need to fetch global/side input data.
       startStream();
     }
 
