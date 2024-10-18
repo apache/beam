@@ -632,13 +632,15 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   @Teardown
   public void teardown() throws Exception {
-    final Deserializer<K> keyDeserializerInstance =
-        Preconditions.checkStateNotNull(this.keyDeserializerInstance);
-    final Deserializer<V> valueDeserializerInstance =
-        Preconditions.checkStateNotNull(this.valueDeserializerInstance);
     try {
-      Closeables.close(keyDeserializerInstance, true);
-      Closeables.close(valueDeserializerInstance, true);
+      if (valueDeserializerInstance != null) {
+        Closeables.close(valueDeserializerInstance, true);
+        valueDeserializerInstance = null;
+      }
+      if (keyDeserializerInstance != null) {
+        Closeables.close(keyDeserializerInstance, true);
+        keyDeserializerInstance = null;
+      }
     } catch (Exception anyException) {
       LOG.warn("Fail to close resource during finishing bundle.", anyException);
     }

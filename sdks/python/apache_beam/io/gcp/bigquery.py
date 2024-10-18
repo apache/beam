@@ -1930,6 +1930,8 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
+      use_cdc_writes: bool = False,
+      primary_key: List[str] = None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
 
@@ -2095,6 +2097,15 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         GCP expansion service. Used for STORAGE_WRITE_API method.
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
+      use_cdc_writes: Configure the usage of CDC writes on BigQuery.
+        The argument can be used by passing True and the Beam Rows will be
+        sent as they are to the BigQuery sink which expects a 'record'
+        and 'row_mutation_info' properties.
+        Used for STORAGE_WRITE_API, working on 'at least once' mode.
+      primary_key: When using CDC write on BigQuery and
+        CREATE_IF_NEEDED mode for the underlying tables a list of column names
+        is required to be configured as the primary key. Used for
+        STORAGE_WRITE_API, working on 'at least once' mode.
     """
     self._table = table
     self._dataset = dataset
@@ -2136,6 +2147,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.load_job_project_id = load_job_project_id
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
+    self._use_cdc_writes = use_cdc_writes
+    self._primary_key = primary_key
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2289,8 +2302,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
           num_storage_api_streams=self._num_storage_api_streams,
+          use_cdc_writes=self._use_cdc_writes,
+          primary_key=self._primary_key,
           expansion_service=self.expansion_service)
-
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
 
@@ -2518,6 +2532,10 @@ class StorageWriteToBigQuery(PTransform):
   # fields for rows sent to Storage API with dynamic destinations
   DESTINATION = "destination"
   RECORD = "record"
+  # field names for rows sent to Storage API for CDC functionality
+  CDC_INFO = "row_mutation_info"
+  CDC_MUTATION_TYPE = "mutation_type"
+  CDC_SQN = "change_sequence_number"
   # magic string to tell Java that these rows are going to dynamic destinations
   DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
 
@@ -2532,6 +2550,8 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
+      use_cdc_writes: bool = False,
+      primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2542,6 +2562,8 @@ class StorageWriteToBigQuery(PTransform):
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
     self._num_storage_api_streams = num_storage_api_streams
+    self._use_cdc_writes = use_cdc_writes
+    self._primary_key = primary_key
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2552,11 +2574,11 @@ class StorageWriteToBigQuery(PTransform):
         is_rows = True
       except TypeError as exn:
         raise ValueError(
-            "A schema is required in order to prepare rows"
+            "A schema is required in order to prepare rows "
             "for writing with STORAGE_WRITE_API.") from exn
     elif callable(self._schema):
       raise NotImplementedError(
-          "Writing with dynamic schemas is not"
+          "Writing with dynamic schemas is not "
           "supported for this write method.")
     elif isinstance(self._schema, vp.ValueProvider):
       schema = self._schema.get()
@@ -2624,6 +2646,8 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
+            use_cdc_writes=self._use_cdc_writes,
+            primary_key=self._primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))

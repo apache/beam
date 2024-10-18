@@ -101,3 +101,8 @@
         Explode: "beam:schematransform:org.apache.beam:yaml:explode:v1"
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+
+- type: 'python'
+  config: {}
+  transforms:
+    Enrichment: 'apache_beam.yaml.yaml_enrichment.enrichment_transform'
