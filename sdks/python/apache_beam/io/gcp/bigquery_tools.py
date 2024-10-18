@@ -560,7 +560,7 @@ class BigQueryWrapper(object):
 
   def _start_job(
       self,
-      request: bigquery.BigqueryJobsInsertRequest,
+      request: 'bigquery.BigqueryJobsInsertRequest',
       stream=None,
   ):
     """Inserts a BigQuery job.
