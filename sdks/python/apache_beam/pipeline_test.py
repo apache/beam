@@ -1053,7 +1053,7 @@ class RunnerApiTest(unittest.TestCase):
         self.p = p
         return p | beam.Create([None])
 
-      def display_data(self):  # type: () -> dict
+      def display_data(self) -> dict:
         parent_dd = super().display_data()
         parent_dd['p_dd_string'] = DisplayDataItem(
             'p_dd_string_value', label='p_dd_string_label')
@@ -1067,7 +1067,7 @@ class RunnerApiTest(unittest.TestCase):
         self.p = p
         return p | beam.Create([None])
 
-      def display_data(self):  # type: () -> dict
+      def display_data(self) -> dict:
         parent_dd = super().display_data()
         parent_dd['dd_string'] = DisplayDataItem(
             'dd_string_value', label='dd_string_label')
@@ -1183,7 +1183,7 @@ class RunnerApiTest(unittest.TestCase):
 
       @classmethod
       def get_merged_value(
-          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+          cls, outer_value: bytes, inner_value: bytes) -> bytes:
         return ResourceHint._use_max(outer_value, inner_value)
 
     ResourceHint.register_resource_hint('foo_hint', FooHint)
@@ -1312,7 +1312,7 @@ class RunnerApiTest(unittest.TestCase):
 
       @classmethod
       def get_merged_value(
-          cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+          cls, outer_value: bytes, inner_value: bytes) -> bytes:
         return ResourceHint._use_max(outer_value, inner_value)
 
     ResourceHint.register_resource_hint('foo_hint', FooHint)

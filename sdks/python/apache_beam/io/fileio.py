@@ -115,14 +115,12 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.window import BoundedWindow
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-if TYPE_CHECKING:
-  from apache_beam.transforms.window import BoundedWindow
 
 __all__ = [
     'EmptyMatchTreatment',
@@ -382,8 +380,7 @@ class FileSink(object):
         mime_type="application/octet-stream",
         compression_type=CompressionTypes.AUTO)
 
-  def open(self, fh):
-    # type: (BinaryIO) -> None
+  def open(self, fh: BinaryIO) -> None:
     raise NotImplementedError
 
   def write(self, record):
@@ -575,8 +572,7 @@ class WriteToFiles(beam.PTransform):
     self._max_num_writers_per_bundle = max_writers_per_bundle
 
   @staticmethod
-  def _get_sink_fn(input_sink):
-    # type: (...) -> Callable[[Any], FileSink]
+  def _get_sink_fn(input_sink) -> Callable[[Any], FileSink]:
     if isinstance(input_sink, type) and issubclass(input_sink, FileSink):
       return lambda x: input_sink()
     elif isinstance(input_sink, FileSink):
@@ -588,8 +584,7 @@ class WriteToFiles(beam.PTransform):
       return lambda x: TextSink()
 
   @staticmethod
-  def _get_destination_fn(destination):
-    # type: (...) -> Callable[[Any], str]
+  def _get_destination_fn(destination) -> Callable[[Any], str]:
     if isinstance(destination, ValueProvider):
       return lambda elm: destination.get()
     elif callable(destination):
@@ -757,12 +752,8 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
-
-  def __init__(self,
-               base_path,
-               sink_fn,  # type: Callable[[Any], FileSink]
-               shards  # type: int
-              ):
+  def __init__(
+      self, base_path, sink_fn: Callable[[Any], FileSink], shards: int):
     self.base_path = base_path
     self.sink_fn = sink_fn
     self.shards = shards
@@ -805,17 +796,13 @@ class _WriteShardedRecordsFn(beam.DoFn):
 
 
 class _AppendShardedDestination(beam.DoFn):
-  def __init__(
-      self,
-      destination,  # type: Callable[[Any], str]
-      shards  # type: int
-  ):
+  def __init__(self, destination: Callable[[Any], str], shards: int):
     self.destination_fn = destination
     self.shards = shards
 
     # We start the shards for a single destination at an arbitrary point.
-    self._shard_counter = collections.defaultdict(
-        lambda: random.randrange(self.shards))  # type: DefaultDict[str, int]
+    self._shard_counter: DefaultDict[str, int] = collections.defaultdict(
+        lambda: random.randrange(self.shards))
 
   def _next_shard_for_destination(self, destination):
     self._shard_counter[destination] = ((self._shard_counter[destination] + 1) %
@@ -835,8 +822,9 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
   SPILLED_RECORDS = 'spilled_records'
   WRITTEN_FILES = 'written_files'
 
-  _writers_and_sinks = None  # type: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO, FileSink]]
-  _file_names = None  # type: Dict[Tuple[str, BoundedWindow], str]
+  _writers_and_sinks: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO,
+                                                            FileSink]] = None
+  _file_names: Dict[Tuple[str, BoundedWindow], str] = None
 
   def __init__(
       self,
