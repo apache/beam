@@ -30,6 +30,7 @@ pipelines:
           config:
             append: true
             fields:
+              # TODO(https://github.com/apache/beam/issues/32832): Figure out why Java sometimes re-orders these fields.
               literal_int: 10
               named_field: element
               literal_float: 1.5
