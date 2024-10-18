@@ -15,13 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import org.apache.beam.sdk.annotations.Internal;
-
-@Internal
-public final class GetWorkBudgetDistributors {
-  public static GetWorkBudgetDistributor distributeEvenly() {
-    return new EvenGetWorkBudgetDistributor();
-  }
+interface StreamSender {
+  void close();
 }
