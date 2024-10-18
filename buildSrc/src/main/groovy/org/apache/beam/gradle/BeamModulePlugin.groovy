@@ -2513,6 +2513,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def taskName = "run${config.type}Java${config.runner}"
       def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+      // shared maven local path for maven archetype projects
+      def sharedMavenLocal = project.findProperty('mavenLocalPath') ?: ''
       def argsNeeded = [
         "--ver=${releaseVersion}",
         "--repourl=${releaseRepo}"
@@ -2531,6 +2533,9 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       if (config.pubsubTopic) {
         argsNeeded.add("--pubsubTopic=${config.pubsubTopic}")
+      }
+      if (sharedMavenLocal) {
+        argsNeeded.add("--mavenLocalPath=${sharedMavenLocal}")
       }
       project.evaluationDependsOn(':release')
       project.task(taskName, dependsOn: ':release:classes', type: JavaExec) {
