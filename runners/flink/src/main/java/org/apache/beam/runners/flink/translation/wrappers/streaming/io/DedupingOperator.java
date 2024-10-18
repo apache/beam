@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -43,7 +43,7 @@ import org.joda.time.Duration;
 })
 public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>>
     implements OneInputStreamOperator<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>>,
-        Triggerable<ByteBuffer, VoidNamespace> {
+        Triggerable<FlinkKey, VoidNamespace> {
 
   private static final long MAX_RETENTION_SINCE_ACCESS = Duration.standardMinutes(10L).getMillis();
   private final SerializablePipelineOptions options;
@@ -94,12 +94,12 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
   }
 
   @Override
-  public void onEventTime(InternalTimer<ByteBuffer, VoidNamespace> internalTimer) {
+  public void onEventTime(InternalTimer<FlinkKey, VoidNamespace> internalTimer) {
     // will never happen
   }
 
   @Override
-  public void onProcessingTime(InternalTimer<ByteBuffer, VoidNamespace> internalTimer)
+  public void onProcessingTime(InternalTimer<FlinkKey, VoidNamespace> internalTimer)
       throws Exception {
     ValueState<Long> dedupingState = getPartitionedState(dedupingStateDescriptor);
 
