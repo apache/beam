@@ -523,7 +523,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockTableExists() {
     Statement tableExistsStatement =
         Statement.of(
-            "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' AND t.table_schema = '' AND t.table_name = 'my-metadata-table'");
+            "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_name = 'my-metadata-table'");
     ResultSetMetadata tableExistsResultSetMetadata =
         ResultSetMetadata.newBuilder()
             .setRowType(
