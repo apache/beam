@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -27,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
-	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
@@ -42,7 +42,7 @@ import (
 // TODO move environment handling to the worker package.
 
 func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *worker.W) error {
-	logger := slog.With(slog.String("envID", wk.Env))
+	logger := j.Logger.With(slog.String("envID", wk.Env))
 	// TODO fix broken abstraction.
 	// We're starting a worker pool here, because that's the loopback environment.
 	// It's sort of a mess, largely because of loopback, which has
@@ -56,7 +56,7 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 		}
 		go func() {
 			externalEnvironment(ctx, ep, wk)
-			slog.Debug("environment stopped", slog.String("job", j.String()))
+			logger.Debug("environment stopped", slog.String("job", j.String()))
 		}()
 		return nil
 	case urns.EnvDocker:
@@ -129,6 +129,8 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 			credEnv := fmt.Sprintf("%v=%v", gcloudCredsEnv, dockerGcloudCredsFile)
 			envs = append(envs, credEnv)
 		}
+	} else {
+		logger.Debug("local GCP credentials environment variable not found")
 	}
 	if _, _, err := cli.ImageInspectWithRaw(ctx, dp.GetContainerImage()); err != nil {
 		// We don't have a local image, so we should pull it.
@@ -140,6 +142,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 			logger.Warn("unable to pull image and it's not local", "error", err)
 		}
 	}
+	logger.Debug("creating container", "envs", envs, "mounts", mounts)
 
 	ccr, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: dp.GetContainerImage(),
@@ -169,17 +172,32 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		return fmt.Errorf("unable to start container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
 	}
 
+	logger.Debug("container started")
+
 	// Start goroutine to wait on container state.
 	go func() {
 		defer cli.Close()
 		defer wk.Stop()
+		defer func() {
+			logger.Debug("container stopped")
+		}()
 
-		statusCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+		bgctx := context.Background()
+		statusCh, errCh := cli.ContainerWait(bgctx, containerID, container.WaitConditionNotRunning)
 		select {
 		case <-ctx.Done():
-			// Can't use command context, since it's already canceled here.
-			err := cli.ContainerKill(context.Background(), containerID, "")
+			rc, err := cli.ContainerLogs(bgctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
+				logger.Error("error fetching container logs error on context cancellation", "error", err)
+			}
+			if rc != nil {
+				defer rc.Close()
+				var buf bytes.Buffer
+				stdcopy.StdCopy(&buf, &buf, rc)
+				logger.Info("container being killed", slog.Any("cause", context.Cause(ctx)), slog.Any("containerLog", buf))
+			}
+			// Can't use command context, since it's already canceled here.
+			if err := cli.ContainerKill(bgctx, containerID, ""); err != nil {
 				logger.Error("docker container kill error", "error", err)
 			}
 		case err := <-errCh:
@@ -189,7 +207,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		case resp := <-statusCh:
 			logger.Info("docker container has self terminated", "status_code", resp.StatusCode)
 
-			rc, err := cli.ContainerLogs(ctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
+			rc, err := cli.ContainerLogs(bgctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
 				logger.Error("docker container logs error", "error", err)
 			}
