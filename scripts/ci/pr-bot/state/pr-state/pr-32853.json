@@ -4,7 +4,7 @@
     "website": "rszper"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
