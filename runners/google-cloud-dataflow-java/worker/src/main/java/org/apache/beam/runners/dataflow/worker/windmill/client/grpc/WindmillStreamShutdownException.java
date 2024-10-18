@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming.harness;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Provides an interface to start streaming worker processing. */
+/**
+ * Indicates that a {@link WindmillStream#shutdown()} was called while waiting for some internal
+ * operation to complete. Most common use of this exception should be conversion to a {@link
+ * org.apache.beam.runners.dataflow.worker.WorkItemCancelledException} as the {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem} being processed by {@link
+ * WindmillStream}.
+ */
 @Internal
-public interface StreamingWorkerHarness {
-  void start();
-
-  void shutdown();
-
-  long getAndResetThrottleTime();
+final class WindmillStreamShutdownException extends RuntimeException {
+  WindmillStreamShutdownException(String message) {
+    super(message);
+  }
 }
