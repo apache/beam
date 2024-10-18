@@ -31,12 +31,14 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -269,6 +271,25 @@ public class RecordWriterManagerTest {
     assertThrows(IllegalStateException.class, writerManager::getSerializableDataFiles);
   }
 
+  /** DataFile doesn't implement a .equals() method. Check equality manually. */
+  private static void checkDataFileEquality(DataFile d1, DataFile d2) {
+    assertEquals(d1.path(), d2.path());
+    assertEquals(d1.format(), d2.format());
+    assertEquals(d1.recordCount(), d2.recordCount());
+    assertEquals(d1.partition(), d2.partition());
+    assertEquals(d1.specId(), d2.specId());
+    assertEquals(d1.keyMetadata(), d2.keyMetadata());
+    assertEquals(d1.splitOffsets(), d2.splitOffsets());
+    assertEquals(d1.columnSizes(), d2.columnSizes());
+    assertEquals(d1.valueCounts(), d2.valueCounts());
+    assertEquals(d1.nullValueCounts(), d2.nullValueCounts());
+    assertEquals(d1.nanValueCounts(), d2.nanValueCounts());
+    assertEquals(d1.equalityFieldIds(), d2.equalityFieldIds());
+    assertEquals(d1.fileSequenceNumber(), d2.fileSequenceNumber());
+    assertEquals(d1.dataSequenceNumber(), d2.dataSequenceNumber());
+    assertEquals(d1.pos(), d2.pos());
+  }
+
   @Test
   public void testSerializableDataFileRoundTripEquality() throws IOException {
     PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
@@ -288,22 +309,54 @@ public class RecordWriterManagerTest {
     assertEquals(2L, datafile.recordCount());
 
     DataFile roundTripDataFile =
-        SerializableDataFile.from(datafile, partitionKey).createDataFile(PARTITION_SPEC);
-    // DataFile doesn't implement a .equals() method. Check equality manually
-    assertEquals(datafile.path(), roundTripDataFile.path());
-    assertEquals(datafile.format(), roundTripDataFile.format());
-    assertEquals(datafile.recordCount(), roundTripDataFile.recordCount());
-    assertEquals(datafile.partition(), roundTripDataFile.partition());
-    assertEquals(datafile.specId(), roundTripDataFile.specId());
-    assertEquals(datafile.keyMetadata(), roundTripDataFile.keyMetadata());
-    assertEquals(datafile.splitOffsets(), roundTripDataFile.splitOffsets());
-    assertEquals(datafile.columnSizes(), roundTripDataFile.columnSizes());
-    assertEquals(datafile.valueCounts(), roundTripDataFile.valueCounts());
-    assertEquals(datafile.nullValueCounts(), roundTripDataFile.nullValueCounts());
-    assertEquals(datafile.nanValueCounts(), roundTripDataFile.nanValueCounts());
-    assertEquals(datafile.equalityFieldIds(), roundTripDataFile.equalityFieldIds());
-    assertEquals(datafile.fileSequenceNumber(), roundTripDataFile.fileSequenceNumber());
-    assertEquals(datafile.dataSequenceNumber(), roundTripDataFile.dataSequenceNumber());
-    assertEquals(datafile.pos(), roundTripDataFile.pos());
+        SerializableDataFile.from(datafile, partitionKey)
+            .createDataFile(
+                ImmutableMap.<Integer, PartitionSpec>builder()
+                    .put(PARTITION_SPEC.specId(), PARTITION_SPEC)
+                    .build());
+
+    checkDataFileEquality(datafile, roundTripDataFile);
+  }
+
+  /**
+   * Users may update the table's spec while a write pipeline is running. Sometimes, this can happen
+   * after converting {@link DataFile} to {@link SerializableDataFile}s. When converting back to
+   * {@link DataFile} to commit in the {@link AppendFilesToTables} step, we need to make sure to use
+   * the same {@link PartitionSpec} it was originally created with.
+   *
+   * <p>This test checks that we're preserving the right {@link PartitionSpec} when such an update
+   * happens.
+   */
+  @Test
+  public void testRecreateSerializableDataAfterUpdatingPartitionSpec() throws IOException {
+    PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "abcxyz", true).build();
+    // same partition for both records (name_trunc=abc, bool=true)
+    partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+
+    // write some rows
+    RecordWriter writer =
+        new RecordWriter(catalog, windowedDestination.getValue(), "test_file_name", partitionKey);
+    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row2));
+    writer.close();
+
+    // fetch data file and its serializable version
+    DataFile datafile = writer.getDataFile();
+    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, partitionKey);
+
+    assertEquals(2L, datafile.recordCount());
+    assertEquals(serializableDataFile.getPartitionSpecId(), datafile.specId());
+
+    // update spec
+    Table table = catalog.loadTable(windowedDestination.getValue().getTableIdentifier());
+    table.updateSpec().addField("id").removeField("bool").commit();
+
+    Map<Integer, PartitionSpec> updatedSpecs = table.specs();
+    DataFile roundTripDataFile = serializableDataFile.createDataFile(updatedSpecs);
+
+    checkDataFileEquality(datafile, roundTripDataFile);
   }
 }

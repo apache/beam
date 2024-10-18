@@ -112,7 +112,7 @@ class AppendFilesToTables
       AppendFiles update = table.newAppend();
       long numFiles = 0;
       for (FileWriteResult result : fileWriteResults) {
-        DataFile dataFile = result.getDataFile(table.spec());
+        DataFile dataFile = result.getDataFile(table.specs());
         update.appendFile(dataFile);
         committedDataFileByteSize.update(dataFile.fileSizeInBytes());
         committedDataFileRecordCount.update(dataFile.recordCount());
