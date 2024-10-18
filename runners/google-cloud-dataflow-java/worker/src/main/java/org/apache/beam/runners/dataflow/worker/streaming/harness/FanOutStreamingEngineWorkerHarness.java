@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
-import java.io.Closeable;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
@@ -32,10 +31,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.CheckReturnValue;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -102,8 +101,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineBackends> backends;
 
-  private final GetWorkerMetadataStream getWorkerMetadataStream;
-
   @GuardedBy("this")
   private long activeMetadataVersion;
 
@@ -112,6 +109,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   @GuardedBy("this")
   private boolean started;
+
+  @GuardedBy("this")
+  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream = null;
 
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
@@ -142,14 +142,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
-    // To satisfy CheckerFramework complaining about reference to "this" in constructor.
-    @SuppressWarnings("methodref.receiver.bound")
-    Consumer<WindmillEndpoints> newEndpointsConsumer = this::consumeWorkerMetadata;
-    this.getWorkerMetadataStream =
-        streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient::getWindmillMetadataServiceStubBlocking,
-            getWorkerMetadataThrottleTimer,
-            newEndpointsConsumer);
   }
 
   /**
@@ -208,6 +200,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
+    getWorkerMetadataStream =
+        streamFactory.createGetWorkerMetadataStream(
+            dispatcherClient::getWindmillMetadataServiceStubBlocking,
+            getWorkerMetadataThrottleTimer,
+            this::consumeWorkerMetadata);
     getWorkerMetadataStream.start();
     started = true;
   }
@@ -227,7 +224,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
    */
   private GetDataStream getGlobalDataStream(String globalDataKey) {
     return Optional.ofNullable(backends.get().globalDataStreams().get(globalDataKey))
-        .map(GlobalDataStreamSender::get)
+        .map(GlobalDataStreamSender::stream)
         .orElseThrow(
             () -> new NoSuchElementException("No endpoint for global data tag: " + globalDataKey));
   }
@@ -322,7 +319,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                 windmillStreamManager.execute(() -> closeStreamSender(sender.endpoint(), sender)));
   }
 
-  private void closeStreamSender(Endpoint endpoint, Closeable sender) {
+  private void closeStreamSender(Endpoint endpoint, StreamSender sender) {
     LOG.debug("Closing streams to endpoint={}, sender={}", endpoint, sender);
     try {
       sender.close();
@@ -348,13 +345,14 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private CompletionStage<Pair<Endpoint, WindmillStreamSender>>
       getOrCreateWindmillStreamSenderFuture(
           Endpoint endpoint, ImmutableMap<Endpoint, WindmillStreamSender> currentStreams) {
-    return MoreFutures.supplyAsync(
-        () ->
-            Pair.of(
-                endpoint,
-                Optional.ofNullable(currentStreams.get(endpoint))
-                    .orElseGet(() -> createAndStartWindmillStreamSender(endpoint))),
-        windmillStreamManager);
+    return Optional.ofNullable(currentStreams.get(endpoint))
+        .map(backend -> CompletableFuture.completedFuture(Pair.of(endpoint, backend)))
+        .orElseGet(
+            () ->
+                MoreFutures.supplyAsync(
+                        () -> Pair.of(endpoint, createAndStartWindmillStreamSender(endpoint)),
+                        windmillStreamManager)
+                    .toCompletableFuture());
   }
 
   /** Add up all the throttle times of all streams including GetWorkerMetadataStream. */
