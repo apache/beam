@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 package org.apache.beam.fn.harness.control;
-import org.apache.beam.sdk.metrics.NoOpHistogram;
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
@@ -206,8 +205,6 @@ public class ExecutionStateSampler {
     @Override
     public Distribution getDistribution(MetricName metricName) {
       if (tracker.currentState != null) {
-        // LOG.info("xx tracker is not null, {}", tracker.currentState.stateName);
-        Preconditions.checkArgumentNotNull(tracker.currentState);
         return tracker.currentState.metricsContainer.getDistribution(metricName);
       }
       return tracker.metricsContainerRegistry.getUnboundContainer().getDistribution(metricName);
@@ -241,13 +238,16 @@ public class ExecutionStateSampler {
     }
 
     @Override
-    public Histogram getPerWorkerHistogram(MetricName metricName, HistogramData.BucketType bucketType)
-    {
+    public Histogram getPerWorkerHistogram(
+        MetricName metricName, HistogramData.BucketType bucketType) {
       if (tracker.currentState != null) {
         Preconditions.checkArgumentNotNull(tracker.currentState);
         return tracker.currentState.metricsContainer.getPerWorkerHistogram(metricName, bucketType);
       }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getPerWorkerHistogram(metricName, bucketType);
+      return tracker
+          .metricsContainerRegistry
+          .getUnboundContainer()
+          .getPerWorkerHistogram(metricName, bucketType);
     }
 
     @Override

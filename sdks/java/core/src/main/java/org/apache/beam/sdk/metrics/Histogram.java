@@ -30,7 +30,7 @@ public interface Histogram extends Metric {
       update(value);
     }
   }
-   
+
   /** Add a histogram to this histogram. Requires underlying implementation to implement this */
-   default void update(HistogramData data) {}
+  default void update(HistogramData data) {}
 }

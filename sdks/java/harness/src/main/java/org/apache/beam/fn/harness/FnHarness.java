@@ -329,7 +329,6 @@ public class FnHarness {
             }
           };
 
-      LOG.info("xxx set process container");
       MetricsEnvironment.setProcessWideContainer(MetricsContainerImpl.createProcessWideContainer());
 
       ProcessBundleHandler processBundleHandler =
@@ -400,7 +399,6 @@ public class FnHarness {
 
       JvmInitializers.runBeforeProcessing(options);
 
-      LOG.info("xxx configure container");
       LOG.info("Entering instruction processing loop");
 
       // The control client immediately dispatches requests to an executor so we execute on the

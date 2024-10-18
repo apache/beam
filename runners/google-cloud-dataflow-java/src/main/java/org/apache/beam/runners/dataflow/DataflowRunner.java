@@ -98,6 +98,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -398,6 +399,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
+    }
+
+    boolean hasExperimentEnableKafkaMetrics = false;
+    if (dataflowOptions.getExperiments() != null) {
+      for (String experiment : dataflowOptions.getExperiments()) {
+        if (experiment.startsWith("enable_kafka_metrics")) {
+          hasExperimentEnableKafkaMetrics = true;
+          break;
+        }
+      }
+    }
+
+    if (dataflowOptions.isStreaming() && hasExperimentEnableKafkaMetrics) {
+      KafkaSinkMetrics.setSupportKafkaMetrics(true);
     }
 
     // Adding the Java version to the SDK name for user's and support convenience.

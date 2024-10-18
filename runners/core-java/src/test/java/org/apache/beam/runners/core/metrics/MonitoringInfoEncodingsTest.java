@@ -33,22 +33,32 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.junit.Assert.assertEquals;
 
 import java.util.Collections;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link MonitoringInfoEncodings}. */
 @RunWith(JUnit4.class)
 public class MonitoringInfoEncodingsTest {
+
+  @Rule
+  public ExpectedLogs monitoringInfoCodingsExpectedLogs =
+      ExpectedLogs.none(MonitoringInfoEncodings.class);
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testInt64DistributionEncoding() {
     DistributionData data = DistributionData.create(1L, 2L, 3L, 4L);
     ByteString payload = encodeInt64Distribution(data);
-    System.out.println("xxxx " + payload);
+    assertEquals(ByteString.copyFrom(new byte[] {2, 1, 3, 4}), payload);
     assertEquals(data, decodeInt64Distribution(payload));
   }
 
@@ -64,16 +74,35 @@ public class MonitoringInfoEncodingsTest {
   }
 
   @Test
-  public void testHistgramInt64Encoding() {
+  public void testHistgramInt64EncodingLinearHist() {
     HistogramData.BucketType buckets = HistogramData.LinearBuckets.of(0, 5, 5);
 
     HistogramData inputHistogram = new HistogramData(buckets);
     inputHistogram.record(5, 10, 15, 20);
-    // LOG.info("Xxx: inputHistogram {}, {} ", inputHistogram.getBoun, payload);
     ByteString payload = encodeInt64Histogram(inputHistogram);
-    // HistogramData data = inputHistogram.extractResult();
-    // System.out.println("xxx data {}" + data);
+
     assertEquals(inputHistogram, decodeInt64Histogram(payload));
+  }
+
+  @Test
+  public void testHistgramInt64EncodingExpHist() {
+    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 10);
+    HistogramData inputHistogram = new HistogramData(buckets);
+    inputHistogram.record(2, 4, 8, 16, 32);
+    ByteString payload = encodeInt64Histogram(inputHistogram);
+    assertEquals(inputHistogram, decodeInt64Histogram(payload));
+  }
+
+  @Test
+  public void testHistgramInt64EncodingUnsupportedBucket() {
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Unable to parse histogram, bucket is not recognized");
+
+    HistogramData.BucketType buckets = HistogramData.UnsupportedBuckets.of();
+
+    HistogramData inputHistogram = new HistogramData(buckets);
+    inputHistogram.record(2, 4, 8, 16, 32);
+    encodeInt64Histogram(inputHistogram);
   }
 
   @Test

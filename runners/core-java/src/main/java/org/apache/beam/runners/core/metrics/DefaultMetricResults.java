@@ -28,8 +28,6 @@ import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Default implementation of {@link org.apache.beam.sdk.metrics.MetricResults}, which takes static
@@ -40,7 +38,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DefaultMetricResults extends MetricResults {
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricResults.class);
 
   private final Iterable<MetricResult<Long>> counters;
   private final Iterable<MetricResult<DistributionResult>> distributions;
@@ -54,7 +51,6 @@ public class DefaultMetricResults extends MetricResults {
       Iterable<MetricResult<GaugeResult>> gauges,
       Iterable<MetricResult<StringSetResult>> stringSets,
       Iterable<MetricResult<HistogramData>> perWorkerHistograms) {
-    LOG.info("xxx does this get here? DefaultMetricResults ");
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;

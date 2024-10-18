@@ -27,6 +27,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 
@@ -81,5 +82,10 @@ class CustomMetricQueryResults extends MetricQueryResults {
         "n3",
         StringSetResult.create(ImmutableSet.of("ab")),
         StringSetResult.create(ImmutableSet.of("cd")));
+  }
+
+  @Override
+  public Iterable<MetricResult<HistogramData>> getPerWorkerHistograms() {
+    return Collections.emptyList();
   }
 }

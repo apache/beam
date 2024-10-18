@@ -618,7 +618,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-
     if (checkpointMark != null) {
       LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
       Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
@@ -735,7 +734,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       // Don't update the latest offset.
     }
 
-    LOG.info("{}:  backlog {}", this, getSplitBacklogBytes());
+    LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
   }
 
   private void reportBacklog() {

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.metrics;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;

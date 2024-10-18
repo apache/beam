@@ -31,6 +31,7 @@ dependencies {
   provided project(path: ":sdks:java:core", configuration: "shadow")
   provided project(path: ":sdks:java:transform-service:launcher")
   provided library.java.avro
+  provided library.java.google_api_services_dataflow
   provided library.java.jackson_databind
   provided library.java.joda_time
   provided library.java.slf4j_api
@@ -52,6 +53,7 @@ applyJavaNature(
     "org/apache/beam/fn/harness/**",
     "org/apache/beam/runners/core/**",
     "org/apache/beam/sdk/fn/**",
+    "org/apache/beam/sdk/util/**",
   ],
   shadowClosure:
   {

@@ -18,12 +18,10 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** The results of a query for metrics. Allows accessing all the metrics that matched the filter. */
 @AutoValue
@@ -72,7 +70,7 @@ public abstract class MetricQueryResults {
     printMetrics("Distributions", getDistributions(), sb);
     printMetrics("Gauges", getGauges(), sb);
     printMetrics("StringSets", getStringSets(), sb);
-    printMetrics("perWorkerHistograms", getPerWorkerHistograms(), sb);
+    // printMetrics("perWorkerHistograms", getPerWorkerHistograms(), sb);
     sb.append(")");
     return sb.toString();
   }
@@ -81,16 +79,18 @@ public abstract class MetricQueryResults {
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
-      Iterable<MetricResult<StringSetResult>> stringSets,
-      Iterable<MetricResult<HistogramData>> perWorkerHistograms) {
-    return new AutoValue_MetricQueryResults(counters, distributions, gauges, stringSets, perWorkerHistograms);
+      Iterable<MetricResult<StringSetResult>> stringSets) {
+    return new AutoValue_MetricQueryResults(
+        counters, distributions, gauges, stringSets, Collections.emptyList());
   }
 
   public static MetricQueryResults create(
-    Iterable<MetricResult<Long>> counters,
-    Iterable<MetricResult<DistributionResult>> distributions,
-    Iterable<MetricResult<GaugeResult>> gauges,
-    Iterable<MetricResult<StringSetResult>> stringSets) {
-  return new AutoValue_MetricQueryResults(counters, distributions, gauges, stringSets, Collections.emptyList());
-}
+      Iterable<MetricResult<Long>> counters,
+      Iterable<MetricResult<DistributionResult>> distributions,
+      Iterable<MetricResult<GaugeResult>> gauges,
+      Iterable<MetricResult<StringSetResult>> stringSets,
+      Iterable<MetricResult<HistogramData>> histogramData) {
+    return new AutoValue_MetricQueryResults(
+        counters, distributions, gauges, stringSets, histogramData);
+  }
 }

@@ -52,13 +52,4 @@ public class LabeledMetrics {
       boolean processWideContainer) {
     return new DelegatingHistogram(metricName, bucketType, processWideContainer);
   }
-
-  public static Histogram histogram(
-      MonitoringInfoMetricName metricName,
-      HistogramData.BucketType bucketType,
-      boolean processWideContainer,
-      boolean perWorkerHistogram) {
-    return new DelegatingHistogram(
-        metricName, bucketType, processWideContainer, perWorkerHistogram);
-  }
 }

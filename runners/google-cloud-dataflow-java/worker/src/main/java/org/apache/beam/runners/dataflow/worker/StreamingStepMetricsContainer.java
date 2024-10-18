@@ -346,11 +346,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         });
     perWorkerHistograms.forEach(
         (k, v) -> {
-          System.out.println("xxx per worker histogram: " + k.getName());
-          // System.out.println("xxx per worker histogram: " + v.toString());
           v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k, snapshot));
-          System.out.println("xxx per worker histogram snapshot: " + histograms.get(k).toString());
-
         });
 
     deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));

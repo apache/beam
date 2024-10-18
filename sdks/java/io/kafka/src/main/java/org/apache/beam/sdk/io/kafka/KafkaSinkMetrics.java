@@ -22,8 +22,6 @@ import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Helper class to create per worker metrics for Kafka Sink stages.
@@ -36,11 +34,10 @@ import org.slf4j.LoggerFactory;
 // TODO, refactor out common parts for BQ sink, so it can be reused with other sinks, eg, GCS?
 // @SuppressWarnings("unused")
 public class KafkaSinkMetrics {
-  private static boolean supportKafkaMetrics = true;
+  private static boolean supportKafkaMetrics =
+      true; // where to set to true for UW if experiement is passed
 
   public static final String METRICS_NAMESPACE = "KafkaSink";
-
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkMetrics.class);
 
   // Base Metric names
   private static final String RPC_LATENCY = "RpcLatency";
@@ -71,18 +68,9 @@ public class KafkaSinkMetrics {
    * @param topic Kafka topic associated with this metric.
    * @return Histogram with exponential buckets with a sqrt(2) growth factor.
    */
-  public static Histogram createRPCLatencyHistogram(
-      RpcMethod method, String topic, boolean processWideContainer) {
-    MetricName metricName = createMetricName(method, topic);
-    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
-    LOG.info("xxx create histogram metrics  " + metricName.getName());
-    return new DelegatingHistogram(metricName, buckets, processWideContainer, true);
-  }
-
   public static Histogram createRPCLatencyHistogram(RpcMethod method, String topic) {
     MetricName metricName = createMetricName(method, topic);
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
-    LOG.info("xxx create histogram metrics in current container" + metricName.getName());
     return new DelegatingHistogram(metricName, buckets, false, true);
   }
 

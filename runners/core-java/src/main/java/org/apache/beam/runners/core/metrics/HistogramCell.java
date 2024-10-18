@@ -62,7 +62,6 @@ public class HistogramCell
     dirty.afterModification();
   }
 
-  /** Update it by another Histogram Data. */
   @Override
   public void update(HistogramData data) {
     this.value.update(data);

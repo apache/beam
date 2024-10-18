@@ -71,7 +71,7 @@ test {
 
 dependencies {
   antlr library.java.antlr
-  implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow") // need histogram proto
+  provided library.java.google_api_services_dataflow
   // antlr is used to generate code from sdks/java/core/src/main/antlr/
   permitUnusedDeclared library.java.antlr
   permitUsedUndeclared library.java.antlr_runtime

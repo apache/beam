@@ -352,7 +352,6 @@ message MonitoringInfoSpecs {
       ]
     }];
 
-  //import com.google.api.services.dataflow.model.PerWorkerMetrics;
     API_REQUEST_LATENCIES = 20 [(monitoring_info_spec) = {
       urn: "beam:metric:io:api_request_latencies:v1",
       type: "beam:metrics:histogram_int64:v1",
@@ -587,9 +586,7 @@ message MonitoringInfoTypeUrns {
     SET_STRING_TYPE = 11 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:set_string:v1"];
 
-    // Encoding: <iter><value1><value2>...<valueN></iter>
-    //   - iter:   beam:coder:iterable:v1
-    //   - valueX: beam:coder:stringutf8:v1
+    // Represents histograms 
     PER_WORKER_HISTOGRAM = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:per_worker_histogram_int64:v1"];
 

@@ -22,10 +22,6 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-// import org.slf4j.Logger;
-// import org.slf4j.LoggerFactory;
-// import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-// import java.util.Map;
 
 /**
  * Processes {@link BeamFnApi.InstructionRequest}'s {@link BeamFnApi.HarnessMonitoringInfosResponse}
@@ -37,7 +33,6 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 public class HarnessMonitoringInfosInstructionHandler {
 
   private final ShortIdMap metricsShortIds;
-  // private static final Logger LOG = LoggerFactory.getLogger(HarnessMonitoringInfosInstructionHandler.class);
 
   public HarnessMonitoringInfosInstructionHandler(ShortIdMap metricsShortIds) {
     this.metricsShortIds = metricsShortIds;
@@ -49,13 +44,8 @@ public class HarnessMonitoringInfosInstructionHandler {
         BeamFnApi.HarnessMonitoringInfosResponse.newBuilder();
     MetricsContainer container = MetricsEnvironment.getProcessWideContainer();
     if (container != null && container instanceof MetricsContainerImpl) {
-      // Map<String, ByteString> monitoringData = ((MetricsContainerImpl) container).getMonitoringData(this.metricsShortIds);
-      // for (Map.Entry<String, ByteString> metric : monitoringData.entrySet()) {
-      //   LOG.info("xxx add monitoring data {} for {}", metric.getKey(), metric.getValue());
-      // }
-      // response.putAllMonitoringData(monitoringData);
       response.putAllMonitoringData(
-        ((MetricsContainerImpl) container).getMonitoringData(this.metricsShortIds));
+          ((MetricsContainerImpl) container).getMonitoringData(this.metricsShortIds));
     }
     return BeamFnApi.InstructionResponse.newBuilder().setHarnessMonitoringInfos(response);
   }

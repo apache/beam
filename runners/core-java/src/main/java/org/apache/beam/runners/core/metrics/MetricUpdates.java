@@ -78,7 +78,6 @@ public abstract class MetricUpdates {
       Iterable<MetricUpdate<GaugeData>> gaugeUpdates,
       Iterable<MetricUpdate<StringSetData>> stringSetUpdates,
       Iterable<MetricUpdate<HistogramData>> perWorkerHistogramsUpdates) {
-    // System.out.println("xxx metric create");
     return new AutoValue_MetricUpdates(
         counterUpdates,
         distributionUpdates,
