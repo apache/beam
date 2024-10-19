@@ -2600,6 +2600,10 @@ class StorageWriteToBigQuery(PTransform):
     elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
       if cdc_writes.__annotations__.get('return') == beam.pvalue.Row:
         return cdc_writes
+      else:
+        raise TypeError(
+            "For Beam Row values, while using CDC writes," +
+            " we expect a Callable[[beam.Row], beam.Row].")
     return None
 
   def extract_cdc_info_fn_dicts(self):
@@ -2609,6 +2613,10 @@ class StorageWriteToBigQuery(PTransform):
     elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
       if cdc_writes.__annotations__.get('return') == Dict:
         return cdc_writes
+      else:
+        raise TypeError(
+            "For dictionary values, while using CDC writes," +
+            " we expect a Callable[[Dict], Dict].")
     return None
 
   def expand(self, input):
@@ -2754,7 +2762,7 @@ class StorageWriteToBigQuery(PTransform):
           **{
               StorageWriteToBigQuery.DESTINATION: destination,
               StorageWriteToBigQuery.RECORD: data if not schema else
-              bigquery_tools.beam_row_from_dict(data_and_dest[1], schema),
+              bigquery_tools.beam_row_from_dict(data, schema),
               StorageWriteToBigQuery.CDC_INFO: cdc_info
               if not schema else bigquery_tools.beam_row_from_dict(
                   cdc_info, StorageWriteToBigQuery.CDC_INFO_SCHEMA)
