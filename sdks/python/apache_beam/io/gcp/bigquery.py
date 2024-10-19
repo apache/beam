@@ -2607,7 +2607,7 @@ class StorageWriteToBigQuery(PTransform):
     if isinstance(cdc_writes, bool):
       return None
     elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
-      if cdc_writes.__annotations__.get('return') == Dicts:
+      if cdc_writes.__annotations__.get('return') == Dict:
         return cdc_writes
     return None
 
