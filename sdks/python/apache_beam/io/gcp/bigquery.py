@@ -2751,7 +2751,7 @@ class StorageWriteToBigQuery(PTransform):
         fields = [(StorageWriteToBigQuery.DESTINATION, str),
                   (StorageWriteToBigQuery.RECORD, self.element_type)]
         if callable(self.mutation_info_fn):
-          fields.append(CDC_INFO_TYPE_HINT)
+          fields.append(StorageWriteToBigQuery.CDC_INFO_TYPE_HINT)
         type_hint = RowTypeConstraint.from_fields(fields)
       else:
         if callable(self.mutation_info_fn):
@@ -2812,7 +2812,7 @@ class StorageWriteToBigQuery(PTransform):
                       StorageWriteToBigQuery.RECORD,
                       RowTypeConstraint.from_fields(row_type_hints))]
         if callable(self.mutation_info_fn):
-          fields.append(CDC_INFO_TYPE_HINT)
+          fields.append(StorageWriteToBigQuery.CDC_INFO_TYPE_HINT)
         type_hint = RowTypeConstraint.from_fields(fields)
       else:
         if callable(self.mutation_info_fn):
