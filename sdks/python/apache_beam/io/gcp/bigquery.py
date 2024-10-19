@@ -2593,6 +2593,24 @@ class StorageWriteToBigQuery(PTransform):
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
+  def extract_cdc_info_fn_rows(self):
+    cdc_writes = self._use_cdc_writes
+    if isinstance(cdc_writes, bool):
+      return None
+    elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
+      if cdc_writes.__annotations__.get('return') == beam.pvalue.Row:
+        return cdc_writes
+    return None
+
+  def extract_cdc_info_fn_dicts(self):
+    cdc_writes = self._use_cdc_writes
+    if isinstance(cdc_writes, bool):
+      return None
+    elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
+      if cdc_writes.__annotations__.get('return') == Dicts:
+        return cdc_writes
+    return None
+
   def expand(self, input):
     if self._schema is None:
       try:
@@ -2620,12 +2638,14 @@ class StorageWriteToBigQuery(PTransform):
       if is_rows:
         input_beam_rows = (
             input | "Prepare Beam Row" >> self.PrepareBeamRows(
-                input.element_type, False).with_output_types())
+                input.element_type, False,
+                self.extract_cdc_info_fn_rows()).with_output_types())
       else:
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, False).with_output_types())
+                schema, False,
+                self.extract_cdc_info_fn_dicts()).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2643,13 +2663,15 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input_rows
             | "Prepare Beam Row" >> self.PrepareBeamRows(
-                input.element_type, True).with_output_types())
+                input.element_type, True,
+                self.extract_cdc_info_fn_rows()).with_output_types())
       # otherwise, convert to Beam Rows
       else:
         input_beam_rows = (
             input_rows
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, True).with_output_types())
+                schema, True,
+                self.extract_cdc_info_fn_dicts()).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
