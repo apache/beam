@@ -95,7 +95,7 @@ import org.slf4j.LoggerFactory;
  * following example:
  *
  * <pre>{@code
- * pipeline.apply(
+ * PCollection<MqttRecord> records = pipeline.apply(
  *   MqttIO.readWithMetadata()
  *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
  *      "tcp://host:11883",
