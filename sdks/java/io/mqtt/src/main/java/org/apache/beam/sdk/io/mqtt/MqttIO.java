@@ -70,16 +70,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>To configure a MQTT source, you have to provide a MQTT connection configuration including
  * {@code ClientId}, a {@code ServerURI}, a {@code Topic} pattern, and optionally {@code username}
- * and {@code password} to connect to the MQTT broker. The following example illustrates various
- * options for configuring the source:
+ * and {@code password} to connect to the MQTT broker. The following example illustrates how to
+ * configure the source with multiple topics:
  *
  * <pre>{@code
  * pipeline.apply(
  *   MqttIO.read()
  *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
  *      "tcp://host:11883",
- *      "my_topic"))
- *
+ *      "topic1",
+ *      "topic2",
+ *      "topic3"))
  * }</pre>
  *
  * <h3>Reading with Metadata from a MQTT broker</h3>
@@ -90,13 +91,17 @@ import org.slf4j.LoggerFactory;
  * and payload. This allows you to implement business logic that can differ depending on the topic
  * from which the message was received.
  *
+ * <p>You can also subscribe to multiple topics with {@code readWithMetadata}, as shown in the
+ * following example:
+ *
  * <pre>{@code
- * PCollection<MqttRecord> records = pipeline.apply(
+ * pipeline.apply(
  *   MqttIO.readWithMetadata()
  *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
  *      "tcp://host:11883",
- *      "my_topic_pattern"))
- *
+ *      "topic1",
+ *      "topic2",
+ *      "topic3"))
  * }</pre>
  *
  * <p>By using the topic information, you can apply different processing logic depending on the
@@ -212,6 +217,8 @@ public class MqttIO {
 
     abstract @Nullable String getTopic();
 
+    abstract @Nullable List<String> getTopicList();
+
     abstract @Nullable String getClientId();
 
     abstract @Nullable String getUsername();
@@ -225,6 +232,8 @@ public class MqttIO {
       abstract Builder setServerUri(String serverUri);
 
       abstract Builder setTopic(String topic);
+
+      abstract Builder setTopicList(List<String> topics);
 
       abstract Builder setClientId(String clientId);
 
@@ -243,13 +252,25 @@ public class MqttIO {
      * @param topic The MQTT getTopic pattern.
      * @return A connection configuration to the MQTT broker.
      */
-    public static ConnectionConfiguration create(String serverUri, String topic) {
+    public static ConnectionConfiguration create(
+        String serverUri, String topic, @Nullable String... additionalTopics) {
       checkArgument(serverUri != null, "serverUri can not be null");
       checkArgument(topic != null, "topic can not be null");
-      return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
-          .setServerUri(serverUri)
-          .setTopic(topic)
-          .build();
+
+      if (additionalTopics != null && additionalTopics.length > 0) {
+        List<String> topics = new ArrayList<>(additionalTopics.length + 1);
+        Collections.addAll(topics, additionalTopics);
+        Collections.addAll(topics, topic);
+        return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
+            .setServerUri(serverUri)
+            .setTopicList(topics)
+            .build();
+      } else {
+        return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
+            .setServerUri(serverUri)
+            .setTopic(topic)
+            .build();
+      }
     }
 
     public static ConnectionConfiguration create(String serverUri) {
@@ -376,7 +397,9 @@ public class MqttIO {
     @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
       checkArgument(connectionConfiguration() != null, "connectionConfiguration can not be null");
-      checkArgument(connectionConfiguration().getTopic() != null, "topic can not be null");
+      if (connectionConfiguration().getTopicList() == null) {
+        checkArgument(connectionConfiguration().getTopic() != null, "topic can not be null");
+      }
 
       Coder<T> coder;
       if (withMetadata()) {
@@ -569,8 +592,17 @@ public class MqttIO {
         LOG.debug("Reader client ID is {}", client.getClientId());
         checkpointMark.clientId = client.getClientId().toString();
         connection = createConnection(client);
-        connection.subscribe(
-            new Topic[] {new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)});
+        @Nullable List<String> topics = spec.connectionConfiguration().getTopicList();
+        if (topics != null && !topics.isEmpty()) {
+          final Topic[] topicArray =
+              topics.stream().map(t -> new Topic(t, QoS.AT_LEAST_ONCE)).toArray(Topic[]::new);
+          connection.subscribe(topicArray);
+        } else {
+          connection.subscribe(
+              new Topic[] {
+                new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)
+              });
+        }
         return advance();
       } catch (Exception e) {
         throw new IOException(e);
@@ -707,6 +739,9 @@ public class MqttIO {
     @Override
     public PDone expand(PCollection<InputT> input) {
       checkArgument(connectionConfiguration() != null, "connectionConfiguration can not be null");
+      checkArgument(
+          connectionConfiguration().getTopicList() == null, "can not have multiple topics");
+
       if (dynamic()) {
         checkArgument(
             connectionConfiguration().getTopic() == null, "DynamicWrite can not have static topic");
