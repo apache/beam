@@ -393,12 +393,12 @@ class FileSystems(object):
   @staticmethod
   def report_source_lineage(path, level=None):
     """
-    Report source :class:`~apache_beam.metrics.metric.Lineage`.
+    Report source :class:`~apache_beam.metrics.metric.LineageLevel`.
 
     Args:
       path: string path to be reported.
       level: the level of file path. default to
-        :class:`~apache_beam.io.filesystem.FileSystem.Lineage`.FILE.
+        :class:`~apache_beam.io.filesystem.FileSystem.LineageLevel`.FILE.
     """
     filesystem = FileSystems.get_filesystem(path)
     filesystem.report_lineage(path, Lineage.sources(), level=level)

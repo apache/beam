@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -36,6 +37,7 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -72,7 +74,10 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -107,9 +112,13 @@ public class IcebergIOIT implements Serializable {
           .addBooleanField("bool")
           .addInt32Field("int")
           .addRowField("row", NESTED_ROW_SCHEMA)
-          .addArrayField("arr_long", org.apache.beam.sdk.schemas.Schema.FieldType.INT64)
+          .addArrayField("arr_long", FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
+          .addDateTimeField("datetime_tz")
+          .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+          .addLogicalTypeField("date", SqlTypes.DATE)
+          .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
 
   private static final SimpleFunction<Long, Row> ROW_FUNC =
@@ -139,6 +148,10 @@ public class IcebergIOIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
+              .addValue(new DateTime(num).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
+              .addValue(DateTimeUtil.timestampFromMicros(num))
+              .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
+              .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
         }
       };

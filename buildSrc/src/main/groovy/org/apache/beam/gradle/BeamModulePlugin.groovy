@@ -637,6 +637,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
+    def snakeyaml_engine_version = "2.6"
     def snakeyaml_version = "2.2"
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
@@ -870,6 +871,7 @@ class BeamModulePlugin implements Plugin<Project> {
         singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         snake_yaml                                  : "org.yaml:snakeyaml:$snakeyaml_version",
+        snakeyaml_engine                            : "org.snakeyaml:snakeyaml-engine:$snakeyaml_engine_version",
         slf4j_android                               : "org.slf4j:slf4j-android:$slf4j_version",
         slf4j_ext                                   : "org.slf4j:slf4j-ext:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
@@ -2511,6 +2513,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def taskName = "run${config.type}Java${config.runner}"
       def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+      // shared maven local path for maven archetype projects
+      def sharedMavenLocal = project.findProperty('mavenLocalPath') ?: ''
       def argsNeeded = [
         "--ver=${releaseVersion}",
         "--repourl=${releaseRepo}"
@@ -2529,6 +2533,9 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       if (config.pubsubTopic) {
         argsNeeded.add("--pubsubTopic=${config.pubsubTopic}")
+      }
+      if (sharedMavenLocal) {
+        argsNeeded.add("--mavenLocalPath=${sharedMavenLocal}")
       }
       project.evaluationDependsOn(':release')
       project.task(taskName, dependsOn: ':release:classes', type: JavaExec) {

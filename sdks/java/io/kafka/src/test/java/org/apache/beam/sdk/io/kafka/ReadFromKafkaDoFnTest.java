@@ -151,6 +151,11 @@ public class ReadFromKafkaDoFnTest {
     public FailingDeserializer() {}
 
     @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      // intentionally left blank for compatibility with older kafka versions
+    }
+
+    @Override
     public String deserialize(String topic, byte[] data) {
       throw new SerializationException("Intentional serialization exception");
     }

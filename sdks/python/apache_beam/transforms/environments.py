@@ -895,6 +895,7 @@ def _python_sdk_capabilities_iter():
   yield common_urns.primitives.TO_STRING.urn
   yield common_urns.protocols.DATA_SAMPLING.urn
   yield common_urns.protocols.SDK_CONSUMING_RECEIVED_DATA.urn
+  yield common_urns.protocols.ORDERED_LIST_STATE.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):

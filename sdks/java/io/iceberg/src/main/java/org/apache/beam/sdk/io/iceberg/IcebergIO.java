@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -45,8 +44,8 @@ import org.joda.time.Duration;
  * A connector that reads and writes to <a href="https://iceberg.apache.org/">Apache Iceberg</a>
  * tables.
  *
- * <p>{@link IcebergIO} is offered as a {@link Managed} transform. This class is subject to change
- * and should not be used directly. Instead, use it via {@link Managed#ICEBERG} like so:
+ * <p>{@link IcebergIO} is offered as a Managed transform. This class is subject to change and
+ * should not be used directly. Instead, use it like so:
  *
  * <pre>{@code
  * Map<String, Object> config = Map.of(
@@ -150,7 +149,16 @@ import org.joda.time.Duration;
  *     <td> DOUBLE </td> <td> DOUBLE </td>
  *   </tr>
  *   <tr>
- *     <td> DATETIME </td> <td> STRING </td>
+ *     <td> SqlTypes.DATETIME </td> <td> TIMESTAMP </td>
+ *   </tr>
+ *   <tr>
+ *     <td> DATETIME </td> <td> TIMESTAMPTZ </td>
+ *   </tr>
+ *   <tr>
+ *     <td> SqlTypes.DATE </td> <td> DATE </td>
+ *   </tr>
+ *   <tr>
+ *     <td> SqlTypes.TIME </td> <td> TIME </td>
  *   </tr>
  *   <tr>
  *     <td> ITERABLE </td> <td> LIST </td>
@@ -165,6 +173,29 @@ import org.joda.time.Duration;
  *     <td> ROW </td> <td> STRUCT </td>
  *   </tr>
  * </table>
+ *
+ * <p><b>Note:</b> {@code SqlTypes} are Beam logical types.
+ *
+ * <h3>Note on timestamps</h3>
+ *
+ * <p>For an existing table, the following Beam types are supported for both {@code timestamp} and
+ * {@code timestamptz}:
+ *
+ * <ul>
+ *   <li>{@code SqlTypes.DATETIME} --> Using a {@link java.time.LocalDateTime} object
+ *   <li>{@code DATETIME} --> Using a {@link org.joda.time.DateTime} object
+ *   <li>{@code INT64} --> Using a {@link Long} representing micros since EPOCH
+ *   <li>{@code STRING} --> Using a timestamp {@link String} representation (e.g. {@code
+ *       "2024-10-08T13:18:20.053+03:27"})
+ * </ul>
+ *
+ * <p><b>Note</b>: If you expect Beam to create the Iceberg table at runtime, please provide {@code
+ * SqlTypes.DATETIME} for a {@code timestamp} column and {@code DATETIME} for a {@code timestamptz}
+ * column. If the table does not exist, Beam will treat {@code STRING} and {@code INT64} at
+ * face-value and create equivalent column types.
+ *
+ * <p>For Iceberg reads, the connector will produce Beam {@code SqlTypes.DATETIME} types for
+ * Iceberg's {@code timestamp} and {@code DATETIME} types for {@code timestamptz}.
  *
  * <h3>Dynamic Destinations</h3>
  *
