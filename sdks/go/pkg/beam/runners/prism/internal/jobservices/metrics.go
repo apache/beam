@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash/maphash"
+	"log/slog"
 	"math"
 	"sort"
 	"sync"
@@ -28,7 +29,6 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/exp/constraints"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -589,7 +589,7 @@ func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
 		urn := mi.GetUrn()
 		ops, ok := mUrn2Ops[urn]
 		if !ok {
-			slog.Debug("unknown metrics urn", slog.String("urn", urn))
+			slog.Debug("unknown metrics urn", slog.String("shortID", short), slog.String("urn", urn), slog.String("type", mi.Type))
 			continue
 		}
 		key := ops.keyFn(urn, mi.GetLabels())
