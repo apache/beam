@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataTableNames.MAX_NAME_LENGTH;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -27,11 +28,17 @@ import org.junit.Test;
 public class PartitionMetadataTableNamesTest {
   @Test
   public void testGeneratePartitionMetadataNamesRemovesHyphens() {
-    PartitionMetadataTableNames names =
-        PartitionMetadataTableNames.generateRandom("my-database-id-12345");
-    assertFalse(names.getTableName().contains("-"));
-    assertFalse(names.getWatermarkIndexName().contains("-"));
-    assertFalse(names.getCreatedAtIndexName().contains("-"));
+    String databaseId = "my-database-id-12345";
+
+    PartitionMetadataTableNames names1 = PartitionMetadataTableNames.generateRandom(databaseId);
+    assertFalse(names1.getTableName().contains("-"));
+    assertFalse(names1.getWatermarkIndexName().contains("-"));
+    assertFalse(names1.getCreatedAtIndexName().contains("-"));
+
+    PartitionMetadataTableNames names2 = PartitionMetadataTableNames.generateRandom(databaseId);
+    assertNotEquals(names1.getTableName(), names2.getTableName());
+    assertNotEquals(names1.getWatermarkIndexName(), names2.getWatermarkIndexName());
+    assertNotEquals(names1.getCreatedAtIndexName(), names2.getCreatedAtIndexName());
   }
 
   @Test
@@ -51,11 +58,16 @@ public class PartitionMetadataTableNamesTest {
 
   @Test
   public void testPartitionMetadataNamesFromExistingTable() {
-    PartitionMetadataTableNames names =
+    PartitionMetadataTableNames names1 =
         PartitionMetadataTableNames.fromExistingTable("databaseid", "mytable");
+    assertEquals("mytable", names1.getTableName());
+    assertFalse(names1.getWatermarkIndexName().contains("-"));
+    assertFalse(names1.getCreatedAtIndexName().contains("-"));
 
-    assertEquals("mytable", names.getTableName());
-    assertFalse(names.getWatermarkIndexName().contains("-"));
-    assertFalse(names.getCreatedAtIndexName().contains("-"));
+    PartitionMetadataTableNames names2 =
+        PartitionMetadataTableNames.fromExistingTable("databaseid", "mytable");
+    assertEquals("mytable", names2.getTableName());
+    assertNotEquals(names1.getWatermarkIndexName(), names2.getWatermarkIndexName());
+    assertNotEquals(names1.getCreatedAtIndexName(), names2.getCreatedAtIndexName());
   }
 }

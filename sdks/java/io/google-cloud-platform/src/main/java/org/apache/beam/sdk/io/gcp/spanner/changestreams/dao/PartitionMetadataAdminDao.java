@@ -122,7 +122,7 @@ public class PartitionMetadataAdminDao {
     if (this.isPostgres()) {
       // Literals need be added around literals to preserve casing.
       ddl.add(
-          "CREATE TABLE \""
+          "CREATE TABLE IF NOT EXISTS \""
               + names.getTableName()
               + "\"(\""
               + COLUMN_PARTITION_TOKEN
@@ -157,7 +157,7 @@ public class PartitionMetadataAdminDao {
               + COLUMN_FINISHED_AT
               + "\"");
       ddl.add(
-          "CREATE INDEX \""
+          "CREATE INDEX IF NOT EXISTS \""
               + names.getWatermarkIndexName()
               + "\" on \""
               + names.getTableName()
@@ -167,7 +167,7 @@ public class PartitionMetadataAdminDao {
               + COLUMN_STATE
               + "\")");
       ddl.add(
-          "CREATE INDEX \""
+          "CREATE INDEX IF NOT EXISTS \""
               + names.getCreatedAtIndexName()
               + "\" ON \""
               + names.getTableName()
@@ -178,7 +178,7 @@ public class PartitionMetadataAdminDao {
               + "\")");
     } else {
       ddl.add(
-          "CREATE TABLE "
+          "CREATE TABLE IF NOT EXISTS "
               + names.getTableName()
               + " ("
               + COLUMN_PARTITION_TOKEN
@@ -212,7 +212,7 @@ public class PartitionMetadataAdminDao {
               + TTL_AFTER_PARTITION_FINISHED_DAYS
               + " DAY))");
       ddl.add(
-          "CREATE INDEX "
+          "CREATE INDEX IF NOT EXISTS "
               + names.getWatermarkIndexName()
               + " on "
               + names.getTableName()
@@ -222,7 +222,7 @@ public class PartitionMetadataAdminDao {
               + COLUMN_STATE
               + ")");
       ddl.add(
-          "CREATE INDEX "
+          "CREATE INDEX IF NOT EXISTS "
               + names.getCreatedAtIndexName()
               + " ON "
               + names.getTableName()

@@ -59,7 +59,7 @@ public class PartitionMetadataTableNames implements Serializable {
   }
 
   /**
-   * Encapsulates an existing table name. Index names are generated, but will only be used if the
+   * Encapsulates a selected table name. Index names are generated, but will only be used if the
    * given table does not exist. The watermark index will be in the form of {@code
    * "WatermarkIdx_<databaseId>_<uuid>}. The createdAt / start timestamp index will be in the form
    * of {@code "CreatedAtIdx_<databaseId>_<uuid>}.
