@@ -130,6 +130,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       group = 'Docker'
       description = 'Builds Docker image.'
       dependsOn prepare
+      environment 'DOCKER_BUILDKIT', '1'
     })
 
     Task tag = project.tasks.create('dockerTag', {
