@@ -59,6 +59,7 @@ class BeamDockerPlugin implements Plugin<Project> {
     boolean load = false
     boolean push = false
     String builder = null
+    String target = null
 
     File resolvedDockerfile = null
     File resolvedDockerComposeTemplate = null
@@ -288,6 +289,9 @@ class BeamDockerPlugin implements Plugin<Project> {
       buildCommandLine.add '.'
     } else {
       buildCommandLine.addAll(['-t', "${-> ext.name}", '.'])
+    }
+    if (ext.target != null && ext.target != "") {
+      buildCommandLine.addAll '--target', ext.target
     }
     logger.debug("${buildCommandLine}" as String)
     return buildCommandLine
