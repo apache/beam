@@ -147,7 +147,7 @@ abstract class SerializableDataFile {
         checkStateNotNull(
             partitionSpecs.get(getPartitionSpecId()),
             "This DataFile was originally created with spec id '%s'. Could not find "
-                + "this spec id in table's partition specs: %s.",
+                + "this among table's partition specs: %s.",
             getPartitionSpecId(),
             partitionSpecs.keySet());
 

@@ -19,12 +19,15 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.either;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -310,10 +313,7 @@ public class RecordWriterManagerTest {
 
     DataFile roundTripDataFile =
         SerializableDataFile.from(datafile, partitionKey)
-            .createDataFile(
-                ImmutableMap.<Integer, PartitionSpec>builder()
-                    .put(PARTITION_SPEC.specId(), PARTITION_SPEC)
-                    .build());
+            .createDataFile(ImmutableMap.of(PARTITION_SPEC.specId(), PARTITION_SPEC));
 
     checkDataFileEquality(datafile, roundTripDataFile);
   }
@@ -329,34 +329,53 @@ public class RecordWriterManagerTest {
    */
   @Test
   public void testRecreateSerializableDataAfterUpdatingPartitionSpec() throws IOException {
-    PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
-
+    Table table = catalog.loadTable(windowedDestination.getValue().getTableIdentifier());
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "abcxyz", true).build();
-    // same partition for both records (name_trunc=abc, bool=true)
-    partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
 
     // write some rows
-    RecordWriter writer =
-        new RecordWriter(catalog, windowedDestination.getValue(), "test_file_name", partitionKey);
-    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
-    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row2));
+    RecordWriterManager writer =
+        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+    writer.write(windowedDestination, row);
+    writer.write(windowedDestination, row2);
     writer.close();
+    DataFile dataFile =
+        writer
+            .getSerializableDataFiles()
+            .get(windowedDestination)
+            .get(0)
+            .createDataFile(table.specs());
 
-    // fetch data file and its serializable version
-    DataFile datafile = writer.getDataFile();
-    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, partitionKey);
+    // check data file path contains the correct partition components
+    assertEquals(2L, dataFile.recordCount());
+    assertEquals(dataFile.specId(), PARTITION_SPEC.specId());
+    assertThat(dataFile.path().toString(), containsString("name_trunc=abc"));
+    assertThat(dataFile.path().toString(), containsString("bool=true"));
 
-    assertEquals(2L, datafile.recordCount());
-    assertEquals(serializableDataFile.getPartitionSpecId(), datafile.specId());
+    // table is cached
+    assertEquals(1, RecordWriterManager.TABLE_CACHE.size());
 
     // update spec
-    Table table = catalog.loadTable(windowedDestination.getValue().getTableIdentifier());
     table.updateSpec().addField("id").removeField("bool").commit();
 
-    Map<Integer, PartitionSpec> updatedSpecs = table.specs();
-    DataFile roundTripDataFile = serializableDataFile.createDataFile(updatedSpecs);
+    // write a second data file
+    // should refresh the table and use the new partition spec
+    RecordWriterManager writer2 =
+        new RecordWriterManager(catalog, "test_prefix_2", Long.MAX_VALUE, Integer.MAX_VALUE);
+    writer2.write(windowedDestination, row);
+    writer2.write(windowedDestination, row2);
+    writer2.close();
 
-    checkDataFileEquality(datafile, roundTripDataFile);
+    List<SerializableDataFile> serializableDataFiles =
+        writer2.getSerializableDataFiles().get(windowedDestination);
+    assertEquals(2, serializableDataFiles.size());
+    for (SerializableDataFile serializableDataFile : serializableDataFiles) {
+      assertEquals(table.spec().specId(), serializableDataFile.getPartitionSpecId());
+      dataFile = serializableDataFile.createDataFile(table.specs());
+      assertEquals(1L, dataFile.recordCount());
+      assertThat(dataFile.path().toString(), containsString("name_trunc=abc"));
+      assertThat(
+          dataFile.path().toString(), either(containsString("id=1")).or(containsString("id=2")));
+    }
   }
 }

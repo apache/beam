@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -29,14 +32,23 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.OutputFile;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +57,11 @@ class AppendFilesToTables
     extends PTransform<PCollection<FileWriteResult>, PCollection<KV<String, SnapshotInfo>>> {
   private static final Logger LOG = LoggerFactory.getLogger(AppendFilesToTables.class);
   private final IcebergCatalogConfig catalogConfig;
+  private final String manifestFilePrefix;
 
-  AppendFilesToTables(IcebergCatalogConfig catalogConfig) {
+  AppendFilesToTables(IcebergCatalogConfig catalogConfig, String manifestFilePrefix) {
     this.catalogConfig = catalogConfig;
+    this.manifestFilePrefix = manifestFilePrefix;
   }
 
   @Override
@@ -67,7 +81,7 @@ class AppendFilesToTables
         .apply("Group metadata updates by table", GroupByKey.create())
         .apply(
             "Append metadata updates to tables",
-            ParDo.of(new AppendFilesToTablesDoFn(catalogConfig)))
+            ParDo.of(new AppendFilesToTablesDoFn(catalogConfig, manifestFilePrefix)))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.CODER));
   }
 
@@ -75,19 +89,19 @@ class AppendFilesToTables
       extends DoFn<KV<String, Iterable<FileWriteResult>>, KV<String, SnapshotInfo>> {
     private final Counter snapshotsCreated =
         Metrics.counter(AppendFilesToTables.class, "snapshotsCreated");
-    private final Counter dataFilesCommitted =
-        Metrics.counter(AppendFilesToTables.class, "dataFilesCommitted");
     private final Distribution committedDataFileByteSize =
         Metrics.distribution(RecordWriter.class, "committedDataFileByteSize");
     private final Distribution committedDataFileRecordCount =
         Metrics.distribution(RecordWriter.class, "committedDataFileRecordCount");
 
     private final IcebergCatalogConfig catalogConfig;
+    private final String manifestFilePrefix;
 
     private transient @MonotonicNonNull Catalog catalog;
 
-    private AppendFilesToTablesDoFn(IcebergCatalogConfig catalogConfig) {
+    private AppendFilesToTablesDoFn(IcebergCatalogConfig catalogConfig, String manifestFilePrefix) {
       this.catalogConfig = catalogConfig;
+      this.manifestFilePrefix = manifestFilePrefix;
     }
 
     private Catalog getCatalog() {
@@ -97,11 +111,22 @@ class AppendFilesToTables
       return catalog;
     }
 
+    private boolean containsMultiplePartitionSpecs(Iterable<FileWriteResult> fileWriteResults) {
+      int id = fileWriteResults.iterator().next().getSerializableDataFile().getPartitionSpecId();
+      for (FileWriteResult result : fileWriteResults) {
+        if (id != result.getSerializableDataFile().getPartitionSpecId()) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     @ProcessElement
     public void processElement(
         @Element KV<String, Iterable<FileWriteResult>> element,
         OutputReceiver<KV<String, SnapshotInfo>> out,
-        BoundedWindow window) {
+        BoundedWindow window)
+        throws IOException {
       String tableStringIdentifier = element.getKey();
       Iterable<FileWriteResult> fileWriteResults = element.getValue();
       if (!fileWriteResults.iterator().hasNext()) {
@@ -109,24 +134,80 @@ class AppendFilesToTables
       }
 
       Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
-      AppendFiles update = table.newAppend();
-      long numFiles = 0;
-      for (FileWriteResult result : fileWriteResults) {
-        DataFile dataFile = result.getDataFile(table.specs());
-        update.appendFile(dataFile);
-        committedDataFileByteSize.update(dataFile.fileSizeInBytes());
-        committedDataFileRecordCount.update(dataFile.recordCount());
-        numFiles++;
+
+      // vast majority of the time, we will simply append data files.
+      // in the rare case we get a batch that contains multiple partition specs, we will group
+      // data into manifest files and append.
+      // note: either way, we must use a single commit operation for atomicity.
+      if (containsMultiplePartitionSpecs(fileWriteResults)) {
+        appendManifestFiles(table, fileWriteResults);
+      } else {
+        appendDataFiles(table, fileWriteResults);
       }
-      // this commit will create a ManifestFile. we don't need to manually create one.
-      update.commit();
-      dataFilesCommitted.inc(numFiles);
 
       Snapshot snapshot = table.currentSnapshot();
       LOG.info("Created new snapshot for table '{}': {}", tableStringIdentifier, snapshot);
       snapshotsCreated.inc();
       out.outputWithTimestamp(
           KV.of(element.getKey(), SnapshotInfo.fromSnapshot(snapshot)), window.maxTimestamp());
+    }
+
+    // This works only when all files are using the same partition spec.
+    private void appendDataFiles(Table table, Iterable<FileWriteResult> fileWriteResults) {
+      AppendFiles update = table.newAppend();
+      for (FileWriteResult result : fileWriteResults) {
+        DataFile dataFile = result.getDataFile(table.specs());
+        update.appendFile(dataFile);
+        committedDataFileByteSize.update(dataFile.fileSizeInBytes());
+        committedDataFileRecordCount.update(dataFile.recordCount());
+      }
+      update.commit();
+    }
+
+    // When a user updates their table partition spec during runtime, we can end up with
+    // a batch of files where some are written with the old spec and some are written with the new
+    // spec.
+    // A table commit is limited to a single partition spec.
+    // To handle this, we create a manifest file for each partition spec, and group data files
+    // accordingly.
+    // Afterward, we append all manifests using a single commit operation.
+    private void appendManifestFiles(Table table, Iterable<FileWriteResult> fileWriteResults)
+        throws IOException {
+      String uuid = UUID.randomUUID().toString();
+      Map<Integer, PartitionSpec> specs = table.specs();
+      Map<Integer, ManifestWriter<DataFile>> manifestFileWriters = Maps.newHashMap();
+      // first add datafiles to the appropriate manifest file, according to its spec id
+      for (FileWriteResult result : fileWriteResults) {
+        DataFile dataFile = result.getDataFile(specs);
+        int specId = dataFile.specId();
+        PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
+        ManifestWriter<DataFile> writer =
+            manifestFileWriters.computeIfAbsent(
+                specId, id -> createManifestWriter(table.location(), uuid, spec, table.io()));
+        writer.add(dataFile);
+        committedDataFileByteSize.update(dataFile.fileSizeInBytes());
+        committedDataFileRecordCount.update(dataFile.recordCount());
+      }
+
+      // append all manifest files and commit
+      AppendFiles update = table.newAppend();
+      for (ManifestWriter<DataFile> writer : manifestFileWriters.values()) {
+        writer.close();
+        ManifestFile manifestFile = writer.toManifestFile();
+        update.appendManifest(manifestFile);
+      }
+      update.commit();
+    }
+
+    private ManifestWriter<DataFile> createManifestWriter(
+        String tableLocation, String uuid, PartitionSpec spec, FileIO io) {
+      String location =
+          FileFormat.AVRO.addExtension(
+              String.format(
+                  "%s/metadata/%s-%s-%s.manifest",
+                  tableLocation, manifestFilePrefix, uuid, spec.specId()));
+      OutputFile outputFile = io.newOutputFile(location);
+      return ManifestFiles.write(spec, outputFile);
     }
   }
 }
