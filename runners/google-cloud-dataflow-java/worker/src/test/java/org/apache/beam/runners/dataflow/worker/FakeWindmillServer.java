@@ -245,16 +245,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void adjustBudget(long itemsDelta, long bytesDelta) {
+      public void setBudget(GetWorkBudget newBudget) {
         // no-op.
-      }
-
-      @Override
-      public GetWorkBudget remainingBudget() {
-        return GetWorkBudget.builder()
-            .setItems(request.getMaxItems())
-            .setBytes(request.getMaxBytes())
-            .build();
       }
 
       @Override
