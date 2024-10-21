@@ -1888,7 +1888,7 @@ SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
 # CDC configuration type definition
 CdcWritesWithRows = Callable[[beam.pvalue.Row], beam.pvalue.Row]
 CdcWritesWithDicts = Callable[[Dict], Dict]
-UseCdcWrites = Union[bool, CdcWritesWithRows, CdcWritesWithRows]
+UseCdcWrites = Union[bool, CdcWritesWithRows, CdcWritesWithDicts]
 
 
 class WriteToBigQuery(PTransform):
