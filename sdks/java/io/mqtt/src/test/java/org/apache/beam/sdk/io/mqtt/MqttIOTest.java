@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -48,6 +54,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.compress.utils.Lists;
 import org.fusesource.hawtbuf.Buffer;
 import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.MQTT;
@@ -253,6 +260,92 @@ public class MqttIOTest {
                 for (int i = 5; i < 10; i++) {
                   publishConnection.publish(
                       topic2,
+                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+                      QoS.EXACTLY_ONCE,
+                      false);
+                }
+
+              } catch (Exception e) {
+                // nothing to do
+              }
+            });
+
+    publisherThread.start();
+    pipeline.run();
+
+    publishConnection.disconnect();
+    publisherThread.join();
+  }
+
+  @Test(timeout = 60 * 1000)
+  public void testReadWithTopicArray() throws Exception {
+    final String topic1 = "some-topic-1";
+    final String topic2 = "some-topic-2";
+    final String topic3 = "some-topic-3";
+
+    final Read<MqttRecord> mqttReaderWithTopicArray =
+        MqttIO.readWithMetadata()
+            .withConnectionConfiguration(
+                MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, topic1, topic2))
+            .withMaxNumRecords(15)
+            .withMaxReadTime(Duration.standardSeconds(5));
+
+    final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithTopicArray);
+
+    PAssert.that(output)
+        .satisfies(
+            iter -> {
+              final List<MqttRecord> expected = Lists.newArrayList();
+              final List<MqttRecord> unexpected = Lists.newArrayList();
+              for (int i = 0; i < 5; i++) {
+                expected.add(
+                    MqttRecord.of(topic1, ("This is test " + i).getBytes(StandardCharsets.UTF_8)));
+              }
+
+              for (int i = 5; i < 10; i++) {
+                expected.add(
+                    MqttRecord.of(topic2, ("This is test " + i).getBytes(StandardCharsets.UTF_8)));
+              }
+
+              for (int i = 10; i < 15; i++) {
+                unexpected.add(
+                    MqttRecord.of(topic3, ("This is test " + i).getBytes(StandardCharsets.UTF_8)));
+              }
+
+              assertThat(iter, not(hasItems(unexpected.toArray(new MqttRecord[0]))));
+              assertThat(iter, hasItems(expected.toArray(new MqttRecord[0])));
+
+              return null;
+            });
+
+    // produce messages on the brokerService in another thread
+    // This thread prevents to block the pipeline waiting for new messages
+    MQTT client = new MQTT();
+    client.setHost("tcp://localhost:" + port);
+    final BlockingConnection publishConnection = client.blockingConnection();
+    publishConnection.connect();
+    Thread publisherThread =
+        new Thread(
+            () -> {
+              try {
+                doConnect(connection -> !connection.getConnectionId().isEmpty());
+                for (int i = 0; i < 5; i++) {
+                  publishConnection.publish(
+                      topic1,
+                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+                      QoS.EXACTLY_ONCE,
+                      false);
+                }
+                for (int i = 5; i < 10; i++) {
+                  publishConnection.publish(
+                      topic2,
+                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
+                      QoS.EXACTLY_ONCE,
+                      false);
+                }
+                for (int i = 10; i < 15; i++) {
+                  publishConnection.publish(
+                      topic3,
                       ("This is test " + i).getBytes(StandardCharsets.UTF_8),
                       QoS.EXACTLY_ONCE,
                       false);
@@ -540,6 +633,70 @@ public class MqttIOTest {
             IllegalArgumentException.class, () -> MqttIO.write().withPayloadFn(e -> new byte[] {}));
 
     assertEquals("withPayloadFn can not use in non-dynamic write", exception.getMessage());
+  }
+
+  @Test
+  public void testWriteWithMultipleTopic() {
+    final IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MqttIO.write()
+                    .withConnectionConfiguration(
+                        MqttIO.ConnectionConfiguration.create(
+                            "serverUri", "topic1", "topic2", "topic3"))
+                    .expand(pipeline.apply(Create.of(new byte[] {}))));
+
+    assertEquals("can not have multiple topics", exception.getMessage());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testCreateConnectionConfigurationWithoutTopic() {
+    final IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> MqttIO.ConnectionConfiguration.create("serverUri", null));
+
+    assertEquals("topic can not be null", exception.getMessage());
+  }
+
+  @Test
+  public void testCreateConnectionConfigurationWithoutServerUri() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> MqttIO.ConnectionConfiguration.create(null));
+
+    assertEquals("serverUri can not be null", exception.getMessage());
+
+    exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> MqttIO.ConnectionConfiguration.create(null, null));
+
+    assertEquals("serverUri can not be null", exception.getMessage());
+  }
+
+  @Test
+  public void testCreateConnectionWithSingleTopic() {
+    final MqttIO.ConnectionConfiguration connectionConfiguration =
+        MqttIO.ConnectionConfiguration.create("serverUri", "topic");
+
+    assertEquals("topic", connectionConfiguration.getTopic());
+    assertNull(connectionConfiguration.getTopicList());
+  }
+
+  @Test
+  public void testCreateConnectionWithMultipleTopic() {
+    final MqttIO.ConnectionConfiguration connectionConfiguration =
+        MqttIO.ConnectionConfiguration.create("serverUri", "topic1", "topic2", "topic3", "topic4");
+
+    assertNull(connectionConfiguration.getTopic());
+    assertNotNull(connectionConfiguration.getTopicList());
+    assertThat(
+        connectionConfiguration.getTopicList(),
+        containsInAnyOrder("topic1", "topic2", "topic3", "topic4"));
   }
 
   @Test
