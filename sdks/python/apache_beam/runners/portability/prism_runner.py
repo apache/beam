@@ -209,42 +209,50 @@ class PrismJobServer(job_server.SubprocessJobServer):
     process = subprocess.run(["go", "install", PRISMPKG],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT,
-                             env=envdict)
+                             env=envdict,
+                             check=False)
     if process.returncode == 0:
       # Successfully installed
       return '%s/prism' % (self.BIN_CACHE)
 
     # We failed to build for some reason.
     output = process.stdout.decode("utf-8")
-    if "not in a module" not in output and "no required module provides" not in output:
+    if ("not in a module" not in output) and (
+        "no required module provides" not in output):
       # This branch handles two classes of failures:
-      # 1. Go isn't installed, so it needs to be installed by the Beam SDK developer.
+      # 1. Go isn't installed, so it needs to be installed by the Beam SDK
+      #   developer.
       # 2. Go is installed, and they are building in a local version of Prism,
       #    but there was a compile error that the developer should address.
-      # Either way, the @latest fallback either would fail, or hide the error, so fail now.
+      # Either way, the @latest fallback either would fail, or hide the error,
+      # so fail now.
       _LOGGER.info(output)
       raise ValueError(
           'Unable to install a local of Prism: "%s";\n'
-          'Likely Go is not installed, or a local change to Prism did not compile.\n'
-          'Please install Go (see https://go.dev/doc/install) to enable automatic local builds.\n'
+          'Likely Go is not installed, or a local change to Prism did not '
+          'compile.\nPlease install Go (see https://go.dev/doc/install) to '
+          'enable automatic local builds.\n'
           'Alternatively provide a binary with the --prism_location flag.'
           '\nCaptured output:\n %s' % (self._version, output))
 
-    # Go is installed and claims we're not in a Go module that has access to the Prism package.
+    # Go is installed and claims we're not in a Go module that has access to
+    # the Prism package.
 
-  # Fallback to using the @latest version of prism, which works everywhere.
+    # Fallback to using the @latest version of prism, which works everywhere.
     process = subprocess.run(["go", "install", PRISMPKG + "@latest"],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT,
-                             env=envdict)
+                             env=envdict,
+                             check=False)
 
     if process.returncode == 0:
       return '%s/prism' % (self.BIN_CACHE)
 
     output = process.stdout.decode("utf-8")
     raise ValueError(
-        'We were unable to execute the subprocess "%s" to automatically build prism. \n'
-        'Alternatively provide an alternate binary with the --prism_location flag.'
+        'We were unable to execute the subprocess "%s" to automatically '
+        'build prism.\nAlternatively provide an alternate binary with the '
+        '--prism_location flag.'
         '\nCaptured output:\n %s' % (process.args, output))
 
   def subprocess_cmd_and_endpoint(

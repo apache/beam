@@ -119,7 +119,8 @@ class SwitchingDirectRunner(PipelineRunner):
 
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
-        # Python SDK assumes the direct runner TestStream implementation is being used.
+        # Python SDK assumes the direct runner TestStream implementation is
+        # being used.
         if isinstance(transform, TestStream):
           self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
@@ -133,7 +134,8 @@ class SwitchingDirectRunner(PipelineRunner):
                    for arg in args_to_check):
               self.supported_by_prism_runner = False
           if userstate.is_stateful_dofn(dofn):
-            # https://github.com/apache/beam/issues/32786 - Remove once Real time clock is used.
+            # https://github.com/apache/beam/issues/32786 -
+            # Remove once Real time clock is used.
             _, timer_specs = userstate.get_dofn_specs(dofn)
             for timer in timer_specs:
               if timer.time_domain == TimeDomain.REAL_TIME:
@@ -173,7 +175,8 @@ class SwitchingDirectRunner(PipelineRunner):
           return pr
       except Exception as e:
         # If prism fails in Preparing the portable job, then the PortableRunner
-        # code raises an exception. Catch it, log it, and use the Direct runner instead.
+        # code raises an exception. Catch it, log it, and use the Direct runner
+        # instead.
         _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
