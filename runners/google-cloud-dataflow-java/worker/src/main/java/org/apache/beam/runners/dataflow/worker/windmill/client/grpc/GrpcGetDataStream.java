@@ -79,6 +79,7 @@ final class GrpcGetDataStream
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private final Object shutdownLock = new Object();
 
   private GrpcGetDataStream(
       String backendWorkerToken,
@@ -297,14 +298,16 @@ final class GrpcGetDataStream
   protected void shutdownInternal() {
     // Stream has been explicitly closed. Drain pending input streams and request batches.
     // Future calls to send RPCs will fail.
-    pending.values().forEach(AppendableInputStream::cancel);
-    pending.clear();
-    batches.forEach(
-        batch -> {
-          batch.markFinalized();
-          batch.notifyFailed();
-        });
-    batches.clear();
+    synchronized (shutdownLock) {
+      pending.values().forEach(AppendableInputStream::cancel);
+      pending.clear();
+      batches.forEach(
+          batch -> {
+            batch.markFinalized();
+            batch.notifyFailed();
+          });
+      batches.clear();
+    }
   }
 
   @Override
@@ -433,23 +436,19 @@ final class GrpcGetDataStream
     synchronized (this) {
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
-      for (QueuedRequest request : requests) {
-        Preconditions.checkState(!isShutdown(), "Cannot send on shutdown stream.");
-        // Map#put returns null if there was no previous mapping for the key, meaning we have not
-        // seen it before.
-        verify(pending.put(request.id(), request.getResponseStream()) == null);
+      synchronized (shutdownLock) {
+        for (QueuedRequest request : requests) {
+          Preconditions.checkState(!isShutdown(), "Cannot send on shutdown stream.");
+          // Map#put returns null if there was no previous mapping for the key, meaning we have not
+          // seen it before.
+          verify(pending.put(request.id(), request.getResponseStream()) == null);
+        }
       }
       try {
         send(batchedRequest);
       } catch (IllegalStateException e) {
         // The stream broke before this call went through; onNewStream will retry the fetch.
         LOG.warn("GetData stream broke before call started.", e);
-      } finally {
-        if (isShutdown()) {
-          // Stream was shutdown during send, clear all the pending requests.
-          pending.values().forEach(AppendableInputStream::cancel);
-          pending.clear();
-        }
       }
     }
   }

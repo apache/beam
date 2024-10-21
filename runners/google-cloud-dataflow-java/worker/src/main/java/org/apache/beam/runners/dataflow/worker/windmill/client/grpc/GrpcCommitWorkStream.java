@@ -196,7 +196,7 @@ final class GrpcCommitWorkStream
     Iterator<PendingRequest> pendingRequests = pending.values().iterator();
     while (pendingRequests.hasNext()) {
       PendingRequest pendingRequest = pendingRequests.next();
-      pendingRequest.completeWithStatus(CommitStatus.ABORTED);
+      pendingRequest.abort();
       pendingRequests.remove();
     }
   }
@@ -332,54 +332,9 @@ final class GrpcCommitWorkStream
     private long shardingKey() {
       return request().getShardingKey();
     }
-  }
 
-  private class Batcher implements CommitWorkStream.RequestBatcher {
-
-    private final Map<Long, PendingRequest> queue;
-    private long queuedBytes;
-
-    private Batcher() {
-      this.queuedBytes = 0;
-      this.queue = new HashMap<>();
-    }
-
-    @Override
-    public boolean commitWorkItem(
-        String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
-      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
-        return false;
-      }
-
-      PendingRequest request = PendingRequest.create(computation, commitRequest, onDone);
-      add(idGenerator.incrementAndGet(), request);
-      return true;
-    }
-
-    /** Flushes any pending work items to the wire. */
-    @Override
-    public void flush() {
-      try {
-        if (!isShutdown()) {
-          flushInternal(queue);
-        }
-      } finally {
-        queuedBytes = 0;
-        queue.clear();
-      }
-    }
-
-    void add(long id, PendingRequest request) {
-      Preconditions.checkState(canAccept(request.getBytes()));
-      queuedBytes += request.getBytes();
-      queue.put(id, request);
-    }
-
-    private boolean canAccept(long requestBytes) {
-      return !isShutdown()
-          && (queue.isEmpty()
-              || (queue.size() < streamingRpcBatchLimit
-                  && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE));
+    private void abort() {
+      completeWithStatus(CommitStatus.ABORTED);
     }
   }
 
@@ -413,6 +368,60 @@ final class GrpcCommitWorkStream
           + ", detailedErrors="
           + detailedErrors
           + '}';
+    }
+  }
+
+  private class Batcher implements CommitWorkStream.RequestBatcher {
+
+    private final Map<Long, PendingRequest> queue;
+    private long queuedBytes;
+
+    private Batcher() {
+      this.queuedBytes = 0;
+      this.queue = new HashMap<>();
+    }
+
+    @Override
+    public boolean commitWorkItem(
+        String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length()) || isShutdown()) {
+        return false;
+      }
+
+      PendingRequest request = PendingRequest.create(computation, commitRequest, onDone);
+      add(idGenerator.incrementAndGet(), request);
+      return true;
+    }
+
+    /** Flushes any pending work items to the wire. */
+    @Override
+    public void flush() {
+      try {
+        if (!isShutdown()) {
+          flushInternal(queue);
+        } else {
+          queue.forEach((ignored, request) -> request.onDone().accept(CommitStatus.ABORTED));
+        }
+      } finally {
+        queuedBytes = 0;
+        queue.clear();
+      }
+    }
+
+    void add(long id, PendingRequest request) {
+      if (isShutdown()) {
+        request.abort();
+      } else {
+        Preconditions.checkState(canAccept(request.getBytes()));
+        queuedBytes += request.getBytes();
+        queue.put(id, request);
+      }
+    }
+
+    private boolean canAccept(long requestBytes) {
+      return queue.isEmpty()
+          || (queue.size() < streamingRpcBatchLimit
+              && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE);
     }
   }
 }

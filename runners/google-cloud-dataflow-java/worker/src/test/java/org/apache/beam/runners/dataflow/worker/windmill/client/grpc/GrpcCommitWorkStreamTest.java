@@ -53,7 +53,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GrpcCommitWorkStreamTest {
-  private static final String FAKE_SERVER_NAME = "Fake server for GrpcGetDataStreamTest";
+  private static final String FAKE_SERVER_NAME = "Fake server for GrpcCommitWorkStreamTest";
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
           .setJobId("test_job")
@@ -97,7 +97,7 @@ public class GrpcCommitWorkStreamTest {
     inProcessChannel.shutdownNow();
   }
 
-  private GrpcCommitWorkStream createCommitWorkStream(CommitWorkStreamStreamTestStub testStub) {
+  private GrpcCommitWorkStream createCommitWorkStream(CommitWorkStreamTestStub testStub) {
     serviceRegistry.addService(testStub);
     GrpcCommitWorkStream commitWorkStream =
         (GrpcCommitWorkStream)
@@ -118,7 +118,7 @@ public class GrpcCommitWorkStreamTest {
 
     TestCommitWorkStreamRequestObserver requestObserver =
         spy(new TestCommitWorkStreamRequestObserver());
-    CommitWorkStreamStreamTestStub testStub = new CommitWorkStreamStreamTestStub(requestObserver);
+    CommitWorkStreamTestStub testStub = new CommitWorkStreamTestStub(requestObserver);
     GrpcCommitWorkStream commitWorkStream = createCommitWorkStream(testStub);
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
@@ -147,8 +147,8 @@ public class GrpcCommitWorkStreamTest {
   public void testCommitWorkItem_afterShutdownFalse() {
     int numCommits = 5;
 
-    CommitWorkStreamStreamTestStub testStub =
-        new CommitWorkStreamStreamTestStub(new TestCommitWorkStreamRequestObserver());
+    CommitWorkStreamTestStub testStub =
+        new CommitWorkStreamTestStub(new TestCommitWorkStreamRequestObserver());
     GrpcCommitWorkStream commitWorkStream = createCommitWorkStream(testStub);
 
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
@@ -173,7 +173,7 @@ public class GrpcCommitWorkStreamTest {
 
     TestCommitWorkStreamRequestObserver requestObserver =
         spy(new TestCommitWorkStreamRequestObserver());
-    CommitWorkStreamStreamTestStub testStub = new CommitWorkStreamStreamTestStub(requestObserver);
+    CommitWorkStreamTestStub testStub = new CommitWorkStreamTestStub(requestObserver);
     GrpcCommitWorkStream commitWorkStream = createCommitWorkStream(testStub);
 
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
@@ -210,12 +210,12 @@ public class GrpcCommitWorkStreamTest {
     }
   }
 
-  private static class CommitWorkStreamStreamTestStub
+  private static class CommitWorkStreamTestStub
       extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
     private final TestCommitWorkStreamRequestObserver requestObserver;
     private @Nullable StreamObserver<Windmill.StreamingCommitResponse> responseObserver;
 
-    private CommitWorkStreamStreamTestStub(TestCommitWorkStreamRequestObserver requestObserver) {
+    private CommitWorkStreamTestStub(TestCommitWorkStreamRequestObserver requestObserver) {
       this.requestObserver = requestObserver;
     }
 
