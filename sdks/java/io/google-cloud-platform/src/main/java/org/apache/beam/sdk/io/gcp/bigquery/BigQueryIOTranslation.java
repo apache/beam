@@ -280,9 +280,8 @@ public class BigQueryIOTranslation {
           }
         }
 
-        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.60.0") < 0) {
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.61.0") < 0) {
           // best effort migration
-          // if user was specifying a custom datum_reader_factory, that would fail
           byte[] formatBytes = configRow.getBytes("format");
           DataFormat dataFormat = null;
           if (formatBytes != null) {
@@ -290,7 +289,11 @@ public class BigQueryIOTranslation {
           }
 
           byte[] parseFnBytes = configRow.getBytes("parse_fn");
-          if (parseFnBytes != null) {
+          if (parseFnBytes == null) {
+            // parseFn is null only when creating IO with readWithDatumReader
+            throw new RuntimeException(
+                "Upgrading BigqueryIO readWithDatumReader transforms is not supported.");
+          } else {
             SerializableFunction<SchemaAndRecord, ?> parseFn =
                 (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFnBytes);
             BigQueryReaderFactory<?> readerFactory;
