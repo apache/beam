@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -258,8 +259,12 @@ abstract class ReadFromKafkaDoFn<K, V>
           Suppliers.memoizeWithExpiration(
               () -> {
                 synchronized (offsetConsumer) {
-                  ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
-                  return offsetConsumer.position(topicPartition);
+                  return Preconditions.checkStateNotNull(
+                      offsetConsumer
+                          .endOffsets(Collections.singleton(topicPartition))
+                          .get(topicPartition),
+                      "No end offset found for partition %s.",
+                      topicPartition);
                 }
               },
               1,

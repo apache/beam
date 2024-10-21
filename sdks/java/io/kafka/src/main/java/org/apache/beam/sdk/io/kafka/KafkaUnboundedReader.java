@@ -711,23 +711,28 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   // Called from setupInitialOffset() at the start and then periodically from offsetFetcher thread.
   private void updateLatestOffsets() {
     Consumer<byte[], byte[]> offsetConsumer = Preconditions.checkStateNotNull(this.offsetConsumer);
-    for (PartitionState<K, V> p : partitionStates) {
-      try {
-        Instant fetchTime = Instant.now();
-        ConsumerSpEL.evaluateSeek2End(offsetConsumer, p.topicPartition);
-        long offset = offsetConsumer.position(p.topicPartition);
-        p.setLatestOffset(offset, fetchTime);
-      } catch (Exception e) {
-        if (closed.get()) { // Ignore the exception if the reader is closed.
-          break;
-        }
-        LOG.warn(
-            "{}: exception while fetching latest offset for partition {}. will be retried.",
-            this,
-            p.topicPartition,
-            e);
-        // Don't update the latest offset.
+    List<TopicPartition> topicPartitions =
+        Preconditions.checkStateNotNull(source.getSpec().getTopicPartitions());
+    Instant fetchTime = Instant.now();
+    try {
+      Map<TopicPartition, Long> endOffsets = offsetConsumer.endOffsets(topicPartitions);
+      for (PartitionState<K, V> p : partitionStates) {
+        p.setLatestOffset(
+            Preconditions.checkStateNotNull(
+                endOffsets.get(p.topicPartition),
+                "No end offset found for partition %s.",
+                p.topicPartition),
+            fetchTime);
       }
+    } catch (Exception e) {
+      if (!closed.get()) { // Ignore the exception if the reader is closed.
+        LOG.warn(
+            "{}: exception while fetching latest offset for partitions {}. will be retried.",
+            this,
+            topicPartitions,
+            e);
+      }
+      // Don't update the latest offset.
     }
 
     LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());

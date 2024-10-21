@@ -77,7 +77,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
-import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.EndOffsetErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Lineage;
@@ -1525,13 +1525,14 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("topic_a");
 
-    PositionErrorConsumerFactory positionErrorConsumerFactory = new PositionErrorConsumerFactory();
+    EndOffsetErrorConsumerFactory endOffsetErrorConsumerFactory =
+        new EndOffsetErrorConsumerFactory();
 
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopics(topics)
-            .withConsumerFactoryFn(positionErrorConsumerFactory)
+            .withConsumerFactoryFn(endOffsetErrorConsumerFactory)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .makeSource();
@@ -1540,7 +1541,7 @@ public class KafkaIOTest {
 
     reader.start();
 
-    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partition");
+    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partitions");
 
     reader.close();
   }
