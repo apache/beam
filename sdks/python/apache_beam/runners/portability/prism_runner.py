@@ -203,7 +203,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     # This is a development version! Assume Go is installed.
     # Set the install directory to the cache location.
-    envdict = {**os.environ, "GOBIN": self.BIN_CACHE} 
+    envdict = {**os.environ, "GOBIN": self.BIN_CACHE}
     PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
 
     process = subprocess.run(["go", "install", PRISMPKG],
