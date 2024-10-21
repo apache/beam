@@ -668,6 +668,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
 
+    reportBacklog();
+
     // cycle through the partitions in order to interleave records from each.
     curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
   }
