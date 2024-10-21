@@ -119,6 +119,9 @@ class SwitchingDirectRunner(PipelineRunner):
 
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
+        # Python SDK assumes the direct runner TestStream implementation is being used.
+        if isinstance(transform, TestStream):
+          self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
           # It's uncertain if the Prism Runner supports execution of CombineFns
