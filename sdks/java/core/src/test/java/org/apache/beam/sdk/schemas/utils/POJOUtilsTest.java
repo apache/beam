@@ -35,7 +35,6 @@ import static org.junit.Assert.assertTrue;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -72,9 +71,7 @@ public class POJOUtilsTest {
   public void testNullables() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<POJOWithNullables>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<POJOWithNullables>() {}, JavaFieldTypeSupplier.INSTANCE);
     assertTrue(schema.getField("str").getType().getNullable());
     assertFalse(schema.getField("anInt").getType().getNullable());
   }
@@ -83,9 +80,7 @@ public class POJOUtilsTest {
   public void testSimplePOJO() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<SimplePOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<SimplePOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     assertEquals(SIMPLE_POJO_SCHEMA, schema);
   }
 
@@ -93,9 +88,7 @@ public class POJOUtilsTest {
   public void testNestedPOJO() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<NestedPOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<NestedPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_POJO_SCHEMA, schema);
   }
 
@@ -104,8 +97,7 @@ public class POJOUtilsTest {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
             new TypeDescriptor<TestPOJOs.NestedPOJOWithSimplePOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA, schema);
   }
 
@@ -113,9 +105,7 @@ public class POJOUtilsTest {
   public void testPrimitiveArray() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<PrimitiveArrayPOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<PrimitiveArrayPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_ARRAY_POJO_SCHEMA, schema);
   }
 
@@ -123,9 +113,7 @@ public class POJOUtilsTest {
   public void testNestedArray() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<NestedArrayPOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<NestedArrayPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_ARRAY_POJO_SCHEMA, schema);
   }
 
@@ -133,9 +121,7 @@ public class POJOUtilsTest {
   public void testNestedCollection() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<NestedCollectionPOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<NestedCollectionPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_COLLECTION_POJO_SCHEMA, schema);
   }
 
@@ -143,9 +129,7 @@ public class POJOUtilsTest {
   public void testPrimitiveMap() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<PrimitiveMapPOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<PrimitiveMapPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_MAP_POJO_SCHEMA, schema);
   }
 
@@ -153,9 +137,7 @@ public class POJOUtilsTest {
   public void testNestedMap() {
     Schema schema =
         POJOUtils.schemaFromPojoClass(
-            new TypeDescriptor<NestedMapPOJO>() {},
-            JavaFieldTypeSupplier.INSTANCE,
-            Collections.emptyMap());
+            new TypeDescriptor<NestedMapPOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_MAP_POJO_SCHEMA, schema);
   }
 

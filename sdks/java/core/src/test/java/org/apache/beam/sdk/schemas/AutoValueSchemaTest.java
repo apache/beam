@@ -28,7 +28,6 @@ import com.google.auto.value.extension.memoized.Memoized;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -887,152 +885,5 @@ public class AutoValueSchemaTest {
     Schema schema = registry.getSchema(SchemaFieldDescriptionSimpleClass.class);
     assertEquals(FIELD_DESCRIPTION_SCHEMA.getField("lng"), schema.getField("lng"));
     assertEquals(FIELD_DESCRIPTION_SCHEMA.getField("str"), schema.getField("str"));
-  }
-
-  @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
-  abstract static class ParameterizedAutoValue<T, V, W, X> {
-    abstract W getValue1();
-
-    abstract T getValue2();
-
-    abstract V getValue3();
-
-    abstract X getValue4();
-  }
-
-  @Test
-  public void testAutoValueWithTypeParameter() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    TypeDescriptor<ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>> typeDescriptor =
-        new TypeDescriptor<ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>>() {};
-    Schema schema = registry.getSchema(typeDescriptor);
-
-    final Schema expectedSchema =
-        Schema.builder()
-            .addBooleanField("value1")
-            .addStringField("value2")
-            .addInt64Field("value3")
-            .addRowField("value4", SIMPLE_SCHEMA)
-            .build();
-    assertTrue(expectedSchema.equivalent(schema));
-  }
-
-  @DefaultSchema(AutoValueSchema.class)
-  abstract static class ParameterizedAutoValueSubclass<T>
-      extends ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue> {
-    abstract T getValue5();
-  }
-
-  @Test
-  public void testAutoValueWithInheritedTypeParameter() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    TypeDescriptor<ParameterizedAutoValueSubclass<Short>> typeDescriptor =
-        new TypeDescriptor<ParameterizedAutoValueSubclass<Short>>() {};
-    Schema schema = registry.getSchema(typeDescriptor);
-
-    final Schema expectedSchema =
-        Schema.builder()
-            .addBooleanField("value1")
-            .addStringField("value2")
-            .addInt64Field("value3")
-            .addRowField("value4", SIMPLE_SCHEMA)
-            .addInt16Field("value5")
-            .build();
-    assertTrue(expectedSchema.equivalent(schema));
-  }
-
-  @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
-  abstract static class NestedParameterizedCollectionAutoValue<ElementT, KeyT> {
-    abstract Iterable<ElementT> getNested();
-
-    abstract Map<KeyT, ElementT> getMap();
-  }
-
-  @Test
-  public void testAutoValueWithNestedCollectionTypeParameter() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    TypeDescriptor<
-            NestedParameterizedCollectionAutoValue<
-                ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>, String>>
-        typeDescriptor =
-            new TypeDescriptor<
-                NestedParameterizedCollectionAutoValue<
-                    ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>, String>>() {};
-    Schema schema = registry.getSchema(typeDescriptor);
-
-    final Schema expectedInnerSchema =
-        Schema.builder()
-            .addBooleanField("value1")
-            .addStringField("value2")
-            .addInt64Field("value3")
-            .addRowField("value4", SIMPLE_SCHEMA)
-            .build();
-    final Schema expectedSchema =
-        Schema.builder()
-            .addIterableField("nested", FieldType.row(expectedInnerSchema))
-            .addMapField("map", FieldType.STRING, FieldType.row(expectedInnerSchema))
-            .build();
-    assertTrue(expectedSchema.equivalent(schema));
-  }
-
-  @Test
-  public void testAutoValueWithDoublyNestedCollectionTypeParameter() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    TypeDescriptor<
-            NestedParameterizedCollectionAutoValue<
-                Iterable<ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>>, String>>
-        typeDescriptor =
-            new TypeDescriptor<
-                NestedParameterizedCollectionAutoValue<
-                    Iterable<ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>>,
-                    String>>() {};
-    Schema schema = registry.getSchema(typeDescriptor);
-
-    final Schema expectedInnerSchema =
-        Schema.builder()
-            .addBooleanField("value1")
-            .addStringField("value2")
-            .addInt64Field("value3")
-            .addRowField("value4", SIMPLE_SCHEMA)
-            .build();
-    final Schema expectedSchema =
-        Schema.builder()
-            .addIterableField("nested", FieldType.iterable(FieldType.row(expectedInnerSchema)))
-            .addMapField(
-                "map", FieldType.STRING, FieldType.iterable(FieldType.row(expectedInnerSchema)))
-            .build();
-    assertTrue(expectedSchema.equivalent(schema));
-  }
-
-  @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
-  abstract static class NestedParameterizedAutoValue<T> {
-    abstract T getNested();
-  }
-
-  @Test
-  public void testAutoValueWithNestedTypeParameter() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    TypeDescriptor<
-            NestedParameterizedAutoValue<
-                ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>>>
-        typeDescriptor =
-            new TypeDescriptor<
-                NestedParameterizedAutoValue<
-                    ParameterizedAutoValue<String, Long, Boolean, SimpleAutoValue>>>() {};
-    Schema schema = registry.getSchema(typeDescriptor);
-
-    final Schema expectedInnerSchema =
-        Schema.builder()
-            .addBooleanField("value1")
-            .addStringField("value2")
-            .addInt64Field("value3")
-            .addRowField("value4", SIMPLE_SCHEMA)
-            .build();
-    final Schema expectedSchema =
-        Schema.builder().addRowField("nested", expectedInnerSchema).build();
-    assertTrue(expectedSchema.equivalent(schema));
   }
 }

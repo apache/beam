@@ -495,125 +495,6 @@ public class TestPOJOs {
           .addStringField("stringBuilder")
           .build();
 
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class SimpleParameterizedPOJO<T, V, W, X> {
-    public W value1;
-    public T value2;
-    public V value3;
-    public X value4;
-
-    public SimpleParameterizedPOJO() {}
-
-    public SimpleParameterizedPOJO(W value1, T value2, V value3, X value4) {
-      this.value1 = value1;
-      this.value2 = value2;
-      this.value3 = value3;
-      this.value4 = value4;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof SimpleParameterizedPOJO)) {
-        return false;
-      }
-      SimpleParameterizedPOJO<?, ?, ?, ?> that = (SimpleParameterizedPOJO<?, ?, ?, ?>) o;
-      return Objects.equals(value1, that.value1)
-          && Objects.equals(value2, that.value2)
-          && Objects.equals(value3, that.value3)
-          && Objects.equals(value4, that.value4);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(value1, value2, value3, value4);
-    }
-  }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class SimpleParameterizedPOJOSubclass<T>
-      extends SimpleParameterizedPOJO<String, Long, Boolean, SimplePOJO> {
-    public T value5;
-
-    public SimpleParameterizedPOJOSubclass() {}
-
-    public SimpleParameterizedPOJOSubclass(T value5) {
-      this.value5 = value5;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof SimpleParameterizedPOJOSubclass)) {
-        return false;
-      }
-      SimpleParameterizedPOJOSubclass<?> that = (SimpleParameterizedPOJOSubclass<?>) o;
-      return Objects.equals(value5, that.value5);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(value4);
-    }
-  }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class NestedParameterizedCollectionPOJO<ElementT, KeyT> {
-    public Iterable<ElementT> nested;
-    public Map<KeyT, ElementT> map;
-
-    public NestedParameterizedCollectionPOJO(Iterable<ElementT> nested, Map<KeyT, ElementT> map) {
-      this.nested = nested;
-      this.map = map;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof NestedParameterizedCollectionPOJO)) {
-        return false;
-      }
-      NestedParameterizedCollectionPOJO<?, ?> that = (NestedParameterizedCollectionPOJO<?, ?>) o;
-      return Objects.equals(nested, that.nested) && Objects.equals(map, that.map);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(nested, map);
-    }
-  }
-
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class NestedParameterizedPOJO<T> {
-    public T nested;
-
-    public NestedParameterizedPOJO(T nested) {
-      this.nested = nested;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof NestedParameterizedPOJO)) {
-        return false;
-      }
-      NestedParameterizedPOJO<?> that = (NestedParameterizedPOJO<?>) o;
-      return Objects.equals(nested, that.nested);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(nested);
-    }
-  }
   /** A POJO containing a nested class. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedPOJO {
@@ -1006,7 +887,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PojoWithIterable)) {
+      if (!(o instanceof PojoWithNestedArray)) {
         return false;
       }
       PojoWithIterable that = (PojoWithIterable) o;

@@ -78,8 +78,8 @@ class AvroByteBuddyUtils {
 
     // Generate a method call to create and invoke the SpecificRecord's constructor. .
     MethodCall construct = MethodCall.construct(baseConstructor);
-    for (int i = 0; i < baseConstructor.getGenericParameterTypes().length; ++i) {
-      Type baseType = baseConstructor.getGenericParameterTypes()[i];
+    for (int i = 0; i < baseConstructor.getParameterTypes().length; ++i) {
+      Class<?> baseType = baseConstructor.getParameterTypes()[i];
       construct = construct.with(readAndConvertParameter(baseType, i), baseType);
     }
 
@@ -110,7 +110,7 @@ class AvroByteBuddyUtils {
   }
 
   private static StackManipulation readAndConvertParameter(
-      Type constructorParameterType, int index) {
+      Class<?> constructorParameterType, int index) {
     TypeConversionsFactory typeConversionsFactory = new AvroUtils.AvroTypeConversionFactory();
 
     // The types in the AVRO-generated constructor might be the types returned by Beam's Row class,
