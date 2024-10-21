@@ -134,6 +134,12 @@ final class AppendableInputStream extends InputStream {
     stream.close();
   }
 
+  static class InvalidInputStreamStateException extends IllegalStateException {
+    public InvalidInputStreamStateException() {
+      super("Got poison pill or timeout but stream is not done.");
+    }
+  }
+
   @SuppressWarnings("NullableProblems")
   private class InputStreamEnumeration implements Enumeration<InputStream> {
     // The first stream is eagerly read on SequenceInputStream creation. For this reason
@@ -159,7 +165,7 @@ final class AppendableInputStream extends InputStream {
         if (complete.get()) {
           return false;
         }
-        throw new IllegalStateException("Got poison pill or timeout but stream is not done.");
+        throw new InvalidInputStreamStateException();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new CancellationException();

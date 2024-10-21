@@ -36,7 +36,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 /** Utility class used to create different RPC Channels. */
 public final class WindmillChannelFactory {
   public static final String LOCALHOST = "localhost";
-  private static final int DEFAULT_GRPC_PORT = 443;
   private static final int MAX_REMOTE_TRACE_EVENTS = 100;
 
   private WindmillChannelFactory() {}
@@ -55,8 +54,6 @@ public final class WindmillChannelFactory {
   public static ManagedChannel remoteChannel(
       WindmillServiceAddress windmillServiceAddress, int windmillServiceRpcChannelTimeoutSec) {
     switch (windmillServiceAddress.getKind()) {
-      case IPV6:
-        return remoteChannel(windmillServiceAddress.ipv6(), windmillServiceRpcChannelTimeoutSec);
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
@@ -67,7 +64,8 @@ public final class WindmillChannelFactory {
             windmillServiceRpcChannelTimeoutSec);
       default:
         throw new UnsupportedOperationException(
-            "Only IPV6, GCP_SERVICE_ADDRESS, AUTHENTICATED_GCP_SERVICE_ADDRESS are supported WindmillServiceAddresses.");
+            "Only GCP_SERVICE_ADDRESS and AUTHENTICATED_GCP_SERVICE_ADDRESS are supported"
+                + " WindmillServiceAddresses.");
     }
   }
 
@@ -99,17 +97,6 @@ public final class WindmillChannelFactory {
     try {
       return createRemoteChannel(
           NettyChannelBuilder.forAddress(new InetSocketAddress(directEndpoint, port)),
-          windmillServiceRpcChannelTimeoutSec);
-    } catch (SSLException sslException) {
-      throw new WindmillChannelCreationException(directEndpoint.toString(), sslException);
-    }
-  }
-
-  public static ManagedChannel remoteChannel(
-      Inet6Address directEndpoint, int windmillServiceRpcChannelTimeoutSec) {
-    try {
-      return createRemoteChannel(
-          NettyChannelBuilder.forAddress(new InetSocketAddress(directEndpoint, DEFAULT_GRPC_PORT)),
           windmillServiceRpcChannelTimeoutSec);
     } catch (SSLException sslException) {
       throw new WindmillChannelCreationException(directEndpoint.toString(), sslException);
