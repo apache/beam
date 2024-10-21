@@ -157,7 +157,7 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(readTransform);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.60.0");
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.61.0");
     BigQueryIO.TypedRead<TableRow> readTransformFromRow =
         (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row, options);
     assertNotNull(readTransformFromRow.getTable());
@@ -190,7 +190,7 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(readTransform);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.60.0");
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.61.0");
     BigQueryIO.TypedRead<?> readTransformFromRow = translator.fromConfigRow(row, options);
     assertEquals("dummyquery", readTransformFromRow.getQuery().get());
     assertNotNull(readTransformFromRow.getBigQueryReaderFactory());
