@@ -171,7 +171,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
       # The path is overidden, check various cases.
       if os.path.exists(self._path):
         # The path is local and exists, use directly.
-        return self.bin_path
+        return self._path
 
       # Check if the path is a URL.
       url = urllib.parse.urlparse(self._path)
@@ -203,7 +203,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     # This is a development version! Assume Go is installed.
     # Set the install directory to the cache location.
-    envdict = dict(os.environ) | {"GOBIN": self.BIN_CACHE}
+    envdict = {**os.environ, "GOBIN": self.BIN_CACHE} 
     PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
 
     process = subprocess.run(["go", "install", PRISMPKG],
