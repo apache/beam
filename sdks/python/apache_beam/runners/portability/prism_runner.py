@@ -56,6 +56,7 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
+
   def default_environment(
       self,
       options: pipeline_options.PipelineOptions) -> environments.Environment:
@@ -197,7 +198,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
           root_tag, platform.system(), platform.machine())
 
     if '.dev' not in self._version:
-      # Not a development version, so construct the production download URL 
+      # Not a development version, so construct the production download URL
       return self.construct_download_url(
           self._version, platform.system(), platform.machine())
 
@@ -207,12 +208,14 @@ class PrismJobServer(job_server.SubprocessJobServer):
     PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
 
     process = subprocess.run(["go", "install", PRISMPKG],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=envdict)
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             env=envdict)
     if process.returncode == 0:
       # Successfully installed
       return '%s/prism' % (self.BIN_CACHE)
-      
-    # We failed to build for some reason. 
+
+    # We failed to build for some reason.
     output = process.stdout.decode("utf-8")
     if "not in a module" not in output and "no required module provides" not in output:
       # This branch handles two classes of failures:
@@ -226,21 +229,25 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'Likely Go is not installed, or a local change to Prism did not compile.\n'
           'Please install Go (see https://go.dev/doc/install) to enable automatic local builds.\n'
           'Alternatively provide an alternate version with the '
-          '--prism_beam_version_override flag.\nCaptured output:\n %s' % (self._version, output))
-    
-    # Go is installed and claims we're not in a Go module that has access to the Prism package. 
+          '--prism_beam_version_override flag.\nCaptured output:\n %s' %
+          (self._version, output))
+
+    # Go is installed and claims we're not in a Go module that has access to the Prism package.
     # Fallback to using the @latest version of prism, which works everywhere.
     process = subprocess.run(["go", "install", PRISMPKG + "@latest"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=envdict)
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             env=envdict)
 
     if process.returncode == 0:
       return '%s/prism' % (self.BIN_CACHE)
-    
+
     output = process.stdout.decode("utf-8")
     raise ValueError(
         'We were unable to execute the subprocess "%s" to automatically build prism. \n'
         'Alternatively provide an alternate version with the '
-        '--prism_beam_version_override flag.\nCaptured output:\n %s' % (process.args, output))
+        '--prism_beam_version_override flag.\nCaptured output:\n %s' %
+        (process.args, output))
 
   def subprocess_cmd_and_endpoint(
       self) -> typing.Tuple[typing.List[typing.Any], str]:
