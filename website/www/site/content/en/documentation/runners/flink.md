@@ -196,8 +196,6 @@ The optional `flink_version` option may be required as well for older versions o
 
 {{< paragraph class="language-portable" >}}
 Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
-[Flink 1.15](https://hub.docker.com/r/apache/beam_flink1.15_job_server).
-[Flink 1.16](https://hub.docker.com/r/apache/beam_flink1.16_job_server).
 [Flink 1.17](https://hub.docker.com/r/apache/beam_flink1.17_job_server).
 [Flink 1.18](https://hub.docker.com/r/apache/beam_flink1.18_job_server).
 [Flink 1.19](https://hub.docker.com/r/apache/beam_flink1.19_job_server).
@@ -313,8 +311,8 @@ reference.
 ## Flink Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.16.0` the
-minor version is `1.16`.
+The minor version is the first two numbers in the version string, e.g. in `1.19.0` the
+minor version is `1.19`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
@@ -345,12 +343,12 @@ To find out which version of Flink is compatible with Beam please see the table 
 <tr>
   <td>1.16.x</td>
   <td>beam-runners-flink-1.16</td>
-  <td>&ge; 2.47.0</td>
+  <td>2.47.0 - 2.60.0</td>
 </tr>
 <tr>
   <td>1.15.x</td>
   <td>beam-runners-flink-1.15</td>
-  <td>&ge; 2.40.0</td>
+  <td>2.40.0 - 2.60.0</td>
 </tr>
 <tr>
   <td>1.14.x</td>
