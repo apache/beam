@@ -43,11 +43,11 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
       return;
     }
 
-    GetWorkBudget budgetPerStream = computeDesiredBudgets(budgetSpenders, getWorkBudget);
+    GetWorkBudget budgetPerStream = computeDesiredPerStreamBudget(budgetSpenders, getWorkBudget);
     budgetSpenders.forEach(getWorkBudgetSpender -> getWorkBudgetSpender.setBudget(budgetPerStream));
   }
 
-  private <T extends GetWorkBudgetSpender> GetWorkBudget computeDesiredBudgets(
+  private <T extends GetWorkBudgetSpender> GetWorkBudget computeDesiredPerStreamBudget(
       ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
     return GetWorkBudget.builder()
         .setItems(divide(totalGetWorkBudget.items(), streams.size(), RoundingMode.CEILING))

@@ -57,7 +57,7 @@ public class EvenGetWorkBudgetDistributorTest {
 
   @Test
   public void testDistributeBudget_doesNothingWithNoBudget() {
-    GetWorkBudgetSpender getWorkBudgetSpender = spy(createGetWorkBudgetOwner());
+    GetWorkBudgetSpender getWorkBudgetSpender = createGetWorkBudgetOwner();
     GetWorkBudgetDistributors.distributeEvenly()
         .distributeBudget(ImmutableList.of(getWorkBudgetSpender), GetWorkBudget.noBudget());
     verifyNoInteractions(getWorkBudgetSpender);
@@ -65,46 +65,41 @@ public class EvenGetWorkBudgetDistributorTest {
 
   @Test
   public void testDistributeBudget_distributesBudgetEvenlyIfPossible() {
-    long totalItemsAndBytes = 10L;
+    int totalStreams = 10;
+    long totalItems = 10L;
+    long totalBytes = 100L;
     List<GetWorkBudgetSpender> streams = new ArrayList<>();
-    for (int i = 0; i < totalItemsAndBytes; i++) {
-      streams.add(spy(createGetWorkBudgetOwner()));
+    for (int i = 0; i < totalStreams; i++) {
+      streams.add(createGetWorkBudgetOwner());
     }
     GetWorkBudgetDistributors.distributeEvenly()
         .distributeBudget(
             ImmutableList.copyOf(streams),
-            GetWorkBudget.builder()
-                .setItems(totalItemsAndBytes)
-                .setBytes(totalItemsAndBytes)
-                .build());
+            GetWorkBudget.builder().setItems(totalItems).setBytes(totalBytes).build());
 
-    long itemsAndBytesPerStream = totalItemsAndBytes / streams.size();
     streams.forEach(
         stream ->
             verify(stream, times(1))
-                .setBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
+                .setBudget(eq(GetWorkBudget.builder().setItems(1L).setBytes(10L).build())));
   }
 
   @Test
   public void testDistributeBudget_distributesFairlyWhenNotEven() {
-    long totalItemsAndBytes = 10L;
+    long totalItems = 10L;
+    long totalBytes = 19L;
     List<GetWorkBudgetSpender> streams = new ArrayList<>();
     for (int i = 0; i < 3; i++) {
-      streams.add(spy(createGetWorkBudgetOwner()));
+      streams.add(createGetWorkBudgetOwner());
     }
     GetWorkBudgetDistributors.distributeEvenly()
         .distributeBudget(
             ImmutableList.copyOf(streams),
-            GetWorkBudget.builder()
-                .setItems(totalItemsAndBytes)
-                .setBytes(totalItemsAndBytes)
-                .build());
+            GetWorkBudget.builder().setItems(totalItems).setBytes(totalBytes).build());
 
-    long itemsAndBytesPerStream = (long) Math.ceil(totalItemsAndBytes / (streams.size() * 1.0));
     streams.forEach(
         stream ->
             verify(stream, times(1))
-                .setBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
+                .setBudget(eq(GetWorkBudget.builder().setItems(4L).setBytes(7L).build())));
   }
 
   @Test
@@ -112,7 +107,7 @@ public class EvenGetWorkBudgetDistributorTest {
     long totalItemsAndBytes = 10L;
     List<GetWorkBudgetSpender> streams = new ArrayList<>();
     for (int i = 0; i < totalItemsAndBytes; i++) {
-      streams.add(spy(createGetWorkBudgetOwner()));
+      streams.add(createGetWorkBudgetOwner());
     }
 
     GetWorkBudgetDistributors.distributeEvenly()

@@ -307,23 +307,17 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             connectionAndStream ->
                 !newWindmillEndpoints.windmillEndpoints().contains(connectionAndStream.getKey()))
         .forEach(
-            entry -> {
-              CompletableFuture<Void> ignored =
-                  CompletableFuture.runAsync(
-                      () -> closeStreamSender(entry.getKey(), entry.getValue()),
-                      windmillStreamManager);
-            });
+            entry ->
+                windmillStreamManager.execute(
+                    () -> closeStreamSender(entry.getKey(), entry.getValue())));
 
     Set<Endpoint> newGlobalDataEndpoints =
         new HashSet<>(newWindmillEndpoints.globalDataEndpoints().values());
     currentBackends.globalDataStreams().values().stream()
         .filter(sender -> !newGlobalDataEndpoints.contains(sender.endpoint()))
         .forEach(
-            sender -> {
-              CompletableFuture<Void> ignored =
-                  CompletableFuture.runAsync(
-                      () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager);
-            });
+            sender ->
+                windmillStreamManager.execute(() -> closeStreamSender(sender.endpoint(), sender)));
   }
 
   private void closeStreamSender(Endpoint endpoint, Closeable sender) {

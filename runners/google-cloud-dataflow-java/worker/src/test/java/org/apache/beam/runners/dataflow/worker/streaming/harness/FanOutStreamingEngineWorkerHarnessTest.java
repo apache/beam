@@ -214,7 +214,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
+    assertTrue(getWorkBudgetDistributor.waitForBudgetDistribution());
 
     StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
 
@@ -286,7 +286,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
+    assertTrue(getWorkBudgetDistributor.waitForBudgetDistribution());
     StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
     assertEquals(1, currentBackends.windmillStreams().size());
     Set<String> workerTokens =
@@ -334,17 +334,12 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     getWorkerMetadataReady.await();
 
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
+    assertTrue(getWorkBudgetDistributor.waitForBudgetDistribution());
     getWorkBudgetDistributor.expectNumDistributions(1);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
+    assertTrue(getWorkBudgetDistributor.waitForBudgetDistribution());
 
     verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
-  }
-
-  private void waitForWorkerMetadataToBeConsumed(
-      TestGetWorkBudgetDistributor getWorkBudgetDistributor) throws InterruptedException {
-    getWorkBudgetDistributor.waitForBudgetDistribution();
   }
 
   private static class GetWorkerMetadataTestStub
@@ -395,9 +390,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
       this.getWorkBudgetDistributorTriggered = new CountDownLatch(numBudgetDistributionsExpected);
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
-    private void waitForBudgetDistribution() throws InterruptedException {
-      getWorkBudgetDistributorTriggered.await(5, TimeUnit.SECONDS);
+    private boolean waitForBudgetDistribution() throws InterruptedException {
+      return getWorkBudgetDistributorTriggered.await(5, TimeUnit.SECONDS);
     }
 
     private void expectNumDistributions(int numBudgetDistributionsExpected) {

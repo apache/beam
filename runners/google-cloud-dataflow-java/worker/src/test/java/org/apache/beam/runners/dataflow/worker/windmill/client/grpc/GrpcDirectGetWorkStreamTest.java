@@ -20,10 +20,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,8 +60,11 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GrpcDirectGetWorkStreamTest {
+  private static final WorkItemScheduler NO_OP_WORK_ITEM_SCHEDULER =
+      (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
+          .setClientId(1L)
           .setJobId("test_job")
           .setWorkerId("test_worker")
           .setProjectId("test_project")
@@ -76,6 +81,22 @@ public class GrpcDirectGetWorkStreamTest {
         .setMaxItems(budget.items())
         .setMaxBytes(budget.bytes())
         .build();
+  }
+
+  private static void assertHeader(
+      Windmill.StreamingGetWorkRequest getWorkRequest, GetWorkBudget expectedInitialBudget) {
+    assertTrue(getWorkRequest.hasRequest());
+    assertFalse(getWorkRequest.hasRequestExtension());
+    assertThat(getWorkRequest.getRequest())
+        .isEqualTo(
+            Windmill.GetWorkRequest.newBuilder()
+                .setClientId(TEST_JOB_HEADER.getClientId())
+                .setJobId(TEST_JOB_HEADER.getJobId())
+                .setProjectId(TEST_JOB_HEADER.getProjectId())
+                .setWorkerId(TEST_JOB_HEADER.getWorkerId())
+                .setMaxItems(expectedInitialBudget.items())
+                .setMaxBytes(expectedInitialBudget.bytes())
+                .build());
   }
 
   @Before
@@ -98,30 +119,6 @@ public class GrpcDirectGetWorkStreamTest {
   public void cleanUp() {
     inProcessChannel.shutdownNow();
     checkNotNull(stream).shutdown();
-  }
-
-  private GrpcDirectGetWorkStream createGetWorkStream(
-      GetWorkStreamTestStub testStub, GetWorkBudget initialGetWorkBudget) {
-    return createGetWorkStream(testStub, initialGetWorkBudget, new ThrottleTimer());
-  }
-
-  private GrpcDirectGetWorkStream createGetWorkStream(
-      GetWorkStreamTestStub testStub,
-      GetWorkBudget initialGetWorkBudget,
-      WorkItemScheduler workItemScheduler) {
-    return createGetWorkStream(
-        testStub, initialGetWorkBudget, new ThrottleTimer(), workItemScheduler);
-  }
-
-  private GrpcDirectGetWorkStream createGetWorkStream(
-      GetWorkStreamTestStub testStub,
-      GetWorkBudget initialGetWorkBudget,
-      ThrottleTimer throttleTimer) {
-    return createGetWorkStream(
-        testStub,
-        initialGetWorkBudget,
-        throttleTimer,
-        (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {});
   }
 
   private GrpcDirectGetWorkStream createGetWorkStream(
@@ -173,14 +170,17 @@ public class GrpcDirectGetWorkStreamTest {
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
-    stream = createGetWorkStream(testStub, GetWorkBudget.noBudget());
+    stream =
+        createGetWorkStream(
+            testStub, GetWorkBudget.noBudget(), new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
     GetWorkBudget newBudget = GetWorkBudget.builder().setItems(10).setBytes(10).build();
     stream.setBudget(newBudget);
 
-    waitForRequests.await(5, TimeUnit.SECONDS);
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     // Header and extension.
     assertThat(requestObserver.sent()).hasSize(expectedRequests);
+    assertHeader(requestObserver.sent().get(0), GetWorkBudget.noBudget());
     assertThat(Iterables.getLast(requestObserver.sent()).getRequestExtension())
         .isEqualTo(extension(newBudget));
   }
@@ -193,16 +193,19 @@ public class GrpcDirectGetWorkStreamTest {
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
     GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(10).setBytes(10).build();
-    stream = createGetWorkStream(testStub, initialBudget);
+    stream =
+        createGetWorkStream(
+            testStub, initialBudget, new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
     GetWorkBudget newBudget = GetWorkBudget.builder().setItems(100).setBytes(100).build();
     stream.setBudget(newBudget);
     GetWorkBudget diff = newBudget.subtract(initialBudget);
 
-    waitForRequests.await(5, TimeUnit.SECONDS);
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
     // Header and extension.
     assertThat(requests).hasSize(expectedRequests);
+    assertHeader(requests.get(0), initialBudget);
     assertThat(Iterables.getLast(requests).getRequestExtension()).isEqualTo(extension(diff));
   }
 
@@ -213,19 +216,19 @@ public class GrpcDirectGetWorkStreamTest {
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
+    GetWorkBudget initialBudget =
+        GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build();
     stream =
         createGetWorkStream(
-            testStub,
-            GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build());
+            testStub, initialBudget, new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
     stream.setBudget(GetWorkBudget.builder().setItems(10).setBytes(10).build());
 
-    waitForRequests.await(5, TimeUnit.SECONDS);
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
     // Assert that the extension was never sent, only the header.
     assertThat(requests).hasSize(expectedRequests);
-    assertThat(Iterables.getOnlyElement(requests).getRequest())
-        .isInstanceOf(Windmill.GetWorkRequest.class);
+    assertHeader(Iterables.getOnlyElement(requests), initialBudget);
   }
 
   @Test
@@ -234,18 +237,19 @@ public class GrpcDirectGetWorkStreamTest {
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
-    stream = createGetWorkStream(testStub, GetWorkBudget.noBudget());
+    stream =
+        createGetWorkStream(
+            testStub, GetWorkBudget.noBudget(), new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
     stream.shutdown();
     stream.setBudget(
         GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build());
 
-    waitForRequests.await(5, TimeUnit.SECONDS);
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
     // Assert that the extension was never sent, only the header.
     assertThat(requests).hasSize(1);
-    assertThat(Iterables.getOnlyElement(requests).getRequest())
-        .isInstanceOf(Windmill.GetWorkRequest.class);
+    assertHeader(Iterables.getOnlyElement(requests), GetWorkBudget.noBudget());
   }
 
   @Test
@@ -260,6 +264,7 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
+            new ThrottleTimer(),
             (work, watermarks, processingContext, getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
@@ -273,13 +278,14 @@ public class GrpcDirectGetWorkStreamTest {
 
     testStub.injectResponse(createResponse(workItem));
 
-    waitForRequests.await(5, TimeUnit.SECONDS);
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     assertThat(scheduledWorkItems).containsExactly(workItem);
     List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
     long inFlightBytes = initialBudget.bytes() - workItem.getSerializedSize();
 
     assertThat(requests).hasSize(expectedRequests);
+    assertHeader(requests.get(0), initialBudget);
     assertThat(Iterables.getLast(requests).getRequestExtension())
         .isEqualTo(
             extension(
@@ -297,13 +303,15 @@ public class GrpcDirectGetWorkStreamTest {
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
     Set<Windmill.WorkItem> scheduledWorkItems = new HashSet<>();
+    GetWorkBudget initialBudget =
+        GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build();
     stream =
         createGetWorkStream(
             testStub,
-            GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build(),
-            (work, watermarks, processingContext, getWorkStreamLatencies) -> {
-              scheduledWorkItems.add(work);
-            });
+            initialBudget,
+            new ThrottleTimer(),
+            (work, watermarks, processingContext, getWorkStreamLatencies) ->
+                scheduledWorkItems.add(work));
     Windmill.WorkItem workItem =
         Windmill.WorkItem.newBuilder()
             .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
@@ -314,15 +322,14 @@ public class GrpcDirectGetWorkStreamTest {
 
     testStub.injectResponse(createResponse(workItem));
 
-    waitForRequests.await(5, TimeUnit.SECONDS);
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     assertThat(scheduledWorkItems).containsExactly(workItem);
     List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
 
     // Assert that the extension was never sent, only the header.
     assertThat(requests).hasSize(expectedRequests);
-    assertThat(Iterables.getOnlyElement(requests).getRequest())
-        .isInstanceOf(Windmill.GetWorkRequest.class);
+    assertHeader(Iterables.getOnlyElement(requests), initialBudget);
   }
 
   @Test
@@ -331,8 +338,11 @@ public class GrpcDirectGetWorkStreamTest {
     TestGetWorkRequestObserver requestObserver =
         new TestGetWorkRequestObserver(new CountDownLatch(1));
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
-    stream = createGetWorkStream(testStub, GetWorkBudget.noBudget(), throttleTimer);
+    stream =
+        createGetWorkStream(
+            testStub, GetWorkBudget.noBudget(), throttleTimer, NO_OP_WORK_ITEM_SCHEDULER);
     stream.startThrottleTimer();
+    assertTrue(throttleTimer.throttled());
     testStub.injectResponse(Windmill.StreamingGetWorkResponseChunk.getDefaultInstance());
     assertFalse(throttleTimer.throttled());
   }
@@ -364,9 +374,11 @@ public class GrpcDirectGetWorkStreamTest {
 
   private static class TestGetWorkRequestObserver
       implements StreamObserver<Windmill.StreamingGetWorkRequest> {
-    private final List<Windmill.StreamingGetWorkRequest> requests = new ArrayList<>();
+    private final List<Windmill.StreamingGetWorkRequest> requests =
+        Collections.synchronizedList(new ArrayList<>());
     private final CountDownLatch waitForRequests;
-    private @Nullable StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver;
+    private @Nullable volatile StreamObserver<Windmill.StreamingGetWorkResponseChunk>
+        responseObserver;
 
     public TestGetWorkRequestObserver(CountDownLatch waitForRequests) {
       this.waitForRequests = waitForRequests;
