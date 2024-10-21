@@ -357,6 +357,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 import collections
 import io
+import inspect
 import itertools
 import json
 import logging
@@ -2593,17 +2594,36 @@ class StorageWriteToBigQuery(PTransform):
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
+  @staticmethod
+  def check_and_return_callable(func: Callable, callable_expected_type):
+    signature = inspect.signature(func)
+    params = signature.parameters.values()
+    if len(params) < 1:
+      raise TypeError(
+          "Callable for CDC mutation information " +
+          "should have an input parameter. Received: " + str(signature))
+    param = next(iter(params))
+    if not param.annotation is callable_expected_type:
+      raise TypeError(
+          "For Beam Row values, while using CDC writes," +
+          " we expect a Callable[[" + str(callable_expected_type) + "], " +
+          str(callable_expected_type) + "]. " +
+          "Received a Callable with argument: " + str(param.annotation))
+    if not signature.return_annotation is callable_expected_type:
+      raise TypeError(
+          "For Beam Row values, while using CDC writes," +
+          " we expect a Callable[[" + str(callable_expected_type) + "], " +
+          str(callable_expected_type) + "]. " +
+          "Received a Callable with return: " +
+          str(signature.return_annotation))
+    return func
+
   def extract_cdc_info_fn_rows(self):
     cdc_writes = self._use_cdc_writes
     if isinstance(cdc_writes, bool):
       return None
     elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
-      if cdc_writes.__annotations__.get('return') == beam.pvalue.Row:
-        return cdc_writes
-      else:
-        raise TypeError(
-            "For Beam Row values, while using CDC writes," +
-            " we expect a Callable[[beam.Row], beam.Row].")
+      return self.check_and_return_callable(cdc_writes, beam.pvalue.Row)
     return None
 
   def extract_cdc_info_fn_dicts(self):
@@ -2611,12 +2631,7 @@ class StorageWriteToBigQuery(PTransform):
     if isinstance(cdc_writes, bool):
       return None
     elif isinstance(cdc_writes, Callable) and callable(cdc_writes):
-      if cdc_writes.__annotations__.get('return') == Dict:
-        return cdc_writes
-      else:
-        raise TypeError(
-            "For dictionary values, while using CDC writes," +
-            " we expect a Callable[[Dict], Dict].")
+      return self.check_and_return_callable(cdc_writes, Dict)
     return None
 
   def expand(self, input):
