@@ -132,6 +132,12 @@ class SwitchingDirectRunner(PipelineRunner):
             if any(isinstance(arg, ArgumentPlaceholder)
                    for arg in args_to_check):
               self.supported_by_prism_runner = False
+          if userstate.is_stateful_dofn(dofn):
+            # https://github.com/apache/beam/issues/32786 - Remove once Real time clock is used.
+            _, timer_specs = userstate.get_dofn_specs(dofn)
+            for timer in timer_specs:
+              if timer.time_domain == TimeDomain.REAL_TIME:
+                self.supported_by_prism_runner = False
 
     tryingPrism = False
     # Check whether all transforms used in the pipeline are supported by the
