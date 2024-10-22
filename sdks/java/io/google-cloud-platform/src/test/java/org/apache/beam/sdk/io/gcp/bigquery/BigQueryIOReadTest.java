@@ -148,6 +148,7 @@ public class BigQueryIOReadTest implements Serializable {
   private BigQueryReaderFactory<TableRow> readerFactory =
       BigQueryReaderFactory.avro(
           null,
+          false,
           AvroDatumFactory.generic(),
           (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
