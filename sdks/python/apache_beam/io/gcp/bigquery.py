@@ -356,8 +356,8 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import collections
-import io
 import inspect
+import io
 import itertools
 import json
 import logging
