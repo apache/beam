@@ -84,6 +84,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -603,8 +604,13 @@ public final class StreamingDataflowWorker {
         workerOptions.getGcpCredential(),
         ChannelCache.create(
             serviceAddress ->
-                remoteChannel(
-                    serviceAddress, workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec())));
+                // IsolationChannel will create and manage separate RPC channels to the same
+                // serviceAddress.
+                IsolationChannel.create(
+                    () ->
+                        remoteChannel(
+                            serviceAddress,
+                            workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec()))));
   }
 
   @VisibleForTesting
@@ -860,7 +866,6 @@ public final class StreamingDataflowWorker {
     return computationStateCache;
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     running.set(true);
     configFetcher.start();
