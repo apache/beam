@@ -251,7 +251,13 @@ class DataInputOperation(RunnerIOOperation):
   # TODO(https://github.com/apache/beam/issues/19737): typing not compatible
   # with super type
   def try_split(  # type: ignore[override]
-      self, fraction_of_remainder, total_buffer_size, allowed_split_points) -> Optional[Tuple[int, Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual], int]]:
+      self, fraction_of_remainder, total_buffer_size, allowed_split_points
+  ) -> Optional[
+      Tuple[
+          int,
+          Iterable[operations.SdfSplitResultsPrimary],
+          Iterable[operations.SdfSplitResultsResidual],
+          int]]:
     with self.splitting_lock:
       if not self.started:
         return None
@@ -2162,12 +2168,12 @@ def create_merge_windows(
             merge_result: window.BoundedWindow,
         ):
           originals = merged_windows[merge_result]
-          for window in to_be_merged:
-            if window in original_windows:
-              originals.add(window)
-              original_windows.remove(window)
+          for w in to_be_merged:
+            if w in original_windows:
+              originals.add(w)
+              original_windows.remove(w)
             else:
-              originals.update(merged_windows.pop(window))
+              originals.update(merged_windows.pop(w))
 
       window_fn.merge(RecordingMergeContext(windows))
       yield nonce, (original_windows, merged_windows.items())
