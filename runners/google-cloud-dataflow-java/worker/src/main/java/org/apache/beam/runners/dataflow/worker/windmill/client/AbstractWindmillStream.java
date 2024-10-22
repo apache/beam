@@ -75,6 +75,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   protected final AtomicBoolean clientClosed;
   protected final Sleeper sleeper;
+
+  /**
+   * Used to guard {@link #start()} and {@link #shutdown()} behavior.
+   *
+   * @implNote Should not be held when performing IO.
+   */
+  protected final Object shutdownLock = new Object();
+
   private final AtomicLong lastSendTimeMs;
   private final ExecutorService executor;
   private final BackOff backoff;
@@ -90,10 +98,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final int logEveryNStreamFailures;
   private final String backendWorkerToken;
   private final ResettableRequestObserver<RequestT> requestObserver;
-
-  /** Guards {@link #start()} and {@link #shutdown()} methods. */
-  private final Object shutdownLock = new Object();
-
   private final AtomicReference<DateTime> shutdownTime;
 
   /**

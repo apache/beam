@@ -56,7 +56,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.VerifyException;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -79,7 +78,6 @@ final class GrpcGetDataStream
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
-  private final Object shutdownLock = new Object();
 
   private GrpcGetDataStream(
       String backendWorkerToken,
@@ -298,16 +296,14 @@ final class GrpcGetDataStream
   protected void shutdownInternal() {
     // Stream has been explicitly closed. Drain pending input streams and request batches.
     // Future calls to send RPCs will fail.
-    synchronized (shutdownLock) {
-      pending.values().forEach(AppendableInputStream::cancel);
-      pending.clear();
-      batches.forEach(
-          batch -> {
-            batch.markFinalized();
-            batch.notifyFailed();
-          });
-      batches.clear();
-    }
+    pending.values().forEach(AppendableInputStream::cancel);
+    pending.clear();
+    batches.forEach(
+        batch -> {
+          batch.markFinalized();
+          batch.notifyFailed();
+        });
+    batches.clear();
   }
 
   @Override
@@ -363,6 +359,9 @@ final class GrpcGetDataStream
   }
 
   private void handleShutdown(QueuedRequest request, Throwable cause) {
+    if (cause instanceof WindmillStreamShutdownException) {
+      throw (WindmillStreamShutdownException) cause;
+    }
     if (isShutdown()) {
       WindmillStreamShutdownException shutdownException =
           new WindmillStreamShutdownException(
@@ -437,8 +436,13 @@ final class GrpcGetDataStream
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
       synchronized (shutdownLock) {
+        // shutdown() clears pending, once the stream is shutdown, prevent values from being added
+        // to it.
+        if (isShutdown()) {
+          throw new WindmillStreamShutdownException(
+              "Stream was closed when attempting to send " + requests.size() + " requests.");
+        }
         for (QueuedRequest request : requests) {
-          Preconditions.checkState(!isShutdown(), "Cannot send on shutdown stream.");
           // Map#put returns null if there was no previous mapping for the key, meaning we have not
           // seen it before.
           verify(pending.put(request.id(), request.getResponseStream()) == null);

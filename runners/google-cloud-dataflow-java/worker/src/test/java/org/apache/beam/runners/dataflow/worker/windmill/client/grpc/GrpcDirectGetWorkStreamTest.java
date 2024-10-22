@@ -127,26 +127,29 @@ public class GrpcDirectGetWorkStreamTest {
       ThrottleTimer throttleTimer,
       WorkItemScheduler workItemScheduler) {
     serviceRegistry.addService(testStub);
-    return (GrpcDirectGetWorkStream)
-        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-            .build()
-            .createDirectGetWorkStream(
-                WindmillConnection.builder()
-                    .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                    .build(),
-                Windmill.GetWorkRequest.newBuilder()
-                    .setClientId(TEST_JOB_HEADER.getClientId())
-                    .setJobId(TEST_JOB_HEADER.getJobId())
-                    .setProjectId(TEST_JOB_HEADER.getProjectId())
-                    .setWorkerId(TEST_JOB_HEADER.getWorkerId())
-                    .setMaxItems(initialGetWorkBudget.items())
-                    .setMaxBytes(initialGetWorkBudget.bytes())
-                    .build(),
-                throttleTimer,
-                mock(HeartbeatSender.class),
-                mock(GetDataClient.class),
-                mock(WorkCommitter.class),
-                workItemScheduler);
+    GrpcDirectGetWorkStream getWorkStream =
+        (GrpcDirectGetWorkStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .build()
+                .createDirectGetWorkStream(
+                    WindmillConnection.builder()
+                        .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+                        .build(),
+                    Windmill.GetWorkRequest.newBuilder()
+                        .setClientId(TEST_JOB_HEADER.getClientId())
+                        .setJobId(TEST_JOB_HEADER.getJobId())
+                        .setProjectId(TEST_JOB_HEADER.getProjectId())
+                        .setWorkerId(TEST_JOB_HEADER.getWorkerId())
+                        .setMaxItems(initialGetWorkBudget.items())
+                        .setMaxBytes(initialGetWorkBudget.bytes())
+                        .build(),
+                    throttleTimer,
+                    mock(HeartbeatSender.class),
+                    mock(GetDataClient.class),
+                    mock(WorkCommitter.class),
+                    workItemScheduler);
+    getWorkStream.start();
+    return getWorkStream;
   }
 
   private Windmill.StreamingGetWorkResponseChunk createResponse(Windmill.WorkItem workItem) {

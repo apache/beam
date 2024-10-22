@@ -234,7 +234,13 @@ final class GrpcCommitWorkStream
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
     synchronized (this) {
-      pending.put(id, pendingRequest);
+      synchronized (shutdownLock) {
+        if (!isShutdown()) {
+          pending.put(id, pendingRequest);
+        } else {
+          return;
+        }
+      }
       try {
         send(chunk);
       } catch (IllegalStateException e) {
@@ -260,7 +266,13 @@ final class GrpcCommitWorkStream
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
     synchronized (this) {
-      pending.putAll(requests);
+      synchronized (shutdownLock) {
+        if (!isShutdown()) {
+          pending.putAll(requests);
+        } else {
+          return;
+        }
+      }
       try {
         send(request);
       } catch (IllegalStateException e) {
@@ -273,7 +285,13 @@ final class GrpcCommitWorkStream
     checkNotNull(pendingRequest.computationId());
     final ByteString serializedCommit = pendingRequest.serializedCommit();
     synchronized (this) {
-      pending.put(id, pendingRequest);
+      synchronized (shutdownLock) {
+        if (!isShutdown()) {
+          pending.put(id, pendingRequest);
+        } else {
+          return;
+        }
+      }
       for (int i = 0;
           i < serializedCommit.size();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
