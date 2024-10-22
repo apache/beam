@@ -25,7 +25,6 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -41,10 +40,9 @@ public class FlinkBroadcastStateInternalsTest extends StateInternalsTest {
 
   @Override
   protected StateInternals createStateInternals() {
-    MemoryStateBackend backend = new MemoryStateBackend();
     try {
       OperatorStateBackend operatorStateBackend =
-          backend.createOperatorStateBackend(
+          MemoryStateBackendWrapper.createOperatorStateBackend(
               new DummyEnvironment("test", 1, 0), "", Collections.emptyList(), null);
       return new FlinkBroadcastStateInternals<>(
           1,

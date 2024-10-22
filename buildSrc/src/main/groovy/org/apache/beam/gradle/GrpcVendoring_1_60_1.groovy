@@ -189,6 +189,9 @@ class GrpcVendoring_1_60_1 {
       "org/junit/**",
       "org/mockito/**",
       "org/objenesis/**",
+      // proto source files
+      "google/**/*.proto",
+      "grpc/**/*.proto",
     ]
   }
 

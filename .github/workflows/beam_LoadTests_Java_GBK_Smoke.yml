@@ -106,7 +106,7 @@ jobs:
           arguments: |
             --info \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
-            -Prunner=:runners:flink:1.15 \
+            -Prunner=:runners:flink:1.19 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_3 }}' \
       - name: run GroupByKey load test Spark
         uses: ./.github/actions/gradle-command-self-hosted-action

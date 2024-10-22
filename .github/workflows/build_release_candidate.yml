@@ -97,7 +97,7 @@ jobs:
 
   stage_java_source:
     if:  ${{ fromJson(github.event.inputs.STAGE).java_source == 'yes'}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Mask Apache Password
         run: |
@@ -161,7 +161,7 @@ jobs:
 
   stage_python_artifacts:
     if:  ${{ fromJson(github.event.inputs.STAGE).python_artifacts == 'yes'}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -246,7 +246,7 @@ jobs:
   stage_docker:
     if:  ${{ fromJson(github.event.inputs.STAGE).docker_artifacts == 'yes'}}
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -282,7 +282,7 @@ jobs:
   beam_site_pr:
     if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       BRANCH_NAME: updates_release_${{ github.event.inputs.RELEASE }}
@@ -402,7 +402,7 @@ jobs:
 
   build_and_stage_prism:
     if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

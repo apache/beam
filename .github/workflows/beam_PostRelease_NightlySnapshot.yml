@@ -59,6 +59,9 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
+      - name: Setup temp local maven
+        id: setup_local_maven
+        run: echo "NEW_TEMP_DIR=$(mktemp -d)" >> $GITHUB_OUTPUT
       - name: run PostRelease validation script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -66,3 +69,7 @@ jobs:
           arguments: |
             -Pver='${{ github.event.inputs.RELEASE }}' \
             -Prepourl='${{ github.event.inputs.SNAPSHOT_URL }}' \
+            -PmavenLocalPath='${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'
+      - name: Clean up local maven
+        if: steps.setup_local_maven.outcome == 'success'
+        run: rm -rf '${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'

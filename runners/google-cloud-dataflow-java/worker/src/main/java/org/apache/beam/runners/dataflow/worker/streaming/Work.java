@@ -56,7 +56,7 @@ import org.joda.time.Instant;
 /**
  * Represents the state of an attempt to process a {@link WorkItem} by executing user code.
  *
- * @implNote Not thread safe, should not be executed or accessed by more than 1 thread at a time.
+ * @implNote Not thread safe, should not be modified by more than 1 thread at a time.
  */
 @NotThreadSafe
 @Internal
@@ -70,7 +70,7 @@ public final class Work implements RefreshableWork {
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
   private final String latencyTrackingId;
-  private TimedState currentState;
+  private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
 
@@ -111,7 +111,18 @@ public final class Work implements RefreshableWork {
       GetDataClient getDataClient,
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender) {
-    return ProcessingContext.create(computationId, getDataClient, workCommitter, heartbeatSender);
+    return ProcessingContext.create(
+        computationId, getDataClient, workCommitter, heartbeatSender, /* backendWorkerToken= */ "");
+  }
+
+  public static ProcessingContext createProcessingContext(
+      String computationId,
+      GetDataClient getDataClient,
+      Consumer<Commit> workCommitter,
+      HeartbeatSender heartbeatSender,
+      String backendWorkerToken) {
+    return ProcessingContext.create(
+        computationId, getDataClient, workCommitter, heartbeatSender, backendWorkerToken);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -166,6 +177,10 @@ public final class Work implements RefreshableWork {
 
   public GlobalData fetchSideInput(GlobalDataRequest request) {
     return processingContext.getDataClient().getSideInputData(request);
+  }
+
+  public String backendWorkerToken() {
+    return processingContext.backendWorkerToken();
   }
 
   public Watermarks watermarks() {
@@ -351,9 +366,10 @@ public final class Work implements RefreshableWork {
         String computationId,
         GetDataClient getDataClient,
         Consumer<Commit> workCommitter,
-        HeartbeatSender heartbeatSender) {
+        HeartbeatSender heartbeatSender,
+        String backendWorkerToken) {
       return new AutoValue_Work_ProcessingContext(
-          computationId, getDataClient, heartbeatSender, workCommitter);
+          computationId, getDataClient, heartbeatSender, workCommitter, backendWorkerToken);
     }
 
     /** Computation that the {@link Work} belongs to. */
@@ -369,6 +385,8 @@ public final class Work implements RefreshableWork {
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
+
+    public abstract String backendWorkerToken();
 
     private Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest request) {
       return Optional.ofNullable(getDataClient().getStateData(computationId(), request));

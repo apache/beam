@@ -97,6 +97,41 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Finds all indexes for the metadata table.
+   *
+   * @return a list of index names for the metadata table.
+   */
+  public List<String> findAllTableIndexes() {
+    String indexesStmt;
+    if (this.isPostgres()) {
+      indexesStmt =
+          "SELECT index_name FROM information_schema.indexes"
+              + " WHERE table_schema = 'public'"
+              + " AND table_name = '"
+              + metadataTableName
+              + "' AND index_type != 'PRIMARY_KEY'";
+    } else {
+      indexesStmt =
+          "SELECT index_name FROM information_schema.indexes"
+              + " WHERE table_schema = ''"
+              + " AND table_name = '"
+              + metadataTableName
+              + "' AND index_type != 'PRIMARY_KEY'";
+    }
+
+    List<String> result = new ArrayList<>();
+    try (ResultSet queryResultSet =
+        databaseClient
+            .singleUseReadOnlyTransaction()
+            .executeQuery(Statement.of(indexesStmt), Options.tag("query=findAllTableIndexes"))) {
+      while (queryResultSet.next()) {
+        result.add(queryResultSet.getString("index_name"));
+      }
+    }
+    return result;
+  }
+
+  /**
    * Fetches the partition metadata row data for the given partition token.
    *
    * @param partitionToken the partition unique identifier

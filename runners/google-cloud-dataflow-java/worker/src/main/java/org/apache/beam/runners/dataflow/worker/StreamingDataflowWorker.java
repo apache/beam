@@ -140,8 +140,6 @@ public final class StreamingDataflowWorker {
   private static final int DEFAULT_STATUS_PORT = 8081;
   private static final Random CLIENT_ID_GENERATOR = new Random();
   private static final String CHANNELZ_PATH = "/channelz";
-  public static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL =
-      "streaming_engine_use_job_settings_for_heartbeat_pool";
 
   private final WindmillStateCache stateCache;
   private final StreamingWorkerStatusPages statusPages;
@@ -249,10 +247,7 @@ public final class StreamingDataflowWorker {
               GET_DATA_STREAM_TIMEOUT,
               windmillServer::getDataStream);
       getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
-      // Experiment gates the logic till backend changes are rollback safe
-      if (!DataflowRunner.hasExperiment(
-              options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL)
-          || options.getUseSeparateWindmillHeartbeatStreams() != null) {
+      if (options.getUseSeparateWindmillHeartbeatStreams() != null) {
         heartbeatSender =
             StreamPoolHeartbeatSender.Create(
                 Boolean.TRUE.equals(options.getUseSeparateWindmillHeartbeatStreams())

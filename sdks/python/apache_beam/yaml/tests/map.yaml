@@ -30,8 +30,9 @@ pipelines:
           config:
             append: true
             fields:
-              named_field: element
+              # TODO(https://github.com/apache/beam/issues/32832): Figure out why Java sometimes re-orders these fields.
               literal_int: 10
+              named_field: element
               literal_float: 1.5
               literal_str: '"abc"'
 
@@ -42,5 +43,5 @@ pipelines:
         - type: AssertEqual
           config:
             elements:
-              - {element: 100, named_field: 100, literal_int: 10, literal_float: 1.5, literal_str: "abc"}
-              - {element: 200, named_field: 200, literal_int: 10, literal_float: 1.5, literal_str: "abc"}
+              - {element: 100, literal_int: 10, named_field: 100, literal_float: 1.5, literal_str: "abc"}
+              - {element: 200, literal_int: 10, named_field: 200, literal_float: 1.5, literal_str: "abc"}

@@ -36,6 +36,7 @@ class TestScripts {
      static String gcsBucket
      static String bqDataset
      static String pubsubTopic
+     static String mavenLocalPath
    }
 
    def TestScripts(String[] args) {
@@ -47,6 +48,7 @@ class TestScripts {
      cli.gcsBucket(args:1, 'Google Cloud Storage Bucket')
      cli.bqDataset(args:1, "BigQuery Dataset")
      cli.pubsubTopic(args:1, "PubSub Topic")
+     cli.mavenLocalPath(args:1, "Maven local path")
 
      def options = cli.parse(args)
      var.repoUrl = options.repourl
@@ -72,6 +74,10 @@ class TestScripts {
      if (options.pubsubTopic) {
          var.pubsubTopic = options.pubsubTopic
          println "PubSub Topic: ${var.pubsubTopic}"
+     }
+     if (options.mavenLocalPath) {
+         var.mavenLocalPath = options.mavenLocalPath
+         println "Maven local path: ${var.mavenLocalPath}"
      }
    }
 
@@ -189,11 +195,16 @@ class TestScripts {
      }
    }
 
-   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository
+   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository if needed
    private String _mvn(String args) {
-     def m2 = new File(var.startDir, ".m2/repository")
+     String mvnlocalPath = var.mavenLocalPath
+     if (!(var.mavenLocalPath)) {
+       mvnlocalPath = var.startDir
+     }
+     def m2 = new File(mvnlocalPath, ".m2/repository")
      m2.mkdirs()
-     def settings = new File(var.startDir, "settings.xml")
+     def settings = new File(mvnlocalPath, "settings.xml")
+     if(!settings.exists()) {
      settings.write """
        <settings>
          <localRepository>${m2.absolutePath}</localRepository>
@@ -209,16 +220,17 @@ class TestScripts {
                </profile>
              </profiles>
         </settings>
-        """
-       def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
-       String path = System.getenv("PATH");
-       // Set the path on jenkins executors to use a recent maven
-       // MAVEN_HOME is not set on some executors, so default to 3.5.2
-       String maven_home = System.getenv("MAVEN_HOME") ?: '/home/jenkins/tools/maven/apache-maven-3.5.4'
-       println "Using maven ${maven_home}"
-       def mvnPath = "${maven_home}/bin"
-       def setPath = "export PATH=\"${mvnPath}:${path}\" && "
-       return _execute(setPath + cmd)
+         """
+     }
+     def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
+     String path = System.getenv("PATH");
+     // Set the path on jenkins executors to use a recent maven
+     // MAVEN_HOME is not set on some executors, so default to 3.5.2
+     String maven_home = System.getenv("MAVEN_HOME") ?: '/usr/local/maven'
+     println "Using maven ${maven_home}"
+     def mvnPath = "${maven_home}/bin"
+     def setPath = "export PATH=\"${mvnPath}:${path}\" && "
+     return _execute(setPath + cmd)
    }
 
    // Clean up and report error

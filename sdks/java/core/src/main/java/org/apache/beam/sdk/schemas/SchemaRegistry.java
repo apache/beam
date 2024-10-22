@@ -76,13 +76,12 @@ public class SchemaRegistry {
       providers.put(typeDescriptor, schemaProvider);
     }
 
-    @Override
-    public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+    private <T> @Nullable SchemaProvider schemaProviderFor(TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);
         if (schemaProvider != null) {
-          return schemaProvider.schemaFor(type);
+          return schemaProvider;
         }
         Class<?> superClass = type.getRawType().getSuperclass();
         if (superClass == null || superClass.equals(Object.class)) {
@@ -90,40 +89,26 @@ public class SchemaRegistry {
         }
         type = TypeDescriptor.of(superClass);
       } while (true);
+    }
+
+    @Override
+    public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+      @Nullable SchemaProvider schemaProvider = schemaProviderFor(typeDescriptor);
+      return schemaProvider != null ? schemaProvider.schemaFor(typeDescriptor) : null;
     }
 
     @Override
     public <T> @Nullable SerializableFunction<T, Row> toRowFunction(
         TypeDescriptor<T> typeDescriptor) {
-      TypeDescriptor<?> type = typeDescriptor;
-      do {
-        SchemaProvider schemaProvider = providers.get(type);
-        if (schemaProvider != null) {
-          return (SerializableFunction<T, Row>) schemaProvider.toRowFunction(type);
-        }
-        Class<?> superClass = type.getRawType().getSuperclass();
-        if (superClass == null || superClass.equals(Object.class)) {
-          return null;
-        }
-        type = TypeDescriptor.of(superClass);
-      } while (true);
+      @Nullable SchemaProvider schemaProvider = schemaProviderFor(typeDescriptor);
+      return schemaProvider != null ? schemaProvider.toRowFunction(typeDescriptor) : null;
     }
 
     @Override
     public <T> @Nullable SerializableFunction<Row, T> fromRowFunction(
         TypeDescriptor<T> typeDescriptor) {
-      TypeDescriptor<?> type = typeDescriptor;
-      do {
-        SchemaProvider schemaProvider = providers.get(type);
-        if (schemaProvider != null) {
-          return (SerializableFunction<Row, T>) schemaProvider.fromRowFunction(type);
-        }
-        Class<?> superClass = type.getRawType().getSuperclass();
-        if (superClass == null || superClass.equals(Object.class)) {
-          return null;
-        }
-        type = TypeDescriptor.of(superClass);
-      } while (true);
+      @Nullable SchemaProvider schemaProvider = schemaProviderFor(typeDescriptor);
+      return schemaProvider != null ? schemaProvider.fromRowFunction(typeDescriptor) : null;
     }
   }
 

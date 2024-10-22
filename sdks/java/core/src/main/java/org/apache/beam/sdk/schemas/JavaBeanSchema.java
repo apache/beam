@@ -19,8 +19,10 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
@@ -67,8 +69,9 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
+      Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
       for (int i = 0; i < methods.size(); ++i) {
-        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i));
+        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i, boundTypes));
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
@@ -111,10 +114,11 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
 
     @Override
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
       return ReflectUtils.getMethods(typeDescriptor.getRawType()).stream()
           .filter(ReflectUtils::isSetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
-          .map(FieldValueTypeInformation::forSetter)
+          .map(m -> FieldValueTypeInformation.forSetter(m, boundTypes))
           .map(
               t -> {
                 if (t.getMethod().getAnnotation(SchemaFieldNumber.class) != null) {
@@ -156,8 +160,10 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+    Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            typeDescriptor, GetterTypeSupplier.INSTANCE, boundTypes);
 
     // If there are no creator methods, then validate that we have setters for every field.
     // Otherwise, we will have no way of creating instances of the class.

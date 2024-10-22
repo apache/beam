@@ -17,6 +17,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 )
 

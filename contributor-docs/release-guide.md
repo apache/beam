@@ -507,7 +507,7 @@ with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
     RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
-    for pyver in 3.8 3.9 3.10 3.11; do
+    for pyver in 3.9 3.10 3.11 3.12; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
@@ -887,7 +887,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.18:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.19:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```

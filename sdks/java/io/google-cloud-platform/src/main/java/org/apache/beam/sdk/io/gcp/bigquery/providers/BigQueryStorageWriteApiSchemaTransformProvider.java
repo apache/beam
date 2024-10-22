@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryStorageApiInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.RowMutationInformation;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
@@ -87,6 +90,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   private static final String FAILED_ROWS_WITH_ERRORS_TAG = "FailedRowsWithErrors";
   // magic string that tells us to write to dynamic destinations
   protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
+  protected static final String ROW_PROPERTY_MUTATION_INFO = "row_mutation_info";
+  protected static final String ROW_PROPERTY_MUTATION_TYPE = "mutation_type";
+  protected static final String ROW_PROPERTY_MUTATION_SQN = "change_sequence_number";
+  protected static final Schema ROW_SCHEMA_MUTATION_INFO =
+      Schema.builder()
+          .addStringField("mutation_type")
+          .addStringField("change_sequence_number")
+          .build();
 
   @Override
   protected SchemaTransform from(
@@ -257,6 +268,20 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
+    @SchemaFieldDescription(
+        "This option enables the use of BigQuery CDC functionality. The expected PCollection"
+            + " should contain Beam Rows with a schema wrapping the record to be inserted and"
+            + " adding the CDC info similar to: {row_mutation_info: {mutation_type:\"...\", "
+            + "change_sequence_number:\"...\"}, record: {...}}")
+    @Nullable
+    public abstract Boolean getUseCdcWrites();
+
+    @SchemaFieldDescription(
+        "If CREATE_IF_NEEDED disposition is set, BigQuery table(s) will be created with this"
+            + " columns as primary key. Required when CDC writes are enabled with CREATE_IF_NEEDED.")
+    @Nullable
+    public abstract List<String> getPrimaryKey();
+
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -276,6 +301,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setNumStreams(Integer numStreams);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+
+      public abstract Builder setUseCdcWrites(Boolean cdcWrites);
+
+      public abstract Builder setPrimaryKey(List<String> pkColumns);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -343,15 +372,27 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     }
 
     private static class RowDynamicDestinations extends DynamicDestinations<Row, String> {
-      Schema schema;
+      final Schema schema;
+      final String fixedDestination;
+      final List<String> primaryKey;
 
       RowDynamicDestinations(Schema schema) {
         this.schema = schema;
+        this.fixedDestination = null;
+        this.primaryKey = null;
+      }
+
+      public RowDynamicDestinations(
+          Schema schema, String fixedDestination, List<String> primaryKey) {
+        this.schema = schema;
+        this.fixedDestination = fixedDestination;
+        this.primaryKey = primaryKey;
       }
 
       @Override
       public String getDestination(ValueInSingleWindow<Row> element) {
-        return element.getValue().getString("destination");
+        return Optional.ofNullable(fixedDestination)
+            .orElseGet(() -> element.getValue().getString("destination"));
       }
 
       @Override
@@ -362,6 +403,17 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       @Override
       public TableSchema getSchema(String destination) {
         return BigQueryUtils.toTableSchema(schema);
+      }
+
+      @Override
+      public TableConstraints getTableConstraints(String destination) {
+        return Optional.ofNullable(this.primaryKey)
+            .filter(pk -> !pk.isEmpty())
+            .map(
+                pk ->
+                    new TableConstraints()
+                        .setPrimaryKey(new TableConstraints.PrimaryKey().setColumns(pk)))
+            .orElse(null);
       }
     }
 
@@ -453,6 +505,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
     }
 
+    void validateDynamicDestinationsExpectedSchema(Schema schema) {
+      checkArgument(
+          schema.getFieldNames().containsAll(Arrays.asList("destination", "record")),
+          "When writing to dynamic destinations, we expect Row Schema with a "
+              + "\"destination\" string field and a \"record\" Row field.");
+    }
+
     BigQueryIO.Write<Row> createStorageWriteApiTransform(Schema schema) {
       Method writeMethod =
           configuration.getUseAtLeastOnceSemantics() != null
@@ -466,11 +525,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .withFormatFunction(BigQueryUtils.toTableRow())
               .withWriteDisposition(WriteDisposition.WRITE_APPEND);
 
-      if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
-        checkArgument(
-            schema.getFieldNames().equals(Arrays.asList("destination", "record")),
-            "When writing to dynamic destinations, we expect Row Schema with a "
-                + "\"destination\" string field and a \"record\" Row field.");
+      // in case CDC writes are configured we validate and include them in the configuration
+      if (Optional.ofNullable(configuration.getUseCdcWrites()).orElse(false)) {
+        write = validateAndIncludeCDCInformation(write, schema);
+      } else if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
+        validateDynamicDestinationsExpectedSchema(schema);
         write =
             write
                 .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
@@ -485,6 +544,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
+
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
             BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
@@ -497,6 +557,54 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       return write;
+    }
+
+    BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
+        BigQueryIO.Write<Row> write, Schema schema) {
+      checkArgument(
+          schema.getFieldNames().containsAll(Arrays.asList(ROW_PROPERTY_MUTATION_INFO, "record")),
+          "When writing using CDC functionality, we expect Row Schema with a "
+              + "\""
+              + ROW_PROPERTY_MUTATION_INFO
+              + "\" Row field and a \"record\" Row field.");
+
+      Schema rowSchema = schema.getField(ROW_PROPERTY_MUTATION_INFO).getType().getRowSchema();
+
+      checkArgument(
+          rowSchema.equals(ROW_SCHEMA_MUTATION_INFO),
+          "When writing using CDC functionality, we expect a \""
+              + ROW_PROPERTY_MUTATION_INFO
+              + "\" field of Row type with schema:\n"
+              + ROW_SCHEMA_MUTATION_INFO.toString()
+              + "\n"
+              + "Received \""
+              + ROW_PROPERTY_MUTATION_INFO
+              + "\" field with schema:\n"
+              + rowSchema.toString());
+
+      String tableDestination = null;
+
+      if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
+        validateDynamicDestinationsExpectedSchema(schema);
+      } else {
+        tableDestination = configuration.getTable();
+      }
+
+      return write
+          .to(
+              new RowDynamicDestinations(
+                  schema.getField("record").getType().getRowSchema(),
+                  tableDestination,
+                  configuration.getPrimaryKey()))
+          .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")))
+          .withPrimaryKey(configuration.getPrimaryKey())
+          .withRowMutationInformationFn(
+              row ->
+                  RowMutationInformation.of(
+                      RowMutationInformation.MutationType.valueOf(
+                          row.getRow(ROW_PROPERTY_MUTATION_INFO)
+                              .getString(ROW_PROPERTY_MUTATION_TYPE)),
+                      row.getRow(ROW_PROPERTY_MUTATION_INFO).getString(ROW_PROPERTY_MUTATION_SQN)));
     }
   }
 }

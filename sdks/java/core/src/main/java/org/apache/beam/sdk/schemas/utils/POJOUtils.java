@@ -49,6 +49,7 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -70,11 +71,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Internal
 public class POJOUtils {
 
   public static Schema schemaFromPojoClass(
-      TypeDescriptor<?> typeDescriptor, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return StaticSchemaInference.schemaFromClass(typeDescriptor, fieldValueTypeSupplier);
+      TypeDescriptor<?> typeDescriptor,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      Map<Type, Type> boundTypes) {
+    return StaticSchemaInference.schemaFromClass(
+        typeDescriptor, fieldValueTypeSupplier, boundTypes);
   }
 
   // Static ByteBuddy instance used by all helpers.
@@ -301,7 +306,7 @@ public class POJOUtils {
             field.getDeclaringClass(),
             typeConversionsFactory
                 .createTypeConversion(false)
-                .convert(TypeDescriptor.of(field.getType())));
+                .convert(TypeDescriptor.of(field.getGenericType())));
     builder =
         implementGetterMethods(builder, field, typeInformation.getName(), typeConversionsFactory);
     try {
@@ -383,7 +388,7 @@ public class POJOUtils {
             field.getDeclaringClass(),
             typeConversionsFactory
                 .createTypeConversion(false)
-                .convert(TypeDescriptor.of(field.getType())));
+                .convert(TypeDescriptor.of(field.getGenericType())));
     builder = implementSetterMethods(builder, field, typeConversionsFactory);
     try {
       return builder
@@ -491,7 +496,7 @@ public class POJOUtils {
                 // Do any conversions necessary.
                 typeConversionsFactory
                     .createSetterConversions(readField)
-                    .convert(TypeDescriptor.of(field.getType())),
+                    .convert(TypeDescriptor.of(field.getGenericType())),
                 // Now update the field and return void.
                 FieldAccess.forField(new ForLoadedField(field)).write(),
                 MethodReturn.VOID);
@@ -546,7 +551,8 @@ public class POJOUtils {
           Field field = fields.get(i);
 
           ForLoadedType convertedType =
-              new ForLoadedType((Class) convertType.convert(TypeDescriptor.of(field.getType())));
+              new ForLoadedType(
+                  (Class) convertType.convert(TypeDescriptor.of(field.getGenericType())));
 
           // The instruction to read the parameter.
           StackManipulation readParameter =
@@ -563,7 +569,7 @@ public class POJOUtils {
                   // Do any conversions necessary.
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(field.getType())),
+                      .convert(TypeDescriptor.of(field.getGenericType())),
                   // Now update the field.
                   FieldAccess.forField(new ForLoadedField(field)).write());
           stackManipulation = new StackManipulation.Compound(stackManipulation, updateField);

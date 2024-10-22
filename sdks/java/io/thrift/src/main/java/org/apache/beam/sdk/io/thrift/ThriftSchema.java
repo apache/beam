@@ -242,10 +242,11 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
       if (factoryMethods.size() > 1) {
         throw new IllegalStateException("Overloaded factory methods: " + factoryMethods);
       }
-      return FieldValueTypeInformation.forSetter(factoryMethods.get(0), "");
+      return FieldValueTypeInformation.forSetter(factoryMethods.get(0), "", Collections.emptyMap());
     } else {
       try {
-        return FieldValueTypeInformation.forField(type.getDeclaredField(fieldName), 0);
+        return FieldValueTypeInformation.forField(
+            type.getDeclaredField(fieldName), 0, Collections.emptyMap());
       } catch (NoSuchFieldException e) {
         throw new IllegalArgumentException(e);
       }

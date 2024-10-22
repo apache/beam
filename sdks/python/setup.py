@@ -155,7 +155,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
 
@@ -271,18 +271,13 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.8'
+python_requires = '>=3.9'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 12:
+if sys.version_info.major == 3 and sys.version_info.minor >= 13:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
-elif sys.version_info.major == 3 and sys.version_info.minor == 8:
-  warnings.warn('Python 3.8 reaches EOL in October 2024 and support will '
-                'be removed from Apache Beam in version 2.61.0. See '
-                'https://github.com/apache/beam/issues/31192 for more '
-                'information.')
 
 if __name__ == '__main__':
   # In order to find the tree of proto packages, the directory
@@ -391,6 +386,7 @@ if __name__ == '__main__':
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
+          'pyyaml>=3.12,<7.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -415,7 +411,6 @@ if __name__ == '__main__':
               'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
-              'pyyaml>=3.12,<7.0.0',
               'requests_mock>=1.7,<2.0',
               'tenacity>=8.0.0,<9',
               'pytest>=7.1.2,<8.0',
@@ -424,7 +419,7 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0',
               'setuptools',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<3.0.0',
+              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
@@ -523,7 +518,6 @@ if __name__ == '__main__':
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
-              'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
               # https://github.com/PiotrDabkowski/Js2Py/issues/317
               'js2py>=0.74,<1; python_version<"3.12"',
@@ -535,7 +529,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',

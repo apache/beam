@@ -47,7 +47,6 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -185,9 +184,8 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
   }
 
   public static KeyedStateBackend<ByteBuffer> createStateBackend() throws Exception {
-    MemoryStateBackend backend = new MemoryStateBackend();
     AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend =
-        backend.createKeyedStateBackend(
+        MemoryStateBackendWrapper.createKeyedStateBackend(
             new DummyEnvironment("test", 1, 0),
             new JobID(),
             "test_op",
