@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
+import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
@@ -46,7 +47,7 @@ import org.slf4j.LoggerFactory;
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int TARGET_COMMIT_BATCH_KEYS = 5;
-  private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
+  private static final int MAX_QUEUED_COMMITS_BYTES = 500 << 20; // 500MB
   private static final String NO_BACKEND_WORKER_TOKEN = "";
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
@@ -61,11 +62,10 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
       Consumer<CompleteCommit> onCommitComplete,
-      String backendWorkerToken) {
+      String backendWorkerToken,
+      WeightedSemaphore<Commit> weigher) {
     this.commitWorkStreamFactory = commitWorkStreamFactory;
-    this.commitQueue =
-        WeightedBoundedQueue.create(
-            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
+    this.commitQueue = WeightedBoundedQueue.create(weigher);
     this.commitSenders =
         Executors.newFixedThreadPool(
             numCommitSenders,
@@ -86,16 +86,19 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   public static Builder builder() {
     return new AutoBuilder_StreamingEngineWorkCommitter_Builder()
         .setBackendWorkerToken(NO_BACKEND_WORKER_TOKEN)
+        .setWeigher(
+            WeightedSemaphore.create(
+                MAX_QUEUED_COMMITS_BYTES,
+                commit -> Math.min(MAX_QUEUED_COMMITS_BYTES, commit.getSize())))
         .setNumCommitSenders(1);
   }
 
   @Override
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     Preconditions.checkState(
         isRunning.compareAndSet(false, true), "Multiple calls to WorkCommitter.start().");
     for (int i = 0; i < numCommitSenders; i++) {
-      commitSenders.submit(this::streamingCommitLoop);
+      commitSenders.execute(this::streamingCommitLoop);
     }
   }
 
@@ -257,6 +260,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   public interface Builder {
     Builder setCommitWorkStreamFactory(
         Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory);
+
+    Builder setWeigher(WeightedSemaphore<Commit> weigher);
 
     Builder setNumCommitSenders(int numCommitSenders);
 

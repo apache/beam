@@ -27,6 +27,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
+import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -55,7 +56,9 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
     this.commitWorkFn = commitWorkFn;
     this.commitQueue =
         WeightedBoundedQueue.create(
-            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
+            WeightedSemaphore.create(
+                MAX_COMMIT_QUEUE_BYTES,
+                commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize())));
     this.commitWorkers =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
@@ -73,10 +76,9 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   }
 
   @Override
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     if (!commitWorkers.isShutdown()) {
-      commitWorkers.submit(this::commitLoop);
+      commitWorkers.execute(this::commitLoop);
     }
   }
 
