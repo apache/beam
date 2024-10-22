@@ -233,19 +233,16 @@ final class GrpcCommitWorkStream
         .setShardingKey(pendingRequest.shardingKey())
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
-    synchronized (this) {
-      synchronized (shutdownLock) {
-        if (!isShutdown()) {
-          pending.put(id, pendingRequest);
-        } else {
-          return;
-        }
-      }
-      try {
-        send(chunk);
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
+    if (shouldCancelRequest(id, pendingRequest)) {
+      pendingRequest.abort();
+      return;
+    }
+
+    try {
+      send(chunk);
+    } catch (IllegalStateException e) {
+      // Stream was broken, request will be retried when stream is reopened.
+
     }
   }
 
@@ -265,33 +262,28 @@ final class GrpcCommitWorkStream
           .setSerializedWorkItemCommit(request.serializedCommit());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
-    synchronized (this) {
-      synchronized (shutdownLock) {
-        if (!isShutdown()) {
-          pending.putAll(requests);
-        } else {
-          return;
-        }
-      }
-      try {
-        send(request);
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
+
+    if (shouldCancelRequest(requests)) {
+      requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
+      return;
+    }
+
+    try {
+      send(request);
+    } catch (IllegalStateException e) {
+      // Stream was broken, request will be retried when stream is reopened.
     }
   }
 
-  private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
+  private void issueMultiChunkRequest(long id, PendingRequest pendingRequest) {
     checkNotNull(pendingRequest.computationId());
-    final ByteString serializedCommit = pendingRequest.serializedCommit();
+    ByteString serializedCommit = pendingRequest.serializedCommit();
+    if (shouldCancelRequest(id, pendingRequest)) {
+      pendingRequest.abort();
+      return;
+    }
+
     synchronized (this) {
-      synchronized (shutdownLock) {
-        if (!isShutdown()) {
-          pending.put(id, pendingRequest);
-        } else {
-          return;
-        }
-      }
       for (int i = 0;
           i < serializedCommit.size();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
@@ -317,6 +309,32 @@ final class GrpcCommitWorkStream
           // Stream was broken, request will be retried when stream is reopened.
           break;
         }
+      }
+    }
+  }
+
+  private boolean shouldCancelRequest(long id, PendingRequest request) {
+    synchronized (shutdownLock) {
+      synchronized (this) {
+        if (!isShutdown()) {
+          pending.put(id, request);
+          return false;
+        }
+
+        return true;
+      }
+    }
+  }
+
+  private boolean shouldCancelRequest(Map<Long, PendingRequest> requests) {
+    synchronized (shutdownLock) {
+      synchronized (this) {
+        if (!isShutdown()) {
+          pending.putAll(requests);
+          return false;
+        }
+
+        return true;
       }
     }
   }
@@ -402,6 +420,11 @@ final class GrpcCommitWorkStream
     @Override
     public boolean commitWorkItem(
         String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
+      if (isShutdown()) {
+        onDone.accept(CommitStatus.ABORTED);
+        return false;
+      }
+
       if (!canAccept(commitRequest.getSerializedSize() + computation.length()) || isShutdown()) {
         return false;
       }
@@ -418,7 +441,7 @@ final class GrpcCommitWorkStream
         if (!isShutdown()) {
           flushInternal(queue);
         } else {
-          queue.forEach((ignored, request) -> request.onDone().accept(CommitStatus.ABORTED));
+          queue.forEach((ignored, request) -> request.abort());
         }
       } finally {
         queuedBytes = 0;

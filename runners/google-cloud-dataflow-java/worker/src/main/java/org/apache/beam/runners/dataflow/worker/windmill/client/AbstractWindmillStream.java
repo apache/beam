@@ -79,7 +79,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   /**
    * Used to guard {@link #start()} and {@link #shutdown()} behavior.
    *
-   * @implNote Should not be held when performing IO.
+   * @implNote Do not hold when performing IO. If also locking on {@code this} in the same context,
+   *     should acquire shutdownLock first to prevent deadlocks.
    */
   protected final Object shutdownLock = new Object();
 
@@ -184,15 +185,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     return isShutdown;
   }
 
-  private StreamObserver<RequestT> requestObserver() {
-    if (requestObserver == null) {
-      throw new NullPointerException(
-          "requestObserver cannot be null. Missing a call to start() to initialize stream.");
-    }
-
-    return requestObserver;
-  }
-
   /** Send a request to the server. */
   protected final void send(RequestT request) {
     synchronized (this) {
@@ -221,13 +213,16 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final void start() {
+    boolean shouldStartStream = false;
     synchronized (shutdownLock) {
       if (!isShutdown && !started) {
-        // start() should only be executed once during the lifetime of the stream for idempotency
-        // and when shutdown() has not been called.
-        startStream();
         started = true;
+        shouldStartStream = true;
       }
+    }
+
+    if (shouldStartStream) {
+      startStream();
     }
   }
 
@@ -366,8 +361,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       if (!isShutdown) {
         isShutdown = true;
         shutdownTime.set(DateTime.now());
-        requestObserver()
-            .onError(new WindmillStreamShutdownException("Explicit call to shutdown stream."));
+        requestObserver.onError(
+            new WindmillStreamShutdownException("Explicit call to shutdown stream."));
         shutdownInternal();
       }
     }
@@ -379,12 +374,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   protected abstract void shutdownInternal();
-
-  public static class WindmillStreamShutdownException extends RuntimeException {
-    public WindmillStreamShutdownException(String message) {
-      super(message);
-    }
-  }
 
   /**
    * Request observer that allows resetting its internal delegate using the given {@link

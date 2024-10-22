@@ -158,10 +158,12 @@ public class GrpcCommitWorkStreamTest {
     }
     commitWorkStream.shutdown();
 
+    Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
         assertFalse(
-            batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), ignored -> {}));
+            batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), commitStatuses::add));
+        assertThat(commitStatuses).containsExactly(Windmill.CommitStatus.ABORTED);
       }
     }
   }
