@@ -38,22 +38,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<T>, Serializable {
 
   abstract BoundedSource<T> getSource(
-      MatchResult.Metadata metadata,
-      TableSchema tableSchema,
-      Boolean useAvroLogicalTypes,
-      Coder<T> coder);
+      MatchResult.Metadata metadata, TableSchema tableSchema, Coder<T> coder);
 
   abstract BoundedSource<T> getSource(
-      String fileNameOrPattern,
-      TableSchema tableSchema,
-      Boolean useAvroLogicalTypes,
-      Coder<T> coder);
+      String fileNameOrPattern, TableSchema tableSchema, Coder<T> coder);
 
   static <AvroT, T> BigQueryReaderFactory<T> avro(
       org.apache.avro.@Nullable Schema schema,
+      boolean extractWithLogicalTypes,
       AvroSource.DatumReaderFactory<AvroT> readerFactory,
       SerializableBiFunction<TableSchema, AvroT, T> fromAvro) {
-    return new BigQueryAvroReaderFactory<>(schema, readerFactory, fromAvro);
+    return new BigQueryAvroReaderFactory<>(
+        schema, extractWithLogicalTypes, readerFactory, fromAvro);
   }
 
   static <T> BigQueryReaderFactory<T> arrow(
@@ -84,54 +80,48 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
   }
 
   static class BigQueryAvroReaderFactory<AvroT, T> extends BigQueryReaderFactory<T> {
-    // we need to know if logical-types were used in the export to generate the correct schema
-    private final SerializableBiFunction<TableSchema, Boolean, org.apache.avro.Schema>
-        schemaFactory;
+    private final @Nullable SerializableSchemaSupplier
+        schemaSupplier; // avro 1.8 schema is not serializable
+    private final boolean extractWithLogicalTypes;
     private final AvroSource.DatumReaderFactory<AvroT> readerFactory;
     private final SerializableBiFunction<TableSchema, AvroT, T> fromAvro;
 
     BigQueryAvroReaderFactory(
         org.apache.avro.@Nullable Schema schema,
+        boolean extractWithLogicalTypes,
         AvroSource.DatumReaderFactory<AvroT> readerFactory,
         SerializableBiFunction<TableSchema, AvroT, T> fromAvro) {
+
+      this.schemaSupplier = schema == null ? null : new SerializableSchemaSupplier(schema);
+      this.extractWithLogicalTypes = extractWithLogicalTypes;
       this.readerFactory = readerFactory;
       this.fromAvro = fromAvro;
-      if (schema == null) {
-        this.schemaFactory = BigQueryUtils::toGenericAvroSchema;
-      } else {
-        // avro 1.8 schema is not serializable
-        SerializableSchemaSupplier schemaSupplier = new SerializableSchemaSupplier(schema);
-        this.schemaFactory = (tableSchema, lt) -> schemaSupplier.get();
-      }
     }
 
     @Override
     public AvroSource<T> getSource(
-        MatchResult.Metadata metadata,
-        TableSchema tableSchema,
-        Boolean useAvroLogicalTypes,
-        Coder<T> coder) {
-      return getSource(AvroSource.from(metadata), tableSchema, useAvroLogicalTypes, coder);
+        MatchResult.Metadata metadata, TableSchema tableSchema, Coder<T> coder) {
+      return getSource(AvroSource.from(metadata), tableSchema, coder);
     }
 
     @Override
     public AvroSource<T> getSource(
-        String fileNameOrPattern,
-        TableSchema tableSchema,
-        Boolean useAvroLogicalTypes,
-        Coder<T> coder) {
-      return getSource(AvroSource.from(fileNameOrPattern), tableSchema, useAvroLogicalTypes, coder);
+        String fileNameOrPattern, TableSchema tableSchema, Coder<T> coder) {
+      return getSource(AvroSource.from(fileNameOrPattern), tableSchema, coder);
     }
 
     private AvroSource<T> getSource(
-        AvroSource<GenericRecord> source,
-        TableSchema tableSchema,
-        Boolean useAvroLogicalTypes,
-        Coder<T> coder) {
+        AvroSource<GenericRecord> source, TableSchema tableSchema, Coder<T> coder) {
+      org.apache.avro.Schema readerSchema;
+      if (schemaSupplier != null) {
+        readerSchema = schemaSupplier.get();
+      } else {
+        readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema, extractWithLogicalTypes);
+      }
       SerializableFunction<GenericRecord, T> parseFn =
           (r) -> fromAvro.apply(tableSchema, (AvroT) r);
       return source
-          .withSchema(schemaFactory.apply(tableSchema, useAvroLogicalTypes))
+          .withSchema(readerSchema)
           .withDatumReaderFactory(readerFactory)
           .withParseFn(parseFn, coder);
     }
@@ -141,7 +131,13 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         TableSchema tableSchema, ReadSession readSession) throws IOException {
       org.apache.avro.Schema writerSchema =
           new org.apache.avro.Schema.Parser().parse(readSession.getAvroSchema().getSchema());
-      org.apache.avro.Schema readerSchema = schemaFactory.apply(tableSchema, true);
+      org.apache.avro.Schema readerSchema;
+      if (schemaSupplier != null) {
+        readerSchema = schemaSupplier.get();
+      } else {
+        // BQ storage always uses logical-types
+        readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema, true);
+      }
       SerializableFunction<AvroT, T> fromAvroRecord = (r) -> fromAvro.apply(tableSchema, r);
       return new BigQueryStorageAvroReader<>(
           writerSchema, readerSchema, readerFactory, fromAvroRecord);
@@ -167,19 +163,12 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
 
     @Override
     BoundedSource<T> getSource(
-        MatchResult.Metadata metadata,
-        TableSchema tableSchema,
-        Boolean useAvroLogicalTypes,
-        Coder<T> coder) {
+        MatchResult.Metadata metadata, TableSchema tableSchema, Coder<T> coder) {
       throw new UnsupportedOperationException("Arrow file source not supported");
     }
 
     @Override
-    BoundedSource<T> getSource(
-        String fileNameOrPattern,
-        TableSchema tableSchema,
-        Boolean useAvroLogicalTypes,
-        Coder<T> coder) {
+    BoundedSource<T> getSource(String fileNameOrPattern, TableSchema tableSchema, Coder<T> coder) {
       throw new UnsupportedOperationException("Arrow file source not supported");
     }
 

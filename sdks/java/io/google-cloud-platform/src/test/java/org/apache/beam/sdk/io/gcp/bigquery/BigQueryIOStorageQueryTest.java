@@ -103,6 +103,7 @@ public class BigQueryIOStorageQueryTest {
   private static final BigQueryReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
           null,
+          false,
           AvroDatumFactory.generic(),
           (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
