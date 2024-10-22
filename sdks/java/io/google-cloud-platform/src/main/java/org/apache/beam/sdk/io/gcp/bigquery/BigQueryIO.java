@@ -861,7 +861,7 @@ public class BigQueryIO {
       @Nullable Coder<T> coder,
       @Nullable TypeDescriptor<T> typeDescriptor) {
     BigQueryReaderFactory<T> bqReaderFactory =
-        BigQueryReaderFactory.avro(schema, readerFactory, avroFormatFunction);
+        BigQueryReaderFactory.avro(schema, useAvroLogicalTypes, readerFactory, avroFormatFunction);
     if (typeDescriptor != null && typeDescriptor.hasUnresolvedParameters()) {
       // type extraction failed and will not be serializable
       typeDescriptor = null;
