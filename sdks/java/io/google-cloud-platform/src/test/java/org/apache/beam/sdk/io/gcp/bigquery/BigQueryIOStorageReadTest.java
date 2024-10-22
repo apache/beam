@@ -175,6 +175,7 @@ public class BigQueryIOStorageReadTest {
   private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
           null,
+          false,
           AvroDatumFactory.generic(),
           (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
@@ -2338,7 +2339,7 @@ public class BigQueryIOStorageReadTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageReaderFactory<GenericRecord> readerFactory =
-        BigQueryReaderFactory.avro(null, AvroDatumFactory.generic(), (s, r) -> r);
+        BigQueryReaderFactory.avro(null, false, AvroDatumFactory.generic(), (s, r) -> r);
     BigQueryStorageStreamSource<GenericRecord> streamSource =
         BigQueryStorageStreamSource.create(
             readSession,
