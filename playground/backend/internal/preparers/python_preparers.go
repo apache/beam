@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	addLogHandlerCode       = ""
+	addLogHandlerCode       = "import logging\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n"
 	oneIndentation          = "  "
 	findWithPipelinePattern = `(\s*)with.+Pipeline.+as (.+):`
 	indentationPattern      = `^(%s){0,1}\w+`

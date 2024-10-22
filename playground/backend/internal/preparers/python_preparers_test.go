@@ -53,7 +53,7 @@ func TestGetPythonPreparers(t *testing.T) {
 }
 
 func Test_addCodeToFile(t *testing.T) {
-	wantCode := pyCode
+	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + pyCode
 
 	type args struct {
 		args []interface{}
