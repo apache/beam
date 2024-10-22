@@ -47,7 +47,8 @@ The <code>output</code> parameter is a name that must referenced as an input to
 another transform that will process the errors (e.g. by writing them out).
 For example,
 the following code will write all &ldquo;good&rdquo; processed records to one file and
-any &ldquo;bad&rdquo; records to a separate file.</p><pre tabindex=0><code>pipeline:
+any &ldquo;bad&rdquo; records, along with metadata about what error was encountered,
+to a separate file.</p><pre tabindex=0><code>pipeline:
   transforms:
     - type: ReadFromCsv
       config:
@@ -79,7 +80,9 @@ any &ldquo;bad&rdquo; records to a separate file.</p><pre tabindex=0><code>pipel
 logging the bad records to stdout would be sufficient (though not recommended
 for a robust pipeline).</p><p>Note also that the exact format of the error outputs is still being finalized.
 They can be safely printed and written to outputs, but their precise schema
-may change in a future version of Beam and should not yet be depended on.</p><p>Some transforms allow for extra arguments in their error_handling config, e.g.
+may change in a future version of Beam and should not yet be depended on.
+Currently it has, at the very least, an <code>element</code> field which holds the element
+that caused the error.</p><p>Some transforms allow for extra arguments in their error_handling config, e.g.
 for Python functions one can give a <code>threshold</code> which limits the relative number
 of records that can be bad before considering the entire pipeline a failure</p><pre tabindex=0><code>pipeline:
   transforms:

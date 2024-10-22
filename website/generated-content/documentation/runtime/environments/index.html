@@ -61,14 +61,14 @@ git checkout origin/release-$BEAM_SDK_VERSION
 </code></pre><ol start=2><li><p>Customize the <code>Dockerfile</code> for a given language, typically <code>sdks/&lt;language>/container/Dockerfile</code> directory (e.g. the <a href=https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile>Dockerfile for Python</a>.</p></li><li><p>Return to the root Beam directory and run the Gradle <code>docker</code> target for your image.</p></li></ol><pre tabindex=0><code>cd $BEAM_WORKDIR
 
 # The default repository of each SDK
-./gradlew :sdks:java:container:java8:docker
 ./gradlew :sdks:java:container:java11:docker
 ./gradlew :sdks:java:container:java17:docker
+./gradlew :sdks:java:container:java21:docker
 ./gradlew :sdks:go:container:docker
-./gradlew :sdks:python:container:py38:docker
 ./gradlew :sdks:python:container:py39:docker
 ./gradlew :sdks:python:container:py310:docker
 ./gradlew :sdks:python:container:py311:docker
+./gradlew :sdks:python:container:py312:docker
 
 # Shortcut for building all Python SDKs
 ./gradlew :sdks:python:container:buildAll
@@ -90,8 +90,8 @@ export TAG=&#34;${BEAM_SDK_VERSION}-custom&#34;
 docker tag apache/beam_python3.7_sdk &#34;${IMAGE_NAME}:${TAG}&#34;
 docker push &#34;${IMAGE_NAME}:${TAG}&#34;
 </code></pre><ol start=6><li>After pushing a container image, verify the remote image ID and digest matches the local image ID and digest output from <code>docker_images --digests</code>.</li></ol><h4 id=additional-build-parameters>Additional build parameters</h4><p>The docker Gradle task defines a default image repository and <a href=https://docs.docker.com/engine/reference/commandline/tag/>tag</a> is the SDK version defined at <a href=https://github.com/apache/beam/blob/master/gradle.properties>gradle.properties</a>. The default repository is the Docker Hub <code>apache</code> namespace, and the default tag is the <a href=https://github.com/apache/beam/blob/master/gradle.properties>SDK version</a> defined at gradle.properties.</p><p>You can specify a different repository or tag for built images by providing parameters to the build task. For example:</p><pre tabindex=0><code>./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=&#34;example-repo&#34; -Pdocker-tag=&#34;2.26.0-custom&#34;
-</code></pre><p>builds the Python 3.6 container and tags it as <code>example-repo/beam_python3.6_sdk:2.26.0-custom</code>.</p><p>From Beam 2.21.0 and later, a <code>docker-pull-licenses</code> flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:</p><pre tabindex=0><code>./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses
-</code></pre><p>creates a Java 8 SDK image with appropriate licenses in <code>/opt/apache/beam/third_party_licenses/</code>.</p><p>By default, no licenses/notices are added to the docker images.</p><h4 id=modify-existing-base-image>Modifying an existing container image to make it compatible with Apache Beam Runners</h4><p>Beam offers a way to provide your own custom container image. The easiest way to build a new custom image that is compatible with Apache Beam Runners is to use a <a href=https://docs.docker.com/develop/develop-images/multistage-build/>multi-stage build</a> process. This copies over the necessary artifacts from a default Apache Beam base image to build your custom container image.</p><ol><li>Copy necessary artifacts from Apache Beam base image to your image.</li></ol><pre tabindex=0><code># This can be any container image,
+</code></pre><p>builds the Python 3.6 container and tags it as <code>example-repo/beam_python3.6_sdk:2.26.0-custom</code>.</p><p>From Beam 2.21.0 and later, a <code>docker-pull-licenses</code> flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:</p><pre tabindex=0><code>./gradlew :sdks:java:container:java11:docker -Pdocker-pull-licenses
+</code></pre><p>creates a Java 11 SDK image with appropriate licenses in <code>/opt/apache/beam/third_party_licenses/</code>.</p><p>By default, no licenses/notices are added to the docker images.</p><h4 id=modify-existing-base-image>Modifying an existing container image to make it compatible with Apache Beam Runners</h4><p>Beam offers a way to provide your own custom container image. The easiest way to build a new custom image that is compatible with Apache Beam Runners is to use a <a href=https://docs.docker.com/develop/develop-images/multistage-build/>multi-stage build</a> process. This copies over the necessary artifacts from a default Apache Beam base image to build your custom container image.</p><ol><li>Copy necessary artifacts from Apache Beam base image to your image.</li></ol><pre tabindex=0><code># This can be any container image,
 FROM python:3.8-bookworm
 
 # Install SDK. (needed for Python SDK)

@@ -18220,14 +18220,14 @@ git checkout origin/release-$BEAM_SDK_VERSION
 &lt;/ol>
 &lt;pre tabindex="0">&lt;code>cd $BEAM_WORKDIR
 # The default repository of each SDK
-./gradlew :sdks:java:container:java8:docker
 ./gradlew :sdks:java:container:java11:docker
 ./gradlew :sdks:java:container:java17:docker
+./gradlew :sdks:java:container:java21:docker
 ./gradlew :sdks:go:container:docker
-./gradlew :sdks:python:container:py38:docker
 ./gradlew :sdks:python:container:py39:docker
 ./gradlew :sdks:python:container:py310:docker
 ./gradlew :sdks:python:container:py311:docker
+./gradlew :sdks:python:container:py312:docker
 # Shortcut for building all Python SDKs
 ./gradlew :sdks:python:container:buildAll
 &lt;/code>&lt;/pre>&lt;ol start="4">
@@ -18261,8 +18261,8 @@ docker push &amp;#34;${IMAGE_NAME}:${TAG}&amp;#34;
 &lt;pre tabindex="0">&lt;code>./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=&amp;#34;example-repo&amp;#34; -Pdocker-tag=&amp;#34;2.26.0-custom&amp;#34;
 &lt;/code>&lt;/pre>&lt;p>builds the Python 3.6 container and tags it as &lt;code>example-repo/beam_python3.6_sdk:2.26.0-custom&lt;/code>.&lt;/p>
 &lt;p>From Beam 2.21.0 and later, a &lt;code>docker-pull-licenses&lt;/code> flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:&lt;/p>
-&lt;pre tabindex="0">&lt;code>./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses
-&lt;/code>&lt;/pre>&lt;p>creates a Java 8 SDK image with appropriate licenses in &lt;code>/opt/apache/beam/third_party_licenses/&lt;/code>.&lt;/p>
+&lt;pre tabindex="0">&lt;code>./gradlew :sdks:java:container:java11:docker -Pdocker-pull-licenses
+&lt;/code>&lt;/pre>&lt;p>creates a Java 11 SDK image with appropriate licenses in &lt;code>/opt/apache/beam/third_party_licenses/&lt;/code>.&lt;/p>
 &lt;p>By default, no licenses/notices are added to the docker images.&lt;/p>
 &lt;h4 id="modify-existing-base-image">Modifying an existing container image to make it compatible with Apache Beam Runners&lt;/h4>
 &lt;p>Beam offers a way to provide your own custom container image. The easiest way to build a new custom image that is compatible with Apache Beam Runners is to use a &lt;a href="https://docs.docker.com/develop/develop-images/multistage-build/">multi-stage build&lt;/a> process. This copies over the necessary artifacts from a default Apache Beam base image to build your custom container image.&lt;/p>
