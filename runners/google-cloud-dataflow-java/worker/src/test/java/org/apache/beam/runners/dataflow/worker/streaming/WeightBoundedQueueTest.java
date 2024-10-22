@@ -30,13 +30,14 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WeightBoundedQueueTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int MAX_WEIGHT = 10;
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Test
   public void testPut_hasCapacity() {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
 
     int insertedValue = 1;
 
@@ -50,7 +51,8 @@ public class WeightBoundedQueueTest {
   @Test
   public void testPut_noCapacity() throws InterruptedException {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
 
     // Insert value that takes all the capacity into the queue.
     queue.put(MAX_WEIGHT);
@@ -87,7 +89,8 @@ public class WeightBoundedQueueTest {
   @Test
   public void testPoll() {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
 
     int insertedValue1 = 1;
     int insertedValue2 = 2;
@@ -104,7 +107,8 @@ public class WeightBoundedQueueTest {
   @Test
   public void testPoll_withTimeout() throws InterruptedException {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
     int pollWaitTimeMillis = 10000;
     int insertedValue1 = 1;
 
@@ -132,7 +136,8 @@ public class WeightBoundedQueueTest {
   @Test
   public void testPoll_withTimeout_timesOut() throws InterruptedException {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
     int defaultPollResult = -10;
     int pollWaitTimeMillis = 100;
     int insertedValue1 = 1;
@@ -164,7 +169,8 @@ public class WeightBoundedQueueTest {
   @Test
   public void testPoll_emptyQueue() {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
 
     assertNull(queue.poll());
   }
@@ -172,7 +178,8 @@ public class WeightBoundedQueueTest {
   @Test
   public void testTake() throws InterruptedException {
     WeightedBoundedQueue<Integer> queue =
-        WeightedBoundedQueue.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+        WeightedBoundedQueue.create(
+            WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i)));
 
     AtomicInteger value = new AtomicInteger();
     // Should block until value is available
@@ -193,5 +200,47 @@ public class WeightBoundedQueueTest {
     takeThread.join();
 
     assertEquals(MAX_WEIGHT, value.get());
+  }
+
+  @Test
+  public void testPut_sharedWeigher() throws InterruptedException {
+    WeightedSemaphore<Integer> weigher =
+        WeightedSemaphore.create(MAX_WEIGHT, i -> Math.min(MAX_WEIGHT, i));
+    WeightedBoundedQueue<Integer> queue1 = WeightedBoundedQueue.create(weigher);
+    WeightedBoundedQueue<Integer> queue2 = WeightedBoundedQueue.create(weigher);
+
+    // Insert value that takes all the weight into the queue1.
+    queue1.put(MAX_WEIGHT);
+
+    // Try to insert a value into the queue2. This will block since there is no capacity in the
+    // weigher.
+    Thread putThread =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(100);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+              queue2.put(MAX_WEIGHT);
+            });
+    putThread.start();
+
+    // Should only see the first value in the queue, since the queue is at capacity. putThread
+    // should be blocked. The weight should be the same however, since queue1 and queue2 are sharing
+    // the weigher.
+    assertEquals(MAX_WEIGHT, queue1.queuedElementsWeight());
+    assertEquals(1, queue1.size());
+    assertEquals(MAX_WEIGHT, queue2.queuedElementsWeight());
+    assertEquals(0, queue2.size());
+
+    // Poll queue1, pulling off the only value inside and freeing up the capacity in the weigher.
+    queue1.poll();
+
+    // Wait for the putThread which was previously blocked due to the weigher being at capacity.
+    putThread.join();
+
+    assertEquals(MAX_WEIGHT, queue2.queuedElementsWeight());
+    assertEquals(1, queue2.size());
   }
 }
