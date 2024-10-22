@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.ProtoTypeConversionsFactory;
@@ -73,8 +72,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
             Method method = getProtoGetter(methods, oneOfField.getName(), oneOfField.getType());
             oneOfTypes.put(
                 oneOfField.getName(),
-                FieldValueTypeInformation.forGetter(method, i, Collections.emptyMap())
-                    .withName(field.getName()));
+                FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
           }
           // Add an entry that encapsulates information about all possible getters.
           types.add(
@@ -84,9 +82,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
         } else {
           // This is a simple field. Add the getter.
           Method method = getProtoGetter(methods, field.getName(), field.getType());
-          types.add(
-              FieldValueTypeInformation.forGetter(method, i, Collections.emptyMap())
-                  .withName(field.getName()));
+          types.add(FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
         }
       }
       return types;

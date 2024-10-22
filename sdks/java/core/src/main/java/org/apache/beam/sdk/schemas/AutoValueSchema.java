@@ -19,10 +19,8 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.AutoValueUtils;
@@ -63,9 +61,8 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
-      Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
       for (int i = 0; i < methods.size(); ++i) {
-        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i, boundTypes));
+        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i));
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
@@ -146,8 +143,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
 
   @Override
   public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
     return JavaBeanUtils.schemaFromJavaBeanClass(
-        typeDescriptor, AbstractGetterTypeSupplier.INSTANCE, boundTypes);
+        typeDescriptor, AbstractGetterTypeSupplier.INSTANCE);
   }
 }
