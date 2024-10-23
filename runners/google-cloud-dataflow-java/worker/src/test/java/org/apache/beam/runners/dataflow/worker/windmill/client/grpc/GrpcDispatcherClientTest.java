@@ -34,7 +34,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Isolat
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.hamcrest.Matcher;
 import org.junit.Test;
@@ -55,9 +54,6 @@ public class GrpcDispatcherClientTest {
     public void createsNewStubWhenIsolatedChannelsConfigIsChanged() {
       DataflowWorkerHarnessOptions options =
           PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-      options.setExperiments(
-          Lists.newArrayList(
-              GrpcDispatcherClient.STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_ISOLATED_CHANNELS));
       GrpcDispatcherClient dispatcherClient =
           GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
       // Create first time with Isolated channels disabled
@@ -91,27 +87,18 @@ public class GrpcDispatcherClientTest {
     public static Collection<Object[]> data() {
       List<Object[]> list = new ArrayList<>();
       for (Boolean pipelineOption : new Boolean[] {true, false}) {
-        list.add(new Object[] {/*experimentEnabled=*/ false, pipelineOption});
-        list.add(new Object[] {/*experimentEnabled=*/ true, pipelineOption});
+        list.add(new Object[] {pipelineOption});
       }
       return list;
     }
 
     @Parameter(0)
-    public Boolean experimentEnabled;
-
-    @Parameter(1)
     public Boolean pipelineOption;
 
     @Test
     public void ignoresIsolatedChannelsConfigWithPipelineOption() {
       DataflowWorkerHarnessOptions options =
           PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-      if (experimentEnabled) {
-        options.setExperiments(
-            Lists.newArrayList(
-                GrpcDispatcherClient.STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_ISOLATED_CHANNELS));
-      }
       options.setUseWindmillIsolatedChannels(pipelineOption);
       GrpcDispatcherClient dispatcherClient =
           GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));

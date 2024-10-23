@@ -117,7 +117,7 @@ class Provider:
     (e.g. to encourage fusion).
     """
     # TODO(yaml): This is a very rough heuristic. Consider doing better.
-    # E.g. we could look at the the expected environments themselves.
+    # E.g. we could look at the expected environments themselves.
     # Possibly, we could provide multiple expansions and have the runner itself
     # choose the actual implementation based on fusion (and other) criteria.
     a = self.underlying_provider()

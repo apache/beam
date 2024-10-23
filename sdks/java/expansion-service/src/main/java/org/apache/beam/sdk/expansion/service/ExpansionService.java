@@ -143,7 +143,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     public Map<String, TransformProvider> knownTransforms() {
       Map<String, TransformProvider> providers = new HashMap<>();
 
-      // First check and register ExternalTransformBuilder in serviceloader style, converting
+      // First check and register ExternalTransformBuilder in ServiceLoader style, converting
       // to TransformProvider after validation.
       Map<String, ExternalTransformBuilder> registeredBuilders = loadTransformBuilders();
       for (Map.Entry<String, ExternalTransformBuilder> registeredBuilder :

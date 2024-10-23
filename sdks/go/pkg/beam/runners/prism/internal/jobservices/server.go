@@ -18,6 +18,7 @@ package jobservices
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"net"
 	"os"
@@ -27,7 +28,6 @@ import (
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
-	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 )
 
@@ -53,6 +53,7 @@ type Server struct {
 	terminatedJobCount uint32 // Use with atomics.
 	idleTimeout        time.Duration
 	cancelFn           context.CancelCauseFunc
+	logger             *slog.Logger
 
 	// execute defines how a job is executed.
 	execute func(*Job)
@@ -71,8 +72,9 @@ func NewServer(port int, execute func(*Job)) *Server {
 		lis:     lis,
 		jobs:    make(map[string]*Job),
 		execute: execute,
+		logger:  slog.Default(), // TODO substitute with a configured logger.
 	}
-	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
+	s.logger.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 	}
