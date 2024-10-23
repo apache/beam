@@ -82,7 +82,7 @@ RUN  \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
-ENTRYPOINT ["/opt/apache/beam/boot"]
+#ENTRYPOINT ["/opt/apache/beam/boot"]
 
 ####
 # Pull and add third party licenses to the image if pull_licenses is true.
@@ -103,9 +103,16 @@ RUN if [ "$pull_licenses" = "true" ] ; then \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 
-FROM beam
+FROM beam as base
 ARG pull_licenses
 COPY --from=third_party_licenses /opt/apache/beam/third_party_licenses /opt/apache/beam/third_party_licenses
 RUN if [ "$pull_licenses" != "true" ] ; then \
       rm -rf /opt/apache/beam/third_party_licenses ; \
     fi
+
+FROM gcr.io/distroless/python3-debian12:latest-${TARGETARCH} as distroless
+COPY --from=base /usr/local/bin /usr/local/bin
+COPY --from=base /usr/local/lib/python${pyversion} /usr/local/lib/python${pyversion}
+COPY --from=base /root /root
+COPY --from=base /opt /opt
+ENV PATH "$PATH:/usr/local/bin"

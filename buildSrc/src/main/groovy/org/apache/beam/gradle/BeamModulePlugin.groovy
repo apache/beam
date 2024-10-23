@@ -576,6 +576,10 @@ class BeamModulePlugin implements Plugin<Project> {
       return project.containerArchitectures() != [project.nativeArchitecture()]
     }
 
+    project.ext.containerBuildTarget = {
+      return project.findProperty('container-build-target')
+    }
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //

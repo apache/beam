@@ -56,7 +56,8 @@ IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut 
 SDK_VERSION="$(grep 'sdk_version' gradle.properties | cut -d'=' -f2)"
 PY_VERSION=$1
 ARCH=${3:-"x86"}
-IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}_sdk"
+IMAGE_SUFFIX=${IMAGE_SUFFIX:-_sdk}
+IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}${IMAGE_SUFFIX}"
 CONTAINER_PROJECT="sdks:python:container:py${PY_VERSION//.}"  # Note: we substitute away the dot in the version.
 PY_INTERPRETER="python${PY_VERSION}"
 MACHINE_TYPE_ARGS=""
