@@ -98,7 +98,226 @@ limitations under the License.
 &lt;p>At Beam Summit, Beam contributors introduced &lt;a href="https://youtu.be/R4iNwLBa3VQ">the Prism local runner&lt;/a> to the community. Prism greatly improves the local developer experience and reduces the gap between local and remote execution. In particular, when handling complicated ML tasks, Prism guarantees consistent runner behavior across these runners, a task that had previously lacked consistent support.&lt;/p>
 &lt;h2 id="summary">Summary&lt;/h2>
 &lt;p>Beam Summit 2024 showcased the tremendous potential of Apache Beam for addressing a wide range of data processing and machine learning challenges. We look forward to seeing even more innovative use cases and contributions in the future.&lt;/p>
-&lt;p>To stay updated on the latest Beam developments and events, visit &lt;a href="https://beam.apache.org/get-started/">the Apache Beam website&lt;/a> and follow us on &lt;a href="https://www.linkedin.com/company/apache-beam/">social media&lt;/a>. We encourage you to join &lt;a href="https://beam.apache.org/community/contact-us/">the Beam community&lt;/a> and &lt;a href="https://beam.apache.org/contribute/">contribute to the project&lt;/a>. Together, let&amp;rsquo;s unlock the full potential of Beam and shape the future of data processing and machine learning.&lt;/p></description></item><item><title>Blog: Unit Testing in Beam: An opinionated guide</title><link>/blog/unit-testing-in-beam/</link><pubDate>Fri, 13 Sep 2024 00:00:01 -0800</pubDate><guid>/blog/unit-testing-in-beam/</guid><description>
+&lt;p>To stay updated on the latest Beam developments and events, visit &lt;a href="https://beam.apache.org/get-started/">the Apache Beam website&lt;/a> and follow us on &lt;a href="https://www.linkedin.com/company/apache-beam/">social media&lt;/a>. We encourage you to join &lt;a href="https://beam.apache.org/community/contact-us/">the Beam community&lt;/a> and &lt;a href="https://beam.apache.org/contribute/">contribute to the project&lt;/a>. Together, let&amp;rsquo;s unlock the full potential of Beam and shape the future of data processing and machine learning.&lt;/p></description></item><item><title>Blog: Efficient Streaming Data Processing with Beam YAML and Protobuf</title><link>/blog/beam-yaml-proto/</link><pubDate>Fri, 20 Sep 2024 11:53:38 +0200</pubDate><guid>/blog/beam-yaml-proto/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="efficient-streaming-data-processing-with-beam-yaml-and-protobuf">Efficient Streaming Data Processing with Beam YAML and Protobuf&lt;/h1>
+&lt;p>As streaming data processing grows, so do its maintenance, complexity, and costs.
+This post explains how to efficiently scale pipelines by using &lt;a href="https://protobuf.dev/">Protobuf&lt;/a>,
+which ensures that pipelines are reusable and quick to deploy. The goal is to keep this process simple
+for engineers to implement using &lt;a href="https://beam.apache.org/documentation/sdks/yaml/">Beam YAML&lt;/a>.&lt;/p>
+&lt;h2 id="simplify-pipelines-with-beam-yaml">Simplify pipelines with Beam YAML&lt;/h2>
+&lt;p>Creating a pipeline in Beam can be somewhat difficult, especially for new Apache Beam users.
+Setting up the project, managing dependencies, and so on can be challenging.
+Beam YAML eliminates most of the boilerplate code,
+which allows you to focus on the most important part of the work: data transformation.&lt;/p>
+&lt;p>Some of the key benefits of Beam YAML include:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Readability:&lt;/strong> By using a declarative language (&lt;a href="https://yaml.org/">YAML&lt;/a>), the pipeline configuration is more human readable.&lt;/li>
+&lt;li>&lt;strong>Reusability:&lt;/strong> Reusing the same components across different pipelines is simplified.&lt;/li>
+&lt;li>&lt;strong>Maintainability:&lt;/strong> Pipeline maintenance and updates are easier.&lt;/li>
+&lt;/ul>
+&lt;p>The following template shows an example of reading events from a &lt;a href="https://kafka.apache.org/intro">Kafka&lt;/a> topic and
+writing them into &lt;a href="https://cloud.google.com/bigquery?hl=en">BigQuery&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadFromKafka&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadProtoMovieEvents&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">topic&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;TOPIC_NAME&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">format&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">RAW/AVRO/JSON/PROTO&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">bootstrap_servers&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;BOOTSTRAP_SERVERS&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">schema&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;SCHEMA&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteToBigQuery&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteMovieEvents&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadProtoMovieEvents&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">table&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;PROJECT_ID.DATASET.MOVIE_EVENTS_TABLE&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">useAtLeastOnceSemantics&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">streaming&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">dataflow_service_options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="l">streaming_mode_at_least_once]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="the-complete-workflow">The complete workflow&lt;/h2>
+&lt;p>This section demonstrates the complete workflow for this pipeline.&lt;/p>
+&lt;h3 id="create-a-simple-proto-event">Create a simple proto event&lt;/h3>
+&lt;p>The following code creates a simple movie event.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-protobuf" data-lang="protobuf">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// events/v1/movie_event.proto
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="n">syntax&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;proto3&amp;#34;&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="kn">package&lt;/span> &lt;span class="nn">event&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v1&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">import&lt;/span> &lt;span class="s">&amp;#34;bq_field.proto&amp;#34;&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">import&lt;/span> &lt;span class="s">&amp;#34;bq_table.proto&amp;#34;&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">import&lt;/span> &lt;span class="s">&amp;#34;buf/validate/validate.proto&amp;#34;&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">import&lt;/span> &lt;span class="s">&amp;#34;google/protobuf/wrappers.proto&amp;#34;&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="kd">message&lt;/span> &lt;span class="nc">MovieEvent&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="k">option&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery_opts&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">table_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;movie_table&amp;#34;&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="n">google.protobuf.StringValue&lt;/span> &lt;span class="n">event_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="p">[(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">description&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;Unique Event ID&amp;#34;&lt;/span>&lt;span class="p">];&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="n">google.protobuf.StringValue&lt;/span> &lt;span class="n">user_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="p">[(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">description&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;Unique User ID&amp;#34;&lt;/span>&lt;span class="p">];&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="n">google.protobuf.StringValue&lt;/span> &lt;span class="n">movie_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">3&lt;/span> &lt;span class="p">[(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">description&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;Unique Movie ID&amp;#34;&lt;/span>&lt;span class="p">];&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="n">google.protobuf.Int32Value&lt;/span> &lt;span class="n">rating&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">4&lt;/span> &lt;span class="p">[(&lt;/span>&lt;span class="n">buf.validate.field&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="kt">int32&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="c1">// validates the average rating is at least 0
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">gte&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="c1">// validates the average rating is at most 100
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">lte&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="mi">100&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">},&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">description&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;Movie rating&amp;#34;&lt;/span>&lt;span class="p">];&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="n">event_dt&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">5&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">type_override&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;DATETIME&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">gen_bq_schema.bigquery&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">description&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;UTC Datetime representing when we received this event. Format: YYYY-MM-DDTHH:MM:SS&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">buf.validate.field&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="n">pattern&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s">&amp;#34;^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$&amp;#34;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">},&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="n">ignore_empty&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">}&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span> &lt;span class="p">];&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="p">}&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Because these events are written to BigQuery,
+the &lt;a href="https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_field.proto">&lt;code>bq_field&lt;/code>&lt;/a> proto
+and the &lt;a href="https://buf.build/googlecloudplatform/bq-schema-api/file/main:bq_table.proto">&lt;code>bq_table&lt;/code>&lt;/a> proto are imported.
+These proto files help generate the BigQuery JSON schema.
+This example also demonstrates a shift-left approach, which moves testing, quality,
+and performance as early as possible in the development process. For example, to ensure that only valid events are generated from the source, the &lt;code>buf.validate&lt;/code> elements are included.&lt;/p>
+&lt;p>After you create the &lt;code>movie_event.proto&lt;/code> proto in the &lt;code>events/v1&lt;/code> folder, you can generate
+the necessary &lt;a href="https://buf.build/docs/reference/descriptors">file descriptor&lt;/a>.
+A file descriptor is a compiled representation of the schema that allows various tools and systems
+to understand and work with protobuf data dynamically. To simplify the process, this example uses Buf,
+which requires the following configuration files.&lt;/p>
+&lt;p>&lt;b>Buf configuration:&lt;/b>&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># buf.yaml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">version&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">v2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">deps&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">buf.build/googlecloudplatform/bq-schema-api&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">buf.build/bufbuild/protovalidate&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">breaking&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">use&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">FILE&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">lint&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">use&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">DEFAULT&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># buf.gen.yaml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">version&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">v2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">managed&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">enabled&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">plugins&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="c"># Python Plugins&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">remote&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">buf.build/protocolbuffers/python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">out&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">gen/python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">remote&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">buf.build/grpc/python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">out&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">gen/python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="c"># Java Plugins&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">remote&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">buf.build/protocolbuffers/java:v25.2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">out&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">gen/maven/src/main/java&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">remote&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">buf.build/grpc/java&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">out&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">gen/maven/src/main/java&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="c"># BQ Schemas&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">remote&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">buf.build/googlecloudplatform/bq-schema:v1.1.0&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">out&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">protoc-gen/bq_schema&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Run the following two commands to generate the necessary Java, Python, BigQuery schema, and Descriptor file:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">// Generate the buf.lock file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">buf deps update
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">// It generates the descriptor in descriptor.binp.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">buf build . -o descriptor.binp --exclude-imports
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">// It generates the Java, Python and BigQuery schema as described in buf.gen.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">buf generate --include-imports
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="make-the-beam-yaml-read-proto">Make the Beam YAML read proto&lt;/h3>
+&lt;p>Make the following modifications to the to the YAML file:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># movie_events_pipeline.yml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadFromKafka&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadProtoMovieEvents&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">topic&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;movie_proto&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">format&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">PROTO&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">bootstrap_servers&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;&amp;lt;BOOTSTRAP_SERVERS&amp;gt;&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">file_descriptor_path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;gs://my_proto_bucket/movie/v1.0.0/descriptor.binp&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">message_name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;event.v1.MovieEvent&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteToBigQuery&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteMovieEvents&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadProtoMovieEvents&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">table&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;&amp;lt;PROJECT_ID&amp;gt;.raw.movie_table&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">useAtLeastOnceSemantics&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">streaming&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">dataflow_service_options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="l">streaming_mode_at_least_once]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This step changes the format to &lt;code>PROTO&lt;/code> and adds the &lt;code>file_descriptor_path&lt;/code> and the &lt;code>message_name&lt;/code>.&lt;/p>
+&lt;h3 id="deploy-the-pipeline-with-terraform">Deploy the pipeline with Terraform&lt;/h3>
+&lt;p>You can use &lt;a href="https://www.terraform.io/">Terraform&lt;/a> to deploy the Beam YAML pipeline
+with &lt;a href="https://cloud.google.com/products/dataflow?hl=en">Dataflow&lt;/a> as the runner.
+The following Terraform code example demonstrates how to achieve this:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-hcl" data-lang="hcl">&lt;span class="line">&lt;span class="cl">&lt;span class="err">//&lt;/span> &lt;span class="k">Enable&lt;/span> &lt;span class="k">Dataflow&lt;/span> &lt;span class="k">API&lt;/span>&lt;span class="p">.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">resource&lt;/span> &lt;span class="s2">&amp;#34;google_project_service&amp;#34; &amp;#34;enable_dataflow_api&amp;#34;&lt;/span> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> project&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">var&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="k">gcp_project_id&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;dataflow.googleapis.com&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">//&lt;/span> &lt;span class="k">DF&lt;/span> &lt;span class="k">Beam&lt;/span> &lt;span class="k">YAML&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">resource&lt;/span> &lt;span class="s2">&amp;#34;google_dataflow_flex_template_job&amp;#34; &amp;#34;data_movie_job&amp;#34;&lt;/span> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> provider&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">google&lt;/span>&lt;span class="err">-&lt;/span>&lt;span class="k">beta&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> project&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">var&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="k">gcp_project_id&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;movie-proto-events&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> container_spec_gcs_path&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;gs://dataflow-templates-${var.gcp_region}/latest/flex/Yaml_Template&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> region&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">var&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="k">gcp_region&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> on_delete&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;drain&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> machine_type&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;n2d-standard-4&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> enable_streaming_engine&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kt">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> subnetwork&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">var&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="k">subnetwork&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> skip_wait_on_job_termination&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kt">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> parameters&lt;/span> &lt;span class="o">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> yaml_pipeline_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;gs://${var.bucket_name}/yamls/${var.package_version}/movie_events_pipeline.yml&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> max_num_workers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="m">40&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> worker_zone&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">var&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="k">gcp_zone&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n"> depends_on&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="k">google_project_service&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="k">enable_dataflow_api&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Assuming the BigQuery table exists, which you can do by using Terraform and Proto,
+this code creates a Dataflow job by using the Beam YAML code that reads Proto events from
+Kafka and writes them into BigQuery.&lt;/p>
+&lt;h2 id="improvements-and-conclusions">Improvements and conclusions&lt;/h2>
+&lt;p>The following community contributions could improve the Beam YAML code in this example:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Support schema registries:&lt;/strong> Integrate with schema registries such as Buf Registry or Apicurio for
+better schema management. The current workflow generates the descriptors by using Buf and store them in Google Cloud Storage.
+The descriptors could be stored in a schema registry instead.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Enhanced Monitoring:&lt;/strong> Implement advanced monitoring and alerting mechanisms to quickly identify and address
+issues in the data pipeline.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Leveraging Beam YAML and Protobuf lets us streamline the creation and maintenance of
+data processing pipelines, significantly reducing complexity. This approach ensures that engineers can more
+efficiently implement and scale robust, reusable pipelines without needs to manually write Beam code.&lt;/p>
+&lt;h2 id="contribute">Contribute&lt;/h2>
+&lt;p>Developers who want to help build out and add functionalities are welcome to start contributing to the effort in the
+&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml">Beam YAML module&lt;/a>.&lt;/p>
+&lt;p>There is also a list of open &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ayaml">bugs&lt;/a> found
+on the GitHub repo - now marked with the &lt;code>yaml&lt;/code> tag.&lt;/p>
+&lt;p>Although Beam YAML is marked stable as of Beam 2.52, it is still under heavy development, with new features being
+added with each release. Those who want to be part of the design decisions and give insights to how the framework is
+being used are highly encouraged to join the &lt;a href="https://beam.apache.org/community/contact-us/">dev mailing list&lt;/a>, where those discussions are occurring.&lt;/p></description></item><item><title>Blog: Unit Testing in Beam: An opinionated guide</title><link>/blog/unit-testing-in-beam/</link><pubDate>Fri, 13 Sep 2024 00:00:01 -0800</pubDate><guid>/blog/unit-testing-in-beam/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7114,148 +7333,4 @@ Ongoing focus is to bolster streaming focused features, improve existing connect
 &lt;h2 id="conclusion">Conclusion&lt;/h2>
 &lt;p>We hope you find the SDK useful, and it&amp;rsquo;s still early days.
 If you make something with the Go SDK, consider &lt;a href="/community/contact-us/">sharing it with us&lt;/a>.
-And remember, &lt;a href="/contribute/">contributions&lt;/a> are always welcome.&lt;/p></description></item><item><title>Blog: Apache Beam 2.33.0</title><link>/blog/beam-2.33.0/</link><pubDate>Thu, 07 Oct 2021 00:00:01 -0800</pubDate><guid>/blog/beam-2.33.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.33.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2330-2021-10-07">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.33.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350404">detailed release
-notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Go SDK is no longer experimental, and is officially part of the Beam release process.
-&lt;ul>
-&lt;li>Matching Go SDK containers are published on release.&lt;/li>
-&lt;li>Batch usage is well supported, and tested on Flink, Spark, and the Python Portable Runner.
-&lt;ul>
-&lt;li>SDK Tests are also run against Google Cloud Dataflow, but this doesn&amp;rsquo;t indicate reciprocal support.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>The SDK supports Splittable DoFns, Cross Language transforms, and most Beam Model basics.&lt;/li>
-&lt;li>Go Modules are now used for dependency management.
-&lt;ul>
-&lt;li>This is a breaking change, see Breaking Changes for resolution.&lt;/li>
-&lt;li>Easier path to contribute to the Go SDK, no need to set up a GO_PATH.&lt;/li>
-&lt;li>Minimum Go version is now Go v1.16&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>See the announcement blogpost for full information once published.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;!--
-{$TOPICS e.g.:}
-### I/Os
-* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-{$TOPICS}
--->
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Projection pushdown in SchemaIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12609">BEAM-12609&lt;/a>).&lt;/li>
-&lt;li>Upgrade Flink runner to Flink versions 1.13.2, 1.12.5 and 1.11.4 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10955">BEAM-10955&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Since release 2.30.0, &amp;ldquo;The AvroCoder changes for BEAM-2303 [changed] the reader/writer from the Avro ReflectDatum* classes to the SpecificDatum* classes&amp;rdquo; (Java). This default behavior change has been reverted in this release. Use the &lt;code>useReflectApi&lt;/code> setting to control it (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12628">BEAM-12628&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.34. This can be overriden with &lt;code>--allow_unsafe_triggers&lt;/code>. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
-&lt;li>Python GBK will start requiring safe triggers or the &lt;code>--allow_unsafe_triggers&lt;/code> flag starting with Beam 2.34. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9487">BEAM-9487&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>UnsupportedOperationException when reading from BigQuery tables and converting
-TableRows to Beam Rows (Java)
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12479">BEAM-12479&lt;/a>).&lt;/li>
-&lt;li>SDFBoundedSourceReader behaves much slower compared with the original behavior
-of BoundedSource (Python)
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12781">BEAM-12781&lt;/a>).&lt;/li>
-&lt;li>ORDER BY column not in SELECT crashes (ZetaSQL)
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-12759">BEAM-12759&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>Spark 2.x users will need to update Spark&amp;rsquo;s Jackson runtime dependencies (&lt;code>spark.jackson.version&lt;/code>) to at least version 2.9.2, due to Beam updating its dependencies.&lt;/li>
-&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.33.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;li>Go SDK jobs may produce &amp;ldquo;Failed to deduce Step from MonitoringInfo&amp;rdquo; messages following successful job execution. The messages are benign and don&amp;rsquo;t indicate job failure. These are due to not yet handling PCollection metrics.&lt;/li>
-&lt;li>Large Java BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used).
-This results in the error message: &lt;code>IllegalArgumentException: Attempting to access unknown side input&lt;/code>.
-Please upgrade to a newer version (&amp;gt; 2.34.0) or use another write method (e.g. &lt;code>STORAGE_WRITE_API&lt;/code>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.33.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay,
-Alex Amato,
-Alexey Romanenko,
-Andreas Bergmeier,
-Andres Rodriguez,
-Andrew Pilloud,
-Andy Xu,
-Ankur Goenka,
-anthonyqzhu,
-Benjamin Gonzalez,
-Bhupinder Sindhwani,
-Chamikara Jayalath,
-Claire McGinty,
-Daniel Mateus Pires,
-Daniel Oliveira,
-David Huntsperger,
-Dylan Hercher,
-emily,
-Emily Ye,
-Etienne Chauchot,
-Eugene Nikolaiev,
-Heejong Lee,
-iindyk,
-Iñigo San Jose Visiers,
-Ismaël Mejía,
-Jack McCluskey,
-Jan Lukavský,
-Jeff Ruane,
-Jeremy Lewi,
-KevinGG,
-Ke Wu,
-Kyle Weaver,
-lostluck,
-Luke Cwik,
-Marwan Tammam,
-masahitojp,
-Mehdi Drissi,
-Minbo Bae,
-Ning Kang,
-Pablo Estrada,
-Pascal Gillet,
-Pawas Chhokra,
-Reuven Lax,
-Ritesh Ghorse,
-Robert Bradshaw,
-Robert Burke,
-Rodrigo Benenson,
-Ryan Thompson,
-Saksham Gupta,
-Sam Rohde,
-Sam Whittle,
-Sayat,
-Sayat Satybaldiyev,
-Siyuan Chen,
-Slava Chernyak,
-Steve Niemitz,
-Steven Niemitz,
-tvalentyn,
-Tyson Hamilton,
-Udi Meiri,
-vachan-shetty,
-Venkatramani Rajgopal,
-Yichi Zhang,
-zhoufek&lt;/p></description></item></channel></rss>
+And remember, &lt;a href="/contribute/">contributions&lt;/a> are always welcome.&lt;/p></description></item></channel></rss>
