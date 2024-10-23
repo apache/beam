@@ -93,6 +93,7 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
+import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -661,6 +662,10 @@ public final class StreamingDataflowWorker {
     if (options.isEnableStreamingEngine()
         && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {
       enableBigQueryMetrics();
+    }
+
+    if (DataflowRunner.hasExperiment(options, "enable_kafka_metrics")) {
+      KafkaSinkMetrics.setSupportKafkaMetrics(true);
     }
 
     JvmInitializers.runBeforeProcessing(options);
