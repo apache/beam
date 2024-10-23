@@ -31,6 +31,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
@@ -156,6 +158,16 @@ abstract class PrismExecutor {
     abstract Builder setCommand(String command);
 
     abstract Builder setArguments(List<String> arguments);
+
+    Builder addArguments(List<String> arguments) {
+      Optional<List<String>> original = getArguments();
+      if (!original.isPresent()) {
+        return this.setArguments(arguments);
+      }
+      List<String> newArguments =
+          Stream.concat(original.get().stream(), arguments.stream()).collect(Collectors.toList());
+      return this.setArguments(newArguments);
+    }
 
     abstract Optional<List<String>> getArguments();
 
