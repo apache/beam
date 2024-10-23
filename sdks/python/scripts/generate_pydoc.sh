@@ -124,7 +124,6 @@ extensions = [
 ]
 master_doc = 'index'
 html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 project = 'Apache Beam'
 version = beam_version.__version__
 release = version
