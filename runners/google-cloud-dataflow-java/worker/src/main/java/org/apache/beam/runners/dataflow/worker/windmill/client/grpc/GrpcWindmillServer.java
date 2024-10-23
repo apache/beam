@@ -330,6 +330,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("CommitWork"));
   }
 
+  /**
+   * @implNote Returns a {@link GetWorkStream} in the started state (w/ the initial header already
+   *     sent).
+   */
   @Override
   public GetWorkStream getWorkStream(GetWorkRequest request, WorkItemReceiver receiver) {
     GetWorkStream getWorkStream =
@@ -346,6 +350,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     return getWorkStream;
   }
 
+  /**
+   * @implNote Returns a {@link GetDataStream} in the started state (w/ the initial header already
+   *     sent).
+   */
   @Override
   public GetDataStream getDataStream() {
     GetDataStream getDataStream =
@@ -355,6 +363,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     return getDataStream;
   }
 
+  /**
+   * @implNote Returns a {@link CommitWorkStream} in the started state (w/ the initial header
+   *     already sent).
+   */
   @Override
   public CommitWorkStream commitWorkStream() {
     CommitWorkStream commitWorkStream =

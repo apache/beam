@@ -225,6 +225,11 @@ final class GrpcCommitWorkStream
   }
 
   private void issueSingleRequest(long id, PendingRequest pendingRequest) {
+    if (isPrepareForSendFailed(id, pendingRequest)) {
+      pendingRequest.abort();
+      return;
+    }
+
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
@@ -233,11 +238,6 @@ final class GrpcCommitWorkStream
         .setShardingKey(pendingRequest.shardingKey())
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
-    if (shouldCancelRequest(id, pendingRequest)) {
-      pendingRequest.abort();
-      return;
-    }
-
     try {
       send(chunk);
     } catch (IllegalStateException e) {
@@ -247,6 +247,11 @@ final class GrpcCommitWorkStream
   }
 
   private void issueBatchedRequest(Map<Long, PendingRequest> requests) {
+    if (isPrepareForSendFailed(requests)) {
+      requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
+      return;
+    }
+
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     String lastComputation = null;
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
@@ -262,12 +267,6 @@ final class GrpcCommitWorkStream
           .setSerializedWorkItemCommit(request.serializedCommit());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
-
-    if (shouldCancelRequest(requests)) {
-      requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
-      return;
-    }
-
     try {
       send(request);
     } catch (IllegalStateException e) {
@@ -276,13 +275,13 @@ final class GrpcCommitWorkStream
   }
 
   private void issueMultiChunkRequest(long id, PendingRequest pendingRequest) {
-    checkNotNull(pendingRequest.computationId());
-    ByteString serializedCommit = pendingRequest.serializedCommit();
-    if (shouldCancelRequest(id, pendingRequest)) {
+    if (isPrepareForSendFailed(id, pendingRequest)) {
       pendingRequest.abort();
       return;
     }
 
+    checkNotNull(pendingRequest.computationId(), "Cannot commit WorkItem w/o a computationId.");
+    ByteString serializedCommit = pendingRequest.serializedCommit();
     synchronized (this) {
       for (int i = 0;
           i < serializedCommit.size();
@@ -313,7 +312,11 @@ final class GrpcCommitWorkStream
     }
   }
 
-  private boolean shouldCancelRequest(long id, PendingRequest request) {
+  /**
+   * Returns true if the request should be failed due to stream shutdown, else tracks the request to
+   * be sent and returns false.
+   */
+  private boolean isPrepareForSendFailed(long id, PendingRequest request) {
     synchronized (shutdownLock) {
       synchronized (this) {
         if (!isShutdown()) {
@@ -326,7 +329,11 @@ final class GrpcCommitWorkStream
     }
   }
 
-  private boolean shouldCancelRequest(Map<Long, PendingRequest> requests) {
+  /**
+   * Returns true if the request should be failed due to stream shutdown, else tracks the requests
+   * to be sent and returns false.
+   */
+  private boolean isPrepareForSendFailed(Map<Long, PendingRequest> requests) {
     synchronized (shutdownLock) {
       synchronized (this) {
         if (!isShutdown()) {
@@ -425,7 +432,7 @@ final class GrpcCommitWorkStream
         return false;
       }
 
-      if (!canAccept(commitRequest.getSerializedSize() + computation.length()) || isShutdown()) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
         return false;
       }
 

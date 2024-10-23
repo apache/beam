@@ -31,9 +31,9 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
@@ -103,7 +103,7 @@ public class GrpcGetDataStreamTest {
   }
 
   @Test
-  public void testRequestKeyedData_sendOnShutdownStreamThrowsWorkItemCancelledException() {
+  public void testRequestKeyedData_sendOnShutdownStreamThrowsWindmillStreamShutdownException() {
     GetDataStreamTestStub testStub =
         new GetDataStreamTestStub(new TestGetDataStreamRequestObserver());
     GrpcGetDataStream getDataStream = createGetDataStream(testStub);
@@ -154,7 +154,7 @@ public class GrpcGetDataStreamTest {
       if (i % 2 == 0) {
         assertTrue(sendFuture.isCompletedExceptionally());
         ExecutionException e = assertThrows(ExecutionException.class, sendFuture::get);
-        assertThat(e).hasCauseThat().isInstanceOf(WorkItemCancelledException.class);
+        assertThat(e).hasCauseThat().isInstanceOf(WindmillStreamShutdownException.class);
       }
     }
   }

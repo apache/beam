@@ -48,8 +48,8 @@ final class GlobalDataStreamSender implements StreamSender {
   private synchronized void startStream() {
     // Check started again after we acquire the lock.
     if (!started) {
-      started = true;
       delegate.start();
+      started = true;
     }
   }
 

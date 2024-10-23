@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -224,6 +225,61 @@ public class WindmillStreamSenderTest {
     verify(mockGetWorkStream).shutdown();
     verify(mockGetDataStream).shutdown();
     verify(mockCommitWorkStream).shutdown();
+  }
+
+  @Test
+  public void testCloseAllStreams_doesNotStartStreamsAfterClose() {
+    long itemBudget = 1L;
+    long byteBudget = 1L;
+    GetWorkRequest getWorkRequestWithBudget =
+        GET_WORK_REQUEST.toBuilder().setMaxItems(itemBudget).setMaxBytes(byteBudget).build();
+    GrpcWindmillStreamFactory mockStreamFactory = mock(GrpcWindmillStreamFactory.class);
+    GetWorkStream mockGetWorkStream = mock(GetWorkStream.class);
+    GetDataStream mockGetDataStream = mock(GetDataStream.class);
+    CommitWorkStream mockCommitWorkStream = mock(CommitWorkStream.class);
+
+    when(mockStreamFactory.createDirectGetWorkStream(
+            eq(connection),
+            eq(getWorkRequestWithBudget),
+            any(ThrottleTimer.class),
+            any(),
+            any(),
+            any(),
+            eq(workItemScheduler)))
+        .thenReturn(mockGetWorkStream);
+
+    when(mockStreamFactory.createDirectGetDataStream(eq(connection), any(ThrottleTimer.class)))
+        .thenReturn(mockGetDataStream);
+    when(mockStreamFactory.createDirectCommitWorkStream(eq(connection), any(ThrottleTimer.class)))
+        .thenReturn(mockCommitWorkStream);
+
+    WindmillStreamSender windmillStreamSender =
+        newWindmillStreamSender(
+            GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build(),
+            mockStreamFactory);
+
+    windmillStreamSender.close();
+
+    verify(mockGetWorkStream, times(0)).start();
+    verify(mockGetDataStream, times(0)).start();
+    verify(mockCommitWorkStream, times(0)).start();
+
+    verify(mockGetWorkStream).shutdown();
+    verify(mockGetDataStream).shutdown();
+    verify(mockCommitWorkStream).shutdown();
+  }
+
+  @Test
+  public void testStartStream_afterCloseThrows() {
+    long itemBudget = 1L;
+    long byteBudget = 1L;
+
+    WindmillStreamSender windmillStreamSender =
+        newWindmillStreamSender(
+            GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
+
+    windmillStreamSender.close();
+    assertThrows(IllegalStateException.class, windmillStreamSender::start);
   }
 
   private WindmillStreamSender newWindmillStreamSender(GetWorkBudget budget) {

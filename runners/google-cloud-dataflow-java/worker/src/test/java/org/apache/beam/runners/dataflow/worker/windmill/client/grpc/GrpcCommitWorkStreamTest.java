@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,6 +51,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 
 @RunWith(JUnit4.class)
 public class GrpcCommitWorkStreamTest {
@@ -158,9 +160,9 @@ public class GrpcCommitWorkStreamTest {
     }
     commitWorkStream.shutdown();
 
-    Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
+        Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
         assertFalse(
             batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), commitStatuses::add));
         assertThat(commitStatuses).containsExactly(Windmill.CommitStatus.ABORTED);
@@ -175,9 +177,10 @@ public class GrpcCommitWorkStreamTest {
 
     TestCommitWorkStreamRequestObserver requestObserver =
         spy(new TestCommitWorkStreamRequestObserver());
+    InOrder requestObserverVerifier = inOrder(requestObserver);
+
     CommitWorkStreamTestStub testStub = new CommitWorkStreamTestStub(requestObserver);
     GrpcCommitWorkStream commitWorkStream = createCommitWorkStream(testStub);
-
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
         assertTrue(
@@ -186,12 +189,18 @@ public class GrpcCommitWorkStreamTest {
                 workItemCommitRequest(i),
                 commitStatus -> commitProcessed.countDown()));
       }
+      // Shutdown the stream before we exit the try-with-resources block which will try to send()
+      // the batched request.
       commitWorkStream.shutdown();
     }
 
     // send() uses the requestObserver to send requests. We expect 1 send since startStream() sends
     // the header, which happens before we shutdown.
-    verify(requestObserver, times(1)).onNext(any(Windmill.StreamingCommitWorkRequest.class));
+    requestObserverVerifier
+        .verify(requestObserver)
+        .onNext(any(Windmill.StreamingCommitWorkRequest.class));
+    requestObserverVerifier.verify(requestObserver).onError(any());
+    requestObserverVerifier.verifyNoMoreInteractions();
   }
 
   private static class TestCommitWorkStreamRequestObserver

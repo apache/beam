@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -125,6 +127,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
 
   synchronized void start() {
     if (!started.get()) {
+      checkState(!streamStarter.isShutdown(), "WindmillStreamSender has already been shutdown.");
       // Start these 3 streams in parallel since they each may perform blocking IO.
       CompletableFuture.allOf(
               CompletableFuture.runAsync(getWorkStream::start, streamStarter),
@@ -138,12 +141,11 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
 
   @Override
   public synchronized void close() {
-    if (started.get()) {
-      getWorkStream.shutdown();
-      getDataStream.shutdown();
-      workCommitter.stop();
-      commitWorkStream.shutdown();
-    }
+    streamStarter.shutdownNow();
+    getWorkStream.shutdown();
+    getDataStream.shutdown();
+    workCommitter.stop();
+    commitWorkStream.shutdown();
   }
 
   @Override

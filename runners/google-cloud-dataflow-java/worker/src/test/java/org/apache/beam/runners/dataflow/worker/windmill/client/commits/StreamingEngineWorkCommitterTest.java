@@ -53,16 +53,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPoo
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,15 +67,12 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineWorkCommitterTest {
-  private static final String FAKE_SERVER_NAME = "Fake server for StreamingEngineWorkCommitterTest";
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private WorkCommitter workCommitter;
   private FakeWindmillServer fakeWindmillServer;
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
-  private ManagedChannel inProcessChannel;
 
   private static Work createMockWork(long workToken) {
     return Work.create(
@@ -129,23 +120,6 @@ public class StreamingEngineWorkCommitterTest {
         WindmillStreamPool.create(
                 1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
             ::getCloseableStream;
-    Server server =
-        InProcessServerBuilder.forName(FAKE_SERVER_NAME)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .directExecutor()
-            .build()
-            .start();
-
-    inProcessChannel =
-        grpcCleanup.register(
-            InProcessChannelBuilder.forName(FAKE_SERVER_NAME).directExecutor().build());
-    grpcCleanup.register(server);
-    grpcCleanup.register(inProcessChannel);
-  }
-
-  @After
-  public void cleanUp() {
-    inProcessChannel.shutdownNow();
   }
 
   private WorkCommitter createWorkCommitter(Consumer<CompleteCommit> onCommitComplete) {

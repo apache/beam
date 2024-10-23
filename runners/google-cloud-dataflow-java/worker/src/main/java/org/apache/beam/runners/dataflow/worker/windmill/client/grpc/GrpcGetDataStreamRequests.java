@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.google.auto.value.AutoOneOf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -29,6 +30,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,10 @@ final class GrpcGetDataStreamRequests {
   private static final int STREAM_CANCELLED_ERROR_LOG_LIMIT = 3;
 
   private GrpcGetDataStreamRequests() {}
+
+  private static String debugFormat(long value) {
+    return String.format("%016x", value);
+  }
 
   static class QueuedRequest {
     private final long id;
@@ -104,6 +110,7 @@ final class GrpcGetDataStreamRequests {
     }
   }
 
+  /** Represents a batch of queued requests. Methods are thread-safe unless commented otherwise. */
   static class QueuedBatch {
     private final List<QueuedRequest> requests = new ArrayList<>();
     private final CountDownLatch sent = new CountDownLatch(1);
@@ -111,8 +118,18 @@ final class GrpcGetDataStreamRequests {
     private volatile boolean finalized = false;
     private volatile boolean failed = false;
 
-    List<QueuedRequest> requests() {
-      return requests;
+    /**
+     * Returns a read-only view of requests sorted with {@link QueuedRequest#globalRequestsFirst()}.
+     */
+    List<QueuedRequest> sortedRequestsReadOnly() {
+      // Put all global data requests first because there is only a single repeated field for
+      // request ids and the initial ids correspond to global data requests if they are present.
+      requests.sort(QueuedRequest.globalRequestsFirst());
+      return Collections.unmodifiableList(requests);
+    }
+
+    int requestsCount() {
+      return requests.size();
     }
 
     long byteSize() {
@@ -127,42 +144,51 @@ final class GrpcGetDataStreamRequests {
       finalized = true;
     }
 
+    /**
+     * Adds a request to the batch.
+     *
+     * @implNote Requires external synchronization to be thread safe.
+     */
     void addRequest(QueuedRequest request) {
       requests.add(request);
       byteSize += request.byteSize();
     }
 
     /** Let waiting for threads know that the request has been successfully sent. */
-    synchronized void notifySent() {
+    void notifySent() {
       sent.countDown();
     }
 
     /** Let waiting for threads know that a failure occurred. */
-    synchronized void notifyFailed() {
+    void notifyFailed() {
       failed = true;
       sent.countDown();
     }
 
     /**
      * Block until notified of a successful send via {@link #notifySent()} or a non-retryable
-     * failure via {@link #notifyFailed()}. On failure, throw an exception to on calling threads.
+     * failure via {@link #notifyFailed()}. On failure, throw an exception for waiters.
      */
     void waitForSendOrFailNotification() throws InterruptedException {
       sent.await();
       if (failed) {
-        ImmutableList<String> cancelledRequests = createStreamCancelledErrorMessage();
-        LOG.error("Requests failed for the following batches: {}", cancelledRequests);
-        throw new WindmillStreamShutdownException(
-            "Requests failed for batch containing "
-                + String.join(", ", cancelledRequests)
-                + " ... requests. This is most likely due to the stream being explicitly closed"
-                + " which happens when the work is marked as invalid on the streaming"
-                + " backend when key ranges shuffle around. This is transient and corresponding"
-                + " work will eventually be retried.");
+        ImmutableList<String> cancelledRequests = createStreamCancelledErrorMessages();
+        if (!cancelledRequests.isEmpty()) {
+          LOG.error("Requests failed for the following batches: {}", cancelledRequests);
+          throw new WindmillStreamShutdownException(
+              "Requests failed for batch containing "
+                  + String.join(", ", cancelledRequests)
+                  + " ... requests. This is most likely due to the stream being explicitly closed"
+                  + " which happens when the work is marked as invalid on the streaming"
+                  + " backend when key ranges shuffle around. This is transient and corresponding"
+                  + " work will eventually be retried.");
+        }
+
+        throw new WindmillStreamShutdownException("Stream was shutdown while waiting for send.");
       }
     }
 
-    ImmutableList<String> createStreamCancelledErrorMessage() {
+    ImmutableList<String> createStreamCancelledErrorMessages() {
       return requests.stream()
           .flatMap(
               request -> {
@@ -175,11 +201,11 @@ final class GrpcGetDataStreamRequests {
                             keyedRequest ->
                                 "KeyedGetState=["
                                     + "shardingKey="
-                                    + keyedRequest.getShardingKey()
+                                    + debugFormat(keyedRequest.getShardingKey())
                                     + "cacheToken="
-                                    + keyedRequest.getCacheToken()
+                                    + debugFormat(keyedRequest.getCacheToken())
                                     + "workToken"
-                                    + keyedRequest.getWorkToken()
+                                    + debugFormat(keyedRequest.getWorkToken())
                                     + "]");
                   default:
                     // Will never happen switch is exhaustive.

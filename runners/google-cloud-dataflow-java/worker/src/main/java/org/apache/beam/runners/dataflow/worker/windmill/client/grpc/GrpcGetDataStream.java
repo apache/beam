@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -57,11 +56,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.VerifyException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@ThreadSafe
 final class GrpcGetDataStream
     extends AbstractWindmillStream<StreamingGetDataRequest, StreamingGetDataResponse>
     implements GetDataStream {
@@ -153,7 +153,7 @@ final class GrpcGetDataStream
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
-      verify(!hasPendingRequests());
+      verify(!hasPendingRequests(), "Pending requests not expected on stream restart.");
     } else {
       for (AppendableInputStream responseStream : pending.values()) {
         responseStream.cancel();
@@ -167,7 +167,6 @@ final class GrpcGetDataStream
   }
 
   @Override
-  @SuppressWarnings("dereference.of.nullable")
   protected void onResponse(StreamingGetDataResponse chunk) {
     checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
     checkArgument(chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
@@ -195,32 +194,20 @@ final class GrpcGetDataStream
 
   @Override
   public KeyedGetDataResponse requestKeyedData(String computation, KeyedGetDataRequest request) {
-    try {
-      return issueRequest(
-          QueuedRequest.forComputation(uniqueId(), computation, request),
-          KeyedGetDataResponse::parseFrom);
-    } catch (
-        org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException e) {
-      throw new WorkItemCancelledException(request.getShardingKey());
-    }
+    return issueRequest(
+        QueuedRequest.forComputation(uniqueId(), computation, request),
+        KeyedGetDataResponse::parseFrom);
   }
 
   @Override
   public GlobalData requestGlobalData(GlobalDataRequest request) {
-    try {
-      return issueRequest(QueuedRequest.global(uniqueId(), request), GlobalData::parseFrom);
-    } catch (
-        org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException e) {
-      throw new WorkItemCancelledException(
-          "SideInput fetch failed for request due to stream shutdown: " + request, e);
-    }
+    return issueRequest(QueuedRequest.global(uniqueId(), request), GlobalData::parseFrom);
   }
 
   @Override
   public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
     if (isShutdown()) {
-      throw new org.apache.beam.runners.dataflow.worker.windmill.client
-          .WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
+      throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
     }
 
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
@@ -302,12 +289,14 @@ final class GrpcGetDataStream
     // Future calls to send RPCs will fail.
     pending.values().forEach(AppendableInputStream::cancel);
     pending.clear();
-    batches.forEach(
-        batch -> {
-          batch.markFinalized();
-          batch.notifyFailed();
-        });
-    batches.clear();
+    synchronized (batches) {
+      batches.forEach(
+          batch -> {
+            batch.markFinalized();
+            batch.notifyFailed();
+          });
+      batches.clear();
+    }
   }
 
   @Override
@@ -340,9 +329,7 @@ final class GrpcGetDataStream
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
-      } catch (AppendableInputStream.InvalidInputStreamStateException
-          | VerifyException
-          | CancellationException e) {
+      } catch (AppendableInputStream.InvalidInputStreamStateException | CancellationException e) {
         handleShutdown(request, e);
         if (!(e instanceof CancellationException)) {
           throw e;
@@ -358,24 +345,15 @@ final class GrpcGetDataStream
       }
     }
 
-    throw new org.apache.beam.runners.dataflow.worker.windmill.client
-        .WindmillStreamShutdownException("Cannot send request=[" + request + "] on closed stream.");
+    throw new WindmillStreamShutdownException(
+        "Cannot send request=[" + request + "] on closed stream.");
   }
 
   private void handleShutdown(QueuedRequest request, Throwable cause) {
-    if (cause
-        instanceof
-        org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException) {
-      throw (org.apache.beam.runners.dataflow.worker.windmill.client
-              .WindmillStreamShutdownException)
-          cause;
-    }
     if (isShutdown()) {
-      org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException
-          shutdownException =
-              new org.apache.beam.runners.dataflow.worker.windmill.client
-                  .WindmillStreamShutdownException(
-                  "Cannot send request=[" + request + "] on closed stream.");
+      WindmillStreamShutdownException shutdownException =
+          new WindmillStreamShutdownException(
+              "Cannot send request=[" + request + "] on closed stream.");
       shutdownException.addSuppressed(cause);
       throw shutdownException;
     }
@@ -389,7 +367,7 @@ final class GrpcGetDataStream
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
           || batch.isFinalized()
-          || batch.requests().size() >= streamingRpcBatchLimit
+          || batch.requestsCount() >= streamingRpcBatchLimit
           || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         if (batch != null) {
           prevBatch = batch;
@@ -411,7 +389,7 @@ final class GrpcGetDataStream
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
       synchronized (batches) {
-        verify(batch == batches.peekFirst());
+        verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
         batch.markFinalized();
       }
       trySendBatch(batch);
@@ -423,9 +401,11 @@ final class GrpcGetDataStream
 
   void trySendBatch(QueuedBatch batch) {
     try {
-      sendBatch(batch.requests());
+      sendBatch(batch.sortedRequestsReadOnly());
       synchronized (batches) {
-        verify(batch == batches.pollFirst());
+        verify(
+            batch == batches.pollFirst(),
+            "Sent GetDataStream request batch removed before send() was complete.");
       }
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
@@ -439,7 +419,6 @@ final class GrpcGetDataStream
     }
   }
 
-  @SuppressWarnings("NullableProblems")
   private void sendBatch(List<QueuedRequest> requests) {
     if (requests.isEmpty()) {
       return;
@@ -459,7 +438,9 @@ final class GrpcGetDataStream
         for (QueuedRequest request : requests) {
           // Map#put returns null if there was no previous mapping for the key, meaning we have not
           // seen it before.
-          verify(pending.put(request.id(), request.getResponseStream()) == null);
+          verify(
+              pending.put(request.id(), request.getResponseStream()) == null,
+              "Request already sent.");
         }
       }
     }
@@ -472,16 +453,16 @@ final class GrpcGetDataStream
     }
   }
 
-  @SuppressWarnings("argument")
   private StreamingGetDataRequest flushToBatch(List<QueuedRequest> requests) {
-    // Put all global data requests first because there is only a single repeated field for
-    // request ids and the initial ids correspond to global data requests if they are present.
-    requests.sort(QueuedRequest.globalRequestsFirst());
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     for (QueuedRequest request : requests) {
       request.addToStreamingGetDataRequest(builder);
     }
     return builder.build();
+  }
+
+  private void verify(boolean condition, String message) {
+    Verify.verify(condition || isShutdown(), message);
   }
 
   @FunctionalInterface

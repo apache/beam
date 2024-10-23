@@ -57,7 +57,9 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.AbstractStub;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -98,8 +100,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       int windmillMessagesBetweenIsReadyChecks,
       boolean sendKeyedGetDataRequests,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
-      Supplier<Duration> maxBackOffSupplier,
-      Set<AbstractWindmillStream<?, ?>> streamRegistry) {
+      Supplier<Duration> maxBackOffSupplier) {
     this.jobHeader = jobHeader;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -112,7 +113,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
                     .withInitialBackoff(MIN_BACKOFF)
                     .withMaxBackoff(maxBackOffSupplier.get())
                     .backoff());
-    this.streamRegistry = streamRegistry;
+    this.streamRegistry = ConcurrentHashMap.newKeySet();
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.processHeartbeatResponses = processHeartbeatResponses;
     this.streamIdGenerator = new AtomicLong();
@@ -127,8 +128,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       boolean sendKeyedGetDataRequests,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier,
-      int healthCheckIntervalMillis,
-      Set<AbstractWindmillStream<?, ?>> streamRegistry) {
+      int healthCheckIntervalMillis) {
     GrpcWindmillStreamFactory streamFactory =
         new GrpcWindmillStreamFactory(
             jobHeader,
@@ -137,8 +137,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
             windmillMessagesBetweenIsReadyChecks,
             sendKeyedGetDataRequests,
             processHeartbeatResponses,
-            maxBackOffSupplier,
-            streamRegistry);
+            maxBackOffSupplier);
 
     if (healthCheckIntervalMillis >= 0) {
       // Health checks are run on background daemon thread, which will only be cleaned up on JVM
@@ -175,8 +174,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setStreamingRpcBatchLimit(DEFAULT_STREAMING_RPC_BATCH_LIMIT)
         .setHealthCheckIntervalMillis(NO_HEALTH_CHECKS)
         .setSendKeyedGetDataRequests(true)
-        .setProcessHeartbeatResponses(ignored -> {})
-        .setStreamRegistry(ConcurrentHashMap.newKeySet());
+        .setProcessHeartbeatResponses(ignored -> {});
   }
 
   private static <T extends AbstractStub<T>> T withDefaultDeadline(T stub) {
@@ -333,6 +331,11 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .forEach((workerToken, streams) -> printSummaryHtmlForWorker(workerToken, streams, writer));
   }
 
+  @VisibleForTesting
+  ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
+    return ImmutableSet.copyOf(streamRegistry);
+  }
+
   @Internal
   @AutoBuilder(callMethod = "create")
   public interface Builder {
@@ -352,8 +355,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses);
 
     Builder setHealthCheckIntervalMillis(int healthCheckIntervalMillis);
-
-    Builder setStreamRegistry(Set<AbstractWindmillStream<?, ?>> streamRegistry);
 
     GrpcWindmillStreamFactory build();
   }
