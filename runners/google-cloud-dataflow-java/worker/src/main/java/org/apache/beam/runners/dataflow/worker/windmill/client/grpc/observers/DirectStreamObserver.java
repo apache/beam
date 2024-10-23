@@ -76,6 +76,12 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
     while (true) {
       try {
         synchronized (lock) {
+          int currentPhase = isReadyNotifier.getPhase();
+          // Phaser is terminated so don't use the outboundObserver. Since onError and onCompleted
+          // are synchronized after terminating the phaser if we observe that the phaser is not
+          // terminated the onNext calls below are guaranteed to not be called on a closed observer.
+          if (currentPhase < 0) return;
+
           // If we awaited previously and timed out, wait for the same phase. Otherwise we're
           // careful to observe the phase before observing isReady.
           if (awaitPhase < 0) {
@@ -115,15 +121,16 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         }
 
         synchronized (lock) {
+          int currentPhase = isReadyNotifier.getPhase();
+          // Phaser is terminated so don't use the outboundObserver. Since onError and onCompleted
+          // are synchronized after terminating the phaser if we observe that the phaser is not
+          // terminated the onNext calls below are guaranteed to not be called on a closed observer.
+          if (currentPhase < 0) return;
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
           return;
         }
       } catch (TimeoutException e) {
-        if (isReadyNotifier.isTerminated()) {
-          return;
-        }
-
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
