@@ -501,27 +501,20 @@ tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
-tasks.register("python38PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py38:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
-  // TODO: https://github.com/apache/beam/issues/22651
-  // The default container uses Python 3.8. The goal here is to
-  // duild Docker images for TensorRT tests during run time for python versions
-  // other than 3.8 and add these tests in other python postcommit suites.
-  dependsOn(":sdks:python:test-suites:dataflow:py38:inferencePostCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py38:inferencePostCommitIT")
-}
-
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py39:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   // TODO (https://github.com/apache/beam/issues/23966)
   // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
   dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
+  // TODO: https://github.com/apache/beam/issues/22651
+  // The default container uses Python 3.9. The goal here is to
+  // duild Docker images for TensorRT tests during run time for python versions
+  // other than 3.8 and add these tests in other python postcommit suites.
+  dependsOn(":sdks:python:test-suites:dataflow:py39:inferencePostCommitIT")
 }
 
 tasks.register("python310PostCommit") {
