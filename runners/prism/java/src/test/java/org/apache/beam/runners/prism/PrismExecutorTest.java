@@ -58,8 +58,8 @@ public class PrismExecutorTest {
     executor.execute(outputStream);
     sleep(3000L);
     executor.stop();
-    String output = normalizeConsoleOutput(outputStream.toString(StandardCharsets.UTF_8.name()));
-    assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:8073");
+    String output = outputStream.toString(StandardCharsets.UTF_8.name());
+    assertThat(output).contains("level=INFO msg=\"Serving JobManagement\" endpoint=localhost:8073");
   }
 
   @Test
@@ -70,8 +70,9 @@ public class PrismExecutorTest {
     sleep(3000L);
     executor.stop();
     try (Stream<String> stream = Files.lines(log.toPath(), StandardCharsets.UTF_8)) {
-      String output = normalizeConsoleOutput(stream.collect(Collectors.joining("\n")));
-      assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:8073");
+      String output = stream.collect(Collectors.joining("\n"));
+      assertThat(output)
+          .contains("level=INFO msg=\"Serving JobManagement\" endpoint=localhost:8073");
     }
   }
 
@@ -79,21 +80,23 @@ public class PrismExecutorTest {
   public void executeWithCustomArgumentsThenStop() throws IOException {
     PrismExecutor executor =
         underTest()
-            .setArguments(Collections.singletonList("-" + JOB_PORT_FLAG_NAME + "=5555"))
+            .addArguments(Collections.singletonList("-" + JOB_PORT_FLAG_NAME + "=5555"))
             .build();
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     executor.execute(outputStream);
     sleep(3000L);
     executor.stop();
-    String output = normalizeConsoleOutput(outputStream.toString(StandardCharsets.UTF_8.name()));
-    assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:5555");
+    String output = outputStream.toString(StandardCharsets.UTF_8.name());
+    assertThat(output).contains("level=INFO msg=\"Serving JobManagement\" endpoint=localhost:5555");
   }
 
   @Test
   public void executeWithPortFinderThenStop() throws IOException {}
 
   private PrismExecutor.Builder underTest() {
-    return PrismExecutor.builder().setCommand(getLocalPrismBuildOrIgnoreTest());
+    return PrismExecutor.builder()
+        .setCommand(getLocalPrismBuildOrIgnoreTest())
+        .setArguments(Collections.singletonList("--log_kind=text")); // disable color control chars
   }
 
   private void sleep(long millis) {
@@ -101,13 +104,5 @@ public class PrismExecutorTest {
       Thread.sleep(millis);
     } catch (InterruptedException ignored) {
     }
-  }
-
-  private static String normalizeConsoleOutput(String output) {
-    return output
-        .replaceAll("\u001B\\[[;\\d]*m", "") // remove ASCII color codes
-        .replaceAll("\\s\\* ", " ") // clean up bullet points
-        .replaceAll("\\s+", " ") // clean up multiple spaces
-        .replaceAll("endpoint: ", "endpoint="); // for ease of assertion
   }
 }
