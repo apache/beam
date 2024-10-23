@@ -19,17 +19,23 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -37,6 +43,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -67,6 +74,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -195,6 +203,12 @@ public class Combine {
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       GlobalCombineFn<? super InputT, ?, OutputT> fn) {
     return perKey(fn, displayDataForFn(fn));
+  }
+
+  public static <K, InputT, AccumT, OutputT>
+      PerKeyWithBucketing<K, InputT, AccumT, OutputT> perKeyWithBucketing(
+          CombineFn<InputT, AccumT, OutputT> fn, int numBucketBits) {
+    return new PerKeyWithBucketing<>(fn, numBucketBits);
   }
 
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
@@ -1615,6 +1629,174 @@ public class Combine {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       Combine.populateDisplayData(builder, fn, fnDisplayData);
+    }
+  }
+
+
+  // Combiner for reducing key cardinality. Applies the child combiner
+  // using numBuckets number of intermediate keys.
+  public static class PerKeyWithBucketing<K, InputT, AccumT, OutputT>
+      extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
+
+    private final CombineFn<InputT, AccumT, OutputT> fn;
+    // Actual Keys are mapped to one of the bucket and state is stored on the
+    // bucket. Total number of buckets.
+    private final int numBuckets;
+
+    private PerKeyWithBucketing(CombineFn<InputT, AccumT, OutputT> fn, int numBuckets) {
+      this.fn = fn;
+      this.numBuckets = numBuckets;
+    }
+
+    @Override
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
+      Coder<K> keyCoder = ((KvCoder<K, InputT>) input.getCoder()).getKeyCoder();
+      CombineFn<KV<byte[], InputT>, Map<ByteBuffer, AccumT>, Map<ByteBuffer, OutputT>> combineFn =
+          new CombineFn<KV<byte[], InputT>, Map<ByteBuffer, AccumT>, Map<ByteBuffer, OutputT>>() {
+            @Override
+            public Map<ByteBuffer, AccumT> createAccumulator() {
+              return new HashMap<>();
+            }
+
+            @Override
+            public Map<ByteBuffer, AccumT> addInput(
+                Map<ByteBuffer, AccumT> mutableAccumulator, KV<byte[], InputT> input) {
+              ByteBuffer key = ByteBuffer.wrap(input.getKey());
+              AccumT accumT = mutableAccumulator.get(key);
+              if (accumT == null) {
+                accumT = fn.createAccumulator();
+                mutableAccumulator.put(key, accumT);
+              }
+              fn.addInput(accumT, input.getValue());
+              return mutableAccumulator;
+            }
+
+            @Override
+            public Map<ByteBuffer, AccumT> mergeAccumulators(
+                Iterable<Map<ByteBuffer, AccumT>> mapAccumulators) {
+              HashMap<ByteBuffer, AccumT> mergedMap = new HashMap<>();
+              for (Map<ByteBuffer, AccumT> mapAccumulator : mapAccumulators) {
+                for (Entry<ByteBuffer, AccumT> entry : mapAccumulator.entrySet()) {
+                  mergedMap.merge(
+                      entry.getKey(),
+                      entry.getValue(),
+                      (accum1, accum2) -> fn.mergeAccumulators(Arrays.asList(accum1, accum2)));
+                }
+              }
+              return mergedMap;
+            }
+
+            @Override
+            public Map<ByteBuffer, OutputT> extractOutput(Map<ByteBuffer, AccumT> accumulator) {
+              HashMap<ByteBuffer, OutputT> output = new HashMap<>();
+              for (Entry<ByteBuffer, AccumT> entry : accumulator.entrySet()) {
+                output.put(entry.getKey(), fn.extractOutput(entry.getValue()));
+              }
+              return output;
+            }
+
+            class ByteByfferCoder extends Coder<ByteBuffer> {
+
+              private final ByteArrayCoder coder = ByteArrayCoder.of();
+
+              @Override
+              public void encode(ByteBuffer buffer, OutputStream outStream)
+                  throws CoderException, IOException {
+                byte[] bytes = new byte[buffer.remaining()];
+                buffer.get(bytes);
+                buffer.position(buffer.position() - bytes.length);
+                coder.encode(bytes, outStream);
+              }
+
+              @Override
+              public ByteBuffer decode(InputStream inStream) throws CoderException, IOException {
+                return ByteBuffer.wrap(coder.decode(inStream));
+              }
+
+              @Override
+              public List<? extends Coder<?>> getCoderArguments() {
+                return coder.getCoderArguments();
+              }
+
+              @Override
+              public void verifyDeterministic() throws NonDeterministicException {
+                coder.verifyDeterministic();
+              }
+            }
+
+            @Override
+            public Coder<Map<ByteBuffer, AccumT>> getAccumulatorCoder(
+                CoderRegistry registry, Coder<KV<byte[], InputT>> inputCoder)
+                throws CannotProvideCoderException {
+              return MapCoder.of(
+                  new ByteByfferCoder(),
+                  fn.getAccumulatorCoder(
+                      registry, ((KvCoder<byte[], InputT>) inputCoder).getValueCoder()));
+            }
+
+            @Override
+            public Coder<Map<ByteBuffer, OutputT>> getDefaultOutputCoder(
+                CoderRegistry registry, Coder<KV<byte[], InputT>> inputCoder)
+                throws CannotProvideCoderException {
+              return MapCoder.of(
+                  new ByteByfferCoder(),
+                  fn.getDefaultOutputCoder(
+                      registry, ((KvCoder<byte[], InputT>) inputCoder).getValueCoder()));
+            }
+          };
+      try {
+        return input
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<KV<K, InputT>, KV<Integer, KV<byte[], InputT>>>() {
+                      @Override
+                      public KV<Integer, KV<byte[], InputT>> apply(KV<K, InputT> input1) {
+                        int bucket;
+                        try {
+                          // TODO: Find a better way to get fingerprint that doesn't require
+                          // encoding key
+                          ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                          keyCoder.encode(input1.getKey(), byteArrayOutputStream);
+                          byte[] keyBytes = byteArrayOutputStream.toByteArray();
+                          byteArrayOutputStream.reset();
+                          bucket =
+                              Hashing.consistentHash(
+                                  Hashing.fingerprint2011().hashBytes(keyBytes), numBuckets);
+                          return KV.of(bucket, KV.of(keyBytes, input1.getValue()));
+                        } catch (IOException e) {
+                          throw new RuntimeException(e);
+                        }
+                      }
+                    }))
+            .apply(Combine.perKey(combineFn))
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<Integer, Map<ByteBuffer, OutputT>>, KV<K, OutputT>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        try {
+                          for (Entry<ByteBuffer, OutputT> entry :
+                              c.element().getValue().entrySet()) {
+                            c.output(
+                                KV.of(
+                                    keyCoder.decode(
+                                        new ByteArrayInputStream(entry.getKey().array())),
+                                    entry.getValue()));
+                          }
+                        } catch (IOException e) {
+                          throw new RuntimeException(e);
+                        }
+                      }
+                    }))
+            .setCoder(
+                KvCoder.of(
+                    keyCoder,
+                    fn.getDefaultOutputCoder(
+                        CoderRegistry.createDefault(),
+                        ((KvCoder<K, InputT>) input.getCoder()).getValueCoder())));
+      } catch (CannotProvideCoderException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
