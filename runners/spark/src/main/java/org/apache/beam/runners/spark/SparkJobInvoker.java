@@ -29,7 +29,6 @@ import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +56,7 @@ public class SparkJobInvoker extends JobInvoker {
   protected JobInvocation invokeWithExecutor(
       Pipeline pipeline,
       Struct options,
-      @Nullable String retrievalToken,
+      String retrievalToken,
       ListeningExecutorService executorService) {
     LOG.trace("Parsing pipeline options");
     SparkPipelineOptions sparkOptions =

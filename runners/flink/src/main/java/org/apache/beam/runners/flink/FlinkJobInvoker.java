@@ -26,19 +26,16 @@ import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
@@ -57,7 +54,7 @@ public class FlinkJobInvoker extends JobInvoker {
   protected JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      @Nullable String retrievalToken,
+      String retrievalToken,
       ListeningExecutorService executorService) {
 
     // TODO: How to make Java/Python agree on names of keys and their values?
@@ -86,7 +83,7 @@ public class FlinkJobInvoker extends JobInvoker {
       pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
     }
 
-    flinkOptions.setRunner(null);
+    unsafelySetRunnerNullForUnknownReason(flinkOptions);
 
     LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
     return createJobInvocation(
@@ -107,5 +104,10 @@ public class FlinkJobInvoker extends JobInvoker {
             retrievalToken,
             PipelineOptionsTranslation.toProto(flinkOptions));
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
+  }
+
+  @SuppressWarnings("nullness")
+  private void unsafelySetRunnerNullForUnknownReason(PipelineOptions options) {
+    options.setRunner(null);
   }
 }

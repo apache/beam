@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -36,14 +38,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper for {@link FlinkBatchPipelineTranslator} and translators in {@link
  * FlinkBatchTransformTranslators}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class FlinkBatchTranslationContext {
 
   private final Map<PValue, DataSet<?>> dataSets;
@@ -58,7 +58,7 @@ class FlinkBatchTranslationContext {
   private final ExecutionEnvironment env;
   private final PipelineOptions options;
 
-  private AppliedPTransform<?, ?, ?> currentTransform;
+  private @Nullable AppliedPTransform<?, ?, ?> currentTransform;
 
   private final CountingPipelineVisitor countingPipelineVisitor = new CountingPipelineVisitor();
   private final LookupPipelineVisitor lookupPipelineVisitor = new LookupPipelineVisitor();
@@ -97,7 +97,8 @@ class FlinkBatchTranslationContext {
   <T> DataSet<WindowedValue<T>> getInputDataSet(PValue value) {
     // assume that the DataSet is used as an input if retrieved here
     danglingDataSets.remove(value);
-    return (DataSet<WindowedValue<T>>) dataSets.get(value);
+    return (DataSet<WindowedValue<T>>)
+        checkStateNotNull(dataSets.get(value), "No data set associated with PValue " + value);
   }
 
   <T> void setOutputDataSet(PValue value, DataSet<WindowedValue<T>> set) {
@@ -117,7 +118,9 @@ class FlinkBatchTranslationContext {
   }
 
   AppliedPTransform<?, ?, ?> getCurrentTransform() {
-    return currentTransform;
+    return checkStateNotNull(
+        currentTransform,
+        "Attempted to get current transform when not in context of translating any transform");
   }
 
   Map<TupleTag<?>, Coder<?>> getOutputCoders(PTransform<?, ?> transform) {
@@ -126,7 +129,10 @@ class FlinkBatchTranslationContext {
 
   @SuppressWarnings("unchecked")
   <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
-    return (DataSet<T>) broadcastDataSets.get(value);
+    return (DataSet<T>)
+        checkStateNotNull(
+            broadcastDataSets.get(value),
+            "No broadcast data set associated with PCollectionView " + value);
   }
 
   <ViewT, ElemT> void setSideInputDataSet(

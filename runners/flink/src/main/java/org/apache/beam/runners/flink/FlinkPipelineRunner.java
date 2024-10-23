@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.construction.resources.PipelineResources.
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -40,7 +41,6 @@ import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -49,14 +49,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runs a Pipeline on Flink via {@link FlinkRunner}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 
   private final FlinkPipelineOptions pipelineOptions;
-  private final String confDir;
+  private final @Nullable String confDir;
   private final List<String> filesToStage;
 
   /**
@@ -110,8 +107,11 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
   private PortablePipelineResult createPortablePipelineResult(
       JobExecutionResult result, PipelineOptions options) {
-    String resultClassName = result.getClass().getCanonicalName();
-    if (resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
+    @Nullable Class<?> resultClass = result.getClass();
+    if (resultClass != null
+        && Objects.equals(
+            resultClass.getCanonicalName(),
+            "org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
       // no metricsPusher because metrics are not supported in detached mode
       return new FlinkPortableRunnerResult.Detached();
@@ -195,14 +195,14 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
             "Directory containing Flink YAML configuration files. "
                 + "These properties will be set to all jobs submitted to Flink and take precedence "
                 + "over configurations in FLINK_CONF_DIR.")
-    private String flinkConfDir = null;
+    private @Nullable String flinkConfDir = null;
 
     @Option(
         name = "--base-job-name",
         usage =
             "The job to run. This must correspond to a subdirectory of the jar's BEAM-PIPELINE "
                 + "directory. *Only needs to be specified if the jar contains multiple pipelines.*")
-    private String baseJobName = null;
+    private @Nullable String baseJobName = null;
   }
 
   private static FlinkPipelineRunnerConfiguration parseArgs(String[] args) {

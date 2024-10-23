@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.SortedSet;
@@ -43,9 +45,6 @@ import org.slf4j.LoggerFactory;
  * to a Flink Plan and then executing them either locally or on a Flink cluster, depending on the
  * configuration.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);
@@ -139,14 +138,22 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
             @Override
             public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+              PTransform<?, ?> transform =
+                  checkStateNotNull(
+                      node.getTransform(),
+                      "Primitive transform node does not have associated PTransform.");
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(transform)) {
                 ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
               }
             }
 
             @Override
             public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+              PTransform<?, ?> transform =
+                  checkStateNotNull(
+                      node.getTransform(),
+                      "Composite transform node does not have associated PTransform.");
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(transform)) {
                 ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
               }
               return CompositeBehavior.ENTER_TRANSFORM;

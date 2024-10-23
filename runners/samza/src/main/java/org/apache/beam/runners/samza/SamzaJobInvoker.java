@@ -18,7 +18,6 @@
 package org.apache.beam.runners.samza;
 
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
@@ -56,7 +55,7 @@ public class SamzaJobInvoker extends JobInvoker {
   protected JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      @Nullable String retrievalToken,
+      String retrievalToken,
       ListeningExecutorService executorService) {
     LOG.trace("Parsing pipeline options");
     final SamzaPortablePipelineOptions samzaOptions =

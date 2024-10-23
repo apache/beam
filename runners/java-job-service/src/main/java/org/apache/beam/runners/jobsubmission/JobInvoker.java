@@ -39,7 +39,7 @@ public abstract class JobInvoker {
   protected abstract JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      @Nullable String retrievalToken,
+      String retrievalToken,
       ListeningExecutorService executorService)
       throws IOException;
 
