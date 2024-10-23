@@ -254,7 +254,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
       this.offsetConsumer = offsetConsumer;
       this.topicPartition = topicPartition;
-      ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
       memoizedBacklog =
           Suppliers.memoizeWithExpiration(
               () -> {
