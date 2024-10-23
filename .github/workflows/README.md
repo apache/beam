@@ -285,6 +285,7 @@ Additional PreCommit jobs running basic SDK unit test on a matrices of operating
 | [Java Tests](https://github.com/apache/beam/actions/workflows/java_tests.yml) | [![.github/workflows/java_tests.yml](https://github.com/apache/beam/actions/workflows/java_tests.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/java_tests.yml?query=event%3Aschedule) |
 | [Python Tests](https://github.com/apache/beam/actions/workflows/python_tests.yml) | [![.github/workflows/python_tests.yml](https://github.com/apache/beam/actions/workflows/python_tests.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/python_tests.yml?query=event%3Aschedule) |
 | [TypeScript Tests](https://github.com/apache/beam/actions/workflows/typescript_tests.yml) | [![.github/workflows/typescript_tests.yml](https://github.com/apache/beam/actions/workflows/typescript_tests.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/typescript_tests.yml?query=event%3Aschedule) |
+| [Build Wheels](https://github.com/apache/beam/actions/workflows/build_wheels.yml) | [![.github/workflows/build_wheels.yml](https://github.com/apache/beam/actions/workflows/build_wheels.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/build_wheels.yml?query=event%3Aschedule) |
 
 ### PostCommit Jobs
 
