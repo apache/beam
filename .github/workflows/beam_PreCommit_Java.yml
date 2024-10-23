@@ -176,6 +176,8 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 8
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
