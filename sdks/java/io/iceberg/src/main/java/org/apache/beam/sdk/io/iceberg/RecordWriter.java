@@ -36,7 +36,9 @@ import org.slf4j.LoggerFactory;
 
 class RecordWriter {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
-  private final Counter activeWriters = Metrics.counter(RecordWriterManager.class, "activeWriters");
+  private final Counter activeIcebergWriters =
+      Metrics.counter(RecordWriter.class, "activeIcebergWriters");
+  private final Counter dataFilesWritten = Metrics.counter(RecordWriter.class, "dataFilesWritten");
   private final DataWriter<Record> icebergDataWriter;
   private final Table table;
   private final String absoluteFilename;
@@ -92,9 +94,9 @@ class RecordWriter {
       default:
         throw new RuntimeException("Unknown File Format: " + fileFormat);
     }
-    activeWriters.inc();
+    activeIcebergWriters.inc();
     LOG.info(
-        "Opened {} writer for table {}, partition {}. Writing to path: {}",
+        "Opened {} writer for table '{}', partition {}. Writing to path: {}",
         fileFormat,
         table.name(),
         partitionKey,
@@ -115,8 +117,16 @@ class RecordWriter {
               fileFormat, table.name(), absoluteFilename),
           e);
     }
-    activeWriters.dec();
-    LOG.info("Closed {} writer for table {}, path: {}", fileFormat, table.name(), absoluteFilename);
+    activeIcebergWriters.dec();
+    DataFile dataFile = icebergDataWriter.toDataFile();
+    LOG.info(
+        "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",
+        fileFormat,
+        table.name(),
+        dataFile.recordCount(),
+        dataFile.fileSizeInBytes(),
+        absoluteFilename);
+    dataFilesWritten.inc();
   }
 
   public long bytesWritten() {

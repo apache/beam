@@ -2024,7 +2024,7 @@ playerAccuracies := ... // PCollection<string,int>
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-py">[`Flatten`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten)</span>
 <span class="language-go">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go)</span>
 <span class="language-typescript">`Flatten`</span>
 is a Beam transform for `PCollection` objects that store the same data type.
@@ -2045,11 +2045,47 @@ PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight java >}}
+PCollection<String> merged = pc1
+    .apply(...)
+    // Merges the elements of pc2 in at this point...
+    .apply(FlattenWith.of(pc2))
+    .apply(...)
+    // and the elements of pc3 at this point.
+    .apply(FlattenWith.of(pc3))
+    .apply(...);
+{{< /highlight >}}
+
 
 {{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlattenWith)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+`FlattenWith` can take root `PCollection`-producing transforms
+(such as `Create` and `Read`) as well as already constructed PCollections,
+and will apply them and flatten their outputs into the resulting output
+PCollection.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transform >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -6096,6 +6132,18 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, ...) {
 }
 {{< /highlight >}}
 
+{{< highlight py>}}
+from apache_beam import metrics
+
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.counter = metrics.Metrics.counter("namespace", "counter1")
+
+  def process(self, element):
+    self.counter.inc()
+    yield element
+{{< /highlight >}}
+
 **Distribution**: A metric that reports information about the distribution of reported values.
 
 {{< highlight java >}}
@@ -6118,6 +6166,16 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
 	distribution.Update(ctx, v)
 	...
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.distribution = metrics.Metrics.distribution("namespace", "distribution1")
+
+  def process(self, element):
+    self.distribution.update(element)
+    yield element
 {{< /highlight >}}
 
 **Gauge**: A metric that reports the latest value out of reported values. Since metrics are
@@ -6145,6 +6203,16 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
 }
 {{< /highlight >}}
 
+{{< highlight py >}}
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.gauge = metrics.Metrics.gauge("namespace", "gauge1")
+
+  def process(self, element):
+    self.gaguge.set(element)
+    yield element
+{{< /highlight >}}
+
 ### 10.3. Querying metrics {#querying-metrics}
 {{< paragraph class="language-java language-python">}}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
@@ -6157,6 +6225,17 @@ matching a given filter.
 accessing metrics. The main method available in `metrics.Results` allows querying for all metrics
 matching a given filter.  It takes in a predicate with a `SingleResult` parameter type, which can
 be used for custom filters.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py">}}
+`PipelineResult` has a `metrics` method that returns a `MetricResults` object. The `MetricResults` object  lets you
+access metrics. The main method available in the `MetricResults` object, `query`, lets you
+query all metrics that match a given filter. The `query` method takes in a `MetricsFilter` object that you can
+use to filter by several different criteria. Querying a `MetricResults` object returns
+a dictionary of lists of `MetricResult` objects, with the dictionary organizing them by type,
+for example, `Counter`, `Distribution`, and `Gauge`. The `MetricResult` object contains a `result` function
+that gets the value of the metric and contains a `key` property. The `key` property contains information about
+the namespace and the name of the metric.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -6184,6 +6263,20 @@ public interface MetricResult<T> {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class PipelineResult:
+  def metrics(self) -> MetricResults:
+  """Returns a the metric results from the pipeline."""
+
+class MetricResults:
+  def query(self, filter: MetricsFilter) -> Dict[str, List[MetricResult]]:
+    """Filters the results against the specified filter."""
+
+class MetricResult:
+  def result(self):
+    """Returns the value of the metric."""
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
@@ -6226,6 +6319,28 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_pipeline >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class MyMetricsDoFn(beam.DoFn):
+  def __init__(self):
+    self.counter = metrics.Metrics.counter("namespace", "counter1")
+
+  def process(self, element):
+    counter.inc()
+    yield element
+
+pipeline = beam.Pipeline()
+
+pipeline | beam.ParDo(MyMetricsDoFn())
+
+result = pipeline.run().wait_until_finish()
+
+metrics = result.metrics().query(
+    metrics.MetricsFilter.with_namespace("namespace").with_name("counter1"))
+
+for metric in metrics["counters"]:
+  print(metric)
 {{< /highlight >}}
 
 ### 10.5. Export metrics {#export-metrics}

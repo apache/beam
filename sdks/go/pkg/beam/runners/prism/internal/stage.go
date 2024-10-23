@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
+	"runtime/debug"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -31,7 +34,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
@@ -62,6 +64,7 @@ type stage struct {
 	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
 	internalCols []string        // PCollections that escape. Used for precise coder sending.
 	envID        string
+	finalize     bool
 	stateful     bool
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
@@ -76,13 +79,36 @@ type stage struct {
 
 	SinkToPCollection map[string]string
 	OutputsToCoders   map[string]engine.PColInfo
+
+	// Stage specific progress and splitting interval.
+	baseProgTick atomic.Value // time.Duration
+}
+
+// The minimum and maximum durations between each ProgressBundleRequest and split evaluation.
+const (
+	minimumProgTick = 100 * time.Millisecond
+	maximumProgTick = 30 * time.Second
+)
+
+func clampTick(dur time.Duration) time.Duration {
+	switch {
+	case dur < minimumProgTick:
+		return minimumProgTick
+	case dur > maximumProgTick:
+		return maximumProgTick
+	default:
+		return dur
+	}
 }
 
 func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
+	if s.baseProgTick.Load() == nil {
+		s.baseProgTick.Store(minimumProgTick)
+	}
 	defer func() {
 		// Convert execution panics to errors to fail the bundle.
 		if e := recover(); e != nil {
-			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v", e, s)
+			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v,stackTrace:\n%s", e, s, debug.Stack())
 		}
 	}()
 	slog.Debug("Execute: starting bundle", "bundle", rb)
@@ -142,7 +168,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	previousTotalCount := int64(-2) // Total count of all pcollection elements.
 
 	unsplit := true
-	progTick := time.NewTicker(100 * time.Millisecond)
+	baseTick := s.baseProgTick.Load().(time.Duration)
+	ticked := false
+	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
 	// If we have no data outputs, we still need to have progress & splits
@@ -170,6 +198,7 @@ progress:
 				break progress // exit progress loop on close.
 			}
 		case <-progTick.C:
+			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
@@ -196,6 +225,7 @@ progress:
 					unsplit = false
 					continue progress
 				}
+
 				// TODO sort out rescheduling primary Roots on bundle failure.
 				var residuals []engine.Residual
 				for _, rr := range sr.GetResidualRoots() {
@@ -220,11 +250,27 @@ progress:
 						Data: residuals,
 					})
 				}
+
+				// Any split means we're processing slower than desired, but splitting should increase
+				// throughput. Back off for this and other bundles for this stage
+				baseTime := s.baseProgTick.Load().(time.Duration)
+				newTime := clampTick(baseTime * 4)
+				if s.baseProgTick.CompareAndSwap(baseTime, newTime) {
+					progTick.Reset(newTime)
+				} else {
+					progTick.Reset(s.baseProgTick.Load().(time.Duration))
+				}
 			} else {
 				previousIndex = index["index"]
 				previousTotalCount = index["totalCount"]
 			}
 		}
+	}
+	// If we never received any progress ticks, we may have too long a time, shrink it for new runs instead.
+	if !ticked {
+		newTick := clampTick(baseTick - minimumProgTick)
+		// If it's otherwise unchanged, apply the new duration.
+		s.baseProgTick.CompareAndSwap(baseTick, newTick)
 	}
 	// Tentative Data is ready, commit it to the main datastore.
 	slog.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
@@ -278,6 +324,14 @@ progress:
 		slog.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.primaryInput))
 	}
 	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residuals)
+	if s.finalize {
+		_, err := b.Finalize(ctx, wk)
+		if err != nil {
+			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
+			panic(err)
+		}
+		slog.Info("finalized bundle", "bundle", rb)
+	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
 }
@@ -307,7 +361,7 @@ func portFor(wInCid string, wk *worker.W) []byte {
 	}
 	sourcePortBytes, err := proto.Marshal(sourcePort)
 	if err != nil {
-		slog.Error("bad port", err, slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
+		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
 	}
 	return sourcePortBytes
 }

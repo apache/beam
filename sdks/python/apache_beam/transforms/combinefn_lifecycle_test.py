@@ -31,6 +31,7 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.combinefn_lifecycle_pipeline import CallSequenceEnforcingCombineFn
 from apache_beam.transforms.combinefn_lifecycle_pipeline import run_combine
+from apache_beam.transforms.combinefn_lifecycle_pipeline import run_combine_uncopyable_attr
 from apache_beam.transforms.combinefn_lifecycle_pipeline import run_pardo
 
 
@@ -53,15 +54,24 @@ class CombineFnLifecycleTest(unittest.TestCase):
 
 
 @parameterized_class([
-    {'runner': direct_runner.BundleBasedDirectRunner},
-    {'runner': fn_api_runner.FnApiRunner},
-])  # yapf: disable
+    {'runner': direct_runner.BundleBasedDirectRunner, 'pickler': 'dill'},
+    {'runner': direct_runner.BundleBasedDirectRunner, 'pickler': 'cloudpickle'},
+    {'runner': fn_api_runner.FnApiRunner, 'pickler': 'dill'},
+    {'runner': fn_api_runner.FnApiRunner, 'pickler': 'cloudpickle'},
+    ])  # yapf: disable
 class LocalCombineFnLifecycleTest(unittest.TestCase):
   def tearDown(self):
     CallSequenceEnforcingCombineFn.instances.clear()
 
   def test_combine(self):
-    run_combine(TestPipeline(runner=self.runner()))
+    test_options = PipelineOptions(flags=[f"--pickle_library={self.pickler}"])
+    run_combine(TestPipeline(runner=self.runner(), options=test_options))
+    self._assert_teardown_called()
+
+  def test_combine_deepcopy_fails(self):
+    test_options = PipelineOptions(flags=[f"--pickle_library={self.pickler}"])
+    run_combine_uncopyable_attr(
+        TestPipeline(runner=self.runner(), options=test_options))
     self._assert_teardown_called()
 
   def test_non_liftable_combine(self):

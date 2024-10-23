@@ -627,9 +627,7 @@ public class BigQueryIO {
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
-      DEFAULT_AVRO_SCHEMA_FACTORY =
-          (SerializableFunction<TableSchema, org.apache.avro.Schema>)
-              input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
+      DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -793,8 +791,7 @@ public class BigQueryIO {
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
-      return BigQueryAvroUtils.convertGenericRecordToTableRow(
-          schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(schemaAndRecord.getRecord());
     }
   }
 
@@ -1275,8 +1272,12 @@ public class BigQueryIO {
 
       Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchema = sourceDef.getBeamSchema(bqOptions);
-        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
+        TableSchema tableSchema = sourceDef.getTableSchema(bqOptions);
+        ValueProvider<List<String>> selectedFields = getSelectedFields();
+        if (selectedFields != null && selectedFields.isAccessible()) {
+          tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFields.get());
+        }
+        beamSchema = BigQueryUtils.fromTableSchema(tableSchema);
       }
 
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
@@ -1439,24 +1440,6 @@ public class BigQueryIO {
             getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
-    }
-
-    private static Schema getFinalSchema(
-        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
-      List<Schema.Field> flds =
-          beamSchema.getFields().stream()
-              .filter(
-                  field -> {
-                    if (selectedFields != null
-                        && selectedFields.isAccessible()
-                        && selectedFields.get() != null) {
-                      return selectedFields.get().contains(field.getName());
-                    } else {
-                      return true;
-                    }
-                  })
-              .collect(Collectors.toList());
-      return Schema.builder().addFields(flds).build();
     }
 
     private PCollection<T> expandForDirectRead(
@@ -2276,6 +2259,7 @@ public class BigQueryIO {
         .withFormatFunction(RowMutation::getTableRow)
         .withRowMutationInformationFn(RowMutation::getMutationInformation);
   }
+
   /**
    * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
    * GenericRecords} to a BigQuery table.
@@ -2384,8 +2368,10 @@ public class BigQueryIO {
     abstract WriteDisposition getWriteDisposition();
 
     abstract Set<SchemaUpdateOption> getSchemaUpdateOptions();
+
     /** Table description. Default is empty. */
     abstract @Nullable String getTableDescription();
+
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
 
@@ -3472,7 +3458,10 @@ public class BigQueryIO {
         LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
       }
       if (getRowMutationInformationFn() != null) {
-        checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
+        checkArgument(
+            getMethod() == Method.STORAGE_API_AT_LEAST_ONCE,
+            "When using row updates on BigQuery, StorageWrite API should execute using"
+                + " \"at least once\" mode.");
         checkArgument(
             getCreateDisposition() == CreateDisposition.CREATE_NEVER || getPrimaryKey() != null,
             "If specifying CREATE_IF_NEEDED along with row updates, a primary key needs to be specified");

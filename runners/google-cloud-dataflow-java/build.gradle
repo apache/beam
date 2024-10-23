@@ -51,8 +51,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20240718'
-ext.dataflowFnapiContainerVersion = 'beam-master-20240718'
+ext.dataflowLegacyContainerVersion = 'beam-master-20240930'
+ext.dataflowFnapiContainerVersion = 'beam-master-20240930'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -185,7 +185,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesTestStream',
-  'org.apache.beam.sdk.testing.UsesParDoLifecycle',
+  'org.apache.beam.sdk.testing.UsesParDoLifecycle', // doesn't support remote runner
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesBundleFinalizer',
 ]

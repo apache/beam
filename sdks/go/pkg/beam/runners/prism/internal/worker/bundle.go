@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
-	"golang.org/x/exp/slog"
 )
 
 // SideInputKey is for data lookups for a given bundle.
@@ -204,6 +204,17 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Lock()
 	delete(wk.activeInstructions, b.InstID)
 	wk.mu.Unlock()
+}
+
+func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_FinalizeBundle{
+			FinalizeBundle: &fnpb.FinalizeBundleRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
+	return resp.GetFinalizeBundle(), nil
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.

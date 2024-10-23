@@ -157,10 +157,20 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    */
   protected abstract String getScheme();
 
+  public enum LineageLevel {
+    FILE,
+    TOP_LEVEL
+  }
+
+  /** Report {@link Lineage} metrics for resource id at file level. */
+  protected void reportLineage(ResourceIdT resourceId, Lineage lineage) {
+    reportLineage(resourceId, lineage, LineageLevel.FILE);
+  }
+
   /**
-   * Report {@link Lineage} metrics for resource id.
+   * Report {@link Lineage} metrics for resource id to a given level.
    *
    * <p>Unless override by FileSystem implementations, default to no-op.
    */
-  protected void reportLineage(ResourceIdT unusedId, Lineage unusedLineage) {}
+  protected void reportLineage(ResourceIdT unusedId, Lineage unusedLineage, LineageLevel level) {}
 }

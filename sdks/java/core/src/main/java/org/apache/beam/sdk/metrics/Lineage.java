@@ -55,8 +55,11 @@ public class Lineage {
    *
    * <p>Specifically, If there are reserved chars (colon, whitespace, dot), escape with backtick. If
    * the segment is already wrapped, return the original.
+   *
+   * <p>This helper method is for internal and testing usage only.
    */
-  private static String wrapSegment(String value) {
+  @Internal
+  public static String wrapSegment(String value) {
     if (value.startsWith("`") && value.endsWith("`")) {
       return value;
     }
@@ -72,7 +75,7 @@ public class Lineage {
    *
    * <ul>
    *   <li>{@code system:segment1.segment2}
-   *   <li>{@code system:routine:segment1.segment2}
+   *   <li>{@code system:subtype:segment1.segment2}
    *   <li>{@code system:`segment1.with.dots:clons`.segment2}
    * </ul>
    *
@@ -80,10 +83,10 @@ public class Lineage {
    */
   @Internal
   public static String getFqName(
-      String system, @Nullable String routine, Iterable<String> segments) {
+      String system, @Nullable String subtype, Iterable<String> segments) {
     StringBuilder builder = new StringBuilder(system);
-    if (!Strings.isNullOrEmpty(routine)) {
-      builder.append(":").append(routine);
+    if (!Strings.isNullOrEmpty(subtype)) {
+      builder.append(":").append(subtype);
     }
     int idx = 0;
     for (String segment : segments) {
@@ -111,8 +114,8 @@ public class Lineage {
   /**
    * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link #getFqName}.
    */
-  public void add(String system, @Nullable String routine, Iterable<String> segments) {
-    metric.add(getFqName(system, routine, segments));
+  public void add(String system, @Nullable String subtype, Iterable<String> segments) {
+    add(getFqName(system, subtype, segments));
   }
 
   /**
@@ -120,6 +123,14 @@ public class Lineage {
    */
   public void add(String system, Iterable<String> segments) {
     add(system, null, segments);
+  }
+
+  /**
+   * Adds the given details as Lineage. For asset level lineage the resource location should be
+   * specified as Dataplex FQN https://cloud.google.com/data-catalog/docs/fully-qualified-names
+   */
+  public void add(String details) {
+    metric.add(details);
   }
 
   /** Query {@link StringSet} metrics from {@link MetricResults}. */

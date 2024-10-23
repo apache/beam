@@ -50,12 +50,12 @@ env:
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-py-pardo-flink-stream-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
-  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-1.15.0/flink-1.15.0-bin-scala_2.12.tgz
+  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-1.17.0/flink-1.17.0-bin-scala_2.12.tgz
   HADOOP_DOWNLOAD_URL: https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
   FLINK_TASKMANAGER_SLOTS: 1
   DETACHED_MODE: true
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
-  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.15_job_server:latest
+  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-loadtests-python-pardo-flink-stream-${{ github.run_id }}
 
 jobs:
@@ -111,7 +111,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Streaming_test_arguments_1 }} --job_name=load-tests-python-flink-streaming-pardo-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Flink Streaming Python Load Test 2 (200 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -120,7 +120,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Streaming_test_arguments_2 }} --job_name=load-tests-python-flink-streaming-pardo-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Flink Streaming Python Load Test 3 (10 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -129,7 +129,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Streaming_test_arguments_3 }} --job_name=load-tests-python-flink-streaming-pardo-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Flink Streaming Python Load Test 4 (100 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -138,7 +138,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Streaming_test_arguments_4 }} --job_name=load-tests-python-flink-streaming-pardo-4-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Flink Streaming Python Load Test 5 (5 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -147,7 +147,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Streaming_test_arguments_5 }} --job_name=load-tests-python-flink-streaming-pardo-6-${{ steps.datetime.outputs.datetime }}' \
       - name: Teardown Flink
         if: always()

@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.io.gcp.testing;
 
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
@@ -51,12 +53,24 @@ class TableContainer {
     this.keyedRows = Maps.newHashMap();
     this.ids = new ArrayList<>();
     this.sizeBytes = 0L;
+    // extract primary key information from Table if present
+    List<String> pkColumns = primaryKeyColumns(table);
+    this.primaryKeyColumns = pkColumns;
+    this.primaryKeyColumnIndices = primaryColumnFieldIndices(pkColumns, table);
   }
 
-  // Only top-level columns supported.
-  void setPrimaryKeyColumns(List<String> primaryKeyColumns) {
-    this.primaryKeyColumns = primaryKeyColumns;
+  static @Nullable List<String> primaryKeyColumns(Table table) {
+    return Optional.ofNullable(table.getTableConstraints())
+        .flatMap(constraints -> Optional.ofNullable(constraints.getPrimaryKey()))
+        .map(TableConstraints.PrimaryKey::getColumns)
+        .orElse(null);
+  }
 
+  static @Nullable List<Integer> primaryColumnFieldIndices(
+      @Nullable List<String> primaryKeyColumns, Table table) {
+    if (primaryKeyColumns == null) {
+      return null;
+    }
     Map<String, Integer> indices =
         IntStream.range(0, table.getSchema().getFields().size())
             .boxed()
@@ -65,7 +79,13 @@ class TableContainer {
     for (String columnName : primaryKeyColumns) {
       primaryKeyColumnIndices.add(Preconditions.checkStateNotNull(indices.get(columnName)));
     }
-    this.primaryKeyColumnIndices = primaryKeyColumnIndices;
+    return primaryKeyColumnIndices;
+  }
+
+  // Only top-level columns supported.
+  void setPrimaryKeyColumns(List<String> primaryKeyColumns) {
+    this.primaryKeyColumns = primaryKeyColumns;
+    this.primaryKeyColumnIndices = primaryColumnFieldIndices(primaryKeyColumns, table);
   }
 
   @Nullable
@@ -80,7 +100,7 @@ class TableContainer {
               .stream()
                   .map(cell -> Preconditions.checkStateNotNull(cell.get("v")))
                   .collect(Collectors.toList());
-      ;
+
       return Preconditions.checkStateNotNull(primaryKeyColumnIndices).stream()
           .map(cellValues::get)
           .collect(Collectors.toList());
@@ -91,7 +111,7 @@ class TableContainer {
 
   long addRow(TableRow row, String id) {
     List<Object> primaryKey = getPrimaryKey(row);
-    if (primaryKey != null) {
+    if (primaryKey != null && !primaryKey.isEmpty()) {
       if (keyedRows.putIfAbsent(primaryKey, row) != null) {
         throw new RuntimeException(
             "Primary key validation error! Multiple inserts with the same primary key.");

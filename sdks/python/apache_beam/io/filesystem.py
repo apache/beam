@@ -933,3 +933,15 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       ``BeamIOError``: if any of the delete operations fail
     """
     raise NotImplementedError
+
+  class LineageLevel:
+    FILE = 'FILE'
+    TOP_LEVEL = 'TOP_LEVEL'
+
+  def report_lineage(self, path, unused_lineage, level=None):
+    """
+    Report Lineage metrics for path.
+
+    Unless override by FileSystem implementations, default to no-op.
+    """
+    pass

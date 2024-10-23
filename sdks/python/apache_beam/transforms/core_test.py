@@ -30,6 +30,8 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import FixedWindows
 
+RETURN_NONE_PARTIAL_WARNING = "No iterator is returned"
+
 
 class TestDoFn1(beam.DoFn):
   def process(self, element):
@@ -96,6 +98,24 @@ class TestDoFn9(beam.DoFn):
     yield element
 
 
+class TestDoFn10(beam.DoFn):
+  """test process returning None explicitly"""
+  def process(self, element):
+    return None
+
+
+class TestDoFn11(beam.DoFn):
+  """test process returning None (no return and no yield)"""
+  def process(self, element):
+    pass
+
+
+class TestDoFn12(beam.DoFn):
+  """test process returning None (return statement without a value)"""
+  def process(self, element):
+    return
+
+
 class CreateTest(unittest.TestCase):
   @pytest.fixture(autouse=True)
   def inject_fixtures(self, caplog):
@@ -118,6 +138,24 @@ class CreateTest(unittest.TestCase):
     with self._caplog.at_level(logging.WARNING):
       beam.ParDo(TestDoFn3())
       assert warning_text in self._caplog.text
+
+  def test_dofn_with_explicit_return_none(self):
+    with self._caplog.at_level(logging.WARNING):
+      beam.ParDo(TestDoFn10())
+      assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
+      assert str(TestDoFn10) in self._caplog.text
+
+  def test_dofn_with_implicit_return_none_missing_return_and_yield(self):
+    with self._caplog.at_level(logging.WARNING):
+      beam.ParDo(TestDoFn11())
+      assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
+      assert str(TestDoFn11) in self._caplog.text
+
+  def test_dofn_with_implicit_return_none_return_without_value(self):
+    with self._caplog.at_level(logging.WARNING):
+      beam.ParDo(TestDoFn12())
+      assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
+      assert str(TestDoFn12) in self._caplog.text
 
 
 class PartitionTest(unittest.TestCase):
