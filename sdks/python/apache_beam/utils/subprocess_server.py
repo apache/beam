@@ -266,7 +266,13 @@ class JavaJarServer(SubprocessServer):
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
-  def __init__(self, stub_class, path_to_jar, java_arguments, classpath=None, cache_dir=None):
+  def __init__(
+      self,
+      stub_class,
+      path_to_jar,
+      java_arguments,
+      classpath=None,
+      cache_dir=None):
     if classpath:
       # java -jar ignores the classpath, so we make a new jar that embeds
       # the requested classpath.
