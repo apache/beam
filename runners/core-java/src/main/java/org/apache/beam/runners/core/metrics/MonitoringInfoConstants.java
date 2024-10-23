@@ -66,7 +66,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_COUNT);
     public static final String API_REQUEST_LATENCIES =
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_LATENCIES);
-
+    public static final String PER_WORKER_METRIC =
+        extractUrn(MonitoringInfoSpecs.Enum.PER_WORKER_METRIC);
     static {
       // Validate that compile time constants match the values stored in the protos.
       // Defining these as constants allows for usage in switch case statements and also
