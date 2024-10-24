@@ -20,7 +20,7 @@
 // directory.
 module github.com/apache/beam/sdks/v2
 
-go 1.21.0
+go 1.21.13
 
 require (
 	cloud.google.com/go/bigquery v1.63.1
