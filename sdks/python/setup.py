@@ -512,14 +512,8 @@ if __name__ == '__main__':
           ],
           'dataframe': dataframe_dependency,
           'dask': [
-              # FIXME(cisaacstern): The git+ link below is a fix for
-              # https://github.com/apache/beam/issues/29365. Installing from
-              # here to move forward with development. Before merge, this
-              # should be replaced with a lower bound release of `dask` that
-              # includes https://github.com/dask/dask/pull/10734.
-              # 'dask >= 2024.XX.X',
-              # 'distributed >= 2024.XX.X',
-              'dask @ git+https://github.com/cisaacstern/dask.git@tokenize-bag-groupby-key',  # pylint: disable=line-too-long
+              'distributed >= 2024.4.2',
+              'dask >= 2024.4.2',
               # For development, 'distributed >= 2023.12.1' should work with
               # the above dask PR, however it can't be installed as part of
               # a single `pip` call, since distributed releases are pinned to
