@@ -543,8 +543,8 @@ task mockAPITests {
 }
 
 // add all RunInference E2E tests that run on DataflowRunner
-// As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
-// contains Python 3.8.
+// As of now, this test suite is enable in py310 suite as the base NVIDIA image used for Tensor RT
+// contains Python 3.10.
 // TODO: https://github.com/apache/beam/issues/22651
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
