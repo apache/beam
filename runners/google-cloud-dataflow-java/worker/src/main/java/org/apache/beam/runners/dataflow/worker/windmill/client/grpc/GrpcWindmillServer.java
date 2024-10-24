@@ -330,29 +330,50 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("CommitWork"));
   }
 
+  /**
+   * @implNote Returns a {@link GetWorkStream} in the started state (w/ the initial header already
+   *     sent).
+   */
   @Override
   public GetWorkStream getWorkStream(GetWorkRequest request, WorkItemReceiver receiver) {
-    return windmillStreamFactory.createGetWorkStream(
-        dispatcherClient.getWindmillServiceStub(),
-        GetWorkRequest.newBuilder(request)
-            .setJobId(options.getJobId())
-            .setProjectId(options.getProject())
-            .setWorkerId(options.getWorkerId())
-            .build(),
-        throttleTimers.getWorkThrottleTimer(),
-        receiver);
+    GetWorkStream getWorkStream =
+        windmillStreamFactory.createGetWorkStream(
+            dispatcherClient.getWindmillServiceStub(),
+            GetWorkRequest.newBuilder(request)
+                .setJobId(options.getJobId())
+                .setProjectId(options.getProject())
+                .setWorkerId(options.getWorkerId())
+                .build(),
+            throttleTimers.getWorkThrottleTimer(),
+            receiver);
+    getWorkStream.start();
+    return getWorkStream;
   }
 
+  /**
+   * @implNote Returns a {@link GetDataStream} in the started state (w/ the initial header already
+   *     sent).
+   */
   @Override
   public GetDataStream getDataStream() {
-    return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+    GetDataStream getDataStream =
+        windmillStreamFactory.createGetDataStream(
+            dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+    getDataStream.start();
+    return getDataStream;
   }
 
+  /**
+   * @implNote Returns a {@link CommitWorkStream} in the started state (w/ the initial header
+   *     already sent).
+   */
   @Override
   public CommitWorkStream commitWorkStream() {
-    return windmillStreamFactory.createCommitWorkStream(
-        dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+    CommitWorkStream commitWorkStream =
+        windmillStreamFactory.createCommitWorkStream(
+            dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+    commitWorkStream.start();
+    return commitWorkStream;
   }
 
   @Override

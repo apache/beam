@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -115,6 +116,7 @@ public class GrpcWindmillServerTest {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
+  private final Set<ManagedChannel> openedChannels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -131,16 +133,18 @@ public class GrpcWindmillServerTest {
   @After
   public void tearDown() throws Exception {
     server.shutdownNow();
+    openedChannels.forEach(ManagedChannel::shutdownNow);
   }
 
   private void startServerAndClient(List<String> experiments) throws Exception {
     String name = "Fake server for " + getClass();
     this.server =
-        InProcessServerBuilder.forName(name)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .executor(Executors.newFixedThreadPool(1))
-            .build()
-            .start();
+        grpcCleanup.register(
+            InProcessServerBuilder.forName(name)
+                .fallbackHandlerRegistry(serviceRegistry)
+                .executor(Executors.newFixedThreadPool(1))
+                .build()
+                .start());
 
     this.client =
         GrpcWindmillServer.newTestInstance(
@@ -149,7 +153,12 @@ public class GrpcWindmillServerTest {
             clientId,
             new FakeWindmillStubFactoryFactory(
                 new FakeWindmillStubFactory(
-                    () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name)))));
+                    () -> {
+                      ManagedChannel channel =
+                          grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name));
+                      openedChannels.add(channel);
+                      return channel;
+                    })));
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
