@@ -31,9 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Flink runner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FlinkJobServerDriver extends JobServerDriver {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobServerDriver.class);
@@ -59,7 +56,7 @@ public class FlinkJobServerDriver extends JobServerDriver {
             "Directory containing Flink YAML configuration files. "
                 + "These properties will be set to all jobs submitted to Flink and take precedence "
                 + "over configurations in FLINK_CONF_DIR.")
-    private String flinkConfDir = null;
+    private @Nullable String flinkConfDir = null;
 
     @Nullable
     String getFlinkConfDir() {
