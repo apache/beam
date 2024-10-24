@@ -119,7 +119,7 @@ def sickbayTests = [
     // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
     // Likely due to prism't coder changes.
     'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
-    
+
     // java.lang.IllegalStateException: Output with tag Tag<output> must have a schema in order to call getRowReceiver
     // Ultimately because getRoeReceiver code path SDK side isn't friendly to LengthPrefix wrapping of row coders.
     // https://github.com/apache/beam/issues/32931
@@ -177,14 +177,14 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
-    
+
     // Timer race condition/ordering issue in Prism.
     'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded',
 
     // Missing output due to timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
-    // TestStream + BundleFinalization. 
+    // TestStream + BundleFinalization.
     // Tests seem to assume individual element bundles from test stream, but prism will aggregate them, preventing
     // a subsequent firing. Tests ultimately hang until timeout.
     // Either a test problem, or a misunderstanding of how test stream must work problem in prism.
