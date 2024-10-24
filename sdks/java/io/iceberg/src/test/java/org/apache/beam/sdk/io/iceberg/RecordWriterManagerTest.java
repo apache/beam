@@ -19,14 +19,20 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -40,6 +46,8 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -77,9 +85,14 @@ public class RecordWriterManagerTest {
 
   private WindowedValue<IcebergDestination> getWindowedDestination(
       String tableName, @Nullable PartitionSpec partitionSpec) {
+    return getWindowedDestination(tableName, ICEBERG_SCHEMA, partitionSpec);
+  }
+
+  private WindowedValue<IcebergDestination> getWindowedDestination(
+      String tableName, org.apache.iceberg.Schema schema, @Nullable PartitionSpec partitionSpec) {
     TableIdentifier tableIdentifier = TableIdentifier.of("default", tableName);
 
-    warehouse.createTable(tableIdentifier, ICEBERG_SCHEMA, partitionSpec);
+    warehouse.createTable(tableIdentifier, schema, partitionSpec);
 
     IcebergDestination icebergDestination =
         IcebergDestination.builder()
@@ -287,8 +300,9 @@ public class RecordWriterManagerTest {
     DataFile datafile = writer.getDataFile();
     assertEquals(2L, datafile.recordCount());
 
+    String partitionPath = IcebergUtils.resolvePartitionPath(partitionKey.toPath(), PARTITION_SPEC);
     DataFile roundTripDataFile =
-        SerializableDataFile.from(datafile, partitionKey).createDataFile(PARTITION_SPEC);
+        SerializableDataFile.from(datafile, partitionPath).createDataFile(PARTITION_SPEC);
     // DataFile doesn't implement a .equals() method. Check equality manually
     assertEquals(datafile.path(), roundTripDataFile.path());
     assertEquals(datafile.format(), roundTripDataFile.format());
@@ -305,5 +319,195 @@ public class RecordWriterManagerTest {
     assertEquals(datafile.fileSequenceNumber(), roundTripDataFile.fileSequenceNumber());
     assertEquals(datafile.dataSequenceNumber(), roundTripDataFile.dataSequenceNumber());
     assertEquals(datafile.pos(), roundTripDataFile.pos());
+  }
+
+  @Test
+  public void testIdentityPartitioning() throws IOException {
+    Schema primitiveTypeSchema =
+        Schema.builder()
+            .addBooleanField("bool")
+            .addInt32Field("int")
+            .addInt64Field("long")
+            .addFloatField("float")
+            .addDoubleField("double")
+            .addStringField("str")
+            .build();
+
+    Row row =
+        Row.withSchema(primitiveTypeSchema).addValues(true, 1, 1L, 1.23f, 4.56, "str").build();
+    org.apache.iceberg.Schema icebergSchema =
+        IcebergUtils.beamSchemaToIcebergSchema(primitiveTypeSchema);
+    PartitionSpec spec =
+        PartitionSpec.builderFor(icebergSchema)
+            .identity("bool")
+            .identity("int")
+            .identity("long")
+            .identity("float")
+            .identity("double")
+            .identity("str")
+            .build();
+    WindowedValue<IcebergDestination> dest =
+        getWindowedDestination("identity_partitioning", icebergSchema, spec);
+
+    RecordWriterManager writer =
+        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+    writer.write(dest, row);
+    writer.close();
+    List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
+    assertEquals(1, files.size());
+    SerializableDataFile dataFile = files.get(0);
+    assertEquals(1, dataFile.getRecordCount());
+    // build this string: bool=true/int=1/long=1/float=1.0/double=1.0/str=str
+    List<String> expectedPartitions = new ArrayList<>();
+    for (Schema.Field field : primitiveTypeSchema.getFields()) {
+      Object val = row.getValue(field.getName());
+      expectedPartitions.add(field.getName() + "=" + val);
+    }
+    String expectedPartitionPath = String.join("/", expectedPartitions);
+    assertEquals(expectedPartitionPath, dataFile.getPartitionPath());
+    assertThat(dataFile.getPath(), containsString(expectedPartitionPath));
+  }
+
+  @Test
+  public void testBucketPartitioning() throws IOException {
+    Schema bucketSchema =
+        Schema.builder()
+            .addInt32Field("int")
+            .addInt64Field("long")
+            .addStringField("str")
+            .addLogicalTypeField("date", SqlTypes.DATE)
+            .addLogicalTypeField("time", SqlTypes.TIME)
+            .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+            .addDateTimeField("datetime_tz")
+            .build();
+
+    String timestamp = "2024-10-08T13:18:20.053";
+    LocalDateTime localDateTime = LocalDateTime.parse(timestamp);
+
+    Row row =
+        Row.withSchema(bucketSchema)
+            .addValues(
+                1,
+                1L,
+                "str",
+                localDateTime.toLocalDate(),
+                localDateTime.toLocalTime(),
+                localDateTime,
+                DateTime.parse(timestamp))
+            .build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(bucketSchema);
+    PartitionSpec spec =
+        PartitionSpec.builderFor(icebergSchema)
+            .bucket("int", 2)
+            .bucket("long", 2)
+            .bucket("str", 2)
+            .bucket("date", 2)
+            .bucket("time", 2)
+            .bucket("datetime", 2)
+            .bucket("datetime_tz", 2)
+            .build();
+    WindowedValue<IcebergDestination> dest =
+        getWindowedDestination("bucket_partitioning", icebergSchema, spec);
+
+    RecordWriterManager writer =
+        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+    writer.write(dest, row);
+    writer.close();
+    List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
+    assertEquals(1, files.size());
+    SerializableDataFile dataFile = files.get(0);
+    assertEquals(1, dataFile.getRecordCount());
+    for (Schema.Field field : bucketSchema.getFields()) {
+      String expectedPartition = field.getName() + "_bucket";
+      assertThat(dataFile.getPartitionPath(), containsString(expectedPartition));
+      assertThat(dataFile.getPath(), containsString(expectedPartition));
+    }
+  }
+
+  @Test
+  public void testTimePartitioning() throws IOException {
+    Schema timePartitioningSchema =
+        Schema.builder()
+            .addLogicalTypeField("y_date", SqlTypes.DATE)
+            .addLogicalTypeField("y_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("y_datetime_tz")
+            .addLogicalTypeField("m_date", SqlTypes.DATE)
+            .addLogicalTypeField("m_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("m_datetime_tz")
+            .addLogicalTypeField("d_date", SqlTypes.DATE)
+            .addLogicalTypeField("d_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("d_datetime_tz")
+            .addLogicalTypeField("h_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("h_datetime_tz")
+            .build();
+    org.apache.iceberg.Schema icebergSchema =
+        IcebergUtils.beamSchemaToIcebergSchema(timePartitioningSchema);
+    PartitionSpec spec =
+        PartitionSpec.builderFor(icebergSchema)
+            .year("y_date")
+            .year("y_datetime")
+            .year("y_datetime_tz")
+            .month("m_date")
+            .month("m_datetime")
+            .month("m_datetime_tz")
+            .day("d_date")
+            .day("d_datetime")
+            .day("d_datetime_tz")
+            .hour("h_datetime")
+            .hour("h_datetime_tz")
+            .build();
+
+    WindowedValue<IcebergDestination> dest =
+        getWindowedDestination("time_partitioning", icebergSchema, spec);
+
+    String timestamp = "2024-10-08T13:18:20.053";
+    LocalDateTime localDateTime = LocalDateTime.parse(timestamp);
+    LocalDate localDate = localDateTime.toLocalDate();
+    String timestamptz = "2024-10-08T13:18:20.053+03:27";
+    DateTime dateTime = DateTime.parse(timestamptz);
+
+    Row row =
+        Row.withSchema(timePartitioningSchema)
+            .addValues(localDate, localDateTime, dateTime) // year
+            .addValues(localDate, localDateTime, dateTime) // month
+            .addValues(localDate, localDateTime, dateTime) // day
+            .addValues(localDateTime, dateTime) // hour
+            .build();
+
+    // write some rows
+    RecordWriterManager writer =
+        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+    writer.write(dest, row);
+    writer.close();
+    List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
+    assertEquals(1, files.size());
+    SerializableDataFile serializableDataFile = files.get(0);
+    assertEquals(1, serializableDataFile.getRecordCount());
+
+    int year = localDateTime.getYear();
+    int month = localDateTime.getMonthValue();
+    int day = localDateTime.getDayOfMonth();
+    int hour = localDateTime.getHour();
+    List<String> expectedPartitions = new ArrayList<>();
+    for (Schema.Field field : timePartitioningSchema.getFields()) {
+      String name = field.getName();
+      String expected = "";
+      if (name.startsWith("y_")) {
+        expected = String.format("%s_year=%s", name, year);
+      } else if (name.startsWith("m_")) {
+        expected = String.format("%s_month=%s-%02d", name, year, month);
+      } else if (name.startsWith("d_")) {
+        expected = String.format("%s_day=%s-%02d-%02d", name, year, month, day);
+      } else if (name.startsWith("h_")) {
+        if (name.contains("tz")) {
+          hour = dateTime.withZone(DateTimeZone.UTC).getHourOfDay();
+        }
+        expected = String.format("%s_hour=%s-%02d-%02d-%02d", name, year, month, day, hour);
+      }
+      expectedPartitions.add(expected);
+    }
+    String expectedPartition = String.join("/", expectedPartitions);
+    DataFile dataFile = serializableDataFile.createDataFile(spec);
+    assertThat(dataFile.path().toString(), containsString(expectedPartition));
   }
 }
