@@ -53,17 +53,11 @@ configurations {
 }
 
 dependencies {
-  implementation project(path: ":model:job-management", configuration: "shadow")
-  implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(":runners:java-fn-execution")
-  implementation project(":runners:java-job-service")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(path: ":sdks:java:harness", configuration: "shadow")
   implementation library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
 
   testImplementation library.java.hamcrest
@@ -76,16 +70,8 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
-
-// Set using -PjobEndpoint=, for example: -PjobEndpoint=localhost:8073
-def jobEndpointPropertyName = "jobEndpoint"
-def jobPortPropertyName = "18073"
-
 project.evaluationDependsOn(":sdks:java:core")
-project.evaluationDependsOn(":sdks:python")
 project.evaluationDependsOn(":runners:core-java")
-
-ext.pythonSdkDir = project.findProject(":sdks:python").getProjectDir().getAbsoluteFile().toString()
 
 def sickbayTests = [
 
@@ -101,7 +87,6 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
   Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
     description "PrismRunner Java $environmentType ValidatesRunner suite"
     classpath = configurations.validatesRunner
-    var jobEndpointOption = "--$jobEndpointPropertyName=localhost:$jobPortPropertyName"
 
     var prismBuildTask = dependsOn(':runners:prism:build')
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
