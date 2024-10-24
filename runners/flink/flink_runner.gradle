@@ -240,7 +240,7 @@ dependencies {
   }
   implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202402051707167466"
   implementation "com.lyft:streamingplatform-kinesis:2.4.1-20240509.163625-9"
-  implementation ("com.lyft:streamingplatform-kafka-2.5.1-TEST-20240815.231453-3") {
+  implementation ("com.lyft:streamingplatform-kafka:2.4.1-20240509.163625-9") {
     exclude group: "org.apache.flink", module: "flink-connector-kafka"
     exclude group: "org.apache.flink", module: "flink-streaming-java"
   }
