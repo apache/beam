@@ -64,5 +64,5 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   @Default.String("warn")
   String getPrismLogLevel();
 
-  void setPrismLogLevel(String idleShutdownTimeout);
+  void setPrismLogLevel(String prismLogLevel);
 }
