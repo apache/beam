@@ -209,7 +209,7 @@ def sickbayTests = [
  * Runs Java ValidatesRunner tests against the Prism Runner
  * with the specified environment type.
  */
-def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = "" ->
+def createPrismValidatesRunnerTask = { name, environmentType ->
   Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
     description "PrismRunner Java $environmentType ValidatesRunner suite"
     classpath = configurations.validatesRunner
@@ -234,8 +234,6 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       // https://github.com/apache/beam/issues/32929
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-      // https://github.com/apache/beam/issues/31438 (triggerrs generally)
-      // excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
 
        // Not supported in Portable Java SDK yet.
        // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
@@ -251,14 +249,6 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
         }
     }
   }
-
-  if (environmentType == "DOCKER") {
-    if(dockerImageTask.isEmpty()) {
-      throw new StopExecutionException("dockerImageTask is required for a Docker environment test task");
-    }
-    vrTask.dependsOn dockerImageTask
-  }
-
   return vrTask
 }
 
@@ -286,7 +276,8 @@ tasks.register("validatesRunnerSickbay", Test) {
 }
 
 task prismDockerValidatesRunner {
-  dependsOn createPrismValidatesRunnerTask("prismDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:java8:docker")
+  Task vrTask = createPrismValidatesRunnerTask("prismDockerValidatesRunnerTests", "DOCKER")
+  vrTask.dependsOn ":sdks:java:container:java8:docker"
 }
 
 task prismLoopbackValidatesRunner {
