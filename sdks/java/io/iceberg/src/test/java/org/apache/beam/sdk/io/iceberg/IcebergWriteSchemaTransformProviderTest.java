@@ -23,14 +23,19 @@ import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -49,12 +54,16 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
@@ -359,5 +368,94 @@ public class IcebergWriteSchemaTransformProviderTest {
       assertEquals(operation, row.getString("operation"));
       return null;
     }
+  }
+
+  @Test
+  public void testWritePartitionedData() {
+    Schema schema =
+        Schema.builder()
+            .addStringField("str")
+            .addInt32Field("int")
+            .addLogicalTypeField("y_date", SqlTypes.DATE)
+            .addLogicalTypeField("y_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("y_datetime_tz")
+            .addLogicalTypeField("m_date", SqlTypes.DATE)
+            .addLogicalTypeField("m_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("m_datetime_tz")
+            .addLogicalTypeField("d_date", SqlTypes.DATE)
+            .addLogicalTypeField("d_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("d_datetime_tz")
+            .addLogicalTypeField("h_datetime", SqlTypes.DATETIME)
+            .addDateTimeField("h_datetime_tz")
+            .build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    PartitionSpec spec =
+        PartitionSpec.builderFor(icebergSchema)
+            .identity("str")
+            .bucket("int", 5)
+            .year("y_date")
+            .year("y_datetime")
+            .year("y_datetime_tz")
+            .month("m_date")
+            .month("m_datetime")
+            .month("m_datetime_tz")
+            .day("d_date")
+            .day("d_datetime")
+            .day("d_datetime_tz")
+            .hour("h_datetime")
+            .hour("h_datetime_tz")
+            .build();
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+
+    warehouse.createTable(TableIdentifier.parse(identifier), icebergSchema, spec);
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location));
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 0; i < 30; i++) {
+      long millis = i * 100_00_000_000L;
+      LocalDate localDate = DateTimeUtil.dateFromDays(i * 100);
+      LocalDateTime localDateTime = DateTimeUtil.timestampFromMicros(millis * 1000);
+      DateTime dateTime = new DateTime(millis).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25));
+      Row row =
+          Row.withSchema(schema)
+              .addValues(
+                  "str_" + i,
+                  i,
+                  localDate,
+                  localDateTime,
+                  dateTime,
+                  localDate,
+                  localDateTime,
+                  dateTime,
+                  localDate,
+                  localDateTime,
+                  dateTime,
+                  localDateTime,
+                  dateTime)
+              .build();
+      rows.add(row);
+    }
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PCollection<Row> readRows =
+        p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(readRows).containsInAnyOrder(rows);
+    p.run();
   }
 }

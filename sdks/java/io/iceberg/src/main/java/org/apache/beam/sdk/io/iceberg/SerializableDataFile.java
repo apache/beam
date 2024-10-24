@@ -115,13 +115,14 @@ abstract class SerializableDataFile {
    * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
    * PartitionKey}.
    */
-  static SerializableDataFile from(DataFile f, PartitionKey key) {
+  static SerializableDataFile from(DataFile f, String partitionPath) {
+
     return SerializableDataFile.builder()
         .setPath(f.path().toString())
         .setFileFormat(f.format().toString())
         .setRecordCount(f.recordCount())
         .setFileSizeInBytes(f.fileSizeInBytes())
-        .setPartitionPath(key.toPath())
+        .setPartitionPath(partitionPath)
         .setPartitionSpecId(f.specId())
         .setKeyMetadata(f.keyMetadata())
         .setSplitOffsets(f.splitOffsets())
