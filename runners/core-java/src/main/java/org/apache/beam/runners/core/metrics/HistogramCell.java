@@ -62,6 +62,13 @@ public class HistogramCell
     dirty.afterModification();
   }
 
+  /** Update it by another Histogram Data. */
+  @Override
+  public void update(HistogramData data) {
+    this.value.update(data);
+    dirty.afterModification();
+  }
+
   /**
    * Increment all of the bucket counts in this histogram, by the bucket counts specified in other.
    */

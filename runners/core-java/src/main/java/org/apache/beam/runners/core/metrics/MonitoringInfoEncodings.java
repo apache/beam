@@ -17,25 +17,44 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.dataflow.model.BucketOptions;
+import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+// import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions.Base2Exponent;
+// import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions.Linear;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.lang.reflect.Method;
+
+// TODO Refactor out DataflowHistogramValue to be runner agnostic.
 
 /** A set of functions used to encode and decode common monitoring info types. */
 public class MonitoringInfoEncodings {
+  private static final Logger LOG = LoggerFactory.getLogger(MonitoringInfoEncodings.class);
+
   private static final Coder<Long> VARINT_CODER = VarLongCoder.of();
   private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
-  private static final IterableCoder<String> STRING_SET_CODER =
-      IterableCoder.of(StringUtf8Coder.of());
+  private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
+  private static final IterableCoder<String> STRING_SET_CODER = IterableCoder.of(STRING_CODER);
 
   /** Encodes to {@link MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}. */
   public static ByteString encodeInt64Distribution(DistributionData data) {
@@ -45,10 +64,121 @@ public class MonitoringInfoEncodings {
       VARINT_CODER.encode(data.sum(), output);
       VARINT_CODER.encode(data.min(), output);
       VARINT_CODER.encode(data.max(), output);
-    } catch (IOException e) {
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
     return output.toByteString();
+  }
+
+  /** Encodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  // encode specific fields from histogramData in DataflowHistogramValue
+  public static ByteString encodeInt64Histogram(HistogramData inputHistogram) {
+    LOG.info("Xxx: data {}", inputHistogram.getPercentileString("poll latency", "seconds"));
+    try {
+      int numberOfBuckets = inputHistogram.getBucketType().getNumBuckets();
+ 
+      // try with new proto:, and add outlier stats as well.
+      DataflowHistogramValue outputHistogram2 = new DataflowHistogramValue();
+      LOG.info(" before buckets are inserted {}", outputHistogram2.toPrettyString());
+      // refactor out different bucket types?
+      if (inputHistogram.getBucketType() instanceof HistogramData.LinearBuckets) {
+        LOG.info("xxx linear buckets");
+        HistogramData.LinearBuckets buckets =
+            (HistogramData.LinearBuckets) inputHistogram.getBucketType();
+        com.google.api.services.dataflow.model.Linear linear =
+            new com.google.api.services.dataflow.model.Linear();
+        linear.setNumberOfBuckets(numberOfBuckets);
+        linear.setWidth(buckets.getWidth());
+        linear.setStart(buckets.getStart());
+        // set null value to help with parsing in decoding step
+        outputHistogram2.setBucketOptions(new BucketOptions().setLinear(linear));
+      } else if (inputHistogram.getBucketType() instanceof HistogramData.ExponentialBuckets) {
+        LOG.info("xxx exp buckets");
+        HistogramData.ExponentialBuckets buckets =
+            (HistogramData.ExponentialBuckets) inputHistogram.getBucketType();
+        com.google.api.services.dataflow.model.Base2Exponent base2Exp =
+            new com.google.api.services.dataflow.model.Base2Exponent();
+        base2Exp.setNumberOfBuckets(numberOfBuckets);
+        base2Exp.setScale(buckets.getScale());
+        outputHistogram2.setBucketOptions(new BucketOptions().setExponential(base2Exp));
+      } else { // unsupported type
+        // should an error be thrown here?
+        LOG.info("xxx error, bucket type not recognized");
+      }
+      // LOG.info(" after buckets are inserted {}", outputHistogram2.toPrettyString());
+
+      outputHistogram2.setCount(inputHistogram.getTotalCount());
+
+      List<Long> bucketCounts = new ArrayList<>();
+
+      Arrays.stream(inputHistogram.getBucketCount())
+          .forEach(
+              val -> {
+                bucketCounts.add(val);
+              });
+
+      outputHistogram2.setBucketCounts(bucketCounts);
+
+      ObjectMapper objectMapper = new ObjectMapper();
+      String jsonString = objectMapper.writeValueAsString(outputHistogram2);
+
+      // Method[] methods = inputHistogram.getClass().getMethods();
+      // for (Method method : methods) {
+      //   System.out.println(method.toString());
+      // }
+      return ByteString.copyFromUtf8(jsonString);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** Decodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  public static HistogramData decodeInt64Histogram(ByteString payload) {
+    try {
+      ObjectMapper objectMapper = new ObjectMapper();
+      objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      JsonNode jsonNode = objectMapper.readTree(payload.toStringUtf8()); // parse afterwards
+      LOG.info("xxx josn NOde pretty print {}", jsonNode.toPrettyString());
+      DataflowHistogramValue newHist = new DataflowHistogramValue();
+      newHist.setCount(jsonNode.get("count").asLong());
+
+      List<Long> bucketCounts = new ArrayList<>();
+      Iterator<JsonNode> itr = jsonNode.get("bucketCounts").iterator();
+      while (itr.hasNext()) {
+        Long item = itr.next().asLong();
+        // do something with array elements
+        bucketCounts.add(item);
+      }
+      newHist.setBucketCounts(bucketCounts);
+
+      // only one will be set
+      LOG.info("xxx bucketOptions {}", jsonNode.get("bucketOptions").toString());
+      if (jsonNode.get("bucketOptions").has("linear")) {
+        com.google.api.services.dataflow.model.Linear linear =
+            new com.google.api.services.dataflow.model.Linear();
+        JsonNode linearNode = jsonNode.get("bucketOptions").get("linear");
+        linear.setNumberOfBuckets(linearNode.get("numberOfBuckets").asInt());
+        linear.setWidth(linearNode.get("width").asDouble());
+        linear.setStart(linearNode.get("start").asDouble());
+        LOG.info("xxx linear bucket: {}", linear);
+        newHist.setBucketOptions(new BucketOptions().setLinear(linear));
+      } else {
+        // assume exp for now
+        com.google.api.services.dataflow.model.Base2Exponent base2Exp =
+            new com.google.api.services.dataflow.model.Base2Exponent();
+        JsonNode expNode = jsonNode.get("bucketOptions").get("exponential");
+
+        base2Exp.setNumberOfBuckets(expNode.get("numberOfBuckets").asInt());
+        base2Exp.setScale(expNode.get("scale").asInt());
+        newHist.setBucketOptions(new BucketOptions().setExponential(base2Exp));
+      }
+
+      LOG.info("xxx jsonNode to proto {}", newHist.toString());
+      LOG.info("Xxx: data  {} ", payload);
+      return new HistogramData(newHist); // update
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Decodes from {@link MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}. */

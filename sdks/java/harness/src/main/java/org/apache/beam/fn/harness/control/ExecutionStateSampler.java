@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.beam.fn.harness.control;
+import org.apache.beam.sdk.metrics.NoOpHistogram;
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -204,6 +206,8 @@ public class ExecutionStateSampler {
     @Override
     public Distribution getDistribution(MetricName metricName) {
       if (tracker.currentState != null) {
+        // LOG.info("xx tracker is not null, {}", tracker.currentState.stateName);
+        Preconditions.checkArgumentNotNull(tracker.currentState);
         return tracker.currentState.metricsContainer.getDistribution(metricName);
       }
       return tracker.metricsContainerRegistry.getUnboundContainer().getDistribution(metricName);
@@ -234,6 +238,16 @@ public class ExecutionStateSampler {
           .metricsContainerRegistry
           .getUnboundContainer()
           .getHistogram(metricName, bucketType);
+    }
+
+    @Override
+    public Histogram getPerWorkerHistogram(MetricName metricName, HistogramData.BucketType bucketType)
+    {
+      if (tracker.currentState != null) {
+        Preconditions.checkArgumentNotNull(tracker.currentState);
+        return tracker.currentState.metricsContainer.getPerWorkerHistogram(metricName, bucketType);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getPerWorkerHistogram(metricName, bucketType);
     }
 
     @Override

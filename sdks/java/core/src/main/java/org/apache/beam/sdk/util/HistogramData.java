@@ -29,12 +29,17 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+// import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions;
+// import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions.Base2Exponent;
+// import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Histogram.BucketOptions.Linear;
+import com.google.api.services.dataflow.model.DataflowHistogramValue;
+import java.lang.reflect.Method;
 
 /**
  * A histogram that supports estimated percentile with linear interpolation.
  *
  * <p>We may consider using Apache Commons or HdrHistogram library in the future for advanced
- * features such as sparsely populated histograms.
+* features such as sparsely populated histograms.
  */
 public class HistogramData implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(HistogramData.class);
@@ -60,7 +65,7 @@ public class HistogramData implements Serializable {
   /**
    * Create a histogram.
    *
-   * @param bucketType a bucket type for a new histogram instance.
+   * @param bucketType a bucket type for a new histogram instance. does all of this need to be sent?
    */
   public HistogramData(BucketType bucketType) {
     this.bucketType = bucketType;
@@ -72,6 +77,46 @@ public class HistogramData implements Serializable {
     this.bottomRecordsSum = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
+  }
+
+  public HistogramData(com.google.api.services.dataflow.model.DataflowHistogramValue histogramProto) {
+
+    int numBuckets;
+    if(histogramProto.getBucketOptions().getLinear() != null){
+      double start = histogramProto.getBucketOptions().getLinear().getStart();
+      double width = histogramProto.getBucketOptions().getLinear().getWidth();
+      numBuckets = histogramProto.getBucketOptions().getLinear().getNumberOfBuckets();
+      this.bucketType = LinearBuckets.of(start, width, numBuckets);
+      int idx = 0;
+
+      this.buckets = new long[bucketType.getNumBuckets()];
+      // populate with bucket counts with mean type for now, not used to determine equality
+      for (long val: histogramProto.getBucketCounts()){
+        this.buckets[idx] = val; // is this valid?
+        if (!(idx == 0 || idx == bucketType.getNumBuckets()-1  )){
+          // LOG.info("xxx val, idx {} {}", val, idx);
+          this.numBoundedBucketRecords+= val;
+        }
+        idx++;
+      }
+      // update with counts
+    } else {
+      // assume exp, add handling for wrong type later
+      int scale = histogramProto.getBucketOptions().getExponential().getScale();
+      numBuckets = histogramProto.getBucketOptions().getExponential().getNumberOfBuckets();
+      int idx = 0;
+      
+      this.bucketType = ExponentialBuckets.of(scale, numBuckets);
+      this.buckets = new long[bucketType.getNumBuckets()];
+      // populate with bucket counts with mean type for now, not used to determine equality
+      for (long val: histogramProto.getBucketCounts()){
+        this.buckets[idx] = val; // is this valid?
+        if (!(idx == 0 || idx == bucketType.getNumBuckets()-1  )){
+          this.numBoundedBucketRecords+= val;
+        }
+        idx++;
+      }
+    }
   }
 
   public BucketType getBucketType() {
@@ -91,6 +136,8 @@ public class HistogramData implements Serializable {
   public static HistogramData linear(double start, double width, int numBuckets) {
     return new HistogramData(LinearBuckets.of(start, width, numBuckets));
   }
+
+
 
   /**
    * Returns a histogram object with exponential boundaries. The input parameter {@code scale}
@@ -177,6 +224,7 @@ public class HistogramData implements Serializable {
   }
 
   public synchronized void incTopBucketCount(long count) {
+    LOG.info("xxx increment top bucket {}", count);
     this.numTopRecords += count;
   }
 
@@ -211,12 +259,15 @@ public class HistogramData implements Serializable {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
     if (value >= rangeTo) {
+      // LOG.info("xxx value, rangeTo {}, {}", value, rangeTo);
       recordTopRecordsValue(value);
     } else if (value < rangeFrom) {
       recordBottomRecordsValue(value);
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
-      numBoundedBucketRecords++;
+      if (!(bucketType.getBucketIndex(value) == 0 || bucketType.getBucketIndex(value) == buckets.length -1 )){
+        numBoundedBucketRecords++;
+      }
     }
     updateStatistics(value);
   }
@@ -247,6 +298,7 @@ public class HistogramData implements Serializable {
    *
    * @param value
    */
+  // out of bounds values
   private synchronized void recordTopRecordsValue(double value) {
     numTopRecords++;
     topRecordsSum += value;
@@ -268,6 +320,19 @@ public class HistogramData implements Serializable {
     return numBoundedBucketRecords + numTopRecords + numBottomRecords;
   }
 
+  public HistogramData combine(HistogramData value) {
+    // reutrn new hist for now, ignore the old, though this is incorrect. 
+    
+    return value;
+  }
+
+  // same as HistogramData, but doesn't reset
+  public HistogramData extractResult() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    return other;
+  }
+
   public synchronized String getPercentileString(String elemType, String unit) {
     return String.format(
         "Total number of %s: %s, P99: %.0f %s, P90: %.0f %s, P50: %.0f %s",
@@ -287,6 +352,10 @@ public class HistogramData implements Serializable {
    */
   public synchronized long getCount(int bucketIndex) {
     return buckets[bucketIndex];
+  }
+
+  public synchronized long[] getBucketCount() {
+    return buckets;
   }
 
   public synchronized long getTopBucketCount() {
@@ -406,6 +475,7 @@ public class HistogramData implements Serializable {
     @Memoized
     @Override
     public double getRangeTo() {
+      // LOG.info("xxx {}, {}, range {}, {}", getBase(), getNumBuckets(),  Math.pow(getBase(), getNumBuckets()), getScale());
       return Math.pow(getBase(), getNumBuckets());
     }
 
@@ -569,14 +639,18 @@ public class HistogramData implements Serializable {
     public double getRangeTo() {
       return getStart() + getNumBuckets() * getWidth();
     }
-
-    // Note: equals() and hashCode() are implemented by the AutoValue.
   }
 
   @Override
   public synchronized boolean equals(@Nullable Object object) {
     if (object instanceof HistogramData) {
       HistogramData other = (HistogramData) object;
+      LOG.info("xxx {}, {}, {}", numBoundedBucketRecords == other.numBoundedBucketRecords, numBoundedBucketRecords, other.numBoundedBucketRecords);
+      LOG.info("xxx {}, {}, {}", numTopRecords == other.numTopRecords, numTopRecords, other.numTopRecords);
+      LOG.info("xxx {}", numBottomRecords == other.numBottomRecords);
+      LOG.info("xxx {}", Arrays.equals(buckets, other.buckets));
+      LOG.info("xxx {}, {}", buckets, other.buckets);
+
       synchronized (other) {
         return Objects.equals(bucketType, other.bucketType)
             && numBoundedBucketRecords == other.numBoundedBucketRecords

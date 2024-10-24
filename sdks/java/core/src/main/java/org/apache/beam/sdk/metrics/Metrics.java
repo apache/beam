@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.metrics;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.Serializable;
+import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * The <code>Metrics</code> is a utility class for producing various kinds of metrics for reporting
@@ -50,6 +52,8 @@ import java.io.Serializable;
  * example off how to query metrics.
  */
 public class Metrics {
+
+  // private static final Logger LOG = LoggerFactory.getLogger(Metrics.class);
 
   private Metrics() {}
 
@@ -154,6 +158,7 @@ public class Metrics {
     public void set(long value) {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
+        // LOG.info("xxx delegating gauge container name {}", container.stepName);
         container.getGauge(name).set(value);
       }
     }

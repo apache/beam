@@ -664,9 +664,10 @@ public final class StreamingDataflowWorker {
       enableBigQueryMetrics();
     }
 
-    if (DataflowRunner.hasExperiment(options, "enable_kafka_metrics")) {
-      KafkaSinkMetrics.setSupportKafkaMetrics(true);
-    }
+    // if (DataflowRunner.hasExperiment(options, "enable_kafka_metrics")) {
+    //   KafkaSinkMetrics.setSupportKafkaMetrics(true);
+    // }
+    KafkaSinkMetrics.setSupportKafkaMetrics(true);
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
