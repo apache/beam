@@ -244,9 +244,9 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       // https://github.com/apache/beam/issues/32222
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate'
 
-        for (String test : sickbayTests) {
-            excludeTestsMatching test
-        }
+      for (String test : sickbayTests) {
+          excludeTestsMatching test
+      }
     }
   }
   return vrTask
