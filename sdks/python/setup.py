@@ -16,8 +16,10 @@
 #
 
 """Apache Beam SDK for Python setup file."""
-
+import glob
+import logging
 import os
+import shutil
 import subprocess
 import sys
 import warnings
@@ -111,7 +113,7 @@ except PackageNotFoundError:
   # `pipenv` package managers.
   pass
 
-REQUIRED_CYTHON_VERSION = '0.28.1'
+REQUIRED_CYTHON_VERSION = '3.0.0'
 try:
   _CYTHON_VERSION = distribution('cython').version
   if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
@@ -141,39 +143,28 @@ except ImportError:
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
-elif sys.platform == 'win32' or sys.platform == 'cygwin':
-  # https://github.com/apache/beam/issues/28410 - pyarrow>=13 seeing issues
-  # on windows with error
-  # C:\arrow\cpp\src\arrow\filesystem\s3fs.cc:2904:  arrow::fs::FinalizeS3 was
-  # not called even though S3 was initialized.  This could lead to a
-  # segmentation fault at exit. Keep pyarrow<13 until this is resolved.
-  pyarrow_dependency = [
-        'pyarrow>=3.0.0,<12.0.0',
-        # NOTE: We can remove this once Beam increases the pyarrow lower bound
-        # to a version that fixes CVE.
-        'pyarrow-hotfix<1'
-    ]
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<15.0.0',
+      'pyarrow>=3.0.0,<17.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       'pyarrow-hotfix<1'
   ]
 
-
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
+
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
     for file in files:
       if file.endswith(ext):
         yield os.path.realpath(os.path.join(root, file))
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -186,23 +177,86 @@ def generate_protos_first():
     # skip proto generation in that case.
     if not os.path.exists(os.path.join(cwd, 'gen_protos.py')):
       # make sure we already generated protos
-      pb2_files = list(find_by_ext(os.path.join(
-          cwd, 'apache_beam', 'portability', 'api'), '_pb2.py'))
+      pb2_files = list(
+          find_by_ext(
+              os.path.join(cwd, 'apache_beam', 'portability', 'api'),
+              '_pb2.py'))
       if not pb2_files:
-        raise RuntimeError('protobuf files are not generated. '
-                           'Please generate pb2 files')
+        raise RuntimeError(
+            'protobuf files are not generated. '
+            'Please generate pb2 files')
 
       warnings.warn('Skipping proto generation as they are already generated.')
       return
-    out = subprocess.run([
-      sys.executable,
-      os.path.join(cwd, 'gen_protos.py'),
-      '--no-force'
-    ], capture_output=True, check=True)
+    out = subprocess.run(
+        [sys.executable, os.path.join(cwd, 'gen_protos.py'), '--no-force'],
+        capture_output=True,
+        check=True)
     print(out.stdout)
   except subprocess.CalledProcessError as err:
-    raise RuntimeError('Could not generate protos due to error: %s',
-                       err.stderr)
+    raise RuntimeError('Could not generate protos due to error: %s', err.stderr)
+
+
+def copy_tests_from_docs():
+  python_root = os.path.abspath(os.path.dirname(__file__))
+  docs_src = os.path.normpath(
+      os.path.join(
+          python_root, '../../website/www/site/content/en/documentation/sdks'))
+  docs_dest = os.path.normpath(
+      os.path.join(python_root, 'apache_beam/yaml/docs'))
+  if os.path.exists(docs_src):
+    shutil.rmtree(docs_dest, ignore_errors=True)
+    os.mkdir(docs_dest)
+    for path in glob.glob(os.path.join(docs_src, 'yaml*.md')):
+      shutil.copy(path, docs_dest)
+  else:
+    if not os.path.exists(docs_dest):
+      raise RuntimeError(
+          f'Could not locate yaml docs in {docs_src} or {docs_dest}.')
+
+
+def generate_external_transform_wrappers():
+  try:
+    sdk_dir = os.path.abspath(os.path.dirname(__file__))
+    script_exists = os.path.exists(
+        os.path.join(sdk_dir, 'gen_xlang_wrappers.py'))
+    config_exists = os.path.exists(
+        os.path.join(os.path.dirname(sdk_dir),
+                     'standard_external_transforms.yaml'))
+    # we need both the script and the standard transforms config file.
+    # at build time, we don't have access to apache_beam to discover and
+    # retrieve external transforms, so the config file has to already exist
+    if not script_exists or not config_exists:
+      generated_transforms_dir = os.path.join(
+        sdk_dir, 'apache_beam', 'transforms', 'xlang')
+
+      # if exists, this directory will have at least its __init__.py file
+      if (not os.path.exists(generated_transforms_dir) or
+              len(os.listdir(generated_transforms_dir)) <= 1):
+        message = 'External transform wrappers have not been generated '
+        if not script_exists:
+          message += 'and the generation script `gen_xlang_wrappers.py`'
+        if not config_exists:
+          message += 'and the standard external transforms config'
+        message += ' could not be found'
+        raise RuntimeError(message)
+      else:
+        logging.info(
+            'Skipping external transform wrapper generation as they '
+            'are already generated.')
+      return
+    subprocess.run([
+        sys.executable,
+        os.path.join(sdk_dir, 'gen_xlang_wrappers.py'),
+        '--cleanup',
+        '--transforms-config-source',
+        os.path.join(os.path.dirname(sdk_dir),
+                     'standard_external_transforms.yaml')
+    ], capture_output=True, check=True)
+  except subprocess.CalledProcessError as err:
+    raise RuntimeError(
+        'Could not generate external transform wrappers due to '
+        'error: %s', err.stderr)
 
 
 def get_portability_package_data():
@@ -217,9 +271,9 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.8'
+python_requires = '>=3.9'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 12:
+if sys.version_info.major == 3 and sys.version_info.minor >= 13:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -231,24 +285,29 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
+  generate_external_transform_wrappers()
+
+  # These data files live elsewhere in the full Beam repository.
+  copy_tests_from_docs()
+
   # generate cythonize extensions only if we are building a wheel or
   # building an extension or running in editable mode.
   cythonize_cmds = ('bdist_wheel', 'build_ext', 'editable_wheel')
   if any(cmd in sys.argv for cmd in cythonize_cmds):
     extensions = cythonize([
-            'apache_beam/**/*.pyx',
-            'apache_beam/coders/coder_impl.py',
-            'apache_beam/metrics/cells.py',
-            'apache_beam/metrics/execution.py',
-            'apache_beam/runners/common.py',
-            'apache_beam/runners/worker/logger.py',
-            'apache_beam/runners/worker/opcounters.py',
-            'apache_beam/runners/worker/operations.py',
-            'apache_beam/transforms/cy_combiners.py',
-            'apache_beam/transforms/stats.py',
-            'apache_beam/utils/counters.py',
-            'apache_beam/utils/windowed_value.py',
-        ])
+        'apache_beam/**/*.pyx',
+        'apache_beam/coders/coder_impl.py',
+        'apache_beam/metrics/cells.py',
+        'apache_beam/metrics/execution.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/runners/worker/logger.py',
+        'apache_beam/runners/worker/opcounters.py',
+        'apache_beam/runners/worker/operations.py',
+        'apache_beam/transforms/cy_combiners.py',
+        'apache_beam/transforms/stats.py',
+        'apache_beam/utils/counters.py',
+        'apache_beam/utils/windowed_value.py',
+    ])
   else:
     extensions = []
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
@@ -273,6 +332,7 @@ if __name__ == '__main__':
               '*/*/*.h',
               'testing/data/*.yaml',
               'yaml/*.yaml',
+              'yaml/docs/*.md',
               *get_portability_package_data()
           ]
       },
@@ -293,16 +353,16 @@ if __name__ == '__main__':
           'cloudpickle~=2.2.1',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio>=1.33.1,!=1.48.0,<2',
+          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          'js2py>=0.74,<1',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
-          'objsize>=0.6.1,<0.7.0',
+          'numpy>=1.14.3,<2.2.0',  # Update pyproject.toml as well.
+          'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
@@ -316,14 +376,17 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<4.26.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
+          'redis>=5.0.0,<6',
           'regex>=2020.6.8',
           'requests>=2.24.0,<3.0.0',
+          'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
+          'pyyaml>=3.12,<7.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -332,34 +395,34 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-              'Sphinx>=1.5.2,<2.0',
+              'jinja2>=3.0,<3.2',
+              'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
-              # Pinning docutils as a workaround for Sphinx issue:
-              # https://github.com/sphinx-doc/sphinx/issues/9727
-              'docutils==0.17.1',
-              'pandas<2.0.0',
+              'docutils>=0.18.1',
+              'pandas<2.2.0',
+              'openai'
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
+              'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.0.0',
+              'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
-              'pyyaml>=3.12,<7.0.0',
               'requests_mock>=1.7,<2.0',
               'tenacity>=8.0.0,<9',
               'pytest>=7.1.2,<8.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
-              'sqlalchemy>=1.3,<2.0',
-              'psycopg2-binary>=2.8.5,<3.0.0',
+              'setuptools',
+              'sqlalchemy>=1.3,<3.0',
+              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
-              'hypothesis>5.0.0,<=7.0.0',
-              'pyyaml>=3.12,<7.0.0',
+              'hypothesis>5.0.0,<7.0.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -369,11 +432,11 @@ if __name__ == '__main__':
               # Until this issue is closed
               # https://github.com/googleapis/google-cloud-python/issues/10566
               'google-auth>=1.18.0,<3',
-              'google-auth-httplib2>=0.1.0,<0.2.0',
+              'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.14.0,<3',
+              'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -386,7 +449,12 @@ if __name__ == '__main__':
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0'
+              'google-cloud-aiplatform>=1.26.0, < 2.0',
+              # Authentication for Google Artifact Registry when using
+              # --extra-index-url or --index-url in requirements.txt in
+              # Dataflow, which allows installing python packages from private
+              # Python repositories in GAR.
+              'keyrings.google-artifactregistry-auth'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
@@ -409,6 +477,32 @@ if __name__ == '__main__':
               'pillow>=7.1.1,<10',
               # urllib 2.x is a breaking change for the headless chrome tests
               'urllib3<2,>=1.21.1'
+          ],
+          # Optional dependencies to unit-test ML functionality.
+          # We don't expect users to install this extra. Users should install
+          # necessary dependencies individually, or we should create targeted
+          # extras. Keeping the bounds open as much as possible so that we
+          # can find out early when Beam doesn't work with new versions.
+          'ml_test': [
+              'datatable',
+              'embeddings',
+              'onnxruntime',
+              'sentence-transformers',
+              'skl2onnx',
+              'pillow',
+              # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
+              # Once TF version is unpinned, also don't restrict Python version.
+              'tensorflow<2.16.0;python_version<"3.12"',
+              'tensorflow-hub',
+              # https://github.com/tensorflow/transform/issues/313
+              'tensorflow-transform;python_version<"3.11"',
+              'tf2onnx',
+              'torch',
+              'transformers',
+              # Comment out xgboost as it is breaking presubmit python ml
+              # tests due to tag check introduced since pip 24.2
+              # https://github.com/apache/beam/issues/31285
+              # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
@@ -436,7 +530,10 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
-              'pyyaml>=3.12,<7.0.0',
+              'jinja2>=3.0,<3.2',
+              'virtualenv-clone>=0.5,<1.0',
+              # https://github.com/PiotrDabkowski/Js2Py/issues/317
+              'js2py>=0.74,<1; python_version<"3.12"',
           ] + dataframe_dependency
       },
       zip_safe=False,
@@ -445,10 +542,10 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
+          'Programming Language :: Python :: 3.12',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

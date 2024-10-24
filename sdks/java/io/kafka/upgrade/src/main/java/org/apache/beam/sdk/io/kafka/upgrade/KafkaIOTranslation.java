@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka.upgrade;
 
-import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
-import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -32,9 +32,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.io.kafka.DeserializerProvider;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
@@ -42,6 +39,8 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -50,8 +49,12 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -95,12 +98,16 @@ public class KafkaIOTranslation {
             .addNullableLogicalTypeField("stop_read_time", new NanosInstant())
             .addBooleanField("is_commit_offset_finalize_enabled")
             .addBooleanField("is_dynamic_read")
+            .addBooleanField("redistribute")
+            .addBooleanField("allows_duplicates")
+            .addNullableInt32Field("redistribute_num_keys")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
             .addNullableByteArrayField("key_deserializer_provider")
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
+            .addNullableInt64Field("consumer_polling_timeout")
             .build();
 
     @Override
@@ -136,7 +143,7 @@ public class KafkaIOTranslation {
         fieldValues.put("topics", transform.getTopics());
       }
 
-      if (transform.getTopicPartitions() != null) {
+      if (transform.getTopicPartitions() != null && !transform.getTopicPartitions().isEmpty()) {
         List<Row> encodedTopicPartitions = new ArrayList<>();
         for (TopicPartition topicPartition : transform.getTopicPartitions()) {
           encodedTopicPartitions.add(
@@ -172,7 +179,7 @@ public class KafkaIOTranslation {
       if (transform.getStopReadTime() != null) {
         fieldValues.put("stop_read_time", transform.getStopReadTime());
       }
-
+      fieldValues.put("consumer_polling_timeout", transform.getConsumerPollingTimeout());
       fieldValues.put(
           "is_commit_offset_finalize_enabled", transform.isCommitOffsetsInFinalizeEnabled());
       fieldValues.put("is_dynamic_read", transform.isDynamicRead());
@@ -208,14 +215,24 @@ public class KafkaIOTranslation {
       if (transform.getBadRecordErrorHandler() != null) {
         throw new RuntimeException(
             "Upgrading KafkaIO read transforms that have `withBadRecordErrorHandler` property set"
-                + "is not supported yet.");
+                + " is not supported yet.");
       }
 
+      fieldValues.put("redistribute", transform.isRedistributed());
+      fieldValues.put("redistribute_num_keys", transform.getRedistributeNumKeys());
+      fieldValues.put("allows_duplicates", transform.isAllowDuplicates());
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
-    public Read<?, ?> fromConfigRow(Row configRow) {
+    public Read<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.55.0.
+      // This is fixed for Beam 2.56.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.55.0";
       try {
         Read<?, ?> transform = KafkaIO.read();
 
@@ -244,7 +261,7 @@ public class KafkaIOTranslation {
           transform = transform.withTopics(new ArrayList<>(topics));
         }
         Collection<Row> topicPartitionRows = configRow.getArray("topic_partitions");
-        if (topicPartitionRows != null) {
+        if (topicPartitionRows != null && !topicPartitionRows.isEmpty()) {
           Collection<TopicPartition> topicPartitions =
               topicPartitionRows.stream()
                   .map(
@@ -314,10 +331,37 @@ public class KafkaIOTranslation {
         if (maxNumRecords != null) {
           transform = transform.withMaxNumRecords(maxNumRecords);
         }
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.58.0") >= 0) {
+          Boolean isRedistributed = configRow.getBoolean("redistribute");
+          if (isRedistributed != null && isRedistributed) {
+            transform = transform.withRedistribute();
+            Integer redistributeNumKeys =
+                configRow.getValue("redistribute_num_keys") == null
+                    ? Integer.valueOf(0)
+                    : configRow.getInt32("redistribute_num_keys");
+            if (redistributeNumKeys != null && !redistributeNumKeys.equals(0)) {
+              transform = transform.withRedistributeNumKeys(redistributeNumKeys);
+            }
+            Boolean allowDuplicates = configRow.getBoolean("allows_duplicates");
+            if (allowDuplicates != null && allowDuplicates) {
+              transform = transform.withAllowDuplicates(allowDuplicates);
+            }
+          }
+        }
         Duration maxReadTime = configRow.getValue("max_read_time");
         if (maxReadTime != null) {
           transform =
               transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
+        }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") < 0) {
+          // set to current default
+          transform = transform.withConsumerPollingTimeout(2L);
+        } else {
+          Long consumerPollingTimeout = configRow.getInt64("consumer_polling_timeout");
+          if (consumerPollingTimeout != null) {
+            transform = transform.withConsumerPollingTimeout(consumerPollingTimeout);
+          }
         }
         Instant startReadTime = configRow.getValue("start_read_time");
         if (startReadTime != null) {
@@ -504,14 +548,14 @@ public class KafkaIOTranslation {
               instanceof ErrorHandler.DefaultErrorHandler)) {
         throw new RuntimeException(
             "Upgrading KafkaIO write transforms that have `withBadRecordErrorHandler` property set"
-                + "is not supported yet.");
+                + " is not supported yet.");
       }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
-    public Write<?, ?> fromConfigRow(Row configRow) {
+    public Write<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Write<?, ?> transform = KafkaIO.write();
 

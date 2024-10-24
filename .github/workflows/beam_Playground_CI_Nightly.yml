@@ -1,0 +1,101 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Playground CI Nightly
+
+on:
+  schedule:
+    - cron: '20 */12 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  BEAM_ROOT_DIR: /runner/_work/beam/beam
+
+
+jobs:
+  beam_Playground_CI_Nightly:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    name: "beam_Playground_CI_Nightly"
+    strategy:
+      matrix: 
+        sdk: ["python", "java", "go"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+      - name: Install requirements
+        run: |
+          cd $BEAM_ROOT_DIR/playground/infrastructure
+          pip install -r requirements.txt
+      - name: Get Beam latest release
+        run: |
+          BEAM_VERSION=$(curl -s https://api.github.com/repos/apache/beam/releases/latest | jq -r '.tag_name')
+          echo "BEAM_VERSION=${BEAM_VERSION#v}" >> $GITHUB_ENV
+      - name: Build PYTHON base
+        if: ${{ matrix.sdk == 'python' }}
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:container:py310:docker -Pdocker-tag=nightly -Pdocker-pull-licences=true
+      - name: Build SDK container
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :playground:backend:containers:${{ matrix.sdk }}:docker -Pdocker-tag=nightly -Psdk-tag=$BEAM_VERSION -Pdocker-pull-licences=true
+      - name: Run SDK container
+        run: |
+          CONTAINER_ID=$(docker run -d -e PROTOCOL_TYPE=TCP apache/beam_playground-backend-${{ matrix.sdk }}:nightly)
+          echo "container_id=$CONTAINER_ID" >> $GITHUB_ENV
+      - name: Get Container IP
+        run: | 
+          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${{ env.container_id }})
+          echo "container_ip=$CONTAINER_IP" >> $GITHUB_ENV
+      - name: Run CI
+        env: 
+          SERVER_ADDRESS: ${{ env.container_ip }}:8080
+          BEAM_EXAMPLE_CATEGORIES: ${{ env.BEAM_ROOT_DIR }}/playground/categories.yaml
+          SDK: ${{ matrix.sdk }}
+        run: |
+          cd $BEAM_ROOT_DIR/playground/infrastructure
+          python ci_cd.py --step CI --sdk SDK_${SDK^^} --origin PG_EXAMPLES --subdirs ./learning/katas ./examples ./sdks

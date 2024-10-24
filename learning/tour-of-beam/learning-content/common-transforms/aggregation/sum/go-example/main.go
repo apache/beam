@@ -28,6 +28,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
@@ -37,6 +38,7 @@ import (
 
 func main() {
 	ctx := context.Background()
+	beam.Init()
 
 	p, s := beam.NewPipelineWithRoot()
 
@@ -51,7 +53,7 @@ func main() {
 	err := beamx.Run(ctx, p)
 
 	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }
 

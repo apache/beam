@@ -19,7 +19,7 @@
 apply plugin: 'org.apache.beam.module'
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.transform.service',
+        automaticModuleName: 'org.apache.beam.sdk.transformservice',
         exportJavadoc: false,
         validateShadowJar: false,
         shadowClosure: {},
@@ -41,13 +41,9 @@ dependencies {
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":model:job-management", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(path: ":runners:core-construction-java")
-    implementation project(path: ":sdks:java:fn-execution")
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.jackson_annotations
-    implementation library.java.jackson_databind
-    implementation library.java.jackson_dataformat_yaml
+    implementation library.java.snake_yaml
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
     testImplementation project(path: ":runners:java-fn-execution")

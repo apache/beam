@@ -990,7 +990,7 @@ public class MongoDbIO {
 
       @ProcessElement
       public void processElement(ProcessContext ctx) {
-        Preconditions.checkStateNotNull(batch);
+        List<Document> batch = Preconditions.checkStateNotNull(this.batch);
         // Need to copy the document because mongoCollection.insertMany() will mutate it
         // before inserting (will assign an id).
 

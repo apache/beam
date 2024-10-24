@@ -52,7 +52,9 @@ sdks/python/**/*.egg
 sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
+sdks/python/apache_beam/transforms/xlang/*
 sdks/python/apache_beam/portability/api/*
+sdks/python/apache_beam/yaml/docs/*
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml
 sdks/python/postcommit_requirements.txt
@@ -96,6 +98,9 @@ sdks/python/coverage.xml
 # Ignore python venv
 **/venv
 
+# pyenv
+.python-version
+
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.
 # This is typically in files named 'src.xml' throughout this repository.
@@ -131,18 +136,19 @@ playground/frontend/playground_components/test/tools/extract_symbols_java/depend
 playground/frontend/playground_components_dev/pubspec.lock
 
 # Ignore Beam Playground Terraform
-**/.terraform
+playground/cloudfunction.zip
+
+# Ignore Terraform related
+**/.terraform/
 **/*.tfstate
 **/*.tfstate.*
-**/*.hcl
-**/*.tfvars
-playground/cloudfunction.zip
 
 # Ignore Katas auto-generated files
 **/*-remote-info.yaml
 
-# Exception to .gitignore .test-infra/pipelines related files
-!.test-infra/pipelines/**/apache-beam-testing.tfvars
-
 # Ignore .test-infra/mock-apis related files
 .test-infra/mock-apis/**/charts/
+
+# Ignore .test-infra/metrics/github_runs_prefetcher/code.zip
+# as its generated with terraform
+.test-infra/metrics/sync/github/github_runs_prefetcher/code.zip

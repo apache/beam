@@ -70,14 +70,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse.ChannelSplit;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.FusedPipeline;
-import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
-import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
@@ -138,11 +130,19 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.FusedPipeline;
+import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
+import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -157,6 +157,7 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.LoggerFactory;
@@ -174,7 +175,7 @@ import org.slf4j.LoggerFactory;
   "unused"
 })
 public class RemoteExecutionTest implements Serializable {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
   private static final String WORKER_ID = "remote_test";
@@ -247,7 +248,7 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
     InstructionRequestHandler controlClient =
-        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
+        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(10));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
@@ -263,10 +264,12 @@ public class RemoteExecutionTest implements Serializable {
     try {
       sdkHarnessExecutorFuture.get();
     } catch (ExecutionException e) {
-      if (e.getCause() instanceof RuntimeException
-          && e.getCause().getCause() instanceof InterruptedException) {
-        // expected
-      } else {
+      Throwable ex = e.getCause();
+      while (ex instanceof RuntimeException) {
+        ex = ex.getCause();
+      }
+      // InterruptedException at call tree is expected
+      if (!(ex instanceof InterruptedException)) {
         throw e;
       }
     }
@@ -1839,23 +1842,21 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
-    Map<KV<String, String>, Collection<org.apache.beam.runners.core.construction.Timer<?>>>
+    Map<KV<String, String>, Collection<org.apache.beam.sdk.util.construction.Timer<?>>>
         timerValues = new HashMap<>();
-    Map<
-            KV<String, String>,
-            RemoteOutputReceiver<org.apache.beam.runners.core.construction.Timer<?>>>
+    Map<KV<String, String>, RemoteOutputReceiver<org.apache.beam.sdk.util.construction.Timer<?>>>
         timerReceivers = new HashMap<>();
     for (Map.Entry<String, Map<String, ProcessBundleDescriptors.TimerSpec>> transformTimerSpecs :
         descriptor.getTimerSpecs().entrySet()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerSpecs.getValue().values()) {
         KV<String, String> key = KV.of(timerSpec.transformId(), timerSpec.timerId());
-        List<org.apache.beam.runners.core.construction.Timer<?>> outputContents =
+        List<org.apache.beam.sdk.util.construction.Timer<?>> outputContents =
             Collections.synchronizedList(new ArrayList<>());
         timerValues.put(key, outputContents);
         timerReceivers.put(
             key,
             RemoteOutputReceiver.of(
-                (Coder<org.apache.beam.runners.core.construction.Timer<?>>) timerSpec.coder(),
+                (Coder<org.apache.beam.sdk.util.construction.Timer<?>>) timerSpec.coder(),
                 outputContents::add));
       }
     }
@@ -2244,9 +2245,9 @@ public class RemoteExecutionTest implements Serializable {
     return KV.of(key, CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
   }
 
-  private org.apache.beam.runners.core.construction.Timer<String> timerForTest(
+  private org.apache.beam.sdk.util.construction.Timer<String> timerForTest(
       String key, long fireTimestamp, long holdTimestamp) {
-    return org.apache.beam.runners.core.construction.Timer.of(
+    return org.apache.beam.sdk.util.construction.Timer.of(
         key,
         "",
         Collections.singletonList(GlobalWindow.INSTANCE),

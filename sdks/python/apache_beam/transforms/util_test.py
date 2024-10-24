@@ -19,6 +19,8 @@
 
 # pytype: skip-file
 
+import collections
+import importlib
 import logging
 import math
 import random
@@ -27,6 +29,7 @@ import time
 import unittest
 import warnings
 from datetime import datetime
+from typing import Mapping
 
 import pytest
 import pytz
@@ -299,15 +302,40 @@ class BatchElementsTest(unittest.TestCase):
       res = (
           p
           | beam.Create([
-              'a', 'a', 'aaaaaaaaaa',  # First batch.
-              'aaaaaa', 'aaaaa',       # Second batch.
-              'a', 'aaaaaaa', 'a', 'a' # Third batch.
+              'a', 'a',                # First batch.
+              'aaaaaaaaaa',            # Second batch.
+              'aaaaa', 'aaaaa',        # Third batch.
+              'a', 'aaaaaaa', 'a', 'a' # Fourth batch.
               ], reshuffle=False)
           | util.BatchElements(
               min_batch_size=10, max_batch_size=10, element_size_fn=len)
           | beam.Map(lambda batch: ''.join(batch))
           | beam.Map(len))
-      assert_that(res, equal_to([12, 11, 10]))
+      assert_that(res, equal_to([2, 10, 10, 10]))
+
+  def test_sized_windowed_batches(self):
+    # Assumes a single bundle, in order...
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(1, 8), reshuffle=False)
+          | beam.Map(lambda t: window.TimestampedValue('a' * t, t))
+          | beam.WindowInto(window.FixedWindows(3))
+          | util.BatchElements(
+              min_batch_size=11,
+              max_batch_size=11,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: ''.join(batch)))
+      assert_that(
+          res,
+          equal_to([
+              'a' * (1+2), # Elements in [1, 3)
+              'a' * (3+4), # Elements in [3, 6)
+              'a' * 5,
+              'a' * 6, # Elements in [6, 9)
+              'a' * 7,
+          ]))
 
   def test_target_duration(self):
     clock = FakeClock()
@@ -991,13 +1019,13 @@ class WithKeysTest(unittest.TestCase):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys('k')
-    assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
 
   def test_callable_k(self):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x * x)
-    assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+      assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
   @staticmethod
   def _test_args_kwargs_fn(x, multiply, subtract):
@@ -1008,7 +1036,7 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(
           WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
-    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+      assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
 
   def test_sideinputs(self):
     with TestPipeline() as p:
@@ -1021,7 +1049,7 @@ class WithKeysTest(unittest.TestCase):
           the_singleton: x + sum(the_list) + the_singleton,
           si1,
           the_singleton=si2)
-    assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
+      assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
 
 
 class GroupIntoBatchesTest(unittest.TestCase):
@@ -1785,6 +1813,61 @@ class RegexTest(unittest.TestCase):
           "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"
       ]]
       assert_that(result, equal_to(expected_result))
+
+
+class TeeTest(unittest.TestCase):
+  _side_effects: Mapping[str, int] = collections.defaultdict(int)
+
+  def test_tee(self):
+    # The imports here are to avoid issues with the class (and its attributes)
+    # possibly being pickled rather than referenced.
+    def cause_side_effect(element):
+      importlib.import_module(__name__).TeeTest._side_effects[element] += 1
+
+    def count_side_effects(element):
+      return importlib.import_module(__name__).TeeTest._side_effects[element]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | 'TeePTransform' >> beam.Tee(beam.Map(cause_side_effect))
+          | 'TeeCallable' >> beam.Tee(
+              lambda pcoll: pcoll | beam.Map(
+                  lambda element: cause_side_effect('X' + element))))
+      assert_that(result, equal_to(['a', 'b', 'c']))
+
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('Xa'), 1)
+
+
+class WaitOnTest(unittest.TestCase):
+  def test_find(self):
+    # We need shared reference that survives pickling.
+    def increment_global_counter():
+      try:
+        value = getattr(beam, '_WAIT_ON_TEST_COUNTER', 0)
+        return value
+      finally:
+        setattr(beam, '_WAIT_ON_TEST_COUNTER', value + 1)
+
+    def record(tag):
+      return f'Record({tag})' >> beam.Map(
+          lambda x: (x[0], tag, increment_global_counter()))
+
+    with TestPipeline() as p:
+      start = p | beam.Create([(None, ), (None, )])
+      x = start | record('x')
+      y = start | 'WaitForX' >> util.WaitOn(x) | record('y')
+      z = start | 'WaitForY' >> util.WaitOn(y) | record('z')
+      result = x | 'WaitForYZ' >> util.WaitOn(y, z) | record('result')
+      assert_that(x, equal_to([(None, 'x', 0), (None, 'x', 1)]), label='x')
+      assert_that(y, equal_to([(None, 'y', 2), (None, 'y', 3)]), label='y')
+      assert_that(z, equal_to([(None, 'z', 4), (None, 'z', 5)]), label='z')
+      assert_that(
+          result,
+          equal_to([(None, 'result', 6), (None, 'result', 7)]),
+          label='result')
 
 
 if __name__ == '__main__':

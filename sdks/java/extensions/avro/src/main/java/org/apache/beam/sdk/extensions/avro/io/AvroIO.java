@@ -69,6 +69,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -337,6 +339,10 @@ import org.joda.time.Duration;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
+ *
+ * <p>Error handling for writing records that are malformed can be handled by using {@link
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -1427,6 +1433,8 @@ public class AvroIO {
 
     abstract AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory();
 
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -1488,6 +1496,9 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setDatumWriterFactory(
           AvroSink.DatumWriterFactory<OutputT> datumWriterFactory);
+
+      abstract Builder<UserT, DestinationT, OutputT> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
@@ -1713,6 +1724,12 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
+    public TypedWrite<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
+    }
+
     DynamicAvroDestinations<UserT, DestinationT, OutputT> resolveDynamicDestinations() {
       DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations =
           getDynamicDestinations();
@@ -1781,6 +1798,9 @@ public class AvroIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getBadRecordErrorHandler() != null) {
+        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply("Write", write);
     }

@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.Uuid;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -62,10 +63,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +75,7 @@ public class PubsubLiteReadSchemaTransformProvider
   private static final Logger LOG =
       LoggerFactory.getLogger(PubsubLiteReadSchemaTransformProvider.class);
 
-  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON";
+  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON,PROTO";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -85,8 +83,7 @@ public class PubsubLiteReadSchemaTransformProvider
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteReadSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<PubsubLiteReadSchemaTransformConfiguration> configurationClass() {
     return PubsubLiteReadSchemaTransformConfiguration.class;
   }
 
@@ -191,8 +188,7 @@ public class PubsubLiteReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      PubsubLiteReadSchemaTransformConfiguration configuration) {
+  public SchemaTransform from(PubsubLiteReadSchemaTransformConfiguration configuration) {
     if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
           String.format(
@@ -207,26 +203,39 @@ public class PubsubLiteReadSchemaTransformProvider
     Schema beamSchema;
 
     if (format != null && format.equals("RAW")) {
-      if (inputSchema != null) {
-        throw new IllegalArgumentException(
-            "To read from PubSubLite in RAW format, you can't provide a schema.");
-      }
+
       beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
       valueMapper = getRawBytesToRowFunction(beamSchema);
 
-    } else {
-      if (inputSchema == null) {
+    } else if (format != null && format.equals("PROTO")) {
+      String fileDescriptorPath = configuration.getFileDescriptorPath();
+      String messageName = configuration.getMessageName();
+
+      if (fileDescriptorPath != null && messageName != null) {
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProto(fileDescriptorPath, messageName);
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFunction(fileDescriptorPath, messageName);
+      } else if (inputSchema != null && messageName != null) {
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProtoSchema(inputSchema, messageName);
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(inputSchema, messageName);
+      } else {
         throw new IllegalArgumentException(
-            "To read from PubSubLite in JSON or AVRO format, you must provide a schema.");
+            "To read from PubSubLite in PROTO format, either descriptorPath or schema must be provided.");
       }
-      beamSchema =
-          Objects.equals(configuration.getFormat(), "JSON")
-              ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
-              : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
-      valueMapper =
-          Objects.equals(configuration.getFormat(), "JSON")
-              ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
-              : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+
+    } else {
+      if (inputSchema != null) {
+        beamSchema =
+            Objects.equals(configuration.getFormat(), "JSON")
+                ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
+                : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
+        valueMapper =
+            Objects.equals(configuration.getFormat(), "JSON")
+                ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
+                : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+      } else {
+        throw new IllegalArgumentException(
+            "To read from Pubsub Lite in JSON or AVRO format, you must provide a schema.");
+      }
     }
     return new SchemaTransform() {
       @Override
@@ -385,32 +394,50 @@ public class PubsubLiteReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:pubsublite_read:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Arrays.asList("output", "errors");
   }
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class PubsubLiteReadSchemaTransformConfiguration {
+
+    public void validate() {
+      final String dataFormat = this.getFormat();
+      assert dataFormat == null || VALID_DATA_FORMATS.contains(dataFormat)
+          : "Valid data formats are " + VALID_DATA_FORMATS;
+
+      final String inputSchema = this.getSchema();
+      final String messageName = this.getMessageName();
+
+      if (dataFormat != null && dataFormat.equals("RAW")) {
+        assert inputSchema == null
+            : "To read from Pubsub Lite in RAW format, you can't provide a schema.";
+      }
+
+      if (dataFormat != null && dataFormat.equals("PROTO")) {
+        assert messageName != null
+            : "To read from Pubsub Lite in PROTO format, messageName must be provided.";
+      }
+    }
+
     @SchemaFieldDescription(
         "The encoding format for the data stored in Pubsub Lite. Valid options are: "
             + VALID_FORMATS_STR)
     public abstract String getFormat();
 
     @SchemaFieldDescription(
-        "The schema in which the data is encoded in the Kafka topic. "
+        "The schema in which the data is encoded in the Pubsub Lite topic. "
             + "For AVRO data, this is a schema defined with AVRO schema syntax "
             + "(https://avro.apache.org/docs/1.10.2/spec.html#schemas). "
             + "For JSON data, this is a schema defined with JSON-schema syntax (https://json-schema.org/).")
@@ -459,6 +486,18 @@ public class PubsubLiteReadSchemaTransformProvider
             + "case, deduplication of the stream will be strictly best effort.")
     public abstract @Nullable String getAttributeId();
 
+    @SchemaFieldDescription(
+        "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
+            + " definition and message serialization.")
+    @Nullable
+    public abstract String getFileDescriptorPath();
+
+    @SchemaFieldDescription(
+        "The name of the Protocol Buffer message to be used for schema"
+            + " extraction and data conversion.")
+    @Nullable
+    public abstract String getMessageName();
+
     public static Builder builder() {
       return new AutoValue_PubsubLiteReadSchemaTransformProvider_PubsubLiteReadSchemaTransformConfiguration
           .Builder();
@@ -485,6 +524,12 @@ public class PubsubLiteReadSchemaTransformProvider
 
       @SuppressWarnings("unused")
       public abstract Builder setAttributeId(String attributeId);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setFileDescriptorPath(String fileDescriptorPath);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setMessageName(String messageName);
 
       public abstract PubsubLiteReadSchemaTransformConfiguration build();
     }

@@ -23,12 +23,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -66,6 +69,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -140,36 +144,35 @@ public class JmsIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCoder(SerializableCoder.of(JmsRecord.class))
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .setRequiresDeduping(false)
         .setMessageMapper(
-            (MessageMapper<JmsRecord>)
-                new MessageMapper<JmsRecord>() {
+            new MessageMapper<JmsRecord>() {
+              @Override
+              public JmsRecord mapMessage(Message message) throws Exception {
+                TextMessage textMessage = (TextMessage) message;
+                Map<String, Object> properties = new HashMap<>();
+                @SuppressWarnings("rawtypes")
+                Enumeration propertyNames = textMessage.getPropertyNames();
+                while (propertyNames.hasMoreElements()) {
+                  String propertyName = (String) propertyNames.nextElement();
+                  properties.put(propertyName, textMessage.getObjectProperty(propertyName));
+                }
 
-                  @Override
-                  public JmsRecord mapMessage(Message message) throws Exception {
-                    TextMessage textMessage = (TextMessage) message;
-                    Map<String, Object> properties = new HashMap<>();
-                    @SuppressWarnings("rawtypes")
-                    Enumeration propertyNames = textMessage.getPropertyNames();
-                    while (propertyNames.hasMoreElements()) {
-                      String propertyName = (String) propertyNames.nextElement();
-                      properties.put(propertyName, textMessage.getObjectProperty(propertyName));
-                    }
-
-                    return new JmsRecord(
-                        textMessage.getJMSMessageID(),
-                        textMessage.getJMSTimestamp(),
-                        textMessage.getJMSCorrelationID(),
-                        textMessage.getJMSReplyTo(),
-                        textMessage.getJMSDestination(),
-                        textMessage.getJMSDeliveryMode(),
-                        textMessage.getJMSRedelivered(),
-                        textMessage.getJMSType(),
-                        textMessage.getJMSExpiration(),
-                        textMessage.getJMSPriority(),
-                        properties,
-                        textMessage.getText());
-                  }
-                })
+                return new JmsRecord(
+                    textMessage.getJMSMessageID(),
+                    textMessage.getJMSTimestamp(),
+                    textMessage.getJMSCorrelationID(),
+                    textMessage.getJMSReplyTo(),
+                    textMessage.getJMSDestination(),
+                    textMessage.getJMSDeliveryMode(),
+                    textMessage.getJMSRedelivered(),
+                    textMessage.getJMSType(),
+                    textMessage.getJMSExpiration(),
+                    textMessage.getJMSPriority(),
+                    properties,
+                    textMessage.getText());
+              }
+            })
         .build();
   }
 
@@ -177,6 +180,7 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<T>()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .setRequiresDeduping(false)
         .build();
   }
 
@@ -184,12 +188,23 @@ public class JmsIO {
     return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
+  public interface ConnectionFactoryContainer<T extends ConnectionFactoryContainer<T>> {
+
+    T withConnectionFactory(ConnectionFactory connectionFactory);
+
+    T withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
+  }
+
   /**
    * A {@link PTransform} to read from a JMS destination. See {@link JmsIO} for more information on
    * usage and configuration.
    */
   @AutoValue
-  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>>
+      implements ConnectionFactoryContainer<Read<T>> {
+
+    private @Nullable transient ConnectionFactory connectionFactory;
 
     /**
      * NB: According to http://docs.oracle.com/javaee/1.4/api/javax/jms/ConnectionFactory.html "It
@@ -199,9 +214,27 @@ public class JmsIO {
      * they can be stored in all JNDI naming contexts. In addition, it is recommended that these
      * implementations follow the JavaBeansTM design patterns."
      *
-     * <p>So, a {@link ConnectionFactory} implementation is serializable.
+     * <p>So, a {@link ConnectionFactory} implementation should be serializable.
      */
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    @Nullable
+    ConnectionFactory getConnectionFactory() {
+      if (connectionFactory == null) {
+        connectionFactory =
+            Optional.ofNullable(getConnectionFactoryProviderFn())
+                .map(provider -> provider.apply(null))
+                .orElse(null);
+      }
+      return connectionFactory;
+    }
+
+    /**
+     * In case the {@link ConnectionFactory} is not serializable it can be constructed separately on
+     * each worker from scratch by providing a {@link SerializableFunction} instead of a ready-made
+     * object.
+     */
+    @Nullable
+    abstract SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -223,11 +256,16 @@ public class JmsIO {
 
     abstract Duration getCloseTimeout();
 
+    abstract @Nullable Duration getReceiveTimeout();
+
+    abstract boolean isRequiresDeduping();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<T> setConnectionFactoryProviderFn(
+          SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
 
       abstract Builder<T> setQueue(String queue);
 
@@ -249,11 +287,18 @@ public class JmsIO {
 
       abstract Builder<T> setCloseTimeout(Duration closeTimeout);
 
+      abstract Builder<T> setReceiveTimeout(Duration receiveTimeout);
+
+      abstract Builder<T> setRequiresDeduping(boolean requiresDeduping);
+
       abstract Read<T> build();
     }
 
     /**
      * Specify the JMS connection factory to connect to the JMS broker.
+     *
+     * <p>The {@link ConnectionFactory} object has to be serializable, if it is not consider using
+     * the {@link #withConnectionFactoryProviderFn}
      *
      * <p>For instance:
      *
@@ -265,9 +310,33 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
+    @Override
     public Read<T> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder().setConnectionFactory(connectionFactory).build();
+      return builder().setConnectionFactoryProviderFn(__ -> connectionFactory).build();
+    }
+
+    /**
+     * Specify a JMS connection factory provider function to connect to the JMS broker. Use this
+     * method in case your {@link ConnectionFactory} objects are themselves not serializable, but
+     * you can recreate them as needed with a {@link SerializableFunction} provider
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     * {@code pipeline.apply(JmsIO.read().withConnectionFactoryProviderFn(() -> new MyJmsConnectionFactory());}
+     * </pre>
+     *
+     * @param connectionFactoryProviderFn a {@link SerializableFunction} that creates a {@link
+     *     ConnectionFactory}
+     * @return The corresponding {@link JmsIO.Read}
+     */
+    @Override
+    public Read<T> withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn) {
+      checkArgument(
+          connectionFactoryProviderFn != null, "connectionFactoryProviderFn cannot be null");
+      return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
     /**
@@ -395,9 +464,30 @@ public class JmsIO {
       return builder().setCloseTimeout(closeTimeout).build();
     }
 
+    /**
+     * If set, block for the Duration of timeout for each poll to new JMS record if the previous
+     * poll returns no new record.
+     *
+     * <p>Use this option if the requirement for read latency is not a concern or excess client
+     * polling has resulted network issues.
+     */
+    public Read<T> withReceiveTimeout(Duration receiveTimeout) {
+      return builder().setReceiveTimeout(receiveTimeout).build();
+    }
+
+    /**
+     * If set, requires runner deduplication for the messages. Each message is identified by its
+     * {@code JMSMessageID}.
+     */
+    public Read<T> withRequiresDeduping() {
+      return builder().setRequiresDeduping(true).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getConnectionFactoryProviderFn() != null,
+          "Either withConnectionFactory() or withConnectionFactoryProviderFn() is required");
       checkArgument(
           getQueue() != null || getTopic() != null,
           "Either withQueue() or withTopic() is required");
@@ -489,12 +579,17 @@ public class JmsIO {
     public Coder<T> getOutputCoder() {
       return this.spec.getCoder();
     }
+
+    @Override
+    public boolean requiresDeduping() {
+      return this.spec.isRequiresDeduping();
+    }
   }
 
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
-
+    private static final byte[] EMPTY = new byte[0];
     private UnboundedJmsSource<T> source;
-    private JmsCheckpointMark checkpointMark;
+    @VisibleForTesting JmsCheckpointMark.Preparer checkpointMarkPreparer;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
@@ -502,13 +597,40 @@ public class JmsIO {
 
     private T currentMessage;
     private Instant currentTimestamp;
+    private byte[] currentID;
+    private long receiveTimeoutMillis;
     private PipelineOptions options;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
-      this.checkpointMark = new JmsCheckpointMark();
+      this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer();
       this.currentMessage = null;
+      this.currentID = EMPTY;
       this.options = options;
+    }
+
+    /** recreate session and consumer. */
+    private synchronized void recreateSession() throws IOException {
+      try {
+        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS session", e);
+      }
+
+      Read<T> spec = source.spec;
+      Duration receiveTimeout =
+          MoreObjects.firstNonNull(source.spec.getReceiveTimeout(), Duration.ZERO);
+      receiveTimeoutMillis = receiveTimeout.getMillis();
+
+      try {
+        if (source.spec.getTopic() != null) {
+          consumer = session.createConsumer(session.createTopic(spec.getTopic()));
+        } else {
+          consumer = session.createConsumer(session.createQueue(spec.getQueue()));
+        }
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS consumer", e);
+      }
     }
 
     @Override
@@ -534,21 +656,7 @@ public class JmsIO {
         throw new IOException("Error connecting to JMS", e);
       }
 
-      try {
-        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
-      } catch (Exception e) {
-        throw new IOException("Error creating JMS session", e);
-      }
-
-      try {
-        if (spec.getTopic() != null) {
-          this.consumer = this.session.createConsumer(this.session.createTopic(spec.getTopic()));
-        } else {
-          this.consumer = this.session.createConsumer(this.session.createQueue(spec.getQueue()));
-        }
-      } catch (Exception e) {
-        throw new IOException("Error creating JMS consumer", e);
-      }
+      recreateSession();
 
       return advance();
     }
@@ -556,17 +664,43 @@ public class JmsIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        Message message = this.consumer.receiveNoWait();
-
+        Message message;
+        synchronized (this) {
+          if (receiveTimeoutMillis == 0L) {
+            message = this.consumer.receiveNoWait();
+          } else {
+            message = this.consumer.receive(receiveTimeoutMillis);
+          }
+          // put add in synchronized to make sure all messages in preparer are in same session
+          if (message != null) {
+            checkpointMarkPreparer.add(message);
+          }
+        }
         if (message == null) {
           currentMessage = null;
           return false;
         }
 
-        checkpointMark.add(message);
-
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
+
+        String messageID = message.getJMSMessageID();
+        if (messageID != null) {
+          if (this.source.spec.isRequiresDeduping()) {
+            // per JMS specification, message ID has prefix "id:". The runner use it to dedup
+            // message. Empty or non-exist message id (possible for optimization configuration set)
+            // will cause data loss.
+            if (messageID.length() <= 3) {
+              throw new RuntimeException(
+                  String.format(
+                      "Invalid JMSMessageID %s while requiresDeduping is set. Data loss possible.",
+                      messageID));
+            }
+          }
+          currentID = messageID.getBytes(StandardCharsets.UTF_8);
+        } else {
+          currentID = EMPTY;
+        }
 
         return true;
       } catch (Exception e) {
@@ -584,7 +718,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.getOldestMessageTimestamp();
+      return checkpointMarkPreparer.getOldestMessageTimestamp();
     }
 
     @Override
@@ -596,8 +730,37 @@ public class JmsIO {
     }
 
     @Override
+    public byte[] getCurrentRecordId() {
+      if (currentMessage == null) {
+        throw new NoSuchElementException();
+      } else if (currentID == EMPTY && this.source.spec.isRequiresDeduping()) {
+        LOG.warn(
+            "Empty JMSRecordID received when requiresDeduping enabled, runner deduplication will"
+                + " not be effective");
+        // Return a random UUID to ensure it won't get dedup
+        currentID = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+      }
+      return currentID;
+    }
+
+    @Override
     public CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      if (checkpointMarkPreparer.isEmpty()) {
+        return checkpointMarkPreparer.emptyCheckpoint();
+      }
+
+      MessageConsumer consumerToClose;
+      Session sessionTofinalize;
+      synchronized (this) {
+        consumerToClose = consumer;
+        sessionTofinalize = session;
+      }
+      try {
+        recreateSession();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return checkpointMarkPreparer.newCheckpoint(consumerToClose, sessionTofinalize);
     }
 
     @Override
@@ -617,7 +780,6 @@ public class JmsIO {
 
     @SuppressWarnings("FutureReturnValueIgnored")
     private void doClose() {
-
       try {
         closeAutoscaler();
         closeConsumer();
@@ -625,16 +787,14 @@ public class JmsIO {
             options.as(ExecutorOptions.class).getScheduledExecutorService();
         executorService.schedule(
             () -> {
-              LOG.debug(
-                  "Closing session and connection after delay {}", source.spec.getCloseTimeout());
+              LOG.debug("Closing connection after delay {}", source.spec.getCloseTimeout());
               // Discard the checkpoints and set the reader as inactive
-              checkpointMark.discard();
+              checkpointMarkPreparer.discard();
               closeSession();
               closeConnection();
             },
             source.spec.getCloseTimeout().getMillis(),
             TimeUnit.MILLISECONDS);
-
       } catch (Exception e) {
         LOG.error("Error closing reader", e);
       }
@@ -652,7 +812,7 @@ public class JmsIO {
       }
     }
 
-    private void closeSession() {
+    private synchronized void closeSession() {
       try {
         if (session != null) {
           session.close();
@@ -663,7 +823,7 @@ public class JmsIO {
       }
     }
 
-    private void closeConsumer() {
+    private synchronized void closeConsumer() {
       try {
         if (consumer != null) {
           consumer.close();
@@ -697,9 +857,25 @@ public class JmsIO {
    */
   @AutoValue
   public abstract static class Write<EventT>
-      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
+      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>>
+      implements ConnectionFactoryContainer<Write<EventT>> {
 
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    private @Nullable transient ConnectionFactory connectionFactory;
+
+    @Nullable
+    ConnectionFactory getConnectionFactory() {
+      if (connectionFactory == null) {
+        connectionFactory =
+            Optional.ofNullable(getConnectionFactoryProviderFn())
+                .map(provider -> provider.apply(null))
+                .orElse(null);
+      }
+
+      return connectionFactory;
+    }
+
+    abstract @Nullable SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -719,7 +895,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<EventT> {
-      abstract Builder<EventT> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<EventT> setConnectionFactoryProviderFn(
+          SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
 
       abstract Builder<EventT> setQueue(String queue);
 
@@ -743,6 +920,9 @@ public class JmsIO {
     /**
      * Specify the JMS connection factory to connect to the JMS broker.
      *
+     * <p>The {@link ConnectionFactory} object has to be serializable, if it is not consider using
+     * the {@link #withConnectionFactoryProviderFn}
+     *
      * <p>For instance:
      *
      * <pre>{@code
@@ -753,9 +933,33 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
+    @Override
     public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder().setConnectionFactory(connectionFactory).build();
+      return builder().setConnectionFactoryProviderFn(__ -> connectionFactory).build();
+    }
+
+    /**
+     * Specify a JMS connection factory provider function to connect to the JMS broker. Use this
+     * method in case your {@link ConnectionFactory} objects are themselves not serializable, but
+     * you can recreate them as needed with a {@link SerializableFunction} provider
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     * {@code pipeline.apply(JmsIO.write().withConnectionFactoryProviderFn(() -> new MyJmsConnectionFactory());}
+     * </pre>
+     *
+     * @param connectionFactoryProviderFn a {@link SerializableFunction} that creates a {@link
+     *     ConnectionFactory}
+     * @return The corresponding {@link JmsIO.Write}
+     */
+    @Override
+    public Write<EventT> withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn) {
+      checkArgument(
+          connectionFactoryProviderFn != null, "connectionFactoryProviderFn can not be null");
+      return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
     /**
@@ -818,12 +1022,13 @@ public class JmsIO {
      * Specify the JMS topic destination name where to send messages to dynamically. The {@link
      * JmsIO.Write} acts as a publisher on the topic.
      *
-     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String) and
-     * {@link JmsIO.Write#withTopic(String)}. The user has to specify a {@link SerializableFunction}
-     * that takes {@code EventT} object as a parameter, and returns the topic name depending of the content
-     * of the event object.
+     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)} and {@link
+     * JmsIO.Write#withTopic(String)}. The user has to specify a {@link SerializableFunction} that
+     * takes {@code EventT} object as a parameter, and returns the topic name depending of the
+     * content of the event object.
      *
      * <p>For example:
+     *
      * <pre>{@code
      * SerializableFunction<CompanyEvent, String> topicNameMapper =
      *   (event ->
@@ -921,14 +1126,18 @@ public class JmsIO {
 
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getConnectionFactoryProviderFn() != null,
+          "Either withConnectionFactory() or withConnectionFactoryProviderFn() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
-          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is required");
+          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is"
+              + " required");
       boolean exclusiveTopicQueue = isExclusiveTopicQueue();
       checkArgument(
           exclusiveTopicQueue,
-          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
+          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be"
+              + " set.");
       checkArgument(getValueMapper() != null, "withValueMapper() is required");
 
       return input.apply(new Writer<>(this));

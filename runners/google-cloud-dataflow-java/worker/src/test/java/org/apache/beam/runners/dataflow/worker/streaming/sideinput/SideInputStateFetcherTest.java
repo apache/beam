@@ -32,13 +32,15 @@ import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
@@ -46,7 +48,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -65,12 +67,45 @@ import org.mockito.MockitoAnnotations;
 @SuppressWarnings("deprecation")
 @RunWith(JUnit4.class)
 public class SideInputStateFetcherTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String STATE_FAMILY = "state";
-
-  @Mock private MetricTrackingWindmillServerStub server;
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Mock private GetDataClient server;
 
   @Mock private Supplier<Closeable> readStateSupplier;
+
+  private static Windmill.GlobalData buildGlobalDataResponse(
+      String tag, boolean isReady, ByteString data) {
+    Windmill.GlobalData.Builder builder =
+        Windmill.GlobalData.newBuilder()
+            .setDataId(
+                Windmill.GlobalDataId.newBuilder()
+                    .setTag(tag)
+                    .setVersion(ByteString.EMPTY)
+                    .build());
+
+    if (isReady) {
+      builder.setIsReady(true).setData(data);
+    } else {
+      builder.setIsReady(false);
+    }
+    return builder.build();
+  }
+
+  private static Windmill.GlobalDataRequest buildGlobalDataRequest(String tag, ByteString version) {
+    Windmill.GlobalDataId id =
+        Windmill.GlobalDataId.newBuilder().setTag(tag).setVersion(version).build();
+
+    return Windmill.GlobalDataRequest.newBuilder()
+        .setDataId(id)
+        .setStateFamily(STATE_FAMILY)
+        .setExistenceWatermarkDeadline(
+            TimeUnit.MILLISECONDS.toMicros(GlobalWindow.INSTANCE.maxTimestamp().getMillis()))
+        .build();
+  }
+
+  private static Windmill.GlobalDataRequest buildGlobalDataRequest(String tag) {
+    return buildGlobalDataRequest(tag, ByteString.EMPTY);
+  }
 
   @Before
   public void setUp() {
@@ -79,7 +114,10 @@ public class SideInputStateFetcherTest {
 
   @Test
   public void testFetchGlobalDataBasic() throws Exception {
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server);
+    SideInputStateFetcherFactory factory =
+        SideInputStateFetcherFactory.fromOptions(
+            PipelineOptionsFactory.as(DataflowStreamingPipelineOptions.class));
+    SideInputStateFetcher fetcher = factory.createSideInputStateFetcher(server::getSideInputData);
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(StringUtf8Coder.of())
@@ -147,7 +185,10 @@ public class SideInputStateFetcherTest {
 
   @Test
   public void testFetchGlobalDataNull() throws Exception {
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server);
+    SideInputStateFetcherFactory factory =
+        SideInputStateFetcherFactory.fromOptions(
+            PipelineOptionsFactory.as(DataflowStreamingPipelineOptions.class));
+    SideInputStateFetcher fetcher = factory.createSideInputStateFetcher(server::getSideInputData);
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(VoidCoder.of())
@@ -221,7 +262,8 @@ public class SideInputStateFetcherTest {
 
     Cache<SideInputCache.Key<?>, SideInput<?>> cache = CacheBuilder.newBuilder().build();
 
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server, new SideInputCache(cache));
+    SideInputStateFetcher fetcher =
+        new SideInputStateFetcher(server::getSideInputData, new SideInputCache(cache));
 
     PCollectionView<String> view1 =
         TestPipeline.create().apply(Create.empty(StringUtf8Coder.of())).apply(View.asSingleton());
@@ -301,8 +343,11 @@ public class SideInputStateFetcherTest {
   }
 
   @Test
-  public void testEmptyFetchGlobalData() throws Exception {
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server);
+  public void testEmptyFetchGlobalData() {
+    SideInputStateFetcherFactory factory =
+        SideInputStateFetcherFactory.fromOptions(
+            PipelineOptionsFactory.as(DataflowStreamingPipelineOptions.class));
+    SideInputStateFetcher fetcher = factory.createSideInputStateFetcher(server::getSideInputData);
 
     ByteString encodedIterable = ByteString.EMPTY;
 
@@ -333,39 +378,5 @@ public class SideInputStateFetcherTest {
 
     verify(server).getSideInputData(buildGlobalDataRequest(tag));
     verifyNoMoreInteractions(server);
-  }
-
-  private static Windmill.GlobalData buildGlobalDataResponse(
-      String tag, boolean isReady, ByteString data) {
-    Windmill.GlobalData.Builder builder =
-        Windmill.GlobalData.newBuilder()
-            .setDataId(
-                Windmill.GlobalDataId.newBuilder()
-                    .setTag(tag)
-                    .setVersion(ByteString.EMPTY)
-                    .build());
-
-    if (isReady) {
-      builder.setIsReady(true).setData(data);
-    } else {
-      builder.setIsReady(false);
-    }
-    return builder.build();
-  }
-
-  private static Windmill.GlobalDataRequest buildGlobalDataRequest(String tag, ByteString version) {
-    Windmill.GlobalDataId id =
-        Windmill.GlobalDataId.newBuilder().setTag(tag).setVersion(version).build();
-
-    return Windmill.GlobalDataRequest.newBuilder()
-        .setDataId(id)
-        .setStateFamily(STATE_FAMILY)
-        .setExistenceWatermarkDeadline(
-            TimeUnit.MILLISECONDS.toMicros(GlobalWindow.INSTANCE.maxTimestamp().getMillis()))
-        .build();
-  }
-
-  private static Windmill.GlobalDataRequest buildGlobalDataRequest(String tag) {
-    return buildGlobalDataRequest(tag, ByteString.EMPTY);
   }
 }

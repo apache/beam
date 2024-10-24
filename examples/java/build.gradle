@@ -87,7 +87,7 @@ dependencies {
   implementation library.java.commons_io
   implementation library.java.commons_csv
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
   implementation "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
   implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
@@ -176,5 +176,5 @@ task wordCount(type:JavaExec) {
   mainClass = "org.apache.beam.examples.WordCount"
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
-  args = ["--output=/tmp/ouput.txt"]
+  args = ["--output=/tmp/output.txt"]
 }

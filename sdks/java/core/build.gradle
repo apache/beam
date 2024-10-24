@@ -21,6 +21,7 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
     'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
+    'FileIO': 'https://github.com/typetools/checker-framework/issues/6388',
     'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
     'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
   ],
@@ -74,14 +75,17 @@ dependencies {
   permitUnusedDeclared library.java.antlr
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":model:fn-execution", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_54_0
+  shadow project(path: ":sdks:java:transform-service:launcher")
+  shadow library.java.vendored_grpc_1_60_1
   shadow library.java.vendored_guava_32_1_2_jre
   shadow library.java.byte_buddy
-  implementation library.java.antlr_runtime
-  implementation library.java.commons_compress
-  implementation library.java.commons_lang3
+  shadow library.java.antlr_runtime
+  shadow library.java.commons_compress
+  shadow library.java.commons_lang3
   testImplementation library.java.mockito_inline
+  shadow library.java.classgraph
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
   shadow library.java.jackson_core
@@ -93,13 +97,11 @@ dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   provided library.java.json_org
-  // com.github.everit JSON schema validation library is used for json-schema.org validation.
-  // to avoid forcing the library onto users, we ask users to provide it rather than include
-  // it by default.
-  // It is only used for optional functionality in JsonUtils schema parsing and conversion.
-  provided library.java.everit_json_schema
+  implementation library.java.everit_json_schema
+  implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
+  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
@@ -118,6 +120,7 @@ dependencies {
   shadowTest library.java.log4j2_api
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
+  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
 }
 
 project.tasks.compileTestJava {

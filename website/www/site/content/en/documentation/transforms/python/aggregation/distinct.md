@@ -30,7 +30,7 @@ In the following example, we create a pipeline with two `PCollection`s of produc
 We use `Distinct` to get rid of duplicate elements, which outputs a `PCollection` of all the unique elements.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_Distinct" show="distinc" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_Distinct" show="distinct" >}}
 {{< /playground >}}
 
 ## Related transforms

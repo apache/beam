@@ -30,6 +30,8 @@ import {
   IntervalWindowCoder,
 } from "../coders/standard_coders";
 import { GlobalWindow, Instant, IntervalWindow } from "../values";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 export function globalWindows(): WindowFn<GlobalWindow> {
   return {
@@ -47,7 +49,7 @@ export function globalWindows(): WindowFn<GlobalWindow> {
 
 export function fixedWindows(
   sizeSeconds: number | Long,
-  offsetSeconds: Instant = Long.fromValue(0)
+  offsetSeconds: Instant = Long.fromValue(0),
 ): WindowFn<IntervalWindow> {
   // TODO: (Cleanup) Use a time library?
   const sizeMillis = secsToMillisLong(sizeSeconds);
@@ -79,7 +81,7 @@ export function fixedWindows(
 export function slidingWindows(
   sizeSeconds: number | Long,
   periodSeconds: number | Long,
-  offsetSeconds: Instant = Long.fromValue(0)
+  offsetSeconds: Instant = Long.fromValue(0),
 ): WindowFn<IntervalWindow> {
   const sizeMillis = secsToMillisLong(sizeSeconds);
   const periodMillis = secsToMillisLong(periodSeconds);
@@ -145,18 +147,19 @@ function millisToProto(t: Long) {
   return { seconds: BigInt(t.div(1000).toString()), nanos: 0 };
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/transforms/windowings", exports);
-requireForSerialization("apache-beam/transforms/windowings", { millisToProto });
+requireForSerialization(`${packageName}/transforms/windowings`, exports);
+requireForSerialization(`${packageName}/transforms/windowings`, {
+  millisToProto,
+});
 requireForSerialization(
-  "apache-beam/transforms/windowings",
-  FixedWindowsPayload
+  `${packageName}/transforms/windowings`,
+  FixedWindowsPayload,
 );
 requireForSerialization(
-  "apache-beam/transforms/windowings",
-  SlidingWindowsPayload
+  `${packageName}/transforms/windowings`,
+  SlidingWindowsPayload,
 );
 requireForSerialization(
-  "apache-beam/transforms/windowings",
-  SessionWindowsPayload
+  `${packageName}/transforms/windowings`,
+  SessionWindowsPayload,
 );

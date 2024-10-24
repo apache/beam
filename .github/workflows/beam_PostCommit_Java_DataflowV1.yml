@@ -19,7 +19,7 @@ name: PostCommit Java Dataflow V1
 
 on:
   schedule:
-    - cron: '30 3/6 * * *'
+    - cron: '30 3/8 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_DataflowV1.json']
   workflow_dispatch:
@@ -46,7 +46,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -54,7 +54,7 @@ jobs:
   beam_PostCommit_Java_DataflowV1:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 240
+    timeout-minutes: 360
     strategy:
       matrix:
         job_name: [beam_PostCommit_Java_DataflowV1]

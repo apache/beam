@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -52,7 +52,7 @@ jobs:
   beam_CleanUpPrebuiltSDKImages:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 100
+    timeout-minutes: 180
     strategy:
       matrix: 
         job_name: [beam_CleanUpPrebuiltSDKImages]
@@ -71,12 +71,12 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: Authenticate on GCP
-        id: auth
-        uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          disable-cache: true
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker gcr.io && \
+          gcloud auth configure-docker us.gcr.io
       - name: run remove stale sdk container images
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

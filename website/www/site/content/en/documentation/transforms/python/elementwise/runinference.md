@@ -23,7 +23,7 @@ limitations under the License.
   <tr>
     <td>
       <a>
-      {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+      {{< button-pydoc path="apache_beam.ml.inference.base" class="RunInference" >}}
       </a>
    </td>
   </tr>

@@ -25,9 +25,11 @@ applyJavaNature(
   archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
   exportJavadoc: (project.hasProperty('exportJavadoc') ? exportJavadoc : true),
   classesTriggerCheckerBugs: [
+    'Aggregators': 'https://github.com/typetools/checker-framework/issues/6388#issuecomment-1885532351',
     'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
     'SparkCombineFn'     : 'https://github.com/typetools/checker-framework/issues/3793',
     'WindowingHelpers'   : 'https://github.com/typetools/checker-framework/issues/3793',
+    'WindowAssignTranslatorBatch': 'https://github.com/typetools/checker-framework/issues/6388#issuecomment-1885532351',
   ],
 )
 
@@ -157,7 +159,6 @@ spark.components = [
 dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
@@ -170,8 +171,7 @@ dependencies {
   implementation library.java.args4j
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
   spark.components.each { component ->
     provided "$component:$spark_version"
@@ -274,8 +274,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
@@ -287,6 +286,13 @@ def applyBatchValidatesRunnerSetup = { Test it ->
 def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   applyBatchValidatesRunnerSetup(it)
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
+
+  // TODO(https://github.com/apache/beam/issues/31231
+  it.filter {
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
+  }
 }
 
 def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWithBoundedSDFExperiment", Test) {
@@ -321,6 +327,12 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
       // UNBOUNDED View.CreatePCollectionView not supported
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
+      // TODO(https://github.com/apache/beam/issues/29973)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/31231
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/32021)
+      excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
     }
 
     // TestStream using processing time is not supported in Spark
@@ -347,8 +359,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
@@ -403,8 +414,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
@@ -420,6 +430,10 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
     // SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
+    // https://github.com/apache/beam/issues/29972
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testHotKeyCombineWithSideInputs'
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
   }
 }
 

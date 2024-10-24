@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.FileStagingOptions;
@@ -202,7 +201,6 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   @Description(
       "Specifies whether worker pools should be started with public IP addresses. WARNING:"
           + "This feature is available only through allowlist.")
-  @JsonIgnore
   @Nullable
   Boolean getUsePublicIps();
 

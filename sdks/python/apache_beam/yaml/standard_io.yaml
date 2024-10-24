@@ -30,14 +30,16 @@
     mappings:
       'ReadFromBigQuery':
         query: 'query'
-        table: 'tableSpec'
-        fields: 'selectedFields'
-        row_restriction: 'rowRestriction'
+        table: 'table_spec'
+        fields: 'selected_fields'
+        row_restriction: 'row_restriction'
       'WriteToBigQuery':
         table: 'table'
-        create_disposition: 'createDisposition'
-        write_disposition: 'writeDisposition'
-        error_handling: 'errorHandling'
+        create_disposition: 'create_disposition'
+        write_disposition: 'write_disposition'
+        error_handling: 'error_handling'
+        # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
+        num_streams: 'num_streams'
     underlying_provider:
       type: beamJar
       transforms:
@@ -54,23 +56,25 @@
     mappings:
       'ReadFromKafka':
         'schema': 'schema'
-        'consumer_config': 'consumerConfigUpdates'
+        'consumer_config': 'consumer_config_updates'
         'format': 'format'
         'topic': 'topic'
-        'bootstrap_servers': 'bootstrapServers'
-        'confluent_schema_registry_url': 'confluentSchemaRegistryUrl'
-        'confluent_schema_registry_subject': 'confluentSchemaRegistrySubject'
-        'auto_offset_reset_config': 'autoOffsetResetConfig'
-        'error_handling': 'errorHandling'
-        'file_descriptor_path': 'fileDescriptorPath'
-        'message_name': 'messageName'
+        'bootstrap_servers': 'bootstrap_servers'
+        'confluent_schema_registry_url': 'confluent_schema_registry_url'
+        'confluent_schema_registry_subject': 'confluent_schema_registry_subject'
+        'auto_offset_reset_config': 'auto_offset_reset_config'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
       'WriteToKafka':
         'format': 'format'
         'topic': 'topic'
-        'bootstrap_servers': 'bootstrapServers'
-        'producer_config_updates': 'producerConfigUpdates'
-        'file_descriptor_path': 'fileDescriptorPath'
-        'message_name': 'messageName'
+        'bootstrap_servers': 'bootstrap_servers'
+        'producer_config_updates': 'producer_config_updates'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
+        'schema': 'schema'
     underlying_provider:
       type: beamJar
       transforms:
@@ -89,18 +93,25 @@
         'project': 'project'
         'schema': 'schema'
         'format': 'format'
-        'subscription_name': 'subscriptionName'
+        'subscription_name': 'subscription_name'
         'location': 'location'
         'attributes': 'attributes'
-        'attribute_map': 'attributeMap'
-        'attribute_id': 'attributeId'
+        'attribute_map': 'attribute_map'
+        'attribute_id': 'attribute_id'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
       'WriteToPubSubLite':
         'project': 'project'
         'format': 'format'
-        'topic_name': 'topicName'
+        'topic_name': 'topic_name'
         'location': 'location'
         'attributes': 'attributes'
-        'attribute_id': 'attributeId'
+        'attribute_id': 'attribute_id'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
+        'schema': 'schema'
     underlying_provider:
       type: beamJar
       transforms:
@@ -138,8 +149,11 @@
     mappings:
       'ReadFromCsv':
         path: 'path'
+        delimiter: 'sep'
+        comment: 'comment'
       'WriteToCsv':
         path: 'path'
+        delimiter: 'sep'
       'ReadFromJson':
         path: 'path'
       'WriteToJson':
@@ -191,24 +205,26 @@
   config:
     mappings:
       'ReadFromJdbc':
-        driver_class_name: 'driverClassName'
-        url: 'jdbcUrl'
+        driver_class_name: 'driver_class_name'
+        type: 'jdbc_type'
+        url: 'jdbc_url'
         username: 'username'
         password: 'password'
         table: 'location'
-        query: 'readQuery'
-        driver_jars: 'driverJars'
-        connection_properties: 'connectionProperties'
-        connection_init_sql: 'connectionInitSql'
+        query: 'read_query'
+        driver_jars: 'driver_jars'
+        connection_properties: 'connection_properties'
+        connection_init_sql: 'connection_init_sql'
       'WriteToJdbc':
-        driver_class_name: 'driverClassName'
-        url: 'jdbcUrl'
+        driver_class_name: 'driver_class_name'
+        type: 'jdbc_type'
+        url: 'jdbc_url'
         username: 'username'
         password: 'password'
         table: 'location'
-        driver_jars: 'driverJars'
-        connection_properties: 'connectionProperties'
-        connection_init_sql: 'connectionInitSql'
+        driver_jars: 'driver_jars'
+        connection_properties: 'connection_properties'
+        connection_init_sql: 'connection_init_sql'
       'ReadFromMySql': 'ReadFromJdbc'
       'WriteToMySql': 'WriteToJdbc'
       'ReadFromPostgres': 'ReadFromJdbc'
@@ -219,33 +235,52 @@
       'WriteToSqlServer': 'WriteToJdbc'
     defaults:
       'ReadFromMySql':
-        driverClassName: 'com.mysql.jdbc.Driver'
+        jdbcType: 'mysql'
       'WriteToMySql':
-        driverClassName: 'com.mysql.jdbc.Driver'
+        jdbcType: 'mysql'
       'ReadFromPostgres':
-        driverClassName: 'org.postgresql.Driver'
+        jdbcType: 'postgres'
       'WriteToPostgres':
-        driverClassName: 'org.postgresql.Driver'
+        jdbcType: 'postgres'
       'ReadFromOracle':
-        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+        jdbcType: 'oracle'
       'WriteToOracle':
-        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+        jdbcType: 'oracle'
       'ReadFromSqlServer':
-        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+        jdbcType: 'mssql'
       'WriteToSqlServer':
-        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+        jdbcType: 'mssql'
     underlying_provider:
       type: beamJar
       transforms:
         'ReadFromJdbc': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
         'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromMySql': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToMySql': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromPostgres': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToPostgres': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromOracle': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToOracle': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromSqlServer': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToSqlServer': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+
+- type: renaming
+  transforms:
+    'ReadFromSpanner': 'ReadFromSpanner'
+    'WriteToSpanner': 'WriteToSpanner'
+  config:
+    mappings:
+      'ReadFromSpanner':
+        project: 'project_id'
+        instance: 'instance_id'
+        database: 'database_id'
+        table: 'table_id'
+        query: 'query'
+        columns: 'columns'
+      'WriteToSpanner':
+        project: 'project_id'
+        instance: 'instance_id'
+        database: 'database_id'
+        table: 'table_id'
+        error_handling: 'error_handling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromSpanner': 'beam:schematransform:org.apache.beam:spanner_read:v1'
+        'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

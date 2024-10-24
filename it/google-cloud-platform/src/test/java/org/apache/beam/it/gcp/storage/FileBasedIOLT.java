@@ -184,6 +184,9 @@ public class FileBasedIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
+            .addParameter(
+                "maxNumWorkers",
+                TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
             .build();
     PipelineLauncher.LaunchInfo writeInfo = pipelineLauncher.launch(project, region, writeOptions);
     PipelineOperator.Result writeResult =
@@ -198,6 +201,9 @@ public class FileBasedIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
+            .addParameter(
+                "maxNumWorkers",
+                TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
             .build();
     PipelineLauncher.LaunchInfo readInfo = pipelineLauncher.launch(project, region, readOptions);
     PipelineOperator.Result readResult =

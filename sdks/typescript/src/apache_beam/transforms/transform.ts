@@ -84,7 +84,7 @@ export function extractName<T>(withName: T): string {
 /** @internal */
 export class AsyncPTransformClass<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > {
   beamName: string | (() => string);
 
@@ -99,7 +99,7 @@ export class AsyncPTransformClass<
   async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ): Promise<OutputT> {
     return this.expandAsync(input);
   }
@@ -108,7 +108,7 @@ export class AsyncPTransformClass<
 /** @internal */
 export class PTransformClass<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > extends AsyncPTransformClass<InputT, OutputT> {
   expand(input: InputT): OutputT {
     throw new Error("Method expand has not been implemented.");
@@ -121,7 +121,7 @@ export class PTransformClass<
   expandInternal(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ): OutputT {
     return this.expand(input);
   }
@@ -129,7 +129,7 @@ export class PTransformClass<
   async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ): Promise<OutputT> {
     return this.expandInternal(input, pipeline, transformProto);
   }
@@ -143,14 +143,14 @@ export class PTransformClass<
  */
 export type AsyncPTransform<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > =
   | AsyncPTransformClass<InputT, OutputT>
   | ((input: InputT) => Promise<OutputT>)
   | ((
       input: InputT,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
+      transformProto: runnerApi.PTransform,
     ) => Promise<OutputT>);
 
 /**
@@ -179,12 +179,12 @@ export type AsyncPTransform<
  */
 export type PTransform<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > =
   | PTransformClass<InputT, OutputT>
   | ((input: InputT) => OutputT)
   | ((
       input: InputT,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
+      transformProto: runnerApi.PTransform,
     ) => OutputT);

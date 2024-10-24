@@ -97,8 +97,8 @@ func installExtraPackages(requirementsFile string) error {
 	return nil
 }
 
-func getUpdatedRequirementsFile(oldRequirementsFileName string, dependenciesDir string) (string, error) {
-	oldExtraPackages, err := getLines(filepath.Join(dependenciesDir, oldRequirementsFileName))
+func getUpdatedRequirementsFile(oldDependenciesRequirementsFile string, dependenciesDir string) (string, error) {
+	oldExtraPackages, err := getLines(oldDependenciesRequirementsFile)
 	if err != nil {
 		return "", err
 	}
@@ -145,9 +145,20 @@ func launchExpansionServiceProcess() error {
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
 
-	if *requirements_file != "" {
-		log.Printf("Received the requirements file %v", *requirements_file)
-		updatedRequirementsFileName, err := getUpdatedRequirementsFile(*requirements_file, *dependencies_dir)
+	// Requirements file with dependencies to install.
+	// Note that we have to look for the requirements file in the dependencies
+	// volume here not the requirements file at the top level. Latter provides
+	// Beam dependencies.
+	dependencies_requirements_file := filepath.Join(*dependencies_dir, *requirements_file)
+	dependencies_requirements_file_exists := false
+	if _, err := os.Stat(dependencies_requirements_file); err == nil {
+		dependencies_requirements_file_exists = true
+	}
+
+	// We only try to install dependencies, if the requirements file exists.
+	if dependencies_requirements_file_exists {
+		log.Printf("Received the requirements file %s with extra packages.", dependencies_requirements_file)
+		updatedRequirementsFileName, err := getUpdatedRequirementsFile(dependencies_requirements_file, *dependencies_dir)
 		if err != nil {
 			return err
 		}
@@ -161,7 +172,10 @@ func launchExpansionServiceProcess() error {
 		if err != nil {
 			return err
 		}
+	} else {
+		log.Printf("Requirements file %s was provided but not available.", dependencies_requirements_file)
 	}
+
 	if err := execx.Execute(pythonVersion, args...); err != nil {
 		return fmt.Errorf("could not start the expansion service: %s", err)
 	}

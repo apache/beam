@@ -18,8 +18,8 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import java.util.Map;
-import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
 
 /**

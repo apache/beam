@@ -52,6 +52,7 @@ import hashlib
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from importlib.metadata import distribution
@@ -84,6 +85,8 @@ from apache_beam.utils import retry
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
+# Filename that stores the submission environment dependencies.
+SUBMISSION_ENV_DEPENDENCIES_FILE = 'submission_environment_dependencies.txt'
 # One of the choices for user to use for requirements cache during staging
 SKIP_REQUIREMENTS_CACHE = 'skip'
 
@@ -159,9 +162,10 @@ class Stager(object):
   def create_job_resources(options,  # type: PipelineOptions
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
-                           pypi_requirements=None, # type: Optional[List[str]]
+                           pypi_requirements=None,  # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
-                           skip_prestaged_dependencies=False, # type: Optional[bool]
+                           skip_prestaged_dependencies=False,  # type: Optional[bool]
+                           log_submission_env_dependencies=True,  # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -183,6 +187,8 @@ class Stager(object):
             cache. Used only for testing.
           skip_prestaged_dependencies: Skip staging dependencies that can be
             added into SDK containers during prebuilding.
+          log_submission_env_dependencies: (Optional) param to stage and log
+            submission environment dependencies. Defaults to True.
 
         Returns:
           A list of ArtifactInformation to be used for staging resources.
@@ -208,7 +214,8 @@ class Stager(object):
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
           (setup_options.requirements_cache is None) else
           setup_options.requirements_cache)
-      if not os.path.exists(requirements_cache_path):
+      if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
+          not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
 
       # Stage a requirements file if present.
@@ -364,6 +371,13 @@ class Stager(object):
         resources.append(
             Stager._create_file_stage_to_artifact(
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
+
+    # stage the submission environment dependencies, if enabled.
+    if (log_submission_env_dependencies and
+        not options.view_as(DebugOptions).lookup_experiment(
+            'disable_logging_submission_environment')):
+      resources.extend(
+          Stager._create_stage_submission_env_dependencies(temp_dir))
 
     return resources
 
@@ -778,6 +792,7 @@ class Stager(object):
               Stager._get_python_executable(),
               '-m',
               'build',
+              '--no-isolation',  # Otherwise, we need internet access to PyPI.
               '--sdist',
               '--outdir',
               temp_dir,
@@ -850,3 +865,40 @@ class Stager(object):
     return [
         Stager._create_file_stage_to_artifact(local_download_file, staged_name)
     ]
+
+  @staticmethod
+  def _create_stage_submission_env_dependencies(temp_dir):
+    """Create and stage a file with list of dependencies installed in the
+    submission environment.
+
+    This list can be used at runtime to compare against the dependencies in the
+    runtime environment. This allows runners to warn users about any potential
+    dependency mismatches and help debug issues related to
+    environment mismatches.
+
+    Args:
+      temp_dir: path to temporary location where the file should be
+        downloaded.
+
+    Returns:
+      A list of ArtifactInformation of local file path that will be staged to
+      the staging location.
+    """
+    try:
+      local_dependency_file_path = os.path.join(
+          temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILE)
+      dependencies = subprocess.check_output(
+          [sys.executable, '-m', 'pip', 'freeze'])
+      local_python_path = f"Python Path: {sys.executable}\n"
+      with open(local_dependency_file_path, 'w') as f:
+        f.write(local_python_path + str(dependencies))
+      return [
+          Stager._create_file_stage_to_artifact(
+              local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE),
+      ]
+    except Exception as e:
+      _LOGGER.warning(
+          "Couldn't stage a list of installed dependencies in "
+          "submission environment. Got exception: %s",
+          e)
+      return []

@@ -78,12 +78,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 
 	// Lets check for and remove anything that makes things less simple.
-	if pdo.OnWindowExpirationTimerFamilySpec == "" &&
-		!pdo.RequestsFinalization &&
-		!pdo.RequiresStableInput &&
-		!pdo.RequiresTimeSortedInput &&
-		len(pdo.TimerFamilySpecs) == 0 &&
-		pdo.RestrictionCoderId == "" {
+	if pdo.RestrictionCoderId == "" {
 		// Which inputs are Side inputs don't change the graph further,
 		// so they're not included here. Any nearly any ParDo can have them.
 
@@ -179,7 +174,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		ckvERSID: coder(urns.CoderKV, ckvERID, cSID),
 	}
 
-	// PCollections only have two new ones.
+	// There are only two new PCollections.
 	// INPUT -> same as ordinary DoFn
 	// PWR, uses ckvER
 	// SPLITnSIZED, uses ckvERS
@@ -202,7 +197,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		nSPLITnSIZEDID: pcol(nSPLITnSIZEDID, ckvERSID),
 	}
 
-	// PTransforms have 3 new ones, with process sized elements and restrictions
+	// There are 3 new PTransforms, with process sized elements and restrictions
 	// taking the brunt of the complexity, consuming the inputs
 
 	ePWRID := "e" + tid + "_pwr"
@@ -210,15 +205,19 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	eProcessID := "e" + tid + "_processandsplit"
 
 	tform := func(name, urn, in, out string) *pipepb.PTransform {
+		// Apparently we also send side inputs to PairWithRestriction
+		// and SplitAndSize. We should consider wether we could simply
+		// drop the side inputs from the ParDo payload instead, which
+		// could lead to an additional fusion oppportunity.
+		newInputs := maps.Clone(t.GetInputs())
+		newInputs[inputLocalID] = in
 		return &pipepb.PTransform{
 			UniqueName: name,
 			Spec: &pipepb.FunctionSpec{
 				Urn:     urn,
 				Payload: pardoPayload,
 			},
-			Inputs: map[string]string{
-				inputLocalID: in,
-			},
+			Inputs: newInputs,
 			Outputs: map[string]string{
 				"i0": out,
 			},

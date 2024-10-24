@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -178,6 +179,22 @@ public class PCollectionRowTuple implements PInput, POutput {
       throw new IllegalArgumentException("Tag not found in this PCollectionRowTuple tuple");
     }
     return pcollection;
+  }
+
+  /**
+   * Like {@link #get(String)}, but is a convenience method to get a single PCollection without
+   * providing a tag for that output. Use only when there is a single collection in this tuple.
+   *
+   * <p>Throws {@link IllegalStateException} if more than one output exists in the {@link
+   * PCollectionRowTuple}.
+   */
+  public PCollection<Row> getSinglePCollection() {
+    Preconditions.checkState(
+        pcollectionMap.size() == 1,
+        "Expected exactly one output PCollection<Row>, but found %s. "
+            + "Please try retrieving a specified output using get(<tag>) instead.",
+        pcollectionMap.size());
+    return get(pcollectionMap.entrySet().iterator().next().getKey());
   }
 
   /**

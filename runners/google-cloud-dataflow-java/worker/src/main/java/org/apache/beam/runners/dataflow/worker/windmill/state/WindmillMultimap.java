@@ -40,7 +40,7 @@ import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -216,8 +216,8 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     if (keyState == null || keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
       return;
     }
-    if (keyState.valuesCached && keyState.valuesSize == 0) {
-      // no data in windmill, deleting from local cache is sufficient.
+    if (keyState.valuesCached && keyState.valuesSize == 0 && !keyState.removedLocally) {
+      // no data in windmill and no need to keep state, deleting from local cache is sufficient.
       keyStateMap.remove(structuralKey);
     } else {
       // there may be data in windmill that need to be removed.

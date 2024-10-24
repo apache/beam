@@ -21,6 +21,7 @@ import argparse
 import logging
 import subprocess
 import sys
+from typing import Optional
 
 import grpc
 from mock import patch
@@ -46,8 +47,8 @@ else:
 class JavaExternalTransformTest(object):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None  # type: str
-  expansion_service_port = None  # type: int
+  expansion_service_jar: Optional[str] = None
+  expansion_service_port: Optional[int] = None
 
   class _RunWithExpansion(object):
     def __init__(self):
@@ -122,7 +123,7 @@ class JavaExternalTransformTest(object):
   @staticmethod
   def run_pipeline(pipeline_options, expansion_service, wait_until_finish=True):
     # The actual definitions of these transforms is in
-    # org.apache.beam.runners.core.construction.TestExpansionService.
+    # org.apache.beam.sdk.util.construction.TestExpansionService.
     TEST_COUNT_URN = "beam:transforms:xlang:count"
     TEST_FILTER_URN = "beam:transforms:xlang:filter_less_than_eq"
 

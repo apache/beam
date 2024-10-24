@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
@@ -121,8 +122,16 @@ public class JsonWriteTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      WriteFilesResult<?> result =
-          input.get(INPUT_ROWS_TAG).apply(JsonIO.writeRows(configuration.getPath()).withSuffix(""));
+      // Preserve input windowing
+      JsonIO.Write<Row> writeTransform = JsonIO.writeRows(configuration.getPath()).withSuffix("");
+      if (!input
+          .get(INPUT_ROWS_TAG)
+          .getWindowingStrategy()
+          .equals(WindowingStrategy.globalDefault())) {
+        writeTransform = writeTransform.withWindowedWrites();
+      }
+
+      WriteFilesResult<?> result = input.get(INPUT_ROWS_TAG).apply(writeTransform);
       Schema outputSchema = Schema.of(Field.of("filename", FieldType.STRING));
       return PCollectionRowTuple.of(
           WRITE_RESULTS,

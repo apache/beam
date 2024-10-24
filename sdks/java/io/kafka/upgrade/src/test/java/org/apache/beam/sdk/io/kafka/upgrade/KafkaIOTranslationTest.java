@@ -27,13 +27,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.runners.core.construction.TransformUpgrader;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.upgrade.KafkaIOTranslation.KafkaIOReadWithMetadataTranslator;
 import org.apache.beam.sdk.io.kafka.upgrade.KafkaIOTranslation.KafkaIOWriteTranslator;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -63,6 +64,7 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMaxReadTime", "max_read_time");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getStartReadTime", "start_read_time");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getStopReadTime", "stop_read_time");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getRedistributeNumKeys", "redistribute_num_keys");
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "isCommitOffsetsInFinalizeEnabled", "is_commit_offset_finalize_enabled");
     READ_TRANSFORM_SCHEMA_MAPPING.put("isDynamicRead", "is_dynamic_read");
@@ -74,6 +76,7 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "getValueDeserializerProvider", "value_deserializer_provider");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getCheckStopReadingFn", "check_stop_reading_fn");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getConsumerPollingTimeout", "consumer_polling_timeout");
   }
 
   // A mapping from Write transform builder methods to the corresponding schema fields in
@@ -111,7 +114,7 @@ public class KafkaIOTranslationTest {
     Row row = translator.toConfigRow(readTransform);
 
     Read<String, Integer> readTransformFromRow =
-        (Read<String, Integer>) translator.fromConfigRow(row);
+        (Read<String, Integer>) translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(
         readTransformFromRow.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
     assertEquals(
@@ -120,6 +123,31 @@ public class KafkaIOTranslationTest {
     assertEquals(1, readTransformFromRow.getTopicPartitions().size());
     assertEquals("dummytopic", readTransformFromRow.getTopicPartitions().get(0).topic());
     assertEquals(0, readTransformFromRow.getTopicPartitions().get(0).partition());
+  }
+
+  @Test
+  public void testReCreateReadTransformWithTopics() throws Exception {
+    Map<String, Object> consumerConfig = new HashMap<>();
+    consumerConfig.put("dummyconfig", "dummyvalue");
+
+    Read<String, Integer> readTransform =
+        KafkaIO.<String, Integer>read()
+            .withBootstrapServers("dummykafkaserver")
+            .withTopic("dummytopic")
+            .withConsumerConfigUpdates(consumerConfig);
+    KafkaIOTranslation.KafkaIOReadWithMetadataTranslator translator =
+        new KafkaIOReadWithMetadataTranslator();
+    Row row = translator.toConfigRow(readTransform);
+
+    Read<String, Integer> readTransformFromRow =
+        (Read<String, Integer>) translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    assertNotNull(
+        readTransformFromRow.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+    assertEquals(
+        "dummykafkaserver",
+        readTransformFromRow.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+    assertEquals(1, readTransformFromRow.getTopics().size());
+    assertEquals("dummytopic", readTransformFromRow.getTopics().get(0));
   }
 
   @Test
@@ -178,7 +206,7 @@ public class KafkaIOTranslationTest {
     Row row = translator.toConfigRow(writeTransform);
 
     Write<String, Integer> writeTransformFromRow =
-        (Write<String, Integer>) translator.fromConfigRow(row);
+        (Write<String, Integer>) translator.fromConfigRow(row, PipelineOptionsFactory.create());
     WriteRecords<String, Integer> writeRecordsTransform =
         writeTransformFromRow.getWriteRecordsTransform();
     assertNotNull(

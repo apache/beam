@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -164,7 +165,9 @@ public class PeriodicSequence
 
     @Override
     public IsBounded isBounded() {
-      return IsBounded.BOUNDED;
+      return range.getTo() == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()
+          ? IsBounded.UNBOUNDED
+          : IsBounded.BOUNDED;
     }
 
     @Override
@@ -213,6 +216,13 @@ public class PeriodicSequence
       return null;
     }
 
+    @GetSize
+    public double getSize(
+        @Element SequenceDefinition sequence, @Restriction OffsetRange offsetRange) {
+      long nowMilliSec = Instant.now().getMillis();
+      return sequenceBacklogBytes(sequence.durationMilliSec, nowMilliSec, offsetRange);
+    }
+
     @ProcessElement
     public ProcessContinuation processElement(
         @Element SequenceDefinition srcElement,
@@ -256,5 +266,27 @@ public class PeriodicSequence
   @Override
   public PCollection<Instant> expand(PCollection<SequenceDefinition> input) {
     return input.apply(ParDo.of(new PeriodicSequenceFn()));
+  }
+
+  private static final int ENCODED_INSTANT_BYTES = 8;
+
+  private static long ceilDiv(long a, long b) {
+    long result = Math.floorDiv(a, b);
+    if (a % b != 0) {
+      ++result;
+    }
+    return result;
+  }
+
+  @VisibleForTesting
+  static long sequenceBacklogBytes(
+      long durationMilliSec, long nowMilliSec, OffsetRange offsetRange) {
+    // Find the # of outputs expected for overlap of offsetRange and [-inf, now)
+    long start = ceilDiv(offsetRange.getFrom(), durationMilliSec);
+    long end = ceilDiv(Math.min(nowMilliSec, offsetRange.getTo() - 1), durationMilliSec);
+    if (start >= end) {
+      return 0;
+    }
+    return ENCODED_INSTANT_BYTES * (end - start);
   }
 }

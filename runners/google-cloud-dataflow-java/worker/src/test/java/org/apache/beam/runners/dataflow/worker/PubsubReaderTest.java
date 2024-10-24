@@ -31,7 +31,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,7 +51,7 @@ public class PubsubReaderTest {
   }
 
   private void testReadWith(String parseFn) throws Exception {
-    when(mockContext.getWork())
+    when(mockContext.getWorkItem())
         .thenReturn(
             Windmill.WorkItem.newBuilder()
                 .setKey(ByteString.copyFromUtf8("key"))

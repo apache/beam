@@ -20,10 +20,14 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.naming.SizeLimitExceededException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -40,6 +44,14 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
 
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
   @Nullable SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction;
+  /** Last TopicPath that reported Lineage. */
+  private transient @Nullable String reportedLineage;
+
+  private final BadRecordRouter badRecordRouter;
+
+  private final Coder<InputT> inputCoder;
+
+  private final TupleTag<PubsubMessage> outputTag;
 
   static int validatePubsubMessageSize(PubsubMessage message, int maxPublishBatchSize)
       throws SizeLimitExceededException {
@@ -113,10 +125,16 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
       @Nullable
           SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
-      int maxPublishBatchSize) {
+      int maxPublishBatchSize,
+      BadRecordRouter badRecordRouter,
+      Coder<InputT> inputCoder,
+      TupleTag<PubsubMessage> outputTag) {
     this.formatFunction = formatFunction;
     this.topicFunction = topicFunction;
     this.maxPublishBatchSize = maxPublishBatchSize;
+    this.badRecordRouter = badRecordRouter;
+    this.inputCoder = inputCoder;
+    this.outputTag = outputTag;
   }
 
   @ProcessElement
@@ -125,18 +143,49 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       @Timestamp Instant ts,
       BoundedWindow window,
       PaneInfo paneInfo,
-      OutputReceiver<PubsubMessage> o) {
+      MultiOutputReceiver o)
+      throws Exception {
     ValueInSingleWindow<InputT> valueInSingleWindow =
         ValueInSingleWindow.of(element, ts, window, paneInfo);
-    PubsubMessage message = formatFunction.apply(valueInSingleWindow);
+    PubsubMessage message;
+    try {
+      message = formatFunction.apply(valueInSingleWindow);
+    } catch (Exception e) {
+      badRecordRouter.route(
+          o,
+          element,
+          inputCoder,
+          e,
+          "Failed to serialize PubSub message with provided format function");
+      return;
+    }
     if (topicFunction != null) {
-      message = message.withTopic(topicFunction.apply(valueInSingleWindow).asPath());
+      try {
+        message = message.withTopic(topicFunction.apply(valueInSingleWindow).asPath());
+      } catch (Exception e) {
+        badRecordRouter.route(
+            o, element, inputCoder, e, "Failed to determine PubSub topic using topic function");
+        return;
+      }
+    }
+    String topic = message.getTopic();
+    // topic shouldn't be null, but lineage report is fail-safe
+    if (topic != null && !topic.equals(reportedLineage)) {
+      Lineage.getSinks()
+          .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
+      reportedLineage = topic;
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);
     } catch (SizeLimitExceededException e) {
-      throw new IllegalArgumentException(e);
+      badRecordRouter.route(
+          o,
+          element,
+          inputCoder,
+          new IllegalArgumentException(e),
+          "PubSub message limit exceeded, see exception for details");
+      return;
     }
-    o.output(message);
+    o.get(outputTag).output(message);
   }
 }

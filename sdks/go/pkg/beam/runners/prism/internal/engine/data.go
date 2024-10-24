@@ -18,18 +18,23 @@ package engine
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"golang.org/x/exp/slog"
 )
 
 // StateData is a "union" between Bag state and MultiMap state to increase common code.
 type StateData struct {
 	Bag      [][]byte
 	Multimap map[string][][]byte
+}
+
+// TimerKey is for use as a key for timers.
+type TimerKey struct {
+	Transform, Family string
 }
 
 // TentativeData is where data for in progress bundles is put
@@ -39,6 +44,8 @@ type TentativeData struct {
 
 	// state is a map from transformID + UserStateID, to window, to userKey, to datavalues.
 	state map[LinkID]map[typex.Window]map[string]StateData
+	// timers is a map from the Timer transform+family to the encoded timer.
+	timers map[TimerKey][][]byte
 }
 
 // WriteData adds data to a given global collectionID.
@@ -47,6 +54,15 @@ func (d *TentativeData) WriteData(colID string, data []byte) {
 		d.Raw = map[string][][]byte{}
 	}
 	d.Raw[colID] = append(d.Raw[colID], data)
+}
+
+// WriteTimers adds timers to the associated transform handler.
+func (d *TentativeData) WriteTimers(transformID, familyID string, timers []byte) {
+	if d.timers == nil {
+		d.timers = map[TimerKey][][]byte{}
+	}
+	link := TimerKey{Transform: transformID, Family: familyID}
+	d.timers[link] = append(d.timers[link], timers)
 }
 
 func (d *TentativeData) toWindow(wKey []byte) typex.Window {

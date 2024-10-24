@@ -93,33 +93,22 @@ or on the dev mailing list, for [example](https://lists.apache.org/thread/jgjdt5
 
 # Google Cloud-related dependency upgrades
 
-To provide the consistent dependencies to Beam users, follow the following steps when upgrading Google Cloud-related dependencies:
+Beam uses [GCP-BOM](https://cloud.google.com/java/docs/bom) to manage Google Cloud-related dependencies. A [script](../scripts/tools/bomupgrader.py) is used to upgrade GCP-BOM dependencies. To upgrade, find the latest BOM version in https://mvnrepository.com/artifact/com.google.cloud/libraries-bom and run
 
- - [ ] Set the Libraries BOM version. Find the latest release in
-       https://github.com/googleapis/java-cloud-bom/releases and set libraries-bom
-       value in BeamModulePlugin.groovy
- - [ ] Find core Google Java library versions.
-     - Such as gRPC, Protobuf, Guava, Google Auth Library in the release note
-       of the Libraries BOM and set them in BeamModulePlugin.groovy
- - [ ] Find appropriate Netty version by checking io.grpc:grpc-netty's
-       dependency declaration. For example, you can tell gRPC version 1.49.0
-       was built with Netty "4.1.77.Final" by reading
-       https://search.maven.org/artifact/io.grpc/grpc-netty/1.49.0/jar:
-       ```
-       <artifactId>netty-codec-http2</artifactId>
-       <version>4.1.77.Final</version>
-       ```
- - [ ] Update netty_version in BeamModulePlugin.groovy
- - [ ] Find netty-tcnative version via netty-parent artifact. For example, you
-       can tell Netty 4.1.77.Final was built with netty-tcnative "2.0.52.Final".
-       https://search.maven.org/artifact/io.netty/netty-parent/4.1.77.Final/jar:
-       ```
-       <tcnative.version>2.0.52.Final</tcnative.version>
-       ```
- - [ ] Update netty_tcnative_boringssl_static version in BeamModulePlugin.groovy
+```
+python scripts/tools/bomupgrader.py <latest_bom_version>
+```
 
+then the changes will made in place.
 
-The following script may be useful to identify matching/consistent dependency overrides.
+This script does the following steps:
+
+1. preprocessing BeamModulePlugin.groovy to decide the dependencies need to sync
+2. generate an empty Maven project to fetch the exact target versions to change
+3. Write back to BeamModulePlugin.groovy
+4. Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
+
+In the case of modifying the script or diagnose, the following commands may be useful to identify matching/consistent dependency overrides.
 
     export BOM_VERSION=26.22.0 ; \
     cd /tmp; \
@@ -127,4 +116,3 @@ The following script may be useful to identify matching/consistent dependency ov
     mvn help:effective-pom -f base.pom -Doutput=effective.pom && cat effective.pom | \
     grep -v 'dependencyManagement' > cleanup.pom && \
     mvn dependency:tree -f cleanup.pom
-

@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.util;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 
 /** A {@link CloudObjectTranslator} for {@link SerializableCoder}. */
 @SuppressWarnings({

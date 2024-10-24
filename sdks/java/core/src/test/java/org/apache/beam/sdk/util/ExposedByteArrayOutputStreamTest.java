@@ -25,7 +25,7 @@ import static org.junit.Assert.assertSame;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExposedByteArrayOutputStreamTest {
 
-  private static final byte[] TEST_DATA = "Hello World!".getBytes(Charsets.UTF_8);
+  private static final byte[] TEST_DATA = "Hello World!".getBytes(StandardCharsets.UTF_8);
 
   private ExposedByteArrayOutputStream exposedStream = new ExposedByteArrayOutputStream();
   private ByteArrayOutputStream stream = new ByteArrayOutputStream();

@@ -68,7 +68,7 @@ cd $BEAM_HOME
 Expected output should include the following, from which you acquire the latest flink runner version.
 
 ```shell
-'flink_versions: 1.12,1.13,1.14,1.15,1.16'
+'flink_versions: 1.17,1.18,1.19'
 ```
 
 #### 2. Set to the latest flink runner version i.e. 1.16

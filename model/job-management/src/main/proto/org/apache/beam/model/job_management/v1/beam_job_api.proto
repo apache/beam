@@ -56,6 +56,9 @@ service JobService {
   // Cancel the job
   rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
+  // Drain the job
+  rpc Drain (DrainJobRequest) returns (DrainJobResponse);
+
   // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
   rpc GetStateStream (GetJobStateRequest) returns (stream JobStateEvent);
 
@@ -124,6 +127,19 @@ message CancelJobRequest {
 
 // Valid responses include any terminal state or CANCELLING
 message CancelJobResponse {
+  JobState.Enum state = 1; // (required)
+}
+
+// Drain is a request to:
+// - stop a pipeline Job from ingesting new data from input sources
+// - process remaining data in the pipeline
+// - truncate Splittable DoFns
+message DrainJobRequest {
+  string job_id = 1; // (required)
+}
+
+// Valid responses include any terminal state or DRAINING
+message DrainJobResponse {
   JobState.Enum state = 1; // (required)
 }
 

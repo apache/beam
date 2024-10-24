@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG GO_BASE_IMAGE=golang:1.20-bullseye
+ARG GO_BASE_IMAGE=golang:1-bullseye
 ARG SDK_TAG
 ARG BASE_IMAGE=apache/beam_python3.10_sdk:$SDK_TAG
 FROM $GO_BASE_IMAGE AS build
@@ -64,7 +64,8 @@ COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
 RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
     mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
     mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
-RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+RUN apt-get update && \
+    apt install openjdk-17-jre-headless -y 
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \

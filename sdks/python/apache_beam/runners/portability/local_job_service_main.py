@@ -145,7 +145,7 @@ def run(argv):
         with open(options.port_file + '.tmp', 'w') as fout:
           fout.write(str(port))
         os.rename(options.port_file + '.tmp', options.port_file)
-      serve("Listening for beam jobs on port %d." % port, job_servicer)
+      serve("Listening for beam jobs on port %d." % port)
     finally:
       job_servicer.stop()
   finally:
@@ -155,7 +155,7 @@ def run(argv):
       os.unlink(options.port_file)
 
 
-def serve(msg, job_servicer):
+def serve(msg):
   logging_delay = 30
   while True:
     _LOGGER.info(msg)

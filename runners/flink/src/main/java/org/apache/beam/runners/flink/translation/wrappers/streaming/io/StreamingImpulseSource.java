@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +60,8 @@ public class StreamingImpulseSource extends RichParallelSourceFunction<WindowedV
     while (running && (messageCount == 0 || count < subtaskCount)) {
       synchronized (ctx.getCheckpointLock()) {
         ctx.collect(
-            WindowedValue.valueInGlobalWindow(String.valueOf(count).getBytes(Charsets.UTF_8)));
+            WindowedValue.valueInGlobalWindow(
+                String.valueOf(count).getBytes(StandardCharsets.UTF_8)));
         count++;
       }
 

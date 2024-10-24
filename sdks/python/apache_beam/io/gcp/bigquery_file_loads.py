@@ -40,6 +40,7 @@ from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
@@ -564,6 +565,11 @@ class TriggerCopyJobs(beam.DoFn):
       write_disposition = self.write_disposition
       wait_for_job = True
       self._observed_tables.add(copy_to_reference.tableId)
+      Lineage.sinks().add(
+          'bigquery',
+          copy_to_reference.projectId,
+          copy_to_reference.datasetId,
+          copy_to_reference.tableId)
     else:
       wait_for_job = False
       write_disposition = 'WRITE_APPEND'
@@ -656,6 +662,7 @@ class TriggerLoadJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
+    self.schema_cache = {}
 
   def process(
       self,
@@ -703,6 +710,29 @@ class TriggerLoadJobs(beam.DoFn):
 
     create_disposition = self.create_disposition
     if self.temporary_tables:
+      # we need to create temp tables, so we need a schema.
+      # if there is no input schema, fetch the destination table's schema
+      if schema is None:
+        hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
+        if hashed_dest in self.schema_cache:
+          schema = self.schema_cache[hashed_dest]
+        else:
+          try:
+            schema = bigquery_tools.table_schema_to_dict(
+                bigquery_tools.BigQueryWrapper().get_table(
+                    project_id=table_reference.projectId,
+                    dataset_id=table_reference.datasetId,
+                    table_id=table_reference.tableId).schema)
+            self.schema_cache[hashed_dest] = schema
+          except Exception as e:
+            _LOGGER.warning(
+                "Input schema is absent and could not fetch the final "
+                "destination table's schema [%s]. Creating temp table [%s] "
+                "will likely fail: %s",
+                hashed_dest,
+                job_name,
+                e)
+
       # If we are using temporary tables, then we must always create the
       # temporary tables, so we replace the create_disposition.
       create_disposition = 'CREATE_IF_NEEDED'
@@ -711,6 +741,12 @@ class TriggerLoadJobs(beam.DoFn):
       yield pvalue.TaggedOutput(
           TriggerLoadJobs.TEMP_TABLES,
           bigquery_tools.get_hashable_destination(table_reference))
+    else:
+      Lineage.sinks().add(
+          'bigquery',
+          table_reference.projectId,
+          table_reference.datasetId,
+          table_reference.tableId)
 
     _LOGGER.info(
         'Triggering job %s to load data to BigQuery table %s.'
@@ -723,6 +759,7 @@ class TriggerLoadJobs(beam.DoFn):
     )
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+
     job_reference = self.bq_wrapper.perform_load_job(
         destination=table_reference,
         source_uris=files,
@@ -740,10 +777,26 @@ class TriggerLoadJobs(beam.DoFn):
         GlobalWindows.windowed_value((destination, job_reference)))
 
   def finish_bundle(self):
+    dataset_locations = {}
+
     for windowed_value in self.pending_jobs:
+      table_ref = bigquery_tools.parse_table_reference(windowed_value.value[0])
+      project_dataset = (table_ref.projectId, table_ref.datasetId)
+
       job_ref = windowed_value.value[1]
+      # In some cases (e.g. when the load job op returns a 409 ALREADY_EXISTS),
+      # the returned job reference may not include a location. In such cases,
+      # we need to override with the dataset's location.
+      job_location = job_ref.location
+      if not job_location and project_dataset not in dataset_locations:
+        job_location = self.bq_wrapper.get_table_location(
+            table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+        dataset_locations[project_dataset] = job_location
+
       self.bq_wrapper.wait_for_bq_job(
-          job_ref, sleep_duration_sec=_SLEEP_DURATION_BETWEEN_POLLS)
+          job_ref,
+          sleep_duration_sec=_SLEEP_DURATION_BETWEEN_POLLS,
+          location=job_location)
     return self.pending_jobs
 
 

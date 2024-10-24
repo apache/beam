@@ -212,7 +212,6 @@ class TestDicomSearch(unittest.TestCase):
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_param_dict_passing(self, MockClient):
     input_dict = {}
-    input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
     input_dict['dataset_id'] = "test_dataset_id"
@@ -257,7 +256,25 @@ class TestDicomSearch(unittest.TestCase):
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_missing_parameters(self, MockClient):
+  def test_missing_project_id(self, MockClient):
+    input_dict = {}
+    input_dict['dataset_id'] = "test_dataset"
+    input_dict['region'] = "test_region"
+
+    expected_invalid_dict = {}
+    expected_invalid_dict['result'] = []
+    expected_invalid_dict['status'] = 'Must have project_id in the dict.'
+    expected_invalid_dict['input'] = input_dict
+    expected_invalid_dict['success'] = False
+
+    mc = MockHttpClient()
+    MockClient.return_value = mc
+    with TestPipeline() as p:
+      results = (p | beam.Create([input_dict]) | DicomSearch())
+      assert_that(results, equal_to([expected_invalid_dict]))
+
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
+  def test_missing_dataset_id(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
@@ -265,6 +282,24 @@ class TestDicomSearch(unittest.TestCase):
     expected_invalid_dict = {}
     expected_invalid_dict['result'] = []
     expected_invalid_dict['status'] = 'Must have dataset_id in the dict.'
+    expected_invalid_dict['input'] = input_dict
+    expected_invalid_dict['success'] = False
+
+    mc = MockHttpClient()
+    MockClient.return_value = mc
+    with TestPipeline() as p:
+      results = (p | beam.Create([input_dict]) | DicomSearch())
+      assert_that(results, equal_to([expected_invalid_dict]))
+
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
+  def test_missing_region(self, MockClient):
+    input_dict = {}
+    input_dict['project_id'] = "test_project"
+    input_dict['dataset_id'] = "test_dataset"
+
+    expected_invalid_dict = {}
+    expected_invalid_dict['result'] = []
+    expected_invalid_dict['status'] = 'Must have region in the dict.'
     expected_invalid_dict['input'] = input_dict
     expected_invalid_dict['success'] = False
 

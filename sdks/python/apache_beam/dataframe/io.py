@@ -86,7 +86,7 @@ def read_gbq(
 
 
 @frame_base.with_docs_from(pd)
-def read_csv(path, *args, splittable=False, **kwargs):
+def read_csv(path, *args, splittable=False, binary=True, **kwargs):
   """If your files are large and records do not contain quoted newlines, you may
   pass the extra argument ``splittable=True`` to enable dynamic splitting for
   this read on newlines. Using this option for records that do contain quoted
@@ -99,6 +99,7 @@ def read_csv(path, *args, splittable=False, **kwargs):
       args,
       kwargs,
       incremental=True,
+      binary=binary,
       splitter=_TextFileSplitter(args, kwargs) if splittable else None)
 
 
@@ -279,7 +280,8 @@ class _ReadFromPandas(beam.PTransform):
     first_path = match.metadata_list[0].path
     with io.filesystems.FileSystems.open(first_path) as handle:
       if not self.binary:
-        handle = TextIOWrapper(handle)
+        handle = TextIOWrapper(
+            handle, encoding=self.kwargs.get("encoding", None))
       if self.incremental:
         with self.reader(handle, *self.args, **dict(self.kwargs,
                                                     chunksize=100)) as stream:
@@ -492,6 +494,10 @@ class _TruncatingFileHandle(object):
           self._buffer, self._underlying)
       self._buffer_start_pos += len(skip)
 
+  @property
+  def mode(self):
+    return getattr(self._underlying, "mode", "r")
+
   def readable(self):
     return True
 
@@ -571,6 +577,9 @@ class _TruncatingFileHandle(object):
       self._done = True
     return res
 
+  def flush(self):
+    self._underlying.flush()
+
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
   def __init__(self, reader, args, kwargs, binary, incremental, splitter):
@@ -626,7 +635,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
             splitter=self.splitter or
             _DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE))
       if not self.binary:
-        handle = TextIOWrapper(handle)
+        handle = TextIOWrapper(
+            handle, encoding=self.kwargs.get("encoding", None))
       if self.incremental:
         if 'chunksize' not in self.kwargs:
           self.kwargs['chunksize'] = _DEFAULT_LINES_CHUNKSIZE
@@ -687,7 +697,8 @@ class _WriteToPandasFileSink(fileio.FileSink):
     self.buffer = []
     self.empty = self.header = self.footer = None
     if not self.binary:
-      file_handle = TextIOWrapper(file_handle)
+      file_handle = TextIOWrapper(
+          file_handle, encoding=self.kwargs.get("encoding", None))
     self.file_handle = file_handle
 
   def write_to(self, df, file_handle=None):

@@ -176,6 +176,9 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Samza runner supports merging window fns
     raise unittest.SkipTest("https://github.com/apache/beam/issues/21049")
 
+  def test_custom_window_type(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21049")
+
 
 if __name__ == '__main__':
   # Run the tests.

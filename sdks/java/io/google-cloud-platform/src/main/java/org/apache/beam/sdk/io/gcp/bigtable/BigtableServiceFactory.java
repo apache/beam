@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 class BigtableServiceFactory implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceFactory.class);
+
   private static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries =
       new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
@@ -115,13 +117,16 @@ class BigtableServiceFactory implements Serializable {
       }
 
       BigtableOptions effectiveOptions = getEffectiveOptions(config);
+      BigtableReadOptions optsFromBigtableOptions = null;
       if (effectiveOptions != null) {
-        // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
+        // If BigtableOptions is set, convert it to BigtableConfig and BigtableReadOptions
         config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
-        opts = BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
+        optsFromBigtableOptions =
+            BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
       }
       BigtableDataSettings settings =
-          BigtableConfigTranslator.translateReadToVeneerSettings(config, opts, pipelineOptions);
+          BigtableConfigTranslator.translateReadToVeneerSettings(
+              config, opts, optsFromBigtableOptions, pipelineOptions);
 
       if (ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_CLIENT_SIDE_METRICS)) {
         LOG.info("Enabling client side metrics");
@@ -159,14 +164,17 @@ class BigtableServiceFactory implements Serializable {
       }
 
       BigtableOptions effectiveOptions = getEffectiveOptions(config);
+      BigtableWriteOptions optsFromBigtableOptions = null;
       if (effectiveOptions != null) {
         // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
         config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
-        opts = BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
+        optsFromBigtableOptions =
+            BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
       }
 
       BigtableDataSettings settings =
-          BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
+          BigtableConfigTranslator.translateWriteToVeneerSettings(
+              config, opts, optsFromBigtableOptions, pipelineOptions);
 
       if (ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_CLIENT_SIDE_METRICS)) {
         LOG.info("Enabling client side metrics");
@@ -207,6 +215,13 @@ class BigtableServiceFactory implements Serializable {
       }
     }
     return true;
+  }
+
+  @VisibleForTesting
+  static boolean isEmpty() {
+    synchronized (lock) {
+      return entries.isEmpty();
+    }
   }
 
   synchronized ConfigId newId() {

@@ -23,6 +23,7 @@ import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.api.gax.rpc.UnaryCallSettings;
+import com.google.auth.Credentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
@@ -39,9 +40,9 @@ import com.google.spanner.v1.PartialResultSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,54 +64,49 @@ public class SpannerAccessor implements AutoCloseable {
   private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
       new ConcurrentHashMap<>();
 
-  // Keep reference counts of each SpannerAccessor's usage so that we can close
-  // it when it is no longer in use.
-  private static final ConcurrentHashMap<SpannerConfig, AtomicInteger> refcounts =
-      new ConcurrentHashMap<>();
-
   private final Spanner spanner;
   private final DatabaseClient databaseClient;
   private final BatchClient batchClient;
   private final DatabaseAdminClient databaseAdminClient;
   private final SpannerConfig spannerConfig;
+  private final String instanceConfigId;
+  private int refcount = 0;
 
   private SpannerAccessor(
       Spanner spanner,
       DatabaseClient databaseClient,
       DatabaseAdminClient databaseAdminClient,
       BatchClient batchClient,
-      SpannerConfig spannerConfig) {
+      SpannerConfig spannerConfig,
+      String instanceConfigId) {
     this.spanner = spanner;
     this.databaseClient = databaseClient;
     this.databaseAdminClient = databaseAdminClient;
     this.batchClient = batchClient;
     this.spannerConfig = spannerConfig;
+    this.instanceConfigId = instanceConfigId;
   }
 
   public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
 
-    SpannerAccessor self = spannerAccessors.get(spannerConfig);
-    if (self == null) {
-      synchronized (spannerAccessors) {
-        // Re-check that it has not been created before we got the lock.
-        self = spannerAccessors.get(spannerConfig);
-        if (self == null) {
-          // Connect to spanner for this SpannerConfig.
-          LOG.info("Connecting to {}", spannerConfig);
-          self = SpannerAccessor.createAndConnect(spannerConfig);
-          LOG.info("Successfully connected to {}", spannerConfig);
-          spannerAccessors.put(spannerConfig, self);
-          refcounts.putIfAbsent(spannerConfig, new AtomicInteger(0));
-        }
+    synchronized (spannerAccessors) {
+      SpannerAccessor self = spannerAccessors.get(spannerConfig);
+      if (self == null) {
+        // Connect to spanner for this SpannerConfig.
+        LOG.info("Connecting to {}", spannerConfig);
+        self = SpannerAccessor.createAndConnect(spannerConfig);
+        LOG.info("Successfully connected to {}", spannerConfig);
+        spannerAccessors.put(spannerConfig, self);
       }
+      // Add refcount for this spannerConfig.
+      self.refcount++;
+      LOG.debug("getOrCreate(): refcount={} for {}", self.refcount, spannerConfig);
+      return self;
     }
-    // Add refcount for this spannerConfig.
-    int refcount = refcounts.get(spannerConfig).incrementAndGet();
-    LOG.debug("getOrCreate(): refcount={} for {}", refcount, spannerConfig);
-    return self;
   }
 
-  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
+  @VisibleForTesting
+  static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
     Set<Code> retryableCodes = new HashSet<>();
@@ -232,8 +228,16 @@ public class SpannerAccessor implements AutoCloseable {
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
     }
-    SpannerOptions options = builder.build();
+    ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
+    if (credentials != null && credentials.get() != null) {
+      builder.setCredentials(credentials.get());
+    }
 
+    return builder.build();
+  }
+
+  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
+    SpannerOptions options = buildSpannerOptions(spannerConfig);
     Spanner spanner = options.getService();
     String instanceId = spannerConfig.getInstanceId().get();
     String databaseId = spannerConfig.getDatabaseId().get();
@@ -242,9 +246,24 @@ public class SpannerAccessor implements AutoCloseable {
     BatchClient batchClient =
         spanner.getBatchClient(DatabaseId.of(options.getProjectId(), instanceId, databaseId));
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    String instanceConfigId = "unknown";
+    try {
+      instanceConfigId =
+          spanner
+              .getInstanceAdminClient()
+              .getInstance(instanceId)
+              .getInstanceConfigId()
+              .getInstanceConfig();
+    } catch (Exception e) {
+      // fetch instanceConfigId is fail-free.
+      // Do not emit warning when serviceFactory is overridden (e.g. in tests).
+      if (spannerConfig.getServiceFactory() == null) {
+        LOG.warn("unable to get Spanner instanceConfigId for {}: {}", instanceId, e.getMessage());
+      }
+    }
 
     return new SpannerAccessor(
-        spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig);
+        spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig, instanceConfigId);
   }
 
   public DatabaseClient getDatabaseClient() {
@@ -259,21 +278,20 @@ public class SpannerAccessor implements AutoCloseable {
     return databaseAdminClient;
   }
 
+  public String getInstanceConfigId() {
+    return instanceConfigId;
+  }
+
   @Override
   public void close() {
     // Only close Spanner when present in map and refcount == 0
-    int refcount = refcounts.getOrDefault(spannerConfig, new AtomicInteger(0)).decrementAndGet();
-    LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
-
-    if (refcount == 0) {
-      synchronized (spannerAccessors) {
-        // Re-check refcount in case it has increased outside the lock.
-        if (refcounts.get(spannerConfig).get() <= 0) {
-          spannerAccessors.remove(spannerConfig);
-          refcounts.remove(spannerConfig);
-          LOG.info("Closing {} ", spannerConfig);
-          spanner.close();
-        }
+    synchronized (spannerAccessors) {
+      refcount--;
+      LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
+      if (refcount <= 0) {
+        spannerAccessors.remove(spannerConfig);
+        LOG.info("Closing {} ", spannerConfig);
+        spanner.close();
       }
     }
   }

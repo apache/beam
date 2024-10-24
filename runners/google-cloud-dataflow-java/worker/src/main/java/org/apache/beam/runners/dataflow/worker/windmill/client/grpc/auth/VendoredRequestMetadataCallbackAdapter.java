@@ -31,11 +31,11 @@ import java.util.Map;
 public class VendoredRequestMetadataCallbackAdapter
     implements com.google.auth.RequestMetadataCallback {
 
-  private final org.apache.beam.vendor.grpc.v1p54p0.com.google.auth.RequestMetadataCallback
+  private final org.apache.beam.vendor.grpc.v1p60p1.com.google.auth.RequestMetadataCallback
       callback;
 
   VendoredRequestMetadataCallbackAdapter(
-      org.apache.beam.vendor.grpc.v1p54p0.com.google.auth.RequestMetadataCallback callback) {
+      org.apache.beam.vendor.grpc.v1p60p1.com.google.auth.RequestMetadataCallback callback) {
     this.callback = callback;
   }
 

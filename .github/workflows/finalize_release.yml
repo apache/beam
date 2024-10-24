@@ -13,11 +13,8 @@ on:
       RC:
         description: Integer RC version for the release that we'd like to finalize (e.g. 3 for RC3)
         required: true
-      PYPI_USER:
-        description: PyPi username to perform the PyPi upload with
-        required: false
-      PYPI_PASSWORD:
-        description: PyPi password to perform the PyPi upload with
+      PYPI_API_TOKEN:
+        description: PyPi API token to perform the PyPi upload with
         required: false
       PUSH_DOCKER_ARTIFACTS:
         description: Whether to push SDK docker images to docker hub Apache organization. Should be yes unless you've already completed this step.
@@ -32,9 +29,7 @@ on:
         required: true
         default: 'no'
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 permissions:
   contents: write
@@ -60,7 +55,7 @@ jobs:
         echo "Publish SDK docker images to Docker Hub."
         
         echo "================Pull RC Containers from DockerHub==========="
-        IMAGES=$(docker search apache/beam_ --format "{{.Name}}" --limit 100)
+        IMAGES=$(docker search apache/beam --format "{{.Name}}" --limit 100)
         KNOWN_IMAGES=()
         echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
         while read IMAGE; do
@@ -91,16 +86,15 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Mask and validate PyPi id/password
+    - name: Mask PyPi password
       run: |
-        echo "::add-mask::${{ github.event.inputs.PYPI_USER }}"
-        echo "::add-mask::${{ github.event.inputs.PYPI_PASSWORD }}"
-        if [ "${{ github.event.inputs.PYPI_USER }}" == "" ]
-        then
-          echo "Must provide a PyPi username to publish artifacts to PyPi"
-          exit 1
-        fi
-        if [ "${{ github.event.inputs.PYPI_PASSWORD }}" == "" ]
+        # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+        PYPI_PASSWORD=$(jq -r '.inputs.PYPI_PASSWORD' $GITHUB_EVENT_PATH)
+        echo "::add-mask::$PYPI_PASSWORD"
+    - name: Validate PyPi id/password
+      run: |
+        echo "::add-mask::${{ github.event.inputs.PYPI_API_TOKEN }}"
+        if [ "${{ github.event.inputs.PYPI_API_TOKEN }}" == "" ]
         then
           echo "Must provide a PyPi password to publish artifacts to PyPi"
           exit 1
@@ -109,6 +103,7 @@ jobs:
       uses: ./.github/actions/setup-environment-action
       with:
         python-version: 3.11
+        disable-cache: true
     - name: Install dependencies
       run: |
         pip install python-dateutil
@@ -122,7 +117,7 @@ jobs:
         cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
         echo "Will upload the following files to PyPI:"
         ls
-        twine upload * -u ${{ github.event.inputs.PYPI_USER }} -p ${{ github.event.inputs.PYPI_PASSWORD }}
+        twine upload * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"
 
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}

@@ -20,7 +20,6 @@ package org.apache.beam.runners.twister2.translators;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.runners.twister2.Twister2PipelineOptions;
 import org.apache.beam.runners.twister2.translators.batch.AssignWindowTranslatorBatch;
@@ -32,6 +31,7 @@ import org.apache.beam.runners.twister2.translators.batch.ParDoMultiOutputTransl
 import org.apache.beam.runners.twister2.translators.batch.ReadSourceTranslatorBatch;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Twister pipeline translator for batch pipelines. */

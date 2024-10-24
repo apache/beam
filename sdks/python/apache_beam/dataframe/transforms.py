@@ -302,6 +302,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                 self.outputs))
 
     # First define some helper functions.
+    @_memoize
     def output_partitioning_in_stage(expr, stage):
       """Return the output partitioning of expr when computed in stage,
       or returns None if the expression cannot be computed in this stage.
@@ -394,7 +395,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
       if stage is None:
         # No stage available, compute this expression as part of a new stage.
-        stage = Stage(expr.args(), expr.requires_partition_by())
+        stage = Stage([
+            arg for arg in expr.args()
+            if not isinstance(arg, expressions.ConstantExpression)
+        ],
+                      expr.requires_partition_by())
         for arg in expr.args():
           # For each argument, declare that it is also available in
           # this new stage.

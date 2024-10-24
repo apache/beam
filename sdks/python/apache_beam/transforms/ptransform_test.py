@@ -101,6 +101,17 @@ class PTransformTest(unittest.TestCase):
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
+  def test_named_annotations(self):
+    t = beam.Impulse()
+    t.annotations = lambda: {'test': 'value'}
+    named_t = 'Name' >> t
+    self.assertEqual(named_t.annotations(), {'test': 'value'})
+    original_annotations = named_t.annotations()
+    named_t.annotations = lambda: {'another': 'value', **original_annotations}
+    # Verify this is reflected on the original transform,
+    # which is what gets used in apply.
+    self.assertEqual(t.annotations(), {'test': 'value', 'another': 'value'})
+
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
       def process(self, element, addon):
@@ -776,6 +787,18 @@ class PTransformTest(unittest.TestCase):
       assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
       assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
+  def test_flatten_with(self):
+    with TestPipeline() as pipeline:
+      input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
+
+      result = (
+          input
+          | 'WithPCollection' >> beam.FlattenWith(input | beam.Map(str.lower))
+          | 'WithPTransform' >> beam.FlattenWith(beam.Create(['x', 'y'])))
+
+      assert_that(
+          result, equal_to(['AA', 'BBB', 'CC', 'aa', 'bbb', 'cc', 'x', 'y']))
+
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       with TestPipeline() as pipeline:
@@ -1063,6 +1086,17 @@ class SelectTest(unittest.TestCase):
               ),
           ]),
           label='CheckFromAttrs')
+
+  def test_type_inference(self):
+    with TestPipeline() as p:
+      input_rows = p | beam.Create([beam.Row(s='abc', i=1)])
+      output_rows = input_rows | beam.Select(
+          's', 'i', s_again='s', expr=lambda x: x.i + 1)
+      field_types = dict(output_rows.element_type._fields)
+      self.assertEqual(field_types['s'], str)
+      self.assertEqual(field_types['i'], int)
+      self.assertEqual(field_types['s_again'], str)
+      self.assertEqual(field_types['expr'], int)
 
 
 @beam.ptransform_fn
@@ -1473,17 +1507,17 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     def more_than_half(a):
       return a > 0.50
 
-    # Func above was hinted to only take a float, yet an int will be passed.
+    # Func above was hinted to only take a float, yet a str will be passed.
     with self.assertRaises(typehints.TypeCheckError) as e:
       (
           self.p
-          | 'Ints' >> beam.Create([1, 2, 3, 4]).with_output_types(int)
+          | 'Ints' >> beam.Create(['1', '2', '3', '4']).with_output_types(str)
           | 'Half' >> beam.Filter(more_than_half))
 
     self.assertStartswith(
         e.exception.args[0],
         "Type hint violation for 'Half': "
-        "requires {} but got {} for a".format(float, int))
+        "requires {} but got {} for a".format(float, str))
 
   def test_filter_type_checks_using_type_hints_decorator(self):
     @with_input_types(b=int)
@@ -2757,6 +2791,32 @@ class DeadLettersTest(unittest.TestCase):
           equal_to([('starting', 'TimeoutError()'),
                     ('slow', 'TimeoutError()')]),
           label='CheckBad')
+
+  def test_increment_counter(self):
+    # Counters are not currently supported for
+    # ParDo#with_exception_handling(use_subprocess=True).
+    if (self.use_subprocess):
+      return
+
+    class CounterDoFn(beam.DoFn):
+      def __init__(self):
+        self.records_counter = Metrics.counter(self.__class__, 'recordsCounter')
+
+      def process(self, element):
+        self.records_counter.inc()
+
+    with TestPipeline() as p:
+      _, _ = (
+          (p | beam.Create([1,2,3])) | beam.ParDo(CounterDoFn())
+          .with_exception_handling(
+            use_subprocess=self.use_subprocess, timeout=1))
+    results = p.result
+    metric_results = results.metrics().query(
+        MetricsFilter().with_name("recordsCounter"))
+    records_counter = metric_results['counters'][0]
+
+    self.assertEqual(records_counter.key.metric.name, 'recordsCounter')
+    self.assertEqual(records_counter.result, 3)
 
   def test_lifecycle(self):
     die = type(self).die

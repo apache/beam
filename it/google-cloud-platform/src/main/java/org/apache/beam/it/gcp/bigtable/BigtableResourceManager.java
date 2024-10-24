@@ -57,9 +57,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
@@ -81,7 +81,7 @@ public class BigtableResourceManager implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableResourceManager.class);
   private static final String DEFAULT_CLUSTER_ZONE = "us-central1-b";
-  private static final int DEFAULT_CLUSTER_NUM_NODES = 1;
+  private static final int DEFAULT_CLUSTER_NUM_NODES = 10;
   private static final StorageType DEFAULT_CLUSTER_STORAGE_TYPE = StorageType.SSD;
 
   private final String projectId;

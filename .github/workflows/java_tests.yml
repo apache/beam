@@ -40,14 +40,14 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -80,8 +80,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          go-version: 1.21
+          java-version: 11
+          go-version: default
         # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -127,7 +127,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -137,8 +137,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          go-version: 1.21
+          java-version: 11
+          go-version: default
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -161,12 +161,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest,windows-latest]
+        os: [[self-hosted, ubuntu-20.04, main], windows-latest]
+    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
     if: |
-      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
-        (github.event_name == 'push' || github.event_name == 'schedule') ||
+      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' &&
         (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
-      )
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -176,15 +175,13 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          go-version: 1.21
+          java-version: 11
+          go-version: default
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
+        uses: google-github-actions/auth@v1
         with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
       - name: Run WordCount
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

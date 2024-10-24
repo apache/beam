@@ -97,7 +97,7 @@ class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
 
   /** Report whether to backoff. */
   @Override
-  public boolean value() {
+  public boolean isTrue() {
     return getRejectionProbability() > getThreshold();
   }
 }

@@ -418,7 +418,7 @@ public class PipelineTest {
   }
 
   /**
-   * Tests that {@link Pipeline#replaceAll(List)} throws when one of the PTransformOverride still
+   * Tests that {@link Pipeline#replaceAll(List)} succeeds when one of the PTransformOverride still
    * matches.
    */
   @Test
@@ -426,8 +426,7 @@ public class PipelineTest {
     pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.apply(GenerateSequence.from(0));
 
-    // The order is such that the output of the second will match the first, which is not permitted
-    thrown.expect(IllegalStateException.class);
+    // The order is such that the output of the second will match the first, which is permitted.
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(

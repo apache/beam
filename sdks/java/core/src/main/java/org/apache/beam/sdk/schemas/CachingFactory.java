@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -36,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes"
 })
 public class CachingFactory<CreatedT> implements Factory<CreatedT> {
-  private transient @Nullable ConcurrentHashMap<Class, CreatedT> cache = null;
+  private transient @Nullable ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = null;
 
   private final Factory<CreatedT> innerFactory;
 
@@ -45,16 +46,16 @@ public class CachingFactory<CreatedT> implements Factory<CreatedT> {
   }
 
   @Override
-  public CreatedT create(Class<?> clazz, Schema schema) {
+  public CreatedT create(TypeDescriptor<?> typeDescriptor, Schema schema) {
     if (cache == null) {
       cache = new ConcurrentHashMap<>();
     }
-    CreatedT cached = cache.get(clazz);
+    CreatedT cached = cache.get(typeDescriptor);
     if (cached != null) {
       return cached;
     }
-    cached = innerFactory.create(clazz, schema);
-    cache.put(clazz, cached);
+    cached = innerFactory.create(typeDescriptor, schema);
+    cache.put(typeDescriptor, cached);
     return cached;
   }
 

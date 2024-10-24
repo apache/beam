@@ -27,27 +27,38 @@ import static org.hamcrest.Matchers.sameInstance;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.compress.utils.Lists;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests the CoGbkResult. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class CoGbkResultTest {
+
+  @Parameter(0)
+  public boolean useReiterator;
+
+  @Parameterized.Parameters(name = "{index}: Test with usesReiterable={0}")
+  public static Collection<Object[]> data() {
+    return ImmutableList.of(new Object[] {false}, new Object[] {true});
+  }
 
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResultTest.class);
 
@@ -115,6 +126,9 @@ public class CoGbkResultTest {
   @Test
   @SuppressWarnings("BoxedPrimitiveEquality")
   public void testCachedResults() {
+    // The caching strategies are different for the different implementations.
+    Assume.assumeTrue(useReiterator);
+
     // Ensure we don't fail below due to a non-default java.lang.Integer.IntegerCache.high setting,
     // as we want to test our cache is working as expected, unimpeded by a higher-level cache.
     int integerCacheLimit = 128;
@@ -252,7 +266,7 @@ public class CoGbkResultTest {
     return new CoGbkResultSchema(TupleTagList.of(tags));
   }
 
-  private static class TestUnionValues implements Reiterable<RawUnionValue> {
+  private class TestUnionValues implements Iterable<RawUnionValue> {
 
     final int[] tags;
     int maxPos = 0;
@@ -271,35 +285,58 @@ public class CoGbkResultTest {
     }
 
     @Override
-    public Reiterator<RawUnionValue> iterator() {
+    public Iterator<RawUnionValue> iterator() {
       return iterator(0);
     }
 
-    public Reiterator<RawUnionValue> iterator(final int start) {
-      return new Reiterator<RawUnionValue>() {
-        int pos = start;
+    public Iterator<RawUnionValue> iterator(final int start) {
+      if (useReiterator) {
+        return new Reiterator<RawUnionValue>() {
+          int pos = start;
 
-        @Override
-        public boolean hasNext() {
-          return pos < tags.length;
-        }
+          @Override
+          public boolean hasNext() {
+            return pos < tags.length;
+          }
 
-        @Override
-        public RawUnionValue next() {
-          maxPos = Math.max(pos + 1, maxPos);
-          return new RawUnionValue(tags[pos], pos++);
-        }
+          @Override
+          public RawUnionValue next() {
+            maxPos = Math.max(pos + 1, maxPos);
+            return new RawUnionValue(tags[pos], pos++);
+          }
 
-        @Override
-        public void remove() {
-          throw new UnsupportedOperationException();
-        }
+          @Override
+          public void remove() {
+            throw new UnsupportedOperationException();
+          }
 
-        @Override
-        public Reiterator<RawUnionValue> copy() {
-          return iterator(pos);
-        }
-      };
+          @Override
+          public Reiterator<RawUnionValue> copy() {
+            return (Reiterator<RawUnionValue>) iterator(pos);
+          }
+        };
+      } else {
+
+        return new Iterator<RawUnionValue>() {
+          int pos = start;
+
+          @Override
+          public boolean hasNext() {
+            return pos < tags.length;
+          }
+
+          @Override
+          public RawUnionValue next() {
+            maxPos = Math.max(pos + 1, maxPos);
+            return new RawUnionValue(tags[pos], pos++);
+          }
+
+          @Override
+          public void remove() {
+            throw new UnsupportedOperationException();
+          }
+        };
+      }
     }
   }
 }

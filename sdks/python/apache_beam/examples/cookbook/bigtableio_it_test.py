@@ -53,7 +53,7 @@ except ImportError:
 if TYPE_CHECKING:
   import google.cloud.bigtable.instance
 
-EXISTING_INSTANCES = []  # type: List[google.cloud.bigtable.instance.Instance]
+EXISTING_INSTANCES: List['google.cloud.bigtable.instance.Instance'] = []
 LABEL_KEY = 'python-bigtable-beam'
 label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
@@ -174,9 +174,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
-  # TODO(https://github.com/apache/beam/issues/29076): Reenable this test
-  # once BigTable issues are fixed.
-  @pytest.mark.it_postcommit_sickbay
+  @pytest.mark.it_postcommit
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list

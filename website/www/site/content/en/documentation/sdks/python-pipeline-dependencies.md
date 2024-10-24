@@ -25,9 +25,12 @@ Dependency management is about specifying dependencies that your pipeline requir
 
 ## PyPI Dependencies {#pypi-dependencies}
 
-If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/), make these packages available remotely by performing the following steps:
+If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/), you must make these packages available remotely on the workers.
 
-**Note:** If your PyPI package depends on a non-Python package (e.g. a package that requires installation on Linux using the `apt-get install` command), see the [PyPI Dependencies with Non-Python Dependencies](#nonpython) section instead.
+For pipelines that consists only of a single Python file or a notebook, the most straightforward way to supply dependencies is to provide a
+`requirements.txt` file. For more complex scenarios, define the [pipeline in a package](#multiple-file-dependencies) and consider installing your dependencies in a [custom container](#custom-containers).
+
+To supply a requirements.txt file:
 
 1. Find out which packages are installed on your machine. Run the following command:
 
@@ -43,11 +46,21 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
-> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
+> **NOTE**: As an alternative to `pip freeze`, use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all of the dependencies required for the pipeline from a `requirements.in` file. In the `requirements.in` file, only the top-level dependencies are mentioned.
+
+When you supply the `--requirements_file` pipeline option,  during pipeline submission, Beam downloads
+the specified packages locally into a requirements cache directory,
+and then stages the requirements cache directory to the runner.
+At runtime, when available, Beam installs packages from the requirements cache.
+This mechanism makes it possible to stage the dependency packages to the runner
+at submission. At runtime, the runner workers might be able to install the
+packages from the cache without needing a connection to PyPI. To disable staging the
+requirements, use the `--requirements_cache=skip` pipeline option.
+For more information, see the [help descriptions of these pipeline options](https://beam.apache.org/releases/pydoc/current/_modules/apache_beam/options/pipeline_options.html#SetupOptions).
 
 ## Custom Containers {#custom-containers}
 
-You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
+You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline. [Follow the instructions the show how to run the pipeline with custom container images](/documentation/runtime/environments/#running-pipelines).
 
 1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
 
@@ -56,7 +69,7 @@ You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=im
        RUN python -m pip install -r /tmp/requirements.txt
 
 
-## Local or non-PyPI Dependencies {#local-or-nonpypi}
+## Local Python packages or non-public Python Dependencies {#local-or-nonpypi}
 
 If your pipeline uses packages that are not available publicly (e.g. packages that you've downloaded from a GitHub repo), make these packages available remotely by performing the following steps:
 
@@ -78,7 +91,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
       See the [build documentation](https://pypa-build.readthedocs.io/en/latest/index.html) for more details on this command.
 
-## Multiple File Dependencies
+## Multiple File Dependencies {#multiple-file-dependencies}
 
 Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
 
@@ -89,46 +102,50 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
         setuptools.setup(
            name='PACKAGE-NAME',
            version='PACKAGE-VERSION',
-           install_requires=[],
+           install_requires=[
+             # List Python packages your pipeline depends on.
+           ],
            packages=setuptools.find_packages(),
         )
 
-2. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files.
+2. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files, for example:
 
         root_dir/
           setup.py
           main.py
-          other_files_dir/
+          my_package/
+            my_pipeline_launcher.py
+            my_custom_dofns_and_transforms.py
+            other_utils_and_helpers.py
 
-    See [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) for an example that follows this required project structure.
+    See [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) for an example that follows this project structure.
 
-3. Run your pipeline with the following command-line option:
+3. Install your package in the submission environment, for example by using the following command:
+
+        pip install -e .
+
+4. Run your pipeline with the following command-line option:
 
         --setup_file /path/to/setup.py
 
-**Note:** If you [created a requirements.txt file](#pypi-dependencies) and your project spans multiple files, you can get rid of the `requirements.txt` file and instead, add all packages contained in `requirements.txt` to the `install_requires` field of the setup call (in step 1).
+**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the `install_requires` field of the `setup.py` file (see step 1).
+However unlike with the `--requirements_file` option, when you use the `--setup_file` option, Beam doesn't stage the dependent packages to the runner.
+Only the pipeline package is staged. If they aren't already provided in the runtime environment,
+the package dependencies are installed from PyPI at runtime.
 
 
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
 
-If your pipeline uses non-Python packages (e.g. packages that require installation using the `apt-get install` command), or uses a PyPI package that depends on non-Python dependencies during package installation, you must perform the following steps.
+If your pipeline uses non-Python packages, such as packages that require installation using the `apt install` command, or uses a PyPI package that depends on non-Python dependencies during package installation, we recommend installing them using a [custom container](#custom-containers).
+Otherwise, you must perform the following steps.
 
-1. Add the required installation commands (e.g. the `apt-get install` commands) for the non-Python dependencies to the list of `CUSTOM_COMMANDS` in your `setup.py` file. See the [Juliaset setup.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py) for an example.
+1. [Structure your pipeline as a package](#multiple-file-dependencies).
 
-    **Note:** You must make sure that these commands are runnable on the remote worker (e.g. if you use `apt-get`, the remote worker needs `apt-get` support).
+2. Add the required installation commands for the non-Python dependencies, such as the `apt install` commands, to the list of `CUSTOM_COMMANDS` in your `setup.py` file. See the [Juliaset setup.py file](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py) for an example.
 
-2. If you are using a PyPI package that depends on non-Python dependencies, add `['pip', 'install', '<your PyPI package>']` to the list of `CUSTOM_COMMANDS` in your `setup.py` file.
+    **Note:** You must verify that these commands run on the remote worker. For example, if you use `apt`, the remote worker needs `apt` support.
 
-3. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files.
-
-        root_dir/
-          setup.py
-          main.py
-          other_files_dir/
-
-    See the [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) project for an example that follows this required project structure.
-
-4. Run your pipeline with the following command-line option:
+3. Run your pipeline with the following command-line option:
 
         --setup_file /path/to/setup.py
 

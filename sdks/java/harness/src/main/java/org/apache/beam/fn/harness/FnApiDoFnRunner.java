@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -57,11 +58,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.LateDataUtils;
-import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
@@ -110,14 +106,20 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -327,6 +329,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * otherwise.
    */
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
+  /**
+   * If non-null, set to true after currentTracker has had a tryClaim issued on it. Used to ignore
+   * checkpoint split requests if no progress was made.
+   */
+  private @Nullable AtomicBoolean currentTrackerClaimed;
 
   /**
    * Only valid during {@link #processTimer} and {@link #processOnWindowExpiration}, null otherwise.
@@ -877,12 +884,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
+    currentTrackerClaimed = new AtomicBoolean(false);
     currentTracker =
         RestrictionTrackers.observe(
             doFnInvoker.invokeNewTracker(processContext),
             new ClaimObserver<PositionT>() {
+              private final AtomicBoolean claimed =
+                  Preconditions.checkNotNull(currentTrackerClaimed);
+
               @Override
-              public void onClaimed(PositionT position) {}
+              public void onClaimed(PositionT position) {
+                claimed.lazySet(true);
+              }
 
               @Override
               public void onClaimFailed(PositionT position) {}
@@ -894,6 +907,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
       currentWatermarkEstimatorState = null;
       currentTracker = null;
+      currentTrackerClaimed = null;
     }
 
     this.stateAccessor.finalizeState();
@@ -909,12 +923,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
+        currentTrackerClaimed = new AtomicBoolean(false);
         currentTracker =
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
+                  private final AtomicBoolean claimed =
+                      Preconditions.checkNotNull(currentTrackerClaimed);
+
                   @Override
-                  public void onClaimed(PositionT position) {}
+                  public void onClaimed(PositionT position) {
+                    claimed.lazySet(true);
+                  }
 
                   @Override
                   public void onClaimFailed(PositionT position) {}
@@ -927,6 +947,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWatermarkEstimatorState = null;
       currentWindow = null;
       currentTracker = null;
+      currentTrackerClaimed = null;
     }
 
     this.stateAccessor.finalizeState();
@@ -937,6 +958,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     currentRestriction = elem.getValue().getKey().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+    // For truncation, we don't set currentTrackerClaimed so that we enable checkpointing even if no
+    // progress is made.
     currentTracker =
         RestrictionTrackers.observe(
             doFnInvoker.invokeNewTracker(processContext),
@@ -989,6 +1012,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentRestriction = elem.getValue().getKey().getValue().getKey();
         currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
         currentWindow = currentWindows.get(windowCurrentIndex);
+        // We leave currentTrackerClaimed unset as we want to split regardless of if tryClaim is
+        // called.
         currentTracker =
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
@@ -1081,12 +1106,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentRestriction = elem.getValue().getKey().getValue().getKey();
         currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
         currentWindow = currentWindows.get(windowCurrentIndex);
+        currentTrackerClaimed = new AtomicBoolean(false);
         currentTracker =
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
+                  private final AtomicBoolean claimed =
+                      Preconditions.checkNotNull(currentTrackerClaimed);
+
                   @Override
-                  public void onClaimed(PositionT position) {}
+                  public void onClaimed(PositionT position) {
+                    claimed.lazySet(true);
+                  }
 
                   @Override
                   public void onClaimFailed(PositionT position) {}
@@ -1107,7 +1138,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       // Attempt to checkpoint the current restriction.
       HandlesSplits.SplitResult splitResult =
-          trySplitForElementAndRestriction(0, continuation.resumeDelay());
+          trySplitForElementAndRestriction(0, continuation.resumeDelay(), false);
 
       /**
        * After the user has chosen to resume processing later, either the restriction is already
@@ -1132,7 +1163,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
     public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
-      return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
+      return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO, true);
     }
 
     @Override
@@ -1276,6 +1307,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     synchronized (splitLock) {
       // There is nothing to split if we are between truncate processing calls.
       if (currentWindow == null) {
+        return null;
+      }
+      // We are requesting a checkpoint but have not yet progressed on the restriction, skip
+      // request.
+      if (fractionOfRemainder == 0
+          && currentTrackerClaimed != null
+          && !currentTrackerClaimed.get()) {
         return null;
       }
 
@@ -1548,11 +1586,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(bytesOut.toByteString());
       // We don't want to change the output watermarks or set the checkpoint resume time since
       // that applies to the current window.
-      Map<String, org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
           outputWatermarkMapForUnprocessedWindows = new HashMap<>();
       if (!initialWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(initialWatermark.getMillis() / 1000)
                 .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                 .build();
@@ -1592,11 +1630,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setTransformId(pTransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString());
-      Map<String, org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp>
+      Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
           outputWatermarkMap = new HashMap<>();
       if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp outputWatermark =
-            org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp.newBuilder()
+        org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
                 .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
                 .build();
@@ -1620,12 +1658,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private HandlesSplits.SplitResult trySplitForElementAndRestriction(
-      double fractionOfRemainder, Duration resumeDelay) {
+      double fractionOfRemainder, Duration resumeDelay, boolean requireClaimForCheckpoint) {
     KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
     WindowedSplitResult windowedSplitResult = null;
     synchronized (splitLock) {
       // There is nothing to split if we are between element and restriction processing calls.
       if (currentTracker == null) {
+        return null;
+      }
+      // The tracker has not yet been claimed meaning that a checkpoint won't meaningfully advance.
+      if (fractionOfRemainder == 0
+          && requireClaimForCheckpoint
+          && currentTrackerClaimed != null
+          && !currentTrackerClaimed.get()) {
         return null;
       }
       // Make sure to get the output watermark before we split to ensure that the lower bound

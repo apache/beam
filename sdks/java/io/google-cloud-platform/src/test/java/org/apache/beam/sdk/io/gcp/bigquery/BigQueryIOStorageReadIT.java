@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_EARLY_ROLLOUT_REGION;
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -43,6 +44,9 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -121,6 +125,45 @@ public class BigQueryIOStorageReadIT {
     p.run().waitUntilFinish();
   }
 
+  static class FailingTableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
+
+    public static final FailingTableRowParser INSTANCE = new FailingTableRowParser();
+
+    private int parseCount = 0;
+
+    @Override
+    public TableRow apply(SchemaAndRecord schemaAndRecord) {
+      parseCount++;
+      if (parseCount % 50 == 0) {
+        throw new RuntimeException("ExpectedException");
+      }
+      return TableRowParser.INSTANCE.apply(schemaAndRecord);
+    }
+  }
+
+  private void runBigQueryIOStorageReadPipelineErrorHandling() throws Exception {
+    Pipeline p = Pipeline.create(options);
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    PCollection<Long> count =
+        p.apply(
+                "Read",
+                BigQueryIO.read(FailingTableRowParser.INSTANCE)
+                    .from(options.getInputTable())
+                    .withMethod(Method.DIRECT_READ)
+                    .withFormat(options.getDataFormat())
+                    .withErrorHandler(errorHandler))
+            .apply("Count", Count.globally());
+
+    errorHandler.close();
+
+    // When 1/50 elements fail sequentially, this is the expected success count
+    PAssert.thatSingleton(count).isEqualTo(10381L);
+    // this is the total elements, less the successful elements
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(10592L - 10381L);
+    p.run().waitUntilFinish();
+  }
+
   @Test
   public void testBigQueryStorageRead1GAvro() throws Exception {
     setUpTestEnvironment("1G", DataFormat.AVRO);
@@ -131,6 +174,18 @@ public class BigQueryIOStorageReadIT {
   public void testBigQueryStorageRead1GArrow() throws Exception {
     setUpTestEnvironment("1G", DataFormat.ARROW);
     runBigQueryIOStorageReadPipeline();
+  }
+
+  @Test
+  public void testBigQueryStorageRead1MErrorHandlingAvro() throws Exception {
+    setUpTestEnvironment("1M", DataFormat.AVRO);
+    runBigQueryIOStorageReadPipelineErrorHandling();
+  }
+
+  @Test
+  public void testBigQueryStorageRead1MErrorHandlingArrow() throws Exception {
+    setUpTestEnvironment("1M", DataFormat.ARROW);
+    runBigQueryIOStorageReadPipelineErrorHandling();
   }
 
   @Test
@@ -168,8 +223,8 @@ public class BigQueryIOStorageReadIT {
 
   /**
    * Tests a pipeline where {@link
-   * org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer} may do
-   * optimizations, depending on the runner. The pipeline should run successfully either way.
+   * org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer} may do optimizations,
+   * depending on the runner. The pipeline should run successfully either way.
    */
   @Test
   public void testBigQueryStorageReadProjectionPushdown() throws Exception {

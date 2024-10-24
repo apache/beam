@@ -37,11 +37,10 @@ dependencies {
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
     implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation project(path: ":runners:core-construction-java")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.jackson_annotations
     implementation library.java.joda_time
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.slf4j_api
     implementation "org.mortbay.jetty:jetty-util:6.1.26"
     implementation "org.twister2:comms-api-java:$twister2_version"
@@ -81,6 +80,7 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     forkEvery 1
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'

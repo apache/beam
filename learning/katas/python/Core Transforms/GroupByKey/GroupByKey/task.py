@@ -27,11 +27,17 @@
 #     - group
 #     - strings
 
-import apache_beam as beam
+def groupbykey():
+  # [START groupbykey]
+  import apache_beam as beam
 
-with beam.Pipeline() as p:
+  with beam.Pipeline() as p:
 
-  (p | beam.Create(['apple', 'ball', 'car', 'bear', 'cheetah', 'ant'])
-     | beam.Map(lambda word: (word[0], word))
-     | beam.GroupByKey()
-     | beam.LogElements())
+    (p | beam.Create(['apple', 'ball', 'car', 'bear', 'cheetah', 'ant'])
+       | beam.Map(lambda word: (word[0], word))
+       | beam.GroupByKey()
+       | beam.LogElements())
+  # [END groupbykey]
+
+if __name__ == '__main__':
+  groupbykey()

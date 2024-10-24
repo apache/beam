@@ -21,6 +21,12 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
+import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
+import org.apache.beam.sdk.util.construction.graph.TrivialNativeTransformExpander;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -54,6 +60,29 @@ public interface FlinkPortablePipelineTranslator<
       List<String> filesToStage);
 
   Set<String> knownUrns();
+
+  default RunnerApi.Pipeline prepareForTranslation(RunnerApi.Pipeline pipeline) {
+    // Expand any splittable ParDos within the graph to enable sizing and splitting of bundles.
+    RunnerApi.Pipeline pipelineWithSdfExpanded =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            pipeline,
+            SplittableParDoExpander.createSizedReplacement());
+
+    // Don't let the fuser fuse any subcomponents of native transforms.
+    RunnerApi.Pipeline trimmedPipeline =
+        TrivialNativeTransformExpander.forKnownUrns(pipelineWithSdfExpanded, knownUrns());
+
+    // Fused pipeline proto.
+    // TODO: Consider supporting partially-fused graphs.
+    RunnerApi.Pipeline fusedPipeline =
+        trimmedPipeline.getComponents().getTransformsMap().values().stream()
+                .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
+            ? trimmedPipeline
+            : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
+
+    return fusedPipeline;
+  }
 
   /** Translates the given pipeline. */
   Executor translate(T context, RunnerApi.Pipeline pipeline);

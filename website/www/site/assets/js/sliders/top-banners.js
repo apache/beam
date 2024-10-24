@@ -11,10 +11,14 @@
 // the License.
 
 new Swiper('.top-banners', {
-  autoplay: {
-    delay: 5000,
+  autoplay: false,
+  effect: 'fade',
+  loop: true,
+  navigation: {
+    enabled: true,
+    nextEl: '.swiper-button-next',
+    prevEl: '.swiper-button-prev',
   },
-  loop: false,
   pagination: {
     el: ".top-banners .swiper-pagination",
     clickable: true,

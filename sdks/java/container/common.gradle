@@ -103,6 +103,9 @@ task validateJavaHome {
     def requiredForVer = ["11", "17", "21"]
     if (requiredForVer.contains(imageJavaVersion)) {
         doFirst {
+            if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+                return
+            }
             boolean propertyFound = false
             // enable to build agent with compatible java versions (11-requiredForVer)
             for (def checkVer : requiredForVer) {
@@ -115,13 +118,12 @@ task validateJavaHome {
                 }
             }
             if (!propertyFound) {
-                throw new GradleException("java${imageJavaVersion}Home or compatible properties required for imageJavaVersion=${imageJavaVersion}. Re-run with -Pjava${imageJavaVersion}Home")
+                throw new GradleException("System Java needs to have version 11+ or java${imageJavaVersion}Home required for imageJavaVersion=${imageJavaVersion}. Re-run with -Pjava${imageJavaVersion}Home")
             }
         }
     }
 }
 
-def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
@@ -142,9 +144,9 @@ docker {
             'base_image': javaBaseImage,
             'java_version': imageJavaVersion,
     ])
-    buildx useBuildx
+    buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    load useBuildx && !pushContainers
+    load project.useBuildx() && !pushContainers
     push pushContainers
 }
 

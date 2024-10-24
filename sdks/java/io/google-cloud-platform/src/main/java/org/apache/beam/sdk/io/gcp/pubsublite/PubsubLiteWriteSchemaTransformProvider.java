@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.Uuid;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -59,10 +60,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +69,7 @@ public class PubsubLiteWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         PubsubLiteWriteSchemaTransformProvider.PubsubLiteWriteSchemaTransformConfiguration> {
 
-  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO";
+  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO,PROTO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<PubSubMessage> OUTPUT_TAG = new TupleTag<PubSubMessage>() {};
@@ -80,8 +78,7 @@ public class PubsubLiteWriteSchemaTransformProvider
       LoggerFactory.getLogger(PubsubLiteWriteSchemaTransformProvider.class);
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<PubsubLiteWriteSchemaTransformConfiguration> configurationClass() {
     return PubsubLiteWriteSchemaTransformConfiguration.class;
   }
 
@@ -171,8 +168,7 @@ public class PubsubLiteWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      PubsubLiteWriteSchemaTransformConfiguration configuration) {
+  public SchemaTransform from(PubsubLiteWriteSchemaTransformConfiguration configuration) {
 
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
@@ -211,6 +207,19 @@ public class PubsubLiteWriteSchemaTransformProvider
                 "The input schema must have exactly one field of type byte.");
           }
           toBytesFn = getRowToRawBytesFunction(inputSchema.getField(0).getName());
+        } else if (configuration.getFormat().equals("PROTO")) {
+          String descriptorPath = configuration.getFileDescriptorPath();
+          String schema = configuration.getSchema();
+          String messageName = configuration.getMessageName();
+
+          if (descriptorPath != null && messageName != null) {
+            toBytesFn = ProtoByteUtils.getRowToProtoBytes(descriptorPath, messageName);
+          } else if (schema != null && messageName != null) {
+            toBytesFn = ProtoByteUtils.getRowToProtoBytesFromSchema(schema, messageName);
+          } else {
+            throw new IllegalArgumentException(
+                "At least a descriptorPath or a PROTO schema is required.");
+          }
         } else if (configuration.getFormat().equals("JSON")) {
           toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
         } else {
@@ -303,25 +312,37 @@ public class PubsubLiteWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:pubsublite_write:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Collections.singletonList("errors");
   }
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class PubsubLiteWriteSchemaTransformConfiguration {
+
+    public void validate() {
+      final String dataFormat = this.getFormat();
+      final String inputSchema = this.getSchema();
+      final String messageName = this.getMessageName();
+      final String descriptorPath = this.getFileDescriptorPath();
+
+      if (dataFormat != null && dataFormat.equals("PROTO")) {
+        assert messageName != null : "Expecting messageName to be non-null.";
+        assert descriptorPath != null && inputSchema != null
+            : "You must include a descriptorPath or a PROTO schema but not both.";
+      }
+    }
+
     @SchemaFieldDescription(
         "The GCP project where the Pubsub Lite reservation resides. This can be a "
             + "project number of a project ID.")
@@ -358,6 +379,18 @@ public class PubsubLiteWriteSchemaTransformProvider
             + "in a ReadFromPubSubLite PTransform to deduplicate messages.")
     public abstract @Nullable String getAttributeId();
 
+    @SchemaFieldDescription(
+        "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
+            + " definition and message serialization.")
+    public abstract @Nullable String getFileDescriptorPath();
+
+    @SchemaFieldDescription(
+        "The name of the Protocol Buffer message to be used for schema"
+            + " extraction and data conversion.")
+    public abstract @Nullable String getMessageName();
+
+    public abstract @Nullable String getSchema();
+
     public static Builder builder() {
       return new AutoValue_PubsubLiteWriteSchemaTransformProvider_PubsubLiteWriteSchemaTransformConfiguration
           .Builder();
@@ -379,6 +412,15 @@ public class PubsubLiteWriteSchemaTransformProvider
 
       @SuppressWarnings("unused")
       public abstract Builder setAttributeId(String attributeId);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setFileDescriptorPath(String fileDescriptorPath);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setMessageName(String messageName);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setSchema(String schema);
 
       public abstract PubsubLiteWriteSchemaTransformConfiguration build();
     }

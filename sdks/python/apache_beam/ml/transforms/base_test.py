@@ -48,6 +48,13 @@ except ImportError:
   tft = None  # type: ignore
 
 try:
+  import PIL
+  from PIL.Image import Image as PIL_Image
+except ImportError:
+  PIL = None
+  PIL_Image = Any
+
+try:
 
   class _FakeOperation(TFTOperation):
     def __init__(self, name, *args, **kwargs):
@@ -304,10 +311,19 @@ class BaseMLTransformTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     Add()))
 
+  def test_read_mode_with_transforms(self):
+    with self.assertRaises(ValueError):
+      _ = base.MLTransform(
+          # fake callable
+          transforms=[lambda x: x],
+          read_artifact_location=self.artifact_location)
+
 
 class FakeModel:
   def __call__(self, example: List[str]) -> List[str]:
     for i in range(len(example)):
+      if not isinstance(example[i], str):
+        raise TypeError('Input must be a string')
       example[i] = example[i][::-1]
     return example
 
@@ -325,14 +341,18 @@ class FakeModelHandler(ModelHandler):
 
 
 class FakeEmbeddingsManager(base.EmbeddingsManager):
-  def __init__(self, columns):
-    super().__init__(columns=columns)
+  def __init__(self, columns, **kwargs):
+    super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
+    FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'  # type: ignore[assignment]
     return FakeModelHandler()
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (RunInference(model_handler=base._TextEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'FakeEmbeddingsManager'
 
 
 class TextEmbeddingHandlerTest(unittest.TestCase):
@@ -403,7 +423,6 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       )
 
   def test_handler_on_multiple_columns(self):
-    self.embedding_conig.columns = ['x', 'y']
     data = [
         {
             'x': "Hello world", 'y': "Apache Beam", 'z': 'unchanged'
@@ -430,6 +449,26 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
           equal_to(expected_data),
       )
 
+  def test_handler_on_columns_not_exist_in_input_data(self):
+    data = [
+        {
+            'x': "Hello world", 'y': "Apache Beam"
+        },
+        {
+            'x': "Apache Beam", 'y': "Hello world"
+        },
+    ]
+    self.embedding_conig.columns = ['x', 'y', 'a']
+
+    with self.assertRaises(RuntimeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
   def test_handler_with_list_data(self):
     data = [{
         'x': ['Hello world', 'Apache Beam'],
@@ -444,6 +483,109 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             | base.MLTransform(
                 write_artifact_location=self.artifact_location).with_transform(
                     self.embedding_conig))
+
+  def test_handler_with_inconsistent_keys(self):
+    data = [
+        {
+            'x': 'foo', 'y': 'bar', 'z': 'baz'
+        },
+        {
+            'x': 'foo2', 'y': 'bar2'
+        },
+        {
+            'x': 'foo3', 'y': 'bar3', 'z': 'baz3'
+        },
+    ]
+    self.embedding_conig.min_batch_size = 2
+    with self.assertRaises(RuntimeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
+
+class FakeImageModel:
+  def __call__(self, example: List[PIL_Image]) -> List[PIL_Image]:
+    for i in range(len(example)):
+      if not isinstance(example[i], PIL_Image):
+        raise TypeError('Input must be an Image')
+    return example
+
+
+class FakeImageModelHandler(ModelHandler):
+  def run_inference(
+      self,
+      batch: Sequence[PIL_Image],
+      model: Any,
+      inference_args: Optional[Dict[str, Any]] = None):
+    return model(batch)
+
+  def load_model(self):
+    return FakeImageModel()
+
+
+class FakeImageEmbeddingsManager(base.EmbeddingsManager):
+  def __init__(self, columns, **kwargs):
+    super().__init__(columns=columns, **kwargs)
+
+  def get_model_handler(self) -> ModelHandler:
+    FakeModelHandler.__repr__ = lambda x: 'FakeImageEmbeddingsManager'  # type: ignore[assignment]
+    return FakeImageModelHandler()
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    return (RunInference(model_handler=base._ImageEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'FakeImageEmbeddingsManager'
+
+
+class TestImageEmbeddingHandler(unittest.TestCase):
+  def setUp(self) -> None:
+    self.embedding_config = FakeImageEmbeddingsManager(columns=['x'])
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_incompatible_datatype(self):
+    image_handler = base._ImageEmbeddingHandler(
+        embeddings_manager=self.embedding_config)
+    data = [
+        ('x', 'hi there'),
+        ('x', 'not an image'),
+        ('x', 'image_path.jpg'),
+    ]
+    with self.assertRaises(TypeError):
+      image_handler.run_inference(data, None, None)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_dict_inputs(self):
+    img_one = PIL.Image.new(mode='RGB', size=(1, 1))
+    img_two = PIL.Image.new(mode='RGB', size=(1, 1))
+    data = [
+        {
+            'x': img_one
+        },
+        {
+            'x': img_two
+        },
+    ]
+    expected_data = [{key: value for key, value in d.items()} for d in data]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create(data)
+          | base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  self.embedding_config))
+      assert_that(
+          result,
+          equal_to(expected_data),
+      )
 
 
 class TestUtilFunctions(unittest.TestCase):
@@ -579,6 +721,88 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
     with self.assertRaises(FileExistsError):
       attribute_manager.save_attributes([lambda x: x],
                                         artifact_location=artifact_location)
+
+
+class MLTransformDLQTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_dlq_with_embeddings(self):
+    with beam.Pipeline() as p:
+      good, bad = (
+          p
+          | beam.Create([{
+              'x': 1
+          },
+          {
+            'x': 3,
+          },
+          {
+            'x': 'Hello'
+          }
+          ],
+          )
+          | base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  FakeEmbeddingsManager(
+                    columns=['x'])).with_exception_handling())
+
+      good_expected_elements = [{'x': 'olleH'}]
+
+      assert_that(
+          good,
+          equal_to(good_expected_elements),
+          label='good',
+      )
+
+      # batching happens in RunInference hence elements
+      # are in lists in the bad pcoll.
+      bad_expected_elements = [[{'x': 1}], [{'x': 3}]]
+
+      assert_that(
+          bad | beam.Map(lambda x: x.element),
+          equal_to(bad_expected_elements),
+          label='bad',
+      )
+
+  def test_mltransform_with_dlq_and_extract_tranform_name(self):
+    with beam.Pipeline() as p:
+      good, bad = (
+        p
+        | beam.Create([{
+            'x': 1
+        },
+        {
+          'x': 3,
+        },
+        {
+          'x': 'Hello'
+        }
+        ],
+        )
+        | base.MLTransform(
+            write_artifact_location=self.artifact_location).with_transform(
+                FakeEmbeddingsManager(
+                  columns=['x'])).with_exception_handling())
+
+      good_expected_elements = [{'x': 'olleH'}]
+      assert_that(
+          good,
+          equal_to(good_expected_elements),
+          label='good',
+      )
+
+      bad_expected_transform_name = [
+          'FakeEmbeddingsManager', 'FakeEmbeddingsManager'
+      ]
+
+      assert_that(
+          bad | beam.Map(lambda x: x.transform_name),
+          equal_to(bad_expected_transform_name),
+      )
 
 
 if __name__ == '__main__':

@@ -44,6 +44,7 @@ public class GceMetadataUtil {
     int timeoutMillis = 5000;
     final HttpParams httpParams = new BasicHttpParams();
     HttpConnectionParams.setConnectionTimeout(httpParams, timeoutMillis);
+    HttpConnectionParams.setSoTimeout(httpParams, timeoutMillis);
     String ret = "";
     try {
       HttpClient client = new DefaultHttpClient(httpParams);

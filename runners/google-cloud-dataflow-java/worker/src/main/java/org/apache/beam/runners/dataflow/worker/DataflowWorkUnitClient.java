@@ -29,16 +29,23 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Mo
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusRequest;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
+import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
+import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -48,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUp
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -268,5 +276,63 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     WorkItemServiceState state = result.getWorkItemServiceStates().get(0);
     logger.debug("ReportWorkItemStatus result: {}", state);
     return state;
+  }
+
+  /** Creates WorkerMessage from StreamingScalingReport */
+  @Override
+  public WorkerMessage createWorkerMessageFromStreamingScalingReport(
+      StreamingScalingReport report) {
+    DateTime endTime = DateTime.now();
+    logger.debug("Reporting WorkMessageResponse");
+    Map<String, String> labels =
+        ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId());
+    WorkerMessage msg =
+        new WorkerMessage()
+            .setTime(toCloudTime(endTime))
+            .setStreamingScalingReport(report)
+            .setLabels(labels);
+    return msg;
+  }
+
+  @Override
+  public WorkerMessage createWorkerMessageFromPerWorkerMetrics(PerWorkerMetrics report) {
+    DateTime endTime = DateTime.now();
+    logger.debug("Reporting WorkMessageResponse");
+    Map<String, String> labels =
+        ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId());
+    WorkerMessage msg =
+        new WorkerMessage()
+            .setTime(toCloudTime(endTime))
+            .setPerWorkerMetrics(report)
+            .setLabels(labels);
+    return msg;
+  }
+
+  /**
+   * Reports the worker messages to dataflow. We currently report autoscaling signals and
+   * perworkermetrics with this path.
+   */
+  @Override
+  public List<WorkerMessageResponse> reportWorkerMessage(List<WorkerMessage> messages)
+      throws IOException {
+    SendWorkerMessagesRequest request =
+        new SendWorkerMessagesRequest()
+            .setLocation(options.getRegion())
+            .setWorkerMessages(messages);
+    SendWorkerMessagesResponse result =
+        dataflow
+            .projects()
+            .locations()
+            .workerMessages(options.getProject(), options.getRegion(), request)
+            .execute();
+    if (result == null) {
+      logger.warn("Worker Message response is null");
+      throw new IOException("Got null Worker Message response");
+    }
+    if (result.getWorkerMessageResponses() == null) {
+      logger.debug("Worker Message response is empty.");
+      return Collections.emptyList();
+    }
+    return result.getWorkerMessageResponses();
   }
 }

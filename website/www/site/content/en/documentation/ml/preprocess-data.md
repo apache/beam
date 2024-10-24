@@ -23,16 +23,11 @@ preprocessing data for training and inference. The `MLTransform` class wraps the
 various transforms in one class, simplifying your workflow. For a full list of
 available transforms, see the [Transforms](#transforms) section on this page.
 
-The set of transforms currently available in the `MLTransform` class come from
-the TensorFlow Transforms (TFT) library. TFT offers specialized processing
-modules for machine learning tasks.
-
 ## Why use MLTransform {#use-mltransform}
 
 -   With `MLTransform`, you can use the same preprocessing steps for both
     training and inference, which ensures consistent results.
--   Use `MLTransform` to transform a single example or a batch of
-    examples.
+-   Generate [embeddings](https://en.wikipedia.org/wiki/Embedding) on text data using large language models (LLMs).
 -   `MLTransform` can do a full pass on the dataset, which is useful when
     you need to transform a single element only after analyzing the entire
     dataset. For example, with `MLTransform`, you can complete the following tasks:
@@ -45,18 +40,33 @@ modules for machine learning tasks.
     -   Count the occurrences of words in all the documents to calculate
         [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
         weights.
-
 ## Support and limitations {#support}
 
--   Available in the Apache Beam Python SDK versions 2.50.0 and later.
--   Supports Python 3.8 and 3.9.
+-   Available in the Apache Beam Python SDK versions 2.53.0 and later.
+-   Supports Python 3.8, 3.9, 3.10, and 3.11
 -   Only available for pipelines that use [default windows](/documentation/programming-guide/#single-global-window).
--   Only supports one-to-one transform mapping on a single element.
 
 ## Transforms {#transforms}
 
-You can use `MLTransform` to perform the following data processing transforms.
-For information about the transforms, see
+You can use `MLTransform` to generate text embeddings and to perform various data processing transforms.
+
+### Text embedding transforms
+
+You can use `MLTranform` to generate embeddings that you can use to push data into vector databases or to run inference.
+
+{{< table >}}
+| Transform name | Description |
+| ------- | ---------------|
+| SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings.
+| VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings.
+{{< /table >}}
+
+
+### Data processing transforms that use TFT
+
+The following set of transforms available in the `MLTransform` class come from
+the TensorFlow Transforms (TFT) library. TFT offers specialized processing
+modules for machine learning tasks. For information about these transforms, see
 [Module:tft](https://www.tensorflow.org/tfx/transform/api_docs/python/tft) in the
 TensorFlow documentation.
 
@@ -64,27 +74,24 @@ TensorFlow documentation.
 | Transform name | Description |
 | ------- | ---------------|
 | ApplyBuckets | See [`tft.apply_buckets`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/apply_buckets) in the TensorFlow documentation. |
+| ApplyBucketsWithInterpolation | See [`tft.apply_buckets_with_interpolation`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/apply_buckets_with_interpolation) in the TensorFlow documentation. |
+| BagOfWords | See [`tft.bag_of_words`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/bag_of_words) in the TensorFlow documentation. |
 | Bucketize | See [`tft.bucketize`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/bucketize) in the TensorFlow documentation. |
 | ComputeAndApplyVocabulary | See [`tft.compute_and_apply_vocabulary`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/compute_and_apply_vocabulary) in the TensorFlow documentation. |
+| DeduplicateTensorPerRow | See [`tft.deduplicate_tensor_per_row`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/deduplicate_tensor_per_row) in the TensorFlow documentation. |
+| HashStrings | See [`tft.hash_strings`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/hash_strings) in the TensorFlow documentation. |
 | NGrams | See [`tft.ngrams`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/ngrams) in the TensorFlow documentation. |
 | ScaleByMinMax | See [`tft.scale_by_min_max`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_by_min_max) in the TensorFlow documentation. |
 | ScaleTo01 | See [`tft.scale_to_0_1`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_0_1) in the TensorFlow documentation. |
+| ScaleToGaussian | See [`tft.scale_to_gaussian`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_gaussian) in the TensorFlow documentation. |
 | ScaleToZScore | See [`tft.scale_to_z_score`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_z_score) in the TensorFlow documentation. |
 | TFIDF | See [`tft.tfidf`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/tfidf) in the TensorFlow documentation. |:
 {{< /table >}}
 
-Apply the transforms on either single or multiple columns passed as a
-`dict` on structured data. Keys are column names and values are lists containing
-each column's data.
-
 ## I/O requirements {#io}
 
--   Input to the `MLTransform` class must be in one of the following formats:
-    -   A `dict` of `str`
-        -   Primitive types
-        -   List of primitive types
-        -   NumPy arrays
--   `MLTransform` outputs a Beam `Row` object with NumPy arrays.
+-   Input to the `MLTransform` class must be a dictionary.
+-   `MLTransform` outputs a Beam `Row` object with transformed elements.
 -   The output `PCollection` is a schema `PCollection`. The output schema
     contains the transformed columns.
 
@@ -197,32 +204,3 @@ Replace the following values:
 For more examples, see
 [MLTransform for data processing](/documentation/transforms/python/elementwise/mltransform)
 in the [transform catalog](/documentation/transforms/python/overview/).
-
-### ScaleTo01 example {#scaleto01}
-
-This example demonstrates how to use `MLTransform` to normalize your data
-between 0 and 1 by using the minimum and maximum values from your entire
-dataset. `MLTransform` uses the `ScaleTo01` transformation.
-
-Use the following snippet to apply `ScaleTo01` on column `x` of the input
-data.
-
-```
-data_pcoll | MLTransform(write_artifact_location=<LOCATION>).with_transform(ScaleTo01(columns=['x']))
-```
-
-The `ScaleTo01` transformation produces two artifacts: the `min` and the `max`
-of the entire dataset. For more information, see the
-[Artifacts](#artifacts) section on this page.
-
-## Metrics {#metrics}
-
-When you use MLTransform, the following metrics are available.
-
-{{< table >}}
-| Metric | Description |
-| ------- | ---------------|
-| Data throughput | The number of records processed per second. This metric indicates the processing capacity of the pipeline for `beam.MLTransform.` |
-| Memory usage | The number of records processed per second. This metric indicates the processing capacity of the pipeline for `beam.MLTransform`. |
-| Counters | Tracks the number of elements processed. Each `MLTransform` has a counter. |:
-{{< /table >}}

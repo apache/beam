@@ -44,15 +44,12 @@ def elastic_search_version = "7.12.0"
 configurations.testRuntimeClasspath {
   // Prevent a StackOverflow because of wiring LOG4J -> SLF4J -> LOG4J
   exclude group: "org.slf4j", module: "log4j-over-slf4j"
-}
 
-// Force use the old version of JAMM that cassandra relies on
-configurations.all {
-  resolutionStrategy {
-    exclude group: "io.github.stephankoelle", module: "jamm"
-  }
+  // Force use the old version of JAMM that cassandra relies on
+  resolutionStrategy.force 'com.github.jbellis:jamm:0.3.0'
+  // Pin snakeyaml version due to cassandra-all does not support 2.x
+  resolutionStrategy.force 'org.yaml:snakeyaml:1.33'
 }
-
 
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -65,13 +62,10 @@ dependencies {
   permitUnusedDeclared library.java.hadoop_hdfs
   provided library.java.hadoop_hdfs_client
   provided library.java.hadoop_mapreduce_client_core
-  // Ensure that the older version of JAMM that cassandra relies on appears
-  // on the classpath before the one provided by :sdks:java:core shadowTest.
-  testImplementation "com.github.jbellis:jamm:0.3.0"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   testImplementation project(":sdks:java:io:jdbc")
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation library.java.testcontainers_elasticsearch
@@ -94,7 +88,8 @@ dependencies {
   testImplementation library.java.commons_io
   testImplementation library.java.cassandra_driver_core
   testImplementation library.java.cassandra_driver_mapping
-  testImplementation "org.apache.cassandra:cassandra-all:3.11.8"
+  // TODO(yathu) bump to cassandra-5.x which uses newer jamm when released & beam runs test on Java11
+  testImplementation "org.apache.cassandra:cassandra-all:3.11.10"
   testImplementation library.java.hadoop_common
   testImplementation library.java.hadoop_hdfs
   testImplementation library.java.hadoop_mapreduce_client_core

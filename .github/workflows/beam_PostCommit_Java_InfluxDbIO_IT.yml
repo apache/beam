@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -74,12 +74,6 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: Authenticate on GCP
-        id: auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
         with:
@@ -89,7 +83,7 @@ jobs:
         id: install_influxdb
         run: | 
           kubectl apply -f ${{ github.workspace }}/.test-infra/kubernetes/influxdb/influxdb.yml
-          kubectl wait svc/influxdb-load-balancer-service --for=jsonpath='{.status.loadBalancer.ingress[0].ip}'
+          kubectl wait --timeout 2m svc/influxdb-load-balancer-service --for=jsonpath='{.status.loadBalancer.ingress[0].ip}'
           loadbalancer_IP=$(kubectl get svc influxdb-load-balancer-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}') 
           echo influxdb_IP=$loadbalancer_IP >> $GITHUB_OUTPUT
       - name: Run Java InfluxDbIO_IT

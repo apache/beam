@@ -29,7 +29,10 @@ provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
-ext.summary = "Library to read Kafka topics."
+ext {
+    summary = "Library to read Kafka topics."
+    confluentVersion = "7.6.0"
+}
 
 def kafkaVersions = [
     '01103': "0.11.0.3",
@@ -41,6 +44,7 @@ def kafkaVersions = [
     '231': "2.3.1",
     '241': "2.4.1",
     '251': "2.5.1",
+    '312': "3.1.2",
 ]
 
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
@@ -50,9 +54,9 @@ dependencies {
   provided library.java.jackson_dataformat_csv
   permitUnusedDeclared library.java.jackson_dataformat_csv
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:protobuf")
-  implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation library.java.avro
@@ -69,14 +73,15 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation "org.springframework:spring-expression:5.3.27"
-  implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
+  implementation group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.2'
+  implementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
     // "kafka-clients" has to be provided since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
-  implementation ("io.confluent:kafka-schema-registry-client:5.3.2") {
+  implementation ("io.confluent:kafka-schema-registry-client:${confluentVersion}") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
@@ -88,11 +93,12 @@ dependencies {
   provided library.java.everit_json_schema
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
+  testImplementation project(":sdks:java:managed")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   // For testing Cross-language transforms
-  testImplementation project(":runners:core-construction-java")
   testImplementation library.java.avro
   testImplementation library.java.junit
   testImplementation library.java.powermock
@@ -118,6 +124,8 @@ kafkaVersions.each {kv ->
     outputs.upToDateWhen { false }
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath =  configurations."kafkaVersion${kv.key}" + sourceSets.test.runtimeClasspath
+    systemProperty "beam.target.kafka.version", kv.value
+
     include '**/KafkaIOTest.class'
   }
 }

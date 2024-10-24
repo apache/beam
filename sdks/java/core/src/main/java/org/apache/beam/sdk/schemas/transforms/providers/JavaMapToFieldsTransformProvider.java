@@ -156,13 +156,6 @@ public class JavaMapToFieldsTransformProvider
       }
       for (Map.Entry<String, JavaRowUdf.Configuration> entry :
           configuration.getFields().entrySet()) {
-        if (!"java".equals(configuration.getLanguage())) {
-          String expr = entry.getValue().getExpression();
-          if (expr == null || !inputSchema.hasField(expr)) {
-            throw new IllegalArgumentException(
-                "Unknown field or missing language specification for '" + entry.getKey() + "'");
-          }
-        }
         try {
           JavaRowUdf udf = new JavaRowUdf(entry.getValue(), inputSchema);
           udfs.add(udf);

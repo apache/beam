@@ -19,6 +19,8 @@
 import { CombineFn } from "./group_and_combine";
 import { Coder } from "../coders/coders";
 import { VarIntCoder } from "../coders/standard_coders";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 // TODO(cleanup): These reductions only work on Arrays, not Iterables.
 
@@ -71,5 +73,4 @@ export const mean: CombineFn<number, [number, number], number> = {
   extractOutput: ([sum, count]: [number, number]) => sum / count,
 };
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/transforms/combiners", exports);
+requireForSerialization(`${packageName}/transforms/combiners`, exports);

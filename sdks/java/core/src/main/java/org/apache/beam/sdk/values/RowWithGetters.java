@@ -17,17 +17,21 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -41,13 +45,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class RowWithGetters extends Row {
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
-  private @Nullable Map<Integer, Object> cache = null;
+  private @Nullable Map<Integer, @Nullable Object> cache = null;
 
   RowWithGetters(
       Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
     super(schema);
     this.getterTarget = getterTarget;
-    this.getters = getterFactory.create(getterTarget.getClass(), schema);
+    this.getters = getterFactory.create(TypeDescriptor.of(getterTarget.getClass()), schema);
   }
 
   @Override
@@ -65,7 +69,20 @@ public class RowWithGetters extends Row {
       if (cache == null) {
         cache = new TreeMap<>();
       }
-      fieldValue = cache.computeIfAbsent(fieldIdx, idx -> getters.get(idx).get(getterTarget));
+      fieldValue =
+          cache.computeIfAbsent(
+              fieldIdx,
+              new Function<Integer, Object>() {
+                @Override
+                public Object apply(Integer idx) {
+                  FieldValueGetter getter = getters.get(idx);
+                  checkStateNotNull(getter);
+                  @SuppressWarnings("nullness")
+                  @NonNull
+                  Object value = getter.get(getterTarget);
+                  return value;
+                }
+              });
     } else {
       fieldValue = getters.get(fieldIdx).get(getterTarget);
     }

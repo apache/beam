@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.READ_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
@@ -29,10 +29,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -43,19 +43,11 @@ import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRe
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformResponse;
 import org.apache.beam.model.expansion.v1.ExpansionApi.SchemaTransformConfig;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -79,27 +71,35 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.alts.AltsServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Converter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -115,6 +115,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     implements AutoCloseable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExpansionService.class);
+
+  private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
 
   /**
    * A registrar that creates {@link TransformProvider} instances from {@link
@@ -137,400 +139,399 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static class ExternalTransformRegistrarLoader
       implements ExpansionService.ExpansionServiceRegistrar {
 
-    private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
-
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      ImmutableMap.Builder<String, ExpansionService.TransformProvider> builder =
-          ImmutableMap.builder();
-      for (ExternalTransformRegistrar registrar :
-          ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, ExternalTransformBuilder<?, ?, ?>> entry :
-            registrar.knownBuilderInstances().entrySet()) {
-          String urn = entry.getKey();
-          ExternalTransformBuilder builderInstance = entry.getValue();
-          TransformProvider transformProvider =
-              new TransformProvider() {
-                @Override
-                public PTransform getTransform(RunnerApi.FunctionSpec spec) {
-                  try {
-                    Class configClass = getConfigClass(builderInstance);
-                    return builderInstance.buildExternal(
-                        payloadToConfig(
-                            ExternalConfigurationPayload.parseFrom(spec.getPayload()),
-                            configClass));
-                  } catch (Exception e) {
-                    throw new RuntimeException(
-                        String.format("Failed to build transform %s from spec %s", urn, spec), e);
-                  }
-                }
+    public Map<String, TransformProvider> knownTransforms() {
+      Map<String, TransformProvider> providers = new HashMap<>();
 
-                @Override
-                public List<String> getDependencies(
-                    RunnerApi.FunctionSpec spec, PipelineOptions options) {
-                  try {
-                    Class configClass = getConfigClass(builderInstance);
-                    Optional<List<String>> dependencies =
-                        builderInstance.getDependencies(
-                            payloadToConfig(
-                                ExternalConfigurationPayload.parseFrom(spec.getPayload()),
-                                configClass),
-                            options);
-                    return dependencies.orElseGet(
-                        () -> TransformProvider.super.getDependencies(spec, options));
-                  } catch (Exception e) {
-                    throw new RuntimeException(
-                        String.format("Failed to get dependencies of %s from spec %s", urn, spec),
-                        e);
-                  }
-                }
-              };
-          builder.put(urn, transformProvider);
-        }
+      // First check and register ExternalTransformBuilder in ServiceLoader style, converting
+      // to TransformProvider after validation.
+      Map<String, ExternalTransformBuilder> registeredBuilders = loadTransformBuilders();
+      for (Map.Entry<String, ExternalTransformBuilder> registeredBuilder :
+          registeredBuilders.entrySet()) {
+        providers.put(
+            registeredBuilder.getKey(),
+            new TransformProviderForBuilder(registeredBuilder.getValue()));
       }
 
+      // Now load payload translators and convert them to TransformProviders after validating for
+      // duplicates
       List<String> deprecatedTransformURNs = ImmutableList.of(READ_TRANSFORM_URN);
-      for (TransformPayloadTranslatorRegistrar registrar :
-          ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
-        for (Map.Entry<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-            entry : registrar.getTransformPayloadTranslators().entrySet()) {
-          @Initialized TransformPayloadTranslator translator = entry.getValue();
-          if (translator == null) {
-            continue;
-          }
+      Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+          registeredPayloadTranslators = PTransformTranslation.getKnownPayloadTranslators();
 
-          String urn;
-          try {
-            urn = translator.getUrn();
-            if (urn == null) {
-              LOG.debug(
-                  "Could not load the TransformPayloadTranslator "
-                      + translator
-                      + " to the Expansion Service since it did not produce a unique URN.");
-              continue;
-            }
-          } catch (Exception e) {
-            LOG.info(
+      for (Map.Entry<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+          entry : registeredPayloadTranslators.entrySet()) {
+
+        @Initialized TransformPayloadTranslator translator = entry.getValue();
+
+        if (translator == null) {
+          continue;
+        }
+
+        String urn;
+        try {
+          urn = translator.getUrn();
+          if (urn == null) {
+            LOG.debug(
                 "Could not load the TransformPayloadTranslator "
                     + translator
-                    + " to the Expansion Service.");
+                    + " to the Expansion Service since it did not produce a unique URN.");
             continue;
+          } else if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
+              && translator instanceof SchemaTransformPayloadTranslator) {
+            urn = ((SchemaTransformPayloadTranslator) translator).provider().identifier();
           }
-
-          if (deprecatedTransformURNs.contains(urn)) {
-            continue;
-          }
-          final String finalUrn = urn;
-          TransformProvider transformProvider =
-              spec -> {
-                try {
-                  ExternalConfigurationPayload payload =
-                      ExternalConfigurationPayload.parseFrom(spec.getPayload());
-                  Row configRow =
-                      RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
-                          .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
-                  PTransform transformFromRow = translator.fromConfigRow(configRow);
-                  if (transformFromRow != null) {
-                    return transformFromRow;
-                  } else {
-                    throw new RuntimeException(
-                        String.format(
-                            "A transform cannot be initiated using the provided config row %s and the TransformPayloadTranslator %s",
-                            configRow, translator));
-                  }
-                } catch (Exception e) {
-                  throw new RuntimeException(
-                      String.format("Failed to build transform %s from spec %s", finalUrn, spec),
-                      e);
-                }
-              };
-          builder.put(finalUrn, transformProvider);
+        } catch (Exception e) {
+          LOG.info(
+              "Could not load the TransformPayloadTranslator "
+                  + translator
+                  + " to the Expansion Service.",
+              e);
+          continue;
         }
-      }
 
-      return builder.build();
-    }
-
-    private static <ConfigT> Class<ConfigT> getConfigClass(
-        ExternalTransformBuilder<ConfigT, ?, ?> transformBuilder) {
-      Class<ConfigT> configurationClass = null;
-      for (Method method : transformBuilder.getClass().getMethods()) {
-        if (method.getName().equals("buildExternal")) {
-          Preconditions.checkState(
-              method.getParameterCount() == 1,
-              "Build method for ExternalTransformBuilder %s must have exactly one parameter, but"
-                  + " had %s parameters.",
-              transformBuilder.getClass().getSimpleName(),
-              method.getParameterCount());
-          configurationClass = (Class<ConfigT>) method.getParameterTypes()[0];
-          if (Object.class.equals(configurationClass)) {
-            continue;
-          }
-          break;
+        if (deprecatedTransformURNs.contains(urn)) {
+          continue;
         }
+        final String finalUrn = urn;
+        TransformProvider transformProvider = new TransformProviderForPayloadTranslator(translator);
+        providers.put(finalUrn, transformProvider);
       }
-
-      if (configurationClass == null) {
-        throw new AssertionError("Failed to find buildExternal method.");
-      }
-
-      return configurationClass;
-    }
-
-    static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
-      Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
-
-      if (payloadSchema.getFieldCount() == 0) {
-        return Row.withSchema(Schema.of()).build();
-      }
-
-      // Coerce field names to camel-case
-      Converter<String, String> camelCaseConverter =
-          CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
-      payloadSchema =
-          payloadSchema.getFields().stream()
-              .map(
-                  (field) -> {
-                    Preconditions.checkNotNull(field.getName());
-                    if (field.getName().contains("_")) {
-                      @Nullable String newName = camelCaseConverter.convert(field.getName());
-                      assert newName != null
-                          : "@AssumeAssertion(nullness): converter type is imprecise; it is nullness-preserving";
-                      return field.withName(newName);
-                    } else {
-                      return field;
-                    }
-                  })
-              .collect(Schema.toSchema());
-
-      Row configRow;
-      try {
-        configRow = RowCoder.of(payloadSchema).decode(payload.newInput());
-      } catch (IOException e) {
-        throw new RuntimeException("Error decoding payload", e);
-      }
-      return configRow;
+      return providers;
     }
 
     /**
-     * Attempt to create an instance of {@link ConfigT} from an {@link
-     * ExternalConfigurationPayload}. If a schema is registered for {@link ConfigT} this method will
-     * attempt to ise it. Throws an {@link IllegalArgumentException} if the schema in {@code
-     * payload} is not {@link Schema#assignableTo(Schema) assignable to} the registered schema.
-     *
-     * <p>If no Schema is registered, {@link ConfigT} must have a zero-argument constructor and
-     * setters corresponding to each field in the row encoded by {@code payload}. Note {@link
-     * ConfigT} may have additional setters not represented in the {@ocde payload} schema.
-     *
-     * <p>Exposed for testing only. No backwards compatibility guarantees.
+     * Returns all {@link ExternalTransformBuilder} associations from any registrar set up via the
+     * service loader interface.
      */
-    @VisibleForTesting
-    public static <ConfigT> ConfigT payloadToConfig(
-        ExternalConfigurationPayload payload, Class<ConfigT> configurationClass) {
-      try {
-        return payloadToConfigSchema(payload, configurationClass);
-      } catch (NoSuchSchemaException schemaException) {
-        LOG.warn(
-            "Configuration class '{}' has no schema registered. Attempting to construct with setter approach.",
-            configurationClass.getName());
-        try {
-          return payloadToConfigSetters(payload, configurationClass);
-        } catch (ReflectiveOperationException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Failed to construct instance of configuration class '%s'",
-                  configurationClass.getName()),
-              e);
+    private static Map<String, ExternalTransformBuilder> loadTransformBuilders() {
+
+      Map<String, ExternalTransformBuilder> registeredBuilders = new HashMap<>();
+
+      ImmutableSet.Builder<String> conflictingRegistrations = new ImmutableSet.Builder<>();
+
+      for (ExternalTransformRegistrar registrar :
+          ServiceLoader.load(ExternalTransformRegistrar.class)) {
+
+        for (Map.Entry<String, ExternalTransformBuilder<?, ?, ?>> entry :
+            registrar.knownBuilderInstances().entrySet()) {
+
+          String urn = entry.getKey();
+          ExternalTransformBuilder newBuilder = entry.getValue();
+          @Nullable ExternalTransformBuilder existingBuilder = registeredBuilders.get(urn);
+
+          if (existingBuilder == null) {
+            registeredBuilders.put(urn, newBuilder);
+          } else {
+            LOG.error(
+                "Conflicting registrations for {}: {} and {}", urn, existingBuilder, newBuilder);
+            conflictingRegistrations.add(urn);
+          }
         }
       }
-    }
 
-    private static <ConfigT> ConfigT payloadToConfigSchema(
-        ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
-        throws NoSuchSchemaException {
-      Schema configSchema = SCHEMA_REGISTRY.getSchema(configurationClass);
-      SerializableFunction<Row, ConfigT> fromRowFunc =
-          SCHEMA_REGISTRY.getFromRowFunction(configurationClass);
-
-      Row payloadRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
-
-      if (!payloadRow.getSchema().assignableTo(configSchema)) {
+      Set<String> conflictingRegistrationSet = conflictingRegistrations.build();
+      if (!conflictingRegistrationSet.isEmpty()) {
         throw new IllegalArgumentException(
             String.format(
-                "Schema in expansion request payload is not assignable to the schema for the "
-                    + "configuration object.%n%nPayload Schema: %s%n%nConfiguration Schema: %s",
-                payloadRow.getSchema(), configSchema));
+                "Conflicting registrations for: %s",
+                Joiner.on(", ").join(conflictingRegistrationSet)));
       }
-
-      return fromRowFunc.apply(payloadRow);
-    }
-
-    private static <ConfigT> ConfigT payloadToConfigSetters(
-        ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
-        throws ReflectiveOperationException {
-      Row configRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
-
-      Constructor<ConfigT> constructor = configurationClass.getDeclaredConstructor();
-      constructor.setAccessible(true);
-
-      ConfigT config = constructor.newInstance();
-      for (Field field : configRow.getSchema().getFields()) {
-        String key = field.getName();
-        @Nullable Object value = configRow.getValue(field.getName());
-
-        String fieldName = key;
-
-        Coder coder = SchemaCoder.coderForFieldType(field.getType());
-        Class type = coder.getEncodedTypeDescriptor().getRawType();
-
-        String setterName =
-            "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
-        Method method;
-        try {
-          // retrieve the setter for this field
-          method = config.getClass().getMethod(setterName, type);
-        } catch (NoSuchMethodException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "The configuration class %s is missing a setter %s for %s with type %s",
-                  config.getClass(),
-                  setterName,
-                  fieldName,
-                  coder.getEncodedTypeDescriptor().getType().getTypeName()),
-              e);
-        }
-        invokeSetter(config, value, method);
-      }
-      return config;
-    }
-
-    // Checker framework is conservative for Method#invoke, args are NonNull
-    // See https://checkerframework.org/manual/#reflection-resolution
-    @SuppressWarnings("nullness")
-    private static <ConfigT> void invokeSetter(
-        ConfigT config, @Nullable Object value, Method method)
-        throws IllegalAccessException, InvocationTargetException {
-      method.invoke(config, value);
+      return registeredBuilders;
     }
   }
 
-  /**
-   * Provides a mapping of {@link RunnerApi.FunctionSpec} to a {@link PTransform}, together with
-   * mappings of its inputs and outputs to maps of PCollections.
-   *
-   * @param <InputT> input {@link PInput} type of the transform
-   * @param <OutputT> output {@link POutput} type of the transform
-   */
-  public interface TransformProvider<InputT extends PInput, OutputT extends POutput> {
+  private static class TransformProviderForPayloadTranslator<
+          InputT extends PInput, OutputT extends POutput>
+      implements TransformProvider<InputT, OutputT> {
 
-    default InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
-      inputs =
-          checkArgumentNotNull(
-              inputs); // spotbugs claims incorrectly that it is annotated @Nullable
-      if (inputs.size() == 0) {
-        return (InputT) p.begin();
-      }
-      if (inputs.size() == 1) {
-        return (InputT) Iterables.getOnlyElement(inputs.values());
+    private final TransformPayloadTranslator<PTransform<InputT, OutputT>> payloadTranslator;
+
+    // Returns true if the underlying transform represented by this is a schema-aware transform.
+    private boolean isSchemaTransform() {
+      return (payloadTranslator instanceof SchemaTransformPayloadTranslator);
+    }
+
+    private TransformProviderForPayloadTranslator(
+        TransformPayloadTranslator<PTransform<InputT, OutputT>> payloadTranslator) {
+      this.payloadTranslator = payloadTranslator;
+    }
+
+    @Override
+    public PTransform<InputT, OutputT> getTransform(
+        RunnerApi.FunctionSpec spec, PipelineOptions options) {
+      if (isSchemaTransform()) {
+        return ExpansionServiceSchemaTransformProvider.of().getTransform(spec, options);
       } else {
-        PCollectionTuple inputTuple = PCollectionTuple.empty(p);
-        for (Map.Entry<String, PCollection<?>> entry : inputs.entrySet()) {
-          inputTuple = inputTuple.and(new TupleTag(entry.getKey()), entry.getValue());
-        }
-        return (InputT) inputTuple;
-      }
-    }
-
-    PTransform<InputT, OutputT> getTransform(RunnerApi.FunctionSpec spec);
-
-    default Map<String, PCollection<?>> extractOutputs(OutputT output) {
-      if (output instanceof PDone) {
-        return Collections.emptyMap();
-      } else if (output instanceof PCollection) {
-        return ImmutableMap.of("output", (PCollection<?>) output);
-      } else if (output instanceof PCollectionTuple) {
-        return ((PCollectionTuple) output)
-            .getAll().entrySet().stream()
-                .collect(Collectors.toMap(entry -> entry.getKey().getId(), Map.Entry::getValue));
-      } else if (output instanceof PCollectionList<?>) {
-        PCollectionList<?> listOutput = (PCollectionList<?>) output;
-        ImmutableMap.Builder<String, PCollection<?>> indexToPCollection = ImmutableMap.builder();
-        int i = 0;
-        for (PCollection pc : listOutput.getAll()) {
-          indexToPCollection.put(Integer.toString(i), pc);
-          i++;
-        }
-        return indexToPCollection.build();
-      } else if (output instanceof POutput) {
-        // This is needed to support custom output types.
-        Map<TupleTag<?>, PValue> values = output.expand();
-        Map<String, PCollection<?>> returnMap = new HashMap<>();
-        for (Map.Entry<TupleTag<?>, PValue> entry : values.entrySet()) {
-          if (!(entry.getValue() instanceof PCollection)) {
-            throw new UnsupportedOperationException(
-                "Unable to parse the output type "
-                    + output.getClass()
-                    + " due to key "
-                    + entry.getKey()
-                    + " not mapping to a PCollection");
-          }
-          returnMap.put(entry.getKey().getId(), (PCollection<?>) entry.getValue());
-        }
-        return returnMap;
-      } else {
-        throw new UnsupportedOperationException("Unknown output type: " + output.getClass());
-      }
-    }
-
-    default Map<String, PCollection<?>> apply(
-        Pipeline p, String name, RunnerApi.FunctionSpec spec, Map<String, PCollection<?>> inputs) {
-      return extractOutputs(
-          Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
-    }
-
-    default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {
-      if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(spec.getUrn())) {
-        SchemaTransformPayload payload;
         try {
-          payload = SchemaTransformPayload.parseFrom(spec.getPayload());
-          return payload.getIdentifier();
-        } catch (InvalidProtocolBufferException e) {
-          throw new IllegalArgumentException(
-              "Invalid payload type for URN " + getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM), e);
-        }
-      }
-      return spec.getUrn();
-    }
-
-    default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
-
-      ExpansionServiceConfig config =
-          options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
-      String transformUniqueID = getTransformUniqueID(spec);
-      if (config.getDependencies().containsKey(transformUniqueID)) {
-        List<String> updatedDependencies =
-            config.getDependencies().get(transformUniqueID).stream()
-                .map(dependency -> dependency.getPath())
-                .collect(Collectors.toList());
-        return updatedDependencies;
-      }
-
-      List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
-
-      if (filesToStage == null || filesToStage.isEmpty()) {
-        ClassLoader classLoader = Environments.class.getClassLoader();
-        if (classLoader == null) {
+          ExternalConfigurationPayload payload =
+              ExternalConfigurationPayload.parseFrom(spec.getPayload());
+          Row configRow =
+              RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
+                  .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
+          PTransform transformFromRow = payloadTranslator.fromConfigRow(configRow, options);
+          if (transformFromRow != null) {
+            return transformFromRow;
+          } else {
+            throw new RuntimeException(
+                String.format(
+                    "A transform cannot be initiated using the provided config row %s and the"
+                        + " TransformPayloadTranslator %s",
+                    configRow, payloadTranslator));
+          }
+        } catch (Exception e) {
           throw new RuntimeException(
-              "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
-        }
-        filesToStage = detectClassPathResourcesToStage(classLoader, options);
-        if (filesToStage.isEmpty()) {
-          throw new IllegalArgumentException("No classpath elements found.");
+              String.format(
+                  "Failed to build transform %s from spec %s: %s",
+                  spec.getUrn(), spec, e.getMessage()),
+              e);
         }
       }
-      LOG.debug("Staging to files from the classpath: {}", filesToStage.size());
-      return filesToStage;
     }
+
+    @Override
+    public InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
+      if (isSchemaTransform()) {
+        return (InputT) ExpansionServiceSchemaTransformProvider.of().createInput(p, inputs);
+      } else {
+        return TransformProvider.super.createInput(p, inputs);
+      }
+    }
+
+    @Override
+    public Map<String, PCollection<?>> extractOutputs(OutputT output) {
+      if (isSchemaTransform()) {
+        return ExpansionServiceSchemaTransformProvider.of()
+            .extractOutputs((PCollectionRowTuple) output);
+      } else {
+        return TransformProvider.super.extractOutputs(output);
+      }
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof TransformProviderForPayloadTranslator
+          && Objects.equals(
+              payloadTranslator, ((TransformProviderForPayloadTranslator) other).payloadTranslator);
+    }
+
+    @Override
+    public int hashCode() {
+      return payloadTranslator.hashCode();
+    }
+  }
+
+  private static class TransformProviderForBuilder implements TransformProvider {
+
+    private final ExternalTransformBuilder transformBuilder;
+
+    private TransformProviderForBuilder(ExternalTransformBuilder transformBuilder) {
+      this.transformBuilder = transformBuilder;
+    }
+
+    @Override
+    public PTransform getTransform(RunnerApi.FunctionSpec spec, PipelineOptions options) {
+      try {
+        Class configClass = getConfigClass(transformBuilder);
+        return transformBuilder.buildExternal(
+            payloadToConfig(
+                ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass));
+      } catch (Exception e) {
+        throw new RuntimeException(
+            String.format("Failed to build transform from spec %s: %s", spec, e.getMessage()), e);
+      }
+    }
+
+    @Override
+    public List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
+      try {
+        Class configClass = getConfigClass(transformBuilder);
+        Optional<List<String>> dependencies =
+            transformBuilder.getDependencies(
+                payloadToConfig(
+                    ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass),
+                options);
+        return dependencies.orElseGet(() -> TransformProvider.super.getDependencies(spec, options));
+      } catch (Exception e) {
+        throw new RuntimeException(
+            String.format("Failed to get dependencies for spec %s", spec), e);
+      }
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof TransformProviderForBuilder
+          && Objects.equals(
+              transformBuilder, ((TransformProviderForBuilder) other).transformBuilder);
+    }
+
+    @Override
+    public int hashCode() {
+      return transformBuilder.hashCode();
+    }
+  }
+
+  private static <ConfigT> Class<ConfigT> getConfigClass(
+      ExternalTransformBuilder<ConfigT, ?, ?> transformBuilder) {
+    Class<ConfigT> configurationClass = null;
+    for (Method method : transformBuilder.getClass().getMethods()) {
+      if (method.getName().equals("buildExternal")) {
+        Preconditions.checkState(
+            method.getParameterCount() == 1,
+            "Build method for ExternalTransformBuilder %s must have exactly one parameter, but"
+                + " had %s parameters.",
+            transformBuilder.getClass().getSimpleName(),
+            method.getParameterCount());
+        configurationClass = (Class<ConfigT>) method.getParameterTypes()[0];
+        if (Object.class.equals(configurationClass)) {
+          continue;
+        }
+        break;
+      }
+    }
+
+    if (configurationClass == null) {
+      throw new AssertionError("Failed to find buildExternal method.");
+    }
+
+    return configurationClass;
+  }
+
+  static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
+    Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
+
+    if (payloadSchema.getFieldCount() == 0) {
+      return Row.withSchema(Schema.of()).build();
+    }
+
+    // Coerce field names to camel-case
+    Converter<String, String> camelCaseConverter =
+        CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
+    payloadSchema =
+        payloadSchema.getFields().stream()
+            .map(
+                (field) -> {
+                  Preconditions.checkNotNull(field.getName());
+                  if (field.getName().contains("_")) {
+                    @Nullable String newName = camelCaseConverter.convert(field.getName());
+                    assert newName != null
+                        : "@AssumeAssertion(nullness): converter type is imprecise; it is"
+                            + " nullness-preserving";
+                    return field.withName(newName);
+                  } else {
+                    return field;
+                  }
+                })
+            .collect(Schema.toSchema());
+
+    Row configRow;
+    try {
+      configRow = RowCoder.of(payloadSchema).decode(payload.newInput());
+    } catch (IOException e) {
+      throw new RuntimeException("Error decoding payload", e);
+    }
+    return configRow;
+  }
+
+  /**
+   * Attempt to create an instance of {@link ConfigT} from an {@link ExternalConfigurationPayload}.
+   * If a schema is registered for {@link ConfigT} this method will attempt to ise it. Throws an
+   * {@link IllegalArgumentException} if the schema in {@code payload} is not {@link
+   * Schema#assignableTo(Schema) assignable to} the registered schema.
+   *
+   * <p>If no Schema is registered, {@link ConfigT} must have a zero-argument constructor and
+   * setters corresponding to each field in the row encoded by {@code payload}. Note {@link ConfigT}
+   * may have additional setters not represented in the {@ocde payload} schema.
+   *
+   * <p>Exposed for testing only. No backwards compatibility guarantees.
+   */
+  @VisibleForTesting
+  public static <ConfigT> ConfigT payloadToConfig(
+      ExternalConfigurationPayload payload, Class<ConfigT> configurationClass) {
+    try {
+      return payloadToConfigSchema(payload, configurationClass);
+    } catch (NoSuchSchemaException schemaException) {
+      LOG.warn(
+          "Configuration class '{}' has no schema registered. Attempting to construct with setter"
+              + " approach.",
+          configurationClass.getName());
+      try {
+        return payloadToConfigSetters(payload, configurationClass);
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Failed to construct instance of configuration class '%s'",
+                configurationClass.getName()),
+            e);
+      }
+    }
+  }
+
+  private static <ConfigT> ConfigT payloadToConfigSchema(
+      ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
+      throws NoSuchSchemaException {
+    Schema configSchema = SCHEMA_REGISTRY.getSchema(configurationClass);
+    SerializableFunction<Row, ConfigT> fromRowFunc =
+        SCHEMA_REGISTRY.getFromRowFunction(configurationClass);
+
+    Row payloadRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
+
+    if (!payloadRow.getSchema().assignableTo(configSchema)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Schema in expansion request payload is not assignable to the schema for the "
+                  + "configuration object.%n%nPayload Schema: %s%n%nConfiguration Schema: %s",
+              payloadRow.getSchema(), configSchema));
+    }
+
+    return fromRowFunc.apply(payloadRow);
+  }
+
+  private static <ConfigT> ConfigT payloadToConfigSetters(
+      ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
+      throws ReflectiveOperationException {
+    Row configRow = decodeConfigObjectRow(payload.getSchema(), payload.getPayload());
+
+    Constructor<ConfigT> constructor = configurationClass.getDeclaredConstructor();
+    constructor.setAccessible(true);
+
+    ConfigT config = constructor.newInstance();
+    for (Field field : configRow.getSchema().getFields()) {
+      String key = field.getName();
+      @Nullable Object value = configRow.getValue(field.getName());
+
+      String fieldName = key;
+
+      Coder coder = SchemaCoder.coderForFieldType(field.getType());
+      Class type = coder.getEncodedTypeDescriptor().getRawType();
+
+      String setterName =
+          "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+      Method method;
+      try {
+        // retrieve the setter for this field
+        method = config.getClass().getMethod(setterName, type);
+      } catch (NoSuchMethodException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The configuration class %s is missing a setter %s for %s with type %s",
+                config.getClass(),
+                setterName,
+                fieldName,
+                coder.getEncodedTypeDescriptor().getType().getTypeName()),
+            e);
+      }
+      invokeSetter(config, value, method);
+    }
+    return config;
+  }
+
+  // Checker framework is conservative for Method#invoke, args are NonNull
+  // See https://checkerframework.org/manual/#reflection-resolution
+  @SuppressWarnings("nullness")
+  private static <ConfigT> void invokeSetter(ConfigT config, @Nullable Object value, Method method)
+      throws IllegalAccessException, InvocationTargetException {
+    method.invoke(config, value);
   }
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
@@ -624,17 +625,28 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     String urn = request.getTransform().getSpec().getUrn();
 
-    TransformProvider transformProvider = null;
-    if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
-      AllowList allowList =
-          pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
-      assert allowList != null;
-      transformProvider = new JavaClassLookupTransformProvider(allowList);
-    } else if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(urn)) {
-      transformProvider = ExpansionServiceSchemaTransformProvider.of();
-    } else {
-      transformProvider = getRegisteredTransforms().get(urn);
-      if (transformProvider == null) {
+    TransformProvider transformProvider = getRegisteredTransforms().get(urn);
+    if (transformProvider == null) {
+      if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
+        AllowList allowList =
+            pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
+        assert allowList != null;
+        transformProvider = new JavaClassLookupTransformProvider(allowList);
+      } else if (getUrn(SCHEMA_TRANSFORM).equals(urn)) {
+        try {
+          String underlyingIdentifier =
+              ExternalTransforms.SchemaTransformPayload.parseFrom(
+                      request.getTransform().getSpec().getPayload())
+                  .getIdentifier();
+          transformProvider = getRegisteredTransforms().get(underlyingIdentifier);
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException(e);
+        }
+        transformProvider =
+            transformProvider != null
+                ? transformProvider
+                : ExpansionServiceSchemaTransformProvider.of();
+      } else {
         throw new UnsupportedOperationException(
             "Unknown urn: " + request.getTransform().getSpec().getUrn());
       }
@@ -844,8 +856,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       System.out.println("\nDid not find any registered transforms or SchemaTransforms.\n");
     }
 
+    boolean useAlts = options.as(ExpansionServiceOptions.class).getUseAltsServer();
     ServerBuilder serverBuilder =
-        ServerBuilder.forPort(port).addService(service).addService(new ArtifactRetrievalService());
+        useAlts ? AltsServerBuilder.forPort(port) : ServerBuilder.forPort(port);
+
+    if (useAlts) {
+      LOG.info("Running with gRPC ALTS authentication.");
+    }
+
+    serverBuilder.addService(service).addService(new ArtifactRetrievalService());
     if (options.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
       serverBuilder.addService(new ExternalWorkerService(options));
     }

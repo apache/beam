@@ -60,7 +60,6 @@ task copyConfigFile(type: Copy) {
     into "build/target"
 }
 
-def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
@@ -74,9 +73,9 @@ docker {
     // tags used by dockerTag task
     tags containerImageTags()
     files "./build"
-    buildx useBuildx
+    buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    load useBuildx && !pushContainers
+    load project.useBuildx() && !pushContainers
     push pushContainers
 }
 

@@ -231,9 +231,7 @@ class ReadFromParquetBatched(PTransform):
 
 
 class ReadFromParquet(PTransform):
-  """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
-     Parquet files as a `PCollection` of dictionaries. This `PTransform` is
-     currently experimental. No backward-compatibility guarantees."""
+  """A `PTransform` for reading Parquet files."""
   def __init__(
       self,
       file_pattern=None,
@@ -465,9 +463,6 @@ _create_parquet_source = _ParquetSource
 
 class WriteToParquet(PTransform):
   """A ``PTransform`` for writing parquet files.
-
-    This ``PTransform`` is currently experimental. No backward-compatibility
-    guarantees.
   """
   def __init__(
       self,

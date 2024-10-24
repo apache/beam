@@ -24,4 +24,4 @@ import org.apache.beam.sdk.annotations.Internal;
  * UsesJavaExpansionService} should be run for runners which support cross-language transforms.
  */
 @Internal
-public interface UsesJavaExpansionService {}
+public interface UsesJavaExpansionService extends UsesExternalService {}

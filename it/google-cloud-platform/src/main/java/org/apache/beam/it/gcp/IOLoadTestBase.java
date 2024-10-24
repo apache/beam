@@ -17,12 +17,20 @@
  */
 package org.apache.beam.it.gcp;
 
+import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.gcp.dataflow.DefaultPipelineLauncher;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.junit.After;
 import org.junit.Before;
@@ -100,5 +108,35 @@ public class IOLoadTestBase extends LoadTestBase {
   /** Given a metrics name, return Beam metrics name. */
   public static String getBeamMetricsName(PipelineMetricsType metricstype, String metricsName) {
     return BEAM_METRICS_NAMESPACE + ":" + metricstype + ":" + metricsName;
+  }
+
+  /** Exports test metrics to InfluxDB or BigQuery depending on the configuration. */
+  protected void exportMetrics(
+      PipelineLauncher.LaunchInfo launchInfo,
+      MetricsConfiguration metricsConfig,
+      boolean exportToInfluxDB,
+      InfluxDBSettings influxDBSettings) {
+
+    Map<String, Double> metrics;
+    try {
+      metrics = getMetrics(launchInfo, metricsConfig);
+    } catch (Exception e) {
+      LOG.warn("Unable to get metrics due to error: {}", e.getMessage());
+      return;
+    }
+    String testId = UUID.randomUUID().toString();
+    String testTimestamp = Timestamp.now().toString();
+
+    if (exportToInfluxDB) {
+      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
+      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
+        NamedTestResult metricResult =
+            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
+        namedTestResults.add(metricResult);
+      }
+      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
+    } else {
+      exportMetricsToBigQuery(launchInfo, metrics);
+    }
   }
 }

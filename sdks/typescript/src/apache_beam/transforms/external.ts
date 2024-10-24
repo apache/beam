@@ -71,24 +71,24 @@ const defaultRawExternalTransformOptions: RawExternalTransformOptions = {
 // a cleaner way to specify them than using internal.WithCoderInternal.
 export function rawExternalTransform<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 >(
   urn: string,
   payload: Uint8Array | { [key: string]: any },
   serviceProviderOrAddress: string | (() => Promise<service.Service>),
-  options: RawExternalTransformOptions = {}
+  options: RawExternalTransformOptions = {},
 ): transform.AsyncPTransform<InputT, OutputT> {
   return new RawExternalTransform(
     urn,
     payload,
     serviceProviderOrAddress,
-    options
+    options,
   );
 }
 
 class RawExternalTransform<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > extends transform.AsyncPTransformClass<InputT, OutputT> {
   static namespaceCounter = 0;
   static freshNamespace() {
@@ -103,7 +103,7 @@ class RawExternalTransform<
     private urn: string,
     payload: Uint8Array | { [key: string]: any },
     serviceProviderOrAddress: string | (() => Promise<service.Service>),
-    options: RawExternalTransformOptions
+    options: RawExternalTransformOptions,
   ) {
     super("External(" + urn + ")");
     this.options = { ...defaultRawExternalTransformOptions, ...options };
@@ -126,7 +126,7 @@ class RawExternalTransform<
   async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ): Promise<OutputT> {
     const pipelineComponents = pipeline.getProto().components!;
     const namespace = RawExternalTransform.freshNamespace();
@@ -155,7 +155,7 @@ class RawExternalTransform<
     }
 
     for (const [output, coder] of Object.entries(
-      this.options.requestedOutputCoders!
+      this.options.requestedOutputCoders!,
     )) {
       request.outputCoderRequests[output] = pipeline.getCoderId(coder);
     }
@@ -164,11 +164,11 @@ class RawExternalTransform<
     Object.assign(request.components!.coders, pipelineComponents.coders);
     Object.assign(
       request.components!.windowingStrategies,
-      pipelineComponents.windowingStrategies
+      pipelineComponents.windowingStrategies,
     );
     Object.assign(
       request.components!.environments,
-      pipelineComponents.environments
+      pipelineComponents.environments,
     );
 
     const service = await this.serviceProvider();
@@ -178,7 +178,7 @@ class RawExternalTransform<
       new GrpcTransport({
         host: address,
         channelCredentials: ChannelCredentials.createInsecure(),
-      })
+      }),
     );
 
     try {
@@ -190,7 +190,7 @@ class RawExternalTransform<
 
       response.components = await this.resolveArtifacts(
         response.components!,
-        address
+        address,
       );
 
       return this.splice(pipeline, transformProto, response, namespace);
@@ -208,12 +208,12 @@ class RawExternalTransform<
    */
   async resolveArtifacts(
     components: runnerApi.Components,
-    address: string
+    address: string,
   ): Promise<runnerApi.Components> {
     // Don't even bother creating a connection if there are no dependencies.
     if (
       Object.values(components.environments).every(
-        (env) => env.dependencies.length === 0
+        (env) => env.dependencies.length === 0,
       )
     ) {
       return components;
@@ -225,7 +225,7 @@ class RawExternalTransform<
       new GrpcTransport({
         host: address,
         channelCredentials: ChannelCredentials.createInsecure(),
-      })
+      }),
     );
 
     // For each new environment, convert (if needed) all dependencies into
@@ -237,12 +237,12 @@ class RawExternalTransform<
             let result: runnerApi.ArtifactInformation[] = [];
             for await (const dep of artifacts.resolveArtifacts(
               artifactClient,
-              env.dependencies
+              env.dependencies,
             )) {
               result.push(dep);
             }
             return result;
-          })()
+          })(),
         );
       }
     }
@@ -254,11 +254,11 @@ class RawExternalTransform<
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
     response: ExpansionResponse,
-    namespace: string
+    namespace: string,
   ): OutputT {
     function copyNamespaceComponents<T>(
       src: { [key: string]: T },
-      dest: { [key: string]: T }
+      dest: { [key: string]: T },
     ) {
       for (const [id, proto] of Object.entries(src)) {
         if (id.startsWith(namespace)) {
@@ -274,14 +274,14 @@ class RawExternalTransform<
     // Some SDKs enforce input naming conventions.
     const newTags = difference(
       new Set(Object.keys(response.transform!.inputs)),
-      new Set(Object.keys(transformProto.inputs))
+      new Set(Object.keys(transformProto.inputs)),
     );
     if (newTags.length > 1) {
       throw new Error("Ambiguous renaming of tags.");
     } else if (newTags.length === 1) {
       const missingTags = difference(
         new Set(Object.keys(transformProto.inputs)),
-        new Set(Object.keys(response.transform!.inputs))
+        new Set(Object.keys(response.transform!.inputs)),
       );
       transformProto.inputs[newTags[0]] = transformProto.inputs[missingTags[0]];
       delete transformProto.inputs[missingTags[0]];
@@ -292,13 +292,13 @@ class RawExternalTransform<
       Object.keys(response.transform!.inputs).map((k) => [
         response.transform!.inputs[k],
         transformProto.inputs[k],
-      ])
+      ]),
     );
     response.transform!.inputs = Object.fromEntries(
       Object.entries(response.transform!.inputs).map(([k, v]) => [
         k,
         renamedInputs[v],
-      ])
+      ]),
     );
     for (const t of Object.values(response.components!.transforms)) {
       t.inputs = Object.fromEntries(
@@ -307,7 +307,7 @@ class RawExternalTransform<
           renamedInputs[v] !== null && renamedInputs[v] !== undefined
             ? renamedInputs[v]
             : v,
-        ])
+        ]),
       );
     }
 
@@ -320,23 +320,23 @@ class RawExternalTransform<
     pipeline.getProto().requirements.push(...response.requirements);
     copyNamespaceComponents(
       response.components!.transforms,
-      pipelineComponents!.transforms
+      pipelineComponents!.transforms,
     );
     copyNamespaceComponents(
       response.components!.pcollections,
-      pipelineComponents!.pcollections
+      pipelineComponents!.pcollections,
     );
     copyNamespaceComponents(
       response.components!.coders,
-      pipelineComponents!.coders
+      pipelineComponents!.coders,
     );
     copyNamespaceComponents(
       response.components!.environments,
-      pipelineComponents!.environments
+      pipelineComponents!.environments,
     );
     copyNamespaceComponents(
       response.components!.windowingStrategies,
-      pipelineComponents!.windowingStrategies
+      pipelineComponents!.windowingStrategies,
     );
 
     // Ensure we understand the resulting coders.
@@ -360,7 +360,7 @@ class RawExternalTransform<
       } else if (outputKeys.length === 1) {
         return new PCollection(
           pipeline,
-          response.transform!.outputs[outputKeys[0]]
+          response.transform!.outputs[outputKeys[0]],
         ) as OutputT;
       }
     }
@@ -368,14 +368,14 @@ class RawExternalTransform<
       Object.entries(response.transform!.outputs).map(([k, v]) => [
         k,
         new PCollection(pipeline, v),
-      ])
+      ]),
     ) as OutputT;
   }
 }
 
 function encodeSchemaPayload(
   payload: any,
-  schema: Schema | undefined = undefined
+  schema: Schema | undefined = undefined,
 ): Uint8Array {
   const encoded = new Writer();
   if (!schema) {

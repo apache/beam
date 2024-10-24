@@ -26,12 +26,14 @@ import java.util.Map;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Jet specific implementation of {@link MetricsContainer}. */
@@ -47,6 +49,7 @@ public class JetMetricsContainer implements MetricsContainer {
   private final Map<MetricName, CounterImpl> counters = new HashMap<>();
   private final Map<MetricName, DistributionImpl> distributions = new HashMap<>();
   private final Map<MetricName, GaugeImpl> gauges = new HashMap<>();
+  private final Map<MetricName, StringSetImpl> stringSets = new HashMap<>();
 
   private final IMap<String, MetricUpdates> accumulator;
 
@@ -71,9 +74,14 @@ public class JetMetricsContainer implements MetricsContainer {
     return gauges.computeIfAbsent(metricName, GaugeImpl::new);
   }
 
+  @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return stringSets.computeIfAbsent(metricName, StringSetImpl::new);
+  }
+
   @SuppressWarnings("FutureReturnValueIgnored")
   public void flush(boolean async) {
-    if (counters.isEmpty() && distributions.isEmpty() && gauges.isEmpty()) {
+    if (counters.isEmpty() && distributions.isEmpty() && gauges.isEmpty() && stringSets.isEmpty()) {
       return;
     }
 
@@ -81,7 +89,9 @@ public class JetMetricsContainer implements MetricsContainer {
     ImmutableList<MetricUpdates.MetricUpdate<DistributionData>> distributions =
         extractUpdates(this.distributions);
     ImmutableList<MetricUpdates.MetricUpdate<GaugeData>> gauges = extractUpdates(this.gauges);
-    MetricUpdates updates = new MetricUpdatesImpl(counters, distributions, gauges);
+    ImmutableList<MetricUpdates.MetricUpdate<StringSetData>> stringSets =
+        extractUpdates(this.stringSets);
+    MetricUpdates updates = new MetricUpdatesImpl(counters, distributions, gauges, stringSets);
 
     if (async) {
       accumulator.setAsync(metricsKey, updates);
@@ -110,14 +120,17 @@ public class JetMetricsContainer implements MetricsContainer {
     private final Iterable<MetricUpdate<Long>> counters;
     private final Iterable<MetricUpdate<DistributionData>> distributions;
     private final Iterable<MetricUpdate<GaugeData>> gauges;
+    private final Iterable<MetricUpdate<StringSetData>> stringSets;
 
     MetricUpdatesImpl(
         Iterable<MetricUpdate<Long>> counters,
         Iterable<MetricUpdate<DistributionData>> distributions,
-        Iterable<MetricUpdate<GaugeData>> gauges) {
+        Iterable<MetricUpdate<GaugeData>> gauges,
+        Iterable<MetricUpdate<StringSetData>> stringSets) {
       this.counters = counters;
       this.distributions = distributions;
       this.gauges = gauges;
+      this.stringSets = stringSets;
     }
 
     @Override
@@ -133,6 +146,11 @@ public class JetMetricsContainer implements MetricsContainer {
     @Override
     public Iterable<MetricUpdate<GaugeData>> gaugeUpdates() {
       return gauges;
+    }
+
+    @Override
+    public Iterable<MetricUpdate<StringSetData>> stringSetUpdates() {
+      return stringSets;
     }
   }
 }

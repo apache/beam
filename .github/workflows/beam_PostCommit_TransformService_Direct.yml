@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_TransformService_Direct"]
         job_phrase: ["Run TransformService_Direct PostCommit"]
-        python_version: ['3.8','3.11']
+        python_version: ['3.9','3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -76,8 +76,8 @@ jobs:
         with:
           java-version: 11
           python-version: |
-            3.8
-            3.11
+            3.9
+            ${{ matrix.python_version }}
       - name: run TransformService Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -85,13 +85,12 @@ jobs:
           arguments: |
             -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
-            -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python Test Results
+          name: Python ${{ matrix.python_version }} Test Results
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2

@@ -29,7 +29,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.conscrypt.OpenSSLProvider;
@@ -49,11 +49,11 @@ public final class DataflowWorkerHarnessHelper {
   private static final String ROOT_LOGGER_NAME = "";
   private static final String PIPELINE_PATH = "PIPELINE_PATH";
 
-  public static DataflowWorkerHarnessOptions initializeGlobalStateAndPipelineOptions(
-      Class<?> workerHarnessClass) throws Exception {
+  public static <T extends DataflowWorkerHarnessOptions> T initializeGlobalStateAndPipelineOptions(
+      Class<?> workerHarnessClass, Class<T> harnessOptionsClass) throws Exception {
     /* Extract pipeline options. */
-    DataflowWorkerHarnessOptions pipelineOptions =
-        WorkerPipelineOptionsFactory.createFromSystemProperties();
+    T pipelineOptions =
+        WorkerPipelineOptionsFactory.createFromSystemProperties(harnessOptionsClass);
     pipelineOptions.setAppName(workerHarnessClass.getSimpleName());
 
     /* Configure logging with job-specific properties. */

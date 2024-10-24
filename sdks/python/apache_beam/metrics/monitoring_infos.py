@@ -15,9 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-# cython: profile=True
-
 # pytype: skip-file
 
 import collections
@@ -34,6 +31,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
+from apache_beam.metrics.cells import StringSetData
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import metrics_pb2
 
@@ -51,8 +49,13 @@ USER_COUNTER_URN = common_urns.monitoring_info_specs.USER_SUM_INT64.spec.urn
 USER_DISTRIBUTION_URN = (
     common_urns.monitoring_info_specs.USER_DISTRIBUTION_INT64.spec.urn)
 USER_GAUGE_URN = common_urns.monitoring_info_specs.USER_LATEST_INT64.spec.urn
-USER_METRIC_URNS = set(
-    [USER_COUNTER_URN, USER_DISTRIBUTION_URN, USER_GAUGE_URN])
+USER_STRING_SET_URN = common_urns.monitoring_info_specs.USER_SET_STRING.spec.urn
+USER_METRIC_URNS = set([
+    USER_COUNTER_URN,
+    USER_DISTRIBUTION_URN,
+    USER_GAUGE_URN,
+    USER_STRING_SET_URN
+])
 WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
 WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
 DATA_CHANNEL_READ_INDEX = (
@@ -68,10 +71,12 @@ DISTRIBUTION_INT64_TYPE = (
     common_urns.monitoring_info_types.DISTRIBUTION_INT64_TYPE.urn)
 LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 PROGRESS_TYPE = common_urns.monitoring_info_types.PROGRESS_TYPE.urn
+STRING_SET_TYPE = common_urns.monitoring_info_types.SET_STRING_TYPE.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
+STRING_SET_TYPES = set([STRING_SET_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
 PCOLLECTION_LABEL = (
@@ -148,6 +153,14 @@ def extract_distribution(monitoring_info_proto):
   # Only DISTRIBUTION_INT64_TYPE is currently supported.
   return _decode_distribution(
       coders.VarIntCoder(), monitoring_info_proto.payload)
+
+
+def extract_string_set_value(monitoring_info_proto):
+  if not is_string_set(monitoring_info_proto):
+    raise ValueError('Unsupported type %s' % monitoring_info_proto.type)
+
+  coder = coders.IterableCoder(coders.StrUtf8Coder())
+  return set(coder.decode(monitoring_info_proto.payload))
 
 
 def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
@@ -244,8 +257,8 @@ def int64_user_gauge(namespace, name, metric, ptransform=None):
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
-    namespace: User-defined namespace of counter.
-    name: Name of counter.
+    namespace: User-defined namespace of gauge metric.
+    name: Name of gauge metric.
     metric: The GaugeData containing the metrics.
     ptransform: The ptransform id used as a label.
   """
@@ -287,6 +300,26 @@ def int64_gauge(urn, metric, ptransform=None):
   return create_monitoring_info(urn, LATEST_INT64_TYPE, payload, labels)
 
 
+def user_set_string(namespace, name, metric, ptransform=None):
+  """Return the string set monitoring info for the URN, metric and labels.
+
+  Args:
+    namespace: User-defined namespace of StringSet.
+    name: Name of StringSet.
+    metric: The StringSetData representing the metrics.
+    ptransform: The ptransform id used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  if isinstance(metric, StringSetData):
+    metric = metric.string_set
+  if isinstance(metric, set):
+    metric = list(metric)
+  if isinstance(metric, list):
+    metric = coders.IterableCoder(coders.StrUtf8Coder()).encode(metric)
+  return create_monitoring_info(
+      USER_STRING_SET_URN, STRING_SET_TYPE, metric, labels)
+
+
 def create_monitoring_info(urn, type_urn, payload, labels=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
@@ -323,15 +356,21 @@ def is_distribution(monitoring_info_proto):
   return monitoring_info_proto.type in DISTRIBUTION_TYPES
 
 
+def is_string_set(monitoring_info_proto):
+  """Returns true if the monitoring info is a StringSet metric."""
+  return monitoring_info_proto.type in STRING_SET_TYPES
+
+
 def is_user_monitoring_info(monitoring_info_proto):
   """Returns true if the monitoring info is a user metric."""
   return monitoring_info_proto.urn in USER_METRIC_URNS
 
 
 def extract_metric_result_map_value(monitoring_info_proto):
-  # type: (...) -> Union[None, int, DistributionResult, GaugeResult]
+  # type: (...) -> Union[None, int, DistributionResult, GaugeResult, set]
 
-  """Returns the relevant GaugeResult, DistributionResult or int value.
+  """Returns the relevant GaugeResult, DistributionResult or int value for
+  counter metric, set for StringSet metric.
 
   These are the proper format for use in the MetricResult.query() result.
   """
@@ -345,6 +384,8 @@ def extract_metric_result_map_value(monitoring_info_proto):
   if is_gauge(monitoring_info_proto):
     (timestamp, value) = extract_gauge_value(monitoring_info_proto)
     return GaugeResult(GaugeData(value, timestamp))
+  if is_string_set(monitoring_info_proto):
+    return extract_string_set_value(monitoring_info_proto)
   return None
 
 

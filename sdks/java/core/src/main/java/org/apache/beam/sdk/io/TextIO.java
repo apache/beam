@@ -51,6 +51,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -176,6 +178,10 @@ import org.joda.time.Duration;
  *
  * <p>For backwards compatibility, {@link TextIO} also supports the legacy {@link
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
+ *
+ * <p>Error handling for records that are malformed can be handled by using {@link
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -271,6 +277,7 @@ public class TextIO {
         .setWindowedWrites(false)
         .setNoSpilling(false)
         .setSkipIfEmpty(false)
+        .setAutoSharding(false)
         .build();
   }
 
@@ -693,8 +700,20 @@ public class TextIO {
     /** A function that converts UserT to a String, for writing to the file. */
     abstract @Nullable SerializableFunction<UserT, String> getFormatFunction();
 
+    /** Batch size for input records. */
+    abstract @Nullable Integer getBatchSize();
+
+    /** Batch size in bytes for input records. */
+    abstract @Nullable Integer getBatchSizeBytes();
+
+    /** Batch max buffering duration for input records. */
+    abstract @Nullable Duration getBatchMaxBufferingDuration();
+
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
+
+    /** Whether to enable autosharding. */
+    abstract boolean getAutoSharding();
 
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
@@ -707,6 +726,8 @@ public class TextIO {
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
      */
     abstract WritableByteChannelFactory getWritableByteChannelFactory();
+
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<UserT, DestinationT> toBuilder();
 
@@ -745,7 +766,16 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setNumShards(
           @Nullable ValueProvider<Integer> numShards);
 
+      abstract Builder<UserT, DestinationT> setBatchSize(@Nullable Integer batchSize);
+
+      abstract Builder<UserT, DestinationT> setBatchSizeBytes(@Nullable Integer batchSizeBytes);
+
+      abstract Builder<UserT, DestinationT> setBatchMaxBufferingDuration(
+          @Nullable Duration batchMaxBufferingDuration);
+
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setAutoSharding(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
@@ -753,6 +783,9 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
+
+      abstract Builder<UserT, DestinationT> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract TypedWrite<UserT, DestinationT> build();
     }
@@ -849,6 +882,38 @@ public class TextIO {
     public TypedWrite<UserT, DestinationT> withFormatFunction(
         @Nullable SerializableFunction<UserT, String> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
+    }
+
+    /**
+     * Returns a new {@link TypedWrite} that will batch the input records using specified batch
+     * size. The default value is {@link WriteFiles#FILE_TRIGGERING_RECORD_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withBatchSize(@Nullable Integer batchSize) {
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Returns a new {@link TypedWrite} that will batch the input records using specified batch size
+     * in bytes. The default value is {@link WriteFiles#FILE_TRIGGERING_BYTE_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
+    }
+
+    /**
+     * Returns a new {@link TypedWrite} that will batch the input records using specified max
+     * buffering duration. The default value is {@link
+     * WriteFiles#FILE_TRIGGERING_RECORD_BUFFERING_DURATION}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withBatchMaxBufferingDuration(
+        @Nullable Duration batchMaxBufferingDuration) {
+      return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
     }
 
     /** Set the base directory used to generate temporary files. */
@@ -988,9 +1053,19 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    public TypedWrite<UserT, DestinationT> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public TypedWrite<UserT, DestinationT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
+    }
+
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
+    public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     /** Don't write any output files if the PCollection is empty. */
@@ -1080,11 +1155,26 @@ public class TextIO {
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
       }
+      if (getAutoSharding()) {
+        write = write.withAutoSharding();
+      }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
       }
+      if (getBadRecordErrorHandler() != null) {
+        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
+      }
       if (getSkipIfEmpty()) {
         write = write.withSkipIfEmpty();
+      }
+      if (getBatchSize() != null) {
+        write = write.withBatchSize(getBatchSize());
+      }
+      if (getBatchSizeBytes() != null) {
+        write = write.withBatchSizeBytes(getBatchSizeBytes());
+      }
+      if (getBatchMaxBufferingDuration() != null) {
+        write = write.withBatchMaxBufferingDuration(getBatchMaxBufferingDuration());
       }
       return input.apply("WriteFiles", write);
     }
@@ -1248,9 +1338,29 @@ public class TextIO {
       return new Write(inner.withWindowedWrites());
     }
 
+    /** See {@link TypedWrite#withAutoSharding}. */
+    public Write withAutoSharding() {
+      return new Write(inner.withAutoSharding());
+    }
+
     /** See {@link TypedWrite#withNoSpilling}. */
     public Write withNoSpilling() {
       return new Write(inner.withNoSpilling());
+    }
+
+    /** See {@link TypedWrite#withBatchSize(Integer)}. */
+    public Write withBatchSize(@Nullable Integer batchSize) {
+      return new Write(inner.withBatchSize(batchSize));
+    }
+
+    /** See {@link TypedWrite#withBatchSizeBytes(Integer)}. */
+    public Write withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      return new Write(inner.withBatchSizeBytes(batchSizeBytes));
+    }
+
+    /** See {@link TypedWrite#withBatchMaxBufferingDuration(Duration)}. */
+    public Write withBatchMaxBufferingDuration(@Nullable Duration batchMaxBufferingDuration) {
+      return new Write(inner.withBatchMaxBufferingDuration(batchMaxBufferingDuration));
     }
 
     /**

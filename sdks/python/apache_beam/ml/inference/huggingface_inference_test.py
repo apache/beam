@@ -117,7 +117,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
         inference_fn=fake_inference_fn_tensor)
     batched_examples = [torch.tensor(1), torch.tensor(10), torch.tensor(100)]
     inference_runner.run_inference(batched_examples, fake_model)
-    self.assertEqual(inference_runner._framework, "torch")
+    self.assertEqual(inference_runner._framework, "pt")
 
   def test_framework_detection_tensorflow(self):
     fake_model = FakeTFTensorModel()

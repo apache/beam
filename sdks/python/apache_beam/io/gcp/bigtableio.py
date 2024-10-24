@@ -47,6 +47,7 @@ from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.metric import Lineage
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.external import BeamJarExpansionService
@@ -141,7 +142,10 @@ class _BigTableWriteFn(beam.DoFn):
         self.beam_options['instance_id'],
         self.beam_options['table_id'])
     self.batcher = MutationsBatcher(
-        self.table, batch_completed_callback=self.write_mutate_metrics)
+        self.table,
+        batch_completed_callback=self.write_mutate_metrics,
+        flush_count=FLUSH_COUNT,
+        max_row_bytes=MAX_ROW_BYTES)
 
   def process(self, row):
     self.written.inc()
@@ -159,6 +163,12 @@ class _BigTableWriteFn(beam.DoFn):
     if self.batcher:
       self.batcher.close()
       self.batcher = None
+      # Report Lineage metrics on write
+      Lineage.sinks().add(
+          'bigtable',
+          self.beam_options['project_id'],
+          self.beam_options['instance_id'],
+          self.beam_options['table_id'])
 
   def display_data(self):
     return {
@@ -225,9 +235,9 @@ class WriteToBigTable(beam.PTransform):
           identifier=self.schematransform_config.identifier,
           expansion_service=self._expansion_service,
           rearrange_based_on_discovery=True,
-          tableId=self._table_id,
-          instanceId=self._instance_id,
-          projectId=self._project_id)
+          table_id=self._table_id,
+          instance_id=self._instance_id,
+          project_id=self._project_id)
 
       return (
           input
@@ -323,9 +333,9 @@ class ReadFromBigtable(PTransform):
         identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
-        tableId=self._table_id,
-        instanceId=self._instance_id,
-        projectId=self._project_id)
+        table_id=self._table_id,
+        instance_id=self._instance_id,
+        project_id=self._project_id)
 
     return (
         input.pipeline

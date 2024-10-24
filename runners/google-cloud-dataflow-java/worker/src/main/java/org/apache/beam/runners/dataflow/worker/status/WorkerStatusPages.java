@@ -25,9 +25,9 @@ import java.util.function.BooleanSupplier;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
@@ -78,6 +78,10 @@ public class WorkerStatusPages {
       statusPort = Integer.parseInt(System.getProperty("status_port"));
     }
     return new WorkerStatusPages(new Server(statusPort), memoryMonitor, healthyIndicator);
+  }
+
+  public static WorkerStatusPages create(int defaultStatusPort, MemoryMonitor memoryMonitor) {
+    return create(defaultStatusPort, memoryMonitor, () -> true);
   }
 
   /** Start the server. */

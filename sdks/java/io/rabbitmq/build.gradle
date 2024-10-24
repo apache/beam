@@ -31,7 +31,7 @@ dependencies {
   implementation "com.rabbitmq:amqp-client:5.7.3"
   provided library.java.jackson_dataformat_xml
   permitUnusedDeclared library.java.jackson_dataformat_xml
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation "org.apache.qpid:qpid-broker-core:$qpid_version"
   testImplementation "org.apache.qpid:qpid-broker-plugins-memory-store:$qpid_version"
   testImplementation "org.apache.qpid:qpid-broker-plugins-amqp-0-8-protocol:$qpid_version"

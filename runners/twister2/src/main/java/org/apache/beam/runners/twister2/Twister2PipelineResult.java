@@ -49,7 +49,7 @@ public class Twister2PipelineResult implements PipelineResult {
   @Override
   public State waitUntilFinish(Duration duration) {
     Log.debug(
-        "Twister2 runner does not currently support wait with duration"
+        "Twister2 runner does not currently support wait with duration "
             + "default waitUntilFinish will be executed");
     return waitUntilFinish();
   }

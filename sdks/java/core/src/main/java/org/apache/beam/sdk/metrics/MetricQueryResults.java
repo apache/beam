@@ -21,9 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
- */
+/** The results of a query for metrics. Allows accessing all the metrics that matched the filter. */
 @AutoValue
 public abstract class MetricQueryResults {
   /** Return the metric results for the counters that matched the filter. */
@@ -34,6 +32,9 @@ public abstract class MetricQueryResults {
 
   /** Return the metric results for the gauges that matched the filter. */
   public abstract Iterable<MetricResult<GaugeResult>> getGauges();
+
+  /** Return the metric results for the sets that matched the filter. */
+  public abstract Iterable<MetricResult<StringSetResult>> getStringSets();
 
   static <T> void printMetrics(String type, Iterable<MetricResult<T>> metrics, StringBuilder sb) {
     List<MetricResult<T>> metricsList = ImmutableList.copyOf(metrics);
@@ -63,6 +64,7 @@ public abstract class MetricQueryResults {
     printMetrics("Counters", getCounters(), sb);
     printMetrics("Distributions", getDistributions(), sb);
     printMetrics("Gauges", getGauges(), sb);
+    printMetrics("StringSets", getStringSets(), sb);
     sb.append(")");
     return sb.toString();
   }
@@ -70,7 +72,8 @@ public abstract class MetricQueryResults {
   public static MetricQueryResults create(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
-      Iterable<MetricResult<GaugeResult>> gauges) {
-    return new AutoValue_MetricQueryResults(counters, distributions, gauges);
+      Iterable<MetricResult<GaugeResult>> gauges,
+      Iterable<MetricResult<StringSetResult>> stringSets) {
+    return new AutoValue_MetricQueryResults(counters, distributions, gauges, stringSets);
   }
 }

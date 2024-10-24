@@ -19,9 +19,9 @@ package org.apache.beam.runners.samza.util;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Utilities for pipeline translation. */

@@ -19,7 +19,9 @@ package org.apache.beam.sdk.transforms.errorhandling;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -40,6 +42,15 @@ public interface BadRecordRouter extends Serializable {
       String description)
       throws Exception;
 
+  <RecordT> void route(
+      DoFn<?, ?>.FinishBundleContext c,
+      RecordT record,
+      @Nullable Coder<RecordT> coder,
+      @Nullable Exception exception,
+      String description,
+      BoundedWindow window)
+      throws Exception;
+
   class ThrowingBadRecordRouter implements BadRecordRouter {
 
     @Override
@@ -50,6 +61,22 @@ public interface BadRecordRouter extends Serializable {
         @Nullable Exception exception,
         String description)
         throws Exception {
+      route(record, exception);
+    }
+
+    @Override
+    public <RecordT> void route(
+        DoFn<?, ?>.FinishBundleContext c,
+        RecordT record,
+        @Nullable Coder<RecordT> coder,
+        @Nullable Exception exception,
+        String description,
+        BoundedWindow window)
+        throws Exception {
+      route(record, exception);
+    }
+
+    private <RecordT> void route(RecordT record, @Nullable Exception exception) throws Exception {
       if (exception != null) {
         throw exception;
       } else {
@@ -80,6 +107,22 @@ public interface BadRecordRouter extends Serializable {
       outputReceiver
           .get(BAD_RECORD_TAG)
           .output(BadRecord.fromExceptionInformation(record, coder, exception, description));
+    }
+
+    @Override
+    public <RecordT> void route(
+        DoFn<?, ?>.FinishBundleContext c,
+        RecordT record,
+        @Nullable Coder<RecordT> coder,
+        @Nullable Exception exception,
+        String description,
+        BoundedWindow window)
+        throws Exception {
+      c.output(
+          BAD_RECORD_TAG,
+          BadRecord.fromExceptionInformation(record, coder, exception, description),
+          window.maxTimestamp(),
+          window);
     }
   }
 }

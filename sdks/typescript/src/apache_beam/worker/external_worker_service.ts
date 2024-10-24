@@ -49,7 +49,7 @@ export class ExternalWorkerPool {
     const workerService: IBeamFnExternalWorkerPool = {
       startWorker(
         call: grpc.ServerUnaryCall<StartWorkerRequest, StartWorkerResponse>,
-        callback: grpc.sendUnaryData<StartWorkerResponse>
+        callback: grpc.sendUnaryData<StartWorkerResponse>,
       ): void {
         call.on("error", (args) => {
           console.error("unary() got error:", args);
@@ -62,8 +62,8 @@ export class ExternalWorkerPool {
             {
               controlUrl: call.request?.controlEndpoint?.url!,
             },
-            {}
-          )
+            {},
+          ),
         );
         callback(null, {
           error: "",
@@ -72,7 +72,7 @@ export class ExternalWorkerPool {
 
       stopWorker(
         call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>,
-        callback: grpc.sendUnaryData<StopWorkerResponse>
+        callback: grpc.sendUnaryData<StopWorkerResponse>,
       ): void {
         this_.workers.get(call.request.workerId)?.stop();
         this_.workers.delete(call.request.workerId);
@@ -98,7 +98,7 @@ export class ExternalWorkerPool {
             this_.server.start();
             resolve(this_.address);
           }
-        }
+        },
       );
     });
   }

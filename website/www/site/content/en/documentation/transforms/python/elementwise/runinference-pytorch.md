@@ -27,7 +27,7 @@ limitations under the License.
   </tr>
 </table>
 
-The following examples demonstrate how to to create pipelines that use the Beam RunInference API and PyTorch.
+The following examples demonstrate how to create pipelines that use the Beam RunInference API and PyTorch.
 
 ## Example 1: PyTorch unkeyed model
 

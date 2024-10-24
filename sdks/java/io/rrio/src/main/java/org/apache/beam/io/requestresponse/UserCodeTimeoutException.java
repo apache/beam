@@ -36,4 +36,13 @@ public class UserCodeTimeoutException extends UserCodeExecutionException {
       String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
+
+  /**
+   * Reports that timeouts should be repeated. A remote API service may be intermittently
+   * unavailable, thus warranting this type of error to be repeated.
+   */
+  @Override
+  public boolean shouldRepeat() {
+    return true;
+  }
 }

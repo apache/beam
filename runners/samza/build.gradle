@@ -46,7 +46,6 @@ dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation library.java.jackson_annotations
@@ -66,11 +65,10 @@ dependencies {
   implementation "org.apache.samza:samza-yarn_2.11:$samza_version"
   compileOnly library.java.error_prone_annotations
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest
@@ -113,6 +111,8 @@ def sickbayTests = [
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException',
         // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+        // https://github.com/apache/beam/issues/31725
+        'org.apache.beam.sdk.io.TextIOWriteTest.testWriteUnboundedWithCustomBatchParameters',
 ]
 tasks.register("validatesRunner", Test) {
   group = "Verification"
@@ -126,6 +126,7 @@ tasks.register("validatesRunner", Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'

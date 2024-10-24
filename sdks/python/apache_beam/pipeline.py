@@ -86,6 +86,7 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import PipelineRunner
+from apache_beam.runners import common
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
@@ -242,6 +243,7 @@ class Pipeline(HasDisplayData):
     self.contains_external_transforms = False
 
     self._display_data = display_data or {}
+    self._error_handlers = []
 
   def display_data(self):
     # type: () -> Dict[str, Any]
@@ -256,6 +258,9 @@ class Pipeline(HasDisplayData):
   def allow_unsafe_triggers(self):
     # type: () -> bool
     return self._options.view_as(TypeOptions).allow_unsafe_triggers
+
+  def _register_error_handler(self, error_handler):
+    self._error_handlers.append(error_handler)
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -530,6 +535,9 @@ class Pipeline(HasDisplayData):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
+    for error_handler in self._error_handlers:
+      error_handler.verify_closed()
+
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
@@ -610,7 +618,13 @@ class Pipeline(HasDisplayData):
     try:
       if not exc_type:
         self.result = self.run()
-        self.result.wait_until_finish()
+        if not self._options.view_as(StandardOptions).no_wait_until_finish:
+          self.result.wait_until_finish()
+        else:
+          logging.info(
+              'Job execution continues without waiting for completion.'
+              ' Use "wait_until_finish" in PipelineResult to block'
+              ' until finished.')
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
@@ -693,13 +707,22 @@ class Pipeline(HasDisplayData):
       if auto_unique_labels:
         # If auto_unique_labels is set, we will append a unique suffix to the
         # label to make it unique.
+        logging.warning(
+            'Using --auto_unique_labels could cause data loss when '
+            'updating a pipeline or reloading the job state. '
+            'This is not recommended for streaming jobs.')
         unique_label = self._generate_unique_label(transform)
         return self.apply(transform, pvalueish, unique_label)
       else:
         raise RuntimeError(
             'A transform with label "%s" already exists in the pipeline. '
-            'To apply a transform with a specified label write '
-            'pvalue | "label" >> transform' % full_label)
+            'To apply a transform with a specified label, write '
+            'pvalue | "label" >> transform or use the option '
+            '"auto_unique_labels" to automatically generate unique '
+            'transform labels. Note "auto_unique_labels" '
+            'could cause data loss when updating a pipeline or '
+            'reloading the job state. This is not recommended for '
+            'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
@@ -967,35 +990,7 @@ class Pipeline(HasDisplayData):
 
     Mutates proto as contexts may have references to proto.components.
     """
-    env_map = {}
-    canonical_env = {}
-    files_by_hash = {}
-    for env_id, env in proto.components.environments.items():
-      # First deduplicate any file dependencies by their hash.
-      for dep in env.dependencies:
-        if dep.type_urn == common_urns.artifact_types.FILE.urn:
-          file_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
-              dep.type_payload)
-          if file_payload.sha256:
-            if file_payload.sha256 in files_by_hash:
-              file_payload.path = files_by_hash[file_payload.sha256]
-              dep.type_payload = file_payload.SerializeToString()
-            else:
-              files_by_hash[file_payload.sha256] = file_payload.path
-      # Next check if we've ever seen this environment before.
-      normalized = env.SerializeToString(deterministic=True)
-      if normalized in canonical_env:
-        env_map[env_id] = canonical_env[normalized]
-      else:
-        canonical_env[normalized] = env_id
-    for old_env, new_env in env_map.items():
-      for transform in proto.components.transforms.values():
-        if transform.environment_id == old_env:
-          transform.environment_id = new_env
-      for windowing_strategy in proto.components.windowing_strategies.values():
-        if windowing_strategy.environment_id == old_env:
-          windowing_strategy.environment_id = new_env
-      del proto.components.environments[old_env]
+    common.merge_common_environments(proto, inplace=True)
 
   @staticmethod
   def from_runner_api(

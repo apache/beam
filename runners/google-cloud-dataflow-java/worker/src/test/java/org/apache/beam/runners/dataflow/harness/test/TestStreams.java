@@ -19,8 +19,8 @@ package org.apache.beam.runners.dataflow.harness.test;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 
 /** Utility methods which enable testing of {@link StreamObserver}s. */
 public class TestStreams {

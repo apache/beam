@@ -43,7 +43,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_54_0,
+        library.java.vendored_grpc_1_60_1,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -54,6 +54,7 @@ def sdk_provided_project_dependencies = [
         ":runners:google-cloud-dataflow-java",
         ":sdks:java:extensions:avro",
         ":sdks:java:extensions:google-cloud-platform-core",
+        ":sdks:java:io:kafka", // For metric propagation into worker
         ":sdks:java:io:google-cloud-platform",
 ]
 
@@ -90,7 +91,8 @@ applyJavaNature(
                 "org/slf4j/impl/**"
         ],
         generatedClassPatterns: [
-                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/
+                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/,
+                /^org\.apache\.beam\.runners\.dataflow\.worker\..*AutoBuilder.*/,
         ],
         shadowClosure: {
             // Each included dependency must also include all of its necessary transitive dependencies
@@ -113,7 +115,6 @@ applyJavaNature(
             relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
             dependencies {
-                include(project(":runners:core-construction-java"))
                 include(project(":runners:core-java"))
             }
             relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
@@ -126,16 +127,12 @@ applyJavaNature(
             relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
             relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
 
-            dependencies {
-                include(project(":sdks:java:fn-execution"))
-            }
-            relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
             relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
 
             dependencies {
                 // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
                 // which includes several org.eclipse.jetty artifacts + servlet-api
-                include(dependency("org.eclipse.jetty:.*:9.2.10.v20150310"))
+                include(dependency("org.eclipse.jetty:.*:9.4.54.v20240208"))
                 include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
             }
             relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
@@ -190,10 +187,8 @@ dependencies {
     implementation project(path: ":model:fn-execution", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":runners:core-construction-java")
     implementation project(":runners:core-java")
     implementation project(":runners:java-fn-execution")
-    implementation project(":sdks:java:fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_32_1_2_jre
 
@@ -206,15 +201,15 @@ dependencies {
     compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
 
     implementation "javax.servlet:javax.servlet-api:3.1.0"
-    implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-    implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation "org.eclipse.jetty:jetty-server:9.4.54.v20240208"
+    implementation "org.eclipse.jetty:jetty-servlet:9.4.54.v20240208"
     implementation library.java.avro
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14

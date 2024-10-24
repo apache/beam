@@ -29,7 +29,6 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
-from apache_beam.yaml import options
 from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 
@@ -41,6 +40,8 @@ BUILTIN_COMBINE_FNS = {
     'any': any,
     'mean': beam.transforms.combiners.MeanCombineFn(),
     'count': beam.transforms.combiners.CountCombineFn(),
+    'group': beam.transforms.combiners.ToListCombineFn(),
+    'concat': beam.transforms.combiners.ConcatListCombineFn(),
 }
 
 
@@ -69,7 +70,7 @@ def normalize_combine(spec):
     def normalize_agg(dest, agg):
       if isinstance(agg, str):
         agg = {'fn': agg}
-      if 'value' not in agg and spec.get('language') != 'sql':
+      if 'value' not in agg and config.get('language') != 'sql':
         agg['value'] = dest
       if isinstance(agg['fn'], str):
         agg['fn'] = {'type': agg['fn']}
@@ -86,6 +87,14 @@ def normalize_combine(spec):
 
 
 class PyJsYamlCombine(beam.PTransform):
+  """Groups and combines records sharing common fields.
+
+  Built-in combine functions are BUILTIN_COMBINE_FNS
+  but custom aggregation functions can be used as well.
+
+  See also the documentation on
+  [YAML Aggregation](https://beam.apache.org/documentation/sdks/yaml-combine/).
+  """
   def __init__(
       self,
       group_by: Iterable[str],
@@ -96,7 +105,6 @@ class PyJsYamlCombine(beam.PTransform):
     self._language = language
 
   def expand(self, pcoll):
-    options.YamlOptions.check_enabled(pcoll.pipeline, 'Combine')
     input_types = dict(named_fields_from_element_type(pcoll.element_type))
     all_fields = list(input_types.keys())
     unknown_keys = set(self._group_by) - set(all_fields)
@@ -136,13 +144,12 @@ class PyJsYamlCombine(beam.PTransform):
 
     for output, agg in self._combine.items():
       expr = yaml_mapping._as_callable(
-          all_fields, agg['value'], 'Combine', self._language)
+          all_fields, agg['value'], 'Combine', self._language, input_types)
       fn = create_combine_fn(agg['fn'])
       transform = transform.aggregate_field(expr, fn, output)
 
       # TODO(yaml): See if this logic can be pushed into GroupBy itself.
       expr_type = extract_return_type(expr)
-      print('expr', expr, 'expr_type', expr_type)
       if isinstance(fn, beam.CombineFn):
         # TODO(yaml): Better inference on CombineFns whose outputs types are
         # functions of their input types
@@ -159,10 +166,15 @@ class PyJsYamlCombine(beam.PTransform):
         row_type.RowTypeConstraint.from_fields(output_types))
 
 
+if PyJsYamlCombine.__doc__:  # make mypy happy
+  PyJsYamlCombine.__doc__ = PyJsYamlCombine.__doc__.replace(
+      'BUILTIN_COMBINE_FNS',
+      ', '.join('`%s`' % k for k in BUILTIN_COMBINE_FNS.keys()))
+
+
 @beam.ptransform.ptransform_fn
 def _SqlCombineTransform(
     pcoll, sql_transform_constructor, group_by, combine, language=None):
-  options.YamlOptions.check_enabled(pcoll.pipeline, 'Combine')
   all_fields = [
       x for x, _ in named_fields_from_element_type(pcoll.element_type)
   ]

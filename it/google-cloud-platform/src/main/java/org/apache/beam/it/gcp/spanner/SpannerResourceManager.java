@@ -45,10 +45,10 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.common.utils.ExceptionUtils;
 import org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +69,7 @@ public final class SpannerResourceManager implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(SpannerResourceManager.class);
   private static final int MAX_BASE_ID_LENGTH = 30;
+  private static final int DEFAULT_NODE_COUNT = 1;
 
   // Retry settings for instance creation
   private static final int CREATE_MAX_RETRIES = 5;
@@ -84,6 +85,7 @@ public final class SpannerResourceManager implements ResourceManager {
   private final boolean usingStaticInstance;
   private final String databaseId;
   private final String region;
+  private final int nodeCount;
 
   private final Dialect dialect;
 
@@ -99,7 +101,8 @@ public final class SpannerResourceManager implements ResourceManager {
         builder.region,
         builder.dialect,
         builder.useStaticInstance,
-        builder.instanceId);
+        builder.instanceId,
+        builder.nodeCount);
   }
 
   @VisibleForTesting
@@ -110,7 +113,8 @@ public final class SpannerResourceManager implements ResourceManager {
       String region,
       Dialect dialect,
       boolean useStaticInstance,
-      @Nullable String instanceId) {
+      @Nullable String instanceId,
+      int nodeCount) {
     // Check that the project ID conforms to GCP standards
     checkValidProjectId(projectId);
 
@@ -133,16 +137,21 @@ public final class SpannerResourceManager implements ResourceManager {
     this.region = region;
     this.dialect = dialect;
     this.spanner = spanner;
+    this.nodeCount = nodeCount;
     this.instanceAdminClient = spanner.getInstanceAdminClient();
     this.databaseAdminClient = spanner.getDatabaseAdminClient();
   }
 
   public static Builder builder(String testId, String projectId, String region) {
-    return new Builder(testId, projectId, region, Dialect.GOOGLE_STANDARD_SQL);
+    return new Builder(testId, projectId, region, Dialect.GOOGLE_STANDARD_SQL, DEFAULT_NODE_COUNT);
+  }
+
+  public static Builder builder(String testId, String projectId, String region, int nodeCount) {
+    return new Builder(testId, projectId, region, Dialect.GOOGLE_STANDARD_SQL, nodeCount);
   }
 
   public static Builder builder(String testId, String projectId, String region, Dialect dialect) {
-    return new Builder(testId, projectId, region, dialect);
+    return new Builder(testId, projectId, region, dialect, DEFAULT_NODE_COUNT);
   }
 
   private synchronized void maybeCreateInstance() {
@@ -164,7 +173,7 @@ public final class SpannerResourceManager implements ResourceManager {
           InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
               .setInstanceConfigId(InstanceConfigId.of(projectId, "regional-" + region))
               .setDisplayName(instanceId)
-              .setNodeCount(1)
+              .setNodeCount(nodeCount)
               .build();
 
       // Retry creation if there's a quota error
@@ -414,15 +423,18 @@ public final class SpannerResourceManager implements ResourceManager {
     private final String region;
     private boolean useStaticInstance;
     private @Nullable String instanceId;
+    private final int nodeCount;
 
     private final Dialect dialect;
 
-    private Builder(String testId, String projectId, String region, Dialect dialect) {
+    private Builder(
+        String testId, String projectId, String region, Dialect dialect, int nodeCount) {
       this.testId = testId;
       this.projectId = projectId;
       this.region = region;
       this.dialect = dialect;
       this.instanceId = null;
+      this.nodeCount = nodeCount;
     }
 
     /**

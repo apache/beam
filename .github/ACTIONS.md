@@ -98,3 +98,7 @@ Phrases self-assign, close, or manage labels on an issue:
 | `.add-labels` | Add comma separated labels to the issue (e.g. `add-labels l1, 'l2 with spaces'`) |
 | `.remove-labels` | Remove comma separated labels to the issue (e.g. `remove-labels l1, 'l2 with spaces'`) |
 | `.set-labels` | Sets comma separated labels to the issue and removes any other labels (e.g. `set-labels l1, 'l2 with spaces'`) |
+
+## Security Model
+
+For information on the Beam CI security model, see https://cwiki.apache.org/confluence/display/BEAM/CI+Security+Model

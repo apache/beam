@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
+	"runtime/debug"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -31,7 +34,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
@@ -62,7 +64,12 @@ type stage struct {
 	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
 	internalCols []string        // PCollections that escape. Used for precise coder sending.
 	envID        string
+	finalize     bool
 	stateful     bool
+	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
+	// the stage to be considered complete.
+	hasTimers            []struct{ Transform, TimerFamily string }
+	processingTimeTimers map[string]bool
 
 	exe              transformExecuter
 	inputTransformID string
@@ -72,13 +79,41 @@ type stage struct {
 
 	SinkToPCollection map[string]string
 	OutputsToCoders   map[string]engine.PColInfo
+
+	// Stage specific progress and splitting interval.
+	baseProgTick atomic.Value // time.Duration
 }
 
-func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) error {
+// The minimum and maximum durations between each ProgressBundleRequest and split evaluation.
+const (
+	minimumProgTick = 100 * time.Millisecond
+	maximumProgTick = 30 * time.Second
+)
+
+func clampTick(dur time.Duration) time.Duration {
+	switch {
+	case dur < minimumProgTick:
+		return minimumProgTick
+	case dur > maximumProgTick:
+		return maximumProgTick
+	default:
+		return dur
+	}
+}
+
+func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
+	if s.baseProgTick.Load() == nil {
+		s.baseProgTick.Store(minimumProgTick)
+	}
+	defer func() {
+		// Convert execution panics to errors to fail the bundle.
+		if e := recover(); e != nil {
+			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v,stackTrace:\n%s", e, s, debug.Stack())
+		}
+	}()
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
-	inputData := em.InputForBundle(rb, s.inputInfo)
 	initialState := em.StateForBundle(rb)
 	var dataReady <-chan struct{}
 	switch s.envID {
@@ -88,7 +123,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		}
 		tid := s.transforms[0]
 		// Runner transforms are processed immeadiately.
-		b = s.exe.ExecuteTransform(s.ID, tid, comps.GetTransforms()[tid], comps, rb.Watermark, inputData)
+		b = s.exe.ExecuteTransform(s.ID, tid, comps.GetTransforms()[tid], comps, rb.Watermark, em.InputForBundle(rb, s.inputInfo))
 		b.InstID = rb.BundleID
 		slog.Debug("Execute: runner transform", "bundle", rb, slog.String("tid", tid))
 
@@ -99,14 +134,18 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		close(closed)
 		dataReady = closed
 	case wk.Env:
+		input, estimatedElements := em.DataAndTimerInputForBundle(rb, s.inputInfo)
 		b = &worker.B{
 			PBDID:  s.ID,
 			InstID: rb.BundleID,
 
 			InputTransformID: s.inputTransformID,
 
-			InputData:  inputData,
+			Input:                  input,
+			EstimatedInputElements: estimatedElements,
+
 			OutputData: initialState,
+			HasTimers:  s.hasTimers,
 
 			SinkToPCollection: s.SinkToPCollection,
 			OutputCount:       len(s.outputs),
@@ -126,8 +165,12 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 	// Progress + split loop.
 	previousIndex := int64(-2)
-	var splitsDone bool
-	progTick := time.NewTicker(100 * time.Millisecond)
+	previousTotalCount := int64(-2) // Total count of all pcollection elements.
+
+	unsplit := true
+	baseTick := s.baseProgTick.Load().(time.Duration)
+	ticked := false
+	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
 	// If we have no data outputs, we still need to have progress & splits
@@ -155,6 +198,7 @@ progress:
 				break progress // exit progress loop on close.
 			}
 		case <-progTick.C:
+			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
@@ -166,8 +210,10 @@ progress:
 				j.AddMetricShortIDs(md)
 			}
 			slog.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
-			// Progress for the bundle hasn't advanced. Try splitting.
-			if previousIndex == index && !splitsDone {
+
+			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
+			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
+			if slow && unsplit {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
@@ -176,14 +222,15 @@ progress:
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
-					splitsDone = true
+					unsplit = false
 					continue progress
 				}
+
 				// TODO sort out rescheduling primary Roots on bundle failure.
-				var residualData [][]byte
+				var residuals []engine.Residual
 				for _, rr := range sr.GetResidualRoots() {
 					ba := rr.GetApplication()
-					residualData = append(residualData, ba.GetElement())
+					residuals = append(residuals, engine.Residual{Element: ba.GetElement()})
 					if len(ba.GetElement()) == 0 {
 						slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 						panic("sdk returned empty residual application")
@@ -196,17 +243,37 @@ progress:
 				cs := sr.GetChannelSplits()[0]
 				fr := cs.GetFirstResidualElement()
 				// The first residual can be after the end of data, so filter out those cases.
-				if len(b.InputData) >= int(fr) {
-					b.InputData = b.InputData[:int(fr)]
-					em.ReturnResiduals(rb, int(fr), s.inputInfo, residualData)
+				if b.EstimatedInputElements >= int(fr) {
+					b.EstimatedInputElements = int(fr) // Update the estimate for the next split.
+					// Split Residuals are returned right away for rescheduling.
+					em.ReturnResiduals(rb, int(fr), s.inputInfo, engine.Residuals{
+						Data: residuals,
+					})
+				}
+
+				// Any split means we're processing slower than desired, but splitting should increase
+				// throughput. Back off for this and other bundles for this stage
+				baseTime := s.baseProgTick.Load().(time.Duration)
+				newTime := clampTick(baseTime * 4)
+				if s.baseProgTick.CompareAndSwap(baseTime, newTime) {
+					progTick.Reset(newTime)
+				} else {
+					progTick.Reset(s.baseProgTick.Load().(time.Duration))
 				}
 			} else {
-				previousIndex = index
+				previousIndex = index["index"]
+				previousTotalCount = index["totalCount"]
 			}
 		}
 	}
+	// If we never received any progress ticks, we may have too long a time, shrink it for new runs instead.
+	if !ticked {
+		newTick := clampTick(baseTick - minimumProgTick)
+		// If it's otherwise unchanged, apply the new duration.
+		s.baseProgTick.CompareAndSwap(baseTick, newTick)
+	}
 	// Tentative Data is ready, commit it to the main datastore.
-	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
+	slog.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
@@ -215,36 +282,66 @@ progress:
 		md := wk.MonitoringMetadata(ctx, unknownIDs)
 		j.AddMetricShortIDs(md)
 	}
-	var residualData [][]byte
-	var minOutputWatermark map[string]mtime.Time
+
+	// ProcessContinuation residuals are rescheduled after the specified delay.
+	residuals := engine.Residuals{
+		MinOutputWatermarks: map[string]mtime.Time{},
+	}
 	for _, rr := range resp.GetResidualRoots() {
 		ba := rr.GetApplication()
-		residualData = append(residualData, ba.GetElement())
 		if len(ba.GetElement()) == 0 {
 			slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 			panic("sdk returned empty residual application")
 		}
+		if residuals.TransformID == "" {
+			residuals.TransformID = ba.GetTransformId()
+		}
+		if residuals.InputID == "" {
+			residuals.InputID = ba.GetInputId()
+		}
+		if residuals.TransformID != ba.GetTransformId() {
+			panic("sdk returned inconsistent residual application transform : got = " + ba.GetTransformId() + " want = " + residuals.TransformID)
+		}
+		if residuals.InputID != ba.GetInputId() {
+			panic("sdk returned inconsistent residual application input : got = " + ba.GetInputId() + " want = " + residuals.InputID)
+		}
+
 		for col, wm := range ba.GetOutputWatermarks() {
-			if minOutputWatermark == nil {
-				minOutputWatermark = map[string]mtime.Time{}
-			}
-			cur, ok := minOutputWatermark[col]
+			cur, ok := residuals.MinOutputWatermarks[col]
 			if !ok {
 				cur = mtime.MaxTimestamp
 			}
-			minOutputWatermark[col] = mtime.Min(mtime.FromTime(wm.AsTime()), cur)
+			residuals.MinOutputWatermarks[col] = mtime.Min(mtime.FromTime(wm.AsTime()), cur)
 		}
+
+		residuals.Data = append(residuals.Data, engine.Residual{
+			Element: ba.GetElement(),
+			Delay:   rr.GetRequestedTimeDelay().AsDuration(),
+			Bounded: ba.GetIsBounded() == pipepb.IsBounded_BOUNDED,
+		})
 	}
-	if l := len(residualData); l > 0 {
+	if l := len(residuals.Data); l == 0 {
 		slog.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.primaryInput))
 	}
-	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residualData, minOutputWatermark)
+	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residuals)
+	if s.finalize {
+		_, err := b.Finalize(ctx, wk)
+		if err != nil {
+			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
+			panic(err)
+		}
+		slog.Info("finalized bundle", "bundle", rb)
+	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
 }
 
 func getSideInputs(t *pipepb.PTransform) (map[string]*pipepb.SideInput, error) {
-	if t.GetSpec().GetUrn() != urns.TransformParDo {
+	switch t.GetSpec().GetUrn() {
+	case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
+		// Intentionally empty since these are permitted to have side inputs.
+	default:
+		// Nothing else is allowed to have side inputs.
 		return nil, nil
 	}
 	// TODO, memoize this, so we don't need to repeatedly unmarshal.
@@ -264,7 +361,7 @@ func portFor(wInCid string, wk *worker.W) []byte {
 	}
 	sourcePortBytes, err := proto.Marshal(sourcePort)
 	if err != nil {
-		slog.Error("bad port", err, slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
+		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
 	}
 	return sourcePortBytes
 }
@@ -279,14 +376,103 @@ func portFor(wInCid string, wk *worker.W) []byte {
 // It assumes that the side inputs are not sourced from PCollections generated by any transform in this stage.
 //
 // Because we need the local ids for routing the sources/sinks information.
-func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *engine.ElementManager) error {
+func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *engine.ElementManager) (err error) {
+	// Catch construction time panics and produce them as errors out.
+	defer func() {
+		if r := recover(); r != nil {
+			switch rt := r.(type) {
+			case error:
+				err = rt
+			default:
+				err = fmt.Errorf("%v", r)
+			}
+		}
+	}()
 	// Assume stage has an indicated primary input
 
 	coders := map[string]*pipepb.Coder{}
 	transforms := map[string]*pipepb.PTransform{}
+	pcollections := map[string]*pipepb.PCollection{}
 
+	clonePColToBundle := func(pid string) *pipepb.PCollection {
+		col := proto.Clone(comps.GetPcollections()[pid]).(*pipepb.PCollection)
+		pcollections[pid] = col
+		return col
+	}
+
+	// Update coders for Stateful transforms.
 	for _, tid := range stg.transforms {
-		transforms[tid] = comps.GetTransforms()[tid]
+		t := comps.GetTransforms()[tid]
+
+		transforms[tid] = t
+
+		if t.GetSpec().GetUrn() != urns.TransformParDo {
+			continue
+		}
+
+		pardo := &pipepb.ParDoPayload{}
+		if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
+			return fmt.Errorf("unable to decode ParDoPayload for %v in stage %v", tid, stg.ID)
+		}
+
+		// We need to ensure the coders can be handled by prism, and are available in the bundle descriptor.
+		// So we rewrite the transform's Payload with updated coder ids here.
+		var rewrite bool
+		var rewriteErr error
+		for stateID, s := range pardo.GetStateSpecs() {
+			rewrite = true
+			rewriteCoder := func(cid *string) {
+				newCid, err := lpUnknownCoders(*cid, coders, comps.GetCoders())
+				if err != nil {
+					rewriteErr = fmt.Errorf("unable to rewrite coder %v for state %v for transform %v in stage %v:%w", *cid, stateID, tid, stg.ID, err)
+					return
+				}
+				*cid = newCid
+			}
+			switch s := s.GetSpec().(type) {
+			case *pipepb.StateSpec_BagSpec:
+				rewriteCoder(&s.BagSpec.ElementCoderId)
+			case *pipepb.StateSpec_SetSpec:
+				rewriteCoder(&s.SetSpec.ElementCoderId)
+			case *pipepb.StateSpec_OrderedListSpec:
+				rewriteCoder(&s.OrderedListSpec.ElementCoderId)
+			case *pipepb.StateSpec_CombiningSpec:
+				rewriteCoder(&s.CombiningSpec.AccumulatorCoderId)
+			case *pipepb.StateSpec_MapSpec:
+				rewriteCoder(&s.MapSpec.KeyCoderId)
+				rewriteCoder(&s.MapSpec.ValueCoderId)
+			case *pipepb.StateSpec_MultimapSpec:
+				rewriteCoder(&s.MultimapSpec.KeyCoderId)
+				rewriteCoder(&s.MultimapSpec.ValueCoderId)
+			case *pipepb.StateSpec_ReadModifyWriteSpec:
+				rewriteCoder(&s.ReadModifyWriteSpec.CoderId)
+			}
+			if rewriteErr != nil {
+				return rewriteErr
+			}
+		}
+		for timerID, v := range pardo.GetTimerFamilySpecs() {
+			stg.hasTimers = append(stg.hasTimers, struct{ Transform, TimerFamily string }{Transform: tid, TimerFamily: timerID})
+			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
+				if stg.processingTimeTimers == nil {
+					stg.processingTimeTimers = map[string]bool{}
+				}
+				stg.processingTimeTimers[timerID] = true
+			}
+			rewrite = true
+			newCid, err := lpUnknownCoders(v.GetTimerFamilyCoderId(), coders, comps.GetCoders())
+			if err != nil {
+				return fmt.Errorf("unable to rewrite coder %v for timer %v for transform %v in stage %v: %w", v.GetTimerFamilyCoderId(), timerID, tid, stg.ID, err)
+			}
+			v.TimerFamilyCoderId = newCid
+		}
+		if rewrite {
+			pyld, err := proto.MarshalOptions{}.Marshal(pardo)
+			if err != nil {
+				return fmt.Errorf("unable to encode ParDoPayload for %v in stage %v after rewrite", tid, stg.ID)
+			}
+			t.Spec.Payload = pyld
+		}
 	}
 	if len(transforms) == 0 {
 		return fmt.Errorf("buildDescriptor: invalid stage - no transforms at all %v", stg.ID)
@@ -296,7 +482,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for _, o := range stg.outputs {
-		col := comps.GetPcollections()[o.Global]
+		col := clonePColToBundle(o.Global)
 		wOutCid, err := makeWindowedValueCoder(o.Global, comps, coders)
 		if err != nil {
 			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w %v", stg.ID, o, o.Global, prototext.Format(col), err, stg.transforms)
@@ -309,21 +495,23 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			kd = collectionPullDecoder(kcid, coders, comps)
 		}
 
-		wDec, wEnc := getWindowValueCoders(comps, col, coders)
+		winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.Global
 		col2Coders[o.Global] = engine.PColInfo{
-			GlobalID: o.Global,
-			WDec:     wDec,
-			WEnc:     wEnc,
-			EDec:     ed,
-			KeyDec:   kd,
+			GlobalID:    o.Global,
+			WindowCoder: winCoder,
+			WDec:        wDec,
+			WEnc:        wEnc,
+			EDec:        ed,
+			KeyDec:      kd,
 		}
 		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
 
 	var prepareSides []func(b *worker.B, watermark mtime.Time)
 	for _, si := range stg.sideInputs {
-		col := comps.GetPcollections()[si.Global]
+		col := clonePColToBundle(si.Global)
+
 		oCID := col.GetCoderId()
 		nCID, err := lpUnknownCoders(oCID, coders, comps.GetCoders())
 		if err != nil {
@@ -332,7 +520,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		if oCID != nCID {
 			// Add a synthetic PCollection set with the new coder.
 			newGlobal := si.Global + "_prismside"
-			comps.GetPcollections()[newGlobal] = &pipepb.PCollection{
+			pcollections[newGlobal] = &pipepb.PCollection{
 				DisplayData:         col.GetDisplayData(),
 				UniqueName:          col.GetUniqueName(),
 				CoderId:             nCID,
@@ -341,10 +529,11 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			}
 			// Update side inputs to point to new PCollection with any replaced coders.
 			transforms[si.Transform].GetInputs()[si.Local] = newGlobal
+			// TODO: replace si.Global with newGlobal?
 		}
-		prepSide, err := handleSideInput(si, comps, coders, em)
+		prepSide, err := handleSideInput(si, comps, transforms, pcollections, coders, em)
 		if err != nil {
-			slog.Error("buildDescriptor: handleSideInputs", err, slog.String("transformID", si.Transform))
+			slog.Error("buildDescriptor: handleSideInputs", "error", err, slog.String("transformID", si.Transform))
 			return err
 		}
 		prepareSides = append(prepareSides, prepSide)
@@ -355,13 +544,19 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	// coders used by side inputs to the coders map for the bundle, so
 	// needs to be run for every ID.
 
-	col := comps.GetPcollections()[stg.primaryInput]
+	col := clonePColToBundle(stg.primaryInput)
+	if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
+		col.CoderId = newCID
+	} else if err != nil {
+		return fmt.Errorf("buildDescriptor: couldn't rewrite coder %q for primary input pcollection %q: %w", col.GetCoderId(), stg.primaryInput, err)
+	}
+
 	wInCid, err := makeWindowedValueCoder(stg.primaryInput, comps, coders)
 	if err != nil {
 		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-	wDec, wEnc := getWindowValueCoders(comps, col, coders)
+	winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
 	var kd func(io.Reader) []byte
 	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
@@ -369,32 +564,51 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	}
 
 	inputInfo := engine.PColInfo{
-		GlobalID: stg.primaryInput,
-		WDec:     wDec,
-		WEnc:     wEnc,
-		EDec:     ed,
-		KeyDec:   kd,
+		GlobalID:    stg.primaryInput,
+		WindowCoder: winCoder,
+		WDec:        wDec,
+		WEnc:        wEnc,
+		EDec:        ed,
+		KeyDec:      kd,
 	}
 
 	stg.inputTransformID = stg.ID + "_source"
 	transforms[stg.inputTransformID] = sourceTransform(stg.inputTransformID, portFor(wInCid, wk), stg.primaryInput)
 
-	// Add coders for internal collections.
+	// Update coders for internal collections, and add those collections to the bundle descriptor.
 	for _, pid := range stg.internalCols {
-		lpUnknownCoders(comps.GetPcollections()[pid].GetCoderId(), coders, comps.GetCoders())
+		col := clonePColToBundle(pid)
+		if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
+			col.CoderId = newCID
+		} else if err != nil {
+			return fmt.Errorf("buildDescriptor: coder  couldn't rewrite coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
+		}
+	}
+	// Add coders for all windowing strategies.
+	// TODO: filter PCollections, filter windowing strategies by Pcollections instead.
+	for _, ws := range comps.GetWindowingStrategies() {
+		lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
 	}
 
 	reconcileCoders(coders, comps.GetCoders())
+
+	var timerServiceDescriptor *pipepb.ApiServiceDescriptor
+	if len(stg.hasTimers) > 0 {
+		timerServiceDescriptor = &pipepb.ApiServiceDescriptor{
+			Url: wk.Endpoint(),
+		}
+	}
 
 	desc := &fnpb.ProcessBundleDescriptor{
 		Id:                  stg.ID,
 		Transforms:          transforms,
 		WindowingStrategies: comps.GetWindowingStrategies(),
-		Pcollections:        comps.GetPcollections(),
+		Pcollections:        pcollections,
 		Coders:              coders,
 		StateApiServiceDescriptor: &pipepb.ApiServiceDescriptor{
 			Url: wk.Endpoint(),
 		},
+		TimerApiServiceDescriptor: timerServiceDescriptor,
 	}
 
 	stg.desc = desc
@@ -412,8 +626,8 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 }
 
 // handleSideInput returns a closure that will look up the data for a side input appropriate for the given watermark.
-func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[string]*pipepb.Coder, em *engine.ElementManager) (func(b *worker.B, watermark mtime.Time), error) {
-	t := comps.GetTransforms()[link.Transform]
+func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms map[string]*pipepb.PTransform, pcols map[string]*pipepb.PCollection, coders map[string]*pipepb.Coder, em *engine.ElementManager) (func(b *worker.B, watermark mtime.Time), error) {
+	t := transforms[link.Transform]
 	sis, err := getSideInputs(t)
 	if err != nil {
 		return nil, err
@@ -426,7 +640,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[st
 			slog.String("local", link.Local),
 			slog.String("global", link.Global))
 
-		col := comps.GetPcollections()[link.Global]
+		col := pcols[link.Global]
 		// The returned coders are unused here, but they add the side input coders
 		// to the stage components for use SDK side.
 
@@ -450,7 +664,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[st
 			slog.String("sourceTransform", t.GetUniqueName()),
 			slog.String("local", link.Local),
 			slog.String("global", link.Global))
-		col := comps.GetPcollections()[link.Global]
+		col := pcols[link.Global]
 
 		kvc := comps.GetCoders()[col.GetCoderId()]
 		if kvc.GetSpec().GetUrn() != urns.CoderKV {
@@ -489,7 +703,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[st
 			}] = windowed
 		}, nil
 	default:
-		return nil, fmt.Errorf("local input %v (global %v) uses accesspattern %v", link.Local, link.Global, si.GetAccessPattern().GetUrn())
+		return nil, fmt.Errorf("local input %v (global %v) uses accesspattern %v", link.Local, link.Global, prototext.Format(si.GetAccessPattern()))
 	}
 }
 

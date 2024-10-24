@@ -17,49 +17,49 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.auto.value.AutoValue;
 import io.grpc.Status;
 import java.time.Instant;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.TreeMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.NestedCounter;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingCounter;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Helper class to create perworker metrics for BigQuery Sink stages.
  *
  * <p>In general metrics be in the namespace 'BigQuerySink' and have their name formatted as:
  *
- * <p>'{baseName}-{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
+ * <p>'{baseName}*{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
  */
 public class BigQuerySinkMetrics {
-  private static Boolean supportMetricsDeletion = false;
+  private static boolean supportMetricsDeletion = false;
+  private static boolean supportStreamingInsertsMetrics = false;
 
   public static final String METRICS_NAMESPACE = "BigQuerySink";
 
   // Status codes
-  private static final String UNKNOWN = Status.Code.UNKNOWN.toString();
+  public static final String UNKNOWN = Status.Code.UNKNOWN.toString();
   public static final String OK = Status.Code.OK.toString();
+  static final String INTERNAL = "INTERNAL";
   public static final String PAYLOAD_TOO_LARGE = "PayloadTooLarge";
 
   // Base Metric names
-  private static final String RPC_REQUESTS = "RpcRequests";
+  private static final String RPC_REQUESTS = "RpcRequestsCount";
   private static final String RPC_LATENCY = "RpcLatency";
-  private static final String APPEND_ROWS_ROW_STATUS = "AppendRowsRowStatus";
-  private static final String THROTTLED_TIME = "ThrottledTime";
+  private static final String APPEND_ROWS_ROW_STATUS = "RowsAppendedCount";
+  public static final String THROTTLED_TIME = "ThrottledTime";
 
-  // StorageWriteAPI Method names
-  enum RpcMethod {
+  // BigQuery Write Method names
+  public enum RpcMethod {
+    STREAMING_INSERTS,
     APPEND_ROWS,
     FLUSH_ROWS,
     FINALIZE_STREAM
@@ -73,85 +73,10 @@ public class BigQuerySinkMetrics {
   }
 
   // Metric labels
-  private static final String TABLE_ID_LABEL = "TableId";
-  private static final String RPC_STATUS_LABEL = "RpcStatus";
-  private static final String RPC_METHOD = "Method";
-  private static final String ROW_STATUS = "RowStatus";
-
-  // Delimiters
-  private static final char LABEL_DELIMITER = ';';
-  private static final char METRIC_KV_DELIMITER = ':';
-  private static final char METRIC_NAME_DELIMITER = '-';
-
-  @AutoValue
-  public abstract static class ParsedMetricName {
-    public abstract String getBaseName();
-
-    public abstract ImmutableMap<String, String> getMetricLabels();
-
-    public static ParsedMetricName create(
-        String baseName, ImmutableMap<String, String> metricLabels) {
-      return new AutoValue_BigQuerySinkMetrics_ParsedMetricName(baseName, metricLabels);
-    }
-
-    public static ParsedMetricName create(String baseName) {
-      ImmutableMap<String, String> emptyMap = ImmutableMap.of();
-      return new AutoValue_BigQuerySinkMetrics_ParsedMetricName(baseName, emptyMap);
-    }
-  }
-
-  /**
-   * Returns a metric name that merges the baseName with metricLables formatted as.
-   *
-   * <p>'{baseName}-{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
-   */
-  private static String createLabeledMetricName(
-      String baseName, NavigableMap<String, String> metricLabels) {
-    StringBuilder nameBuilder = new StringBuilder(baseName + METRIC_NAME_DELIMITER);
-
-    metricLabels.forEach(
-        (labelKey, labelVal) ->
-            nameBuilder.append(labelKey + METRIC_KV_DELIMITER + labelVal + LABEL_DELIMITER));
-    return nameBuilder.toString();
-  }
-
-  /**
-   * Parse a 'metric name' String that was created with 'createLabeledMetricName'. The input string
-   * should be formatted as.
-   *
-   * <p>'{baseName}-{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
-   *
-   * @param metricName
-   * @return Returns a ParsedMetricName object if the input string is properly formatted. If the
-   *     input string is empty or malformed, returns null.
-   */
-  public static @Nullable ParsedMetricName parseMetricName(String metricName) {
-    if (metricName.isEmpty()) {
-      return null;
-    }
-
-    List<String> metricNameSplit = Splitter.on(METRIC_NAME_DELIMITER).splitToList(metricName);
-    ImmutableMap.Builder<String, String> metricLabelsBuilder = ImmutableMap.builder();
-
-    if (metricNameSplit.size() == 1) {
-      return ParsedMetricName.create(metricNameSplit.get(0));
-    }
-
-    if (metricNameSplit.size() != 2) {
-      return null;
-    }
-
-    List<String> labels = Splitter.on(LABEL_DELIMITER).splitToList(metricNameSplit.get(1));
-    for (String label : labels) {
-      List<String> kv = Splitter.on(METRIC_KV_DELIMITER).splitToList(label);
-      if (kv.size() != 2) {
-        continue;
-      }
-      metricLabelsBuilder.put(kv.get(0), kv.get(1));
-    }
-
-    return ParsedMetricName.create(metricNameSplit.get(0), metricLabelsBuilder.build());
-  }
+  private static final String TABLE_ID_LABEL = "table_id";
+  private static final String RPC_STATUS_LABEL = "rpc_status";
+  private static final String RPC_METHOD = "rpc_method";
+  private static final String ROW_STATUS = "row_status";
 
   /**
    * @param method StorageWriteAPI method associated with this metric.
@@ -162,17 +87,17 @@ public class BigQuerySinkMetrics {
    *     'RpcRequests-Method:{method}RpcStatus:{status};TableId:{tableId}' TableId label is dropped
    *     if 'supportsMetricsDeletion' is not enabled.
    */
-  private static Counter createRPCRequestCounter(
-      RpcMethod method, String rpcStatus, String tableId) {
-    NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
-    metricLabels.put(RPC_STATUS_LABEL, rpcStatus);
-    metricLabels.put(RPC_METHOD, method.toString());
+  @VisibleForTesting
+  static Counter createRPCRequestCounter(RpcMethod method, String rpcStatus, String tableId) {
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_REQUESTS);
+    nameBuilder.addLabel(RPC_METHOD, method.toString());
+    nameBuilder.addLabel(RPC_STATUS_LABEL, rpcStatus);
     if (BigQuerySinkMetrics.supportMetricsDeletion) {
-      metricLabels.put(TABLE_ID_LABEL, tableId);
+      nameBuilder.addLabel(TABLE_ID_LABEL, tableId);
     }
 
-    String fullMetricName = createLabeledMetricName(RPC_REQUESTS, metricLabels);
-    MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
+    MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
     return new DelegatingCounter(metricName, false, true);
   }
 
@@ -182,15 +107,18 @@ public class BigQuerySinkMetrics {
    * <p>'RpcLatency-Method:{method};'
    *
    * @param method StorageWriteAPI method associated with this metric.
-   * @return Histogram with exponential buckets with a sqrt(2) growth factor.
+   * @return Histogram with exponential buckets with a size 2 growth factor.
    */
-  private static Histogram createRPCLatencyHistogram(RpcMethod method) {
-    NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
-    metricLabels.put(RPC_METHOD, method.toString());
-    String fullMetricName = createLabeledMetricName(RPC_LATENCY, metricLabels);
-    MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
+  static Histogram createRPCLatencyHistogram(RpcMethod method) {
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_LATENCY);
+    nameBuilder.addLabel(RPC_METHOD, method.toString());
+    MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
 
-    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 34);
+    // Create Exponential histogram buckets with the following parameters:
+    // 0 scale, resulting in bucket widths with a size 2 growth factor.
+    // 17 buckets, so the max latency of that can be stored is (2^17 millis ~= 130 seconds).
+    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(0, 17);
 
     return new DelegatingHistogram(metricName, buckets, false, true);
   }
@@ -222,15 +150,16 @@ public class BigQuerySinkMetrics {
    */
   public static Counter appendRowsRowStatusCounter(
       RowStatus rowStatus, String rpcStatus, String tableId) {
-    NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
-    metricLabels.put(RPC_STATUS_LABEL, rpcStatus);
-    metricLabels.put(ROW_STATUS, rowStatus.toString());
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(APPEND_ROWS_ROW_STATUS);
+    nameBuilder.addLabel(ROW_STATUS, rowStatus.toString());
+    nameBuilder.addLabel(RPC_STATUS_LABEL, rpcStatus);
     if (BigQuerySinkMetrics.supportMetricsDeletion) {
-      metricLabels.put(TABLE_ID_LABEL, tableId);
+      nameBuilder.addLabel(TABLE_ID_LABEL, tableId);
     }
 
-    String fullMetricName = createLabeledMetricName(APPEND_ROWS_ROW_STATUS, metricLabels);
-    MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
+    MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
+
     return new DelegatingCounter(metricName, false, true);
   }
 
@@ -239,12 +168,20 @@ public class BigQuerySinkMetrics {
    * @return Counter that tracks throttled time due to RPC retries.
    */
   public static Counter throttledTimeCounter(RpcMethod method) {
-    NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
-    metricLabels.put(RPC_METHOD, method.toString());
-    String fullMetricName = createLabeledMetricName(THROTTLED_TIME, metricLabels);
-    MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
 
-    return new DelegatingCounter(metricName, false, true);
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(THROTTLED_TIME);
+    nameBuilder.addLabel(RPC_METHOD, method.toString());
+    MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
+    // for specific method
+    Counter fineCounter = new DelegatingCounter(metricName, false, true);
+    // for overall throttling time, used by runner for scaling decision
+    Counter coarseCounter = BigQueryServicesImpl.StorageClientImpl.THROTTLING_MSECS;
+    return new NestedCounter(
+        MetricName.named(
+            METRICS_NAMESPACE, metricName.getName() + coarseCounter.getName().getName()),
+        fineCounter,
+        coarseCounter);
   }
 
   /**
@@ -321,7 +258,23 @@ public class BigQuerySinkMetrics {
     updateRpcLatencyMetric(c, method);
   }
 
-  public static void setSupportMetricsDeletion(Boolean supportMetricsDeletion) {
+  /**
+   * Returns a container to store metrics for BigQuery's {@code Streaming Inserts} RPC. If these
+   * metrics are disabled, then we return a no-op container.
+   */
+  static StreamingInsertsMetrics streamingInsertsMetrics() {
+    if (supportStreamingInsertsMetrics) {
+      return StreamingInsertsMetrics.StreamingInsertsMetricsImpl.create();
+    } else {
+      return StreamingInsertsMetrics.NoOpStreamingInsertsMetrics.getInstance();
+    }
+  }
+
+  public static void setSupportStreamingInsertsMetrics(boolean supportStreamingInsertsMetrics) {
+    BigQuerySinkMetrics.supportStreamingInsertsMetrics = supportStreamingInsertsMetrics;
+  }
+
+  public static void setSupportMetricsDeletion(boolean supportMetricsDeletion) {
     BigQuerySinkMetrics.supportMetricsDeletion = supportMetricsDeletion;
   }
 }

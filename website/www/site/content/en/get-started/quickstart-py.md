@@ -88,12 +88,21 @@ The above installation will not install all the extra dependencies for using fea
 - **Amazon Web Services**
   - Installation Command: `pip install 'apache-beam[aws]'`
   - Required for I/O connectors interfacing with AWS
+- **Microsoft Azure**
+  - Installation Command: `pip install 'apache-beam[azure]'`
+  - Required for I/O connectors interfacing with Microsoft Azure
+- **Beam YAML API**
+  - Installation Command: `pip install 'apache-beam[yaml]'`
+  - Required for using [Beam YAML API](/documentation/sdks/yaml/)
+- **Beam YAML Dataframe API**
+  - Installation Command: `pip install 'apache-beam[dataframe]'`
+  - Required for using [Beam Dataframe API](/documentation/dsls/dataframes/overview/)
 - **Tests**
   - Installation Command: `pip install 'apache-beam[test]'`
-  - Required for developing on beam and running unittests
+  - Required for developing Beam and running unit tests
 - **Docs**
   - Installation Command: `pip install 'apache-beam[docs]'`
-  - Generating API documentation using Sphinx
+  - Required for generating API documentation using Sphinx
 
 ## Execute a pipeline
 

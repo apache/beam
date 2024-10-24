@@ -27,7 +27,6 @@ goBuild {
   outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
 }
 
-def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
@@ -41,9 +40,9 @@ docker {
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
-  buildx useBuildx
+  buildx project.useBuildx()
   platform(*project.containerPlatforms())
-  load useBuildx && !pushContainers
+  load project.useBuildx() && !pushContainers
   push pushContainers
 }
 dockerPrepare.dependsOn tasks.named("goBuild")

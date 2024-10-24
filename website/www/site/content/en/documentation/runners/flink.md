@@ -93,7 +93,7 @@ from the [compatibility table](#flink-version-compatibility) below. For example:
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.16</artifactId>
+  <artifactId>beam-runners-flink-1.19</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -196,13 +196,9 @@ The optional `flink_version` option may be required as well for older versions o
 
 {{< paragraph class="language-portable" >}}
 Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
-[Flink 1.10](https://hub.docker.com/r/apache/beam_flink1.10_job_server),
-[Flink 1.11](https://hub.docker.com/r/apache/beam_flink1.11_job_server),
-[Flink 1.12](https://hub.docker.com/r/apache/beam_flink1.12_job_server).
-[Flink 1.13](https://hub.docker.com/r/apache/beam_flink1.13_job_server).
-[Flink 1.14](https://hub.docker.com/r/apache/beam_flink1.14_job_server).
-[Flink 1.15](https://hub.docker.com/r/apache/beam_flink1.15_job_server).
-[Flink 1.16](https://hub.docker.com/r/apache/beam_flink1.16_job_server).
+[Flink 1.17](https://hub.docker.com/r/apache/beam_flink1.17_job_server).
+[Flink 1.18](https://hub.docker.com/r/apache/beam_flink1.18_job_server).
+[Flink 1.19](https://hub.docker.com/r/apache/beam_flink1.19_job_server).
 {{< /paragraph >}}
 
 <!-- TODO(BEAM-10214): Use actual lists here and below. -->
@@ -315,8 +311,8 @@ reference.
 ## Flink Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.16.0` the
-minor version is `1.16`.
+The minor version is the first two numbers in the version string, e.g. in `1.19.0` the
+minor version is `1.19`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
@@ -330,29 +326,44 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Supported Beam Versions</th>
 </tr>
 <tr>
+  <td>1.19.x</td>
+  <td>beam-runners-flink-1.19</td>
+  <td>&ge; 2.61.0</td>
+</tr>
+<tr>
+  <td>1.18.x</td>
+  <td>beam-runners-flink-1.18</td>
+  <td>&ge; 2.57.0</td>
+</tr>
+<tr>
+  <td>1.17.x</td>
+  <td>beam-runners-flink-1.17</td>
+  <td>&ge; 2.56.0</td>
+</tr>
+<tr>
   <td>1.16.x</td>
   <td>beam-runners-flink-1.16</td>
-  <td>&ge; 2.47.0</td>
+  <td>2.47.0 - 2.60.0</td>
 </tr>
 <tr>
   <td>1.15.x</td>
   <td>beam-runners-flink-1.15</td>
-  <td>&ge; 2.40.0</td>
+  <td>2.40.0 - 2.60.0</td>
 </tr>
 <tr>
   <td>1.14.x</td>
   <td>beam-runners-flink-1.14</td>
-  <td>&ge; 2.38.0</td>
+  <td>2.38.0 - 2.56.0</td>
 </tr>
 <tr>
   <td>1.13.x</td>
   <td>beam-runners-flink-1.13</td>
-  <td>&ge; 2.31.0</td>
+  <td>2.31.0 - 2.55.0</td>
 </tr>
 <tr>
   <td>1.12.x</td>
   <td>beam-runners-flink-1.12</td>
-  <td>&ge; 2.27.0</td>
+  <td>2.27.0 - 2.55.0</td>
 </tr>
 <tr>
   <td>1.11.x</td>

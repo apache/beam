@@ -66,10 +66,10 @@ public class GenerateSequenceSchemaTransformProvider
   public String description() {
     return String.format(
         "Outputs a PCollection of Beam Rows, each containing a single INT64 "
-            + "number called \"value\". The count is produced from the given \"start\""
-            + "value and either up to the given \"end\" or until 2^63 - 1.\n"
+            + "number called \"value\". The count is produced from the given \"start\" "
+            + "value and either up to the given \"end\" or until 2^63 - 1.%n"
             + "To produce an unbounded PCollection, simply do not specify an \"end\" value. "
-            + "Unbounded sequences can specify a \"rate\" for output elements.\n"
+            + "Unbounded sequences can specify a \"rate\" for output elements.%n"
             + "In all cases, the sequence of numbers is generated in parallel, so there is no "
             + "inherent ordering between the generated values");
   }

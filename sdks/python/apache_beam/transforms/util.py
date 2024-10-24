@@ -30,18 +30,22 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
 from typing import Iterable
 from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+import apache_beam as beam
 from apache_beam import coders
+from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
+from apache_beam.pvalue import PCollection
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -76,7 +80,6 @@ from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
@@ -91,6 +94,7 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'ToString',
+    'Tee',
     'Values',
     'WithKeys',
     'GroupIntoBatches'
@@ -578,14 +582,15 @@ class _GlobalWindowsBatchingDoFn(DoFn):
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
-    self._batch.append(element)
-    self._running_batch_size += self._element_size_fn(element)
-    if self._running_batch_size >= self._target_batch_size:
+    element_size = self._element_size_fn(element)
+    if self._running_batch_size + element_size > self._target_batch_size:
       with self._batch_size_estimator.record_time(self._running_batch_size):
         yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
+    self._batch.append(element)
+    self._running_batch_size += element_size
 
   def finish_bundle(self):
     if self._batch:
@@ -620,15 +625,18 @@ class _WindowAwareBatchingDoFn(DoFn):
 
   def process(self, element, window=DoFn.WindowParam):
     batch = self._batches[window]
-    batch.elements.append(element)
-    batch.size += self._element_size_fn(element)
-    if batch.size >= self._target_batch_size:
+    element_size = self._element_size_fn(element)
+    if batch.size + element_size > self._target_batch_size:
       with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
             batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    elif len(self._batches) > self._MAX_LIVE_WINDOWS:
+
+    self._batches[window].elements.append(element)
+    self._batches[window].size += element_size
+
+    if len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, batch = max(
           self._batches.items(),
           key=lambda window_batch: window_batch[1].size)
@@ -751,7 +759,7 @@ def _pardo_stateful_batch_elements(
 
 class SharedKey():
   """A class that holds a per-process UUID used to key elements for streaming
-  BatchElements. 
+  BatchElements.
   """
   def __init__(self):
     self.key = uuid.uuid4().hex
@@ -763,7 +771,7 @@ def load_shared_key():
 
 class WithSharedKey(DoFn):
   """A DoFn that keys elements with a per-process UUID. Used in streaming
-  BatchElements.  
+  BatchElements.
   """
   def __init__(self):
     self.shared_handle = shared.Shared()
@@ -796,6 +804,20 @@ class BatchElements(PTransform):
   Elements are batched per-window and batches emitted in the window
   corresponding to its contents. Each batch is emitted with a timestamp at
   the end of their window.
+
+  When the max_batch_duration_secs arg is provided, a stateful implementation
+  of BatchElements is used to batch elements across bundles. This is most
+  impactful in streaming applications where many bundles only contain one
+  element. Larger max_batch_duration_secs values `might` reduce the throughput
+  of the transform, while smaller values might improve the throughput but
+  make it more likely that batches are smaller than the target batch size.
+
+  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
+  increase as needed to get the desired tradeoff between target batch size
+  and latency or throughput.
+
+  For more information on tuning parameters to this transform, see
+  https://beam.apache.org/documentation/patterns/batch-elements
 
   Args:
     min_batch_size: (optional) the smallest size of a batch
@@ -1644,3 +1666,70 @@ class Regex(object):
       yield r
 
     return pcoll | FlatMap(_process)
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class Tee(PTransform):
+  """A PTransform that returns its input, but also applies its input elsewhere.
+
+ Similar to the shell {@code tee} command. This can be useful to write out or
+ otherwise process an intermediate transform without breaking the linear flow
+ of a chain of transforms, e.g.::
+
+     (input
+         | SomePTransform()
+         | ...
+         | Tee(SomeSideTransform())
+         | ...)
+  """
+  def __init__(
+      self,
+      *consumers: Union[PTransform[PCollection[T], Any],
+                        Callable[[PCollection[T]], Any]]):
+    self._consumers = consumers
+
+  def expand(self, input):
+    for consumer in self._consumers:
+      print("apply", consumer)
+      if callable(consumer):
+        _ = input | ptransform_fn(consumer)()
+      else:
+        _ = input | consumer
+    return input
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class WaitOn(PTransform):
+  """Delays processing of a {@link PCollection} until another set of
+  PCollections has finished being processed. For example::
+
+     X | WaitOn(Y, Z) | SomeTransform()
+
+  would ensure that PCollections Y and Z (and hence their producing transforms)
+  are complete before SomeTransform gets executed on the elements of X.
+  This can be especially useful the waited-on PCollections are the outputs
+  of transforms that interact with external systems (such as writing to a
+  database or other sink).
+
+  For streaming, this delay is done on a per-window basis, i.e.
+  the corresponding window of each waited-on PCollection is computed before
+  elements are passed through the main collection.
+
+  This barrier often induces a fusion break.
+  """
+  def __init__(self, *to_be_waited_on):
+    self._to_be_waited_on = to_be_waited_on
+
+  def expand(self, pcoll):
+    # All we care about is the watermark, not the data itself.
+    # The GroupByKey avoids writing empty files for each shard, and also
+    # ensures the respective window finishes before advancing the timestamp.
+    sides = [
+        pvalue.AsIter(
+            side
+            | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
+        for (ix, side) in enumerate(self._to_be_waited_on)
+    ]
+    return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)

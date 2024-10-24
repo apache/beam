@@ -362,7 +362,7 @@ class Stage(object):
       return beam_runner_api_pb2.PTransform(
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
-              urn='beam:runner:executable_stage:v1',
+              urn=common_urns.executable_stage,
               payload=exec_payload.SerializeToString()),
           inputs=named_inputs,
           outputs={
@@ -428,7 +428,7 @@ class TransformContext(object):
     self._known_coder_urns = set.union(
         # Those which are required.
         self._REQUIRED_CODER_URNS,
-        # Those common coders which are understood by all environments.
+        # Those common coders which are understood by many environments.
         self._COMMON_CODER_URNS.intersection(
             *(
                 set(env.capabilities)
@@ -515,8 +515,40 @@ class TransformContext(object):
     # type: (str) -> Tuple[str, str]
     coder = self.components.coders[coder_id]
     if coder.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
+      # If the coder is already length prefixed, we can use it as is, and
+      # have the runner treat it as opaque bytes.
       return coder_id, self.bytes_coder_id
+    elif (coder.spec.urn == common_urns.coders.WINDOWED_VALUE.urn and
+          self.components.coders[coder.component_coder_ids[1]].spec.urn not in
+          self._known_coder_urns):
+      # A WindowedValue coder with an unknown window type.
+      # This needs to be encoded in such a way that we still have access to its
+      # timestmap.
+      lp_elem_coder = self.maybe_length_prefixed_coder(
+          coder.component_coder_ids[0])
+      tp_window_coder = self.timestamped_prefixed_window_coder(
+          coder.component_coder_ids[1])
+      new_coder_id = unique_name(
+          self.components.coders, coder_id + '_timestamp_prefixed')
+      self.components.coders[new_coder_id].CopyFrom(
+          beam_runner_api_pb2.Coder(
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.WINDOWED_VALUE.urn),
+              component_coder_ids=[lp_elem_coder, tp_window_coder]))
+      safe_coder_id = unique_name(
+          self.components.coders, coder_id + '_timestamp_prefixed_opaque')
+      self.components.coders[safe_coder_id].CopyFrom(
+          beam_runner_api_pb2.Coder(
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.WINDOWED_VALUE.urn),
+              component_coder_ids=[
+                  self.safe_coders[lp_elem_coder],
+                  self.safe_coders[tp_window_coder]
+              ]))
+      return new_coder_id, safe_coder_id
     elif coder.spec.urn in self._known_coder_urns:
+      # A known coder type, but its components may still need to be length
+      # prefixed.
       new_component_ids = [
           self.maybe_length_prefixed_coder(c) for c in coder.component_coder_ids
       ]
@@ -538,6 +570,7 @@ class TransformContext(object):
                 spec=coder.spec, component_coder_ids=safe_component_ids))
       return new_coder_id, safe_coder_id
     else:
+      # A completely unkown coder. Wrap the entire thing in a length prefix.
       new_coder_id = unique_name(
           self.components.coders, coder_id + '_length_prefixed')
       self.components.coders[new_coder_id].CopyFrom(
@@ -546,6 +579,25 @@ class TransformContext(object):
                   urn=common_urns.coders.LENGTH_PREFIX.urn),
               component_coder_ids=[coder_id]))
       return new_coder_id, self.bytes_coder_id
+
+  @memoize_on_instance
+  def timestamped_prefixed_window_coder(self, coder_id):
+    length_prefixed = self.maybe_length_prefixed_coder(coder_id)
+    new_coder_id = unique_name(
+        self.components.coders, coder_id + '_timestamp_prefixed')
+    self.components.coders[new_coder_id].CopyFrom(
+        beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=common_urns.coders.CUSTOM_WINDOW.urn),
+            component_coder_ids=[length_prefixed]))
+    safe_coder_id = unique_name(
+        self.components.coders, coder_id + '_timestamp_prefixed_opaque')
+    self.components.coders[safe_coder_id].CopyFrom(
+        beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=python_urns.TIMESTAMP_PREFIXED_OPAQUE_WINDOW_CODER)))
+    self.safe_coders[new_coder_id] = safe_coder_id
+    return new_coder_id
 
   def length_prefix_pcoll_coders(self, pcoll_id):
     # type: (str) -> None
@@ -709,10 +761,7 @@ def create_and_optimize_stages(
 
   # Apply each phase in order.
   for phase in phases:
-    _LOGGER.info('%s %s %s', '=' * 20, phase, '=' * 20)
     stages = list(phase(stages, pipeline_context))
-    _LOGGER.debug('%s %s' % (len(stages), [len(s.transforms) for s in stages]))
-    _LOGGER.debug('Stages: %s', [str(s) for s in stages])
 
   # Return the (possibly mutated) context and ordered set of stages.
   return pipeline_context, stages

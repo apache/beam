@@ -502,6 +502,8 @@ fail later when the write attempts happen.
 
 If your BigQuery write operation creates a new table, you must provide schema
 information. The schema contains information about each field in the table.
+When updating a pipeline with a new schema, the existing schema fields must
+stay in the same order, or the pipeline will break, failing to write to BigQuery.
 
 {{< paragraph class="language-java" >}}
 To create a table schema in Java, you can either use a `TableSchema` object, or
@@ -787,9 +789,6 @@ BigQuery Storage Write API for Python SDK currently has some limitations on supp
 
 {{< paragraph class="language-py" >}}
 **Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you are running from a released Beam SDK, the jar is already included.
-
-**Note:** Auto sharding is not currently supported for Python's Storage Write API exactly-once mode on DataflowRunner.
-
 {{< /paragraph >}}
 
 #### Exactly-once semantics
@@ -856,6 +855,7 @@ pipeline uses. You can set it explicitly on the transform via
 [`withNumStorageWriteApiStreams`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-)
 or provide the `numStorageWriteApiStreams` option to the pipeline as defined in
 [`BigQueryOptions`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html).
+Please note this is only supported for streaming pipelines.
 
 Triggering frequency determines how soon the data is visible for querying in
 BigQuery. You can explicitly set it via
@@ -880,7 +880,6 @@ explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releas
 `STORAGE_WRITE_API` defaults to dynamic sharding when
 `numStorageWriteApiStreams` is set to 0 or is unspecified.
 
-***Note:*** Auto sharding with `STORAGE_WRITE_API` is supported by Dataflow, but **not** on Runner v2.
 {{< /paragraph >}}
 
 When using `STORAGE_WRITE_API`, the `PCollection` returned by

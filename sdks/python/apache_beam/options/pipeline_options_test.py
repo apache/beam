@@ -21,11 +21,14 @@
 
 import json
 import logging
+import os
 import unittest
 
 import hamcrest as hc
+import mock
 from parameterized import parameterized
 
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -40,6 +43,12 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 _LOGGER = logging.getLogger(__name__)
+
+try:
+  import apache_beam.io.gcp.gcsio  # pylint: disable=unused-import
+  has_gcsio = True
+except ImportError:
+  has_gcsio = False
 
 
 # Mock runners to use for validations.
@@ -202,7 +211,7 @@ class PipelineOptionsTest(unittest.TestCase):
   @parameterized.expand(TEST_CASES)
   def test_get_all_options_subclass(self, flags, expected, _):
     options = PipelineOptionsTest.MockOptions(flags=flags)
-    self.assertDictContainsSubset(expected, options.get_all_options())
+    self.assertLessEqual(expected.items(), options.get_all_options().items())
     self.assertEqual(
         options.view_as(PipelineOptionsTest.MockOptions).mock_flag,
         expected['mock_flag'])
@@ -216,7 +225,7 @@ class PipelineOptionsTest(unittest.TestCase):
   @parameterized.expand(TEST_CASES)
   def test_get_all_options(self, flags, expected, _):
     options = PipelineOptions(flags=flags)
-    self.assertDictContainsSubset(expected, options.get_all_options())
+    self.assertLessEqual(expected.items(), options.get_all_options().items())
     self.assertEqual(
         options.view_as(PipelineOptionsTest.MockOptions).mock_flag,
         expected['mock_flag'])
@@ -394,6 +403,36 @@ class PipelineOptionsTest(unittest.TestCase):
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+
+  def test_beam_services_empty(self):
+    with mock.patch.dict(os.environ, {}, clear=True):
+      options = PipelineOptions().view_as(CrossLanguageOptions)
+      self.assertEqual(options.beam_services, {})
+
+  def test_beam_services_from_env(self):
+    with mock.patch.dict(os.environ,
+                         {'BEAM_SERVICE_OVERRIDES': '{"foo": "bar"}'},
+                         clear=True):
+      options = PipelineOptions().view_as(CrossLanguageOptions)
+      self.assertEqual(options.beam_services, {'foo': 'bar'})
+
+  def test_beam_services_from_flag(self):
+    with mock.patch.dict(os.environ, {}, clear=True):
+      options = PipelineOptions(['--beam_services={"foo": "bar"}'
+                                 ]).view_as(CrossLanguageOptions)
+      self.assertEqual(options.beam_services, {'foo': 'bar'})
+
+  def test_beam_services_from_env_and_flag(self):
+    with mock.patch.dict(
+        os.environ,
+        {'BEAM_SERVICE_OVERRIDES': '{"foo": "bar", "other": "zzz"}'},
+        clear=True):
+      options = PipelineOptions(['--beam_services={"foo": "override"}'
+                                 ]).view_as(CrossLanguageOptions)
+      self.assertEqual(
+          options.beam_services, {
+              'foo': 'override', 'other': 'zzz'
+          })
 
   def test_option_modifications_are_shared_between_views(self):
     pipeline_options = PipelineOptions([
@@ -678,6 +717,16 @@ class PipelineOptionsTest(unittest.TestCase):
         "the dest and the flag name to the map "
         "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
 
+  def _check_errors(self, options, validator, expected):
+    if has_gcsio:
+      with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                      return_value=False):
+        errors = options._handle_temp_and_staging_locations(validator)
+        self.assertEqual(errors, expected)
+    else:
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(errors, expected)
+
   def test_validation_good_stg_good_temp(self):
     runner = MockRunners.DataflowRunner()
     options = GoogleCloudOptions([
@@ -686,8 +735,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=gs://beam/tmp'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -701,8 +749,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=gs://beam/tmp'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/tmp")
     self.assertEqual(
@@ -716,8 +763,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -731,8 +777,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://default/bucket")
     self.assertEqual(
@@ -746,16 +791,15 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(len(errors), 2, errors)
-    self.assertIn(
-        'Invalid GCS path (badGSpath), given for the option: temp_location.',
-        errors,
-        errors)
-    self.assertIn(
-        'Invalid GCS path (badGSpath), given for the option: staging_location.',
-        errors,
-        errors)
+    self._check_errors(
+        options,
+        validator,
+        [
+          'Invalid GCS path (badGSpath), given for the option: ' \
+            'temp_location.',
+          'Invalid GCS path (badGSpath), given for the option: ' \
+            'staging_location.'
+        ])
 
 
 if __name__ == '__main__':

@@ -22,7 +22,6 @@ import static org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils.es
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;

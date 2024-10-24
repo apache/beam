@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Assert;
 import org.junit.Before;
@@ -59,7 +60,7 @@ public class DataflowExecutionStateSamplerTest {
   public void testAddTrackerRemoveTrackerActiveMessageMetadataGetsUpdated() {
     String workId = "work-item-id1";
     ActiveMessageMetadata testMetadata =
-        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), Stopwatch.createStarted());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
 
@@ -76,7 +77,7 @@ public class DataflowExecutionStateSamplerTest {
     Map<String, IntSummaryStatistics> testCompletedProcessingTimes = new HashMap<>();
     testCompletedProcessingTimes.put("some-step", new IntSummaryStatistics());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
-    when(trackerMock.getProcessingTimesByStep()).thenReturn(testCompletedProcessingTimes);
+    when(trackerMock.getProcessingTimesByStepCopy()).thenReturn(testCompletedProcessingTimes);
 
     sampler.addTracker(trackerMock);
     sampler.removeTracker(trackerMock);
@@ -95,14 +96,17 @@ public class DataflowExecutionStateSamplerTest {
     testSummaryStats.accept(5);
     testCompletedProcessingTimes.put("some-step", testSummaryStats);
     ActiveMessageMetadata testMetadata =
-        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), Stopwatch.createStarted());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
-    when(trackerMock.getProcessingTimesByStep()).thenReturn(testCompletedProcessingTimes);
+    when(trackerMock.getProcessingTimesByStepCopy()).thenReturn(testCompletedProcessingTimes);
 
     sampler.addTracker(trackerMock);
 
     assertThat(sampler.getActiveMessageMetadataForWorkId(workId).get(), equalTo(testMetadata));
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
+    // Repeated calls should not modify the result.
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
   }
@@ -122,13 +126,13 @@ public class DataflowExecutionStateSamplerTest {
         equalTo(tracker1Mock.getActiveMessageMetadata()));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId1),
-        equalTo(tracker1Mock.getProcessingTimesByStep()));
+        equalTo(tracker1Mock.getProcessingTimesByStepCopy()));
     assertThat(
         sampler.getActiveMessageMetadataForWorkId(workId2),
         equalTo(tracker2Mock.getActiveMessageMetadata()));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId2),
-        equalTo(tracker2Mock.getProcessingTimesByStep()));
+        equalTo(tracker2Mock.getProcessingTimesByStepCopy()));
 
     sampler.removeTracker(tracker1Mock);
     sampler.removeTracker(tracker2Mock);
@@ -136,7 +140,7 @@ public class DataflowExecutionStateSamplerTest {
 
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId1),
-        equalTo(tracker1Mock.getProcessingTimesByStep()));
+        equalTo(tracker1Mock.getProcessingTimesByStepCopy()));
     Assert.assertTrue(sampler.getProcessingDistributionsForWorkId(workId2).isEmpty());
   }
 

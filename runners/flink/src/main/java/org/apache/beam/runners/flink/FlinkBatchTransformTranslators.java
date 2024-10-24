@@ -27,10 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.runners.core.Concatenate;
-import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkExplodeWindowsFunction;
@@ -68,6 +64,10 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.CreatePCollectionViewTranslation;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.ReadTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -94,8 +94,6 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.Optimizer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -413,12 +411,15 @@ class FlinkBatchTransformTranslators {
               outputType,
               FlinkIdentityFunction.of(),
               getCurrentTransformName(context));
-      final Configuration partitionOptions = new Configuration();
-      partitionOptions.setString(
-          Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION);
-      context.setOutputDataSet(
-          context.getOutput(transform),
-          retypedDataSet.map(FlinkIdentityFunction.of()).withParameters(partitionOptions));
+      WindowedValue.WindowedValueCoder<KV<K, InputT>> kvWvCoder =
+          (WindowedValue.WindowedValueCoder<KV<K, InputT>>) outputType.getCoder();
+      KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) kvWvCoder.getValueCoder();
+      DataSet<WindowedValue<KV<K, InputT>>> reshuffle =
+          retypedDataSet
+              .groupBy(new KvKeySelector<>(kvCoder.getKeyCoder()))
+              .<WindowedValue<KV<K, InputT>>>reduceGroup((i, c) -> i.forEach(c::collect))
+              .returns(outputType);
+      context.setOutputDataSet(context.getOutput(transform), reshuffle);
     }
   }
 

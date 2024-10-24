@@ -27,11 +27,10 @@ ext.summary = "Library to support upgrading Kafka transforms without upgrading t
 dependencies {
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(":sdks:java:io:kafka")
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation project(path: ":sdks:java:core", configuration: "shadow")
 
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(":runners:core-construction-java")
     implementation project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     permitUnusedDeclared project(":model:pipeline")

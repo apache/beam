@@ -61,6 +61,8 @@ import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -236,6 +238,27 @@ import org.slf4j.LoggerFactory;
  * destination-dependent: every window/pane for every destination will use the same number of shards
  * specified via {@link Write#withNumShards} or {@link Write#withSharding}.
  *
+ * <h3>Handling Errors</h3>
+ *
+ * <p>When using dynamic destinations, or when using a formatting function to format a record for
+ * writing, it's possible for an individual record to be malformed, causing an exception. By
+ * default, these exceptions are propagated to the runner causing the bundle to fail. These are
+ * usually retried, though this depends on the runner. Alternately, these errors can be routed to
+ * another {@link PTransform} by using {@link Write#withBadRecordErrorHandler(ErrorHandler)}. The
+ * ErrorHandler is registered with the pipeline (see below). See {@link ErrorHandler} for more
+ * documentation. Of note, this error handling only handles errors related to specific records. It
+ * does not handle errors related to connectivity, authorization, etc. as those should be retried by
+ * the runner.
+ *
+ * <pre>{@code
+ * PCollection<> records = ...;
+ * PTransform<PCollection<BadRecord>,?> alternateSink = ...;
+ * try (BadRecordErrorHandler<?> handler = pipeline.registerBadRecordErrorHandler(alternateSink) {
+ *    records.apply("Write", FileIO.writeDynamic().otherConfigs()
+ *        .withBadRecordErrorHandler(handler));
+ * }
+ * }</pre>
+ *
  * <h3>Writing custom types to sinks</h3>
  *
  * <p>Normally, when writing a collection of a custom type using a {@link Sink} that takes a
@@ -370,6 +393,7 @@ public class FileIO {
         .setDynamic(false)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setAutoSharding(false)
         .setNoSpilling(false)
         .build();
   }
@@ -383,6 +407,7 @@ public class FileIO {
         .setDynamic(true)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setAutoSharding(false)
         .setNoSpilling(false)
         .build();
   }
@@ -1014,7 +1039,11 @@ public class FileIO {
 
     abstract boolean getIgnoreWindowing();
 
+    abstract boolean getAutoSharding();
+
     abstract boolean getNoSpilling();
+
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<DestinationT, UserT> toBuilder();
 
@@ -1060,7 +1089,12 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
 
+      abstract Builder<DestinationT, UserT> setAutoSharding(boolean autosharding);
+
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1283,9 +1317,25 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    public Write<DestinationT, UserT> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public Write<DestinationT, UserT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
+    }
+
+    /**
+     * Configures a new {@link Write} with an ErrorHandler. For configuring an ErrorHandler, see
+     * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination
+     * is performed, and that operation fails, the exception is passed to the error handler. This is
+     * intended to handle any errors related to the data of a record, but not any connectivity or IO
+     * errors related to the literal writing of a record.
+     */
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     @VisibleForTesting
@@ -1372,6 +1422,7 @@ public class FileIO {
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
+      resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
@@ -1388,8 +1439,14 @@ public class FileIO {
       if (!getIgnoreWindowing()) {
         writeFiles = writeFiles.withWindowedWrites();
       }
+      if (getAutoSharding()) {
+        writeFiles = writeFiles.withAutoSharding();
+      }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getBadRecordErrorHandler() != null) {
+        writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply(writeFiles);
     }

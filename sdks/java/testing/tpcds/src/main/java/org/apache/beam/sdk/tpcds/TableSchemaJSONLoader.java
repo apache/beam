@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.ClassPath;
 import org.json.simple.JSONArray;
@@ -47,7 +49,7 @@ public class TableSchemaJSONLoader {
   @SuppressWarnings({"rawtypes", "DefaultCharset"})
   public static String parseTableSchema(String tableName) throws Exception {
     String path = "schemas/" + tableName + ".json";
-    String schema = Resources.toString(Resources.getResource(path), Charsets.UTF_8);
+    String schema = Resources.toString(Resources.getResource(path), StandardCharsets.UTF_8);
 
     JSONObject jsonObject = (JSONObject) new JSONParser().parse(schema);
     JSONArray jsonArray = (JSONArray) jsonObject.get("schema");
@@ -59,16 +61,16 @@ public class TableSchemaJSONLoader {
     StringBuilder schemaStringBuilder = new StringBuilder();
 
     Iterator jsonArrIterator = jsonArray.iterator();
-    Iterator recordIterator;
     while (jsonArrIterator.hasNext()) {
-      recordIterator = ((Map) jsonArrIterator.next()).entrySet().iterator();
+      Map jsonMap = checkArgumentNotNull((Map) jsonArrIterator.next());
+      Iterator recordIterator = jsonMap.entrySet().iterator();
       while (recordIterator.hasNext()) {
-        Map.Entry pair = (Map.Entry) recordIterator.next();
-
-        if (pair.getKey().equals("type")) {
+        Map.Entry pair = checkArgumentNotNull((Map.Entry) recordIterator.next());
+        Object key = checkArgumentNotNull(pair.getKey());
+        if (key.equals("type")) {
           // If the key of the pair is "type", make some modification before appending it to the
           // schemaStringBuilder, then append a comma.
-          String typeName = (String) pair.getValue();
+          String typeName = checkArgumentNotNull((String) pair.getValue());
           if (typeName.equalsIgnoreCase("identifier") || typeName.equalsIgnoreCase("integer")) {
             // Use long type to represent int, prevent overflow
             schemaStringBuilder.append("bigint");

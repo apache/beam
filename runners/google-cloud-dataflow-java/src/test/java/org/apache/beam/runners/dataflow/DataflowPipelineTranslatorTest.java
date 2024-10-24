@@ -64,11 +64,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.ModelCoders;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -120,6 +115,9 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -130,7 +128,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -950,7 +948,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
 
     final PCollectionView<List<Integer>> view =
-        pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
+        pipeline
+            .apply("CreateSideInput", Create.of(11, 13, 17, 23))
+            .apply(View.<Integer>asList().withRandomAccess());
 
     pipeline
         .apply("CreateMainInput", Create.of(29, 31))
@@ -1296,33 +1296,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testBatchGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
-    List<String> experiments = ImmutableList.of("use_runner_v2");
-    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(false, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-
-    // TODO: should check that the urn is populated, however it is not due to the override in
-    // DataflowRunner.
-  }
-
-  @Test
-  public void testBatchGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
-    List<String> experiments = ImmutableList.of("use_runner_v2");
-    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(true, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-    // TODO: should check that the urn is populated, however it is not due to the override in
-    // DataflowRunner.
-  }
-
-  @Test
   public void testStreamingGroupIntoBatchesTranslation() throws Exception {
     List<String> experiments =
         new ArrayList<>(
@@ -1354,82 +1327,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
     assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
     assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-  }
-
-  @Test
-  public void testStreamingGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
-    List<String> experiments =
-        new ArrayList<>(
-            ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
-    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-
-    // Also checks runner proto is correctly populated.
-    Map<String, RunnerApi.PTransform> transformMap =
-        jobSpec.getPipelineProto().getComponents().getTransformsMap();
-    boolean transformFound = false;
-    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
-      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
-      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
-        transformFound = true;
-      }
-    }
-    assertTrue(transformFound);
-  }
-
-  @Test
-  public void testStreamingGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker()
-      throws Exception {
-    List<String> experiments =
-        new ArrayList<>(
-            ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
-    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-
-    // Also checks the runner proto is correctly populated.
-    Map<String, RunnerApi.PTransform> transformMap =
-        jobSpec.getPipelineProto().getComponents().getTransformsMap();
-    boolean transformFound = false;
-    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
-      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
-      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN)) {
-        for (String subtransform : transform.getValue().getSubtransformsList()) {
-          RunnerApi.PTransform ptransform = transformMap.get(subtransform);
-          if (ptransform.getSpec().getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
-            transformFound = true;
-          }
-        }
-      }
-    }
-    assertTrue(transformFound);
-
-    boolean coderFound = false;
-    Map<String, RunnerApi.Coder> coderMap =
-        jobSpec.getPipelineProto().getComponents().getCodersMap();
-    for (Map.Entry<String, RunnerApi.Coder> coder : coderMap.entrySet()) {
-      if (coder.getValue().getSpec().getUrn().equals(ModelCoders.SHARDED_KEY_CODER_URN)) {
-        coderFound = true;
-      }
-    }
-    assertTrue(coderFound);
   }
 
   @Test

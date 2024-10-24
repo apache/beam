@@ -26,11 +26,13 @@ The Direct Runner executes pipelines on your machine and is designed to validate
 * enforcing encodability of elements
 * elements are processed in an arbitrary order at all points
 * serialization of user functions (`DoFn`, `CombineFn`, etc.)
+  <span class="language-java">See [Serializability of DoFns](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html) for details.</span>
 
 Using the Direct Runner for testing and development helps ensure that pipelines are robust across different Beam runners. In addition, debugging failed runs can be a non-trivial task when a pipeline executes on a remote cluster. Instead, it is often faster and simpler to perform local unit testing on your pipeline code. Unit testing your pipeline locally also allows you to use your preferred local debugging tools.
 
 Here are some resources with information about how to test your pipelines.
 <ul>
+  <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
   <!-- Java specific links -->
   <li class="language-java"><a href="/blog/2016/10/20/test-stream.html">Testing Unbounded Pipelines in Apache Beam</a> talks about the use of Java classes <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a> and <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/TestStream.html">TestStream</a> to test your pipelines.</li>
   <li class="language-java">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a>.</li>
@@ -120,3 +122,7 @@ In Beam 2.19.0 and newer, you can use the `direct_running_mode` pipeline option 
 {{< paragraph class="language-py" >}}
 <b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess.
 {{< /paragraph >}}
+
+### Before deploying pipeline to remote runner
+
+While testing on the direct runner is convenient, it can still behave differently from remote runners beyond Beam model semantics, especially for runtime environment related issues. In general, it is recommended to test your pipeline on targeted remote runner in small scale before fully deploying into production.

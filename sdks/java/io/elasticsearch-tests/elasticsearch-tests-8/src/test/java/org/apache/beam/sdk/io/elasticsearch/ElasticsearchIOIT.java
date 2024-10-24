@@ -99,6 +99,12 @@ public class ElasticsearchIOIT {
   }
 
   @Test
+  public void testReadPITVolume() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadPIT();
+  }
+
+  @Test
   public void testWriteVolume() throws Exception {
     // cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =

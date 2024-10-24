@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
@@ -29,16 +30,24 @@ import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHandler;
+import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -46,11 +55,17 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTimeUtils.MillisProvider;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Execution context for the Dataflow worker. */
 @SuppressWarnings({
@@ -177,6 +192,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
   /** Dataflow specific {@link StepContext}. */
   public abstract static class DataflowStepContext implements StepContext {
+
     private final NameContext nameContext;
 
     public DataflowStepContext(NameContext nameContext) {
@@ -249,15 +265,37 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
 
+    private final boolean isStreaming;
+
     /**
      * Metadata on the message whose processing is currently being managed by this tracker. If no
      * message is actively being processed, activeMessageMetadata will be null.
      */
-    @Nullable private ActiveMessageMetadata activeMessageMetadata = null;
+    @GuardedBy("this")
+    @Nullable
+    private ActiveMessageMetadata activeMessageMetadata = null;
 
-    private final MillisProvider clock = System::currentTimeMillis;
+    /** Clock used to either provide real system time or mocked to virtualize time for testing. */
+    private final Clock clock;
 
+    @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
+
+    private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
+
+    private static final PeriodFormatter DURATION_FORMATTER =
+        new PeriodFormatterBuilder()
+            .appendDays()
+            .appendSuffix("d")
+            .minimumPrintedDigits(2)
+            .appendHours()
+            .appendSuffix("h")
+            .printZeroAlways()
+            .appendMinutes()
+            .appendSuffix("m")
+            .appendSeconds()
+            .appendSuffix("s")
+            .toFormatter();
 
     public DataflowExecutionStateTracker(
         ExecutionStateSampler sampler,
@@ -265,12 +303,30 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId) {
+      this(sampler, otherState, counterFactory, options, workItemId, Clock.SYSTEM);
+    }
+
+    @VisibleForTesting
+    public DataflowExecutionStateTracker(
+        ExecutionStateSampler sampler,
+        DataflowOperationContext.DataflowExecutionState otherState,
+        CounterFactory counterFactory,
+        PipelineOptions options,
+        String workItemId,
+        Clock clock) {
       super(sampler);
       this.elementExecutionTracker =
           DataflowElementExecutionTracker.create(counterFactory, options);
       this.otherState = otherState;
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
+      this.clock = clock;
+      DataflowWorkerLoggingInitializer.initialize();
+      if (options instanceof DataflowPipelineOptions) {
+        this.isStreaming = ((DataflowPipelineOptions) options).isStreaming();
+      } else {
+        this.isStreaming = false;
+      }
     }
 
     @Override
@@ -295,10 +351,63 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       }
     }
 
+    private String getBundleLullMessage(Thread trackedThread, Duration lullDuration) {
+      StringBuilder message = new StringBuilder();
+      message
+          .append("Operation ongoing in bundle for at least ")
+          .append(DURATION_FORMATTER.print(lullDuration.toPeriod()))
+          .append(" without completing")
+          .append("\n");
+      synchronized (this) {
+        if (this.activeMessageMetadata != null) {
+          message.append(
+              "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
+          message.append(
+              "Time spent in this step(millis): "
+                  + (clock.currentTimeMillis()
+                      - getActiveMessageMetadata().get().stopwatch().elapsed().toMillis())
+                  + "\n");
+        }
+        message.append("Processing times in each step(millis)\n");
+        for (Map.Entry<String, IntSummaryStatistics> entry :
+            this.processingTimesByStep.entrySet()) {
+          message.append("Step name: " + entry.getKey() + "\n");
+          message.append("Time spent in this step: " + entry.getValue().toString() + "\n");
+        }
+      }
+
+      if (trackedThread != null) {
+        message.append(StackTraceUtil.getStackTraceForLullMessage(trackedThread.getStackTrace()));
+      }
+      return message.toString();
+    }
+
     @Override
     protected void takeSampleOnce(long millisSinceLastSample) {
       elementExecutionTracker.takeSample(millisSinceLastSample);
       super.takeSampleOnce(millisSinceLastSample);
+    }
+
+    @Override
+    protected void reportBundleLull(Thread trackedThread, long millisElapsedSinceBundleStart) {
+      // If we're not logging warnings, nothing to report.
+      if (!LOG.isWarnEnabled()) {
+        return;
+      }
+
+      Duration lullDuration = Duration.millis(millisElapsedSinceBundleStart);
+
+      // Since the lull reporting executes in the sampler thread, it won't automatically inherit the
+      // context of the current step. To ensure things are logged correctly, we get the currently
+      // registered DataflowWorkerLoggingHandler and log directly in the desired context.
+      LogRecord logRecord =
+          new LogRecord(Level.WARNING, getBundleLullMessage(trackedThread, lullDuration));
+      logRecord.setLoggerName(DataflowExecutionStateTracker.LOG.getName());
+
+      // Publish directly in the context of this specific ExecutionState.
+      DataflowWorkerLoggingHandler dataflowLoggingHandler =
+          DataflowWorkerLoggingInitializer.getLoggingHandler();
+      dataflowLoggingHandler.publish(logRecord);
     }
 
     /**
@@ -312,19 +421,22 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           newState.isProcessElementState && newState instanceof DataflowExecutionState;
       if (isDataflowProcessElementState) {
         DataflowExecutionState newDFState = (DataflowExecutionState) newState;
-        if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
-          if (this.activeMessageMetadata != null) {
+        if (isStreaming) {
+          if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
             recordActiveMessageInProcessingTimesMap();
+            synchronized (this) {
+              this.activeMessageMetadata =
+                  ActiveMessageMetadata.create(
+                      newDFState.getStepName().userName(), Stopwatch.createStarted());
+            }
           }
-          this.activeMessageMetadata =
-              ActiveMessageMetadata.create(newDFState.getStepName().userName(), clock.getMillis());
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
 
       return () -> {
         if (isDataflowProcessElementState) {
-          if (this.activeMessageMetadata != null) {
+          if (isStreaming) {
             recordActiveMessageInProcessingTimesMap();
           }
           elementExecutionTracker.exit();
@@ -337,12 +449,22 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return this.workItemId;
     }
 
-    public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
+    public synchronized Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
       return Optional.ofNullable(activeMessageMetadata);
     }
 
-    public Map<String, IntSummaryStatistics> getProcessingTimesByStep() {
-      return Collections.unmodifiableMap(processingTimesByStep);
+    public synchronized Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
+      Map<String, IntSummaryStatistics> processingTimesCopy =
+          processingTimesByStep.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      e -> e.getKey(),
+                      e -> {
+                        IntSummaryStatistics clone = new IntSummaryStatistics();
+                        clone.combine(e.getValue());
+                        return clone;
+                      }));
+      return processingTimesCopy;
     }
 
     /**
@@ -350,17 +472,18 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * processing times map. Sets the activeMessageMetadata to null after the entry has been
      * recorded.
      */
-    private void recordActiveMessageInProcessingTimesMap() {
+    private synchronized void recordActiveMessageInProcessingTimesMap() {
       if (this.activeMessageMetadata == null) {
         return;
       }
+      int processingTime = (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {
             if (v == null) {
               v = new IntSummaryStatistics();
             }
-            v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
+            v.accept(processingTime);
             return v;
           });
       this.activeMessageMetadata = null;

@@ -105,7 +105,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Getting Started with Apache Beam Quest
 
-**[Get Started with Apache Beam](https://www.cloudskillsboost.google/quests/310)**  This quest includes four labs that teach you how to write and test Apache Beam pipelines. Three of the labs use Java and one uses Python. Each lab takes about 1.5 hours to complete. When you complete the quest, you're granted a badge that you can use to show your Beam expertise.
+**[Get Started with Apache Beam](https://www.cloudskillsboost.google/course_templates/724)**  This quest includes four labs that teach you how to write and test Apache Beam pipelines. Three of the labs use Java and one uses Python. Each lab takes about 1.5 hours to complete. When you complete the quest, you're granted a badge that you can use to show your Beam expertise.
 
 
 ## Interactive Labs {#interactive-labs}
@@ -151,11 +151,16 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 ## Code Examples {#code-examples}
 
+### Dataflow Cookbook
+
+The [cookbook](https://github.com/GoogleCloudPlatform/dataflow-cookbook) includes examples in Java, Python, and Scala (via Scio), provides ready-to-launch and self-contained Beam pipelines.
+
 ### Java
 
 *   **[Snippets 1](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook)** - Commonly-used data analysis patterns such as how to use [BigQuery](https://cloud.google.com/bigquery), a CombinePerKey transform, remove duplicate lines in files, filtering, joining PCollections, getting the maximum value of a PCollection, etc.
 *   **[Snippets 2](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/common)** - Additional examples on common tasks such as configuring [BigQuery](https://cloud.google.com/bigquery), [PubSub](https://cloud.google.com/pubsub/), writing one file per window, etc.
 *   **[Complete Examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete)** - End-to-end example pipelines such as an auto complete, a streaming word extract, calculating the Term Frequency-Inverse Document Frequency ([TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)), getting the top Wikipedia sessions, traffic max lane flow, traffic routes, etc.
+*   **[Pub/Sub to BigQuery](https://github.com/GoogleCloudPlatform/cloud-code-samples/tree/v1/java/java-dataflow-samples/read-pubsub-write-bigquery)** - A complete example demonstrates using Apache Beam on Dataflow to convert JSON encoded Pub/Sub subscription message strings into structured data and write that data to a BigQuery table.
 
 ### Python
 

@@ -23,6 +23,7 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.csv.CsvIO;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 
@@ -88,8 +90,10 @@ public class CsvWriteTransformProvider
   public abstract static class CsvWriteConfiguration {
 
     public void validate() {
+      checkArgument(!Strings.isNullOrEmpty(getPath()), "Path for a CSV Write must be specified.");
       checkArgument(
-          !Strings.isNullOrEmpty(this.getPath()), "Path for a CSV Write must be specified.");
+          getDelimiter() == null || getDelimiter().length() == 1,
+          "Only single-character delimiters supported, got '" + getDelimiter() + "'");
     }
 
     public static Builder builder() {
@@ -99,11 +103,16 @@ public class CsvWriteTransformProvider
     @SchemaFieldDescription("The file path to write to.")
     public abstract String getPath();
 
+    @SchemaFieldDescription("The field delimiter to use when writing records. Defaults to a comma.")
+    public abstract @Nullable String getDelimiter();
+
     /** Builder for {@link CsvWriteConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
 
       public abstract Builder setPath(String path);
+
+      public abstract Builder setDelimiter(String delimiter);
 
       /** Builds a {@link CsvWriteConfiguration} instance. */
       public abstract CsvWriteConfiguration build();
@@ -122,10 +131,22 @@ public class CsvWriteTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      WriteFilesResult<?> result =
-          input
-              .get(INPUT_ROWS_TAG)
-              .apply(CsvIO.writeRows(configuration.getPath(), CSVFormat.DEFAULT).withSuffix(""));
+      CSVFormat format = CSVFormat.DEFAULT;
+      if (configuration.getDelimiter() != null) {
+        format = format.withDelimiter(configuration.getDelimiter().charAt(0));
+      }
+
+      // Preserve input windowing
+      CsvIO.Write<Row> writeTransform =
+          CsvIO.writeRows(configuration.getPath(), format).withSuffix("");
+      if (!input
+          .get(INPUT_ROWS_TAG)
+          .getWindowingStrategy()
+          .equals(WindowingStrategy.globalDefault())) {
+        writeTransform = writeTransform.withWindowedWrites();
+      }
+
+      WriteFilesResult<?> result = input.get(INPUT_ROWS_TAG).apply(writeTransform);
       Schema outputSchema = Schema.of(Field.of("filename", FieldType.STRING));
       return PCollectionRowTuple.of(
           WRITE_RESULTS,

@@ -22,6 +22,7 @@ import static org.apache.beam.it.common.PipelineLauncher.JobState.FAILED;
 import static org.apache.beam.it.common.PipelineLauncher.JobState.PENDING_STATES;
 import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 import static org.apache.beam.it.common.utils.RetryUtil.clientRetryPolicy;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.Dataflow;
@@ -42,9 +43,9 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.TestProperties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,10 +216,18 @@ public abstract class AbstractPipelineLauncher implements PipelineLauncher {
         // currently, reporting distribution metrics as 4 separate scalar metrics
         @SuppressWarnings("rawtypes")
         ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
-        result.put(metricName + "_COUNT", ((Number) distributionMap.get("count")).doubleValue());
-        result.put(metricName + "_MIN", ((Number) distributionMap.get("min")).doubleValue());
-        result.put(metricName + "_MAX", ((Number) distributionMap.get("max")).doubleValue());
-        result.put(metricName + "_SUM", ((Number) distributionMap.get("sum")).doubleValue());
+        result.put(
+            metricName + "_COUNT",
+            checkStateNotNull(((Number) distributionMap.get("count"))).doubleValue());
+        result.put(
+            metricName + "_MIN",
+            checkStateNotNull(((Number) distributionMap.get("min"))).doubleValue());
+        result.put(
+            metricName + "_MAX",
+            checkStateNotNull(((Number) distributionMap.get("max"))).doubleValue());
+        result.put(
+            metricName + "_SUM",
+            checkStateNotNull(((Number) distributionMap.get("sum"))).doubleValue());
       } else if (metricUpdate.getGauge() != null) {
         LOG.warn("Gauge metric {} cannot be handled.", metricName);
         // not sure how to handle gauge metrics

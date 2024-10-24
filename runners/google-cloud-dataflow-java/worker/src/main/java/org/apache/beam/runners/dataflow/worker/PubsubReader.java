@@ -104,12 +104,20 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new PubsubReaderIterator(context.getWork());
+    return new PubsubReaderIterator(context.getWorkItem());
   }
 
   class PubsubReaderIterator extends WindmillReaderIteratorBase<T> {
     protected PubsubReaderIterator(Windmill.WorkItem work) {
       super(work);
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        return false;
+      }
+      return super.advance();
     }
 
     @Override

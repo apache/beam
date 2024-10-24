@@ -19,16 +19,21 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
+
 import base64
 import bisect
 import collections
 import copy
+import heapq
+import itertools
 import json
 import logging
 import random
 import threading
 from dataclasses import dataclass
 from dataclasses import field
+from itertools import chain
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -50,6 +55,8 @@ from typing import cast
 
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
+from sortedcontainers import SortedDict
+from sortedcontainers import SortedList
 
 import apache_beam as beam
 from apache_beam import coders
@@ -104,7 +111,8 @@ OperationT = TypeVar('OperationT', bound=operations.Operation)
 FnApiUserRuntimeStateTypes = Union['ReadModifyWriteRuntimeState',
                                    'CombiningValueRuntimeState',
                                    'SynchronousSetRuntimeState',
-                                   'SynchronousBagRuntimeState']
+                                   'SynchronousBagRuntimeState',
+                                   'SynchronousOrderedListRuntimeState']
 
 DATA_INPUT_URN = 'beam:runner:source:v1'
 DATA_OUTPUT_URN = 'beam:runner:sink:v1'
@@ -704,6 +712,180 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
       to_await.get()
 
 
+class RangeSet:
+  """For Internal Use only. A simple range set for ranges of [x,y)."""
+  def __init__(self) -> None:
+    # The start points and end points are stored separately in order.
+    self._sorted_starts = SortedList()
+    self._sorted_ends = SortedList()
+
+  def add(self, start: int, end: int) -> None:
+    if start >= end:
+      return
+
+    # ranges[:min_idx] and ranges[max_idx:] is unaffected by this insertion
+    # the first range whose end point >= the start of the new range
+    min_idx = self._sorted_ends.bisect_left(start)
+    # the first range whose start point > the end point of the new range
+    max_idx = self._sorted_starts.bisect_right(end)
+
+    if min_idx >= len(self._sorted_starts) or max_idx <= 0:
+      # the new range is beyond any current ranges
+      new_start = start
+      new_end = end
+    else:
+      # the new range overlaps with ranges[min_idx:max_idx]
+      new_start = min(start, self._sorted_starts[min_idx])
+      new_end = max(end, self._sorted_ends[max_idx - 1])
+
+      del self._sorted_starts[min_idx:max_idx]
+      del self._sorted_ends[min_idx:max_idx]
+
+    self._sorted_starts.add(new_start)
+    self._sorted_ends.add(new_end)
+
+  def __contains__(self, key: int) -> bool:
+    idx = self._sorted_starts.bisect_left(key)
+    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key
+            ) or (idx > 0 and self._sorted_ends[idx - 1] > key)
+
+  def __len__(self) -> int:
+    assert len(self._sorted_starts) == len(self._sorted_ends)
+    return len(self._sorted_starts)
+
+  def __iter__(self) -> Iterator[Tuple[int, int]]:
+    return zip(self._sorted_starts, self._sorted_ends)
+
+  def __str__(self) -> str:
+    return str(list(zip(self._sorted_starts, self._sorted_ends)))
+
+
+class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
+  RANGE_MIN = -(1 << 63)
+  RANGE_MAX = (1 << 63) - 1
+  TIMESTAMP_RANGE_MIN = timestamp.Timestamp(micros=RANGE_MIN)
+  TIMESTAMP_RANGE_MAX = timestamp.Timestamp(micros=RANGE_MAX)
+
+  def __init__(
+      self,
+      state_handler: sdk_worker.CachingStateHandler,
+      state_key: beam_fn_api_pb2.StateKey,
+      value_coder: coders.Coder) -> None:
+    self._state_handler = state_handler
+    self._state_key = state_key
+    self._elem_coder = beam.coders.TupleCoder(
+        [coders.VarIntCoder(), coders.coders.LengthPrefixCoder(value_coder)])
+    self._cleared = False
+    self._pending_adds = SortedDict()
+    self._pending_removes = RangeSet()
+
+  def add(self, elem: Tuple[timestamp.Timestamp, Any]) -> None:
+    assert len(elem) == 2
+    key_ts, value = elem
+    key = key_ts.micros
+
+    if key >= self.RANGE_MAX or key < self.RANGE_MIN:
+      raise ValueError("key value %d is out of range" % key)
+    self._pending_adds.setdefault(key, []).append(value)
+
+  def read(self) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
+    return self.read_range(self.TIMESTAMP_RANGE_MIN, self.TIMESTAMP_RANGE_MAX)
+
+  def read_range(
+      self,
+      min_timestamp: timestamp.Timestamp,
+      limit_timestamp: timestamp.Timestamp
+  ) -> Iterable[Tuple[timestamp.Timestamp, Any]]:
+    # convert timestamp to int, as sort keys are stored as int internally.
+    min_key = min_timestamp.micros
+    limit_key = limit_timestamp.micros
+
+    keys_to_add = self._pending_adds.irange(
+        min_key, limit_key, inclusive=(True, False))
+
+    # use list interpretation here to construct the actual list
+    # of iterators of the selected range.
+    local_items = chain.from_iterable([
+        itertools.islice(
+            zip(itertools.cycle([
+                k,
+            ]), self._pending_adds[k]),
+            len(self._pending_adds[k])) for k in keys_to_add
+    ])
+
+    if not self._cleared:
+      range_query_state_key = beam_fn_api_pb2.StateKey()
+      range_query_state_key.CopyFrom(self._state_key)
+      range_query_state_key.ordered_list_user_state.range.start = min_key
+      range_query_state_key.ordered_list_user_state.range.end = limit_key
+
+      # make a deep copy here because there could be other operations occur in
+      # the middle of an iteration and change pending_removes
+      pending_removes_snapshot = copy.deepcopy(self._pending_removes)
+      persistent_items = filter(
+          lambda kv: kv[0] not in pending_removes_snapshot,
+          _StateBackedIterable(
+              self._state_handler, range_query_state_key, self._elem_coder))
+
+      return map(
+          lambda x: (timestamp.Timestamp(micros=x[0]), x[1]),
+          heapq.merge(persistent_items, local_items))
+
+    return map(lambda x: (timestamp.Timestamp(micros=x[0]), x[1]), local_items)
+
+  def clear(self) -> None:
+    self._cleared = True
+    self._pending_adds = SortedDict()
+    self._pending_removes = RangeSet()
+    self._pending_removes.add(self.RANGE_MIN, self.RANGE_MAX)
+
+  def clear_range(
+      self,
+      min_timestamp: timestamp.Timestamp,
+      limit_timestamp: timestamp.Timestamp) -> None:
+    min_key = min_timestamp.micros
+    limit_key = limit_timestamp.micros
+
+    # materialize the keys to remove before the actual removal
+    keys_to_remove = list(
+        self._pending_adds.irange(min_key, limit_key, inclusive=(True, False)))
+    for k in keys_to_remove:
+      del self._pending_adds[k]
+
+    if not self._cleared:
+      self._pending_removes.add(min_key, limit_key)
+
+  def commit(self) -> None:
+    futures = []
+    if self._pending_removes:
+      for start, end in self._pending_removes:
+        range_query_state_key = beam_fn_api_pb2.StateKey()
+        range_query_state_key.CopyFrom(self._state_key)
+        range_query_state_key.ordered_list_user_state.range.start = start
+        range_query_state_key.ordered_list_user_state.range.end = end
+        futures.append(self._state_handler.clear(range_query_state_key))
+
+      self._pending_removes = RangeSet()
+
+    if self._pending_adds:
+      items_to_add = []
+      for k in self._pending_adds:
+        items_to_add.extend(zip(itertools.cycle([
+            k,
+        ]), self._pending_adds[k]))
+      futures.append(
+          self._state_handler.extend(
+              self._state_key, self._elem_coder.get_impl(), items_to_add))
+      self._pending_adds = SortedDict()
+
+    if len(futures):
+      # To commit, we need to wait on every state request futures to complete.
+      for to_await in futures:
+        to_await.get()
+
+    self._cleared = False
+
+
 class OutputTimer(userstate.BaseTimer):
   def __init__(self,
                key,
@@ -850,6 +1032,17 @@ class FnApiUserStateContext(userstate.UserStateContext):
                   # State keys are expected in nested encoding format
                   key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
+    elif isinstance(state_spec, userstate.OrderedListStateSpec):
+      return SynchronousOrderedListRuntimeState(
+          self._state_handler,
+          state_key=beam_fn_api_pb2.StateKey(
+              ordered_list_user_state=beam_fn_api_pb2.StateKey.
+              OrderedListUserState(
+                  transform_id=self._transform_id,
+                  user_state_id=state_spec.name,
+                  window=self._window_coder.encode(window),
+                  key=self._key_coder.encode_nested(key))),
+          value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)
 
@@ -944,6 +1137,8 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
+    # Represents whether the SDK is consuming received data.
+    self.consuming_received_data = False
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
@@ -1098,9 +1293,13 @@ class BundleProcessor(object):
           self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
+      # We are currently not consuming received data.
+      self.consuming_received_data = False
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
+          # Since we have received a set of elements and are consuming it.
+          self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
@@ -1112,6 +1311,8 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
+          # We are done consuming the set of elements.
+          self.consuming_received_data = False
 
       # Finish all operations.
       for op in self.ops.values():
@@ -1130,6 +1331,7 @@ class BundleProcessor(object):
               self.requires_finalization())
 
     finally:
+      self.consuming_received_data = False
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         self.current_instruction_id = None

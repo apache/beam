@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,9 +46,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
@@ -58,6 +55,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -74,6 +72,23 @@ import org.slf4j.LoggerFactory;
 class JdbcUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  static final Map<String, String> JDBC_DRIVER_MAP =
+      new HashMap<>(
+          ImmutableMap.of(
+              "mysql",
+              "com.mysql.cj.jdbc.Driver",
+              "postgres",
+              "org.postgresql.Driver",
+              "oracle",
+              "oracle.jdbc.driver.OracleDriver",
+              "mssql",
+              "com.microsoft.sqlserver.jdbc.SQLServerDriver"));
+
+  @VisibleForTesting
+  static void registerJdbcDriver(Map<String, String> jdbcType) {
+    JDBC_DRIVER_MAP.putAll(jdbcType);
+  }
 
   /** Utility method to save jar files locally in the worker. */
   static URL[] saveFilesLocally(String driverJars) {
@@ -419,50 +434,30 @@ class JdbcUtil {
     return calendar;
   }
 
-  /**
-   * A helper for {@link ReadWithPartitions} that handles range calculations.
-   *
-   * @param <PartitionT>
-   */
-  interface JdbcReadWithPartitionsHelper<PartitionT>
-      extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
-          RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
-    static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(
-        TypeDescriptor<T> type) {
-      // This cast is unchecked, thus this is a small type-checking risk. We just need
-      // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
-      // in type from their Key and their Value.
-      return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
-    }
-
-    Iterable<KV<PartitionT, PartitionT>> calculateRanges(
-        PartitionT lowerBound, PartitionT upperBound, Long partitions);
-
-    @Override
-    void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
-
-    @Override
-    KV<Long, KV<PartitionT, PartitionT>> mapRow(ResultSet resultSet) throws Exception;
+  /** @return a {@code JdbcReadPartitionsHelper} instance associated with the given {@param type} */
+  static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
+    // This cast is unchecked, thus this is a small type-checking risk. We just need
+    // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
+    // in type from their Key and their Value.
+    return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
   }
 
   /** Create partitions on a table. */
   static class PartitioningFn<T> extends DoFn<KV<Long, KV<T, T>>, KV<T, T>> {
     private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
-    final TypeDescriptor<T> partitioningColumnType;
+    final JdbcReadWithPartitionsHelper<T> partitionsHelper;
 
-    PartitioningFn(TypeDescriptor<T> partitioningColumnType) {
-      this.partitioningColumnType = partitioningColumnType;
+    PartitioningFn(JdbcReadWithPartitionsHelper<T> partitionsHelper) {
+      this.partitionsHelper = partitionsHelper;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       T lowerBound = c.element().getValue().getKey();
       T upperBound = c.element().getValue().getValue();
-      JdbcReadWithPartitionsHelper<T> helper =
-          checkStateNotNull(
-              JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType));
       List<KV<T, T>> ranges =
-          Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
+          Lists.newArrayList(
+              partitionsHelper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
       LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
       for (KV<T, T> e : ranges) {
         c.output(e);

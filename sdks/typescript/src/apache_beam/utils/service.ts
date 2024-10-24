@@ -26,8 +26,7 @@ const findGitRoot = require("find-git-root");
 
 // TODO: (Typescript) Why can't the var above be used as a namespace?
 import { ChildProcess } from "child_process";
-
-import { version as beamVersion } from "../version";
+import { beamVersion } from "./packageJson";
 
 export interface Service {
   start: () => Promise<string>;
@@ -71,7 +70,7 @@ class SubprocessServiceCache {
       [...this.services.values()].map((service) => {
         service.cached = false;
         return service.stop();
-      })
+      }),
     );
   }
 }
@@ -89,7 +88,7 @@ export class SubprocessService {
   constructor(
     cmd: string,
     args: string[],
-    name: string | undefined = undefined
+    name: string | undefined = undefined,
   ) {
     this.cmd = cmd;
     this.args = args;
@@ -108,7 +107,7 @@ export class SubprocessService {
 
   static createCache(): SubprocessServiceCache {
     SubprocessService.cache = new SubprocessServiceCache(
-      SubprocessService.cache
+      SubprocessService.cache,
     );
     return this.cache!;
   }
@@ -129,19 +128,19 @@ export class SubprocessService {
     const port = (await SubprocessService.freePort()).toString();
     console.debug(
       this.cmd,
-      this.args.map((arg) => arg.replace("{{PORT}}", port))
+      this.args.map((arg) => arg.replace("{{PORT}}", port)),
     );
     this.process = childProcess.spawn(
       this.cmd,
       this.args.map((arg) => arg.replace("{{PORT}}", port)),
       {
         stdio: "inherit",
-      }
+      },
     );
 
     try {
       console.debug(
-        `Waiting for ${this.name} to be available on port ${port}.`
+        `Waiting for ${this.name} to be available on port ${port}.`,
       );
       await this.portReady(port, host, 10000);
       console.debug(`Service ${this.name} available.`);
@@ -195,7 +194,7 @@ export class SubprocessService {
     }
     if (!connected) {
       throw new Error(
-        "Timed out waiting for service after " + timeoutMs + "ms."
+        "Timed out waiting for service after " + timeoutMs + "ms.",
       );
     }
   }
@@ -203,7 +202,7 @@ export class SubprocessService {
 
 export function serviceProviderFromJavaGradleTarget(
   gradleTarget: string,
-  args: string[] | undefined = undefined
+  args: string[] | undefined = undefined,
 ): () => Promise<Service> {
   return async () => {
     let jar: string;
@@ -216,7 +215,7 @@ export function serviceProviderFromJavaGradleTarget(
       }
     } else {
       jar = await JavaJarService.cachedJar(
-        await JavaJarService.gradleToJar(gradleTarget)
+        await JavaJarService.gradleToJar(gradleTarget),
       );
     }
 
@@ -234,7 +233,7 @@ export class JavaJarService extends SubprocessService {
   constructor(
     jar: string,
     args: string[] | undefined = undefined,
-    name: string | undefined = undefined
+    name: string | undefined = undefined,
   ) {
     if (!args) {
       // TODO: (Extension) Should filesToStage be set at some higher level?
@@ -245,13 +244,13 @@ export class JavaJarService extends SubprocessService {
 
   static async cachedJar(
     urlOrPath: string,
-    cacheDir: string = JavaJarService.JAR_CACHE
+    cacheDir: string = JavaJarService.JAR_CACHE,
   ): Promise<string> {
     if (urlOrPath.match(/^https?:\/\//)) {
       fs.mkdirSync(cacheDir, { recursive: true });
       const dest = path.join(
         JavaJarService.JAR_CACHE,
-        path.basename(urlOrPath)
+        path.basename(urlOrPath),
       );
       if (fs.existsSync(dest)) {
         return dest;
@@ -264,7 +263,7 @@ export class JavaJarService extends SubprocessService {
         const request = https.get(urlOrPath, function (response) {
           if (response.statusCode !== 200) {
             reject(
-              `Error code ${response.statusCode} when downloading ${urlOrPath}`
+              `Error code ${response.statusCode} when downloading ${urlOrPath}`,
             );
           }
           response.pipe(fout);
@@ -284,7 +283,7 @@ export class JavaJarService extends SubprocessService {
   static async gradleToJar(
     gradleTarget: string,
     appendix: string | undefined = undefined,
-    version: string = beamVersion
+    version: string = beamVersion,
   ): Promise<string> {
     if (version.startsWith("0.")) {
       // node-ts 0.x corresponds to Beam 2.x.
@@ -304,8 +303,8 @@ export class JavaJarService extends SubprocessService {
             artifactId,
             version.replace("-SNAPSHOT", ""),
             "SNAPSHOT",
-            appendix
-          )
+            appendix,
+          ),
         );
 
     if (version.includes("SNAPSHOT") && !projectRoot) {
@@ -318,14 +317,14 @@ export class JavaJarService extends SubprocessService {
     } else if (version.includes("SNAPSHOT")) {
       throw new Error(
         `${localPath} not found. Please build the server with
-      cd ${projectRoot}; ./gradlew ${gradleTarget})`
+      cd ${projectRoot}; ./gradlew ${gradleTarget})`,
       );
     } else {
       return JavaJarService.mavenJarUrl(
         artifactId,
         version,
         undefined,
-        appendix
+        appendix,
       );
     }
   }
@@ -336,7 +335,7 @@ export class JavaJarService extends SubprocessService {
     classifier: string | undefined = undefined,
     appendix: string | undefined = undefined,
     repo: string = JavaJarService.APACHE_REPOSITORY,
-    groupId: string = JavaJarService.BEAM_GROUP_ID
+    groupId: string = JavaJarService.BEAM_GROUP_ID,
   ): Promise<string> {
     if (version == "latest") {
       const medatadataUrl = [
@@ -374,7 +373,7 @@ export class JavaJarService extends SubprocessService {
     artifactId: string,
     version: string,
     classifier: string | undefined,
-    appendix: string | undefined
+    appendix: string | undefined,
   ): string {
     return (
       [artifactId, appendix, version, classifier]
@@ -408,13 +407,13 @@ export class PythonService extends SubprocessService {
       "..",
       "..",
       "resources",
-      "bootstrap_beam_venv.py"
+      "bootstrap_beam_venv.py",
     );
     console.debug("Invoking Python bootstrap script.");
     const result = childProcess.spawnSync(
       PythonService.whichPython(),
       [bootstrapScript],
-      { encoding: "latin1" }
+      { encoding: "latin1" },
     );
     if (result.status === 0) {
       console.debug(result.stdout);
@@ -446,7 +445,7 @@ export class PythonService extends SubprocessService {
   private constructor(
     pythonExecutablePath: string,
     module: string,
-    args: string[] = []
+    args: string[] = [],
   ) {
     super(pythonExecutablePath, ["-u", "-m", module].concat(args), module);
   }
@@ -482,7 +481,7 @@ function getBeamProjectRoot(): string | undefined {
     const projectRoot = path.dirname(findGitRoot(__dirname));
     if (
       fs.existsSync(
-        path.join(projectRoot, "sdks", "typescript", "src", "apache_beam")
+        path.join(projectRoot, "sdks", "typescript", "src", "apache_beam"),
       )
     ) {
       return projectRoot;

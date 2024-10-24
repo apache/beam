@@ -28,7 +28,7 @@ import { JavaJarService } from "../utils/service";
 const MAGIC_HOST_NAMES = ["[local]", "[auto]"];
 
 // These should stay in sync with gradle.properties.
-const PUBLISHED_FLINK_VERSIONS = ["1.12", "1.13", "1.14"];
+const PUBLISHED_FLINK_VERSIONS = ["1.17", "1.18", "1.19"];
 
 const defaultOptions = {
   flinkMaster: "[local]",
@@ -39,7 +39,7 @@ export function flinkRunner(runnerOptions: Object = {}): Runner {
   return new (class extends Runner {
     async runPipeline(
       pipeline: Pipeline,
-      options: Object = {}
+      options: Object = {},
     ): Promise<PipelineResult> {
       const allOptions = {
         ...defaultOptions,
@@ -54,7 +54,7 @@ export function flinkRunner(runnerOptions: Object = {}): Runner {
       }
       if (!allOptions.artifactsDir) {
         allOptions.artifactsDir = fs.mkdtempSync(
-          path.join(os.tmpdir(), "flinkArtifactsDir")
+          path.join(os.tmpdir(), "flinkArtifactsDir"),
         );
       }
 
@@ -62,8 +62,8 @@ export function flinkRunner(runnerOptions: Object = {}): Runner {
         allOptions.flinkJobServerJar ||
         (await JavaJarService.cachedJar(
           await JavaJarService.gradleToJar(
-            `runners:flink:${allOptions.flinkVersion}:job-server:shadowJar`
-          )
+            `runners:flink:${allOptions.flinkVersion}:job-server:shadowJar`,
+          ),
         ));
       const jobServer = new JavaJarService(jobServerJar, [
         "--flink-master",

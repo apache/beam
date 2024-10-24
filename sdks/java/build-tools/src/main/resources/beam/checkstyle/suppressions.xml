@@ -62,8 +62,8 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*DummyRateLimitPolicy\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV14\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV14Test\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV17\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV17Test\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakeBatchTransactionId\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
@@ -86,9 +86,11 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*Base\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*Client\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*LT\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ST\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ResourceManagerTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*mockapis.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*requestresponse.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*webapis.*" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->

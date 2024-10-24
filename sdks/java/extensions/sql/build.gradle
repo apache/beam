@@ -240,6 +240,17 @@ task integrationTest(type: Test) {
   useJUnit { }
 }
 
+task preCommit {
+  dependsOn build
+  dependsOn runBasicExample
+  dependsOn runPojoExample
+
+  if (project.hasProperty("testJavaVersion")) {
+    var testVer = project.property("testJavaVersion")
+    dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
+  }
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests"

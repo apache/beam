@@ -16,13 +16,28 @@
 #
 
 import argparse
+import io
+import itertools
 import re
 
 import yaml
 
 from apache_beam.portability.api import schema_pb2
 from apache_beam.utils import subprocess_server
+from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
+
+
+def _singular(name):
+  # Simply removing an 's' (or 'es', or 'ies', ...) may result in surprising
+  # manglings. Better to play it safe and leave a correctly-spelled plural
+  # than a botched singular in our examples configs.
+  return {
+      'args': 'arg',
+      'attributes': 'attribute',
+      'elements': 'element',
+      'fields': 'field',
+  }.get(name, name)
 
 
 def _fake_value(name, beam_type):
@@ -35,9 +50,17 @@ def _fake_value(name, beam_type):
     else:
       return name
   elif type_info == "array_type":
-    return [_fake_value(name, beam_type.array_type.element_type), '...']
+    return [
+        _fake_value(_singular(name), beam_type.array_type.element_type),
+        _fake_value(_singular(name), beam_type.array_type.element_type),
+        '...'
+    ]
   elif type_info == "iterable_type":
-    return [_fake_value(name, beam_type.iterable_type.element_type), '...']
+    return [
+        _fake_value(_singular(name), beam_type.iterable_type.element_type),
+        _fake_value(_singular(name), beam_type.iterable_type.element_type),
+        '...'
+    ]
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type == schema_pb2.STRING:
       return {
@@ -64,8 +87,8 @@ def _fake_row(schema):
   return {f.name: _fake_value(f.name, f.type) for f in schema.fields}
 
 
-def pretty_example(provider, t):
-  spec = {'type': t}
+def pretty_example(provider, t, base_t=None):
+  spec = {'type': base_t or t}
   try:
     requires_inputs = provider.requires_inputs(t, {})
   except Exception:
@@ -116,7 +139,7 @@ def config_docs(schema):
       yield ''.join([
           f'**{f.name}** `{pretty_type(f.type)}`',
           maybe_optional(f.type),
-          ': ' + f.description if f.description else '',
+          indent(': ' + f.description if f.description else '', 2),
           maybe_row_parameters(f.type),
       ])
 
@@ -148,40 +171,175 @@ SKIP = [
 ]
 
 
-def transform_docs(t, providers):
+def transform_docs(transform_base, transforms, providers, extra_docs=''):
   return '\n'.join([
-      f'## {t}',
+      f'## {transform_base}',
       '',
-      longest(lambda p: p.description(t), providers),
+      longest(
+          lambda t: longest(lambda p: p.description(t), providers[t]),
+          transforms).replace('::\n', '\n\n    :::yaml\n'),
+      '',
+      extra_docs,
       '',
       '### Configuration',
       '',
-      longest(lambda p: config_docs(p.config_schema(t)), providers),
+      longest(
+          lambda t: longest(
+              lambda p: config_docs(p.config_schema(t)), providers[t]),
+          transforms),
       '',
       '### Usage',
       '',
-      indent(longest(lambda p: pretty_example(p, t), providers), 4),
+      '    :::yaml',
+      '',
+      indent(
+          longest(
+              lambda t: longest(
+                  lambda p: pretty_example(p, t, transform_base), providers[t]),
+              transforms),
+          4),
   ])
 
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('output_file')
+  parser.add_argument('--markdown_file')
+  parser.add_argument('--html_file')
+  parser.add_argument('--schema_file')
   parser.add_argument('--include', default='.*')
-  parser.add_argument(
-      '--exclude', default='(Combine)|(Filter)|(MapToFields)-.*')
+  parser.add_argument('--exclude', default='')
   options = parser.parse_args()
   include = re.compile(options.include).match
-  exclude = re.compile(options.exclude).match
+  exclude = (
+      re.compile(options.exclude).match if options.exclude else lambda _: False)
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
-    with open(options.output_file, 'w') as fout:
-      providers = yaml_provider.standard_providers()
-      for transform in sorted(providers.keys(), key=io_grouping_key):
-        if include(transform) and not exclude(transform):
-          print(transform)
-          fout.write(transform_docs(transform, providers[transform]))
-          fout.write('\n\n')
+    json_config_schemas = []
+    markdown_out = io.StringIO()
+    providers = yaml_provider.standard_providers()
+    for transform_base, transforms in itertools.groupby(
+        sorted(providers.keys(), key=io_grouping_key),
+        key=lambda s: s.split('-')[0]):
+      transforms = list(transforms)
+      if include(transform_base) and not exclude(transform_base):
+        print(transform_base)
+        if options.markdown_file or options.html_file:
+          if '-' in transforms[0]:
+            extra_docs = 'Supported languages: ' + ', '.join(
+                t.split('-')[-1] for t in sorted(transforms))
+          else:
+            extra_docs = ''
+          markdown_out.write(
+              transform_docs(transform_base, transforms, providers, extra_docs))
+          markdown_out.write('\n\n')
+        if options.schema_file:
+          for transform in transforms:
+            schema = providers[transform][0].config_schema(transform)
+            if schema:
+              json_config_schemas.append({
+                  'if': {
+                      'properties': {
+                          'type': {
+                              'const': transform
+                          }
+                      }
+                  },
+                  'then': {
+                      'properties': {
+                          'config': {
+                              'type': 'object',
+                              'properties': {
+                                  '__line__': {
+                                      'type': 'integer'
+                                  },
+                                  '__uuid__': {},
+                                  **{
+                                      f.name:  #
+                                      json_utils.beam_type_to_json_type(f.type)
+                                      for f in schema.fields
+                                  }
+                              },
+                              'additionalProperties': False,
+                          }
+                      }
+                  }
+              })
+
+    if options.schema_file:
+      with open(options.schema_file, 'w') as fout:
+        yaml.dump(json_config_schemas, fout, sort_keys=False)
+
+    if options.markdown_file:
+      with open(options.markdown_file, 'w') as fout:
+        fout.write(markdown_out.getvalue())
+
+    if options.html_file:
+      import markdown
+      import markdown.extensions.toc
+      import pygments.formatters
+
+      title = 'Beam YAML Transform Index'
+      md = markdown.Markdown(
+          extensions=[
+              markdown.extensions.toc.TocExtension(toc_depth=2),
+              'codehilite',
+          ])
+      html = md.convert(markdown_out.getvalue())
+      pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
+          '.codehilite')
+      extra_style = '''
+          .nav {
+            height: 100%;
+            width: 12em;
+            position: fixed;
+            top: 0;
+            left: 0;
+            overflow-x: hidden;
+          }
+          .nav a {
+            color: #333;
+            padding: .2em;
+            display: block;
+            text-decoration: none;
+          }
+          .nav a:hover {
+            color: #888;
+          }
+          .nav li {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+          }
+          .content {
+            margin-left: 12em;
+          }
+          h2 {
+            margin-top: 2em;
+          }
+          '''
+
+      with open(options.html_file, 'w') as fout:
+        fout.write(
+            f'''
+            <html>
+              <head>
+                <title>{title}</title>
+                <style>
+                {pygments_style}
+                {extra_style}
+                </style>
+              </head>
+              <body>
+                <div class="nav">
+                  {md.toc}
+                </div>
+                <div class="content">
+                  <h1>{title}</h1>
+                  {html}
+                </div>
+              </body>
+            </html>
+            ''')
 
 
 if __name__ == '__main__':

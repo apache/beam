@@ -35,10 +35,11 @@ avro {
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 
+// additional avro version (other than library.java.avro) to be tested
 def avroVersions = [
+    '182' : "1.8.2",
     '192' : "1.9.2",
     '1102': "1.10.2",
-    '1111': "1.11.1",
 ]
 
 avroVersions.each { k, v ->
@@ -72,6 +73,7 @@ dependencies {
   }
   testImplementation library.java.avro_tests
   testImplementation library.java.junit
+  testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
@@ -84,6 +86,7 @@ dependencies {
     "avroVersion$k" library.java.slf4j_jdk14
     "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
+    "avroVersion$k" "org.apache.avro:avro:$v:tests"
     "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
 }
@@ -100,9 +103,9 @@ avroVersions.each { k, v ->
       }
 
       // only use compileClasspath on purpose to not include generated test files
-      // will recompile with the propper generated sources
-      compileClasspath += configurations."avroVersion$k"
-      runtimeClasspath += configurations."avroVersion$k"
+      // will recompile with the proper generated sources
+      compileClasspath += sourceSets.main.output + configurations."avroVersion$k"
+      runtimeClasspath += sourceSets.main.output + configurations."avroVersion$k"
     }
   }
 
@@ -125,6 +128,7 @@ avroVersions.each { k, v ->
     description = "Runs Avro extension tests with Avro version $v"
     outputs.upToDateWhen { false }
     classpath = sourceSets."avro$k".runtimeClasspath
+    systemProperty "beam.target.avro.version", v
 
     include '**/*.class'
     exclude '**/AvroIOTest$NeedsRunnerTests$*.class'

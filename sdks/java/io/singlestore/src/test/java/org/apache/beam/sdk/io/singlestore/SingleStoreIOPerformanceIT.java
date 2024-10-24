@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.singlestore;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.Timestamp;
 import com.singlestore.jdbc.SingleStoreDataSource;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -134,7 +134,7 @@ public class SingleStoreIOPerformanceIT {
       PipelineResult readResult,
       PipelineResult readResultWithPartitions) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     IOITMetrics writeMetrics =
         new IOITMetrics(

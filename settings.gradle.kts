@@ -24,8 +24,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.16"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
+  id("com.gradle.develocity") version "3.17.6"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
 
@@ -35,16 +35,12 @@ val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it)
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
-gradleEnterprise {
+develocity {
   server = "https://ge.apache.org"
-  allowUntrustedServer = false
 
   buildScan {
-    capture { isTaskInputFiles = true }
-    isUploadInBackground = !isCi
-    publishAlways()
-    this as BuildScanExtensionWithHiddenFeatures
-    publishIfAuthenticated()
+    uploadInBackground = !isCi
+    publishing.onlyIf { it.isAuthenticated }
     obfuscation {
       ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
@@ -63,7 +59,7 @@ buildCache {
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
     isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
   }
 }
 
@@ -81,11 +77,13 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
 include(":learning")
 include(":learning:tour-of-beam")
 include(":learning:tour-of-beam:frontend")
+include(":learning:tour-of-beam:terraform")
 include(":model:fn-execution")
 include(":model:job-management")
 include(":model:pipeline")
@@ -115,37 +113,30 @@ include(":it:truthmatchers")
 include(":it:mongodb")
 include(":it:splunk")
 include(":it:neo4j")
-
-include(":learning:tour-of-beam:frontend")
-
-include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
-include(":learning")
-include(":learning:tour-of-beam")
-include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
-// Flink 1.12
-include(":runners:flink:1.12")
-include(":runners:flink:1.12:job-server")
-include(":runners:flink:1.12:job-server-container")
-// Flink 1.13
-include(":runners:flink:1.13")
-include(":runners:flink:1.13:job-server")
-include(":runners:flink:1.13:job-server-container")
-// Flink 1.14
-include(":runners:flink:1.14")
-include(":runners:flink:1.14:job-server")
-include(":runners:flink:1.14:job-server-container")
-// Flink 1.15
-include(":runners:flink:1.15")
-include(":runners:flink:1.15:job-server")
-include(":runners:flink:1.15:job-server-container")
-// Flink 1.16
-include(":runners:flink:1.16")
-include(":runners:flink:1.16:job-server")
-include(":runners:flink:1.16:job-server-container")
+/* When updating these versions, please make sure that the following files are updated as well:
+  * FLINK_VERSIONS in .github/actions/setup-default-test-properties/test-properties.json
+  * flink_versions in sdks/go/examples/wasm/README.md
+  * PUBLISHED_FLINK_VERSIONS in sdks/python/apache_beam/options/pipeline_options.py
+  * PUBLISHED_FLINK_VERSIONS in sdks/typescript/src/apache_beam/runners/flink.ts
+  * verify versions in website/www/site/content/en/documentation/runners/flink.md
+  * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
+ */
+// Flink 1.17
+include(":runners:flink:1.17")
+include(":runners:flink:1.17:job-server")
+include(":runners:flink:1.17:job-server-container")
+// Flink 1.18
+include(":runners:flink:1.18")
+include(":runners:flink:1.18:job-server")
+include(":runners:flink:1.18:job-server-container")
+// Flink 1.19
+include(":runners:flink:1.19")
+include(":runners:flink:1.19:job-server")
+include(":runners:flink:1.19:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -157,6 +148,8 @@ include(":runners:java-job-service")
 include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
+include(":runners:prism")
+include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -189,6 +182,7 @@ include(":sdks:java:extensions:google-cloud-platform-core")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:ml")
+include(":sdks:java:extensions:ordered")
 include(":sdks:java:extensions:protobuf")
 include(":sdks:java:extensions:python")
 include(":sdks:java:extensions:sbe")
@@ -208,7 +202,6 @@ include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")
 include(":sdks:java:extensions:timeseries")
 include(":sdks:java:extensions:zetasketch")
-include(":sdks:java:fn-execution")
 include(":sdks:java:harness")
 include(":sdks:java:harness:jmh")
 include(":sdks:java:io:amazon-web-services")
@@ -223,9 +216,6 @@ include(":sdks:java:io:contextualtextio")
 include(":sdks:java:io:debezium")
 include(":sdks:java:io:debezium:expansion-service")
 include(":sdks:java:io:elasticsearch")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-2")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
@@ -283,6 +273,7 @@ include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
 include(":sdks:java:transform-service")
+include(":sdks:java:transform-service:app")
 include(":sdks:java:transform-service:launcher")
 include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
@@ -293,32 +284,36 @@ include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
+include(":sdks:python:container:py312")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
+include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:direct")
 include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
+include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:xlang")
 include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
+include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:tox:pycommon")
 include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
+include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:bytebuddy-1_12_8")
-include(":vendor:grpc-1_54_0")
+include(":vendor:grpc-1_60_1")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-32_1_2-jre")
 include(":website")
@@ -329,8 +324,6 @@ include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
 include("beam-test-infra-mock-apis")
 project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
-include("beam-test-infra-pipelines")
-project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
@@ -358,3 +351,15 @@ include("sdks:java:io:kafka:kafka-100")
 findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
 include("sdks:java:io:kafka:kafka-01103")
 findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
+include("sdks:java:managed")
+findProject(":sdks:java:managed")?.name = "managed"
+include("sdks:java:io:iceberg")
+findProject(":sdks:java:io:iceberg")?.name = "iceberg"
+include("sdks:java:io:solace")
+findProject(":sdks:java:io:solace")?.name = "solace"
+include("sdks:java:extensions:combiners")
+findProject(":sdks:java:extensions:combiners")?.name = "combiners"
+include("sdks:java:io:iceberg:hive")
+findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:exec")
+findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"

@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import re
+import sys
 import unittest
 import warnings
 from typing import Dict
@@ -29,6 +30,7 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.doctests import teststring
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
@@ -362,6 +364,19 @@ class DeferredFrameTest(_AbstractFrameTest):
         'Speed': [380., 370., 24., 26.]
     })
     self._run_inplace_test(new_column, df)
+
+  def test_tz_with_utc_zone_set_explicitly(self):
+    test = """
+      >>> s = pd.Series(["1/1/2020 10:00:00+00:00", "2/1/2020 11:00:00+03:00"])
+      >>> s = pd.to_datetime(s, utc=True)
+      >>> s
+      0   2020-01-01 10:00:00+00:00
+      1   2020-02-01 08:00:00+00:00
+      dtype: datetime64[ns, UTC]
+      >>> s.dt.tz
+      datetime.timezone.utc
+    """
+    teststring(test)
 
   def test_tz_localize_ambiguous_series(self):
     # This replicates a tz_localize doctest:
@@ -1010,6 +1025,17 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
 
+  def test_dataframe_column_fillna_constant_as_value(self):
+    from apache_beam.dataframe import convert
+    from apache_beam.testing.util import assert_that
+    from apache_beam.testing.util import equal_to
+    with beam.Pipeline(None) as p:
+      pcoll = (
+          p | beam.Create([1.0, np.nan, -1.0]) | beam.Select(x=lambda x: x))
+      df = convert.to_dataframe(pcoll)
+      df_new = df['x'].fillna(0)
+      assert_that(convert.to_pcollection(df_new), equal_to([1.0, 0.0, -1.0]))
+
   @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
@@ -1433,6 +1459,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     s = pd.Series(np.arange(1.0, 5.0), index=index)
     self._run_test(lambda s: s.unstack(level=0), s)
 
+  @unittest.skipIf(
+      sys.version_info >= (3, 12) and PD_VERSION < (2, 3),
+      'https://github.com/pandas-dev/pandas/issues/58604')
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)

@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ve
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -32,10 +33,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -48,12 +54,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataS
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class GrpcGetDataStream
+final class GrpcGetDataStream
     extends AbstractWindmillStream<StreamingGetDataRequest, StreamingGetDataResponse>
     implements GetDataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetDataStream.class);
@@ -64,8 +70,13 @@ public final class GrpcGetDataStream
   private final ThrottleTimer getDataThrottleTimer;
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
+  // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
+  // newer ComputationHeartbeatRequests.
+  private final boolean sendKeyedGetDataRequests;
+  private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -75,18 +86,29 @@ public final class GrpcGetDataStream
       ThrottleTimer getDataThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      boolean sendKeyedGetDataRequests,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
-        startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        "GetDataStream",
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        backendWorkerToken);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
     this.batches = new ConcurrentLinkedDeque<>();
     this.pending = new ConcurrentHashMap<>();
+    this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
+    this.processHeartbeatResponses = processHeartbeatResponses;
   }
 
   public static GrpcGetDataStream create(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -96,9 +118,12 @@ public final class GrpcGetDataStream
       ThrottleTimer getDataThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      boolean sendKeyedGetDataRequests,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
+            backendWorkerToken,
             startGetDataRpcFn,
             backoff,
             streamObserverFactory,
@@ -107,7 +132,9 @@ public final class GrpcGetDataStream
             getDataThrottleTimer,
             jobHeader,
             idGenerator,
-            streamingRpcBatchLimit);
+            streamingRpcBatchLimit,
+            sendKeyedGetDataRequests,
+            processHeartbeatResponses);
     getDataStream.startStream();
     return getDataStream;
   }
@@ -138,6 +165,7 @@ public final class GrpcGetDataStream
     checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
     checkArgument(chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
     getDataThrottleTimer.stop();
+    onHeartbeatResponse(chunk.getComputationHeartbeatResponseList());
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
       AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
@@ -171,30 +199,75 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
-    long builderBytes = 0;
+  public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
+    if (isShutdown()) {
+      throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
+    }
+
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
-    for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
-      for (KeyedGetDataRequest request : entry.getValue()) {
-        // Calculate the bytes with some overhead for proto encoding.
-        long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
-        if (builderBytes > 0
-            && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
-                || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
-          send(builder.build());
-          builderBytes = 0;
-          builder.clear();
+    if (sendKeyedGetDataRequests) {
+      long builderBytes = 0;
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+        for (HeartbeatRequest request : entry.getValue()) {
+          // Calculate the bytes with some overhead for proto encoding.
+          long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
+          if (builderBytes > 0
+              && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
+                  || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
+            send(builder.build());
+            builderBytes = 0;
+            builder.clear();
+          }
+          builderBytes += bytes;
+          builder.addStateRequest(
+              ComputationGetDataRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addRequests(
+                      Windmill.KeyedGetDataRequest.newBuilder()
+                          .setShardingKey(request.getShardingKey())
+                          .setWorkToken(request.getWorkToken())
+                          .setCacheToken(request.getCacheToken())
+                          .addAllLatencyAttribution(request.getLatencyAttributionList())
+                          .build()));
         }
-        builderBytes += bytes;
-        builder.addStateRequest(
-            ComputationGetDataRequest.newBuilder()
-                .setComputationId(entry.getKey())
-                .addRequests(request));
+      }
+
+      if (builderBytes > 0) {
+        send(builder.build());
+      }
+    } else {
+      // No translation necessary, but we must still respect `RPC_STREAM_CHUNK_SIZE`.
+      long builderBytes = 0;
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+        ComputationHeartbeatRequest.Builder computationHeartbeatBuilder =
+            ComputationHeartbeatRequest.newBuilder().setComputationId(entry.getKey());
+        for (HeartbeatRequest request : entry.getValue()) {
+          long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
+          if (builderBytes > 0
+              && builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
+            if (computationHeartbeatBuilder.getHeartbeatRequestsCount() > 0) {
+              builder.addComputationHeartbeatRequest(computationHeartbeatBuilder.build());
+            }
+            send(builder.build());
+            builderBytes = 0;
+            builder.clear();
+            computationHeartbeatBuilder.clear().setComputationId(entry.getKey());
+          }
+          builderBytes += bytes;
+          computationHeartbeatBuilder.addHeartbeatRequests(request);
+        }
+        builder.addComputationHeartbeatRequest(computationHeartbeatBuilder.build());
+      }
+
+      if (builderBytes > 0) {
+        send(builder.build());
       }
     }
-    if (builderBytes > 0) {
-      send(builder.build());
-    }
+  }
+
+  @Override
+  public void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses) {
+    processHeartbeatResponses.accept(responses);
   }
 
   @Override
@@ -277,7 +350,7 @@ public final class GrpcGetDataStream
         waitForSendLatch.await();
       }
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
-      // queue so that a subsequent batch will wait for it's completion.
+      // queue so that a subsequent batch will wait for its completion.
       synchronized (batches) {
         verify(batch == batches.peekFirst());
         batch.markFinalized();

@@ -29,7 +29,7 @@ You may want to customize container images for many reasons, including:
 * Launching third-party software in the worker environment
 * Further customizing the execution environment
 
- This guide describes how to create and use customized containers for the Beam SDK.
+ This guide describes how to create and use customized containers for the Beam SDKs.
 
 ### Prerequisites
 
@@ -111,14 +111,14 @@ This method requires building image artifacts from Beam source. For additional i
   cd $BEAM_WORKDIR
 
   # The default repository of each SDK
-  ./gradlew :sdks:java:container:java8:docker
   ./gradlew :sdks:java:container:java11:docker
   ./gradlew :sdks:java:container:java17:docker
+  ./gradlew :sdks:java:container:java21:docker
   ./gradlew :sdks:go:container:docker
-  ./gradlew :sdks:python:container:py38:docker
   ./gradlew :sdks:python:container:py39:docker
   ./gradlew :sdks:python:container:py310:docker
   ./gradlew :sdks:python:container:py311:docker
+  ./gradlew :sdks:python:container:py312:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container:buildAll
@@ -168,9 +168,9 @@ builds the Python 3.6 container and tags it as `example-repo/beam_python3.6_sdk:
 From Beam 2.21.0 and later, a `docker-pull-licenses` flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:
 
 ```
-./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses
+./gradlew :sdks:java:container:java11:docker -Pdocker-pull-licenses
 ```
-creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_party_licenses/`.
+creates a Java 11 SDK image with appropriate licenses in `/opt/apache/beam/third_party_licenses/`.
 
 By default, no licenses/notices are added to the docker images.
 
@@ -218,6 +218,44 @@ Beam offers a way to provide your own custom container image. The easiest way to
   docker push "${IMAGE_NAME}:${TAG}"
   ```
 
+#### Building a compatible container image from scratch (Go) {#from-scratch-go}
+
+From the 2.55.0 release, the Beam Go SDK has moved to using [distroless images](https://github.com/GoogleContainerTools/distroless) as a base.
+These images have a reduced security attack surface by not including common tools and utilities.
+This may cause difficulties customizing the image with using one of the above approaches.
+As a fallback, it's possible to build a custom image from scratch, by building a matching boot loader, and setting
+that as the container's entry point.
+
+For example, if it's preferable to use alpine as the container OS your multi-stage docker file might
+look like the following:
+
+```
+FROM golang:latest-alpine AS build_base
+
+# Set the Current Working Directory inside the container
+WORKDIR /tmp/beam
+
+# Build the Beam Go bootloader, to the local directory, matching your Beam version.
+# Similar go targets exist for other SDK languages.
+RUN GOBIN=`pwd` go install github.com/apache/beam/sdks/v2/go/container@v2.53.0
+
+# Set the real base image.
+FROM alpine:3.9
+RUN apk add ca-certificates
+
+# The following are required for the container to operate correctly.
+# Copy the boot loader `container` to the image.
+COPY --from=build_base /tmp/beam/container /opt/apache/beam/boot
+
+# Set the container to use the newly built boot loader.
+ENTRYPOINT ["/opt/apache/beam/boot"]
+```
+
+Build and push the new image as when [modifying an existing base image](#modify-existing-base-image) above.
+
+>**NOTE**: Java and Python require additional dependencies, such as their runtimes, and SDK packages for
+> a valid container image. The bootloader isn't sufficient for creating a custom container for these SDKs.
+
 ## Running pipelines with custom container images {#running-pipelines}
 
 The common method for providing a container image requires using the
@@ -228,7 +266,7 @@ Other runners, such as Dataflow, support specifying containers with different fl
 {{< runner direct >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
-export IMAGE_URL = "${IMAGE}:${TAG}"
+export IMAGE_URL="${IMAGE}:${TAG}"
 
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \

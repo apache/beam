@@ -48,7 +48,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Python_Arm]
         job_phrase: [Run Python PostCommit Arm]
-        python_version: ['3.8', '3.9', '3.10', '3.11']
+        python_version: ['3.9', '3.10', '3.11', '3.12']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -110,14 +110,13 @@ jobs:
             -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
             -Ppush-containers \
         env:
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python Test Results
+          name: Python ${{ matrix.python_version }} Test Results
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2

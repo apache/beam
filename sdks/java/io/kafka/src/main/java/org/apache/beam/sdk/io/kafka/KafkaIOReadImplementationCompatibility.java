@@ -25,8 +25,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Objects;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
@@ -35,7 +33,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link KafkaIO.Read} has multiple implementations with different feature set.<br>
@@ -74,6 +73,8 @@ class KafkaIOReadImplementationCompatibility {
 
   /** This enum should represent every configurable property found at {@link KafkaIO.Read}. */
   @VisibleForTesting
+  // errorprone doesn't recognize vendored guava immutable collection as immutable:
+  // https://github.com/google/error-prone/blob/bc3309a7dbe95d006ee190fb36f2d654779858d4/core/src/main/java/com/google/errorprone/bugpatterns/ImmutableCollections.java#L75
   @SuppressWarnings("ImmutableEnumChecker")
   enum KafkaIOReadProperties {
     CONSUMER_CONFIG,
@@ -112,23 +113,45 @@ class KafkaIOReadImplementationCompatibility {
     VALUE_DESERIALIZER_PROVIDER,
     CHECK_STOP_READING_FN(SDF),
     BAD_RECORD_ERROR_HANDLER(SDF),
+    CONSUMER_POLLING_TIMEOUT(SDF) {
+      @Override
+      Object getDefaultValue() {
+        return Long.valueOf(2);
+      }
+    },
+    REDISTRIBUTE_NUM_KEYS {
+      @Override
+      Object getDefaultValue() {
+        return Integer.valueOf(0);
+      }
+    },
+    REDISTRIBUTED {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
+    ALLOW_DUPLICATES {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
     ;
 
-    @Nonnull private final ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
-    @Nonnull private final Method getterMethod;
+    private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
 
     private KafkaIOReadProperties() {
       this(KafkaIOReadImplementation.values());
     }
 
-    private KafkaIOReadProperties(@Nonnull KafkaIOReadImplementation... supportedImplementations) {
+    private KafkaIOReadProperties(@NonNull KafkaIOReadImplementation... supportedImplementations) {
       this.supportedImplementations =
           Sets.immutableEnumSet(Arrays.asList(supportedImplementations));
-      this.getterMethod = findGetterMethod(this);
     }
 
-    private static Method findGetterMethod(
-        @UnderInitialization(Enum.class) KafkaIOReadProperties property) {
+    @VisibleForTesting
+    static Method findGetterMethod(KafkaIOReadProperties property) {
       final String propertyNameInUpperCamel =
           CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, property.name());
       try {
@@ -153,11 +176,6 @@ class KafkaIOReadImplementationCompatibility {
     Object getDefaultValue() {
       return null;
     }
-
-    @VisibleForTesting
-    Method getGetterMethod() {
-      return getterMethod;
-    }
   }
 
   /**
@@ -178,7 +196,7 @@ class KafkaIOReadImplementationCompatibility {
       final Object defaultValue = property.getDefaultValue();
       final Object currentValue;
       try {
-        currentValue = property.getterMethod.invoke(read);
+        currentValue = KafkaIOReadProperties.findGetterMethod(property).invoke(read);
       } catch (Exception e) {
         throw new RuntimeException("Should not happen", e);
       }

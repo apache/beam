@@ -111,6 +111,16 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 {{< playground_snippet language="py" path="SDK_PYTHON_MapSideInputsDict" show="map_side_inputs_dict" >}}
 {{< /playground >}}
 
+### Example 9: Map with setup and bundle contexts.
+
+If an expensive shared object, such as a database connection, is required, this can be passed
+as a bundle or setup context which is invoked like a Python context manager.
+For example
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_MapContext" show="map_context" >}}
+{{< /playground >}}
+
 ## Related transforms
 
 * [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for

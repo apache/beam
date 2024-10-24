@@ -17,7 +17,7 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import static org.apache.beam.io.requestresponse.Repeater.REPEATABLE_ERROR_TYPES;
+import static org.apache.beam.io.requestresponse.RequestResponseIO.REPEATABLE_ERROR_TYPES;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.instanceOf;

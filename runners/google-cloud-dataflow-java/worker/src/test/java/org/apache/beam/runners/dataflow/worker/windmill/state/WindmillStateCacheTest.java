@@ -31,7 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -148,7 +148,7 @@ public class WindmillStateCacheTest {
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    cache = new WindmillStateCache(400);
+    cache = WindmillStateCache.builder().setSizeMb(400).build();
     assertEquals(0, cache.getWeight());
   }
 
@@ -168,15 +168,15 @@ public class WindmillStateCacheTest {
 
     assertEquals(0, cache.getWeight());
     keyCache.persist();
-    assertEquals(254, cache.getWeight());
+    assertEquals(414, cache.getWeight());
 
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag3"), new TestState("t3"), 2);
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag2"), new TestState("t2"), 2);
 
     // Observes updated weight in entries, though cache will not know about it.
-    assertEquals(290, cache.getWeight());
+    assertEquals(482, cache.getWeight());
     keyCache.persist();
-    assertEquals(290, cache.getWeight());
+    assertEquals(482, cache.getWeight());
 
     keyCache =
         cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
@@ -212,7 +212,7 @@ public class WindmillStateCacheTest {
 
     keyCache =
         cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
-    assertEquals(127, cache.getWeight());
+    assertEquals(207, cache.getWeight());
     assertEquals(
         Optional.of(new TestState("g1")),
         keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
@@ -221,7 +221,7 @@ public class WindmillStateCacheTest {
         cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 1L, 3L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.empty(), keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
-    assertEquals(127, cache.getWeight());
+    assertEquals(207, cache.getWeight());
   }
 
   /** Verifies that the cache is invalidated when the cache token changes. */
@@ -254,7 +254,7 @@ public class WindmillStateCacheTest {
     assertEquals(Optional.of(new TestState("w2")), keyCache.get(windowNamespace(0), tag));
     assertEquals(0, cache.getWeight());
     keyCache.persist();
-    assertEquals(127, cache.getWeight());
+    assertEquals(207, cache.getWeight());
     assertEquals(Optional.of(new TestState("w2")), keyCache.get(windowNamespace(0), tag));
 
     // Previous work token.

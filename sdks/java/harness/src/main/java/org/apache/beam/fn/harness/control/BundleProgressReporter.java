@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 
 /**
  * Reports metrics related to bundle processing.

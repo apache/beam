@@ -169,20 +169,27 @@ class OutputSampler:
         self._samples.clear()
         self._exceptions.clear()
 
-      ret = [
-          beam_fn_api_pb2.SampledElement(
-              element=self._coder_impl.encode_nested(s),
-          ) for s in samples
-      ]
+      ret = []
+      try:
+        ret = [
+            beam_fn_api_pb2.SampledElement(
+                element=self._coder_impl.encode_nested(s),
+            ) for s in samples
+        ]
+      except Exception as e:  # pylint: disable=broad-except
+        _LOGGER.warning('Could not encode sampled values: %s' % e)
 
-      ret.extend(
-          beam_fn_api_pb2.SampledElement(
-              element=self._coder_impl.encode_nested(s),
-              exception=beam_fn_api_pb2.SampledElement.Exception(
-                  instruction_id=exn.instruction_id,
-                  transform_id=exn.transform_id,
-                  error=exn.msg)) for s,
-          exn in exceptions)
+      try:
+        ret.extend(
+            beam_fn_api_pb2.SampledElement(
+                element=self._coder_impl.encode_nested(s),
+                exception=beam_fn_api_pb2.SampledElement.Exception(
+                    instruction_id=exn.instruction_id,
+                    transform_id=exn.transform_id,
+                    error=exn.msg)) for s,
+            exn in exceptions)
+      except Exception as e:  # pylint: disable=broad-except
+        _LOGGER.warning('Could not encode sampled exception values: %s' % e)
 
       return ret
 

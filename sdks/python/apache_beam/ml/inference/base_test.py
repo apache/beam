@@ -19,6 +19,8 @@
 import math
 import os
 import pickle
+import sys
+import tempfile
 import time
 import unittest
 from typing import Any
@@ -63,6 +65,59 @@ class FakeStatefulModel:
     self._state += amount
 
 
+class FakeSlowModel:
+  def __init__(self, sleep_on_load_seconds=0, file_path_write_on_del=None):
+
+    self._file_path_write_on_del = file_path_write_on_del
+    time.sleep(sleep_on_load_seconds)
+
+  def predict(self, example: int) -> int:
+    time.sleep(example)
+    return example
+
+  def __del__(self):
+    if self._file_path_write_on_del is not None:
+      with open(self._file_path_write_on_del, 'a') as myfile:
+        myfile.write('Deleted FakeSlowModel')
+
+
+class FakeIncrementingModel:
+  def __init__(self):
+    self._state = 0
+
+  def predict(self, example: int) -> int:
+    self._state += 1
+    return self._state
+
+
+class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
+  def __init__(
+      self,
+      sleep_on_load: int,
+      multi_process_shared=False,
+      file_path_write_on_del=None):
+    self._sleep_on_load = sleep_on_load
+    self._multi_process_shared = multi_process_shared
+    self._file_path_write_on_del = file_path_write_on_del
+
+  def load_model(self):
+    return FakeSlowModel(self._sleep_on_load, self._file_path_write_on_del)
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    for example in batch:
+      yield model.predict(example)
+
+  def share_model_across_processes(self) -> bool:
+    return self._multi_process_shared
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 1, 'max_batch_size': 1}
+
+
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self,
@@ -71,6 +126,8 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       max_batch_size=9999,
       multi_process_shared=False,
       state=None,
+      incrementing=False,
+      max_copies=1,
       num_bytes_per_element=None,
       **kwargs):
     self._fake_clock = clock
@@ -79,11 +136,16 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._env_vars = kwargs.get('env_vars', {})
     self._multi_process_shared = multi_process_shared
     self._state = state
+    self._incrementing = incrementing
+    self._max_copies = max_copies
     self._num_bytes_per_element = num_bytes_per_element
 
   def load_model(self):
+    assert (not self._incrementing or self._state is None)
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    if self._incrementing:
+      return FakeIncrementingModel()
     if self._state is not None:
       return FakeStatefulModel(self._state)
     return FakeModel()
@@ -115,6 +177,9 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def share_model_across_processes(self):
     return self._multi_process_shared
+
+  def model_copies(self):
+    return self._max_copies
 
   def get_num_bytes(self, batch: Sequence[int]) -> int:
     if self._num_bytes_per_element:
@@ -257,6 +322,58 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_simple_examples_multi_process_shared_multi_copy(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(multi_process_shared=True, max_copies=4))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_multi_process_shared_incrementing_multi_copy(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(
+              multi_process_shared=True,
+              max_copies=4,
+              incrementing=True,
+              max_batch_size=1))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_mps_nobatch_incrementing_multi_copy(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      batched_examples = [[example] for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(batched_examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(
+              multi_process_shared=True, max_copies=4,
+              incrementing=True).with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_keyed_mps_incrementing_multi_copy(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      keyed_examples = [('abc', example) for example in examples]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      keyed_expected = [('abc', val) for val in expected]
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(
+              FakeModelHandler(
+                  multi_process_shared=True,
+                  max_copies=4,
+                  incrementing=True,
+                  max_batch_size=1)))
+      assert_that(actual, equal_to(keyed_expected), label='assert:inferences')
 
   def test_run_inference_impl_with_keyed_examples(self):
     with TestPipeline() as pipeline:
@@ -506,6 +623,14 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandler().with_preprocess_fn(mult_two))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_prebatched(self):
+    with TestPipeline() as pipeline:
+      examples = [[1, 5], [3, 10]]
+      expected = [int(example) + 1 for batch in examples for example in batch]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeModelHandler().with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
   def test_run_inference_preprocessing_multiple_fns(self):
     def add_one(example: str) -> int:
       return int(example) + 1
@@ -703,6 +828,89 @@ class RunInferenceBaseTest(unittest.TestCase):
       bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_on_load_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 2]
+      expected_good = []
+      expected_bad = [1, 2]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(10)).with_exception_handling(timeout=2)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_on_inference_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [10, 11]
+      expected_good = []
+      expected_bad = [10, 11]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(0)).with_exception_handling(timeout=5)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_not_hit(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 2]
+      expected_good = [1, 2]
+      expected_bad = []
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(3)).with_exception_handling(timeout=500)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  @unittest.skipIf(
+      sys.platform == "win32" or sys.version_info < (3, 11),
+      "This test relies on the __del__ lifecycle method, but __del__ does " +
+      "not get invoked in the same way on older versions of Python or on " +
+      "windows, breaking this test. See " +
+      "github.com/python/cpython/issues/87950#issuecomment-1807570983 " +
+      "for example.")
+  def test_run_inference_timeout_does_garbage_collection(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
+      expected_file_contents = 'Deleted FakeSlowModel'
+      with TestPipeline() as pipeline:
+        # Start with bad example which gets timed out.
+        # Then provide plenty of time for GC to happen.
+        examples = [20] + [1] * 15
+        expected_good = [1] * 15
+        expected_bad = [20]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        main, other = pcoll | base.RunInference(
+            FakeSlowModelHandler(
+              0, True, tmp_path)).with_exception_handling(timeout=5)
+
+        assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+        # # bad.failed_inferences will be in form [batch[elements], error].
+        # # Just pull out bad element.
+        bad_without_error = other.failed_inferences | beam.Map(
+            lambda x: x[0][0])
+        assert_that(
+            bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+      with open(tmp_path) as f:
+        s = f.read()
+        self.assertEqual(s, expected_file_contents)
 
   def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:
@@ -1513,6 +1721,45 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
+  def test_run_inference_loads_different_models(self):
+    mh1 = FakeModelHandler(incrementing=True, min_batch_size=3)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(mh1)
+          | 'ri2' >> base.RunInference(mh1))
+      assert_that(actual, equal_to([1, 2, 3]), label='assert:inferences')
+
+  def test_run_inference_loads_different_models_multi_process_shared(self):
+    mh1 = FakeModelHandler(
+        incrementing=True, min_batch_size=3, multi_process_shared=True)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(mh1)
+          | 'ri2' >> base.RunInference(mh1))
+      assert_that(actual, equal_to([1, 2, 3]), label='assert:inferences')
+
+  def test_runinference_loads_same_model_with_identifier_multi_process_shared(
+      self):
+    mh1 = FakeModelHandler(
+        incrementing=True, min_batch_size=3, multi_process_shared=True)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(
+              mh1,
+              model_identifier='same_model_with_identifier_multi_process_shared'
+          )
+          | 'ri2' >> base.RunInference(
+              mh1,
+              model_identifier='same_model_with_identifier_multi_process_shared'
+          ))
+      assert_that(actual, equal_to([4, 5, 6]), label='assert:inferences')
+
   def test_run_inference_watch_file_pattern_side_input_label(self):
     pipeline = TestPipeline()
     # label of the WatchPattern transform.
@@ -1534,6 +1781,93 @@ class RunInferenceBaseTest(unittest.TestCase):
     result_pcoll = pcoll | base.RunInference(
         FakeModelHandler(), watch_model_pattern='fake/path/*')
     assert side_input_str in str(result_pcoll.producer.side_inputs[0])
+
+  def test_model_status_provides_valid_tags(self):
+    ms = base._ModelStatus(False)
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    self.assertEqual('tag1', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    ms.try_mark_current_model_invalid(0)
+
+    self.assertFalse(ms.is_valid_tag('tag1'))
+    self.assertFalse(ms.is_valid_tag('tag2'))
+
+    self.assertEqual('tag1_reload_1', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2_reload_1', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1_reload_1'))
+    self.assertTrue(ms.is_valid_tag('tag2_reload_1'))
+
+    ms.try_mark_current_model_invalid(0)
+
+    self.assertFalse(ms.is_valid_tag('tag1'))
+    self.assertFalse(ms.is_valid_tag('tag2'))
+    self.assertFalse(ms.is_valid_tag('tag1_reload_1'))
+    self.assertFalse(ms.is_valid_tag('tag2_reload_1'))
+
+    self.assertEqual('tag1_reload_2', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2_reload_2', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1_reload_2'))
+    self.assertTrue(ms.is_valid_tag('tag2_reload_2'))
+
+  def test_model_status_provides_valid_garbage_collection(self):
+    ms = base._ModelStatus(True)
+
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag1'))
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag2'))
+
+    ms.try_mark_current_model_invalid(1)
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(0, len(tags))
+
+    time.sleep(4)
+
+    ms.try_mark_current_model_invalid(1)
+
+    time.sleep(4)
+
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag3'))
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(2, len(tags))
+    self.assertTrue('mspvgc_tag1' in tags)
+    self.assertTrue('mspvgc_tag2' in tags)
+
+    ms.try_mark_current_model_invalid(0)
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(3, len(tags))
+    self.assertTrue('mspvgc_tag1' in tags)
+    self.assertTrue('mspvgc_tag2' in tags)
+    self.assertTrue('mspvgc_tag3' in tags)
+
+    ms.mark_tags_deleted(set(['mspvgc_tag1', 'mspvgc_tag2']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(['mspvgc_tag3'], tags)
+
+    ms.mark_tags_deleted(set(['mspvgc_tag1']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(1, len(tags))
+    self.assertEqual('mspvgc_tag3', tags[0])
+
+    ms.mark_tags_deleted(set(['mspvgc_tag3']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(0, len(tags))
 
 
 if __name__ == '__main__':

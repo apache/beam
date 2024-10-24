@@ -32,19 +32,19 @@ const bigqueryIOConfigSchema = RowCoder.inferSchemaOfJSON({
 export function readFromBigQuery<T>(
   options:
     | { table: string; schema?: Schema }
-    | { query: string; schema?: Schema }
+    | { query: string; schema?: Schema },
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return schemaio<beam.Root, beam.PCollection<T>>(
     "readFromBigQuery",
     "beam:transform:org.apache.beam:schemaio_bigquery_read:v1",
     options,
-    bigqueryIOConfigSchema
+    bigqueryIOConfigSchema,
   );
 }
 
 export function writeToBigQuery<T>(
   table: string,
-  options: { createDisposition?: "Never" | "IfNeeded" } = {}
+  options: { createDisposition?: "Never" | "IfNeeded" } = {},
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   if (options.createDisposition == undefined) {
     options.createDisposition = "IfNeeded";
@@ -53,6 +53,6 @@ export function writeToBigQuery<T>(
     "writeToBigquery",
     "beam:transform:org.apache.beam:schemaio_bigquery_write:v1",
     { table, createDisposition: options.createDisposition },
-    bigqueryIOConfigSchema
+    bigqueryIOConfigSchema,
   );
 }

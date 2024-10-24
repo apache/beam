@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteWriteSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteWriteSchemaTransformProvider.ErrorCounterFn;
 import org.apache.beam.sdk.schemas.Schema;
@@ -110,6 +111,14 @@ public class PubsubLiteWriteDlqTest {
               .withFieldValue("key1", "first_key")
               .withFieldValue("key2", "second_key")
               .build());
+
+  private static final String PROTO_STRING_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "package com.test.proto;"
+          + "\n"
+          + "message MyMessage {\n"
+          + " string name = 1;\n"
+          + "}";
 
   private static final Map<String, AttributeValues> ATTRIBUTE_VALUES_MAP = new HashMap<>();
 
@@ -237,6 +246,28 @@ public class PubsubLiteWriteDlqTest {
                         "unique_key")))
             .apply("error_count", Count.globally());
     PAssert.that(count).containsInAnyOrder(Collections.singletonList(3L));
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnSuccessProto() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+
+    SerializableFunction<Row, byte[]> valueMapperProto =
+        ProtoByteUtils.getRowToProtoBytesFromSchema(
+            PROTO_STRING_SCHEMA, "com.test.proto.MyMessage");
+
+    PCollection<Row> input = p.apply(Create.of(ROWS));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new ErrorCounterFn("ErrorCounter", valueMapperProto, errorSchema, Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    PAssert.that(output.get(OUTPUT_TAG).apply(Count.globally()))
+        .containsInAnyOrder(Collections.singletonList(3L));
     p.run().waitUntilFinish();
   }
 }

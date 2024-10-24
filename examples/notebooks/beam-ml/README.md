@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 -->
-# ML Sample Notebooks
+# ML sample notebooks
 
 Starting with the Apache Beam SDK version 2.40, users have access to a
 [RunInference](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference)
@@ -27,13 +27,13 @@ The model handler abstracts the user from the configuration needed for
 specific frameworks, such as Tensorflow, PyTorch, and others. For a full list of supported frameworks,
 see the [About Beam ML](https://beam.apache.org/documentation/ml/about-ml/) page.
 
-## Using The Notebooks
+## Use the notebooks
 
 These notebooks illustrate ways to use Apache Beam's RunInference transforms, as well as different
 use cases for [`ModelHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
 Beam comes with [multiple `ModelHandler` implementations](https://beam.apache.org/documentation/ml/about-ml/#modify-a-python-pipeline-to-use-an-ml-model).
 
-### Loading the Notebooks
+### Load the notebooks
 
 1. To get started quickly with notebooks, use [Colab](https://colab.sandbox.google.com/).
 2. In Colab, open the notebook from GitHub using the notebook URL, for example:
@@ -47,6 +47,19 @@ to your project and bucket.
 ## Notebooks
 
 This section contains the following example notebooks.
+
+### Data processing
+
+* [Generate text embeddings by using the Vertex AI API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/vertex_ai_text_embeddings.ipynb)
+* [Generate text embeddings by using Hugging Face Hub models](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/huggingface_text_embeddings.ipynb)
+* [Compute and apply vocabulary on a dataset](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/compute_and_apply_vocab.ipynb)
+* [Use MLTransform to scale data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/scale_data.ipynb)
+* [Preprocessing with the Apache Beam DataFrames API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb)
+
+### Data enrichment
+
+* [Use Bigtable to enrich data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/bigtable_enrichment_transform.ipynb)
+* [Use Vertex AI Feature Store for feature enrichment](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/vertex_ai_feature_store_enrichment.ipynb)
 
 ### Prediction and inference with pretrained models
 
@@ -85,8 +98,3 @@ This section contains the following example notebooks.
 ### Model Evaluation
 
 * [Use TFMA to evaluate and compare model performance](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/tfma_beam.ipynb)
-
-### Data processing
-
-* [Preprocess data with MLTransform](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/mltransform_basic.ipynb)
-* [Preprocessing with the Apache Beam DataFrames API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb)

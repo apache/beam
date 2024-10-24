@@ -28,6 +28,7 @@ import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,6 +49,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
@@ -62,11 +65,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
@@ -173,6 +180,53 @@ public class PCollectionViews {
    * provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+      PCollection<T> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new IterableBackedListViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> inMemoryListView(
+      PCollection<T> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new InMemoryListViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+      PCollection<T> pCollection,
+      TupleTag<Materializations.IterableView<T>> tag,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        tag,
+        new IterableBackedListViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewWithRandomAccess(
       PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> pCollection,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
@@ -187,7 +241,7 @@ public class PCollectionViews {
    * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.
    */
-  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewWithRandomAccess(
       PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> pCollection,
       TupleTag<Materializations.MultimapView<Long, ValueOrMetadata<T, OffsetRange>>> tag,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
@@ -241,6 +295,21 @@ public class PCollectionViews {
   }
 
   /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> inMemoryListViewUsingVoidKey(
+      PCollection<KV<Void, T>> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new InMemoryListFromMultimapViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
    * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.
    */
@@ -252,6 +321,22 @@ public class PCollectionViews {
     return new SimplePCollectionView<>(
         pCollection,
         new MapViewFn2<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> inMemoryMapView(
+      PCollection<KV<K, V>> pCollection,
+      Coder<K> keyCoder,
+      Coder<V> valueCoder,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new InMemoryMapViewFn<>(keyCoder, valueCoder),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -278,6 +363,23 @@ public class PCollectionViews {
   }
 
   /**
+   * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <K, V, W extends BoundedWindow>
+      PCollectionView<Map<K, V>> inMemoryMapViewUsingVoidKey(
+          PCollection<KV<Void, KV<K, V>>> pCollection,
+          Coder<K> keyCoder,
+          Coder<V> valueCoder,
+          WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new InMemoryMapFromVoidKeyViewFn<>(keyCoder, valueCoder),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
    * Returns a {@code PCollectionView<Map<K, Iterable<V>>>} capable of processing elements windowed
    * using the provided {@link WindowingStrategy}.
    */
@@ -289,6 +391,23 @@ public class PCollectionViews {
     return new SimplePCollectionView<>(
         pCollection,
         new MultimapViewFn2<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<Map<K, Iterable<V>>>} capable of processing elements windowed
+   * using the provided {@link WindowingStrategy}.
+   */
+  public static <K, V, W extends BoundedWindow>
+      PCollectionView<Map<K, Iterable<V>>> inMemoryMultimapView(
+          PCollection<KV<K, V>> pCollection,
+          Coder<K> keyCoder,
+          Coder<V> valueCoder,
+          WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new InMemoryMultimapViewFn<>(keyCoder, valueCoder),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -311,6 +430,23 @@ public class PCollectionViews {
         pCollection,
         tag,
         new MultimapViewFn<>(keyTypeDescriptorSupplier, valueTypeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<Map<K, Iterable<V>>>} capable of processing elements windowed
+   * using the provided {@link WindowingStrategy}.
+   */
+  public static <K, V, W extends BoundedWindow>
+      PCollectionView<Map<K, Iterable<V>>> inMemoryMultimapViewUsingVoidKey(
+          PCollection<KV<Void, KV<K, V>>> pCollection,
+          Coder<K> keyCoder,
+          Coder<V> valueCoder,
+          WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new InMemoryMultimapFromVoidKeyViewFn<>(keyCoder, valueCoder),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -616,6 +752,10 @@ public class PCollectionViews {
       return TypeDescriptors.lists(typeDescriptorSupplier.get());
     }
 
+    private static final Counter listViewIteratorCount =
+        Metrics.counter(ListViewFn2.class, "iteratorCount");
+    private static final Counter listViewGetCount = Metrics.counter(ListViewFn2.class, "getCount");
+
     /**
      * A {@link List} adapter over a {@link MultimapView}.
      *
@@ -637,22 +777,47 @@ public class PCollectionViews {
 
       private final Supplier<Integer> size;
 
+      private final boolean recordGets;
+
       private ListOverMultimapView(
           MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView) {
-        this.primitiveView = primitiveView;
-        this.nonOverlappingRangesToNumElementsPerPosition =
+        this(
+            primitiveView,
             Suppliers.memoize(
                 () ->
                     computeOverlappingRanges(
                         Iterables.transform(
-                            primitiveView.get(Long.MIN_VALUE), (value) -> value.getMetadata())));
-        this.size =
+                            primitiveView.get(Long.MIN_VALUE), (value) -> value.getMetadata()))));
+      }
+
+      private ListOverMultimapView(
+          MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView,
+          Supplier<SortedMap<OffsetRange, Integer>> nonOverlappingRangesToNumElementsPerPosition) {
+        this(
+            primitiveView,
+            nonOverlappingRangesToNumElementsPerPosition,
             Suppliers.memoize(
-                () -> computeTotalNumElements(nonOverlappingRangesToNumElementsPerPosition.get()));
+                () -> computeTotalNumElements(nonOverlappingRangesToNumElementsPerPosition.get())),
+            true);
+      }
+
+      private ListOverMultimapView(
+          MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView,
+          Supplier<SortedMap<OffsetRange, Integer>> nonOverlappingRangesToNumElementsPerPosition,
+          Supplier<Integer> size,
+          boolean recordGets) {
+        this.primitiveView = primitiveView;
+        this.nonOverlappingRangesToNumElementsPerPosition =
+            nonOverlappingRangesToNumElementsPerPosition;
+        this.size = size;
+        this.recordGets = recordGets;
       }
 
       @Override
       public T get(int index) {
+        if (recordGets) {
+          listViewGetCount.inc();
+        }
         if (index < 0 || index >= size.get()) {
           throw new IndexOutOfBoundsException();
         }
@@ -673,7 +838,16 @@ public class PCollectionViews {
 
       @Override
       public ListIterator<T> listIterator() {
-        return super.listIterator();
+        listViewIteratorCount.inc();
+        if (recordGets) {
+          // AbstractList's iterable is implemented in terms of get().
+          // We don't want to count those as user-initiated gets.
+          return new ListOverMultimapView<>(
+                  primitiveView, nonOverlappingRangesToNumElementsPerPosition, size, false)
+              .listIterator();
+        } else {
+          return super.listIterator();
+        }
       }
     }
   }
@@ -921,6 +1095,179 @@ public class PCollectionViews {
   }
 
   /**
+   * Implementation which is able to adapt an iterable materialization to a {@code List<T>}.
+   *
+   * <p>Unlike ListViewFn2, this implementation is optimized for iteration rather than indexing.
+   *
+   * <p>For internal use only.
+   */
+  public static class IterableBackedListViewFn<T> extends ViewFn<IterableView<T>, List<T>> {
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
+
+    public IterableBackedListViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
+    }
+
+    @Override
+    public Materialization<IterableView<T>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
+    public List<T> apply(IterableView<T> primitiveViewT) {
+      Supplier<Integer> size = Suppliers.memoize(() -> Iterables.size(primitiveViewT.get()));
+
+      return new List<T>() {
+        @Override
+        public int size() {
+          return size.get();
+        }
+
+        @Override
+        public boolean isEmpty() {
+          return Iterables.isEmpty(primitiveViewT.get());
+        }
+
+        @Override
+        public boolean contains(Object o) {
+          return Iterables.contains(primitiveViewT.get(), o);
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+          return primitiveViewT.get().iterator();
+        }
+
+        @Override
+        public T get(int index) {
+          return Iterables.get(primitiveViewT.get(), index);
+        }
+
+        @Override
+        public Object[] toArray() {
+          return Iterables.toArray(primitiveViewT.get(), Object.class);
+        }
+
+        @Override
+        public <T1> T1[] toArray(T1[] a) {
+          return Iterables.toArray(
+              (Iterable<T1>) primitiveViewT.get(), (Class<T1>) a.getClass().getComponentType());
+        }
+
+        @Override
+        public boolean containsAll(Collection<?> c) {
+          for (Object o : c) {
+            if (!contains(o)) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        @Override
+        public int indexOf(Object o) {
+          return Iterables.indexOf(primitiveViewT.get(), v -> Objects.equals(v, o));
+        }
+
+        @Override
+        public int lastIndexOf(Object o) {
+          return ImmutableList.copyOf(primitiveViewT.get()).lastIndexOf(o);
+        }
+
+        @Override
+        public List<T> subList(int fromIndex, int toIndex) {
+          Iterator<T> iterator = primitiveViewT.get().iterator();
+          if (Iterators.advance(iterator, fromIndex) != fromIndex) {
+            throw new IndexOutOfBoundsException();
+          }
+          List<T> subList = ImmutableList.copyOf(Iterators.limit(iterator, toIndex - fromIndex));
+          if (subList.size() != toIndex - fromIndex) {
+            throw new IndexOutOfBoundsException();
+          }
+          return subList;
+        }
+
+        @Override
+        public ListIterator<T> listIterator() {
+          return ImmutableList.copyOf(primitiveViewT.get()).listIterator();
+        }
+
+        @Override
+        public ListIterator<T> listIterator(int index) {
+          return ImmutableList.copyOf(primitiveViewT.get()).listIterator(index);
+        }
+
+        // Unimplemented mutable list methods.
+
+        @Override
+        public boolean add(T t) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean remove(Object o) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean addAll(Collection<? extends T> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean addAll(int index, Collection<? extends T> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean removeAll(Collection<?> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean retainAll(Collection<?> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void clear() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public T set(int index, T element) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void add(int index, T element) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public T remove(int index) {
+          throw new UnsupportedOperationException();
+        }
+      };
+    }
+
+    @Override
+    public TypeDescriptor<List<T>> getTypeDescriptor() {
+      return TypeDescriptors.lists(typeDescriptorSupplier.get());
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof IterableBackedListViewFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return ListViewFn.class.hashCode();
+    }
+  }
+
+  /**
    * Implementation which is able to adapt a multimap materialization to a {@code List<T>}.
    *
    * <p>For internal use only.
@@ -966,6 +1313,85 @@ public class PCollectionViews {
   }
 
   /**
+   * Implementation which is able to adapt an iterable materialization to an in-memory {@code
+   * List<T>}.
+   *
+   * <p>For internal use only.
+   */
+  public static class InMemoryListViewFn<T> extends ViewFn<IterableView<T>, List<T>> {
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
+
+    public InMemoryListViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
+    }
+
+    @Override
+    public Materialization<IterableView<T>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
+    public List<T> apply(IterableView<T> primitiveView) {
+      return ImmutableList.copyOf(primitiveView.get());
+    }
+
+    @Override
+    public TypeDescriptor<List<T>> getTypeDescriptor() {
+      return TypeDescriptors.lists(typeDescriptorSupplier.get());
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof InMemoryListViewFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return InMemoryListViewFn.class.hashCode();
+    }
+  }
+
+  /**
+   * Implementation which is able to adapt a multimap materialization to an in-memory {@code
+   * List<T>}.
+   *
+   * <p>For internal use only.
+   */
+  public static class InMemoryListFromMultimapViewFn<T>
+      extends ViewFn<MultimapView<Void, T>, List<T>> {
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
+
+    public InMemoryListFromMultimapViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
+    }
+
+    @Override
+    public Materialization<MultimapView<Void, T>> getMaterialization() {
+      return Materializations.multimap();
+    }
+
+    @Override
+    public List<T> apply(MultimapView<Void, T> primitiveView) {
+      return ImmutableList.copyOf(primitiveView.get(null));
+    }
+
+    @Override
+    public TypeDescriptor<List<T>> getTypeDescriptor() {
+      return TypeDescriptors.lists(typeDescriptorSupplier.get());
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof InMemoryListFromMultimapViewFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return InMemoryListFromMultimapViewFn.class.hashCode();
+    }
+  }
+
+  /**
    * Implementation which is able to adapt a multimap materialization to a {@code Map<K,
    * Iterable<V>>}.
    *
@@ -1003,6 +1429,74 @@ public class PCollectionViews {
       return TypeDescriptors.maps(
           keyTypeDescriptorSupplier.get(),
           TypeDescriptors.iterables(valueTypeDescriptorSupplier.get()));
+    }
+  }
+
+  /**
+   * Implementation which is able to adapt an iterable materialization to an in-memory {@code Map<K,
+   * Iterable<V>>}.
+   *
+   * <p>For internal use only.
+   */
+  public static class InMemoryMultimapViewFn<K, V>
+      extends ViewFn<IterableView<KV<K, V>>, Map<K, Iterable<V>>> {
+    private Coder<K> keyCoder;
+    private Coder<V> valueCoder;
+
+    public InMemoryMultimapViewFn(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Materialization<IterableView<KV<K, V>>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
+    public Map<K, Iterable<V>> apply(IterableView<KV<K, V>> primitiveView) {
+      return StructuralValueMap.createMultimap(primitiveView.get(), keyCoder);
+    }
+
+    @Override
+    public TypeDescriptor<Map<K, Iterable<V>>> getTypeDescriptor() {
+      return TypeDescriptors.maps(
+          keyCoder.getEncodedTypeDescriptor(),
+          TypeDescriptors.iterables(valueCoder.getEncodedTypeDescriptor()));
+    }
+  }
+
+  /**
+   * Implementation which is able to adapt a multimap materialization to an in-memory {@code Map<K,
+   * Iterable<V>>}.
+   *
+   * <p>For internal use only.
+   */
+  public static class InMemoryMultimapFromVoidKeyViewFn<K, V>
+      extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, Iterable<V>>> {
+    private Coder<K> keyCoder;
+    private Coder<V> valueCoder;
+
+    public InMemoryMultimapFromVoidKeyViewFn(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
+      return Materializations.multimap();
+    }
+
+    @Override
+    public Map<K, Iterable<V>> apply(MultimapView<Void, KV<K, V>> primitiveView) {
+      return StructuralValueMap.createMultimap(primitiveView.get(null), keyCoder);
+    }
+
+    @Override
+    public TypeDescriptor<Map<K, Iterable<V>>> getTypeDescriptor() {
+      return TypeDescriptors.maps(
+          keyCoder.getEncodedTypeDescriptor(),
+          TypeDescriptors.iterables(valueCoder.getEncodedTypeDescriptor()));
     }
   }
 
@@ -1136,6 +1630,248 @@ public class PCollectionViews {
     public TypeDescriptor<Map<K, V>> getTypeDescriptor() {
       return TypeDescriptors.maps(
           keyTypeDescriptorSupplier.get(), valueTypeDescriptorSupplier.get());
+    }
+  }
+
+  /**
+   * Implementation which is able to adapt an iterable materialization to an in-memory {@code Map<K,
+   * V>}.
+   *
+   * <p>For internal use only.
+   */
+  public static class InMemoryMapViewFn<K, V> extends ViewFn<IterableView<KV<K, V>>, Map<K, V>> {
+    private Coder<K> keyCoder;
+    private Coder<V> valueCoder;
+
+    public InMemoryMapViewFn(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Materialization<IterableView<KV<K, V>>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
+    public Map<K, V> apply(IterableView<KV<K, V>> primitiveView) {
+      return StructuralValueMap.createMap(primitiveView.get(), keyCoder);
+    }
+
+    @Override
+    public TypeDescriptor<Map<K, V>> getTypeDescriptor() {
+      return TypeDescriptors.maps(
+          keyCoder.getEncodedTypeDescriptor(), valueCoder.getEncodedTypeDescriptor());
+    }
+  }
+
+  /**
+   * Implementation which is able to adapt a multimap materialization to an in-memory {@code Map<K,
+   * V>}.
+   *
+   * <p>For internal use only.
+   */
+  public static class InMemoryMapFromVoidKeyViewFn<K, V>
+      extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
+    private Coder<K> keyCoder;
+    private Coder<V> valueCoder;
+
+    public InMemoryMapFromVoidKeyViewFn(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public Materialization<MultimapView<Void, KV<K, V>>> getMaterialization() {
+      return Materializations.multimap();
+    }
+
+    @Override
+    public Map<K, V> apply(MultimapView<Void, KV<K, V>> primitiveView) {
+      return StructuralValueMap.createMap(primitiveView.get(null), keyCoder);
+    }
+
+    @Override
+    public TypeDescriptor<Map<K, V>> getTypeDescriptor() {
+      return TypeDescriptors.maps(
+          keyCoder.getEncodedTypeDescriptor(), valueCoder.getEncodedTypeDescriptor());
+    }
+  }
+
+  /**
+   * A map looking up values based on the structural value of the key, as given by the key coder.
+   *
+   * @param <K> key type
+   * @param <V> value type
+   */
+  private static class StructuralValueMap<K, V> implements Map<K, V> {
+    private final Coder<K> keyCoder;
+
+    private final Map<Object, Map.Entry<K, V>> entries;
+
+    private static <K, V> Map<K, V> createMap(Iterable<KV<K, V>> kvs, Coder<K> keyCoder) {
+      if (keyCoder.consistentWithEquals()) {
+        Map<K, V> map = new HashMap<>();
+        for (KV<K, V> elem : kvs) {
+          if (map.containsKey(elem.getKey())) {
+            throw new IllegalArgumentException("Duplicate values for " + elem.getKey());
+          }
+          map.put(elem.getKey(), elem.getValue());
+        }
+        return Collections.unmodifiableMap(map);
+      } else {
+        Map<Object, Map.Entry<K, V>> entries = new HashMap<>();
+        for (KV<K, V> elem : kvs) {
+          Object oldValue =
+              entries.putIfAbsent(
+                  keyCoder.structuralValue(elem.getKey()),
+                  new AbstractMap.SimpleImmutableEntry<>(elem.getKey(), elem.getValue()));
+          if (oldValue != null) {
+            throw new IllegalArgumentException("Duplicate values for " + elem.getKey());
+          }
+        }
+        return new StructuralValueMap<>(entries, keyCoder);
+      }
+    }
+
+    private static <K, V> Map<K, Iterable<V>> createMultimap(
+        Iterable<KV<K, V>> kvs, Coder<K> keyCoder) {
+      if (keyCoder.consistentWithEquals()) {
+        Multimap<K, V> multimap = ArrayListMultimap.create();
+        for (KV<K, V> elem : kvs) {
+          multimap.put(elem.getKey(), elem.getValue());
+        }
+        return ImmutableMap.copyOf(
+            Maps.transformValues(multimap.asMap(), v -> ImmutableList.copyOf(v)));
+      } else {
+        Map<Object, Map.Entry<K, List<V>>> entries = new HashMap<>();
+        for (KV<K, V> elem : kvs) {
+          Object sk = keyCoder.structuralValue(elem.getKey());
+          Entry<K, List<V>> e = entries.get(sk);
+          if (e == null) {
+            e = new AbstractMap.SimpleEntry<>(elem.getKey(), Lists.newArrayList(elem.getValue()));
+            entries.put(sk, e);
+          } else {
+            e.getValue().add(elem.getValue());
+          }
+        }
+        for (Entry<K, List<V>> e : entries.values()) {
+          // Make all values immutable here rather than having to wrap at every access.
+          e.setValue(ImmutableList.copyOf(e.getValue()));
+        }
+        // Safe covariant cast that Java cannot express without rawtypes, even with unchecked casts
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Map<Object, Map.Entry<K, Iterable<V>>> typedEntries = (Map) entries;
+        return new StructuralValueMap<>(typedEntries, keyCoder);
+      }
+    }
+
+    protected StructuralValueMap(Map<Object, Map.Entry<K, V>> entries, Coder<K> keyCoder) {
+      this.keyCoder = keyCoder;
+      this.entries = entries;
+    }
+
+    @Override
+    public int size() {
+      return entries.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return entries.isEmpty();
+    }
+
+    @Override
+    public boolean containsKey(Object key) {
+      try {
+        return entries.containsKey(keyCoder.structuralValue((K) key));
+      } catch (ClassCastException exn) {
+        return false;
+      }
+    }
+
+    @Override
+    public boolean containsValue(Object value) {
+      return values().contains(value);
+    }
+
+    @Override
+    public V get(Object key) {
+      try {
+        return entries.get(keyCoder.structuralValue((K) key)).getValue();
+      } catch (ClassCastException exn) {
+        return null;
+      }
+    }
+
+    @Override
+    public V put(K key, V value) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public V remove(Object key) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void putAll(Map<? extends K, ? extends V> m) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void clear() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Set<K> keySet() {
+      return new AbstractSet<K>() {
+        @Override
+        public Iterator<K> iterator() {
+          return Iterators.transform(entries.values().iterator(), e -> e.getKey());
+        }
+
+        @Override
+        public int size() {
+          return entries.size();
+        }
+
+        @Override
+        public boolean contains(Object key) {
+          return containsKey(key);
+        }
+
+        @Override
+        public boolean containsAll(Collection<?> c) {
+          for (Object o : c) {
+            if (!containsKey(o)) {
+              return false;
+            }
+          }
+          return true;
+        }
+      };
+    }
+
+    @Override
+    public Collection<V> values() {
+      return Collections2.transform(entries.values(), e -> e.getValue());
+    }
+
+    @Override
+    public Set<Entry<K, V>> entrySet() {
+      return new AbstractSet<Entry<K, V>>() {
+        @Override
+        public Iterator<Entry<K, V>> iterator() {
+          return entries.values().iterator();
+        }
+
+        @Override
+        public int size() {
+          return entries.size();
+        }
+      };
     }
   }
 

@@ -36,19 +36,27 @@ for dataset in ${BQ_DATASETS[@]}; do
     if [[ $dataset =~ $template ]]; then
       # The BQ API reports LAST MODIFIED TIME in miliseconds, while unix works in seconds since epoch
       # thus why we need to convert to seconds.
-      [[ `bq --format=json --project_id=$PROJECT show $dataset` =~ \"lastModifiedTime\":\"([0-9]+)\" ]]
-      LAST_MODIFIED_MS=${BASH_REMATCH[1]}
-      LAST_MODIFIED=$(($LAST_MODIFIED_MS / 1000))
-      if [[ $GRACE_PERIOD -gt $LAST_MODIFIED ]]; then
-        if bq --project_id=$PROJECT rm -r -f $dataset; then
-          if [[ $OSTYPE == "linux-gnu"* ]]; then
-            # date command usage depending on OS
-            echo "Deleted $dataset (modified `date -d @$LAST_MODIFIED`)"
-          elif [[ $OSTYPE == "darwin"* ]]; then
-            echo "Deleted $dataset (modified `date -r @$LAST_MODIFIED`)"
+
+      failed=0
+      ds=`bq --format=json --project_id=$PROJECT show $dataset` || failed=1
+      if [[ $failed -eq 1 ]]; then
+        echo "Could not find dataset $dataset - it may have already been deleted, skipping"
+      else
+        [[ $ds =~ \"lastModifiedTime\":\"([0-9]+)\" ]]
+        LAST_MODIFIED_MS=${BASH_REMATCH[1]}
+        LAST_MODIFIED=$(($LAST_MODIFIED_MS / 1000))
+        if [[ $GRACE_PERIOD -gt $LAST_MODIFIED ]]; then
+          if bq --project_id=$PROJECT rm -r -f $dataset; then
+            if [[ $OSTYPE == "linux-gnu"* ]]; then
+              # date command usage depending on OS
+              echo "Deleted $dataset (modified `date -d @$LAST_MODIFIED`)"
+            elif [[ $OSTYPE == "darwin"* ]]; then
+              echo "Deleted $dataset (modified `date -r $LAST_MODIFIED`)"
+            fi
+          else
+            echo "Tried and failed to delete $dataset"
+            failed_calls+=1
           fi
-        else
-          failed_calls+=1
         fi
       fi
       break

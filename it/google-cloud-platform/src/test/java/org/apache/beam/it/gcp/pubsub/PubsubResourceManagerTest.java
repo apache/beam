@@ -37,6 +37,8 @@ import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.Topic;
 import com.google.pubsub.v1.TopicName;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -63,8 +65,11 @@ public final class PubsubResourceManagerTest {
   private static final String VALID_MESSAGE_ID = "abcdef";
 
   @Mock private TopicAdminClient topicAdminClient;
-  @Mock private SubscriptionAdminClient subscriptionAdminClient;
 
+  @Mock
+  private TopicAdminClient.ListTopicSubscriptionsPagedResponse listTopicSubscriptionsPagedResponse;
+
+  @Mock private SubscriptionAdminClient subscriptionAdminClient;
   @Mock private SchemaServiceClient schemaServiceClient;
   private Topic topic;
   private Subscription subscription;
@@ -75,6 +80,7 @@ public final class PubsubResourceManagerTest {
 
   @Captor private ArgumentCaptor<TopicName> topicNameCaptor;
   @Captor private ArgumentCaptor<SubscriptionName> subscriptionNameCaptor;
+  @Captor private ArgumentCaptor<String> stringArgumentCaptor;
   @Captor private ArgumentCaptor<PubsubMessage> pubsubMessageCaptor;
 
   @Before
@@ -95,6 +101,8 @@ public final class PubsubResourceManagerTest {
             .setName(SubscriptionName.of(PROJECT_ID, SUBSCRIPTION_NAME).toString())
             .build();
     when(publisherFactory.createPublisher(any())).thenReturn(publisher);
+    when(topicAdminClient.listTopicSubscriptions(any(TopicName.class)))
+        .thenReturn(listTopicSubscriptionsPagedResponse);
   }
 
   @Test
@@ -225,6 +233,7 @@ public final class PubsubResourceManagerTest {
     Topic topic1 = Topic.newBuilder().setName(topicName1.toString()).build();
     Topic topic2 = Topic.newBuilder().setName(topicName2.toString()).build();
     when(topicAdminClient.createTopic(any(TopicName.class))).thenReturn(topic1, topic2);
+    when(listTopicSubscriptionsPagedResponse.iterateAll()).thenReturn(new ArrayList<>());
 
     testManager.createTopic("topic1");
     testManager.createTopic("topic2");
@@ -233,6 +242,23 @@ public final class PubsubResourceManagerTest {
     verify(topicAdminClient, times(2)).deleteTopic(topicNameCaptor.capture());
     assertThat(topicNameCaptor.getAllValues()).hasSize(2);
     assertThat(topicNameCaptor.getAllValues()).containsExactly(topicName1, topicName2);
+  }
+
+  @Test
+  public void testCleanupTopicsShouldDeleteSubscriptions() {
+    TopicName topicName1 = testManager.getTopicName("topic1");
+    Topic topic1 = Topic.newBuilder().setName(topicName1.toString()).build();
+    when(topicAdminClient.createTopic(any(TopicName.class))).thenReturn(topic1);
+    when(listTopicSubscriptionsPagedResponse.iterateAll())
+        .thenReturn(Arrays.asList("topic1-generated-sub"));
+
+    testManager.createTopic("topic1");
+    testManager.cleanupAll();
+
+    verify(topicAdminClient, times(1)).deleteTopic(topicNameCaptor.capture());
+    assertThat(topicNameCaptor.getAllValues()).containsExactly(topicName1);
+    verify(subscriptionAdminClient, times(1)).deleteSubscription(stringArgumentCaptor.capture());
+    assertThat(stringArgumentCaptor.getAllValues().get(0)).contains("topic1-generated-sub");
   }
 
   @Test

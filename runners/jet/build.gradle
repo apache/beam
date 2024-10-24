@@ -27,7 +27,6 @@ description = "Apache Beam :: Runners :: Hazelcast Jet"
 
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
-evaluationDependsOn(":runners:core-construction-java")
 
 project.ext {
     jet_version = '4.0'
@@ -43,7 +42,6 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":runners:core-java")
     implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation project(":runners:core-construction-java")
     implementation "com.hazelcast.jet:hazelcast-jet:$jet_version"
     implementation library.java.joda_time
     implementation library.java.vendored_guava_32_1_2_jre
@@ -51,19 +49,16 @@ dependencies {
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
     testImplementation library.java.joda_time
     testImplementation "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
     testImplementation "com.hazelcast:hazelcast:$hazelcast_version:tests"
 
     needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
     needsRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-    needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
     needsRunner project(path: project.path, configuration: "testRuntimeMigration")
 
     validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
     validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-    validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
     validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
@@ -76,6 +71,7 @@ task validatesRunnerBatch(type: Test) {
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
@@ -124,7 +120,6 @@ task needsRunnerTests(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(["--runner=TestJetRunner"])
 
     classpath = configurations.needsRunner
-    testClassesDirs += files(project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
     testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
     testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {

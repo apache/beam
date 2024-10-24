@@ -27,6 +27,8 @@ import {
 } from "./standard_coders";
 import { IterableCoder } from "./required_coders";
 import * as runnerApi from "../proto/beam_runner_api";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 /**
  * A Coder<T> that encodes a javascript object with BSON.
@@ -159,8 +161,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
 }
 globalRegistry().register(GeneralObjectCoder.URN, GeneralObjectCoder);
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/coders/js_coders", exports);
-requireForSerialization("apache-beam/coders/js_coders", {
+requireForSerialization(`${packageName}/coders/js_coders`, exports);
+requireForSerialization(`${packageName}/coders/js_coders`, {
   NumberOrFloatCoder: NumberOrFloatCoder,
 });

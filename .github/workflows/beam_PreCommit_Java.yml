@@ -26,7 +26,6 @@ on:
       - 'examples/kotlin/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Java.yml'
-      - '!sdks/java/extensions/avro/**'
       - '!sdks/java/extensions/sql/**'
       - '!sdks/java/io/amazon-web-services/**'
       - '!sdks/java/io/amazon-web-services2/**'
@@ -79,7 +78,6 @@ on:
       - 'release/**'
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java.json'
-      - '!sdks/java/extensions/avro/**'
       - '!sdks/java/extensions/sql/**'
       - '!sdks/java/io/amazon-web-services/**'
       - '!sdks/java/io/amazon-web-services2/**'
@@ -148,7 +146,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -185,6 +183,7 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
+            -PenableJacocoReport \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -210,3 +209,12 @@ jobs:
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
+      - name: Archive Jacoco Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jacoco Results
+          path: '**/build/jacoco/report/**'
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          flags: java

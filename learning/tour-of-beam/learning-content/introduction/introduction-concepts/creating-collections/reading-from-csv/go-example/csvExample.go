@@ -30,60 +30,63 @@
 package main
 
 import (
-    "context"
-    "fmt"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "strconv"
-    "strings"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
-func less(a, b float64) bool{
-    return a>b
+func less(a, b float64) bool {
+	return a < b
 }
 
 func main() {
-    p, s := beam.NewPipelineWithRoot()
+	ctx := context.Background()
+	beam.Init()
 
-    input := Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
+	p, s := beam.NewPipelineWithRoot()
 
-    cost := applyTransform(s, input)
+	input := Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
-    fixedSizeElements := top.Largest(s,cost,10,less)
+	cost := applyTransform(s, input)
 
-    output(s, "Total cost: ", fixedSizeElements)
+	fixedSizeElements := top.Largest(s, cost, 10, less)
 
-    err := beamx.Run(context.Background(), p)
-    if err != nil {
-        log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	output(s, "Total cost: ", fixedSizeElements)
+
+	err := beamx.Run(ctx, p)
+	if err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }
 
-// Read reads from fiename(s) specified by a glob string and a returns a PCollection<string>.
+// Read reads from filename(s) specified by a glob string and a returns a PCollection<string>.
 func Read(s beam.Scope, glob string) beam.PCollection {
-    return textio.Read(s, glob)
+	return textio.Read(s, glob)
 }
 
-// ApplyTransform converts to uppercase all elements in a PCollection<string>.
+// ApplyTransform converts to float total_amount from all the elements in a PCollection<string>.
 func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string) float64 {
-        taxi := strings.Split(strings.TrimSpace(line), ",")
-        if len(taxi) > 16 {
-            cost, _ := strconv.ParseFloat(taxi[16],64)
-            return cost
-        }
-        return 0.0
-    }, input)
+	return beam.ParDo(s, func(line string) float64 {
+		taxi := strings.Split(strings.TrimSpace(line), ",")
+		if len(taxi) > 16 {
+			cost, _ := strconv.ParseFloat(taxi[16], 64)
+			return cost
+		}
+		return 0.0
+	}, input)
 }
 
 func output(s beam.Scope, prefix string, input beam.PCollection) {
-    beam.ParDo0(s, func(elements []float64) {
-        for _, element := range elements {
-        fmt.Println(prefix,element)
-        }
-    }, input)
+	beam.ParDo0(s, func(elements []float64) {
+		for _, element := range elements {
+			fmt.Println(prefix, element)
+		}
+	}, input)
 }

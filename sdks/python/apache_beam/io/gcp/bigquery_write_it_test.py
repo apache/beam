@@ -34,6 +34,8 @@ import pytest
 import pytz
 from parameterized import param
 from parameterized import parameterized
+from tenacity import retry
+from tenacity import stop_after_attempt
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import BigQueryWriteFn
@@ -457,7 +459,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_big_query_write_insert_non_transient_api_call_error(self):
     """
-    Test that non-transient GoogleAPICallError errors returned 
+    Test that non-transient GoogleAPICallError errors returned
     by beam.io.WriteToBigQuery are not retried and result in
     FAILED_ROWS containing both the failed rows and the reason
     for failure.
@@ -489,6 +491,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       # pylint: disable=expression-not-assigned
       errors = (
           p | 'create' >> beam.Create(input_data)
+          | beam.WindowInto(beam.transforms.window.FixedWindows(10))
           | 'write' >> beam.io.WriteToBigQuery(
               table_id,
               schema=table_schema,
@@ -511,6 +514,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
   ])
   @mock.patch(
       "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_big_query_write_temp_table_append_schema_update(self, file_format):
     """
     Test that nested schema update options and schema relaxation

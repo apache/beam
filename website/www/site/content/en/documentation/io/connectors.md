@@ -802,11 +802,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
     </td>
+    <td>Not available</td>
     <td class="present">
       ✔
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio">native</a>
     </td>
-    <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -970,6 +970,32 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/googleads/GoogleAdsIO.html">native</a>
     </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      Web APIs (<a href="/documentation/io/built-in/webapis/">guide</a>)
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/RequestResponseIO.html">native</a></td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponse.html?highlight=requestresponse#apache_beam.io.requestresponse.RequestResponseIO">native</a></td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      Iceberg (Managed I/O)
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/2.56.0/org/apache/beam/sdk/managed/Managed.html">native</a></td>
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
@@ -1169,6 +1195,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/beam-pyio">Beam PyIO (Collection of Python IO connectors)</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
   </tr>
 </table>
 </div>

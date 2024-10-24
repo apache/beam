@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -44,7 +45,7 @@ import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.Json;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.util.MockSleeper;
@@ -97,6 +98,7 @@ import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics.RowStatus;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -124,6 +126,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link BigQueryServicesImpl}. */
 @RunWith(JUnit4.class)
 public class BigQueryServicesImplTest {
+
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BigQueryServicesImpl.class);
   // A test can make mock responses through setupMockResponses
@@ -169,6 +172,7 @@ public class BigQueryServicesImplTest {
 
   @FunctionalInterface
   private interface MockSetupFunction {
+
     void apply(LowLevelHttpResponse t) throws IOException;
   }
 
@@ -832,6 +836,167 @@ public class BigQueryServicesImplTest {
     verifyWriteMetricWasSet("project", "dataset", "table", "quotaexceeded", 1);
   }
 
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} sets perWorkerMetrics properly when the Backoff
+   * limit is hit.
+   */
+  @Test
+  public void testInsertAll_InternalBigQueryErrors() throws Exception {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
+    BigQuerySinkMetricsTest.TestMetricsContainer testMetricsContainer =
+        new BigQuerySinkMetricsTest.TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testMetricsContainer);
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
+        ImmutableList.of(
+            wrapValue(new TableRow().set("row", "a")), wrapValue(new TableRow().set("row", "b")));
+    List<String> insertIds = ImmutableList.of("a", "b");
+
+    final TableDataInsertAllResponse aFailed =
+        new TableDataInsertAllResponse()
+            .setInsertErrors(
+                ImmutableList.of(
+                    new InsertErrors().setIndex(0L).setErrors(ImmutableList.of(new ErrorProto()))));
+    MockSetupFunction aFailedResponse =
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(aFailed));
+        };
+
+    // Expect 4 InsertAll RPCS:
+    // 1st request will return an RPC error that should be retried
+    // 2nd-4th RPCs will fail to insert Row A.
+    // Expect client throw an exception after 4th RPC due to hitting backoff limits.
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        aFailedResponse,
+        aFailedResponse,
+        aFailedResponse,
+        aFailedResponse);
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    try {
+      dataService.insertAll(
+          ref,
+          rows,
+          insertIds,
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+          TEST_BACKOFF,
+          new MockSleeper(),
+          InsertRetryPolicy.alwaysRetry(),
+          null,
+          null,
+          false,
+          false,
+          false,
+          null);
+      fail();
+    } catch (Exception e) {
+    }
+    verifyAllResponsesAreRead();
+
+    String tableId = "datasets/dataset/tables/table";
+    BigQuerySinkMetrics.RpcMethod method = BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS;
+    MetricName okRpcRequestName =
+        BigQuerySinkMetrics.createRPCRequestCounter(method, "OK", tableId).getName();
+    MetricName rateLimitRpcRequestName =
+        BigQuerySinkMetrics.createRPCRequestCounter(method, "rateLimitExceeded", tableId).getName();
+
+    MetricName okRowsAppendedName =
+        BigQuerySinkMetrics.appendRowsRowStatusCounter(RowStatus.SUCCESSFUL, "OK", tableId)
+            .getName();
+    MetricName internalRowsAppendedName =
+        BigQuerySinkMetrics.appendRowsRowStatusCounter(RowStatus.RETRIED, "INTERNAL", tableId)
+            .getName();
+    MetricName rateLimitRowsAppendedName =
+        BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                RowStatus.RETRIED, "rateLimitExceeded", tableId)
+            .getName();
+    MetricName failedRowsName =
+        BigQuerySinkMetrics.appendRowsRowStatusCounter(RowStatus.FAILED, "INTERNAL", tableId)
+            .getName();
+
+    testMetricsContainer.assertPerWorkerCounterValue(okRpcRequestName, 4L);
+    testMetricsContainer.assertPerWorkerCounterValue(rateLimitRpcRequestName, 1L);
+    testMetricsContainer.assertPerWorkerCounterValue(okRowsAppendedName, 1L);
+    testMetricsContainer.assertPerWorkerCounterValue(internalRowsAppendedName, 3L);
+    testMetricsContainer.assertPerWorkerCounterValue(rateLimitRowsAppendedName, 2L);
+    testMetricsContainer.assertPerWorkerCounterValue(failedRowsName, 1L);
+
+    assertThat(testMetricsContainer.perWorkerHistograms.size(), equalTo(1));
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} sets perWorkerMetrics properly when BigQuery
+   * returns unretryable Rpc Error.
+   */
+  @Test
+  public void testInsertAll_RpcErrors() throws Exception {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
+    BigQuerySinkMetricsTest.TestMetricsContainer testMetricsContainer =
+        new BigQuerySinkMetricsTest.TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testMetricsContainer);
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
+        ImmutableList.of(
+            wrapValue(new TableRow().set("row", "a")), wrapValue(new TableRow().set("row", "b")));
+    List<String> insertIds = ImmutableList.of("a", "b");
+
+    // Expect 1 RPC request
+    // 1st request will return an RPC error that is not retryable.
+    // Expect client to record metrics and rethrow the error.
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("actuallyForbidden", 403)));
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    try {
+      dataService.insertAll(
+          ref,
+          rows,
+          insertIds,
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+          TEST_BACKOFF,
+          new MockSleeper(),
+          InsertRetryPolicy.alwaysRetry(),
+          null,
+          null,
+          false,
+          false,
+          false,
+          null);
+      fail();
+    } catch (Exception e) {
+    }
+    verifyAllResponsesAreRead();
+
+    String tableId = "datasets/dataset/tables/table";
+    BigQuerySinkMetrics.RpcMethod method = BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS;
+    MetricName forbiddenRpcName =
+        BigQuerySinkMetrics.createRPCRequestCounter(method, "actuallyForbidden", tableId).getName();
+
+    testMetricsContainer.assertPerWorkerCounterValue(forbiddenRpcName, 1L);
+    assertThat(testMetricsContainer.perWorkerHistograms.size(), equalTo(1));
+  }
+
   // A BackOff that makes a total of 4 attempts
   private static final FluentBackoff TEST_BACKOFF =
       FluentBackoff.DEFAULT
@@ -1434,12 +1599,12 @@ public class BigQueryServicesImplTest {
   /** A helper to convert a string response back to a {@link GenericJson} subclass. */
   private static <T extends GenericJson> T fromString(String content, Class<T> clazz)
       throws IOException {
-    return JacksonFactory.getDefaultInstance().fromString(content, clazz);
+    return GsonFactory.getDefaultInstance().fromString(content, clazz);
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
   private static InputStream toStream(GenericJson content) throws IOException {
-    return new ByteArrayInputStream(JacksonFactory.getDefaultInstance().toByteArray(content));
+    return new ByteArrayInputStream(GsonFactory.getDefaultInstance().toByteArray(content));
   }
 
   /** A helper that generates the error JSON payload that Google APIs produce. */
@@ -1864,9 +2029,11 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
-  public void testRetryAttemptCounter() {
-    BigQueryServicesImpl.StorageClientImpl.RetryAttemptCounter counter =
-        new BigQueryServicesImpl.StorageClientImpl.RetryAttemptCounter();
+  public void testRetryAttemptCounter() throws IOException {
+    BigQueryServicesImpl.StorageClientImpl impl =
+        new BigQueryServicesImpl.StorageClientImpl(
+            PipelineOptionsFactory.create().as(BigQueryOptions.class));
+    BigQueryServicesImpl.StorageClientImpl.RetryAttemptCounter counter = impl.getListener();
 
     RetryInfo retryInfo =
         RetryInfo.newBuilder()
@@ -1908,19 +2075,48 @@ public class BigQueryServicesImplTest {
 
     // Nulls don't bump the counter.
     counter.onRetryAttempt(null, null);
+    impl.reportPendingMetrics();
     assertEquals(0, (long) container.getCounter(metricName).getCumulative());
 
     // Resource exhausted with empty metadata doesn't bump the counter.
     counter.onRetryAttempt(
         Status.RESOURCE_EXHAUSTED.withDescription("You have consumed some quota"), new Metadata());
+    impl.reportPendingMetrics();
     assertEquals(0, (long) container.getCounter(metricName).getCumulative());
 
     // Resource exhausted with retry info bumps the counter.
     counter.onRetryAttempt(Status.RESOURCE_EXHAUSTED.withDescription("Stop for a while"), metadata);
+    impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
 
     // Other errors with retry info doesn't bump the counter.
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
+    impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+  }
+
+  @Test
+  public void testEndpointOverrides() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryEndpoint("http://example.com:80");
+
+    assertEquals(
+        "http://example.com:80/bigquery/v2/",
+        new BigQueryServicesImpl.JobServiceImpl(options).getClient().getBaseUrl());
+    assertEquals(
+        "http://example.com:80/bigquery/v2/",
+        new BigQueryServicesImpl.DatasetServiceImpl(options).getClient().getBaseUrl());
+    assertEquals(
+        "example.com:80",
+        new BigQueryServicesImpl.WriteStreamServiceImpl(options)
+            .getClient()
+            .getSettings()
+            .getEndpoint());
+    assertEquals(
+        "example.com:80",
+        new BigQueryServicesImpl.StorageClientImpl(options)
+            .getClient()
+            .getSettings()
+            .getEndpoint());
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -35,7 +36,6 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -45,13 +45,16 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -81,6 +84,7 @@ public class SplittableParDoProcessKeyedElementsOp<
   private transient SamzaTimerInternalsFactory<byte[]> timerInternalsFactory;
   private transient DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fnRunner;
   private transient SamzaPipelineOptions pipelineOptions;
+  private transient @MonotonicNonNull ScheduledExecutorService ses = null;
 
   public SplittableParDoProcessKeyedElementsOp(
       TupleTag<OutputT> mainOutputTag,
@@ -137,6 +141,12 @@ public class SplittableParDoProcessKeyedElementsOp<
             isBounded,
             pipelineOptions);
 
+    if (this.ses == null) {
+      this.ses =
+          Executors.newSingleThreadScheduledExecutor(
+              new ThreadFactoryBuilder().setNameFormat("samza-sdf-executor-%d").build());
+    }
+
     final KeyedInternals<byte[]> keyedInternals =
         new KeyedInternals<>(stateInternalsFactory, timerInternalsFactory);
 
@@ -172,7 +182,7 @@ public class SplittableParDoProcessKeyedElementsOp<
               }
             },
             NullSideInputReader.empty(),
-            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            ses,
             10000,
             Duration.standardSeconds(10),
             () -> {

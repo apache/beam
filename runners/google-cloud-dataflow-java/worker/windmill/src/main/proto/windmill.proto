@@ -477,9 +477,10 @@ message GetWorkResponse {
 // GetData
 
 message KeyedGetDataRequest {
-  required bytes key = 1;
+  optional bytes key = 1;
   required fixed64 work_token = 2;
   optional fixed64 sharding_key = 6;
+  optional fixed64 cache_token = 11;
   repeated TagValue values_to_fetch = 3;
   repeated TagValuePrefixRequest tag_value_prefixes_to_fetch = 10;
   repeated TagBag bags_to_fetch = 8;
@@ -507,6 +508,8 @@ message GetDataRequest {
   // Assigned worker id for the instance.
   optional string worker_id = 6;
 
+  // SE only. Will only be set by compatible client
+  repeated ComputationHeartbeatRequest computation_heartbeat_request = 7;
   // DEPRECATED
   repeated GlobalDataId global_data_to_fetch = 2;
 }
@@ -536,6 +539,44 @@ message ComputationGetDataResponse {
 message GetDataResponse {
   repeated ComputationGetDataResponse data = 1;
   repeated GlobalData global_data = 2;
+  // Only set if ComputationHeartbeatRequest was sent, prior versions do not
+  // expect a response for heartbeats. SE only.
+  repeated ComputationHeartbeatResponse computation_heartbeat_response = 3;
+}
+
+// Heartbeats
+//
+// Heartbeats are sent over the GetData stream in Streaming Engine and
+// indicates the work item that the user worker has previously received from
+// GetWork but not yet committed with CommitWork.
+// Note that implicit heartbeats not expecting a response may be sent as
+// special KeyedGetDataRequests see function KeyedGetDataRequestIsHeartbeat.
+// SE only.
+message HeartbeatRequest {
+  optional fixed64 sharding_key = 1;
+  optional fixed64 work_token = 2;
+  optional fixed64 cache_token = 3;
+  repeated LatencyAttribution latency_attribution = 4;
+}
+
+// Responses for heartbeat requests, indicating which work is no longer valid
+// on the windmill worker and may be dropped/cancelled in the client.
+// SE only.
+message HeartbeatResponse {
+  optional fixed64 sharding_key = 1;
+  optional fixed64 work_token = 2;
+  optional fixed64 cache_token = 3;
+  optional bool failed = 4;
+}
+
+message ComputationHeartbeatRequest {
+  optional string computation_id = 1;
+  repeated HeartbeatRequest heartbeat_requests = 2;
+}
+
+message ComputationHeartbeatResponse {
+  optional string computation_id = 1;
+  repeated HeartbeatResponse heartbeat_responses = 2;
 }
 
 // CommitWork
@@ -772,6 +813,8 @@ message StreamingGetDataRequest {
   repeated fixed64 request_id = 1;
   repeated GlobalDataRequest global_data_request = 3;
   repeated ComputationGetDataRequest state_request = 4;
+  // Will only be set by compatible client
+  repeated ComputationHeartbeatRequest computation_heartbeat_request = 5;
 }
 
 message StreamingGetDataResponse {
@@ -784,6 +827,12 @@ message StreamingGetDataResponse {
   repeated bytes serialized_response = 2;
   // Remaining bytes field applies only to the last serialized_response
   optional int64 remaining_bytes_for_response = 3;
+
+  // Only set if ComputationHeartbeatRequest was sent, prior versions do not
+  // expect a response for heartbeats.
+  repeated ComputationHeartbeatResponse computation_heartbeat_response = 5;
+
+  reserved 4;
 }
 
 message StreamingCommitWorkRequest {
@@ -798,6 +847,11 @@ message JobHeader {
   optional string project_id = 2;
   // Worker id is meant for logging only. Do not rely on it for other decisions.
   optional string worker_id = 3;
+  optional fixed64 client_id = 4;
+  optional string region_id = 5;
+  // Used by the user worker to communicate to a specific windmill worker. This
+  // is initially passed to the user worker via GetWorkerMetadata.
+  optional string backend_worker_token = 6;
 }
 
 message StreamingCommitRequestChunk {
@@ -853,15 +907,29 @@ message WorkerMetadataResponse {
   message Endpoint {
     // IPv6 address of a streaming engine windmill worker.
     optional string direct_endpoint = 1;
-    optional string worker_token = 2;
+    optional string backend_worker_token = 2;
+    optional int64 port = 3;
   }
+
   repeated Endpoint work_endpoints = 2;
 
   // Maps from GlobalData tag to the endpoint that should be used for GetData
   // calls to retrieve that global data.
   map<string, Endpoint> global_data_endpoints = 3;
 
+  // Used to set gRPC authority.
+  optional string external_endpoint = 5;
+
   reserved 4;
+}
+
+// Settings to control runtime behavior of the java runner v1 user worker.
+message UserWorkerRunnerV1Settings {
+  // If true, use separate channels for each windmill RPC.
+  optional bool use_windmill_isolated_channels = 1 [default = true];
+
+  // If true, use separate streaming RPC for windmill heartbeats and state reads.
+  optional bool use_separate_windmill_heartbeat_streams = 2 [default = true];
 }
 
 service WindmillAppliance {

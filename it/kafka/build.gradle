@@ -15,24 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import org.apache.beam.gradle.IoPerformanceTestUtilities
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.kafka',
+    automaticModuleName: 'org.apache.beam.it.kafka',
+    exportJavadoc: false,
 )
 
 description = "Apache Beam :: IT :: Kafka"
 ext.summary = "Integration test utilities for Kafka."
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
+    implementation project(path: ":it:common")
+    implementation project(path: ":it:testcontainers")
+    implementation library.java.slf4j_api
+    implementation library.java.testcontainers_base
     implementation library.java.testcontainers_kafka
     implementation library.java.kafka_clients
-
+    implementation library.java.vendored_guava_32_1_2_jre
     // TODO: excluding Guava until Truth updates it to >32.1.x
     testImplementation(library.java.truth) {
         exclude group: 'com.google.guava', module: 'guava'
     }
+    testImplementation library.java.guava
+    permitUsedUndeclared library.java.guava
     testImplementation library.java.mockito_core
     testRuntimeOnly library.java.slf4j_simple
     // TODO: Remove the below dependencies after KafkaIOLT has been moved to the right directory.
@@ -40,5 +47,19 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:kafka")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation project(path: ":runners:direct-java")
+    testImplementation project(path: ":runners:google-cloud-dataflow-java")
     testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+    testImplementation library.java.google_api_services_dataflow
 }
+
+tasks.register(
+        "KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "KafkaStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)

@@ -22,24 +22,21 @@ labels:
     reviewers:
       - lostluck
       - jrmccluskey
-      - riteshghorse
     exclusionList:
       - youngoli
   - name: Python
     reviewers:
-      - AnandInguva
       - damccorm
       - jrmccluskey
       - tvalentyn
-      - riteshghorse
       - liferoad
+      - shunping
     exclusionList: []
   - name: Java
     reviewers:
       - Abacn
       - kennknowles
       - robertwb
-      - bvolpato
       - m-trieu
       - damondouglas
     exclusionList: []
@@ -49,8 +46,8 @@ labels:
       - johnjcasey
       - Abacn
       - ahmedabu98
-      - bvolpato
       - damondouglas
+      - shunping
     exclusionList: []
   - name: spanner
     reviewers:
@@ -59,6 +56,10 @@ labels:
     reviewers:
       - igorbernstein2
       - mutianf
+    exclusionList: []
+  - name: healthcare
+    reviewers:
+      - svetakvsundhar
     exclusionList: []
   - name: Build
     reviewers:
@@ -75,7 +76,6 @@ labels:
     exclusionList: []
 fallbackReviewers:
   - Abacn
-  - AnandInguva
   - chamikaramj
   - damccorm
   - damondouglas
@@ -83,6 +83,6 @@ fallbackReviewers:
   - jrmccluskey
   - kennknowles
   - lostluck
-  - riteshghorse
   - robertwb
+  - shunping
   - tvalentyn

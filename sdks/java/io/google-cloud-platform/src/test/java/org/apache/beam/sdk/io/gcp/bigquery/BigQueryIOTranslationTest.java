@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,6 +32,9 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -39,7 +43,7 @@ import org.junit.Test;
 public class BigQueryIOTranslationTest {
 
   // A mapping from Read transform builder methods to the corresponding schema fields in
-  // KafkaIOTranslation.
+  // BigQueryIOTranslation.
   static final Map<String, String> READ_TRANSFORM_SCHEMA_MAPPING = new HashMap<>();
 
   static {
@@ -56,6 +60,7 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryPriority", "query_priority");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryLocation", "query_location");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempDataset", "query_temp_dataset");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempProject", "query_temp_project");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getFormat", "format");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getSelectedFields", "selected_fields");
@@ -68,6 +73,8 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getUseAvroLogicalTypes", "use_avro_logical_types");
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "getProjectionPushdownApplied", "projection_pushdown_applied");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordRouter", "bad_record_router");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordErrorHandler", "bad_record_error_handler");
   }
 
   static final Map<String, String> WRITE_TRANSFORM_SCHEMA_MAPPING = new HashMap<>();
@@ -84,7 +91,7 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getDynamicDestinations", "dynamic_destinations");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonSchema", "json_schema");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonTimePartitioning", "json_time_partitioning");
-    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getClustering", "clustering");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonClustering", "clustering");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getCreateDisposition", "create_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteDisposition", "write_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getSchemaUpdateOptions", "schema_update_options");
@@ -98,9 +105,12 @@ public class BigQueryIOTranslationTest {
         "getNumStorageWriteApiStreams", "num_storage_write_api_streams");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put(
         "getPropagateSuccessfulStorageApiWrites", "propagate_successful_storage_api_writes");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put(
+        "getPropagateSuccessfulStorageApiWritesPredicate",
+        "propagate_successful_storage_api_writes_predicate");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxFilesPerPartition", "max_files_per_partition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxBytesPerPartition", "max_bytes_per_partition");
-    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTriggeringFrequency", "triggerring_frequency");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTriggeringFrequency", "triggering_frequency");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getLoadJobProjectId", "load_job_project_id");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getFailedInsertRetryPolicy", "failed_insert_retry_policy");
@@ -125,6 +135,8 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteTempDataset", "write_temp_dataset");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put(
         "getRowMutationInformationFn", "row_mutation_information_fn");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordRouter", "bad_record_router");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordErrorHandler", "bad_record_error_handler");
   }
 
   @Test
@@ -142,7 +154,8 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(readTransform);
 
     BigQueryIO.TypedRead<TableRow> readTransformFromRow =
-        (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row);
+        (BigQueryIO.TypedRead<TableRow>)
+            translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(readTransformFromRow.getTable());
     assertEquals("dummyproject", readTransformFromRow.getTable().getProjectId());
     assertEquals("dummydataset", readTransformFromRow.getTable().getDatasetId());
@@ -172,7 +185,8 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOReadTranslator();
     Row row = translator.toConfigRow(readTransform);
 
-    BigQueryIO.TypedRead<?> readTransformFromRow = translator.fromConfigRow(row);
+    BigQueryIO.TypedRead<?> readTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertEquals("dummyquery", readTransformFromRow.getQuery().get());
     assertNotNull(readTransformFromRow.getParseFn());
     assertTrue(readTransformFromRow.getParseFn() instanceof DummyParseFn);
@@ -228,6 +242,7 @@ public class BigQueryIOTranslationTest {
   @Test
   public void testReCreateWriteTransformFromRowTable() {
     // setting a subset of fields here.
+    Clustering testClustering = new Clustering().setFields(Arrays.asList("a", "b", "c"));
     BigQueryIO.Write<?> writeTransform =
         BigQueryIO.write()
             .to("dummyproject:dummydataset.dummytable")
@@ -235,13 +250,17 @@ public class BigQueryIOTranslationTest {
             .withTriggeringFrequency(org.joda.time.Duration.millis(10000))
             .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withClustering(testClustering)
             .withKmsKey("dummykmskey");
 
     BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
         new BigQueryIOTranslation.BigQueryIOWriteTranslator();
     Row row = translator.toConfigRow(writeTransform);
 
-    BigQueryIO.Write<?> writeTransformFromRow = (BigQueryIO.Write<?>) translator.fromConfigRow(row);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.56.0");
+    BigQueryIO.Write<?> writeTransformFromRow =
+        (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
     assertNotNull(writeTransformFromRow.getTable());
     assertEquals("dummyproject", writeTransformFromRow.getTable().get().getProjectId());
     assertEquals("dummydataset", writeTransformFromRow.getTable().get().getDatasetId());
@@ -249,6 +268,9 @@ public class BigQueryIOTranslationTest {
     assertEquals(WriteDisposition.WRITE_TRUNCATE, writeTransformFromRow.getWriteDisposition());
     assertEquals(CreateDisposition.CREATE_NEVER, writeTransformFromRow.getCreateDisposition());
     assertEquals("dummykmskey", writeTransformFromRow.getKmsKey());
+    assertEquals(
+        BigQueryHelpers.toJsonString(testClustering),
+        writeTransformFromRow.getJsonClustering().get());
   }
 
   @Test

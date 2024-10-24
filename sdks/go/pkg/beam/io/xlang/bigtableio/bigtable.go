@@ -62,9 +62,9 @@ import (
 )
 
 type bigtableConfig struct {
-	InstanceId string `beam:"instanceId"`
-	ProjectId  string `beam:"projectId"`
-	TableId    string `beam:"tableId"`
+	InstanceId string `beam:"instance_id"`
+	ProjectId  string `beam:"project_id"`
+	TableId    string `beam:"table_id"`
 }
 
 // Cell represents a single cell in a Bigtable row.

@@ -32,14 +32,14 @@ ext.summary = "Library to work with Debezium data."
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     provided library.java.jackson_dataformat_csv
     permitUnusedDeclared library.java.jackson_dataformat_csv
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
 
     // Test dependencies
     testImplementation library.java.junit
@@ -51,6 +51,8 @@ dependencies {
     testImplementation library.java.testcontainers_base
     testImplementation library.java.testcontainers_mysql
     testImplementation library.java.testcontainers_postgresql
+    // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
+    testImplementation 'com.zaxxer:HikariCP:4.0.3'
 
     // Kafka connect dependencies
     implementation "org.apache.kafka:connect-api:2.5.0"

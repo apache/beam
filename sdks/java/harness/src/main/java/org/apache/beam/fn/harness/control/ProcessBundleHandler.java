@@ -72,9 +72,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
@@ -90,8 +87,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
@@ -596,7 +596,11 @@ public class ProcessBundleHandler {
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
       return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
-      // Make sure we clean-up from the active set of bundle processors.
+      // Make sure we clean up from the active set of bundle processors.
+      LOG.debug(
+          "Discard bundleProcessor for {} after exception: {}",
+          request.getProcessBundle().getProcessBundleDescriptorId(),
+          e.getMessage());
       bundleProcessorCache.discard(bundleProcessor);
       throw e;
     }
@@ -683,6 +687,9 @@ public class ProcessBundleHandler {
             shortIds.get(metric.getKey()).toBuilder().setPayload(metric.getValue()));
       }
     }
+
+    response.setConsumingReceivedData(
+        bundleProcessor.getInboundObserver().isConsumingReceivedData());
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleProgress(response);
   }
@@ -1165,6 +1172,18 @@ public class ProcessBundleHandler {
         if (this.bundleCache != null) {
           this.bundleCache.clear();
         }
+        // setupFunctions are invoked in createBundleProcessor. Invoke teardownFunction here as the
+        // BundleProcessor is already removed from cache and won't be re-used.
+        for (ThrowingRunnable teardownFunction : Lists.reverse(this.getTearDownFunctions())) {
+          try {
+            teardownFunction.run();
+          } catch (Throwable e) {
+            LOG.warn(
+                "Exceptions are thrown from DoFn.teardown method when trying to discard "
+                    + "ProcessBundleHandler",
+                e);
+          }
+        }
         getMetricsEnvironmentStateForBundle().discard();
         for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
           aggregator.discard();
@@ -1172,6 +1191,7 @@ public class ProcessBundleHandler {
       }
     }
 
+    // this is called in cachedBundleProcessors removal listener
     void shutdown() {
       for (ThrowingRunnable tearDownFunction : getTearDownFunctions()) {
         LOG.debug("Tearing down function {}", tearDownFunction);

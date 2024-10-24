@@ -56,6 +56,7 @@ public class FlinkBoundedSource<T> extends FlinkSource<T, WindowedValue<T>> {
       Boundedness boundedness,
       int numSplits,
       @Nullable TimestampExtractor<WindowedValue<T>> timestampExtractor) {
+
     super(stepName, beamSource, serializablePipelineOptions, boundedness, numSplits);
     this.timestampExtractor = timestampExtractor;
   }

@@ -19,8 +19,11 @@ package org.apache.beam.sdk.io;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.util.HashSet;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.FileSystem.LineageLevel;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,6 +32,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
@@ -80,6 +84,9 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
       extends DoFn<FileIO.ReadableFile, KV<FileIO.ReadableFile, OffsetRange>> {
     private final long desiredBundleSizeBytes;
 
+    // track unique resourceId met. Access it only inside reportSourceLineage
+    private transient @Nullable HashSet<ResourceId> uniqueIds;
+
     public SplitIntoRangesFn(long desiredBundleSizeBytes) {
       this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     }
@@ -87,6 +94,7 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     @ProcessElement
     public void process(ProcessContext c) {
       MatchResult.Metadata metadata = c.element().getMetadata();
+      reportSourceLineage(metadata.resourceId());
       if (!metadata.isReadSeekEfficient()) {
         c.output(KV.of(c.element(), new OffsetRange(0, metadata.sizeBytes())));
         return;
@@ -94,6 +102,31 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
       for (OffsetRange range :
           new OffsetRange(0, metadata.sizeBytes()).split(desiredBundleSizeBytes, 0)) {
         c.output(KV.of(c.element(), range));
+      }
+    }
+
+    /**
+     * Report source Lineage. Due to the size limit of Beam metrics, report full file name or only
+     * top level depend on the number of files.
+     *
+     * <p>- Number of files<=100, report full file paths;
+     *
+     * <p>- Otherwise, report top level only.
+     */
+    @SuppressWarnings("nullness") // only called in processElement, guaranteed to be non-null
+    private void reportSourceLineage(ResourceId resourceId) {
+      if (uniqueIds == null) {
+        uniqueIds = new HashSet<>();
+      } else if (uniqueIds.isEmpty()) {
+        // already at capacity
+        FileSystems.reportSourceLineage(resourceId, LineageLevel.TOP_LEVEL);
+        return;
+      }
+      uniqueIds.add(resourceId);
+      FileSystems.reportSourceLineage(resourceId, LineageLevel.FILE);
+      if (uniqueIds.size() >= 100) {
+        // avoid reference leak
+        uniqueIds.clear();
       }
     }
   }
@@ -123,8 +156,9 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     public void process(ProcessContext c) throws IOException {
       FileIO.ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();
+      ResourceId resourceId = file.getMetadata().resourceId();
       FileBasedSource<InT> source =
-          CompressedSource.from(createSource.apply(file.getMetadata().resourceId().toString()))
+          CompressedSource.from(createSource.apply(resourceId.toString()))
               .withCompression(file.getCompression());
       try (BoundedSource.BoundedReader<InT> reader =
           source

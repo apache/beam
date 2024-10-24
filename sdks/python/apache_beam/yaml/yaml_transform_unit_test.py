@@ -110,6 +110,10 @@ class MainTest(unittest.TestCase):
     if inputs is None:
       inputs = {}
     spec = yaml.load(spec, Loader=SafeLineLoader)
+    if 'transforms' in spec:
+      spec['transforms'] = [
+          normalize_inputs_outputs(t) for t in spec['transforms']
+      ]
 
     scope = Scope(
         beam.pvalue.PBegin(p),
@@ -209,7 +213,7 @@ class MainTest(unittest.TestCase):
                                            inputs={'elements': elements})
       self.assertRegex(
           str(expand_composite_transform(spec, scope)['output']),
-          r"PCollection.*Composite/Map.*")
+          r"PCollection.*Composite/LogForTesting.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:
@@ -252,7 +256,8 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
         input: {spec['transforms'][0]['__uuid__']}
-      output: {spec['transforms'][1]['__uuid__']}
+      output:
+        '__implicit_outputs__': {spec['transforms'][1]['__uuid__']}
     '''
     self.assertYaml(expected, result)
 
@@ -653,7 +658,7 @@ class MainTest(unittest.TestCase):
           windowing:
             type: fixed
             size: 4
-          input: input
+          input: {{input: input}}
       output: {result['transforms'][0]['__uuid__']}
     '''
     self.assertYaml(expected, result)
@@ -896,7 +901,8 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    with self.assertRaisesRegex(ValueError, r"Unconsumed error.*"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Unconsumed error.*MyTransform.errors"):
       ensure_errors_consumed(spec)
 
   def test_ensure_errors_consumed_in_transform(self):

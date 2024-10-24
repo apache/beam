@@ -46,17 +46,16 @@ public class WorkerPipelineOptionsFactory {
    * @return A {@link DataflowWorkerHarnessOptions} object configured for the Dataflow worker
    *     harness.
    */
-  public static DataflowWorkerHarnessOptions createFromSystemProperties() throws IOException {
+  public static <T extends DataflowWorkerHarnessOptions> T createFromSystemProperties(
+      Class<T> harnessOptionsClass) throws IOException {
     ObjectMapper objectMapper = new ObjectMapper();
-    DataflowWorkerHarnessOptions options;
+    T options;
     if (System.getProperties().containsKey("sdk_pipeline_options")) {
       // TODO: remove this method of getting pipeline options, once migration is complete.
       String serializedOptions = System.getProperty("sdk_pipeline_options");
       LOG.info("Worker harness starting with: {}", serializedOptions);
       options =
-          objectMapper
-              .readValue(serializedOptions, PipelineOptions.class)
-              .as(DataflowWorkerHarnessOptions.class);
+          objectMapper.readValue(serializedOptions, PipelineOptions.class).as(harnessOptionsClass);
     } else if (System.getProperties().containsKey("sdk_pipeline_options_file")) {
       String filePath = System.getProperty("sdk_pipeline_options_file");
       LOG.info("Loading pipeline options from " + filePath);
@@ -64,12 +63,10 @@ public class WorkerPipelineOptionsFactory {
           new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
       LOG.info("Worker harness starting with: " + serializedOptions);
       options =
-          objectMapper
-              .readValue(serializedOptions, PipelineOptions.class)
-              .as(DataflowWorkerHarnessOptions.class);
+          objectMapper.readValue(serializedOptions, PipelineOptions.class).as(harnessOptionsClass);
     } else {
       LOG.info("Using empty PipelineOptions, as none were provided.");
-      options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+      options = PipelineOptionsFactory.as(harnessOptionsClass);
     }
 
     // These values will not be known at job submission time and must be provided.
@@ -81,6 +78,16 @@ public class WorkerPipelineOptionsFactory {
     }
     if (System.getProperties().containsKey("worker_pool")) {
       options.setWorkerPool(System.getProperty("worker_pool"));
+    }
+
+    // Remove impersonate information from workers
+    // More details:
+    // https://cloud.google.com/dataflow/docs/reference/pipeline-options#security_and_networking
+    if (options.getImpersonateServiceAccount() != null) {
+      LOG.info(
+          "Remove the impersonateServiceAccount pipeline option ({}) when starting the Worker harness.",
+          options.getImpersonateServiceAccount());
+      options.setImpersonateServiceAccount(null);
     }
 
     return options;

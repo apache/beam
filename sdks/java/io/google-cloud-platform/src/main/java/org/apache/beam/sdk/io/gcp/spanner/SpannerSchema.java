@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class SpannerSchema implements Serializable {
+
   abstract ImmutableList<String> tables();
 
   abstract Dialect dialect();
@@ -161,6 +162,7 @@ public abstract class SpannerSchema implements Serializable {
     public abstract Type getType();
 
     private static Type parseSpannerType(String spannerType, Dialect dialect) {
+      String originalSpannerType = spannerType;
       spannerType = spannerType.toUpperCase();
       switch (dialect) {
         case GOOGLE_STANDARD_SQL:
@@ -170,6 +172,9 @@ public abstract class SpannerSchema implements Serializable {
           if ("INT64".equals(spannerType)) {
             return Type.int64();
           }
+          if ("FLOAT32".equals(spannerType)) {
+            return Type.float32();
+          }
           if ("FLOAT64".equals(spannerType)) {
             return Type.float64();
           }
@@ -177,6 +182,9 @@ public abstract class SpannerSchema implements Serializable {
             return Type.string();
           }
           if (spannerType.startsWith("BYTES")) {
+            return Type.bytes();
+          }
+          if ("TOKENLIST".equals(spannerType)) {
             return Type.bytes();
           }
           if ("TIMESTAMP".equals(spannerType)) {
@@ -193,9 +201,22 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("ARRAY")) {
             // Substring "ARRAY<xxx>"
-            String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
+            String spannerArrayType =
+                originalSpannerType.substring(6, originalSpannerType.length() - 1);
             Type itemType = parseSpannerType(spannerArrayType, dialect);
             return Type.array(itemType);
+          }
+          if (spannerType.startsWith("PROTO")) {
+            // Substring "PROTO<xxx>"
+            String spannerProtoType =
+                originalSpannerType.substring(6, originalSpannerType.length() - 1);
+            return Type.proto(spannerProtoType);
+          }
+          if (spannerType.startsWith("ENUM")) {
+            // Substring "ENUM<xxx>"
+            String spannerEnumType =
+                originalSpannerType.substring(5, originalSpannerType.length() - 1);
+            return Type.protoEnum(spannerEnumType);
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         case POSTGRESQL:
@@ -211,6 +232,9 @@ public abstract class SpannerSchema implements Serializable {
           }
           if ("BIGINT".equals(spannerType)) {
             return Type.int64();
+          }
+          if ("REAL".equals(spannerType)) {
+            return Type.float32();
           }
           if ("DOUBLE PRECISION".equals(spannerType)) {
             return Type.float64();

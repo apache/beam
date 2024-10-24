@@ -559,8 +559,7 @@ def run_server(options):
         staging_dir, beam_job_type=RenderBeamJob)
     port = job_servicer.start_grpc_server(options.job_port)
     try:
-      local_job_service_main.serve(
-          "Listening for beam jobs on port %d." % port, job_servicer)
+      local_job_service_main.serve("Listening for beam jobs on port %d." % port)
     finally:
       job_servicer.stop()
 

@@ -37,7 +37,7 @@ dependencies {
     implementation 'com.google.cloud:google-cloud-dlp:1.1.4'
     implementation 'com.google.cloud:google-cloud-language:1.99.4'
     implementation library.java.protobuf_java_util
-    implementation group: 'org.json', name: 'json', version: '20201115'
+    implementation library.java.json_org
     implementation 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
     implementation 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
     implementation 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
@@ -53,7 +53,9 @@ dependencies {
     testImplementation library.java.mockito_core
     testImplementation library.java.google_http_client
     testImplementation library.java.protobuf_java_util
-    testImplementation group: 'org.json', name: 'json', version: '20201115'
+    testImplementation library.java.json_org
+    // TODO(https://github.com/apache/beam/issues/30405) duplicate testImplemention used to force
+    //  older version of recommendations-ai than that in gcp-bom due to compatiblility issue
     testImplementation 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     testImplementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     testImplementation 'com.google.cloud:google-cloud-dlp:1.1.4'

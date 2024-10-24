@@ -32,6 +32,8 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -191,6 +194,11 @@ abstract class ReadFromKafkaDoFn<K, V>
     this.checkStopReadingFn = transform.getCheckStopReadingFn();
     this.badRecordRouter = transform.getBadRecordRouter();
     this.recordTag = recordTag;
+    if (transform.getConsumerPollingTimeout() > 0) {
+      this.consumerPollingTimeout = transform.getConsumerPollingTimeout();
+    } else {
+      this.consumerPollingTimeout = DEFAULT_KAFKA_POLL_TIMEOUT;
+    }
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromKafkaDoFn.class);
@@ -216,9 +224,11 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCache;
 
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
+  private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
 
-  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(1);
+  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
 
+  @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
@@ -281,22 +291,18 @@ abstract class ReadFromKafkaDoFn<K, V>
   public OffsetRange initialRestriction(@Element KafkaSourceDescriptor kafkaSourceDescriptor) {
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
-    LOG.info(
-        "Creating Kafka consumer for initial restriction for {}",
-        kafkaSourceDescriptor.getTopicPartition());
+    TopicPartition partition = kafkaSourceDescriptor.getTopicPartition();
+    LOG.info("Creating Kafka consumer for initial restriction for {}", partition);
     try (Consumer<byte[], byte[]> offsetConsumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      ConsumerSpEL.evaluateAssign(
-          offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
+      ConsumerSpEL.evaluateAssign(offsetConsumer, ImmutableList.of(partition));
       long startOffset;
       @Nullable Instant startReadTime = kafkaSourceDescriptor.getStartReadTime();
       if (kafkaSourceDescriptor.getStartReadOffset() != null) {
         startOffset = kafkaSourceDescriptor.getStartReadOffset();
       } else if (startReadTime != null) {
-        startOffset =
-            ConsumerSpEL.offsetForTime(
-                offsetConsumer, kafkaSourceDescriptor.getTopicPartition(), startReadTime);
+        startOffset = ConsumerSpEL.offsetForTime(offsetConsumer, partition, startReadTime);
       } else {
-        startOffset = offsetConsumer.position(kafkaSourceDescriptor.getTopicPartition());
+        startOffset = offsetConsumer.position(partition);
       }
 
       long endOffset = Long.MAX_VALUE;
@@ -304,11 +310,15 @@ abstract class ReadFromKafkaDoFn<K, V>
       if (kafkaSourceDescriptor.getStopReadOffset() != null) {
         endOffset = kafkaSourceDescriptor.getStopReadOffset();
       } else if (stopReadTime != null) {
-        endOffset =
-            ConsumerSpEL.offsetForTime(
-                offsetConsumer, kafkaSourceDescriptor.getTopicPartition(), stopReadTime);
+        endOffset = ConsumerSpEL.offsetForTime(offsetConsumer, partition, stopReadTime);
       }
-
+      new OffsetRange(startOffset, endOffset);
+      Lineage.getSources()
+          .add(
+              "kafka",
+              ImmutableList.of(
+                  (String) updatedConsumerConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
+                  MoreObjects.firstNonNull(kafkaSourceDescriptor.getTopic(), partition.topic())));
       return new OffsetRange(startOffset, endOffset);
     }
   }
@@ -338,6 +348,13 @@ abstract class ReadFromKafkaDoFn<K, V>
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
       return numRecords;
     }
+    if (offsetEstimatorCache != null) {
+      for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
+          offsetEstimatorCache.entrySet()) {
+        perPartitionBacklogMetrics.put(tp.getKey().toString(), tp.getValue().estimate());
+      }
+    }
+
     return avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getTotalSize(numRecords);
   }
 
@@ -390,6 +407,13 @@ abstract class ReadFromKafkaDoFn<K, V>
         Metrics.distribution(
             METRIC_NAMESPACE,
             RAW_SIZE_METRIC_PREFIX + kafkaSourceDescriptor.getTopicPartition().toString());
+    for (Map.Entry<String, Long> backlogSplit : perPartitionBacklogMetrics.entrySet()) {
+      Gauge backlog =
+          Metrics.gauge(
+              METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + backlogSplit.getKey());
+      backlog.set(backlogSplit.getValue());
+    }
+
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
         && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
@@ -414,38 +438,60 @@ abstract class ReadFromKafkaDoFn<K, V>
         "Creating Kafka consumer for process continuation for {}",
         kafkaSourceDescriptor.getTopicPartition());
     try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      // Check whether current TopicPartition is still available to read.
-      Set<TopicPartition> existingTopicPartitions = new HashSet<>();
-      for (List<PartitionInfo> topicPartitionList : consumer.listTopics().values()) {
-        topicPartitionList.forEach(
-            partitionInfo -> {
-              existingTopicPartitions.add(
-                  new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
-            });
-      }
-      if (!existingTopicPartitions.contains(kafkaSourceDescriptor.getTopicPartition())) {
-        return ProcessContinuation.stop();
-      }
-
       ConsumerSpEL.evaluateAssign(
           consumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
-
       long expectedOffset = startOffset;
       consumer.seek(kafkaSourceDescriptor.getTopicPartition(), startOffset);
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
+      long skippedRecords = 0L;
+      final Stopwatch sw = Stopwatch.createStarted();
 
       while (true) {
         rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
+          if (!topicPartitionExists(
+              kafkaSourceDescriptor.getTopicPartition(), consumer.listTopics())) {
+            return ProcessContinuation.stop();
+          }
           if (timestampPolicy != null) {
             updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
           }
           return ProcessContinuation.resume();
         }
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
+          // If the Kafka consumer returns a record with an offset that is already processed
+          // the record can be safely skipped. This is needed because there is a possibility
+          // that the seek() above fails to move the offset to the desired position. In which
+          // case poll() would return records that are already cnsumed.
+          if (rawRecord.offset() < startOffset) {
+            // If the start offset is not reached even after skipping the records for 10 seconds
+            // then the processing is stopped with a backoff to give the Kakfa server some time
+            // catch up.
+            if (sw.elapsed().getSeconds() > 10L) {
+              LOG.error(
+                  "The expected offset ({}) was not reached even after"
+                      + " skipping consumed records for 10 seconds. The offset we could"
+                      + " reach was {}. The processing of this bundle will be attempted"
+                      + " at a later time.",
+                  expectedOffset,
+                  rawRecord.offset());
+              return ProcessContinuation.resume()
+                  .withResumeDelay(org.joda.time.Duration.standardSeconds(10L));
+            }
+            skippedRecords++;
+            continue;
+          }
+          if (skippedRecords > 0L) {
+            LOG.warn(
+                "{} records were skipped due to seek returning an"
+                    + " earlier position than requested position of {}",
+                skippedRecords,
+                expectedOffset);
+            skippedRecords = 0L;
+          }
           if (!tracker.tryClaim(rawRecord.offset())) {
             return ProcessContinuation.stop();
           }
@@ -500,15 +546,32 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
   }
 
+  private boolean topicPartitionExists(
+      TopicPartition topicPartition, Map<String, List<PartitionInfo>> topicListMap) {
+    // Check if the current TopicPartition still exists.
+    Set<TopicPartition> existingTopicPartitions = new HashSet<>();
+    for (List<PartitionInfo> topicPartitionList : topicListMap.values()) {
+      topicPartitionList.forEach(
+          partitionInfo -> {
+            existingTopicPartitions.add(
+                new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
+          });
+    }
+    if (!existingTopicPartitions.contains(topicPartition)) {
+      return false;
+    }
+    return true;
+  }
+
   // see https://github.com/apache/beam/issues/25962
   private ConsumerRecords<byte[], byte[]> poll(
       Consumer<byte[], byte[]> consumer, TopicPartition topicPartition) {
     final Stopwatch sw = Stopwatch.createStarted();
     long previousPosition = -1;
     java.time.Duration elapsed = java.time.Duration.ZERO;
+    java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
     while (true) {
-      final ConsumerRecords<byte[], byte[]> rawRecords =
-          consumer.poll(KAFKA_POLL_TIMEOUT.minus(elapsed));
+      final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
@@ -518,8 +581,11 @@ abstract class ReadFromKafkaDoFn<K, V>
         return rawRecords;
       }
       elapsed = sw.elapsed();
-      if (elapsed.toMillis() >= KAFKA_POLL_TIMEOUT.toMillis()) {
+      if (elapsed.toMillis() >= timeout.toMillis()) {
         // timeout is over
+        LOG.warn(
+            "No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
+            consumerPollingTimeout);
         return rawRecords;
       }
     }
@@ -566,13 +632,15 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   @Teardown
   public void teardown() throws Exception {
-    final Deserializer<K> keyDeserializerInstance =
-        Preconditions.checkStateNotNull(this.keyDeserializerInstance);
-    final Deserializer<V> valueDeserializerInstance =
-        Preconditions.checkStateNotNull(this.valueDeserializerInstance);
     try {
-      Closeables.close(keyDeserializerInstance, true);
-      Closeables.close(valueDeserializerInstance, true);
+      if (valueDeserializerInstance != null) {
+        Closeables.close(valueDeserializerInstance, true);
+        valueDeserializerInstance = null;
+      }
+      if (keyDeserializerInstance != null) {
+        Closeables.close(keyDeserializerInstance, true);
+        keyDeserializerInstance = null;
+      }
     } catch (Exception anyException) {
       LOG.warn("Fail to close resource during finishing bundle.", anyException);
     }

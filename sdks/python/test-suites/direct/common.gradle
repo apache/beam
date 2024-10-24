@@ -182,6 +182,9 @@ tasks.register("directRunnerIT") {
 }
 
 tasks.register("hdfsIntegrationTest") {
+  // needs generated srcs in sdks/python
+  dependsOn ':sdks:python:sdist'
+
   doLast {
     exec {
       executable 'sh'
@@ -191,6 +194,9 @@ tasks.register("hdfsIntegrationTest") {
 }
 
 tasks.register("azureIntegrationTest") {
+  // needs generated srcs in sdks/python
+  dependsOn ':sdks:python:sdist'
+
   doLast {
     exec {
       executable 'sh'
@@ -364,6 +370,55 @@ task transformersInferenceTest {
     }
 }
 
+// Integration tests that use testcontainers
+task testcontainersTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_testcontainer",
+          "runner": "TestDirectRunner",
+          "region": "us-central1",
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// Integration tests that uses feast
+task feastIntegrationTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/transforms/enrichment_handlers/feast_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_feast",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
@@ -372,6 +427,8 @@ project.tasks.register("inferencePostCommitIT") {
   'tensorflowInferenceTest',
   'xgboostInferenceTest',
   'transformersInferenceTest',
+  'testcontainersTest',
+  'feastIntegrationTest',
   // (TODO) https://github.com/apache/beam/issues/25799
    // uncomment tfx bsl tests once tfx supports protobuf 4.x
   // 'tfxInferenceTest',
@@ -379,15 +436,13 @@ project.tasks.register("inferencePostCommitIT") {
 }
 
 // Create cross-language tasks for running tests against Java expansion service(s)
-def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
-      expansionProjectPath: taskMetadata.expansionProjectPath,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
-      startJobServer: taskMetadata.startJobServer,
-      cleanupJobServer: taskMetadata.cleanupJobServer,
       numParallelTests: 1,
       pythonPipelineOptions: [
         "--runner=TestDirectRunner",
@@ -398,6 +453,8 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--timeout=4500", // timeout of whole command execution
         "--color=yes", // console color
         "--log-cli-level=INFO" //log level info
-      ]
+      ],
+      additionalDeps: taskMetadata.additionalDeps,
+      additionalEnvs: taskMetadata.additionalEnvs
     )
 }

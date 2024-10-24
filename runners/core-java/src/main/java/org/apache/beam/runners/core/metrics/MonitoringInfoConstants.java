@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -52,6 +52,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_INT64);
     public static final String USER_DISTRIBUTION_DOUBLE =
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_DOUBLE);
+    public static final String USER_SET_STRING =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_SET_STRING);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);
@@ -162,6 +164,7 @@ public final class MonitoringInfoConstants {
     public static final String BOTTOM_N_INT64_TYPE = "beam:metrics:bottom_n_int64:v1";
     public static final String BOTTOM_N_DOUBLE_TYPE = "beam:metrics:bottom_n_double:v1";
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
+    public static final String SET_STRING_TYPE = "beam:metrics:set_string:v1";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -187,6 +190,7 @@ public final class MonitoringInfoConstants {
       checkArgument(
           BOTTOM_N_DOUBLE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOTTOM_N_DOUBLE_TYPE)));
       checkArgument(PROGRESS_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.PROGRESS_TYPE)));
+      checkArgument(SET_STRING_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SET_STRING_TYPE)));
     }
   }
 

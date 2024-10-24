@@ -37,7 +37,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalL
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Weigher;
 import org.github.jamm.MemoryMeter;
-import org.github.jamm.MemoryMeter.Guess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +64,7 @@ public final class Caches {
    */
   private static final long CACHE_SIZE_CHANGE_LIMIT_BYTES = 1 << 16;
 
-  private static final MemoryMeter MEMORY_METER =
-      MemoryMeter.builder().withGuessing(Guess.BEST).build();
+  private static final MemoryMeter MEMORY_METER = MemoryMeter.builder().build();
 
   /** The size of a reference. */
   public static final long REFERENCE_SIZE = 8;

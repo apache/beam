@@ -66,7 +66,9 @@ import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -95,11 +97,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryStorageStreamSource.BigQueryStorageStreamReader;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -454,7 +458,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(streamCount)
             .build();
 
@@ -547,7 +552,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/project-id/datasets/dataset/tables/table"))
+                    .setTable("projects/project-id/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(1024)
             .build();
 
@@ -595,7 +601,8 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable("projects/foo.com:project/datasets/dataset/tables/table"))
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(1024)
             .build();
 
@@ -765,6 +772,39 @@ public class BigQueryIOStorageReadTest {
             new FakeBigQueryServices());
 
     assertThat(streamSource.split(0, options), containsInAnyOrder(streamSource));
+  }
+
+  @Test
+  public void testSplitReadStreamAtFraction() throws IOException {
+
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSession")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .build();
+
+    ReadRowsRequest expectedRequest =
+        ReadRowsRequest.newBuilder().setReadStream("readStream").build();
+    List<ReadRowsResponse> responses = ImmutableList.of();
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.readRows(expectedRequest, ""))
+        .thenReturn(new FakeBigQueryServerStream<>(responses));
+
+    BigQueryStorageStreamSource<TableRow> streamSource =
+        BigQueryStorageStreamSource.create(
+            readSession,
+            ReadStream.newBuilder().setName("readStream").build(),
+            TABLE_SCHEMA,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    PipelineOptions options = PipelineOptionsFactory.fromArgs("--enableStorageReadApiV2").create();
+    BigQueryStorageStreamReader<TableRow> reader = streamSource.createReader(options);
+    reader.start();
+    // Beam does not split storage read api v2 stream
+    assertNull(reader.splitAtFraction(0.5));
   }
 
   @Test
@@ -1349,6 +1389,89 @@ public class BigQueryIOStorageReadTest {
     }
   }
 
+  /**
+   * A mock response that stuck indefinitely when the returned iterator's hasNext get called,
+   * intended to simulate server side issue.
+   */
+  static class StuckResponse extends ArrayList<ReadRowsResponse> {
+
+    private CountDownLatch latch;
+
+    public StuckResponse(CountDownLatch latch) {
+      this.latch = latch;
+    }
+
+    @Override
+    public Iterator<ReadRowsResponse> iterator() {
+      return new StuckIterator();
+    }
+
+    private class StuckIterator implements Iterator<ReadRowsResponse> {
+
+      @Override
+      public boolean hasNext() {
+        latch.countDown();
+        try {
+          Thread.sleep(Long.MAX_VALUE);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+        return false;
+      }
+
+      @Override
+      public ReadRowsResponse next() {
+        return null;
+      }
+    }
+  }
+
+  @Test
+  public void testStreamSourceSplitAtFractionFailsWhenReaderRunning() throws Exception {
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSession")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .build();
+
+    ReadRowsRequest expectedRequest =
+        ReadRowsRequest.newBuilder().setReadStream("readStream").build();
+
+    CountDownLatch latch = new CountDownLatch(1);
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.readRows(expectedRequest, ""))
+        .thenReturn(new FakeBigQueryServerStream<>(new StuckResponse(latch)));
+
+    BigQueryStorageStreamSource<TableRow> streamSource =
+        BigQueryStorageStreamSource.create(
+            readSession,
+            ReadStream.newBuilder().setName("readStream").build(),
+            TABLE_SCHEMA,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    BigQueryStorageStreamReader<TableRow> reader = streamSource.createReader(options);
+
+    Thread t =
+        new Thread(
+            () -> {
+              try {
+                reader.start();
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    t.start();
+
+    // wait until thread proceed
+    latch.await();
+
+    // SplitAfFraction rejected while response iterator busy
+    assertNull(reader.splitAtFraction(0.5));
+    t.interrupt();
+  }
+
   @Test
   public void testReadFromBigQueryIO() throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
@@ -1362,7 +1485,8 @@ public class BigQueryIOStorageReadTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.AVRO))
+                    .setDataFormat(DataFormat.AVRO)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
@@ -1573,7 +1697,8 @@ public class BigQueryIOStorageReadTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable("projects/foo.com:project/datasets/dataset/tables/table")
-                    .setDataFormat(DataFormat.ARROW))
+                    .setDataFormat(DataFormat.ARROW)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 

@@ -28,46 +28,50 @@
 package main
 
 import (
-  "context"
-  "flag"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"context"
+	"flag"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
-  // By default, this example reads from a public dataset containing the text of
-  // King Lear. Set this option to choose a different input file or glob.
-  input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
+	// By default, this example reads from a public dataset containing the text of
+	// King Lear. Set this option to choose a different input file or glob.
+	input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
 
-  // Set this required option to specify where to write the output.
-  output = flag.String("output", "", "Output file (required).")
+	// Set this required option to specify where to write the output.
+	output = flag.String("output", "", "Output file (required).")
 )
 
 func main() {
-  // If beamx or Go flags are used, flags must be parsed first.
-  flag.Parse()
+	// If beamx or Go flags are used, flags must be parsed first.
+	flag.Parse()
 
-  ctx := context.Background()
+	// We can then init Beam
+	beam.Init()
 
-  // Input validation is done as usual. Note that it must be after Init().
-  if *output == "" {
-    log.Exitf(ctx,"No output provided")
-  }
+	ctx := context.Background()
 
-  p := beam.NewPipeline()
-  s := p.Root()
+	// Input validation is done as usual. Note that it must be after Init().
+	if *output == "" {
+		log.Exitf(ctx, "No output provided")
+	}
 
-  // Read from option input file
-  lines := textio.Read(s, *input)
+	p := beam.NewPipeline()
+	s := p.Root()
 
-  // Write to option output file
-  textio.Write(s, *output, lines)
+	// Read from option input file
+	lines := textio.Read(s, *input)
 
-  err := beamx.Run(ctx, p)
+	// Write to option output file
+	textio.Write(s, *output, lines)
 
-  if err != nil {
-    log.Exitf(ctx, "Failed to execute job: %v", err)
-  }
+	err := beamx.Run(ctx, p)
+
+	if err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
 }

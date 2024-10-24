@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
@@ -39,7 +41,14 @@ public interface BigQueryOptions
   void setTempDatasetId(String value);
 
   @Description(
-      "Timeout for HTTP requests to BigQuery service in milliseconds. Set to 0 to disable.")
+      "Timeout for HTTP read requests to BigQuery service in milliseconds. Set to 0 to disable.")
+  @Default.Integer(80 * 1000)
+  Integer getHTTPReadTimeout();
+
+  void setHTTPReadTimeout(Integer timeout);
+
+  @Description(
+      "Timeout for HTTP write requests to BigQuery service in milliseconds. Set to 0 to disable.")
   @Default.Integer(900 * 1000)
   Integer getHTTPWriteTimeout();
 
@@ -93,7 +102,7 @@ public interface BigQueryOptions
   void setUseStorageWriteApiAtLeastOnce(Boolean value);
 
   @Description(
-      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams. ")
+      "When writing with a streaming pipeline, the BigQueryIO.Write will default to using this number of Storage Write API streams. ")
   @Default.Integer(0)
   Integer getNumStorageWriteApiStreams();
 
@@ -109,6 +118,28 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Description(
+      "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
+          + "this option sets the minimum number of connections each pool creates before any connections are shared. This is "
+          + "on a per worker, per region basis. Note that in practice, the minimum number of connections created is the minimum "
+          + "of this value and (numStorageWriteApiStreamAppendClients x num destinations). BigQuery will create this many "
+          + "connections at first and will only create more connections if the current ones are \"overwhelmed\". Consider "
+          + "increasing this value if you are running into performance issues.")
+  @Default.Integer(2)
+  Integer getMinConnectionPoolConnections();
+
+  void setMinConnectionPoolConnections(Integer value);
+
+  @Description(
+      "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
+          + "this option sets the maximum number of connections each pool creates. This is on a per worker, per region basis. "
+          + "If writing to many dynamic destinations (>20) and experiencing performance issues or seeing append operations competing"
+          + "for streams, consider increasing this value.")
+  @Default.Integer(20)
+  Integer getMaxConnectionPoolConnections();
+
+  void setMaxConnectionPoolConnections(Integer value);
+
   @Description("The max number of messages inflight that we expect each connection will retain.")
   @Default.Long(1000)
   Long getStorageWriteMaxInflightRequests();
@@ -122,6 +153,11 @@ public interface BigQueryOptions
 
   void setStorageWriteMaxInflightBytes(Long value);
 
+  @Description(
+      "Enables multiplexing mode, where multiple tables can share the same connection. Only available when writing with STORAGE_API_AT_LEAST_ONCE"
+          + " mode. This is recommended if your write operation is creating 20+ connections. When using multiplexing, consider tuning "
+          + "the number of connections created by the connection pool with minConnectionPoolConnections and maxConnectionPoolConnections. "
+          + "For more information, see https://cloud.google.com/bigquery/docs/write-api-best-practices#connection_pool_management")
   @Default.Boolean(false)
   Boolean getUseStorageApiConnectionPool();
 
@@ -132,6 +168,14 @@ public interface BigQueryOptions
   Integer getStorageWriteApiTriggeringFrequencySec();
 
   void setStorageWriteApiTriggeringFrequencySec(Integer value);
+
+  @Description(
+      "Maximum number of retries for Storage Write API writes. "
+          + "Currently it is only applicable for streaming pipeline.")
+  @Default.Integer(500)
+  Integer getStorageWriteApiMaxRetries();
+
+  void setStorageWriteApiMaxRetries(Integer value);
 
   @Description(
       "When auto-sharding is used, the maximum duration in milliseconds the input records are"
@@ -165,10 +209,24 @@ public interface BigQueryOptions
   void setStorageWriteApiMaxRequestSize(Long value);
 
   @Description(
-      "If set, BigQueryIO.Read will use the StreamBundle based"
-          + "implementation of the Read API Source")
+      "If set, BigQueryIO.Read will rely on the Read API backends to surface the appropriate"
+          + " number of streams for read")
   @Default.Boolean(false)
-  Boolean getEnableBundling();
+  Boolean getEnableStorageReadApiV2();
 
-  void setEnableBundling(Boolean value);
+  void setEnableStorageReadApiV2(Boolean value);
+
+  @Description(
+      "A map with string labels to be passed to BigQuery export, query and other jobs. "
+          + "See: https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration")
+  Map<String, String> getJobLabelsMap();
+
+  void setJobLabelsMap(Map<String, String> value);
+
+  /** BQ endpoint to use. If unspecified, uses the default endpoint. */
+  @Hidden
+  @Description("The URL for the BigQuery API.")
+  String getBigQueryEndpoint();
+
+  void setBigQueryEndpoint(String value);
 }

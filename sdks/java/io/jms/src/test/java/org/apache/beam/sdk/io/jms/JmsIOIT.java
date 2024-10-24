@@ -27,12 +27,17 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.QueueBrowser;
+import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQTextMessage;
@@ -54,6 +59,7 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -84,7 +90,6 @@ import org.junit.runners.Parameterized;
  */
 @RunWith(Parameterized.class)
 public class JmsIOIT implements Serializable {
-
   private static final String NAMESPACE = JmsIOIT.class.getName();
   private static final String READ_TIME_METRIC = "read_time";
   private static final String WRITE_TIME_METRIC = "write_time";
@@ -115,6 +120,13 @@ public class JmsIOIT implements Serializable {
     Integer getReadTimeout();
 
     void setReadTimeout(Integer timeout);
+
+    @Description(
+        "Use ConnectionFactory provider function instead of pre-instantiated ConnectionFactory object")
+    @Default.Boolean(false)
+    boolean getUseConnectionFactoryProviderFn();
+
+    void setUseConnectionFactoryProviderFn(boolean value);
   }
 
   private static final JmsIOITOptions OPTIONS =
@@ -132,12 +144,12 @@ public class JmsIOIT implements Serializable {
 
   @Parameterized.Parameters(name = "with client class {3}")
   public static Collection<Object[]> connectionFactories() {
-    return Collections.singletonList(
+    return ImmutableList.of(
         new Object[] {
           "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
         });
     // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
-    //  JmsIO read on amqp slow on Jenkins.
+    //  JmsIO read on amqp slow on CI (passed locally)
     // new Object[] {
     //   "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
     // });
@@ -164,7 +176,7 @@ public class JmsIOIT implements Serializable {
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
       this.commonJms.startBroker();
-      connectionFactory = this.commonJms.getConnectionFactory();
+      connectionFactory = this.commonJms.createConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
       OPTIONS.setNumberOfRecords(10000);
@@ -181,7 +193,7 @@ public class JmsIOIT implements Serializable {
   }
 
   @Test
-  public void testPublishingThenReadingAll() throws IOException {
+  public void testPublishingThenReadingAll() throws IOException, JMSException {
     PipelineResult writeResult = publishingMessages();
     PipelineResult.State writeState = writeResult.waitUntilFinish();
     assertNotEquals(PipelineResult.State.FAILED, writeState);
@@ -196,11 +208,21 @@ public class JmsIOIT implements Serializable {
     MetricsReader metricsReader = new MetricsReader(readResult, NAMESPACE);
     long actualRecords = metricsReader.getCounterMetric(READ_ELEMENT_METRIC_NAME);
 
+    // TODO(yathu) resolve pending messages with direct runner then we can simply assert
+    //   actual-records == total-records.
+    //   Due to direct runner only finalize checkpoint at very end, there are open consumers (may
+    //   with buffer) and O(open_consumer) message won't get delivered to other session.
+    int unackRecords = countRemain(QUEUE);
+    assertTrue(
+        String.format("Too many unacknowledged messages: %d", unackRecords),
+        unackRecords < OPTIONS.getNumberOfRecords() * 0.002);
+
+    // acknowledged records
+    int ackRecords = OPTIONS.getNumberOfRecords() - unackRecords;
     assertTrue(
         String.format(
-            "actual number of records %d smaller than expected: %d.",
-            actualRecords, OPTIONS.getNumberOfRecords()),
-        OPTIONS.getNumberOfRecords() <= actualRecords);
+            "actual number of records %d smaller than expected: %d.", actualRecords, ackRecords),
+        ackRecords <= actualRecords);
     collectAndPublishMetrics(writeResult, readResult);
   }
 
@@ -214,15 +236,22 @@ public class JmsIOIT implements Serializable {
   private PipelineResult readMessages() {
     pipelineRead.getOptions().as(JmsIOITOptions.class).setStreaming(true);
     pipelineRead.getOptions().as(JmsIOITOptions.class).setBlockOnRun(false);
+    JmsIO.Read<String> jmsIORead = JmsIO.readMessage();
+    if (pipelineRead.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
+      jmsIORead =
+          jmsIORead.withConnectionFactoryProviderFn(
+              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+    } else {
+      jmsIORead = jmsIORead.withConnectionFactory(connectionFactory);
+    }
     pipelineRead
         .apply(
             "Read Messages",
-            JmsIO.<String>readMessage()
+            jmsIORead
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withCoder(SerializableCoder.of(String.class))
-                .withConnectionFactory(connectionFactory)
                 .withMessageMapper(getJmsMessageMapper()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
@@ -230,18 +259,27 @@ public class JmsIOIT implements Serializable {
   }
 
   private PipelineResult publishingMessages() {
+
+    JmsIO.Write<String> jmsIOWrite = JmsIO.write();
+    if (pipelineWrite.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
+      jmsIOWrite =
+          jmsIOWrite.withConnectionFactoryProviderFn(
+              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+    } else {
+      jmsIOWrite = jmsIOWrite.withConnectionFactory(connectionFactory);
+    }
+
     pipelineWrite
         .apply("Generate Sequence Data", GenerateSequence.from(0).to(OPTIONS.getNumberOfRecords()))
         .apply("Convert to String", ParDo.of(new ToString()))
         .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC)))
         .apply(
             "Publish to Jms Broker",
-            JmsIO.<String>write()
+            jmsIOWrite
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
-                .withValueMapper(new TextMessageMapper())
-                .withConnectionFactory(connectionFactory));
+                .withValueMapper(new TextMessageMapper()));
     return pipelineWrite.run();
   }
 
@@ -277,6 +315,20 @@ public class JmsIOIT implements Serializable {
       long endTime = reader.getEndTimeMetric(metricName);
       return NamedTestResult.create(uuid, timestamp, metricName, (endTime - startTime) / 1e3);
     };
+  }
+
+  private int countRemain(String queue) throws JMSException {
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    QueueBrowser browser = session.createBrowser(session.createQueue(queue));
+    Enumeration<Message> messages = browser.getEnumeration();
+    int count = 0;
+    while (messages.hasMoreElements()) {
+      messages.nextElement();
+      count++;
+    }
+    return count;
   }
 
   static class ToString extends DoFn<Long, String> {

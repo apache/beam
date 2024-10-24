@@ -154,6 +154,29 @@ $defs:
       - transforms
       - config
 
+  providerInclude:
+    # TODO(robertwb): Consider enumerating the provider types along with
+    # the arguments they accept/expect (possibly in a separate schema file).
+    type: object
+    properties:
+      include: { type: string }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+    required:
+      - include
+
+  providerOrProviderInclude:
+    if:
+      allOf: [
+        { properties: { include: { type: string }}},
+        { required: [ "include" ] }
+      ]
+    then:
+      $ref: '#/$defs/providerInclude'
+    else:
+      $ref: '#/$defs/provider'
+
 type: object
 properties:
   pipeline:
@@ -185,7 +208,7 @@ properties:
   providers:
     type: array
     items:
-      $ref: '#/$defs/provider'
+      $ref: '#/$defs/providerOrProviderInclude'
   options:
     type: object
 required:

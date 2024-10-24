@@ -28,6 +28,8 @@ import {
   writeRawBytes,
 } from "./coders";
 import Long from "long";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 import {
   Window,
   GlobalWindow,
@@ -321,7 +323,7 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
         }
         for (var i = 0; i < count; i++) {
           result.push(
-            this.elementCoder.decode(reader, Context.needsDelimiters)
+            this.elementCoder.decode(reader, Context.needsDelimiters),
           );
         }
       }
@@ -369,7 +371,7 @@ export class LengthPrefixedCoder<T> implements Coder<T> {
   decode(reader: Reader, context: Context): T {
     return this.elementCoder.decode(
       new Reader(reader.bytes()),
-      Context.wholeStream
+      Context.wholeStream,
     );
   }
 }
@@ -384,7 +386,10 @@ export class FullWindowedValueCoder<T, W extends Window>
   static URN: string = "beam:coder:windowed_value:v1";
   windowIterableCoder: IterableCoder<W>; // really W
 
-  constructor(public elementCoder: Coder<T>, public windowCoder: Coder<W>) {
+  constructor(
+    public elementCoder: Coder<T>,
+    public windowCoder: Coder<W>,
+  ) {
     this.windowIterableCoder = new IterableCoder(windowCoder);
   }
 
@@ -405,17 +410,17 @@ export class FullWindowedValueCoder<T, W extends Window>
     InstantCoder.INSTANCE.encode(
       windowedValue.timestamp,
       writer,
-      Context.needsDelimiters
+      Context.needsDelimiters,
     );
     this.windowIterableCoder.encode(
       <Array<W>>windowedValue.windows,
       writer,
-      Context.needsDelimiters
+      Context.needsDelimiters,
     ); // Windows.
     PaneInfoCoder.INSTANCE.encode(
       windowedValue.pane,
       writer,
-      Context.needsDelimiters
+      Context.needsDelimiters,
     );
     this.elementCoder.encode(windowedValue.value, writer, context);
   }
@@ -423,11 +428,11 @@ export class FullWindowedValueCoder<T, W extends Window>
   decode(reader: Reader, context: Context): WindowedValue<T> {
     const timestamp = InstantCoder.INSTANCE.decode(
       reader,
-      Context.needsDelimiters
+      Context.needsDelimiters,
     );
     const windows = this.windowIterableCoder.decode(
       reader,
-      Context.needsDelimiters
+      Context.needsDelimiters,
     );
     const pane = PaneInfoCoder.INSTANCE.decode(reader, Context.needsDelimiters);
     const value = this.elementCoder.decode(reader, context);
@@ -472,8 +477,8 @@ export class InstantCoder implements Coder<Instant> {
   decode(reader: Reader, context: Context): Instant {
     const shiftedMillis = Long.fromBytesBE(
       Array.from(
-        reader.buf.slice(reader.pos, reader.pos + InstantCoder.INSTANT_BYTES)
-      )
+        reader.buf.slice(reader.pos, reader.pos + InstantCoder.INSTANT_BYTES),
+      ),
     );
     reader.pos += InstantCoder.INSTANT_BYTES;
     return shiftedMillis.add(Long.MIN_VALUE);
@@ -503,7 +508,7 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
   static INSTANCE = new PaneInfoCoder();
   static ONE_AND_ONLY_FIRING = PaneInfoCoder.INSTANCE.decode(
     new Reader(new Uint8Array([0x09])),
-    null!
+    null!,
   );
 
   private static decodeTiming(timingNumber): Timing {
@@ -520,7 +525,7 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
         throw new Error(
           "Timing number 0b" +
             timingNumber.toString(2) +
-            " has more than two bits of info"
+            " has more than two bits of info",
         );
     }
   }
@@ -635,10 +640,9 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
 
   toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     throw new Error(
-      "No proto encoding for PaneInfoCoder, always part of WindowedValue codec"
+      "No proto encoding for PaneInfoCoder, always part of WindowedValue codec",
     );
   }
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/coders/required_coders", exports);
+requireForSerialization(`${packageName}/coders/required_coders`, exports);

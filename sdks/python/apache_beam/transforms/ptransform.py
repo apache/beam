@@ -1112,6 +1112,12 @@ class _NamedPTransform(PTransform):
   def expand(self, pvalue):
     raise RuntimeError("Should never be expanded directly.")
 
+  def annotations(self):
+    return self.transform.annotations()
+
+  def __rrshift__(self, label):
+    return _NamedPTransform(self.transform, label)
+
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)
     if callable(transform_attr):
@@ -1127,6 +1133,12 @@ class _NamedPTransform(PTransform):
       return wrapper
     else:
       return transform_attr
+
+  def __setattr__(self, attr, value):
+    if attr == 'annotations':
+      self.transform.annotations = value
+    else:
+      super().__setattr__(attr, value)
 
 
 # Defined here to avoid circular import issues for Beam library transforms.

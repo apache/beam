@@ -34,6 +34,15 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.api_core import exceptions as gexc
+  from google.cloud import bigquery
+except ImportError:
+  gexc = None
+  bigquery = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 _LOGGER = logging.getLogger(__name__)
 
 PROJECT = 'apache-beam-testing'
@@ -44,12 +53,26 @@ JSON_TABLE_DESTINATION = f"{PROJECT}:{DATASET_ID}.{JSON_TABLE_NAME}"
 
 STREAMING_TEST_TABLE = "py_streaming_test" \
                        f"{time.time_ns() // 1000}_{randint(0,32)}"
+FILE_LOAD_TABLE = "py_fileload_test" \
+                       f"{time.time_ns() // 1000}_{randint(0,32)}"
 
 
 class BigQueryJsonIT(unittest.TestCase):
+  created_tables = set()
+
   @classmethod
   def setUpClass(cls):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
+
+  @classmethod
+  def tearDownClass(cls):
+    if cls.created_tables:
+      client = bigquery.Client(project=PROJECT)
+      for ref in cls.created_tables:
+        try:
+          client.delete_table(ref[len(PROJECT) + 1:])  # need dataset:table
+        except gexc.NotFound:
+          pass  # just skip
 
   def run_test_write(self, options):
     json_table_schema = self.generate_schema()
@@ -71,8 +94,10 @@ class BigQueryJsonIT(unittest.TestCase):
     parser = argparse.ArgumentParser()
     parser.add_argument('--write_method')
     parser.add_argument('--output')
+    parser.add_argument('--unescape', required=False)
 
     known_args, pipeline_args = parser.parse_known_args(options)
+    self.created_tables.add(known_args.output)
 
     with beam.Pipeline(argv=pipeline_args) as p:
       _ = (
@@ -85,12 +110,31 @@ class BigQueryJsonIT(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
           ))
 
-    extra_opts = {'read_method': "EXPORT", 'input': known_args.output}
+    extra_opts = {
+        'read_method': "EXPORT",
+        'input': known_args.output,
+        'unescape': known_args.unescape
+    }
     read_options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     self.read_and_validate_rows(read_options)
 
   def read_and_validate_rows(self, options):
     json_data = self.generate_data()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--read_method')
+    parser.add_argument('--query')
+    parser.add_argument('--input')
+    parser.add_argument('--unescape', required=False)
+
+    known_args, pipeline_args = parser.parse_known_args(options)
+
+    # TODO(yathu) remove this conversion when FILE_LOAD produces unescaped
+    # JSON string
+    def maybe_unescape(value):
+      if known_args.unescape:
+        value = bytes(value, "utf-8").decode("unicode_escape")[1:-1]
+      return json.loads(value)
 
     class CompareJson(beam.DoFn, unittest.TestCase):
       def process(self, row):
@@ -98,13 +142,14 @@ class BigQueryJsonIT(unittest.TestCase):
         expected = json_data[country_code]
 
         # Test country (JSON String)
-        country_actual = json.loads(row["country"])
+        country_actual = maybe_unescape(row["country"])
         country_expected = json.loads(expected["country"])
+
         self.assertTrue(country_expected == country_actual)
 
         # Test stats (JSON String in BigQuery struct)
         for stat, value in row["stats"].items():
-          stats_actual = json.loads(value)
+          stats_actual = maybe_unescape(value)
           stats_expected = json.loads(expected["stats"][stat])
           self.assertTrue(stats_expected == stats_actual)
 
@@ -113,7 +158,7 @@ class BigQueryJsonIT(unittest.TestCase):
           city = city_row["city"]
           city_name = city_row["city_name"]
 
-          city_actual = json.loads(city)
+          city_actual = maybe_unescape(city)
           city_expected = json.loads(expected["cities"][city_name])
           self.assertTrue(city_expected == city_actual)
 
@@ -121,16 +166,9 @@ class BigQueryJsonIT(unittest.TestCase):
         landmarks_actual = row["landmarks"]
         landmarks_expected = expected["landmarks"]
         for i in range(len(landmarks_actual)):
-          l_actual = json.loads(landmarks_actual[i])
+          l_actual = maybe_unescape(landmarks_actual[i])
           l_expected = json.loads(landmarks_expected[i])
           self.assertTrue(l_expected == l_actual)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--read_method')
-    parser.add_argument('--query')
-    parser.add_argument('--input')
-
-    known_args, pipeline_args = parser.parse_known_args(options)
 
     method = ReadFromBigQuery.Method.DIRECT_READ if \
       known_args.read_method == "DIRECT_READ" else \
@@ -197,12 +235,12 @@ class BigQueryJsonIT(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_file_loads_write(self):
     extra_opts = {
-        'output': f"{PROJECT}:{DATASET_ID}.{STREAMING_TEST_TABLE}",
-        'write_method': "FILE_LOADS"
+        'output': f"{PROJECT}:{DATASET_ID}.{FILE_LOAD_TABLE}",
+        'write_method': "FILE_LOADS",
+        "unescape": "True"
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-    with self.assertRaises(ValueError):
-      self.run_test_write(options)
+    self.run_test_write(options)
 
   # Schema for writing to BigQuery
   def generate_schema(self):

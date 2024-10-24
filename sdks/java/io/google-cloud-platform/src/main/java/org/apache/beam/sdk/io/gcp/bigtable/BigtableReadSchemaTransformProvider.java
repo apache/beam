@@ -71,11 +71,6 @@ public class BigtableReadSchemaTransformProvider
           .build();
 
   @Override
-  protected Class<BigtableReadSchemaTransformConfiguration> configurationClass() {
-    return BigtableReadSchemaTransformConfiguration.class;
-  }
-
-  @Override
   protected SchemaTransform from(BigtableReadSchemaTransformConfiguration configuration) {
     return new BigtableReadSchemaTransform(configuration);
   }
@@ -83,11 +78,6 @@ public class BigtableReadSchemaTransformProvider
   @Override
   public String identifier() {
     return "beam:schematransform:org.apache.beam:bigtable_read:v1";
-  }
-
-  @Override
-  public List<String> inputCollectionNames() {
-    return Collections.emptyList();
   }
 
   @Override

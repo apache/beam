@@ -18,20 +18,20 @@
 package org.apache.beam.runners.spark;
 
 import java.util.List;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
-import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.sdk.util.construction.UnsupportedOverrideFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** {@link PTransform} overrides for Spark runner. */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class SparkTransformOverrides {
+public final class SparkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     // TODO: [https://github.com/apache/beam/issues/19107] Support @RequiresStableInput on Spark

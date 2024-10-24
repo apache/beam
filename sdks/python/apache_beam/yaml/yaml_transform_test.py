@@ -505,7 +505,7 @@ class YamlWindowingTest(unittest.TestCase):
             - type: WindowInto
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
             - type: SumGlobally
           ''',
           providers=TEST_PROVIDERS)
@@ -524,7 +524,7 @@ class YamlWindowingTest(unittest.TestCase):
             - type: SumGlobally
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
@@ -548,7 +548,7 @@ class YamlWindowingTest(unittest.TestCase):
               input: [Create1, Create2]
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
           output: SumGlobally
           ''',
           providers=TEST_PROVIDERS)
@@ -566,7 +566,7 @@ class YamlWindowingTest(unittest.TestCase):
                   elements: [0, 1, 2, 3, 4, 5]
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
             - type: SumGlobally
           ''',
           providers=TEST_PROVIDERS)
@@ -585,10 +585,43 @@ class YamlWindowingTest(unittest.TestCase):
             - type: SumGlobally
           windowing:
             type: fixed
-            size: 4
+            size: 4s
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
+
+  def test_assign_timestamps(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements:
+                  - {t: 1, v: 1}
+                  - {t: 10, v: 2}
+                  - {t: 11, v: 3}
+            - type: AssignTimestamps
+              config:
+                timestamp: t
+            - type: Combine
+              config:
+                group_by: []
+                combine:
+                  v: sum
+              windowing:
+                type: fixed
+                size: 10s
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(
+          result | beam.Map(lambda x: beam.Row(**x._asdict())),
+          equal_to([
+              beam.Row(v=1),
+              beam.Row(v=5),
+          ]))
 
 
 class AnnotatingProvider(yaml_provider.InlineProvider):

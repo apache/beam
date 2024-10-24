@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertEquals;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.bigtable.v2.Mutation;
@@ -35,16 +37,24 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -69,6 +79,7 @@ public class BigtableWriteIT implements Serializable {
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
       String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+
   private String project;
 
   @Before
@@ -89,6 +100,7 @@ public class BigtableWriteIT implements Serializable {
         BigtableConfigTranslator.translateWriteToVeneerSettings(
             bigtableConfig,
             BigtableWriteOptions.builder().build(),
+            null,
             PipelineOptionsFactory.create());
 
     BigtableTableAdminSettings adminSettings =
@@ -133,7 +145,7 @@ public class BigtableWriteIT implements Serializable {
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withTableId(tableId));
-    p.run();
+    PipelineResult r = p.run();
 
     // Test number of column families and column family name equality
     Table table = getTable(tableId);
@@ -145,6 +157,206 @@ public class BigtableWriteIT implements Serializable {
     // Test table data equality
     List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
     assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
+    checkLineageSinkMetric(r, tableId);
+  }
+
+  @Test
+  public void testE2EBigtableWriteWithInvalidColumnFamilyFailures() throws Exception {
+    final int numRows = 1000;
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
+
+    failureTest(
+        numRows,
+        new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            int index = c.element().intValue();
+
+            String familyName = COLUMN_FAMILY_NAME;
+            if (index % 600 == 0) {
+              familyName = "malformed";
+            }
+            Iterable<Mutation> mutations =
+                ImmutableList.of(
+                    Mutation.newBuilder()
+                        .setSetCell(
+                            Mutation.SetCell.newBuilder()
+                                .setValue(testData.get(index).getValue())
+                                .setFamilyName(familyName))
+                        .build());
+            c.output(KV.of(testData.get(index).getKey(), mutations));
+          }
+        });
+  }
+
+  @Test
+  public void testE2EBigtableWriteWithEmptyMutationFailures() throws Exception {
+    final int numRows = 1000;
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
+    failureTest(
+        numRows,
+        new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            int index = c.element().intValue();
+            Iterable<Mutation> mutations;
+            if (index % 600 == 0) {
+              mutations =
+                  ImmutableList.of(
+                      Mutation.newBuilder().setSetCell(Mutation.SetCell.newBuilder()).build());
+            } else {
+              mutations =
+                  ImmutableList.of(
+                      Mutation.newBuilder()
+                          .setSetCell(
+                              Mutation.SetCell.newBuilder()
+                                  .setValue(testData.get(index).getValue())
+                                  .setFamilyName(COLUMN_FAMILY_NAME))
+                          .build());
+            }
+            c.output(KV.of(testData.get(index).getKey(), mutations));
+          }
+        });
+  }
+
+  @Test
+  public void testE2EBigtableWriteWithEmptyRowFailures() throws Exception {
+    final int numRows = 1000;
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
+
+    failureTest(
+        numRows,
+        new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            int index = c.element().intValue();
+            Iterable<Mutation> mutations =
+                ImmutableList.of(
+                    Mutation.newBuilder()
+                        .setSetCell(
+                            Mutation.SetCell.newBuilder()
+                                .setValue(testData.get(index).getValue())
+                                .setFamilyName(COLUMN_FAMILY_NAME))
+                        .build());
+
+            ByteString rowKey = testData.get(index).getKey();
+            if (index % 600 == 0) {
+              rowKey = ByteString.empty();
+            }
+            c.output(KV.of(rowKey, mutations));
+          }
+        });
+  }
+
+  @Test
+  public void testE2EBigtableWriteWithInvalidTimestampFailures() throws Exception {
+    final int numRows = 1000;
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
+
+    failureTest(
+        numRows,
+        new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            int index = c.element().intValue();
+            Iterable<Mutation> mutations;
+            if (index % 600 == 0) {
+              mutations =
+                  ImmutableList.of(
+                      Mutation.newBuilder()
+                          .setSetCell(
+                              Mutation.SetCell.newBuilder()
+                                  .setValue(testData.get(index).getValue())
+                                  .setFamilyName(COLUMN_FAMILY_NAME)
+                                  .setTimestampMicros(-2))
+                          .build());
+            } else {
+              mutations =
+                  ImmutableList.of(
+                      Mutation.newBuilder()
+                          .setSetCell(
+                              Mutation.SetCell.newBuilder()
+                                  .setValue(testData.get(index).getValue())
+                                  .setFamilyName(COLUMN_FAMILY_NAME))
+                          .build());
+            }
+
+            c.output(KV.of(testData.get(index).getKey(), mutations));
+          }
+        });
+  }
+
+  @Test
+  public void testE2EBigtableWriteWithOversizedQualifierFailures() throws Exception {
+    final int numRows = 1000;
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
+
+    failureTest(
+        numRows,
+        new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            int index = c.element().intValue();
+            Iterable<Mutation> mutations;
+            if (index % 600 == 0) {
+              mutations =
+                  ImmutableList.of(
+                      Mutation.newBuilder()
+                          .setSetCell(
+                              Mutation.SetCell.newBuilder()
+                                  .setValue(testData.get(index).getValue())
+                                  .setFamilyName(COLUMN_FAMILY_NAME)
+                                  .setColumnQualifier(ByteString.copyFrom(new byte[20_000])))
+                          .build());
+            } else {
+              mutations =
+                  ImmutableList.of(
+                      Mutation.newBuilder()
+                          .setSetCell(
+                              Mutation.SetCell.newBuilder()
+                                  .setValue(testData.get(index).getValue())
+                                  .setFamilyName(COLUMN_FAMILY_NAME))
+                          .build());
+            }
+
+            c.output(KV.of(testData.get(index).getKey(), mutations));
+          }
+        });
+  }
+
+  public void failureTest(int numRows, DoFn<Long, KV<ByteString, Iterable<Mutation>>> dataGenerator)
+      throws Exception {
+
+    createEmptyTable(tableId);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<KV<ByteString, Iterable<Mutation>>> mutations =
+        p.apply(GenerateSequence.from(0).to(numRows)).apply(ParDo.of(dataGenerator));
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    mutations.apply(
+        BigtableIO.write()
+            .withProjectId(project)
+            .withInstanceId(options.getInstanceId())
+            .withTableId(tableId)
+            .withErrorHandler(errorHandler));
+
+    errorHandler.close();
+    PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput())).isEqualTo(2L);
+
+    PipelineResult r = p.run();
+
+    // Test number of column families and column family name equality
+    Table table = getTable(tableId);
+    assertThat(table.getColumnFamilies(), Matchers.hasSize(1));
+    assertThat(
+        table.getColumnFamilies().stream().map((c) -> c.getId()).collect(Collectors.toList()),
+        Matchers.contains(COLUMN_FAMILY_NAME));
+
+    // Test table data equality
+    List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
+    assertEquals(998, tableData.size());
+    checkLineageSinkMetric(r, tableId);
   }
 
   @After
@@ -203,6 +415,17 @@ public class BigtableWriteIT implements Serializable {
   private void deleteTable(String tableId) {
     if (tableAdminClient != null) {
       tableAdminClient.deleteTable(tableId);
+    }
+  }
+
+  private void checkLineageSinkMetric(PipelineResult r, String tableId) {
+    // Only check lineage metrics on direct runner until Dataflow runner v2 supported report back
+    if (options.getRunner().getName().contains("DirectRunner")) {
+      assertThat(
+          Lineage.query(r.metrics(), Lineage.Type.SINK),
+          hasItem(
+              Lineage.getFqName(
+                  "bigtable", ImmutableList.of(project, options.getInstanceId(), tableId))));
     }
   }
 }

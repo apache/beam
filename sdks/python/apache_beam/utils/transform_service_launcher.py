@@ -35,7 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _COMMAND_POSSIBLE_VALUES = ['up', 'down', 'ps']
 
-_EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:launcher:build'
+_EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:app:build'
 
 
 class TransformServiceLauncher(object):

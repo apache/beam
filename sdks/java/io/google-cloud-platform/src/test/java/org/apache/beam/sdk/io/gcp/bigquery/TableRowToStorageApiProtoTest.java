@@ -40,6 +40,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -1577,17 +1579,21 @@ public class TableRowToStorageApiProtoTest {
 
   @Test
   public void testIgnoreUnknownNestedField() throws Exception {
+    TableRow rowNoFWithUnknowns = new TableRow();
+    rowNoFWithUnknowns.putAll(BASE_TABLE_ROW_NO_F);
+    rowNoFWithUnknowns.set("unknown", "foobar");
+    TableRow rowWithFWithUnknowns = new TableRow();
+    List<TableCell> cellsWithUnknowns = Lists.newArrayList(BASE_TABLE_ROW.getF());
+    cellsWithUnknowns.add(new TableCell().setV("foobar"));
+    rowWithFWithUnknowns.setF(cellsWithUnknowns);
+    // Nested records with no unknowns should not show up
     TableRow rowNoF = new TableRow();
     rowNoF.putAll(BASE_TABLE_ROW_NO_F);
-    rowNoF.set("unknown", "foobar");
-    TableRow rowWithF = new TableRow();
-    List<TableCell> cells = Lists.newArrayList(BASE_TABLE_ROW.getF());
-    cells.add(new TableCell().setV("foobar"));
-    rowWithF.setF(cells);
     TableRow topRow =
         new TableRow()
-            .set("nestedValueNoF1", rowNoF)
-            .set("nestedValue1", rowWithF)
+            .set("nestedValueNoF1", rowNoFWithUnknowns)
+            .set("nestedValue1", rowWithFWithUnknowns)
+            .set("nestedValueNoF2", rowNoF)
             .set("unknowntop", "foobar");
 
     Descriptor descriptor =
@@ -1606,6 +1612,63 @@ public class TableRowToStorageApiProtoTest {
         "foobar",
         ((TableRow) unknown.get("nestedvalue1")).getF().get(BASE_TABLE_ROW.getF().size()).getV());
     assertEquals("foobar", ((TableRow) unknown.get("nestedvaluenof1")).get("unknown"));
+  }
+
+  @Test
+  public void testIgnoreUnknownRepeatedNestedField() throws Exception {
+    TableRow doublyNestedRowNoFWithUnknowns = new TableRow();
+    doublyNestedRowNoFWithUnknowns.putAll(BASE_TABLE_ROW_NO_F);
+    doublyNestedRowNoFWithUnknowns.put("unknown_doubly_nested", "foobar_doubly_nested");
+    TableRow nestedRow =
+        new TableRow()
+            .set("nested_struct", doublyNestedRowNoFWithUnknowns)
+            .set("unknown_repeated_struct", "foobar_repeated_struct");
+    TableRow repeatedRow =
+        new TableRow()
+            .set("repeated_struct", Collections.singletonList(nestedRow))
+            .set("unknown_top", "foobar_top");
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                Arrays.asList(
+                    new TableFieldSchema()
+                        .setName("repeated_struct")
+                        .setType("STRUCT")
+                        .setMode("REPEATED")
+                        .setFields(
+                            Arrays.asList(
+                                new TableFieldSchema()
+                                    .setName("nested_struct")
+                                    .setType("STRUCT")
+                                    .setFields(BASE_TABLE_SCHEMA_NO_F.getFields())))));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+
+    TableRow unknown = new TableRow();
+    TableRowToStorageApiProto.messageFromTableRow(
+        schemaInformation, descriptor, repeatedRow, true, false, unknown, null, -1);
+    System.out.println(unknown);
+    // unkown at top level
+    assertEquals(2, unknown.size());
+    assertEquals("foobar_top", unknown.get("unknown_top"));
+
+    // unknown in a repeated struct
+    List<TableRow> unknownRepeatedStruct = ((List<TableRow>) unknown.get("repeated_struct"));
+    System.out.println(unknownRepeatedStruct.get(0));
+    assertEquals(1, unknownRepeatedStruct.size());
+    assertEquals(2, unknownRepeatedStruct.get(0).size());
+    assertEquals(
+        "foobar_repeated_struct", unknownRepeatedStruct.get(0).get("unknown_repeated_struct"));
+
+    // unknown in a double nested repeated struct
+    TableRow unknownDoublyNestedStruct =
+        (TableRow) unknownRepeatedStruct.get(0).get("nested_struct");
+    assertEquals(1, unknownDoublyNestedStruct.size());
+    assertEquals("foobar_doubly_nested", unknownDoublyNestedStruct.get("unknown_doubly_nested"));
   }
 
   @Test
@@ -1638,6 +1701,7 @@ public class TableRowToStorageApiProtoTest {
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvaluenof1")), false);
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvaluenof2")), false);
     assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
-    assertEquals(42L, msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    assertEquals(
+        Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 }

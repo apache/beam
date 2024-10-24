@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
@@ -32,11 +33,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.asm.AsmVisitorWrapper.ForDeclaredMethods;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
@@ -71,18 +71,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes"
 })
 public class AutoValueUtils {
-  public static Class getBaseAutoValueClass(Class<?> clazz) {
+  public static TypeDescriptor<?> getBaseAutoValueClass(TypeDescriptor<?> typeDescriptor) {
     // AutoValue extensions may be nested
-    while (clazz != null && clazz.getName().contains("AutoValue_")) {
-      clazz = clazz.getSuperclass();
+    while (typeDescriptor != null && typeDescriptor.getRawType().getName().contains("AutoValue_")) {
+      typeDescriptor = TypeDescriptor.of(typeDescriptor.getRawType().getSuperclass());
     }
-    return clazz;
+    return typeDescriptor;
   }
 
-  private static Class getAutoValueGenerated(Class<?> clazz) {
-    String generatedClassName = getAutoValueGeneratedName(clazz.getName());
+  private static TypeDescriptor<?> getAutoValueGenerated(TypeDescriptor<?> typeDescriptor) {
+    String generatedClassName = getAutoValueGeneratedName(typeDescriptor.getRawType().getName());
     try {
-      return Class.forName(generatedClassName);
+      return TypeDescriptor.of(Class.forName(generatedClassName));
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("AutoValue generated class not found: " + generatedClassName);
     }
@@ -121,11 +121,14 @@ public class AutoValueUtils {
    * Try to find an accessible constructor for creating an AutoValue class. Otherwise return null.
    */
   public static @Nullable SchemaUserTypeCreator getConstructorCreator(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<?> generatedClass = getAutoValueGenerated(clazz);
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    TypeDescriptor<?> generatedTypeDescriptor = getAutoValueGenerated(typeDescriptor);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(typeDescriptor, schema);
     Optional<Constructor<?>> constructor =
-        Arrays.stream(generatedClass.getDeclaredConstructors())
+        Arrays.stream(generatedTypeDescriptor.getRawType().getDeclaredConstructors())
             .filter(c -> !Modifier.isPrivate(c.getModifiers()))
             .filter(c -> matchConstructor(c, schemaTypes))
             .findAny();
@@ -133,7 +136,7 @@ public class AutoValueUtils {
         .map(
             c ->
                 JavaBeanUtils.getConstructorCreator(
-                    generatedClass,
+                    generatedTypeDescriptor,
                     c,
                     schema,
                     fieldValueTypeSupplier,
@@ -201,7 +204,8 @@ public class AutoValueUtils {
 
     List<FieldValueTypeInformation> setterMethods =
         Lists.newArrayList(); // The builder methods to call in order.
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
     for (FieldValueTypeInformation type : schemaTypes) {
       String autoValueFieldName = ReflectUtils.stripGetterPrefix(type.getMethod().getName());
 
@@ -227,7 +231,7 @@ public class AutoValueUtils {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  static SchemaUserTypeCreator createBuilderCreator(
+  private static SchemaUserTypeCreator createBuilderCreator(
       Class<?> builderClass,
       List<FieldValueTypeInformation> setterMethods,
       Method buildMethod,
@@ -242,9 +246,9 @@ public class AutoValueUtils {
               .intercept(
                   new BuilderCreateInstruction(types, setterMethods, builderClass, buildMethod));
       return builder
-          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .visit(new ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(builderClass))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

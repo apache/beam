@@ -369,6 +369,10 @@ message StandardPTransforms {
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
+
+    REDISTRIBUTE_BY_KEY = 8 [(beam_urn) = "beam:transform:redistribute_by_key:v1"];
+
+    REDISTRIBUTE_ARBITRARILY = 9 [(beam_urn) = "beam:transform:redistribute_arbitrarily:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -475,7 +479,11 @@ message StandardUserStateTypes {
     // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
     MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
 
-    // TODO(https://github.com/apache/beam/issues/20486): Add protocol to support OrderedListState
+    // Represents a user state specification that supports an ordered list.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.OrderedListUserState.
+    ORDERED_LIST = 2 [(beam_urn) = "beam:user_state:ordered_list:v1"];
   }
 }
 
@@ -738,6 +746,10 @@ message WriteFilesPayload {
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
+
+  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding 
+  // is by the runner translator
+  bool auto_sharded = 6;
 }
 
 // Payload used by Google Cloud Pub/Sub read transform.
@@ -807,6 +819,10 @@ message GroupIntoBatchesPayload {
 
   // (Optional) Max duration a batch is allowed to be cached in states.
   int64 max_buffering_duration_millis = 2;
+}
+
+message RedistributePayload {
+  bool allow_duplicates = 1;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -1660,6 +1676,15 @@ message StandardProtocols {
     // during bundle processing. This is disabled by default and enabled with the
     // `enable_data_sampling` experiment.
     DATA_SAMPLING = 8 [(beam_urn) = "beam:protocol:data_sampling:v1"];
+
+    // Indicates whether the SDK sets the consuming_received_data field on
+    // the ProcessBundleProgressResponse messages.
+    SDK_CONSUMING_RECEIVED_DATA = 9
+    [(beam_urn) = "beam:protocol:sdk_consuming_received_data:v1"];
+
+    // Indicates whether the SDK supports ordered list state.
+    ORDERED_LIST_STATE = 10
+    [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
   }
 }
 

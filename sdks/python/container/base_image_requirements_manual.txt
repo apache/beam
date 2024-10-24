@@ -25,9 +25,7 @@
 # Consider constraining requirements of Beam itself when necessary.
 
 bs4  # Commonly used HTML processing tool.
-# Don't upgrade to Cython 3.x, until it's released, stable and we have consensus
-# to upgrade. Use 0.xx for now.
-cython<1
+cython>=3,<4
 # future is no longer a Beam dependency, but is an implicit dependency in
 # some versions of libraries that launch Beam pipelines, like tensorflow-transform.
 # Leaving 'future' in our containers for now prevent breaking tft users.
@@ -37,9 +35,7 @@ guppy3
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
 nose==1.3.7  # For Dataflow internal testing. TODO: remove this.
-# TODO: Uncomment python version once python-snappy supports it.
-# https://github.com/apache/beam/issues/25985
-python-snappy;python_version<"3.11"  # Optimizes execution of some Beam codepaths.
+python-snappy  # Optimizes execution of some Beam codepaths.
 scipy
 scikit-learn
 build>=1.0,<2 # tool to build sdist from setup.py in stager.

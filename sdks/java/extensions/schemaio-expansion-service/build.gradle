@@ -40,11 +40,12 @@ dependencies {
     permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
     implementation project(":sdks:java:io:json")
     permitUnusedDeclared project(path: ":sdks:java:io:json") // BEAM-11761
+    runtimeOnly library.java.everit_json_schema
     implementation library.java.postgres
     permitUnusedDeclared library.java.postgres // BEAM-11761
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.vendored_guava_32_1_2_jre
     // Stage default drivers for JdbcIO schema transforms
     implementation 'mysql:mysql-connector-java:8.0.22'

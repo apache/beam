@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
+keras<3.0.0
 tensorflow>=2.12.0
 tensorflow_hub>=0.10.0
 Pillow>=9.0.0
+typing-extensions>=4.8.0
 

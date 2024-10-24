@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -63,7 +63,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_Python_Examples_Flink"]
         job_phrase: ["Run Python Examples_Flink"]
-        python_version: ['3.8', '3.11']
+        python_version: ['3.9', '3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -75,7 +75,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: default
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean

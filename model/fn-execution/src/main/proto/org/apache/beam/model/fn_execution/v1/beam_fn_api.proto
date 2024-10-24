@@ -503,6 +503,11 @@ message ProcessBundleProgressResponse {
   // as the MonitoringInfo could be reconstructed fully by overwriting its
   // payload field with the bytes specified here.
   map<string, bytes> monitoring_data = 5;
+  // Indicates that the SDK is still busy consuming the data that as already
+  // been received on the data channel. If this is set, a runner may abstain
+  // from sending further data on the data channel until this field becomes
+  // unset. This field is currently used during shuffle reads on large elements.
+  optional bool consuming_received_data = 6;
 
   reserved 1, 2, 4;
 }
@@ -1021,6 +1026,29 @@ message StateKey {
     bytes map_key = 5;
   }
 
+  // Represents a request for an ordered list of values associated with a
+  // specified user key and window for a PTransform. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // The response data stream will be a concatenation of all entries of sort key
+  // and V's associated with the specified user key and window.
+  // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
+  message OrderedListUserState {
+    // (Required) The id of the PTransform containing user state.
+    string transform_id = 1;
+    // (Required) The id of the user state.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+    // (Required) The sort range encoded in a nested context.
+    OrderedListRange range = 5;
+  }
+
   // (Required) One of the following state keys must be set.
   oneof type {
     Runner runner = 1;
@@ -1031,6 +1059,7 @@ message StateKey {
     MultimapKeysValuesSideInput multimap_keys_values_side_input = 8;
     MultimapKeysUserState multimap_keys_user_state = 6;
     MultimapUserState multimap_user_state = 7;
+    OrderedListUserState ordered_list_user_state = 9;
   }
 }
 
@@ -1055,6 +1084,8 @@ message StateGetResponse {
   // Represents a part of a logical byte stream. Elements within
   // the logical byte stream are encoded in the nested context and
   // concatenated together.
+  //
+  // See also the note about OrderedListState in StateAppendRequest.
   bytes data = 2;
 }
 
@@ -1063,6 +1094,11 @@ message StateAppendRequest {
   // Represents a part of a logical byte stream. Elements within
   // the logical byte stream are encoded in the nested context and
   // multiple append requests are concatenated together.
+  //
+  // For OrderedListState, elements of should be encoded with the
+  // beam:coder:kv:v1 coder, where the first (key) component must be a
+  // beam:coder:varint:v1 and the second (value) component must be encoded
+  // with a beam:coder:length_prefix:v1 coder.
   bytes data = 1;
 }
 
@@ -1074,6 +1110,12 @@ message StateClearRequest {}
 
 // A response to clear state.
 message StateClearResponse {}
+
+// A message describes a sort key range [start, end).
+message OrderedListRange {
+  int64 start = 1;
+  int64 end = 2;
+}
 
 /*
  * Logging API

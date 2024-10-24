@@ -38,12 +38,20 @@ public class SpannerSchemaTest {
             .addColumn("test", "maxKey", "STRING(MAX)")
             .addColumn("test", "numericVal", "NUMERIC")
             .addColumn("test", "jsonVal", "JSON")
+            .addColumn("test", "protoVal", "PROTO<customer.app.TestMessage>")
+            .addColumn("test", "enumVal", "ENUM<customer.app.TestEnum>")
+            .addColumn("test", "tokens", "TOKENLIST")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(4, schema.getColumns("test").size());
+    assertEquals(7, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
+    assertEquals(
+        Type.proto("customer.app.TestMessage"), schema.getColumns("test").get(4).getType());
+    assertEquals(
+        Type.protoEnum("customer.app.TestEnum"), schema.getColumns("test").get(5).getType());
+    assertEquals(Type.bytes(), schema.getColumns("test").get(6).getType());
   }
 
   @Test

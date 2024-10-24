@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -36,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.BuilderMethod;
@@ -45,7 +45,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -59,9 +59,10 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * A transform provider that can be used to directly instantiate a transform using Java class name
@@ -90,7 +91,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
   @SuppressWarnings("argument")
   @Override
-  public PTransform<PInput, POutput> getTransform(FunctionSpec spec) {
+  public PTransform<PInput, POutput> getTransform(FunctionSpec spec, PipelineOptions options) {
     JavaClassLookupPayload payload;
     try {
       payload = JavaClassLookupPayload.parseFrom(spec.getPayload());
@@ -488,6 +489,46 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
               AllowedClass.create("*", AllowedClass.WILDCARD, AllowedClass.WILDCARD)));
     }
 
+    static AllowList parseFromYamlStream(InputStream inputStream) {
+      Yaml yaml = new Yaml();
+      Map<Object, Object> config = yaml.load(inputStream);
+
+      if (config == null) {
+        throw new IllegalArgumentException(
+            "Could not parse the provided YAML stream into a non-trivial AllowList");
+      }
+
+      String version = config.get("version") != null ? (String) config.get("version") : "";
+      List<AllowedClass> allowedClasses = new ArrayList<>();
+      if (config.get("allowedClasses") != null) {
+        allowedClasses =
+            ((List<Map<Object, Object>>) config.get("allowedClasses"))
+                .stream()
+                    .map(
+                        data -> {
+                          String className = (String) data.get("className");
+                          if (className == null) {
+                            throw new IllegalArgumentException(
+                                "Expected each entry in the allowlist to include the 'className'");
+                          }
+                          List<String> allowedBuilderMethods =
+                              (List<String>) data.get("allowedBuilderMethods");
+                          List<String> allowedConstructorMethods =
+                              (List<String>) data.get("allowedConstructorMethods");
+                          if (allowedBuilderMethods == null) {
+                            allowedBuilderMethods = new ArrayList<>();
+                          }
+                          if (allowedConstructorMethods == null) {
+                            allowedConstructorMethods = new ArrayList<>();
+                          }
+                          return AllowedClass.create(
+                              className, allowedBuilderMethods, allowedConstructorMethods);
+                        })
+                    .collect(Collectors.toList());
+      }
+      return AllowList.create(version, allowedClasses);
+    }
+
     public abstract String getVersion();
 
     public abstract List<AllowedClass> getAllowedClasses();
@@ -512,11 +553,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       return allowlistClass;
     }
 
-    @JsonCreator
-    static AllowList create(
-        @JsonProperty("version") String version,
-        @JsonProperty("allowedClasses") @javax.annotation.Nullable
-            List<AllowedClass> allowedClasses) {
+    static AllowList create(String version, List<AllowedClass> allowedClasses) {
       if (allowedClasses == null) {
         allowedClasses = new ArrayList<>();
       }
@@ -553,13 +590,10 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
           || getAllowedConstructorMethods().equals(WILDCARD);
     }
 
-    @JsonCreator
     static AllowedClass create(
-        @JsonProperty("className") String className,
-        @JsonProperty("allowedBuilderMethods") @javax.annotation.Nullable
-            List<String> allowedBuilderMethods,
-        @JsonProperty("allowedConstructorMethods") @javax.annotation.Nullable
-            List<String> allowedConstructorMethods) {
+        String className,
+        List<String> allowedBuilderMethods,
+        List<String> allowedConstructorMethods) {
       if (allowedBuilderMethods == null) {
         allowedBuilderMethods = new ArrayList<>();
       }

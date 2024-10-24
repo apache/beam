@@ -43,12 +43,14 @@ import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
+from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
@@ -60,6 +62,7 @@ from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -82,11 +85,15 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
   from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
   from google.cloud import bigquery as gcp_bigquery
+  from google.cloud import bigquery_storage_v1 as bq_storage
   from google.api_core import exceptions
 except ImportError:
   gcp_bigquery = None
+  bq_storage = None
   HttpError = None
+  HttpForbiddenError = None
   exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -323,7 +330,9 @@ class TestJsonToDictCoder(unittest.TestCase):
     self.assertEqual(expected_row, actual)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    HttpError is None or HttpForbiddenError is None,
+    'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -455,6 +464,205 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
+      # read without exception
+      param(responses=[], expected_retries=0),
+      # first attempt returns a Http 500 blank error and retries
+      # second attempt returns a Http 408 blank error and retries,
+      # third attempt passes
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 500}, content="something", url="")
+              if HttpForbiddenError else None,
+              HttpForbiddenError(
+                  response={'status': 408}, content="blank", url="")
+              if HttpForbiddenError else None
+          ],
+          expected_retries=2),
+      # first attempts returns a 403 rateLimitExceeded error
+      # second attempt returns a 429 blank error
+      # third attempt returns a Http 403 rateLimitExceeded error
+      # fourth attempt passes
+      param(
+          responses=[
+              exceptions.Forbidden(
+                  "some message",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )) if exceptions else None,
+              exceptions.ResourceExhausted("some message")
+              if exceptions else None,
+              HttpForbiddenError(
+                  response={'status': 403},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient",
+                              "reason": "rateLimitExceeded"
+                          }]
+                      }
+                  },
+                  url="") if HttpForbiddenError else None,
+          ],
+          expected_retries=3),
+  ])
+  def test_get_table_transient_exception(self, responses, expected_retries):
+    class DummyTable:
+      class DummySchema:
+        fields = []
+
+      numBytes = 5
+      schema = DummySchema()
+
+    with mock.patch('time.sleep'), \
+            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
+                              'Get') as mock_get_table, \
+            mock.patch.object(BigQueryWrapper,
+                              'wait_for_bq_job'), \
+            mock.patch.object(BigQueryWrapper,
+                              'perform_extract_job'), \
+            mock.patch.object(FileSystems,
+                              'match'), \
+            mock.patch.object(FileSystems,
+                              'delete'), \
+            beam.Pipeline() as p:
+      call_counter = 0
+
+      def store_callback(unused_request):
+        nonlocal call_counter
+        if call_counter < len(responses):
+          exception = responses[call_counter]
+          call_counter += 1
+          raise exception
+        else:
+          call_counter += 1
+          return DummyTable()
+
+      mock_get_table.side_effect = store_callback
+      _ = p | beam.io.ReadFromBigQuery(
+          table="project.dataset.table", gcs_location="gs://some_bucket")
+
+    # ReadFromBigQuery export mode calls get_table() twice. Once to get
+    # metadata (numBytes), and once to retrieve the table's schema
+    # Any additional calls are retries
+    self.assertEqual(expected_retries, mock_get_table.call_count - 2)
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SOURCE),
+        set(["bigquery:project.dataset.table"]))
+
+  @parameterized.expand([
+      # first attempt returns a Http 429 with transient reason and retries
+      # second attempt returns a Http 403 with non-transient reason and fails
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 429},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient",
+                              "reason": "rateLimitExceeded"
+                          }]
+                      }
+                  },
+                  url="") if HttpForbiddenError else None,
+              HttpForbiddenError(
+                  response={'status': 403},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient", "reason": "accessDenied"
+                          }]
+                      }
+                  },
+                  url="") if HttpForbiddenError else None
+          ],
+          expected_retries=1),
+      # first attempt returns a transient 403 error and retries
+      # second attempt returns a 403 error with bad contents and fails
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 403},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient",
+                              "reason": "rateLimitExceeded"
+                          }]
+                      }
+                  },
+                  url="") if HttpForbiddenError else None,
+              HttpError(
+                  response={'status': 403}, content="bad contents", url="")
+              if HttpError else None
+          ],
+          expected_retries=1),
+      # first attempt returns a transient 403 error and retries
+      # second attempt returns a 429 error and retries
+      # third attempt returns a 403 with non-transient reason and fails
+      param(
+          responses=[
+              exceptions.Forbidden(
+                  "some error",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )) if exceptions else None,
+              exceptions.ResourceExhausted("some transient error")
+              if exceptions else None,
+              exceptions.Forbidden(
+                  "some error",
+                  errors=({
+                      "message": "transient", "reason": "accessDenied"
+                  }, )) if exceptions else None,
+          ],
+          expected_retries=2),
+  ])
+  def test_get_table_non_transient_exception(self, responses, expected_retries):
+    class DummyTable:
+      class DummySchema:
+        fields = []
+
+      numBytes = 5
+      schema = DummySchema()
+
+    with mock.patch('time.sleep'), \
+            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
+                              'Get') as mock_get_table, \
+            mock.patch.object(BigQueryWrapper,
+                              'wait_for_bq_job'), \
+            mock.patch.object(BigQueryWrapper,
+                              'perform_extract_job'), \
+            mock.patch.object(FileSystems,
+                              'match'), \
+            mock.patch.object(FileSystems,
+                              'delete'), \
+            self.assertRaises(Exception), \
+            beam.Pipeline() as p:
+      call_counter = 0
+
+      def store_callback(unused_request):
+        nonlocal call_counter
+        if call_counter < len(responses):
+          exception = responses[call_counter]
+          call_counter += 1
+          raise exception
+        else:
+          call_counter += 1
+          return DummyTable()
+
+      mock_get_table.side_effect = store_callback
+      _ = p | beam.io.ReadFromBigQuery(
+          table="project.dataset.table", gcs_location="gs://some_bucket")
+
+    # ReadFromBigQuery export mode calls get_table() twice. Once to get
+    # metadata (numBytes), and once to retrieve the table's schema
+    # However, the second call is never reached because this test will always
+    # fail before it does so
+    # After the first call, any additional calls are retries
+    self.assertEqual(expected_retries, mock_get_table.call_count - 1)
+
+  @parameterized.expand([
       param(
           exception_type=exceptions.BadRequest if exceptions else None,
           error_message='invalidQuery'),
@@ -519,6 +727,40 @@ class TestReadFromBigQuery(unittest.TestCase):
 
     mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
+
+  def test_read_direct_lineage(self):
+    with mock.patch.object(bigquery_tools.BigQueryWrapper,
+                        '_bigquery_client'),\
+         mock.patch.object(bq_storage.BigQueryReadClient,
+                        'create_read_session'),\
+        beam.Pipeline() as p:
+
+      _ = p | ReadFromBigQuery(
+          method=ReadFromBigQuery.Method.DIRECT_READ,
+          table='project:dataset.table')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SOURCE),
+        set(["bigquery:project.dataset.table"]))
+
+  def test_read_all_lineage(self):
+    with mock.patch.object(_BigQueryReadSplit, '_export_files') as export, \
+                            beam.Pipeline() as p:
+
+      export.return_value = (None, [])
+
+      _ = (
+          p
+          | beam.Create([
+              beam.io.ReadFromBigQueryRequest(table='project1:dataset1.table1'),
+              beam.io.ReadFromBigQueryRequest(table='project2:dataset2.table2')
+          ])
+          | beam.io.ReadAllFromBigQuery(gcs_location='gs://bucket/tmp'))
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SOURCE),
+        set([
+            'bigquery:project1.dataset1.table1',
+            'bigquery:project2.dataset2.table2'
+        ]))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -2036,10 +2278,13 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
-      out1 = json.load(f1)
-      self.assertEqual(out1['colA_values'], ['value1', 'value3'])
-      out2 = json.load(f2)
-      self.assertEqual(out2['colA_values'], ['value5'])
+      out1 = json.load(f1)['colA_values']
+      out2 = json.load(f2)['colA_values']
+      out_all = out1 + out2
+      out_all.sort()
+      self.assertEqual(out_all, ['value1', 'value3', 'value5'])
+      self.assertEqual(len(out1), 2)
+      self.assertEqual(len(out2), 1)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

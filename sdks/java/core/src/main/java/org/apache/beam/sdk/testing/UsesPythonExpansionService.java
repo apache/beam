@@ -24,4 +24,4 @@ import org.apache.beam.sdk.annotations.Internal;
  * UsesPythonExpansionService} should be run for runners which support cross-language transforms.
  */
 @Internal
-public interface UsesPythonExpansionService {}
+public interface UsesPythonExpansionService extends UsesExternalService {}

@@ -66,6 +66,66 @@ artifacts {
   distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
 }
 
+tasks.register("generateExternalTransformsConfig") {
+  description "Discovers external transforms and regenerates the config at sdks/standard_expansion_services.yaml"
+
+  dependsOn buildPython
+  // Need to build all expansion services listed in sdks/standard_expansion_services.yaml
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  // Keep this in-sync with pyproject.toml
+  def PyYaml = "'pyyaml>=3.12,<7.0.0'"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "pip install $PyYaml && " +
+              "python gen_xlang_wrappers.py --cleanup --generate-config-only"
+    }
+  }
+}
+
+tasks.register("generateYamlDocs") {
+  description "Generates the reference documentation for all YAML transforms."
+
+  dependsOn buildPython
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${envdir}/bin/pip install $extraPackages && " +
+              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html"
+    }
+  }
+  outputs.file "${buildDir}/yaml-ref.html"
+}
+
+tasks.register("yamlIntegrationTests") {
+  description "Runs integration tests for yaml pipelines."
+
+  dependsOn installGcpTest
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0"
+    }
+  }
+}
+
 // Create Python wheels for given platform and Python version
 // build identifiers for cibuildwheel
 def platform_identifiers_map = [
@@ -94,17 +154,31 @@ platform_identifiers_map.each { platform, idsuffix ->
 
       // generated installable Python SDK package
       doLast {
-        exec {
-          environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
-          environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-          // note: sync cibuildwheel version with GitHub Action
-          // .github/workflow/build_wheel.yml:build_wheels "Install cibuildwheel" step
-          // note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
-          executable 'sh'
-          args '-c', ". ${envdir}/bin/activate && " +
-              "pip install cibuildwheel==2.9.0 && " +
-              "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
-              "for i in {1..3}; do cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} && break; done"
+        int maxRetries = 3
+        int retryCount = 0
+        // note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
+        while (retryCount < maxRetries) {
+          try {
+            exec {
+             environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
+             executable 'sh'
+             args '-c', ". ${envdir}/bin/activate && " +
+                 // note: sync cibuildwheel version with GitHub Action
+                 // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
+                 "pip install cibuildwheel==2.17.0 setuptools && " +
+                 "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
+                 "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
+           }
+           break;
+         }
+         catch (Exception e) {
+            retryCount++
+            if (retryCount < maxRetries) {
+                println "cibuildwheel failed on attempt ${retryCount}. Will retry."
+            } else {
+                throw e
+            }
+         }
         }
       }
     }

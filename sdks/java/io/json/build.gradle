@@ -27,9 +27,8 @@ ext.summary = "IO to read and write JSON files."
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.everit_json_schema
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
 }

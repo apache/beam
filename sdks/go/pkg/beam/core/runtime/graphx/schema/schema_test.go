@@ -24,7 +24,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -806,7 +805,7 @@ func TestSchemaConversion(t *testing.T) {
 				}
 				if d := cmp.Diff(test.st, got,
 					protocmp.Transform(),
-					protocmp.IgnoreFields(proto.MessageV2(&pipepb.Schema{}), "id"),
+					protocmp.IgnoreFields(&pipepb.Schema{}, "id"),
 				); d != "" {
 					t.Errorf("diff (-want, +got): %v", d)
 				}

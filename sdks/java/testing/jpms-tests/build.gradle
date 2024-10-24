@@ -74,6 +74,7 @@ configurations {
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core") // for autoservice filesystems
 
   testImplementation library.java.junit
   testImplementation library.java.hamcrest

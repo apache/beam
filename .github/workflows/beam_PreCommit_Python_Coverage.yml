@@ -50,9 +50,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  HF_INFERENCE_TOKEN: ${{ secrets.HF_INFERENCE_TOKEN }}
+
 
 jobs:
   beam_PreCommit_Python_Coverage:
@@ -80,14 +82,16 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          python-version: 3.8
+          java-version: default
+          python-version: default
       - name: Run preCommitPyCoverage
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py38:preCommitPyCoverage
-          arguments: |
-            -PuseWheelDistribution
+          gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage
+      - uses: codecov/codecov-action@v3
+        with:
+          flags: python
+          directory: sdks/python
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

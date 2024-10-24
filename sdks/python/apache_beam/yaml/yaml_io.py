@@ -52,11 +52,29 @@ from apache_beam.yaml import yaml_provider
 def read_from_text(path: str):
   # TODO(yaml): Consider passing the filename and offset, possibly even
   # by default.
+
+  """Reads lines from a text files.
+
+  The resulting PCollection consists of rows with a single string filed named
+  "line."
+
+  Args:
+    path (str): The file path to read from.  The path can contain glob
+      characters such as ``*`` and ``?``.
+  """
   return beam_io.ReadFromText(path) | beam.Map(lambda s: beam.Row(line=s))
 
 
 @beam.ptransform_fn
 def write_to_text(pcoll, path: str):
+  """Writes a PCollection to a (set of) text files(s).
+
+  The input must be a PCollection whose schema has exactly one field.
+
+  Args:
+      path (str): The file path to write to. The files written will
+        begin with this prefix, followed by a shard identifier.
+  """
   try:
     field_names = [
         name for name,
@@ -75,7 +93,29 @@ def write_to_text(pcoll, path: str):
 
 
 def read_from_bigquery(
-    query=None, table=None, row_restriction=None, fields=None):
+    *,
+    table: Optional[str] = None,
+    query: Optional[str] = None,
+    row_restriction: Optional[str] = None,
+    fields: Optional[Iterable[str]] = None):
+  """Reads data from BigQuery.
+
+  Exactly one of table or query must be set.
+  If query is set, neither row_restriction nor fields should be set.
+
+  Args:
+    table (str): The table to read from, specified as `DATASET.TABLE`
+      or `PROJECT:DATASET.TABLE`.
+    query (str): A query to be used instead of the table argument.
+    row_restriction (str): Optional SQL text filtering statement, similar to a
+      WHERE clause in a query. Aggregates are not supported. Restricted to a
+      maximum length for 1 MB.
+    selected_fields (List[str]): Optional List of names of the fields in the
+      table that should be read. If empty, all fields will be read. If the
+      specified field is a nested field, all the sub-fields in the field will be
+      selected. The output field order is unrelated to the order of fields
+      given here.
+  """
   if query is None:
     assert table is not None
   else:
@@ -90,11 +130,43 @@ def read_from_bigquery(
 
 
 def write_to_bigquery(
-    table,
+    table: str,
     *,
-    create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-    write_disposition=BigQueryDisposition.WRITE_APPEND,
+    create_disposition: Optional[str] = BigQueryDisposition.CREATE_IF_NEEDED,
+    write_disposition: Optional[str] = BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
+  f"""Writes data to a BigQuery table.
+
+  Args:
+    table (str): The table to read from, specified as `DATASET.TABLE`
+      or `PROJECT:DATASET.TABLE`.
+      create_disposition (BigQueryDisposition): A string describing what
+        happens if the table does not exist. Possible values are:
+
+        * :attr:`{BigQueryDisposition.CREATE_IF_NEEDED}`: create if does not
+          exist.
+        * :attr:`{BigQueryDisposition.CREATE_NEVER}`: fail the write if does not
+          exist.
+
+        Defaults to `{BigQueryDisposition.CREATE_IF_NEEDED}`.
+
+      write_disposition (BigQueryDisposition): A string describing what happens
+        if the table has already some data. Possible values are:
+
+        * :attr:`{BigQueryDisposition.WRITE_TRUNCATE}`: delete existing rows.
+        * :attr:`{BigQueryDisposition.WRITE_APPEND}`: add to existing rows.
+        * :attr:`{BigQueryDisposition.WRITE_EMPTY}`: fail the write if table not
+          empty.
+
+        For streaming pipelines WriteTruncate can not be used.
+
+        Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
+
+      error_handling: If specified, should be a mapping giving an output into
+        which to emit records that failed to bet written to BigQuery, as
+        described at https://beam.apache.org/documentation/sdks/yaml-errors/
+        Otherwise permanently failing records will cause pipeline failure.
+  """
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
       return 'WriteToBigQuery'
@@ -140,16 +212,27 @@ def write_to_bigquery(
 def _create_parser(
     format,
     schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
-  if format == 'raw':
+
+  format = format.upper()
+
+  def _validate_schema():
+    if not schema:
+      raise ValueError(
+          f'{format} format requires valid {format} schema to be passed to '
+          f'schema parameter.')
+
+  if format == 'RAW':
     if schema:
-      raise ValueError('raw format does not take a schema')
+      raise ValueError('RAW format does not take a schema')
     return (
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
-  elif format == 'json':
+  elif format == 'JSON':
+    _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
     return beam_schema, json_utils.json_parser(beam_schema, schema)
-  elif format == 'avro':
+  elif format == 'AVRO':
+    _validate_schema()
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
     # pylint: disable=line-too-long
@@ -164,16 +247,33 @@ def _create_parser(
 def _create_formatter(
     format, schema: Any,
     beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
-  if format == 'raw':
+
+  if format.islower():
+    format = format.upper()
+
+  if format == 'RAW':
     if schema:
-      raise ValueError('raw format does not take a schema')
+      raise ValueError('RAW format does not take a schema')
     field_names = [field.name for field in beam_schema.fields]
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
-    return lambda row: getattr(row, field_names[0])
-  elif format == 'json':
+
+    def convert_to_bytes(row):
+      output = getattr(row, field_names[0])
+      if isinstance(output, bytes):
+        return output
+      elif isinstance(output, str):
+        return output.encode('utf-8')
+      else:
+        raise ValueError(
+            f"Cannot encode payload for WriteToPubSub. "
+            f"Expected valid string or bytes object, "
+            f"got {repr(output)} of type {type(output)}.")
+
+    return convert_to_bytes
+  elif format == 'JSON':
     return json_utils.json_formater(beam_schema)
-  elif format == 'avro':
+  elif format == 'AVRO':
     avro_schema = schema or avroio.beam_schema_to_avro_schema(beam_schema)
     from_row = avroio.beam_row_to_avro_dict(avro_schema, beam_schema)
 
@@ -214,10 +314,10 @@ def read_from_pubsub(
     format: The expected format of the message payload.  Currently suported
       formats are
 
-        - raw: Produces records with a single `payload` field whose contents
+        - RAW: Produces records with a single `payload` field whose contents
             are the raw bytes of the pubsub message.
-        - avro: Parses records with a given avro schema.
-        - json: Parses records with a given json schema.
+        - AVRO: Parses records with a given Avro schema.
+        - JSON: Parses records with a given JSON schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be flattened into the
@@ -311,12 +411,12 @@ def write_to_pubsub(
     format: How to format the message payload.  Currently suported
       formats are
 
-        - raw: Expects a message with a single field (excluding
+        - RAW: Expects a message with a single field (excluding
             attribute-related fields) whose contents are used as the raw bytes
             of the pubsub message.
-        - avro: Encodes records with a given avro schema, which may be inferred
+        - AVRO: Encodes records with a given Avro schema, which may be inferred
             from the input PCollection schema.
-        - json: Formats records with a given json schema, which may be inferred
+        - JSON: Formats records with a given JSON schema, which may be inferred
             from the input PCollection schema.
 
     schema: Schema specification for the given format.

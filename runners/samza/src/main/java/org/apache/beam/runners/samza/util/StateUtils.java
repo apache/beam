@@ -18,9 +18,9 @@
 package org.apache.beam.runners.samza.util;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 
 /** Utils for determining stateful operators. */
 public class StateUtils {

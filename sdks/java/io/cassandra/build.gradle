@@ -31,13 +31,21 @@ ext.summary = "IO to read and write with Apache Cassandra database"
 // compatible with all Cassandra versions up to 3.11.10
 def achilles_version = "6.1.0"
 
+configurations.testRuntimeClasspath {
+  // Force use the old version of JAMM that embedded cassandra server relies on
+  // TODO(yathu) bump to cassandra-5.x which uses newer jamm when
+  // * cassandra-5.x released
+  // * Beam tests with Java11+ (cassandra 5-beta dropped Java8 release)
+  resolutionStrategy.force 'com.github.jbellis:jamm:0.3.0'
+}
+
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.slf4j_api
   implementation library.java.cassandra_driver_core
   implementation library.java.cassandra_driver_mapping
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core

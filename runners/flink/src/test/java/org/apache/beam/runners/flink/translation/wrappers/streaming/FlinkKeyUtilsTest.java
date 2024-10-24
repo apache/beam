@@ -22,12 +22,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.junit.Test;
 
 /** Tests for {@link FlinkKeyUtils}. */
@@ -66,7 +66,7 @@ public class FlinkKeyUtilsTest {
   @Test
   @SuppressWarnings("ByteBufferBackingArray")
   public void testFromEncodedKey() {
-    ByteString input = ByteString.copyFrom("hello world".getBytes(Charsets.UTF_8));
+    ByteString input = ByteString.copyFrom("hello world".getBytes(StandardCharsets.UTF_8));
     ByteBuffer encodedKey = FlinkKeyUtils.fromEncodedKey(input);
     assertThat(encodedKey.array(), is(input.toByteArray()));
   }

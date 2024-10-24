@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,13 +37,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.construction.External;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -164,26 +164,26 @@ public class ExternalTest implements Serializable {
     private final TupleTag<Integer> odd = new TupleTag<Integer>("odd") {};
 
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+    public Map<String, TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_URN_SIMPLE,
-              spec -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),
+          (spec, options) -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),
           TEST_URN_LE,
-              spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
+          (spec, options) -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
           TEST_URN_MULTI,
-              spec ->
-                  ParDo.of(
-                          new DoFn<Integer, Integer>() {
-                            @ProcessElement
-                            public void processElement(ProcessContext c) {
-                              if (c.element() % 2 == 0) {
-                                c.output(c.element());
-                              } else {
-                                c.output(odd, c.element());
-                              }
-                            }
-                          })
-                      .withOutputTags(even, TupleTagList.of(odd)));
+          (spec, options) ->
+              ParDo.of(
+                      new DoFn<Integer, Integer>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          if (c.element() % 2 == 0) {
+                            c.output(c.element());
+                          } else {
+                            c.output(odd, c.element());
+                          }
+                        }
+                      })
+                  .withOutputTags(even, TupleTagList.of(odd)));
     }
   }
 }

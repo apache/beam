@@ -27,11 +27,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
@@ -66,6 +61,11 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -74,6 +74,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.spark.HashPartitioner;
@@ -448,7 +449,7 @@ public final class TransformTranslator {
         }
 
         Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
-        if (outputs.size() > 1) {
+        if (hasMultipleOutputs(outputs)) {
           StorageLevel level = StorageLevel.fromString(context.storageLevel());
           if (canAvoidRddSerialization(level)) {
             // if it is memory only reduce the overhead of moving to bytes
@@ -463,15 +464,26 @@ public final class TransformTranslator {
                     .persist(level)
                     .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
           }
-        }
-        for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
-          JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
-              all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));
-          // Object is the best we can do since different outputs can have different tags
+
+          for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
+            JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
+                all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));
+            // Object is the best we can do since different outputs can have different tags
+            JavaRDD<WindowedValue<Object>> values =
+                (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
+            context.putDataset(output.getValue(), new BoundedDataset<>(values));
+          }
+        } else {
           JavaRDD<WindowedValue<Object>> values =
-              (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          context.putDataset(output.getValue(), new BoundedDataset<>(values));
+              (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) all.values();
+          context.putDataset(
+              Iterables.getOnlyElement(outputs.entrySet()).getValue(),
+              new BoundedDataset<>(values));
         }
+      }
+
+      private boolean hasMultipleOutputs(Map<TupleTag<?>, PCollection<?>> outputs) {
+        return outputs.size() > 1;
       }
 
       @Override

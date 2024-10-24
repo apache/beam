@@ -299,7 +299,7 @@ public class JavaRowUdf implements Serializable {
   private static class EmptyFieldValueTypeSupplier
       implements org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       return Collections.<FieldValueTypeInformation>emptyList();
     }
   }

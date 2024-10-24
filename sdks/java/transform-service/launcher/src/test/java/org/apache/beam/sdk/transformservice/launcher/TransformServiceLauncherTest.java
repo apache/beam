@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.transformservice.launcher;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,12 +25,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.UUID;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,7 +47,7 @@ public class TransformServiceLauncherTest {
     file.deleteOnExit();
     TransformServiceLauncher.forProject(projectName, 12345, null);
     Path expectedCredentialsDir = Paths.get(expectedTempDir.toString(), "credentials_dir");
-    assertTrue(expectedCredentialsDir.toFile().exists());
+    Assert.assertTrue(expectedCredentialsDir.toFile().exists());
   }
 
   @Test
@@ -59,7 +58,7 @@ public class TransformServiceLauncherTest {
     file.deleteOnExit();
     TransformServiceLauncher.forProject(projectName, 12345, null);
     Path expectedCredentialsDir = Paths.get(expectedTempDir.toString(), "dependencies_dir");
-    assertTrue(expectedCredentialsDir.toFile().exists());
+    Assert.assertTrue(expectedCredentialsDir.toFile().exists());
   }
 
   @Test
@@ -78,7 +77,7 @@ public class TransformServiceLauncherTest {
 
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(requirementsFile.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write("pypipackage1\n");
       fout.write("pypipackage2\n");
     }
@@ -89,7 +88,7 @@ public class TransformServiceLauncherTest {
     // specified set of packages.
     Path expectedUpdatedRequirementsFile =
         Paths.get(expectedTempDir.toString(), "dependencies_dir", "requirements.txt");
-    assertTrue(expectedUpdatedRequirementsFile.toFile().exists());
+    Assert.assertTrue(expectedUpdatedRequirementsFile.toFile().exists());
 
     ArrayList<String> expectedUpdatedRequirementsFileLines = new ArrayList<>();
     try (BufferedReader bufReader =
@@ -101,9 +100,9 @@ public class TransformServiceLauncherTest {
       }
     }
 
-    assertEquals(2, expectedUpdatedRequirementsFileLines.size());
-    assertTrue(expectedUpdatedRequirementsFileLines.contains("pypipackage1"));
-    assertTrue(expectedUpdatedRequirementsFileLines.contains("pypipackage2"));
+    Assert.assertEquals(2, expectedUpdatedRequirementsFileLines.size());
+    Assert.assertTrue(expectedUpdatedRequirementsFileLines.contains("pypipackage1"));
+    Assert.assertTrue(expectedUpdatedRequirementsFileLines.contains("pypipackage2"));
   }
 
   @Test
@@ -119,7 +118,7 @@ public class TransformServiceLauncherTest {
     dependency1.deleteOnExit();
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(dependency1.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(dependency1.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write("tempdata\n");
     }
 
@@ -129,7 +128,7 @@ public class TransformServiceLauncherTest {
     dependency2.deleteOnExit();
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(dependency2.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(dependency2.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write("tempdata\n");
     }
 
@@ -141,7 +140,7 @@ public class TransformServiceLauncherTest {
     requirementsFile.deleteOnExit();
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(requirementsFile.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write(dependency1.getAbsolutePath() + "\n");
       fout.write(dependency2.getAbsolutePath() + "\n");
       fout.write("pypipackage" + "\n");
@@ -153,7 +152,7 @@ public class TransformServiceLauncherTest {
     // specified set of packages.
     Path expectedUpdatedRequirementsFile =
         Paths.get(expectedTempDir.toString(), "dependencies_dir", "requirements.txt");
-    assertTrue(expectedUpdatedRequirementsFile.toFile().exists());
+    Assert.assertTrue(expectedUpdatedRequirementsFile.toFile().exists());
 
     ArrayList<String> expectedUpdatedRequirementsFileLines = new ArrayList<>();
     try (BufferedReader bufReader =
@@ -168,16 +167,16 @@ public class TransformServiceLauncherTest {
     // To make local packages available to the expansion service Docker containers, the temporary
     // requirements file should contain names of the local packages relative to the dependencies
     // volume and local packages should have been copied to the dependencies volume.
-    assertEquals(3, expectedUpdatedRequirementsFileLines.size());
-    assertTrue(expectedUpdatedRequirementsFileLines.contains(dependency1FileName));
-    assertTrue(expectedUpdatedRequirementsFileLines.contains(dependency2FileName));
-    assertTrue(expectedUpdatedRequirementsFileLines.contains("pypipackage"));
+    Assert.assertEquals(3, expectedUpdatedRequirementsFileLines.size());
+    Assert.assertTrue(expectedUpdatedRequirementsFileLines.contains(dependency1FileName));
+    Assert.assertTrue(expectedUpdatedRequirementsFileLines.contains(dependency2FileName));
+    Assert.assertTrue(expectedUpdatedRequirementsFileLines.contains("pypipackage"));
 
-    assertTrue(
+    Assert.assertTrue(
         Paths.get(expectedTempDir.toString(), "dependencies_dir", dependency1FileName)
             .toFile()
             .exists());
-    assertTrue(
+    Assert.assertTrue(
         Paths.get(expectedTempDir.toString(), "dependencies_dir", dependency2FileName)
             .toFile()
             .exists());

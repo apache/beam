@@ -1,0 +1,143 @@
+import groovy.json.JsonOutput
+
+import java.util.stream.Collectors
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.iceberg',
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
+ext.summary = "Integration with Iceberg data warehouses."
+
+def hadoopVersions = [
+        "285": "2.8.5",
+        "292": "2.9.2",
+        "2102": "2.10.2",
+        "324": "3.2.4",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
+def iceberg_version = "1.4.2"
+def parquet_version = "1.12.0"
+def orc_version = "1.9.2"
+
+dependencies {
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation library.java.slf4j_api
+    implementation library.java.joda_time
+    implementation "org.apache.parquet:parquet-column:$parquet_version"
+    implementation "org.apache.orc:orc-core:$orc_version"
+    implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
+    implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
+    implementation library.java.hadoop_common
+
+    testImplementation project(":sdks:java:managed")
+    testImplementation library.java.hadoop_client
+    testImplementation library.java.bigdataoss_gcsio
+    testImplementation library.java.bigdataoss_gcs_connector
+    testImplementation library.java.bigdataoss_util_hadoop
+    testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
+    testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation library.java.junit
+    testRuntimeOnly library.java.slf4j_jdk14
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    hadoopVersions.each {kv ->
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+    }
+}
+
+hadoopVersions.each {kv ->
+    configurations."hadoopVersion$kv.key" {
+        resolutionStrategy {
+            force "org.apache.hadoop:hadoop-client:$kv.value"
+        }
+    }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+    description = "Runs Iceberg tests with different Hadoop versions"
+    def taskNames = hadoopVersions.keySet().stream()
+            .map{num -> "hadoopVersion${num}Test"}
+            .collect(Collectors.toList())
+    dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+    task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+        description = "Runs Iceberg tests with Hadoop version $kv.value"
+        classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+        include '**/*Test.class'
+    }
+}
+
+task integrationTest(type: Test) {
+    group = "Verification"
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+        "--project=${gcpProject}",
+        "--tempLocation=${gcpTempLocation}",
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+tasks.register('catalogTests') {
+    dependsOn integrationTest
+    dependsOn ":sdks:java:io:iceberg:hive:integrationTest"
+}
+
+task loadTest(type: Test) {
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/temp-lt'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--project=${gcpProject}",
+            "--tempLocation=${gcpTempLocation}",
+            "--testSize=large",
+            "--runner=DataflowRunner",
+            "--region=us-central1"
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*LT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}

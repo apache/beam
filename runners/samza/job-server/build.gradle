@@ -86,12 +86,10 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             // Larger keys are possible, but they require more memory.
             excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
             excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
             excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
             excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
             excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
@@ -128,6 +126,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalid'
             // TODO(https://github.com/apache/beam/issues/21144)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalidZeroAllowed'
+            // TODO(https://github.com/apache/beam/issues/32520)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionIn*Stateful'
             // TODO(https://github.com/apache/beam/issues/21145)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.DeduplicateTest.testEventTime'
             // TODO(https://github.com/apache/beam/issues/21146)
@@ -182,6 +182,10 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
             // TODO(https://github.com/apache/beam/issues/22650)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+            // TODO(https://github.com/apache/beam/issues/29973)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+            // TODO(https://github.com/apache/beam/issues/31231)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
         }
   )
 }

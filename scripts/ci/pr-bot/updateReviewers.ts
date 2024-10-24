@@ -104,6 +104,7 @@ async function getReviewersForPull(pull: any): Promise<string[]> {
 
   for (const comment of comments) {
     if (
+      comment.user &&
       comment.user.login &&
       comment.user.login !== pull.user.login &&
       comment.user.login !== BOT_NAME

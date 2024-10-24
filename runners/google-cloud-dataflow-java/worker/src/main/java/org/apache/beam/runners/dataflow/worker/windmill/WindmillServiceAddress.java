@@ -18,28 +18,52 @@
 package org.apache.beam.runners.dataflow.worker.windmill;
 
 import com.google.auto.value.AutoOneOf;
-import java.net.Inet6Address;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Used to create channels to communicate with Streaming Engine via gRpc. */
 @AutoOneOf(WindmillServiceAddress.Kind.class)
 public abstract class WindmillServiceAddress {
-  public static WindmillServiceAddress create(Inet6Address ipv6Address) {
-    return AutoOneOf_WindmillServiceAddress.ipv6(ipv6Address);
-  }
 
   public static WindmillServiceAddress create(HostAndPort gcpServiceAddress) {
     return AutoOneOf_WindmillServiceAddress.gcpServiceAddress(gcpServiceAddress);
   }
 
-  public abstract Kind getKind();
+  public static WindmillServiceAddress create(
+      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress) {
+    return AutoOneOf_WindmillServiceAddress.authenticatedGcpServiceAddress(
+        authenticatedGcpServiceAddress);
+  }
 
-  public abstract Inet6Address ipv6();
+  public abstract Kind getKind();
 
   public abstract HostAndPort gcpServiceAddress();
 
+  public abstract AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress();
+
+  public final HostAndPort getServiceAddress() {
+    return getKind() == WindmillServiceAddress.Kind.GCP_SERVICE_ADDRESS
+        ? gcpServiceAddress()
+        : authenticatedGcpServiceAddress().gcpServiceAddress();
+  }
+
   public enum Kind {
-    IPV6,
-    GCP_SERVICE_ADDRESS
+    GCP_SERVICE_ADDRESS,
+    AUTHENTICATED_GCP_SERVICE_ADDRESS
+  }
+
+  @AutoValue
+  public abstract static class AuthenticatedGcpServiceAddress {
+
+    public static AuthenticatedGcpServiceAddress create(
+        String authenticatingService, HostAndPort gcpServiceAddress) {
+      // HostAndPort supports IpV6.
+      return new AutoValue_WindmillServiceAddress_AuthenticatedGcpServiceAddress(
+          authenticatingService, gcpServiceAddress);
+    }
+
+    public abstract String authenticatingService();
+
+    public abstract HostAndPort gcpServiceAddress();
   }
 }

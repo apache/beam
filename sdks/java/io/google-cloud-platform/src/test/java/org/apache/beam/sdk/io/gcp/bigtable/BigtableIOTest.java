@@ -40,6 +40,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -1847,14 +1848,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public Duration getAttemptTimeout() {
-      return Duration.millis(100);
-    }
-
-    @Override
-    public Duration getOperationTimeout() {
-      return Duration.millis(1000);
-    }
+    public void close() {}
   }
 
   /** A {@link FakeBigtableReader} implementation that throw exceptions at given stage. */
@@ -1912,8 +1906,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -1930,6 +1924,9 @@ public class BigtableIOTest {
     }
 
     @Override
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) {}
+
+    @Override
     public void close() {}
   }
 
@@ -1942,12 +1939,19 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
       if (failureOptions.getFailAtWriteRecord()) {
         throw new IOException("Fake IOException in writeRecord()");
       }
       return super.writeRecord(record);
+    }
+
+    @Override
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException {
+      if (failureOptions.getFailAtWriteRecord()) {
+        throw new RuntimeException("Fake RuntimeException in writeRecord()");
+      }
     }
 
     private final FailureOptions failureOptions;
@@ -2029,5 +2033,98 @@ public class BigtableIOTest {
     synchronized ConfigId newId() {
       return ConfigId.create();
     }
+  }
+
+  /////////////////////////// ReadChangeStream ///////////////////////////
+
+  @Test
+  public void testReadChangeStreamBuildsCorrectly() {
+    Instant startTime = Instant.now();
+    BigtableIO.ReadChangeStream readChangeStream =
+        BigtableIO.readChangeStream()
+            .withProjectId("project")
+            .withInstanceId("instance")
+            .withTableId("table")
+            .withAppProfileId("app-profile")
+            .withChangeStreamName("change-stream-name")
+            .withMetadataTableProjectId("metadata-project")
+            .withMetadataTableInstanceId("metadata-instance")
+            .withMetadataTableTableId("metadata-table")
+            .withMetadataTableAppProfileId("metadata-app-profile")
+            .withStartTime(startTime)
+            .withBacklogReplicationAdjustment(Duration.standardMinutes(1))
+            .withCreateOrUpdateMetadataTable(false)
+            .withExistingPipelineOptions(BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
+    assertEquals("project", readChangeStream.getBigtableConfig().getProjectId().get());
+    assertEquals("instance", readChangeStream.getBigtableConfig().getInstanceId().get());
+    assertEquals("app-profile", readChangeStream.getBigtableConfig().getAppProfileId().get());
+    assertEquals("table", readChangeStream.getTableId());
+    assertEquals(
+        "metadata-project", readChangeStream.getMetadataTableBigtableConfig().getProjectId().get());
+    assertEquals(
+        "metadata-instance",
+        readChangeStream.getMetadataTableBigtableConfig().getInstanceId().get());
+    assertEquals(
+        "metadata-app-profile",
+        readChangeStream.getMetadataTableBigtableConfig().getAppProfileId().get());
+    assertEquals("metadata-table", readChangeStream.getMetadataTableId());
+    assertEquals("change-stream-name", readChangeStream.getChangeStreamName());
+    assertEquals(startTime, readChangeStream.getStartTime());
+    assertEquals(Duration.standardMinutes(1), readChangeStream.getBacklogReplicationAdjustment());
+    assertEquals(false, readChangeStream.getCreateOrUpdateMetadataTable());
+    assertEquals(
+        BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS,
+        readChangeStream.getExistingPipelineOptions());
+  }
+
+  @Test
+  public void testReadChangeStreamFailsValidation() {
+    BigtableIO.ReadChangeStream readChangeStream =
+        BigtableIO.readChangeStream()
+            .withProjectId("project")
+            .withInstanceId("instance")
+            .withTableId("table");
+    // Validating table fails because table does not exist.
+    thrown.expect(IllegalArgumentException.class);
+    readChangeStream.validate(TestPipeline.testingPipelineOptions());
+  }
+
+  @Test
+  public void testReadChangeStreamPassWithoutValidation() {
+    BigtableIO.ReadChangeStream readChangeStream =
+        BigtableIO.readChangeStream()
+            .withProjectId("project")
+            .withInstanceId("instance")
+            .withTableId("table")
+            .withoutValidation();
+    // No error is thrown because we skip validation
+    readChangeStream.validate(TestPipeline.testingPipelineOptions());
+  }
+
+  @Test
+  public void testReadChangeStreamValidationFailsDuringApply() {
+    BigtableIO.ReadChangeStream readChangeStream =
+        BigtableIO.readChangeStream()
+            .withProjectId("project")
+            .withInstanceId("instance")
+            .withTableId("table");
+    // Validating table fails because resources cannot be found
+    thrown.expect(RuntimeException.class);
+
+    p.apply(readChangeStream);
+  }
+
+  @Test
+  public void testReadChangeStreamPassWithoutValidationDuringApply() {
+    BigtableIO.ReadChangeStream readChangeStream =
+        BigtableIO.readChangeStream()
+            .withProjectId("project")
+            .withInstanceId("instance")
+            .withTableId("table")
+            .withoutValidation();
+    // No RunTime exception as seen in previous test with validation. Only error that the pipeline
+    // is not ran.
+    thrown.expect(PipelineRunMissingException.class);
+    p.apply(readChangeStream);
   }
 }

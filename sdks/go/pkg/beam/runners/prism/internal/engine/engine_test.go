@@ -89,7 +89,17 @@ func initTestName(fn any) string {
 	return name[n+1:]
 }
 
-func TestStateAPI(t *testing.T) {
+// TestStatefulStages validates that stateful transform execution is correct in
+// four different modes for producing bundles:
+//
+//   - Greedily batching all ready keys and elements.
+//   - All elements for a single key.
+//   - Only one element for each available key.
+//   - Only one element.
+//
+// Executing these pipeline here ensures their coverage is reflected in the
+// engine package.
+func TestStatefulStages(t *testing.T) {
 	initRunner(t)
 
 	tests := []struct {
@@ -105,6 +115,8 @@ func TestStateAPI(t *testing.T) {
 		{pipeline: primitives.MapStateParDoClear},
 		{pipeline: primitives.SetStateParDo},
 		{pipeline: primitives.SetStateParDoClear},
+		{pipeline: primitives.TimersEventTimeBounded},
+		{pipeline: primitives.TimersEventTimeUnbounded},
 	}
 
 	configs := []struct {
@@ -155,5 +167,100 @@ func TestElementManagerCoverage(t *testing.T) {
 				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
 			}
 		})
+	}
+}
+
+func TestTestStream(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TestStreamBoolSequence},
+		{pipeline: primitives.TestStreamByteSliceSequence},
+		{pipeline: primitives.TestStreamFloat64Sequence},
+		{pipeline: primitives.TestStreamInt64Sequence},
+		{pipeline: primitives.TestStreamInt16Sequence},
+		{pipeline: primitives.TestStreamStrings},
+		{pipeline: primitives.TestStreamTwoBoolSequences},
+		{pipeline: primitives.TestStreamTwoFloat64Sequences},
+		{pipeline: primitives.TestStreamTwoInt64Sequences},
+		{pipeline: primitives.TestStreamTwoUserTypeSequences},
+
+		{pipeline: primitives.TestStreamSimple},
+		{pipeline: primitives.TestStreamSimple_InfinityDefault},
+		{pipeline: primitives.TestStreamToGBK},
+		{pipeline: primitives.TestStreamTimersEventTime},
+	}
+
+	configs := []struct {
+		name                              string
+		OneElementPerKey, OneKeyPerBundle bool
+	}{
+		{"Greedy", false, false},
+		{"AllElementsPerKey", false, true},
+		{"OneElementPerKey", true, false},
+		{"OneElementPerBundle", true, true},
+	}
+	for _, config := range configs {
+		for _, test := range tests {
+			t.Run(initTestName(test.pipeline)+"_"+config.name, func(t *testing.T) {
+				t.Cleanup(func() {
+					engine.OneElementPerKey = false
+					engine.OneKeyPerBundle = false
+				})
+				engine.OneElementPerKey = config.OneElementPerKey
+				engine.OneKeyPerBundle = config.OneKeyPerBundle
+				p, s := beam.NewPipelineWithRoot()
+				test.pipeline(s)
+				_, err := executeWithT(context.Background(), t, p)
+				if err != nil {
+					t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+				}
+			})
+		}
+	}
+}
+
+// TestProcessingTime is the suite for validating behaviors around ProcessingTime.
+// Separate from the TestStream, Timers, and Triggers tests due to the unique nature
+// of the time domain.
+func TestProcessingTime(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
+		{pipeline: primitives.TimersProcessingTime_Bounded},
+		{pipeline: primitives.TimersProcessingTime_Unbounded},
+	}
+
+	configs := []struct {
+		name                              string
+		OneElementPerKey, OneKeyPerBundle bool
+	}{
+		{"Greedy", false, false},
+		{"AllElementsPerKey", false, true},
+		{"OneElementPerKey", true, false},
+		// {"OneElementPerBundle", true, true}, // Reveals flaky behavior
+	}
+	for _, config := range configs {
+		for _, test := range tests {
+			t.Run(initTestName(test.pipeline)+"_"+config.name, func(t *testing.T) {
+				t.Cleanup(func() {
+					engine.OneElementPerKey = false
+					engine.OneKeyPerBundle = false
+				})
+				engine.OneElementPerKey = config.OneElementPerKey
+				engine.OneKeyPerBundle = config.OneKeyPerBundle
+				p, s := beam.NewPipelineWithRoot()
+				test.pipeline(s)
+				_, err := executeWithT(context.Background(), t, p)
+				if err != nil {
+					t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+				}
+			})
+		}
 	}
 }

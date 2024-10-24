@@ -106,7 +106,7 @@ jobs:
     if: ${{github.event.inputs.RUN_SQL_TAXI_WITH_DATAFLOW == 'true'}}
     strategy:
       matrix:
-        py_version: [3.8]
+        py_version: [3.9]
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -171,7 +171,7 @@ jobs:
     if: ${{github.event.inputs.RUN_PYTHON_CROSS_VALIDATION == 'true'}}
     strategy:
       matrix:
-        py_version: [3.8]
+        py_version: [3.9]
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -286,7 +286,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
 
     - name: Setting python env
       uses: ./.github/actions/common-rc-validation
@@ -351,7 +351,7 @@ jobs:
     if: ${{github.event.inputs.RUN_DIRECT_RUNNER_TESTS == 'true' }}
     strategy:
       matrix:
-        py_version: [3.8]
+        py_version: [3.9]
     needs: generate_shared_pubsub
     steps:
       - name: Checkout code
@@ -399,7 +399,7 @@ jobs:
     if: ${{github.event.inputs.RUN_DATAFLOW_RUNNER_TESTS=='true'}}
     strategy:
       matrix:
-        py_version: [3.8]
+        py_version: [3.9]
     needs: [generate_shared_pubsub]
     steps:
       - name: Checkout code
@@ -452,7 +452,7 @@ jobs:
     if: ${{github.event.inputs.RUN_DIRECT_RUNNER_TESTS == 'true' }}
     strategy:
       matrix:
-        py_version: [3.8]
+        py_version: [3.9]
     needs: [generate_shared_pubsub]
     steps:
       - name: Checkout code
@@ -501,7 +501,7 @@ jobs:
     if: ${{github.event.inputs.RUN_DATAFLOW_RUNNER_TESTS=='true'}}
     strategy:
       matrix:
-        py_version: [3.8]
+        py_version: [3.9]
     needs: [generate_shared_pubsub]
     steps:
       - name: Checkout code

@@ -223,6 +223,44 @@ public class ChangeStreamRecordMapperTest {
         mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
+  /*
+   * Change streams with NEW_ROW_AND_OLD_VALUES value capture type track both old values for
+   * modified columns and the whole new row.
+   */
+  @Test
+  public void testMappingUpdateStructRowNewRowAndOldValuesToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "serverTransactionId",
+            true,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(
+                new Mod(
+                    "{\"column1\":\"value1\"}",
+                    "{\"column2\":\"oldValue2\"}",
+                    "{\"column2\":\"newValue2\"}")),
+            ModType.UPDATE,
+            ValueCaptureType.NEW_ROW,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
+
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
   @Test
   public void testMappingInsertStructRowToDataChangeRecord() {
     final DataChangeRecord dataChangeRecord =
@@ -317,6 +355,37 @@ public class ChangeStreamRecordMapperTest {
   }
 
   @Test
+  public void testMappingInsertStructRowNewRowAndOldValuesToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
+            ModType.INSERT,
+            ValueCaptureType.NEW_ROW_AND_OLD_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
+
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
   public void testMappingDeleteStructRowToDataChangeRecord() {
     final DataChangeRecord dataChangeRecord =
         new DataChangeRecord(
@@ -393,6 +462,37 @@ public class ChangeStreamRecordMapperTest {
             Collections.singletonList(new Mod("{\"column1\":\"value1\"}", null, null)),
             ModType.DELETE,
             ValueCaptureType.NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
+
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingDeleteStructRowNewRowAndOldValuesToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\":\"value1\"}", "{\"column2\":\"oldValue2\"}", null)),
+            ModType.DELETE,
+            ValueCaptureType.NEW_ROW_AND_OLD_VALUES,
             10L,
             2L,
             "transactionTag",

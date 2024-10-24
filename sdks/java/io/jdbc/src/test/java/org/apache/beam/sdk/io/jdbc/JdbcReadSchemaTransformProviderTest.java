@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.jdbc.JdbcUtil.JDBC_DRIVER_MAP;
+import static org.apache.beam.sdk.io.jdbc.JdbcUtil.registerJdbcDriver;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
@@ -34,6 +37,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,6 +63,10 @@ public class JdbcReadSchemaTransformProviderTest {
     // and detect the lock faster, we decrease this timeout
     System.setProperty("derby.locks.waitTimeout", "2");
     System.setProperty("derby.stream.error.file", "build/derby.log");
+
+    registerJdbcDriver(
+        ImmutableMap.of(
+            "derby", Objects.requireNonNull(DATA_SOURCE_CONFIGURATION.getDriverClassName()).get()));
 
     DatabaseTestHelper.createTable(DATA_SOURCE, READ_TABLE_NAME);
     addInitialData(DATA_SOURCE, READ_TABLE_NAME);
@@ -95,6 +103,48 @@ public class JdbcReadSchemaTransformProviderTest {
               .build()
               .validate();
         });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setJdbcType("invalidType")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setDriverClassName("ClassName")
+              .setJdbcType((String) JDBC_DRIVER_MAP.keySet().toArray()[0])
+              .build()
+              .validate();
+        });
+  }
+
+  @Test
+  public void testValidReadSchemaOptions() {
+    for (String jdbcType : JDBC_DRIVER_MAP.keySet()) {
+      JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+          .setJdbcUrl("JdbcUrl")
+          .setLocation("Location")
+          .setJdbcType(jdbcType)
+          .build()
+          .validate();
+    }
   }
 
   @Test
@@ -115,6 +165,32 @@ public class JdbcReadSchemaTransformProviderTest {
                     JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
                         .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
                         .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                        .setLocation(READ_TABLE_NAME)
+                        .build()))
+            .get("output");
+    Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
+    PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithJdbcTypeSpecified() {
+    JdbcReadSchemaTransformProvider provider = null;
+    for (SchemaTransformProvider p : ServiceLoader.load(SchemaTransformProvider.class)) {
+      if (p instanceof JdbcReadSchemaTransformProvider) {
+        provider = (JdbcReadSchemaTransformProvider) p;
+        break;
+      }
+    }
+    assertNotNull(provider);
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(
+                provider.from(
+                    JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+                        .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                        .setJdbcType("derby")
                         .setLocation(READ_TABLE_NAME)
                         .build()))
             .get("output");

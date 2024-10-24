@@ -27,27 +27,28 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.util.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
-import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
@@ -96,16 +97,19 @@ public class WindmillStateReaderTest {
     WindmillStateTestUtils.assertNoReference(obj, WindmillStateReader.class);
   }
 
-  @Mock private MetricTrackingWindmillServerStub mockWindmill;
+  @Mock private GetDataClient mockWindmill;
 
   private WindmillStateReader underTest;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-
     underTest =
-        new WindmillStateReader(mockWindmill, COMPUTATION, DATA_KEY, SHARDING_KEY, WORK_TOKEN);
+        WindmillStateReader.forTesting(
+            (request) -> Optional.ofNullable(mockWindmill.getStateData(COMPUTATION, request)),
+            DATA_KEY,
+            SHARDING_KEY,
+            WORK_TOKEN);
   }
 
   private Windmill.Value intValue(int value) throws IOException {
@@ -1147,8 +1151,8 @@ public class WindmillStateReaderTest {
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
-    final ByteString CONT_1 = ByteString.copyFrom("CONTINUATION_1", Charsets.UTF_8);
-    final ByteString CONT_2 = ByteString.copyFrom("CONTINUATION_2", Charsets.UTF_8);
+    final ByteString CONT_1 = ByteString.copyFrom("CONTINUATION_1", StandardCharsets.UTF_8);
+    final ByteString CONT_2 = ByteString.copyFrom("CONTINUATION_2", StandardCharsets.UTF_8);
     Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setKey(DATA_KEY)
@@ -1323,7 +1327,7 @@ public class WindmillStateReaderTest {
                     .setStateFamily(STATE_FAMILY)
                     .setFetchMaxBytes(WindmillStateReader.MAX_TAG_VALUE_PREFIX_BYTES));
 
-    final ByteString CONT = ByteString.copyFrom("CONTINUATION", Charsets.UTF_8);
+    final ByteString CONT = ByteString.copyFrom("CONTINUATION", StandardCharsets.UTF_8);
     Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setKey(DATA_KEY)

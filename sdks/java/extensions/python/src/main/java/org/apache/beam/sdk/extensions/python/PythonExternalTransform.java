@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,7 +34,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
-import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.sdk.util.construction.External;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -59,9 +60,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -311,7 +311,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       Schema schema =
           generateSchemaFromFieldValues(
               kwargsMap.values().toArray(), kwargsMap.keySet().toArray(new String[] {}));
-      schema.setUUID(UUID.randomUUID());
       return Row.withSchema(schema)
           .addValues(convertComplexTypesToRows(kwargsMap.values().toArray()))
           .build();
@@ -367,7 +366,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   @VisibleForTesting
   Row buildOrGetArgsRow() {
     Schema schema = generateSchemaFromFieldValues(argsArray, null);
-    schema.setUUID(UUID.randomUUID());
     Object[] convertedValues = convertComplexTypesToRows(argsArray);
     return Row.withSchema(schema).addValues(convertedValues).build();
   }
@@ -421,7 +419,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
     }
     Schema payloadSchema = schemaBuilder.build();
-    payloadSchema.setUUID(UUID.randomUUID());
     Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
     payloadRowBuilder.addValue(fullyQualifiedName);
     if (argsRow.getValues().size() > 0) {
@@ -486,12 +483,10 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         OutputT output = null;
         int port = PythonService.findAvailablePort();
         PipelineOptionsFactory.register(PythonExternalTransformOptions.class);
-        boolean useTransformService =
-            input
-                .getPipeline()
-                .getOptions()
-                .as(PythonExternalTransformOptions.class)
-                .getUseTransformService();
+        PythonExternalTransformOptions options =
+            input.getPipeline().getOptions().as(PythonExternalTransformOptions.class);
+        boolean useTransformService = options.getUseTransformService();
+        @Nullable String customBeamRequirement = options.getCustomBeamRequirement();
         boolean pythonAvailable = isPythonAvailable();
         boolean dockerAvailable = isDockerAvailable();
 
@@ -501,7 +496,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           requirementsFile.deleteOnExit();
           try (Writer fout =
               new OutputStreamWriter(
-                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+                  new FileOutputStream(requirementsFile.getAbsolutePath()),
+                  StandardCharsets.UTF_8)) {
             for (String pkg : extraPackages) {
               fout.write(pkg);
               fout.write('\n');
@@ -557,6 +553,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
               new PythonService(
                       "apache_beam.runners.portability.expansion_service_main", args.build())
                   .withExtraPackages(extraPackages);
+          if (!Strings.isNullOrEmpty(customBeamRequirement)) {
+            service = service.withCustomBeamRequirement(customBeamRequirement);
+          }
           try (AutoCloseable p = service.start()) {
             // allow more time waiting for the port ready for transient expansion service setup.
             PythonService.waitForPort("localhost", port, 60000);

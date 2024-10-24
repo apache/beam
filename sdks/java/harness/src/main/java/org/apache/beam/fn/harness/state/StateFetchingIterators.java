@@ -43,7 +43,7 @@ import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 
@@ -605,13 +605,16 @@ public class StateFetchingIterators {
       }
       prefetchedResponse = null;
 
+      ByteString tokenFromResponse = stateResponse.getGet().getContinuationToken();
+
       // If the continuation token is empty, that means we have reached EOF.
-      if (ByteString.EMPTY.equals(stateResponse.getGet().getContinuationToken())) {
+      if (ByteString.EMPTY.equals(tokenFromResponse)) {
         continuationToken = null;
       } else {
-        continuationToken = stateResponse.getGet().getContinuationToken();
+        continuationToken = tokenFromResponse;
         prefetch();
       }
+
       return stateResponse.getGet().getData();
     }
   }

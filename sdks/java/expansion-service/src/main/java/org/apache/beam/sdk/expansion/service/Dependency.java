@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 
 //// TODO(https://github.com/apache/beam/issues/26527): generalize to support other types of
@@ -27,8 +25,7 @@ import com.google.auto.value.AutoValue;
 public abstract class Dependency {
   abstract String getPath();
 
-  @JsonCreator
-  static Dependency create(@JsonProperty("path") String path) {
+  static Dependency create(String path) {
     return new AutoValue_Dependency(path);
   }
 }

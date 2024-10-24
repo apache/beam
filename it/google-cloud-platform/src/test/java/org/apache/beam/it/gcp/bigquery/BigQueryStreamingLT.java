@@ -180,8 +180,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
      * The expected table to check against for correctness. If unset, the test will run a batch
      * FILE_LOADS job and use the resulting table as a source of truth.
      */
-    @Nullable
-    abstract String getExpectedTable();
+    abstract @Nullable String getExpectedTable();
 
     static TestConfiguration of(
         int numMin,
@@ -281,6 +280,9 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
                 .setSdk(PipelineLauncher.Sdk.JAVA)
                 .setPipeline(fileLoadsPipeline)
                 .addParameter("runner", config.getRunner())
+                .addParameter(
+                    "maxNumWorkers",
+                    TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
                 .build();
 
         // Don't use PipelineOperator because we don't want to wait on this batch job
@@ -360,6 +362,9 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               .addParameter("runner", config.getRunner())
               .addParameter("streaming", "true")
               .addParameter("experiments", GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+              .addParameter(
+                  "maxNumWorkers",
+                  TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
               .build();
       // Launch job
       PipelineLauncher.LaunchInfo storageApiInfo =

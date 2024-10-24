@@ -23,6 +23,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /**
@@ -49,13 +50,13 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) throws IOException {
+  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
     // This class is used for windmill appliance and local runner tests.
   }
 
   @Override
-  public boolean isReady() {
-    return true;
+  public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
+    return ImmutableSet.of();
   }
 
   @Override

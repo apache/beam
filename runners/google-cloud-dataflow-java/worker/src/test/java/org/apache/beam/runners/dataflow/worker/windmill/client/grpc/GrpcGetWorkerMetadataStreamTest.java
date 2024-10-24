@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
+import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
@@ -42,13 +42,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillS
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.junit.After;
@@ -62,14 +62,14 @@ import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class GrpcGetWorkerMetadataStreamTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String IPV6_ADDRESS_1 = "2001:db8:0000:bac5:0000:0000:fed0:81a2";
   private static final String IPV6_ADDRESS_2 = "2001:db8:0000:bac5:0000:0000:fed0:82a3";
+  private static final String AUTHENTICATING_SERVICE = "test.googleapis.com";
   private static final List<WorkerMetadataResponse.Endpoint> DIRECT_PATH_ENDPOINTS =
       Lists.newArrayList(
           WorkerMetadataResponse.Endpoint.newBuilder()
               .setDirectEndpoint(IPV6_ADDRESS_1)
-              .setWorkerToken("worker_token")
+              .setBackendWorkerToken("worker_token")
               .build());
   private static final Map<String, WorkerMetadataResponse.Endpoint> GLOBAL_DATA_ENDPOINTS =
       Maps.newHashMap();
@@ -83,6 +83,7 @@ public class GrpcGetWorkerMetadataStreamTest {
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry = new HashSet<>();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private GrpcGetWorkerMetadataStream stream;
 
@@ -93,8 +94,8 @@ public class GrpcGetWorkerMetadataStreamTest {
     serviceRegistry.addService(getWorkerMetadataTestStub);
     return GrpcGetWorkerMetadataStream.create(
         responseObserver ->
-            CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel)
-                .getWorkerMetadataStream(responseObserver),
+            CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel)
+                .getWorkerMetadata(responseObserver),
         FluentBackoff.DEFAULT.backoff(),
         StreamObserverFactory.direct(DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, 1),
         streamRegistry,
@@ -123,7 +124,7 @@ public class GrpcGetWorkerMetadataStreamTest {
         "global_data",
         WorkerMetadataResponse.Endpoint.newBuilder()
             .setDirectEndpoint(IPV6_ADDRESS_1)
-            .setWorkerToken("worker_token")
+            .setBackendWorkerToken("worker_token")
             .build());
   }
 
@@ -139,6 +140,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .setMetadataVersion(1)
             .addAllWorkEndpoints(DIRECT_PATH_ENDPOINTS)
             .putAllGlobalDataEndpoints(GLOBAL_DATA_ENDPOINTS)
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
             .build();
     TestWindmillEndpointsConsumer testWindmillEndpointsConsumer =
         new TestWindmillEndpointsConsumer();
@@ -153,7 +155,9 @@ public class GrpcGetWorkerMetadataStreamTest {
     assertThat(testWindmillEndpointsConsumer.windmillEndpoints)
         .containsExactlyElementsIn(
             DIRECT_PATH_ENDPOINTS.stream()
-                .map(WindmillEndpoints.Endpoint::from)
+                .map(
+                    endpointProto ->
+                        WindmillEndpoints.Endpoint.from(endpointProto, AUTHENTICATING_SERVICE))
                 .collect(Collectors.toList()));
   }
 
@@ -164,6 +168,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .setMetadataVersion(1)
             .addAllWorkEndpoints(DIRECT_PATH_ENDPOINTS)
             .putAllGlobalDataEndpoints(GLOBAL_DATA_ENDPOINTS)
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
             .build();
     TestWindmillEndpointsConsumer testWindmillEndpointsConsumer =
         Mockito.spy(new TestWindmillEndpointsConsumer());
@@ -187,6 +192,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .setMetadataVersion(initialResponse.getMetadataVersion() + 1)
             .addAllWorkEndpoints(newDirectPathEndpoints)
             .putAllGlobalDataEndpoints(newGlobalDataEndpoints)
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
             .build();
 
     testStub.injectWorkerMetadata(newWorkMetadataResponse);
@@ -196,7 +202,9 @@ public class GrpcGetWorkerMetadataStreamTest {
     assertThat(testWindmillEndpointsConsumer.windmillEndpoints)
         .containsExactlyElementsIn(
             newDirectPathEndpoints.stream()
-                .map(WindmillEndpoints.Endpoint::from)
+                .map(
+                    endpointProto ->
+                        WindmillEndpoints.Endpoint.from(endpointProto, AUTHENTICATING_SERVICE))
                 .collect(Collectors.toList()));
   }
 
@@ -207,6 +215,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .setMetadataVersion(2)
             .addAllWorkEndpoints(DIRECT_PATH_ENDPOINTS)
             .putAllGlobalDataEndpoints(GLOBAL_DATA_ENDPOINTS)
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
             .build();
 
     TestWindmillEndpointsConsumer testWindmillEndpointsConsumer =
@@ -252,7 +261,7 @@ public class GrpcGetWorkerMetadataStreamTest {
             .build());
 
     assertTrue(streamRegistry.contains(stream));
-    stream.close();
+    stream.halfClose();
     assertFalse(streamRegistry.contains(stream));
   }
 
@@ -268,7 +277,8 @@ public class GrpcGetWorkerMetadataStreamTest {
   }
 
   private static class GetWorkerMetadataTestStub
-      extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
+      extends CloudWindmillMetadataServiceV1Alpha1Grpc
+          .CloudWindmillMetadataServiceV1Alpha1ImplBase {
     private final TestGetWorkMetadataRequestObserver requestObserver;
     private @Nullable StreamObserver<WorkerMetadataResponse> responseObserver;
 
@@ -277,7 +287,7 @@ public class GrpcGetWorkerMetadataStreamTest {
     }
 
     @Override
-    public StreamObserver<WorkerMetadataRequest> getWorkerMetadataStream(
+    public StreamObserver<WorkerMetadataRequest> getWorkerMetadata(
         StreamObserver<WorkerMetadataResponse> responseObserver) {
       if (this.responseObserver == null) {
         this.responseObserver = responseObserver;

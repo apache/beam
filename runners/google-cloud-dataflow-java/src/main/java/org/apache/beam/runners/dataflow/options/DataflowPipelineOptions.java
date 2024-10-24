@@ -52,6 +52,7 @@ public interface DataflowPipelineOptions
         GcsOptions,
         StreamingOptions,
         DataflowWorkerLoggingOptions,
+        DataflowStreamingPipelineOptions,
         DataflowProfilingOptions,
         PubsubOptions {
 
@@ -209,7 +210,7 @@ public interface DataflowPipelineOptions
       } catch (Exception e) {
         throw new IllegalArgumentException(
             "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
-                + "Either stagingLocation must be set explicitly or a valid value must be provided"
+                + "Either stagingLocation must be set explicitly or a valid value must be provided "
                 + "for gcpTempLocation.",
             e);
       }

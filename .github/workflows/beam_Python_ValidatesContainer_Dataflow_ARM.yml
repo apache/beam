@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -54,7 +54,7 @@ jobs:
       matrix:
         job_name: [beam_Python_ValidatesContainer_Dataflow_ARM]
         job_phrase: [Run Python ValidatesContainer Dataflow ARM]
-        python_version: ['3.8','3.9','3.10','3.11']
+        python_version: ['3.9','3.10','3.11','3.12']
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
@@ -76,13 +76,6 @@ jobs:
           python-version: ${{ matrix.python_version }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
@@ -99,7 +92,7 @@ jobs:
         id: run_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM 
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
             -Pcontainer-architecture-list=arm64,amd64 \
@@ -109,9 +102,9 @@ jobs:
         env:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
-      - name: Archive code coverage results
+      - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
-          name: python-code-coverage-report
+          name: Python ${{ matrix.python_version }} Test Results
           path: "**/pytest*.xml"

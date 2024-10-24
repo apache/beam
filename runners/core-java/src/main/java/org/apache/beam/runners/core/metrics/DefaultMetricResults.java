@@ -24,13 +24,14 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Default implementation of {@link org.apache.beam.sdk.metrics.MetricResults}, which takes static
- * {@link Iterable}s of counters, distributions, and gauges, and serves queries by applying {@link
- * org.apache.beam.sdk.metrics.MetricsFilter}s linearly to them.
+ * {@link Iterable}s of counters, distributions, gauges, and stringsets, and serves queries by
+ * applying {@link org.apache.beam.sdk.metrics.MetricsFilter}s linearly to them.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -40,14 +41,17 @@ public class DefaultMetricResults extends MetricResults {
   private final Iterable<MetricResult<Long>> counters;
   private final Iterable<MetricResult<DistributionResult>> distributions;
   private final Iterable<MetricResult<GaugeResult>> gauges;
+  private final Iterable<MetricResult<StringSetResult>> stringSets;
 
   public DefaultMetricResults(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
-      Iterable<MetricResult<GaugeResult>> gauges) {
+      Iterable<MetricResult<GaugeResult>> gauges,
+      Iterable<MetricResult<StringSetResult>> stringSets) {
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;
+    this.stringSets = stringSets;
   }
 
   @Override
@@ -56,6 +60,8 @@ public class DefaultMetricResults extends MetricResults {
         Iterables.filter(counters, counter -> MetricFiltering.matches(filter, counter.getKey())),
         Iterables.filter(
             distributions, distribution -> MetricFiltering.matches(filter, distribution.getKey())),
-        Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())));
+        Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())),
+        Iterables.filter(
+            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())));
   }
 }

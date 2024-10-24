@@ -18,11 +18,9 @@
 //
 // See https://beam.apache.org/blog/test-stream/ for more information.
 //
-// TestStream is supported on the Flink runner and currently supports int64,
-// float64, and boolean types.
-//
-// TODO(BEAM-12753): Flink currently displays unexpected behavior with TestStream,
-// should not be used until this issue is resolved.
+// TestStream is supported on the Flink, and Prism runners.
+// Use on Flink currently supports int64, float64, and boolean types, while
+// Prism supports arbitrary types.
 package teststream
 
 import (

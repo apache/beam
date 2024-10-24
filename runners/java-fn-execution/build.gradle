@@ -24,20 +24,16 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
 
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   compileOnly project(":sdks:java:harness")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
-  implementation project(":runners:core-construction-java")
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.slf4j_api
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation library.java.joda_time
   testImplementation project(":sdks:java:harness")
-  testImplementation project(":runners:core-construction-java")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.junit

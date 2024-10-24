@@ -25,7 +25,9 @@ import mock
 
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
 
+from . import map_context
 from . import map_function
 from . import map_lambda
 from . import map_multiple_arguments
@@ -82,6 +84,9 @@ def check_plant_details(actual):
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.map_side_inputs_dict.print',
     str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.map_context.print',
+    str)
 class MapTest(unittest.TestCase):
   def test_map_simple(self):
     map_simple.map_simple(check_plants)
@@ -106,6 +111,18 @@ class MapTest(unittest.TestCase):
 
   def test_map_side_inputs_dict(self):
     map_side_inputs_dict.map_side_inputs_dict(check_plant_details)
+
+  def test_map_context(self):
+    import re
+
+    def check_nonces(output):
+      def shares_same_nonces(elements):
+        s = set(re.search(r'\d+ \d+', e).group(0) for e in elements)
+        assert len(s) == 1, s
+
+      assert_that(output, shares_same_nonces)
+
+    map_context.map_context(check_nonces)
 
 
 if __name__ == '__main__':

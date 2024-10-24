@@ -25,31 +25,31 @@ import { withCoderInternal } from "../transforms/internal";
 export function readFromAvro<T>(
   filePattern: string,
   // TODO: Allow schema to be inferred.
-  options: { schema: Schema }
+  options: { schema: Schema },
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return schemaio<beam.Root, beam.PCollection<T>>(
     "readFromTable",
     "beam:transform:org.apache.beam:schemaio_avro_read:v1",
-    { location: filePattern, schema: options.schema }
+    { location: filePattern, schema: options.schema },
   );
 }
 
 export function writeToAvro<T>(filePath: string, options: { schema: Schema }) {
   return async function writeToAvro(
-    pcoll: beam.PCollection<Object>
+    pcoll: beam.PCollection<Object>,
   ): Promise<{}> {
     // TODO: Allow schema to be inferred.
     if (options.schema) {
       pcoll = pcoll.apply(
-        withCoderInternal(RowCoder.fromSchema(options.schema))
+        withCoderInternal(RowCoder.fromSchema(options.schema)),
       );
     }
     return pcoll.applyAsync(
       schemaio<beam.PCollection<T>, {}>(
         "writeToAvro",
         "beam:transform:org.apache.beam:schemaio_avro_write:v1",
-        { location: filePath, schema: options.schema }
-      )
+        { location: filePath, schema: options.schema },
+      ),
     );
   };
 }

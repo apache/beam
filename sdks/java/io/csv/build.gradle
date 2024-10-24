@@ -28,8 +28,9 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.commons_csv
     implementation library.java.vendored_guava_32_1_2_jre
+    implementation library.java.joda_time
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
 }

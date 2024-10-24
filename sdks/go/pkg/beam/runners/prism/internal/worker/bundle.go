@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
-	"golang.org/x/exp/slog"
 )
 
 // SideInputKey is for data lookups for a given bundle.
@@ -38,9 +38,11 @@ type B struct {
 	InstID string // ID for the instruction processing this bundle.
 	PBDID  string // ID for the ProcessBundleDescriptor
 
-	// InputTransformID is data being sent to the SDK.
-	InputTransformID string
-	InputData        [][]byte // Data specifically for this bundle.
+	// InputTransformID is where data is being sent to in the SDK.
+	InputTransformID       string
+	Input                  []*engine.Block // Data and Timers for this bundle.
+	EstimatedInputElements int
+	HasTimers              []struct{ Transform, TimerFamily string } // Timer streams to terminate.
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
@@ -69,18 +71,19 @@ type B struct {
 // Init initializes the bundle's internal state for waiting on all
 // data and for relaying a response back.
 func (b *B) Init() {
-	// We need to see final data signals that match the number of
+	// We need to see final data and timer signals that match the number of
 	// outputs the stage this bundle executes posesses
-	b.dataSema.Store(int32(b.OutputCount))
+	outCap := int32(b.OutputCount + len(b.HasTimers))
+	b.dataSema.Store(outCap)
 	b.DataWait = make(chan struct{})
-	if b.OutputCount == 0 {
+	if outCap == 0 {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
 }
 
-// DataDone indicates a final element has been received from a Data or Timer output.
-func (b *B) DataDone() {
+// DataOrTimerDone indicates a final element has been received from a Data or Timer output.
+func (b *B) DataOrTimerDone() {
 	sema := b.dataSema.Add(-1)
 	if sema == 0 {
 		close(b.DataWait)
@@ -132,23 +135,67 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		},
 	}
 
-	// TODO: make batching decisions.
-	dataBuf := bytes.Join(b.InputData, []byte{})
+	// TODO: make batching decisions on the maxium to send per elements block, to reduce processing time overhead.
+	for _, block := range b.Input {
+		elms := &fnpb.Elements{}
+
+		dataBuf := bytes.Join(block.Bytes, []byte{})
+		switch block.Kind {
+		case engine.BlockData:
+			elms.Data = []*fnpb.Elements_Data{
+				{
+					InstructionId: b.InstID,
+					TransformId:   b.InputTransformID,
+					Data:          dataBuf,
+				},
+			}
+		case engine.BlockTimer:
+			elms.Timers = []*fnpb.Elements_Timers{
+				{
+					InstructionId: b.InstID,
+					TransformId:   block.Transform,
+					TimerFamilyId: block.Family,
+					Timers:        dataBuf,
+				},
+			}
+		default:
+			panic("unknown engine.Block kind")
+		}
+
+		select {
+		case wk.DataReqs <- elms:
+		case <-ctx.Done():
+			b.DataOrTimerDone()
+			return b.DataWait
+		}
+	}
+
+	// Send last of everything for now.
+	timers := make([]*fnpb.Elements_Timers, 0, len(b.HasTimers))
+	for _, tid := range b.HasTimers {
+		timers = append(timers, &fnpb.Elements_Timers{
+			InstructionId: b.InstID,
+			TransformId:   tid.Transform,
+			TimerFamilyId: tid.TimerFamily,
+			IsLast:        true,
+		})
+	}
 	select {
 	case wk.DataReqs <- &fnpb.Elements{
+		Timers: timers,
 		Data: []*fnpb.Elements_Data{
 			{
 				InstructionId: b.InstID,
 				TransformId:   b.InputTransformID,
-				Data:          dataBuf,
 				IsLast:        true,
 			},
 		},
 	}:
 	case <-ctx.Done():
-		b.DataDone()
+		b.DataOrTimerDone()
 		return b.DataWait
 	}
+
 	return b.DataWait
 }
 
@@ -157,6 +204,17 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Lock()
 	delete(wk.activeInstructions, b.InstID)
 	wk.mu.Unlock()
+}
+
+func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_FinalizeBundle{
+			FinalizeBundle: &fnpb.FinalizeBundleRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
+	return resp.GetFinalizeBundle(), nil
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
@@ -184,7 +242,7 @@ func (b *B) Split(ctx context.Context, wk *W, fraction float64, allowedSplits []
 					b.InputTransformID: {
 						FractionOfRemainder:    fraction,
 						AllowedSplitPoints:     allowedSplits,
-						EstimatedInputElements: int64(len(b.InputData)),
+						EstimatedInputElements: int64(b.EstimatedInputElements),
 					},
 				},
 			},

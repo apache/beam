@@ -1,0 +1,62 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# pytype: skip-file
+
+# This pipline creates a series of {plant: description} key pairs, matches all
+# elements to a valid regex, filters out non-matching entries, then logs the
+# output.
+pipeline:
+  type: chain
+  transforms:
+    - type: Create
+      name: Garden plants
+      config:
+        elements:
+          - plant: '🍓, Strawberry, perennial'
+          - plant:  '🥕, Carrot, biennial ignoring trailing words'
+          - plant:  '🍆, Eggplant, perennial'
+          - plant:  '🍅, Tomato, annual'
+          - plant:  '🥔, Potato, perennial'
+          - plant:  '# 🍌, invalid, format'
+          - plant:  'invalid, 🍉, format'
+    - type: MapToFields
+      name: Parse plants
+      config:
+        language: python
+        fields:
+          plant:
+            callable: |
+              import re
+              def regex_filter(row):
+                match = re.match("(?P<icon>[^\s,]+), *(\w+), *(\w+)", row.plant)
+                return match.group(0) if match else match
+                
+    # Filters out None values produced by values that don't match regex
+    - type: Filter
+      config:
+        language: python
+        keep: plant
+    - type: LogForTesting
+      
+# Expected:
+#  Row(plant='🍓, Strawberry, perennial')
+#  Row(plant='🥕, Carrot, biennial')
+#  Row(plant='🍆, Eggplant, perennial')
+#  Row(plant='🍅, Tomato, annual')
+#  Row(plant='🥔, Potato, perennial')

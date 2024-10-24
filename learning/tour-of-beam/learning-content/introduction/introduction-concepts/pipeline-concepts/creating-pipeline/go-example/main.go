@@ -27,27 +27,29 @@
 package main
 
 import (
-  "context"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"context"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
-
-
 func main() {
-  p, s := beam.NewPipelineWithRoot()
+	ctx := context.Background()
+	beam.Init()
 
-  hello := helloBeam(s)
-  debug.Print(s, hello)
+	p, s := beam.NewPipelineWithRoot()
 
-  err := beamx.Run(context.Background(), p)
-  if err != nil {
-    log.Exitf(context.Background(), "Failed to execute job: %v", err)
-  }
+	hello := helloBeam(s)
+	debug.Print(s, hello)
+
+	err := beamx.Run(ctx, p)
+	if err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
 }
 
 func helloBeam(s beam.Scope) beam.PCollection {
-  return beam.Create(s, "Hello Beam")
+	return beam.Create(s, "Hello Beam")
 }

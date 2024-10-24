@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BEAM_VERSION=2.44.0
-FROM golang:1.20-bullseye AS build
+FROM golang:1-bullseye AS build
 ARG BEAM_VERSION
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
@@ -49,7 +49,7 @@ RUN mvn archetype:generate \
     -DartifactId=pipeline-dependencies \
     -DgroupId=org.apache.beam.samples
 WORKDIR /pipeline-dependencies/
-RUN mvn dependency:resolve && mvn -o dependency:list
+RUN mvn dependency:resolve && mvn dependency:go-offline &&  mvn -o dependency:list
 RUN mvn dependency:copy-dependencies
 
 FROM apache/beam_java11_sdk:$BEAM_VERSION
@@ -78,8 +78,6 @@ COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
 # Install jars for Playground graphs
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
-    mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
 # Install Spring Expression

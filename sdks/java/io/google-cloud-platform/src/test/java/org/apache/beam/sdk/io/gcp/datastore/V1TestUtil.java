@@ -137,10 +137,12 @@ class V1TestUtil {
   }
 
   /** Build a new datastore client. */
-  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+  static Datastore getDatastore(
+      PipelineOptions pipelineOptions, String projectId, String databaseId) {
     Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
     HttpRequestInitializer initializer;
     if (credential != null) {
+
       initializer =
           new ChainingHttpRequestInitializer(
               new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer());
@@ -155,8 +157,13 @@ class V1TestUtil {
   }
 
   /** Build a datastore query request. */
-  private static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
-    RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
+  private static RunQueryRequest makeRequest(
+      String projectId, String databaseId, Query query, @Nullable String namespace) {
+    RunQueryRequest.Builder requestBuilder =
+        RunQueryRequest.newBuilder()
+            .setQuery(query)
+            .setProjectId(projectId)
+            .setDatabaseId(databaseId);
     if (namespace != null) {
       requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
     }
@@ -164,14 +171,16 @@ class V1TestUtil {
   }
 
   /** Delete all entities with the given ancestor. */
-  static void deleteAllEntities(V1TestOptions options, String project, String ancestor)
-      throws Exception {
-    Datastore datastore = getDatastore(options, project);
+  static void deleteAllEntities(
+      V1TestOptions options, String project, String database, String ancestor) throws Exception {
+    Datastore datastore = getDatastore(options, project, database);
     Query query =
         V1TestUtil.makeAncestorKindQuery(options.getKind(), options.getNamespace(), ancestor);
 
-    V1TestReader reader = new V1TestReader(datastore, query, options.getNamespace());
-    V1TestWriter writer = new V1TestWriter(datastore, new DeleteMutationBuilder());
+    V1TestReader reader =
+        new V1TestReader(datastore, project, database, query, options.getNamespace());
+    V1TestWriter writer =
+        new V1TestWriter(datastore, project, database, new DeleteMutationBuilder());
 
     long numEntities = 0;
     while (reader.advance()) {
@@ -185,14 +194,15 @@ class V1TestUtil {
   }
 
   /** Returns the total number of entities for the given datastore. */
-  static long countEntities(V1TestOptions options, String project, String ancestor)
+  static long countEntities(V1TestOptions options, String project, String database, String ancestor)
       throws Exception {
     // Read from datastore.
-    Datastore datastore = V1TestUtil.getDatastore(options, project);
+    Datastore datastore = V1TestUtil.getDatastore(options, project, database);
     Query query =
         V1TestUtil.makeAncestorKindQuery(options.getKind(), options.getNamespace(), ancestor);
 
-    V1TestReader reader = new V1TestReader(datastore, query, options.getNamespace());
+    V1TestReader reader =
+        new V1TestReader(datastore, project, database, query, options.getNamespace());
 
     long numEntitiesRead = 0;
     while (reader.advance()) {
@@ -247,12 +257,17 @@ class V1TestUtil {
       return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
     }
 
+    private final String projectId;
+    private final String databaseId;
     private final Datastore datastore;
     private final MutationBuilder mutationBuilder;
     private final List<Entity> entities = new ArrayList<>();
 
-    V1TestWriter(Datastore datastore, MutationBuilder mutationBuilder) {
+    V1TestWriter(
+        Datastore datastore, String projectId, String databaseId, MutationBuilder mutationBuilder) {
       this.datastore = datastore;
+      this.projectId = projectId;
+      this.databaseId = databaseId;
       this.mutationBuilder = mutationBuilder;
     }
 
@@ -295,6 +310,8 @@ class V1TestUtil {
             commitRequest.addMutations(mutationBuilder.apply(entity));
           }
           commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+          commitRequest.setProjectId(projectId);
+          commitRequest.setDatabaseId(databaseId);
           datastore.commit(commitRequest.build());
           // Break if the commit threw no exception.
           break;
@@ -318,6 +335,8 @@ class V1TestUtil {
   static class V1TestReader {
     private static final int QUERY_BATCH_LIMIT = 500;
     private final Datastore datastore;
+    private final String projectId;
+    private final String databaseId;
     private final Query query;
     private final @Nullable String namespace;
     private boolean moreResults;
@@ -326,8 +345,15 @@ class V1TestUtil {
     private QueryResultBatch currentBatch;
     private Entity currentEntity;
 
-    V1TestReader(Datastore datastore, Query query, @Nullable String namespace) {
+    V1TestReader(
+        Datastore datastore,
+        String projectId,
+        String databaseId,
+        Query query,
+        @Nullable String namespace) {
       this.datastore = datastore;
+      this.projectId = projectId;
+      this.databaseId = databaseId;
       this.query = query;
       this.namespace = namespace;
     }
@@ -362,7 +388,7 @@ class V1TestUtil {
         query.setStartCursor(currentBatch.getEndCursor());
       }
 
-      RunQueryRequest request = makeRequest(query.build(), namespace);
+      RunQueryRequest request = makeRequest(projectId, databaseId, query.build(), namespace);
       RunQueryResponse response = datastore.runQuery(request);
 
       currentBatch = response.getBatch();

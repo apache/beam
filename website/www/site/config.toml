@@ -104,7 +104,7 @@ github_project_repo = "https://github.com/apache/beam"
 
 [params]
 description = "Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."
-release_latest = "2.52.0"
+release_latest = "2.60.0"
 # The repository and branch where the files live in Github or Colab. This is used
 # to serve and stage from your local branch, but publish to the master branch.
 #   e.g. https://github.com/{{< param branch_repo >}}/path/to/notebook.ipynb

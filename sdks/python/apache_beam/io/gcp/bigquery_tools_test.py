@@ -223,10 +223,17 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
+  # the function _insert_all_rows() in the wrapper calls google.cloud.bigquery,
+  # so we have to skip that when this library is not accessible
+  @unittest.skipIf(
+      beam.io.gcp.bigquery_tools.gcp_bigquery is None,
+      "bigquery library not available in this env")
   @mock.patch('time.sleep', return_value=None)
+  @mock.patch(
+      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
   @mock.patch('google.cloud._http.JSONConnection.http')
-  @unittest.skip('Fails on import')
-  def test_user_agent_insert_all(self, http_mock, patched_sleep):
+  def test_user_agent_insert_all(
+      self, http_mock, patched_skip_get_credentials, patched_sleep):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     try:
       wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
@@ -237,6 +244,29 @@ class TestBigQueryWrapper(unittest.TestCase):
       pass
     call = http_mock.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
+
+  # the function create_temporary_dataset() in the wrapper does not call
+  # google.cloud.bigquery, so it is fine to just mock it
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.gcp_bigquery',
+      return_value=mock.Mock())
+  @mock.patch(
+      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
+  @mock.patch('time.sleep', return_value=None)
+  def test_user_agent_create_temporary_dataset(
+      self, sleep_mock, skip_get_credentials_mock, gcp_bigquery_mock):
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    request_mock = mock.Mock()
+    wrapper.client._http.request = request_mock
+    try:
+      wrapper.create_temporary_dataset('project-id', 'location')
+    except:  # pylint: disable=bare-except
+      # Ignore errors. The errors come from the fact that we did not mock
+      # the response from the API, so the overall create_dataset call fails
+      # soon after the BQ API is called.
+      pass
+    call = request_mock.mock_calls[-1]
+    self.assertIn('apache-beam-', call[2]['headers']['user-agent'])
 
   @mock.patch('time.sleep', return_value=None)
   def test_delete_table_retries_for_timeouts(self, patched_time_sleep):
@@ -259,30 +289,6 @@ class TestBigQueryWrapper(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       wrapper.create_temporary_dataset('project-id', 'location')
     self.assertTrue(client.datasets.Get.called)
-
-  @mock.patch(
-      'apache_beam.io.gcp.bigquery_tools.gcp_bigquery',
-      return_value=mock.Mock())
-  @mock.patch(
-      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
-  @mock.patch('time.sleep', return_value=None)
-  def test_user_agent_passed(
-      self, sleep_mock, skip_get_credentials_mock, gcp_bigquery_mock):
-    try:
-      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
-    except:  # pylint: disable=bare-except
-      self.skipTest('Unable to create a BQ Wrapper')
-    request_mock = mock.Mock()
-    wrapper.client._http.request = request_mock
-    try:
-      wrapper.create_temporary_dataset('project-id', 'location')
-    except:  # pylint: disable=bare-except
-      # Ignore errors. The errors come from the fact that we did not mock
-      # the response from the API, so the overall create_dataset call fails
-      # soon after the BQ API is called.
-      pass
-    call = request_mock.mock_calls[-1]
-    self.assertIn('apache-beam-', call[2]['headers']['user-agent'])
 
   def test_get_or_create_dataset_created(self):
     client = mock.Mock()

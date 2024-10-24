@@ -26,6 +26,7 @@ import java.util.function.Consumer;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
@@ -65,31 +66,25 @@ class WindmillTimerInternals implements TimerInternals {
   // though technically in Windmill this is only enforced per ID and namespace
   // and TimeDomain. This TimerInternals is scoped to a step and key, shared
   // across namespaces.
-  private Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
+  private final Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
 
   // Map from timer id to whether it is to be deleted or set
-  private Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
+  private final Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
 
-  private Instant inputDataWatermark;
-  private Instant processingTime;
-  private @Nullable Instant outputDataWatermark;
-  private @Nullable Instant synchronizedProcessingTime;
-  private String stateFamily;
-  private WindmillNamespacePrefix prefix;
-  private Consumer<TimerData> onTimerModified;
+  private final Watermarks watermarks;
+  private final Instant processingTime;
+  private final String stateFamily;
+  private final WindmillNamespacePrefix prefix;
+  private final Consumer<TimerData> onTimerModified;
 
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
       WindmillNamespacePrefix prefix, // partitions user and system namespaces into "/u" and "/s"
-      Instant inputDataWatermark,
       Instant processingTime,
-      @Nullable Instant outputDataWatermark,
-      @Nullable Instant synchronizedProcessingTime,
+      Watermarks watermarks,
       Consumer<TimerData> onTimerModified) {
-    this.inputDataWatermark = checkNotNull(inputDataWatermark);
+    this.watermarks = watermarks;
     this.processingTime = checkNotNull(processingTime);
-    this.outputDataWatermark = outputDataWatermark;
-    this.synchronizedProcessingTime = synchronizedProcessingTime;
     this.stateFamily = stateFamily;
     this.prefix = prefix;
     this.onTimerModified = onTimerModified;
@@ -97,13 +92,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   public WindmillTimerInternals withPrefix(WindmillNamespacePrefix prefix) {
     return new WindmillTimerInternals(
-        stateFamily,
-        prefix,
-        inputDataWatermark,
-        processingTime,
-        outputDataWatermark,
-        synchronizedProcessingTime,
-        onTimerModified);
+        stateFamily, prefix, processingTime, watermarks, onTimerModified);
   }
 
   @Override
@@ -170,7 +159,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public @Nullable Instant currentSynchronizedProcessingTime() {
-    return synchronizedProcessingTime;
+    return watermarks.synchronizedProcessingTime();
   }
 
   /**
@@ -184,7 +173,7 @@ class WindmillTimerInternals implements TimerInternals {
    */
   @Override
   public Instant currentInputWatermarkTime() {
-    return inputDataWatermark;
+    return watermarks.inputDataWatermark();
   }
 
   /**
@@ -198,7 +187,7 @@ class WindmillTimerInternals implements TimerInternals {
    */
   @Override
   public @Nullable Instant currentOutputWatermarkTime() {
-    return outputDataWatermark;
+    return watermarks.outputDataWatermark();
   }
 
   public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {

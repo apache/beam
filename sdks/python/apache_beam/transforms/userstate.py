@@ -38,20 +38,19 @@ from apache_beam.coders import coders
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
+from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
-  from apache_beam.transforms.core import CombineFn, DoFn
-  from apache_beam.utils import windowed_value
-  from apache_beam.utils.timestamp import Timestamp
+  from apache_beam.transforms.core import DoFn
 
 CallableT = TypeVar('CallableT', bound=Callable)
 
 
 class StateSpec(object):
   """Specification for a user DoFn state cell."""
-  def __init__(self, name, coder):
-    # type: (str, Coder) -> None
+  def __init__(self, name: str, coder: Coder) -> None:
     if not isinstance(name, str):
       raise TypeError("name is not a string")
     if not isinstance(coder, Coder):
@@ -59,19 +58,18 @@ class StateSpec(object):
     self.name = name
     self.coder = coder
 
-  def __repr__(self):
-    # type: () -> str
+  def __repr__(self) -> str:
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     raise NotImplementedError
 
 
 class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell."""
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
             coder_id=context.coders.get_id(self.coder)),
@@ -81,8 +79,8 @@ class ReadModifyWriteStateSpec(StateSpec):
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
             element_coder_id=context.coders.get_id(self.coder)),
@@ -92,8 +90,8 @@ class BagStateSpec(StateSpec):
 
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         set_spec=beam_runner_api_pb2.SetStateSpec(
             element_coder_id=context.coders.get_id(self.coder)),
@@ -103,9 +101,11 @@ class SetStateSpec(StateSpec):
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
-  def __init__(self, name, coder=None, combine_fn=None):
-    # type: (str, Optional[Coder], Any) -> None
-
+  def __init__(
+      self,
+      name: str,
+      coder: Optional[Coder] = None,
+      combine_fn: Any = None) -> None:
     """Initialize the specification for CombiningValue state.
 
     CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
@@ -140,14 +140,25 @@ class CombiningValueStateSpec(StateSpec):
 
     super().__init__(name, coder)
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
             accumulator_coder_id=context.coders.get_id(self.coder)),
         protocol=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.user_state.BAG.urn))
+
+
+class OrderedListStateSpec(StateSpec):
+  """Specification for a user DoFn ordered list state cell."""
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
+    return beam_runner_api_pb2.StateSpec(
+        ordered_list_spec=beam_runner_api_pb2.OrderedListStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.ORDERED_LIST.urn))
 
 
 # TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
@@ -169,29 +180,26 @@ class TimerSpec(object):
   """Specification for a user stateful DoFn timer."""
   prefix = "ts-"
 
-  def __init__(self, name, time_domain):
-    # type: (str, str) -> None
+  def __init__(self, name: str, time_domain: str) -> None:
     self.name = self.prefix + name
     if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
       raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
     self.time_domain = time_domain
-    self._attached_callback = None  # type: Optional[Callable]
+    self._attached_callback: Optional[Callable] = None
 
-  def __repr__(self):
-    # type: () -> str
+  def __repr__(self) -> str:
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context, key_coder, window_coder):
-    # type: (PipelineContext, Coder, Coder) -> beam_runner_api_pb2.TimerFamilySpec
+  def to_runner_api(
+      self, context: 'PipelineContext', key_coder: Coder,
+      window_coder: Coder) -> beam_runner_api_pb2.TimerFamilySpec:
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
             coders._TimerCoder(key_coder, window_coder)))
 
 
-def on_timer(timer_spec):
-  # type: (TimerSpec) -> Callable[[CallableT], CallableT]
-
+def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -208,8 +216,7 @@ def on_timer(timer_spec):
   if not isinstance(timer_spec, TimerSpec):
     raise ValueError('@on_timer decorator expected TimerSpec.')
 
-  def _inner(method):
-    # type: (CallableT) -> CallableT
+  def _inner(method: CallableT) -> CallableT:
     if not callable(method):
       raise ValueError('@on_timer decorator expected callable.')
     if timer_spec._attached_callback:
@@ -221,9 +228,7 @@ def on_timer(timer_spec):
   return _inner
 
 
-def get_dofn_specs(dofn):
-  # type: (DoFn) -> Tuple[Set[StateSpec], Set[TimerSpec]]
-
+def get_dofn_specs(dofn: 'DoFn') -> Tuple[Set[StateSpec], Set[TimerSpec]]:
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:
@@ -262,9 +267,7 @@ def get_dofn_specs(dofn):
   return all_state_specs, all_timer_specs
 
 
-def is_stateful_dofn(dofn):
-  # type: (DoFn) -> bool
-
+def is_stateful_dofn(dofn: 'DoFn') -> bool:
   """Determines whether a given DoFn is a stateful DoFn."""
 
   # A Stateful DoFn is a DoFn that uses user state or timers.
@@ -272,9 +275,7 @@ def is_stateful_dofn(dofn):
   return bool(all_state_specs or all_timer_specs)
 
 
-def validate_stateful_dofn(dofn):
-  # type: (DoFn) -> None
-
+def validate_stateful_dofn(dofn: 'DoFn') -> None:
   """Validates the proper specification of a stateful DoFn."""
 
   # Get state and timer specs.
@@ -306,12 +307,10 @@ def validate_stateful_dofn(dofn):
 
 
 class BaseTimer(object):
-  def clear(self, dynamic_timer_tag=''):
-    # type: (str) -> None
+  def clear(self, dynamic_timer_tag: str = '') -> None:
     raise NotImplementedError
 
-  def set(self, timestamp, dynamic_timer_tag=''):
-    # type: (Timestamp, str) -> None
+  def set(self, timestamp: Timestamp, dynamic_timer_tag: str = '') -> None:
     raise NotImplementedError
 
 
@@ -321,66 +320,54 @@ _TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))
 class RuntimeTimer(BaseTimer):
   """Timer interface object passed to user code."""
   def __init__(self) -> None:
-    self._timer_recordings = {}  # type: Dict[str, _TimerTuple]
+    self._timer_recordings: Dict[str, _TimerTuple] = {}
     self._cleared = False
-    self._new_timestamp = None  # type: Optional[Timestamp]
+    self._new_timestamp: Optional[Timestamp] = None
 
-  def clear(self, dynamic_timer_tag=''):
-    # type: (str) -> None
+  def clear(self, dynamic_timer_tag: str = '') -> None:
     self._timer_recordings[dynamic_timer_tag] = _TimerTuple(
         cleared=True, timestamp=None)
 
-  def set(self, timestamp, dynamic_timer_tag=''):
-    # type: (Timestamp, str) -> None
+  def set(self, timestamp: Timestamp, dynamic_timer_tag: str = '') -> None:
     self._timer_recordings[dynamic_timer_tag] = _TimerTuple(
         cleared=False, timestamp=timestamp)
 
 
 class RuntimeState(object):
   """State interface object passed to user code."""
-  def prefetch(self):
-    # type: () -> None
+  def prefetch(self) -> None:
     # The default implementation here does nothing.
     pass
 
-  def finalize(self):
-    # type: () -> None
+  def finalize(self) -> None:
     pass
 
 
 class ReadModifyWriteRuntimeState(RuntimeState):
-  def read(self):
-    # type: () -> Any
+  def read(self) -> Any:
     raise NotImplementedError(type(self))
 
-  def write(self, value):
-    # type: (Any) -> None
+  def write(self, value: Any) -> None:
     raise NotImplementedError(type(self))
 
-  def clear(self):
-    # type: () -> None
+  def clear(self) -> None:
     raise NotImplementedError(type(self))
 
-  def commit(self):
-    # type: () -> None
+  def commit(self) -> None:
     raise NotImplementedError(type(self))
 
 
 class AccumulatingRuntimeState(RuntimeState):
-  def read(self):
-    # type: () -> Iterable[Any]
+  def read(self) -> Iterable[Any]:
     raise NotImplementedError(type(self))
 
-  def add(self, value):
-    # type: (Any) -> None
+  def add(self, value: Any) -> None:
     raise NotImplementedError(type(self))
 
-  def clear(self):
-    # type: () -> None
+  def clear(self) -> None:
     raise NotImplementedError(type(self))
 
-  def commit(self):
-    # type: () -> None
+  def commit(self) -> None:
     raise NotImplementedError(type(self))
 
 
@@ -396,26 +383,43 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
   """Combining value state interface object passed to user code."""
 
 
+class OrderedListRuntimeState(AccumulatingRuntimeState):
+  """Ordered list state interface object passed to user code."""
+  def read(self) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def add(self, value: Tuple[Timestamp, Any]) -> None:
+    raise NotImplementedError(type(self))
+
+  def read_range(
+      self, min_time_stamp: Timestamp,
+      limit_time_stamp: Timestamp) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def clear_range(
+      self, min_time_stamp: Timestamp, limit_time_stamp: Timestamp) -> None:
+    raise NotImplementedError(type(self))
+
+
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
-  def get_timer(self,
-                timer_spec,  # type: TimerSpec
-                key,  # type: Any
-                window,  # type: windowed_value.BoundedWindow
-                timestamp,  # type: Timestamp
-                pane,  # type: windowed_value.PaneInfo
-               ):
-    # type: (...) -> BaseTimer
+  def get_timer(
+      self,
+      timer_spec: TimerSpec,
+      key: Any,
+      window: 'windowed_value.BoundedWindow',
+      timestamp: Timestamp,
+      pane: windowed_value.PaneInfo,
+  ) -> BaseTimer:
     raise NotImplementedError(type(self))
 
-  def get_state(self,
-                state_spec,  # type: StateSpec
-                key,  # type: Any
-                window,  # type: windowed_value.BoundedWindow
-               ):
-    # type: (...) -> RuntimeState
+  def get_state(
+      self,
+      state_spec: StateSpec,
+      key: Any,
+      window: 'windowed_value.BoundedWindow',
+  ) -> RuntimeState:
     raise NotImplementedError(type(self))
 
-  def commit(self):
-    # type: () -> None
+  def commit(self) -> None:
     raise NotImplementedError(type(self))

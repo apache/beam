@@ -49,7 +49,7 @@ export function impulse(): PTransform<Root, PCollection<Uint8Array>> {
   function expandInternal(
     input: Root,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: impulse.urn,
@@ -66,14 +66,14 @@ impulse.urn = "beam:transform:impulse:v1";
 
 // TODO: (API) Should we offer a method on PCollection to do this?
 export function withCoderInternal<T>(
-  coder: Coder<T>
+  coder: Coder<T>,
 ): PTransform<PCollection<T>, PCollection<T>> {
   return withName(
     `withCoderInternal(${extractName(coder)})`,
     (
       input: PCollection<T>,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
+      transformProto: runnerApi.PTransform,
     ) => {
       // IDENTITY rather than Flatten for better fusion.
       transformProto.spec = {
@@ -84,12 +84,12 @@ export function withCoderInternal<T>(
               urn: urns.IDENTITY_DOFN_URN,
               payload: undefined!,
             }),
-          })
+          }),
         ),
       };
 
       return pipeline.createPCollectionInternal<T>(coder);
-    }
+    },
   );
 }
 
@@ -108,7 +108,7 @@ export function withCoderInternal<T>(
  * invoke cross-language transforms.
  */
 export function withRowCoder<T extends Object>(
-  exemplar: T
+  exemplar: T,
 ): PTransform<PCollection<T>, PCollection<T>> {
   return withCoderInternal(RowCoder.fromJSON(exemplar));
 }
@@ -131,7 +131,7 @@ export function groupByKey<K, V>(): PTransform<
   function expandInternal(
     input: PCollection<KV<K, V>>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     const pipelineComponents: runnerApi.Components =
       pipeline.getProto().components!;
@@ -144,8 +144,8 @@ export function groupByKey<K, V>(): PTransform<
       return input
         .apply(
           withCoderInternal(
-            new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder())
-          )
+            new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder()),
+          ),
         )
         .apply(groupByKey());
     }
@@ -184,12 +184,12 @@ groupByKey.urn = "beam:transform:group_by_key:v1";
  * help reduce the original data into a single aggregator per key per worker.
  */
 export function combinePerKey<K, InputT, AccT, OutputT>(
-  combineFn: CombineFn<InputT, AccT, OutputT>
+  combineFn: CombineFn<InputT, AccT, OutputT>,
 ): PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
   function expandInternal(
     input: PCollection<KV<any, InputT>>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     const pipelineComponents: runnerApi.Components =
       pipeline.getProto().components!;
@@ -198,7 +198,7 @@ export function combinePerKey<K, InputT, AccT, OutputT>(
     try {
       // If this fails, we cannot lift, so we skip setting the liftable URN.
       CombinePerKeyPrecombineOperator.checkSupportsWindowing(
-        pipelineComponents.windowingStrategies[inputProto.windowingStrategyId]
+        pipelineComponents.windowingStrategies[inputProto.windowingStrategyId],
       );
 
       // Ensure the input is using the KV coder.
@@ -207,14 +207,14 @@ export function combinePerKey<K, InputT, AccT, OutputT>(
         return input
           .apply(
             withCoderInternal(
-              new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder())
-            )
+              new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder()),
+            ),
           )
           .apply(combinePerKey(combineFn));
       }
 
       const inputValueCoder = pipeline.context.getCoder<InputT>(
-        inputCoderProto.componentCoderIds[1]
+        inputCoderProto.componentCoderIds[1],
       );
 
       transformProto.spec = runnerApi.FunctionSpec.create({
@@ -227,7 +227,7 @@ export function combinePerKey<K, InputT, AccT, OutputT>(
           accumulatorCoderId: pipeline.context.getCoderId(
             combineFn.accumulatorCoder
               ? combineFn.accumulatorCoder(inputValueCoder)
-              : new GeneralObjectCoder()
+              : new GeneralObjectCoder(),
           ),
         }),
       });
@@ -250,16 +250,16 @@ export function combinePerKey<K, InputT, AccT, OutputT>(
           for (const value of kv.value) {
             accumulators[ix % 3] = combineFn.addInput(
               accumulators[ix % 3],
-              value
+              value,
             );
           }
           return {
             key: kv.key,
             value: combineFn.extractOutput(
-              combineFn.mergeAccumulators(accumulators)
+              combineFn.mergeAccumulators(accumulators),
             ),
           };
-        })
+        }),
       );
   }
 

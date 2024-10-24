@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
@@ -46,7 +47,9 @@ public class HistogramData implements Serializable {
   private long[] buckets;
   private long numBoundedBucketRecords;
   private long numTopRecords;
+  private double topRecordsSum;
   private long numBottomRecords;
+  private double bottomRecordsSum;
 
   @GuardedBy("this")
   private double sumOfSquaredDeviations;
@@ -64,7 +67,9 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsSum = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
@@ -151,7 +156,9 @@ public class HistogramData implements Serializable {
       }
 
       incTopBucketCount(other.numTopRecords);
+      this.topRecordsSum = other.topRecordsSum;
       incBottomBucketCount(other.numBottomRecords);
+      this.bottomRecordsSum = other.bottomRecordsSum;
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
@@ -181,7 +188,9 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsSum = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
@@ -202,9 +211,9 @@ public class HistogramData implements Serializable {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
     if (value >= rangeTo) {
-      numTopRecords++;
+      recordTopRecordsValue(value);
     } else if (value < rangeFrom) {
-      numBottomRecords++;
+      recordBottomRecordsValue(value);
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
       numBoundedBucketRecords++;
@@ -229,6 +238,30 @@ public class HistogramData implements Serializable {
     double oldMean = mean;
     mean = oldMean + (value - oldMean) / count;
     sumOfSquaredDeviations += (value - mean) * (value - oldMean);
+  }
+
+  /**
+   * Increment the {@code numTopRecords} and update {@code topRecordsSum} when a new overflow value
+   * is recorded. This function should only be called when a Histogram is recording a value greater
+   * than the upper bound of it's largest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordTopRecordsValue(double value) {
+    numTopRecords++;
+    topRecordsSum += value;
+  }
+
+  /**
+   * Increment the {@code numBottomRecords} and update {@code bottomRecordsSum} when a new underflow
+   * value is recorded. This function should only be called when a Histogram is recording a value
+   * smaller than the lowerbound bound of it's smallest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordBottomRecordsValue(double value) {
+    numBottomRecords++;
+    bottomRecordsSum += value;
   }
 
   public synchronized long getTotalCount() {
@@ -260,8 +293,16 @@ public class HistogramData implements Serializable {
     return numTopRecords;
   }
 
+  public synchronized double getTopBucketMean() {
+    return numTopRecords == 0 ? 0 : topRecordsSum / numTopRecords;
+  }
+
   public synchronized long getBottomBucketCount() {
     return numBottomRecords;
+  }
+
+  public synchronized double getBottomBucketMean() {
+    return numBottomRecords == 0 ? 0 : bottomRecordsSum / numBottomRecords;
   }
 
   public synchronized double getMean() {
@@ -342,22 +383,31 @@ public class HistogramData implements Serializable {
     // Maximum number of buckets that is supported when 'scale' is zero.
     private static final int ZERO_SCALE_MAX_NUM_BUCKETS = 32;
 
-    public abstract double getBase();
+    @Memoized
+    public double getBase() {
+      return Math.pow(2, Math.pow(2, -getScale()));
+    }
 
     public abstract int getScale();
 
     /**
-     * Set to 2**scale which is equivalent to 1/log_2(base). Precomputed to use in {@code
+     * Set to 2**scale which is equivalent to 1/log_2(base). Memoized to use in {@code
      * getBucketIndexPositiveScale}
      */
-    public abstract double getInvLog2GrowthFactor();
+    @Memoized
+    public double getInvLog2GrowthFactor() {
+      return Math.pow(2, getScale());
+    }
 
     @Override
     public abstract int getNumBuckets();
 
-    /* Precomputed since this value is used everytime a datapoint is recorded. */
+    /* Memoized since this value is used everytime a datapoint is recorded. */
+    @Memoized
     @Override
-    public abstract double getRangeTo();
+    public double getRangeTo() {
+      return Math.pow(getBase(), getNumBuckets());
+    }
 
     public static ExponentialBuckets of(int scale, int numBuckets) {
       if (scale < MINIMUM_SCALE) {
@@ -374,12 +424,8 @@ public class HistogramData implements Serializable {
             String.format("numBuckets should be positive: %d", numBuckets));
       }
 
-      double invLog2GrowthFactor = Math.pow(2, scale);
-      double base = Math.pow(2, Math.pow(2, -scale));
       int clippedNumBuckets = ExponentialBuckets.computeNumberOfBuckets(scale, numBuckets);
-      double rangeTo = Math.pow(base, clippedNumBuckets);
-      return new AutoValue_HistogramData_ExponentialBuckets(
-          base, scale, invLog2GrowthFactor, clippedNumBuckets, rangeTo);
+      return new AutoValue_HistogramData_ExponentialBuckets(scale, clippedNumBuckets);
     }
 
     /**
@@ -472,6 +518,10 @@ public class HistogramData implements Serializable {
     public double getRangeFrom() {
       return 0;
     }
+
+    @Memoized
+    @Override
+    public abstract int hashCode();
   }
 
   @AutoValue

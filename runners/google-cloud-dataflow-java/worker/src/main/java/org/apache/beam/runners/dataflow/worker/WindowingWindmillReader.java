@@ -117,7 +117,7 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
   @Override
   public NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>> iterator() throws IOException {
     final K key = keyCoder.decode(context.getSerializedKey().newInput(), Coder.Context.OUTER);
-    final WorkItem workItem = context.getWork();
+    final WorkItem workItem = context.getWorkItem();
     KeyedWorkItem<K, T> keyedWorkItem =
         new WindmillKeyedWorkItem<>(key, workItem, windowCoder, windowsCoder, valueCoder);
     final boolean isEmptyWorkItem =

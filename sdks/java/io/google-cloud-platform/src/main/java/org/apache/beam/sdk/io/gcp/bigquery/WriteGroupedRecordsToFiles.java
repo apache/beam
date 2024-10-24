@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryRowWriter.BigQueryRowSerializationException;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Receives elements grouped by their destination, and writes them out to a file. Since all the
@@ -31,21 +36,30 @@ class WriteGroupedRecordsToFiles<DestinationT, ElementT>
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
+  private final BadRecordRouter badRecordRouter;
+  private final TupleTag<Result<DestinationT>> successfulResultsTag;
+  private final Coder<ElementT> elementCoder;
 
   WriteGroupedRecordsToFiles(
       PCollectionView<String> tempFilePrefix,
       long maxFileSize,
-      RowWriterFactory<ElementT, DestinationT> rowWriterFactory) {
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
+      BadRecordRouter badRecordRouter,
+      TupleTag<Result<DestinationT>> successfulResultsTag,
+      Coder<ElementT> elementCoder) {
     this.tempFilePrefix = tempFilePrefix;
     this.maxFileSize = maxFileSize;
     this.rowWriterFactory = rowWriterFactory;
+    this.badRecordRouter = badRecordRouter;
+    this.successfulResultsTag = successfulResultsTag;
+    this.elementCoder = elementCoder;
   }
 
   @ProcessElement
   public void processElement(
       ProcessContext c,
       @Element KV<DestinationT, Iterable<ElementT>> element,
-      OutputReceiver<WriteBundlesToFiles.Result<DestinationT>> o)
+      MultiOutputReceiver outputReceiver)
       throws Exception {
 
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
@@ -58,20 +72,29 @@ class WriteGroupedRecordsToFiles<DestinationT, ElementT>
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
           BigQueryRowWriter.Result result = writer.getResult();
-          o.output(
-              new WriteBundlesToFiles.Result<>(
-                  result.resourceId.toString(), result.byteSize, c.element().getKey()));
+          outputReceiver
+              .get(successfulResultsTag)
+              .output(
+                  new WriteBundlesToFiles.Result<>(
+                      result.resourceId.toString(), result.byteSize, c.element().getKey()));
           writer = rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey());
         }
-        writer.write(tableRow);
+        try {
+          writer.write(tableRow);
+        } catch (BigQueryRowSerializationException e) {
+          badRecordRouter.route(
+              outputReceiver, tableRow, elementCoder, e, "Unable to Write BQ Record to File");
+        }
       }
     } finally {
       writer.close();
     }
 
     BigQueryRowWriter.Result result = writer.getResult();
-    o.output(
-        new WriteBundlesToFiles.Result<>(
-            result.resourceId.toString(), result.byteSize, c.element().getKey()));
+    outputReceiver
+        .get(successfulResultsTag)
+        .output(
+            new WriteBundlesToFiles.Result<>(
+                result.resourceId.toString(), result.byteSize, c.element().getKey()));
   }
 }

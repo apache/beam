@@ -38,6 +38,7 @@ StandardRunnerProtocols = beam_runner_api_pb2_urns.StandardRunnerProtocols
 StandardSideInputTypes = beam_runner_api_pb2_urns.StandardSideInputTypes
 StandardUserStateTypes = beam_runner_api_pb2_urns.StandardUserStateTypes
 ExpansionMethods = external_transforms_pb2_urns.ExpansionMethods
+ManagedTransforms = external_transforms_pb2_urns.ManagedTransforms
 MonitoringInfo = metrics_pb2_urns.MonitoringInfo
 MonitoringInfoSpecs = metrics_pb2_urns.MonitoringInfoSpecs
 MonitoringInfoTypeUrns = metrics_pb2_urns.MonitoringInfoTypeUrns
@@ -53,6 +54,7 @@ composites = StandardPTransforms.Composites
 combine_components = StandardPTransforms.CombineComponents
 sdf_components = StandardPTransforms.SplittableParDoComponents
 group_into_batches_components = StandardPTransforms.GroupIntoBatchesComponents
+executable_stage = "beam:runner:executable_stage:v1"
 
 user_state = StandardUserStateTypes.Enum
 side_inputs = StandardSideInputTypes.Enum

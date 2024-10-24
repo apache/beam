@@ -39,8 +39,8 @@ async function main() {
       .apply(beam.withRowCoder({ word: "str" }))
       .applyAsync(
         sqlTransform(
-          "SELECT word, count(*) as c from PCOLLECTION group by word"
-        )
+          "SELECT word, count(*) as c from PCOLLECTION group by word",
+        ),
       );
 
     filtered.map(console.log);

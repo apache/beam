@@ -21,14 +21,20 @@
 requires = [
     "setuptools",
     "wheel>=0.36.0",
-    "grpcio-tools==1.53.0",
+    "grpcio-tools==1.62.1",
     "mypy-protobuf==3.5.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
     "distlib==0.3.7",
     # Numpy headers
-    "numpy>=1.14.3,<1.25", # Update setup.py as well.
+    "numpy>=1.14.3,<2.2.0", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
-    "cython==0.29.36",
+    "cython>=3.0,<4",
+    ## deps for generating external transform wrappers:
+    # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
+    'pyyaml>=3.12,<7.0.0',
+    # also update Jinja2 bounds in test-suites/xlang/build.gradle (look for xlangWrapperValidation task)
+    "jinja2>=2.7.1,<4.0.0",
+    'yapf==0.29.0'
 ]
 
 

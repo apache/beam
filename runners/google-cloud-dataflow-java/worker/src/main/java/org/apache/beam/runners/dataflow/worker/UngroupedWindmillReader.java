@@ -91,12 +91,20 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new UngroupedWindmillReaderIterator(context.getWork());
+    return new UngroupedWindmillReaderIterator(context.getWorkItem());
   }
 
   class UngroupedWindmillReaderIterator extends WindmillReaderIteratorBase {
     UngroupedWindmillReaderIterator(Windmill.WorkItem work) {
       super(work);
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        return false;
+      }
+      return super.advance();
     }
 
     @Override

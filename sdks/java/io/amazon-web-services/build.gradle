@@ -52,8 +52,9 @@ dependencies {
   runtimeOnly "org.apache.httpcomponents:httpclient:4.5.12"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
+  testImplementation library.java.commons_lang3
   testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core
   testImplementation library.java.junit
@@ -62,7 +63,6 @@ dependencies {
   testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
 }
 
 test {

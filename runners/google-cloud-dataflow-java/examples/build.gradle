@@ -98,10 +98,8 @@ def commonConfig = { Map args ->
                "--region=${gcpRegion}",
                "--tempRoot=${actualGcsTempRoot}",
                "--runner=TestDataflowRunner",
-               "--dataflowWorkerJar=${actualDataflowWorkerJar}"]
-       if (actualWorkerHarnessContainerImage) {
-           preCommitBeamTestPipelineOptions += "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"
-       }
+               "--dataflowWorkerJar=${actualDataflowWorkerJar}",
+               "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"]
        preCommitBeamTestPipelineOptions += additionalOptions
        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
      }
@@ -149,15 +147,15 @@ task javaPostCommit() {
     dependsOn postCommitLegacyWorker
 }
 
-task postCommitLegacyWorkerJava11(type: Test) {
+task postCommitLegacyWorkerJava8(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  systemProperty "java.specification.version", "11"
+  systemProperty "java.specification.version", "8"
   with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
 
-task java11PostCommit() {
-  dependsOn postCommitLegacyWorkerJava11
+task java8PostCommit() {
+  dependsOn postCommitLegacyWorkerJava8
 }
 
 task postCommitLegacyWorkerJava17(type: Test) {
@@ -185,6 +183,9 @@ task java21PostCommit() {
 task preCommit() {
   dependsOn preCommitLegacyWorker
   dependsOn preCommitLegacyWorkerImpersonate
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
 }
 
 task verifyPortabilityApi() {

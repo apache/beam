@@ -22,7 +22,10 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -67,30 +70,141 @@ public class SortValuesTest {
         grouped.apply(SortValues.create(BufferedExternalSorter.options()));
 
     PAssert.that(groupedAndSorted)
-        .satisfies(new AssertThatHasExpectedContentsForTestSecondaryKeySorting());
+        .satisfies(
+            new AssertThatHasExpectedContentsForTestSecondaryKeySorting<>(
+                Arrays.asList(
+                    KV.of(
+                        "key1",
+                        Arrays.asList(
+                            KV.of("secondaryKey1", 10),
+                            KV.of("secondaryKey2", 20),
+                            KV.of("secondaryKey3", 30))),
+                    KV.of(
+                        "key2",
+                        Arrays.asList(KV.of("secondaryKey1", 100), KV.of("secondaryKey2", 200))))));
 
     p.run();
   }
 
-  static class AssertThatHasExpectedContentsForTestSecondaryKeySorting
-      implements SerializableFunction<Iterable<KV<String, Iterable<KV<String, Integer>>>>, Void> {
+  @Test
+  public void testSecondaryKeyByteOptimization() {
+    PCollection<KV<String, KV<byte[], Integer>>> input =
+        p.apply(
+            Create.of(
+                Arrays.asList(
+                    KV.of("key1", KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), 20)),
+                    KV.of("key2", KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), 200)),
+                    KV.of("key1", KV.of("secondaryKey3".getBytes(StandardCharsets.UTF_8), 30)),
+                    KV.of("key1", KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), 10)),
+                    KV.of("key2", KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), 100)))));
+
+    // Group by Key, bringing <SecondaryKey, Value> pairs for the same Key together.
+    PCollection<KV<String, Iterable<KV<byte[], Integer>>>> grouped =
+        input.apply(GroupByKey.create());
+
+    // For every Key, sort the iterable of <SecondaryKey, Value> pairs by SecondaryKey.
+    PCollection<KV<String, Iterable<KV<byte[], Integer>>>> groupedAndSorted =
+        grouped.apply(SortValues.create(BufferedExternalSorter.options()));
+
+    PAssert.that(groupedAndSorted)
+        .satisfies(
+            new AssertThatHasExpectedContentsForTestSecondaryKeySorting<>(
+                Arrays.asList(
+                    KV.of(
+                        "key1",
+                        Arrays.asList(
+                            KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), 10),
+                            KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), 20),
+                            KV.of("secondaryKey3".getBytes(StandardCharsets.UTF_8), 30))),
+                    KV.of(
+                        "key2",
+                        Arrays.asList(
+                            KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), 100),
+                            KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), 200))))));
+
+    p.run();
+  }
+
+  @Test
+  public void testSecondaryKeyAndValueByteOptimization() {
+    PCollection<KV<String, KV<byte[], byte[]>>> input =
+        p.apply(
+            Create.of(
+                Arrays.asList(
+                    KV.of(
+                        "key1",
+                        KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), new byte[] {1})),
+                    KV.of(
+                        "key2",
+                        KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), new byte[] {2})),
+                    KV.of(
+                        "key1",
+                        KV.of("secondaryKey3".getBytes(StandardCharsets.UTF_8), new byte[] {3})),
+                    KV.of(
+                        "key1",
+                        KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), new byte[] {4})),
+                    KV.of(
+                        "key2",
+                        KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), new byte[] {5})))));
+
+    // Group by Key, bringing <SecondaryKey, Value> pairs for the same Key together.
+    PCollection<KV<String, Iterable<KV<byte[], byte[]>>>> grouped =
+        input.apply(GroupByKey.create());
+
+    // For every Key, sort the iterable of <SecondaryKey, Value> pairs by SecondaryKey.
+    PCollection<KV<String, Iterable<KV<byte[], byte[]>>>> groupedAndSorted =
+        grouped.apply(SortValues.create(BufferedExternalSorter.options()));
+
+    PAssert.that(groupedAndSorted)
+        .satisfies(
+            new AssertThatHasExpectedContentsForTestSecondaryKeySorting<>(
+                Arrays.asList(
+                    KV.of(
+                        "key1",
+                        Arrays.asList(
+                            KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), new byte[] {4}),
+                            KV.of("secondaryKey2".getBytes(StandardCharsets.UTF_8), new byte[] {1}),
+                            KV.of(
+                                "secondaryKey3".getBytes(StandardCharsets.UTF_8), new byte[] {3}))),
+                    KV.of(
+                        "key2",
+                        Arrays.asList(
+                            KV.of("secondaryKey1".getBytes(StandardCharsets.UTF_8), new byte[] {5}),
+                            KV.of(
+                                "secondaryKey2".getBytes(StandardCharsets.UTF_8),
+                                new byte[] {2}))))));
+
+    p.run();
+  }
+
+  static class AssertThatHasExpectedContentsForTestSecondaryKeySorting<SecondaryKeyT, ValueT>
+      implements SerializableFunction<
+          Iterable<KV<String, Iterable<KV<SecondaryKeyT, ValueT>>>>, Void> {
+    final List<KV<String, List<KV<SecondaryKeyT, ValueT>>>> expected;
+
+    AssertThatHasExpectedContentsForTestSecondaryKeySorting(
+        List<KV<String, List<KV<SecondaryKeyT, ValueT>>>> expected) {
+      this.expected = expected;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
-    public Void apply(Iterable<KV<String, Iterable<KV<String, Integer>>>> actual) {
+    public Void apply(Iterable<KV<String, Iterable<KV<SecondaryKeyT, ValueT>>>> actual) {
       assertThat(
           actual,
           containsInAnyOrder(
-              KvMatcher.isKv(
-                  is("key1"),
-                  contains(
-                      KvMatcher.isKv(is("secondaryKey1"), is(10)),
-                      KvMatcher.isKv(is("secondaryKey2"), is(20)),
-                      KvMatcher.isKv(is("secondaryKey3"), is(30)))),
-              KvMatcher.isKv(
-                  is("key2"),
-                  contains(
-                      KvMatcher.isKv(is("secondaryKey1"), is(100)),
-                      KvMatcher.isKv(is("secondaryKey2"), is(200))))));
+              expected.stream()
+                  .map(
+                      kv1 ->
+                          KvMatcher.isKv(
+                              is(kv1.getKey()),
+                              contains(
+                                  kv1.getValue().stream()
+                                      .map(
+                                          kv2 ->
+                                              KvMatcher.isKv(is(kv2.getKey()), is(kv2.getValue())))
+                                      .collect(Collectors.toList()))))
+                  .collect(Collectors.toList())));
       return null;
     }
   }

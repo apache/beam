@@ -38,8 +38,8 @@ export class PipelineResult {
     return Object.fromEntries(
       metrics.aggregateMetrics(
         await this.rawMetrics(),
-        "beam:metric:user:sum_int64:v1"
-      )
+        "beam:metric:user:sum_int64:v1",
+      ),
     );
   }
 
@@ -47,8 +47,8 @@ export class PipelineResult {
     return Object.fromEntries(
       metrics.aggregateMetrics(
         await this.rawMetrics(),
-        "beam:metric:user:distribution_int64:v1"
-      )
+        "beam:metric:user:distribution_int64:v1",
+      ),
     );
   }
 }
@@ -101,7 +101,7 @@ export abstract class Runner {
    */
   async run(
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ): Promise<PipelineResult> {
     const pipelineResult = await this.runAsync(pipeline, options);
     const finalState = await pipelineResult.waitUntilFinish();
@@ -119,7 +119,7 @@ export abstract class Runner {
    */
   async runAsync(
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ): Promise<PipelineResult> {
     const p = new Pipeline();
     await pipeline(new Root(p));
@@ -128,7 +128,7 @@ export abstract class Runner {
 
   abstract runPipeline(
     pipeline: runnerApi.Pipeline,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ): Promise<PipelineResult>;
 }
 
@@ -136,7 +136,7 @@ export function defaultRunner(defaultOptions: Object): Runner {
   return new (class extends Runner {
     async runPipeline(
       pipeline: runnerApi.Pipeline,
-      options: Object = {}
+      options: Object = {},
     ): Promise<PipelineResult> {
       const directRunner =
         require("./direct_runner").directRunner(defaultOptions);

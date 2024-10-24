@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -210,9 +211,6 @@ public class Pipeline {
    *
    * <p>Replaces all nodes that match a {@link PTransformOverride} in this pipeline. Overrides are
    * applied in the order they are present within the list.
-   *
-   * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
-   * overrides.
    */
   @Internal
   public void replaceAll(List<PTransformOverride> overrides) {
@@ -241,9 +239,10 @@ public class Pipeline {
 
           @Override
           public void leaveCompositeTransform(Node node) {
-            if (node.isRootNode()) {
-              checkState(
-                  matched.isEmpty(), "Found nodes that matched overrides. Matches: %s", matched);
+            if (node.isRootNode() && !matched.isEmpty()) {
+              LOG.info(
+                  "Found nodes that matched overrides. Matches: {}. The match usually should be empty unless there are runner specific replacement transforms.",
+                  matched);
             }
           }
 
@@ -336,7 +335,7 @@ public class Pipeline {
   /** Returns the {@link CoderRegistry} that this {@link Pipeline} uses. */
   public CoderRegistry getCoderRegistry() {
     if (coderRegistry == null) {
-      coderRegistry = CoderRegistry.createDefault();
+      coderRegistry = CoderRegistry.createDefault(getSchemaRegistry());
     }
     return coderRegistry;
   }
@@ -526,6 +525,7 @@ public class Pipeline {
   private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+    CoderTranslation.verifyModelCodersRegistered();
     this.transforms = transforms;
     this.defaultOptions = options;
   }
@@ -734,7 +734,7 @@ public class Pipeline {
     for (ErrorHandler<?, ?> errorHandler : errorHandlers) {
       if (!errorHandler.isClosed()) {
         throw new IllegalStateException(
-            "One or more ErrorHandlers aren't closed, and this pipeline"
+            "One or more ErrorHandlers aren't closed, and this pipeline "
                 + "cannot be run. See the ErrorHandler documentation for expected usage");
       }
     }

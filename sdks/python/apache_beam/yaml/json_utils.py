@@ -39,6 +39,14 @@ JSON_ATOMIC_TYPES_TO_BEAM = {
     'string': schema_pb2.STRING,
 }
 
+BEAM_ATOMIC_TYPES_TO_JSON = {
+    schema_pb2.INT16: 'integer',
+    schema_pb2.INT32: 'integer',
+    schema_pb2.FLOAT: 'number',
+    **{v: k
+       for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()}
+}
+
 
 def json_schema_to_beam_schema(
     json_schema: Dict[str, Any]) -> schema_pb2.Schema:
@@ -61,7 +69,8 @@ def json_schema_to_beam_schema(
       fields=[
           schemas.schema_field(
               name,
-              maybe_nullable(json_type_to_beam_type(t), name not in required))
+              maybe_nullable(json_type_to_beam_type(t), name not in required),
+              description=t.get('description') if isinstance(t, dict) else None)
           for (name, t) in json_schema['properties'].items()
       ])
 
@@ -95,6 +104,47 @@ def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
           f'got {json_type}.')
   else:
     raise ValueError(f'Unable to convert {json_type} to a Beam schema.')
+
+
+def beam_type_to_json_type(beam_type: schema_pb2.FieldType) -> Dict[str, Any]:
+  type_info = beam_type.WhichOneof("type_info")
+  if type_info == "atomic_type":
+    if beam_type.atomic_type in BEAM_ATOMIC_TYPES_TO_JSON:
+      return {'type': BEAM_ATOMIC_TYPES_TO_JSON[beam_type.atomic_type]}
+    else:
+      return {}
+  elif type_info == "array_type":
+    return {
+        'type': 'array',
+        'items': beam_type_to_json_type(beam_type.array_type.element_type)
+    }
+  elif type_info == "iterable_type":
+    return {
+        'type': 'array',
+        'items': beam_type_to_json_type(beam_type.iterable_type.element_type)
+    }
+  elif type_info == "map_type":
+    return {
+        'type': 'object',
+        'properties': {
+            '__line__': {
+                'type': 'integer'
+            }, '__uuid__': {}
+        },
+        'additionalProperties': beam_type_to_json_type(
+            beam_type.map_type.value_type)
+    }
+  elif type_info == "row_type":
+    return {
+        'type': 'object',
+        'properties': {
+            field.name: beam_type_to_json_type(field.type)
+            for field in beam_type.row_type.schema.fields
+        },
+        'additionalProperties': False
+    }
+  else:
+    return {}
 
 
 def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:

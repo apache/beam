@@ -151,7 +151,7 @@ class RedisClient implements SetupTeardown {
    * Sets the key/value for a Duration expiry. Naming of this method preserves that of the
    * underlying {@link JedisPooled} client and performs a null check prior to execution.
    */
-  void setex(byte[] key, byte[] value, @NonNull Duration expiry) throws UserCodeExecutionException {
+  void setex(byte[] key, byte[] value, Duration expiry) throws UserCodeExecutionException {
     try {
       getSafeClient().setex(key, expiry.getStandardSeconds(), value);
     } catch (JedisException e) {
@@ -163,7 +163,7 @@ class RedisClient implements SetupTeardown {
    * Sets the key/value for a Duration expiry. Naming of this method preserves that of the
    * underlying {@link JedisPooled} client and performs a null check prior to execution.
    */
-  void setex(String key, Long value, @NonNull Duration expiry) throws UserCodeExecutionException {
+  void setex(String key, Long value, Duration expiry) throws UserCodeExecutionException {
     try {
       getSafeClient().setex(key, expiry.getStandardSeconds(), String.valueOf(value));
     } catch (JedisException e) {

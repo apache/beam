@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*']
+    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*', '.github/workflows/go_test.yml']
   workflow_dispatch:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -36,18 +36,17 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     name: Go Build
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: actions/setup-go@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.21'
-          cache-dependency-path: |
-             sdks/go.sum
+          go-version: default
       - name: Delete old coverage
         run: "cd sdks && rm -rf .coverage.txt || :"
       - name: Run coverage
@@ -65,6 +64,6 @@ jobs:
           go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2023.1.3"
+          go install "honnef.co/go/tools/cmd/staticcheck@2024.1.1"
           cd sdks/go/pkg/beam
           $(go env GOPATH)/bin/staticcheck ./...

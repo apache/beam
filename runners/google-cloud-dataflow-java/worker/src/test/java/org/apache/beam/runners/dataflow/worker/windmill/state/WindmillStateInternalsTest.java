@@ -20,11 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 import static org.apache.beam.runners.dataflow.worker.DataflowMatchers.ByteStringMatcher.byteStringEq;
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -34,6 +30,8 @@ import static org.mockito.Mockito.when;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
@@ -47,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -82,8 +81,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -129,7 +127,9 @@ public class WindmillStateInternalsTest {
   @Mock private WindmillStateReader mockReader;
   private WindmillStateInternals<String> underTest;
   private WindmillStateInternals<String> underTestNewKey;
+  private WindmillStateInternals<String> underTestMapViaMultimap;
   private WindmillStateCache cache;
+  private WindmillStateCache cacheViaMultimap;
   @Mock private Supplier<Closeable> readStateSupplier;
 
   private static ByteString key(StateNamespace namespace, String addrId) {
@@ -205,7 +205,12 @@ public class WindmillStateInternalsTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    cache = new WindmillStateCache(options.getWorkerCacheMb());
+    cache = WindmillStateCache.builder().setSizeMb(options.getWorkerCacheMb()).build();
+    cacheViaMultimap =
+        WindmillStateCache.builder()
+            .setSizeMb(options.getWorkerCacheMb())
+            .setSupportMapViaMultimap(true)
+            .build();
     resetUnderTest();
   }
 
@@ -221,7 +226,7 @@ public class WindmillStateInternalsTest {
                 .forComputation("comp")
                 .forKey(
                     WindmillComputationKey.create(
-                        "comp", ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123),
+                        "comp", ByteString.copyFrom("dummyKey", StandardCharsets.UTF_8), 123),
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
@@ -236,7 +241,22 @@ public class WindmillStateInternalsTest {
                 .forComputation("comp")
                 .forKey(
                     WindmillComputationKey.create(
-                        "comp", ByteString.copyFrom("dummyNewKey", Charsets.UTF_8), 123),
+                        "comp", ByteString.copyFrom("dummyNewKey", StandardCharsets.UTF_8), 123),
+                    17L,
+                    workToken)
+                .forFamily(STATE_FAMILY),
+            readStateSupplier);
+    underTestMapViaMultimap =
+        new WindmillStateInternals<String>(
+            "dummyNewKey",
+            STATE_FAMILY,
+            mockReader,
+            false,
+            cacheViaMultimap
+                .forComputation("comp")
+                .forKey(
+                    WindmillComputationKey.create(
+                        "comp", ByteString.copyFrom("dummyNewKey", StandardCharsets.UTF_8), 123),
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
@@ -248,6 +268,7 @@ public class WindmillStateInternalsTest {
     // Make sure no WindmillStateReader (a per-WorkItem object) escapes into the cache
     // (a global object).
     WindmillStateTestUtils.assertNoReference(cache, WindmillStateReader.class);
+    WindmillStateTestUtils.assertNoReference(cacheViaMultimap, WindmillStateReader.class);
   }
 
   private <T> void waitAndSet(final SettableFuture<T> future, final T value, final long millis) {
@@ -284,6 +305,26 @@ public class WindmillStateInternalsTest {
   private <K> K userKeyFromProtoKey(ByteString tag, Coder<K> keyCoder) throws IOException {
     ByteString keyBytes = tag.substring(key(NAMESPACE, "map").size());
     return keyCoder.decode(keyBytes.newInput(), Context.OUTER);
+  }
+
+  private static void assertBuildable(
+      Windmill.WorkItemCommitRequest.Builder commitWorkRequestBuilder) {
+    Windmill.WorkItemCommitRequest.Builder clone = commitWorkRequestBuilder.clone();
+    if (!clone.hasKey()) {
+      clone.setKey(ByteString.EMPTY); // key is required to build
+    }
+    if (!clone.hasWorkToken()) {
+      clone.setWorkToken(1357924680L); // workToken is required to build
+    }
+
+    try {
+      clone.build();
+    } catch (Exception e) {
+      StringWriter sw = new StringWriter();
+      e.printStackTrace(new PrintWriter(sw));
+      fail(
+          "Failed to build commitRequest from: " + commitWorkRequestBuilder + "\n" + sw.toString());
+    }
   }
 
   @Test
@@ -628,6 +669,8 @@ public class WindmillStateInternalsTest {
             .map(tv -> fromTagValue(tv, StringUtf8Coder.of(), VarIntCoder.of()))
             .collect(Collectors.toList()),
         Matchers.containsInAnyOrder(new SimpleEntry<>(tag1, 1), new SimpleEntry<>(tag2, 2)));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -651,6 +694,8 @@ public class WindmillStateInternalsTest {
             .map(tv -> fromTagValue(tv, StringUtf8Coder.of(), VarIntCoder.of()))
             .collect(Collectors.toList()),
         Matchers.containsInAnyOrder(new SimpleEntry<>(tag1, null), new SimpleEntry<>(tag2, null)));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -676,6 +721,8 @@ public class WindmillStateInternalsTest {
     assertEquals(
         protoKeyFromUserKey(null, StringUtf8Coder.of()),
         commitBuilder.getTagValuePrefixDeletes(0).getTagPrefix());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -717,6 +764,8 @@ public class WindmillStateInternalsTest {
     commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
     assertEquals(0, commitBuilder.getTagValuePrefixDeletesCount());
     assertEquals(0, commitBuilder.getValueUpdatesCount());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -741,6 +790,38 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testMapViaMultimapGet() {
+    final String tag = "map";
+    StateTag<MapState<byte[], Integer>> addr =
+        StateTags.map(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapViaMultiMapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
+    final byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
+    SettableFuture<Iterable<Integer>> future1 = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key1, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(future1);
+    SettableFuture<Iterable<Integer>> future2 = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key2, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(future2);
+
+    ReadableState<Integer> result1 = mapViaMultiMapState.get(dup(key1)).readLater();
+    ReadableState<Integer> result2 = mapViaMultiMapState.get(dup(key2)).readLater();
+    waitAndSet(future1, Collections.singletonList(1), 30);
+    waitAndSet(future2, Collections.emptyList(), 1);
+    assertEquals(Integer.valueOf(1), result1.read());
+    assertNull(result2.read());
+  }
+
+  @Test
   public void testMultimapPutAndGet() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
@@ -760,6 +841,41 @@ public class WindmillStateInternalsTest {
     ReadableState<Iterable<Integer>> result = multimapState.get(dup(key)).readLater();
     waitAndSet(future, Arrays.asList(1, 2, 3), 30);
     assertThat(result.read(), Matchers.containsInAnyOrder(1, 1, 2, 3));
+
+    multimapState.remove(key);
+    multimapState.put(key, 4);
+    multimapState.remove(key);
+    multimapState.put(key, 5);
+    assertThat(result.read(), Matchers.containsInAnyOrder(5));
+    multimapState.clear();
+    assertThat(multimapState.get(key).read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testMapViaMultimapPutAndGet() {
+    final String tag = "map";
+    StateTag<MapState<byte[], Integer>> addr =
+        StateTags.map(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapViaMultiMapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] key = "key".getBytes(StandardCharsets.UTF_8);
+    SettableFuture<Iterable<Integer>> future = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(future);
+
+    mapViaMultiMapState.put(key, 1);
+    ReadableState<Integer> result = mapViaMultiMapState.get(dup(key)).readLater();
+    waitAndSet(future, Collections.singletonList(2), 30);
+    assertEquals(Integer.valueOf(1), result.read());
+
+    mapViaMultiMapState.put(key, 3);
+    assertEquals(Integer.valueOf(3), mapViaMultiMapState.get(key).read());
+    mapViaMultiMapState.clear();
+    assertNull(mapViaMultiMapState.get(key).read());
   }
 
   @Test
@@ -788,6 +904,33 @@ public class WindmillStateInternalsTest {
     multimapState.remove(key);
     assertFalse(multimapState.containsKey(dup(key)).read());
     assertThat(result2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testMapViaMultimapRemoveAndGet() {
+    final String tag = "map";
+    StateTag<MapState<byte[], Integer>> addr =
+        StateTags.map(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapViaMultiMapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] key = "key".getBytes(StandardCharsets.UTF_8);
+    SettableFuture<Iterable<Integer>> future = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(future);
+
+    ReadableState<Integer> result1 = mapViaMultiMapState.get(key).readLater();
+    ReadableState<Integer> result2 = mapViaMultiMapState.get(dup(key)).readLater();
+    waitAndSet(future, Collections.singletonList(1), 30);
+
+    assertEquals(Integer.valueOf(1), result1.read());
+
+    mapViaMultiMapState.remove(key);
+    assertNull(mapViaMultiMapState.get(dup(key)).read());
+    assertNull(result2.read());
   }
 
   @Test
@@ -840,6 +983,8 @@ public class WindmillStateInternalsTest {
 
     multimapState.put(key, 5);
     assertThat(multimapState.get(key).read(), Matchers.containsInAnyOrder(4, 5));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1030,6 +1175,64 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testMapViaMultimapEntriesAndKeysMergeLocalAddRemoveClear() {
+    final String tag = "map";
+    StateTag<MapState<byte[], Integer>> addr =
+        StateTags.map(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
+    final byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
+    final byte[] key3 = "key3".getBytes(StandardCharsets.UTF_8);
+    final byte[] key4 = "key4".getBytes(StandardCharsets.UTF_8);
+
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> entriesFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            false, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(entriesFuture);
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> keysFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(keysFuture);
+
+    ReadableState<Iterable<Map.Entry<byte[], Integer>>> entriesResult =
+        mapState.entries().readLater();
+    ReadableState<Iterable<byte[]>> keysResult = mapState.keys().readLater();
+    waitAndSet(entriesFuture, Arrays.asList(multimapEntry(key1, 3), multimapEntry(key2, 4)), 30);
+    waitAndSet(keysFuture, Arrays.asList(multimapEntry(key1), multimapEntry(key2)), 30);
+
+    mapState.put(key1, 7);
+    mapState.put(dup(key3), 8);
+    mapState.put(key4, 1);
+    mapState.remove(key4);
+
+    Iterable<Map.Entry<byte[], Integer>> entries = entriesResult.read();
+    assertEquals(3, Iterables.size(entries));
+    assertThat(
+        entries,
+        Matchers.containsInAnyOrder(
+            multimapEntryMatcher(key1, 7),
+            multimapEntryMatcher(key2, 4),
+            multimapEntryMatcher(key3, 8)));
+
+    Iterable<byte[]> keys = keysResult.read();
+    assertEquals(3, Iterables.size(keys));
+    assertThat(keys, Matchers.containsInAnyOrder(key1, key2, key3));
+    assertFalse(mapState.isEmpty().read());
+
+    mapState.clear();
+    assertTrue(mapState.isEmpty().read());
+    assertTrue(Iterables.isEmpty(mapState.keys().read()));
+    assertTrue(Iterables.isEmpty(mapState.entries().read()));
+
+    // Previously read iterable should still have the same result.
+    assertEquals(3, Iterables.size(keys));
+    assertThat(keys, Matchers.containsInAnyOrder(key1, key2, key3));
+  }
+
+  @Test
   public void testMultimapEntriesAndKeysMergeLocalRemove() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =
@@ -1074,6 +1277,48 @@ public class WindmillStateInternalsTest {
             multimapEntryMatcher(key2, 3),
             multimapEntryMatcher(key2, 8),
             multimapEntryMatcher(key3, 8)));
+
+    Iterable<byte[]> keys = keysResult.read();
+    assertThat(keys, Matchers.containsInAnyOrder(key2, key3));
+  }
+
+  @Test
+  public void testMapViaMultimapEntriesAndKeysMergeLocalRemove() {
+    final String tag = "map";
+    StateTag<MapState<byte[], Integer>> addr =
+        StateTags.map(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] key1 = "key1".getBytes(StandardCharsets.UTF_8);
+    final byte[] key2 = "key2".getBytes(StandardCharsets.UTF_8);
+    final byte[] key3 = "key3".getBytes(StandardCharsets.UTF_8);
+
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> entriesFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            false, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(entriesFuture);
+    SettableFuture<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> keysFuture =
+        SettableFuture.create();
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(keysFuture);
+
+    ReadableState<Iterable<Map.Entry<byte[], Integer>>> entriesResult =
+        mapState.entries().readLater();
+    ReadableState<Iterable<byte[]>> keysResult = mapState.keys().readLater();
+    waitAndSet(entriesFuture, Arrays.asList(multimapEntry(key1, 1), multimapEntry(key2, 2)), 30);
+    waitAndSet(keysFuture, Arrays.asList(multimapEntry(key1), multimapEntry(key2)), 30);
+
+    mapState.remove(dup(key1));
+    mapState.put(key2, 8);
+    mapState.put(dup(key3), 9);
+
+    Iterable<Map.Entry<byte[], Integer>> entries = entriesResult.read();
+    assertEquals(2, Iterables.size(entries));
+    assertThat(
+        entries,
+        Matchers.containsInAnyOrder(multimapEntryMatcher(key2, 8), multimapEntryMatcher(key3, 9)));
 
     Iterable<byte[]> keys = keysResult.read();
     assertThat(keys, Matchers.containsInAnyOrder(key2, key3));
@@ -1553,6 +1798,8 @@ public class WindmillStateInternalsTest {
         builder,
         new MultimapEntryUpdate(key1, Arrays.asList(1, 2), false),
         new MultimapEntryUpdate(key2, Collections.singletonList(2), false));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1586,6 +1833,8 @@ public class WindmillStateInternalsTest {
         builder,
         new MultimapEntryUpdate(key1, Arrays.asList(1, 2), true),
         new MultimapEntryUpdate(key2, Collections.singletonList(4), true));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1612,6 +1861,8 @@ public class WindmillStateInternalsTest {
         builder,
         new MultimapEntryUpdate(key1, Collections.emptyList(), true),
         new MultimapEntryUpdate(key2, Collections.emptyList(), true));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1643,6 +1894,8 @@ public class WindmillStateInternalsTest {
         Iterables.getOnlyElement(commitBuilder.getMultimapUpdatesBuilderList());
     assertEquals(0, builder.getUpdatesCount());
     assertTrue(builder.getDeleteAll());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1681,6 +1934,8 @@ public class WindmillStateInternalsTest {
         Iterables.getOnlyElement(commitBuilder.getMultimapUpdatesBuilderList());
     assertTagMultimapUpdates(
         builder, new MultimapEntryUpdate(key1, Collections.singletonList(4), false));
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1725,6 +1980,8 @@ public class WindmillStateInternalsTest {
         ByteArrayCoder.of().decode(entryUpdate.getEntryName().newInput(), Context.OUTER);
     assertArrayEquals(key1, decodedKey);
     assertTrue(entryUpdate.getDeleteAll());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1790,7 +2047,9 @@ public class WindmillStateInternalsTest {
     }
 
     // clear cache and recreate multimapState
-    cache.forComputation("comp").invalidate(ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123);
+    cache
+        .forComputation("comp")
+        .invalidate(ByteString.copyFrom("dummyKey", StandardCharsets.UTF_8), 123);
     resetUnderTest();
     multimapState = underTest.state(NAMESPACE, addr);
 
@@ -1838,6 +2097,8 @@ public class WindmillStateInternalsTest {
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     underTest.persist(commitBuilder);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -1872,17 +2133,62 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testOrderedListAddBeforeRangeRead() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    Range<Long> readSubrange = Range.closedOpen(70 * 1000L, 100 * 1000L);
+    when(mockReader.orderedListFuture(
+            readSubrange, key(NAMESPACE, "orderedList"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
+
+    orderedList.readRangeLater(Instant.ofEpochMilli(70), Instant.ofEpochMilli(100));
+
+    final TimestampedValue<String> helloValue =
+        TimestampedValue.of("hello", Instant.ofEpochMilli(100));
+    final TimestampedValue<String> worldValue =
+        TimestampedValue.of("world", Instant.ofEpochMilli(75));
+    final TimestampedValue<String> goodbyeValue =
+        TimestampedValue.of("goodbye", Instant.ofEpochMilli(50));
+
+    orderedList.add(helloValue);
+    waitAndSet(future, Collections.singletonList(worldValue), 200);
+    orderedList.add(goodbyeValue);
+
+    assertThat(
+        orderedList.readRange(Instant.ofEpochMilli(70), Instant.ofEpochMilli(100)),
+        Matchers.contains(worldValue));
+  }
+
+  @Test
   public void testOrderedListClearBeforeRead() throws Exception {
     StateTag<OrderedListState<String>> addr =
         StateTags.orderedList("orderedList", StringUtf8Coder.of());
     OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
 
-    final TimestampedValue<String> helloElement = TimestampedValue.of("hello", Instant.EPOCH);
+    final TimestampedValue<String> helloElement =
+        TimestampedValue.of("hello", Instant.ofEpochSecond(1));
     orderedListState.clear();
     orderedListState.add(helloElement);
     assertThat(orderedListState.read(), Matchers.containsInAnyOrder(helloElement));
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
+
+    assertThat(
+        orderedListState.readRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)),
+        Matchers.containsInAnyOrder(helloElement));
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
 
     // Shouldn't need to read from windmill for this.
+    assertThat(
+        orderedListState.readRange(Instant.ofEpochSecond(100), Instant.ofEpochSecond(200)),
+        Matchers.emptyIterable());
+    assertThat(
+        orderedListState.readRange(Instant.EPOCH, Instant.ofEpochSecond(1)),
+        Matchers.emptyIterable());
     Mockito.verifyZeroInteractions(mockReader);
   }
 
@@ -1993,6 +2299,8 @@ public class WindmillStateInternalsTest {
     assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
     assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
     assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2024,6 +2332,8 @@ public class WindmillStateInternalsTest {
     assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
     assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2071,6 +2381,8 @@ public class WindmillStateInternalsTest {
     assertEquals(4000, updates.getInserts(0).getEntries(1).getSortKey());
     assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
     assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2202,6 +2514,66 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testOrderedListInterleavedLocalAddClearReadRange() {
+    Future<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = Futures.immediateFuture(null);
+    Future<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture = Futures.immediateFuture(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> fromStorage = SettableFuture.create();
+
+    Range<Long> readSubrange = Range.closedOpen(1 * 1000000L, 8 * 1000000L);
+    when(mockReader.orderedListFuture(
+            readSubrange, key(NAMESPACE, "orderedList"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(fromStorage);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("1", Instant.ofEpochSecond(1)));
+    orderedListState.add(TimestampedValue.of("2", Instant.ofEpochSecond(2)));
+    orderedListState.add(TimestampedValue.of("3", Instant.ofEpochSecond(3)));
+    orderedListState.add(TimestampedValue.of("4", Instant.ofEpochSecond(4)));
+
+    orderedListState.clearRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(4));
+
+    orderedListState.add(TimestampedValue.of("5", Instant.ofEpochSecond(5)));
+    orderedListState.add(TimestampedValue.of("6", Instant.ofEpochSecond(6)));
+
+    orderedListState.add(TimestampedValue.of("3_again", Instant.ofEpochSecond(3)));
+
+    orderedListState.add(TimestampedValue.of("7", Instant.ofEpochSecond(7)));
+    orderedListState.add(TimestampedValue.of("8", Instant.ofEpochSecond(8)));
+
+    fromStorage.set(ImmutableList.<TimestampedValue<String>>of());
+
+    TimestampedValue[] expected =
+        Iterables.toArray(
+            ImmutableList.of(
+                TimestampedValue.of("3_again", Instant.ofEpochSecond(3)),
+                TimestampedValue.of("4", Instant.ofEpochSecond(4)),
+                TimestampedValue.of("5", Instant.ofEpochSecond(5)),
+                TimestampedValue.of("6", Instant.ofEpochSecond(6)),
+                TimestampedValue.of("7", Instant.ofEpochSecond(7))),
+            TimestampedValue.class);
+
+    TimestampedValue[] read =
+        Iterables.toArray(
+            orderedListState.readRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(8)),
+            TimestampedValue.class);
+    assertArrayEquals(expected, read);
+  }
+
+  @Test
   public void testOrderedListPersistEmpty() throws Exception {
     StateTag<OrderedListState<String>> addr =
         StateTags.orderedList("orderedList", StringUtf8Coder.of());
@@ -2219,6 +2591,8 @@ public class WindmillStateInternalsTest {
     assertEquals(1, updates.getDeletesCount());
     assertEquals(WindmillOrderedList.MIN_TS_MICROS, updates.getDeletes(0).getRange().getStart());
     assertEquals(WindmillOrderedList.MAX_TS_MICROS, updates.getDeletes(0).getRange().getLimit());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2333,6 +2707,8 @@ public class WindmillStateInternalsTest {
     assertEquals("hello", bagUpdates.getValues(0).toStringUtf8());
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2358,6 +2734,8 @@ public class WindmillStateInternalsTest {
     assertEquals("world", tagBag.getValues(0).toStringUtf8());
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2373,6 +2751,8 @@ public class WindmillStateInternalsTest {
 
     // 1 bag update = the clear
     assertEquals(1, commitBuilder.getBagUpdatesCount());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2486,6 +2866,8 @@ public class WindmillStateInternalsTest {
         11, CoderUtils.decodeFromByteArray(accumCoder, bagUpdates.getValues(0).toByteArray())[0]);
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2515,6 +2897,8 @@ public class WindmillStateInternalsTest {
     assertTrue(bagUpdates.getDeleteAll());
     assertEquals(
         111, CoderUtils.decodeFromByteArray(accumCoder, bagUpdates.getValues(0).toByteArray())[0]);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2542,6 +2926,8 @@ public class WindmillStateInternalsTest {
         11, CoderUtils.decodeFromByteArray(accumCoder, tagBag.getValues(0).toByteArray())[0]);
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2670,6 +3056,8 @@ public class WindmillStateInternalsTest {
     assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2696,6 +3084,8 @@ public class WindmillStateInternalsTest {
 
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2722,6 +3112,8 @@ public class WindmillStateInternalsTest {
 
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2748,6 +3140,8 @@ public class WindmillStateInternalsTest {
 
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2771,6 +3165,8 @@ public class WindmillStateInternalsTest {
 
     // Blind adds should not need to read the future.
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2796,6 +3192,8 @@ public class WindmillStateInternalsTest {
     assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), clearAndUpdate.getTimestamps(0));
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2813,6 +3211,8 @@ public class WindmillStateInternalsTest {
 
     // 1 bag update corresponds to deletion. There shouldn't be a bag update adding items.
     assertEquals(1, commitBuilder.getWatermarkHoldsCount());
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2880,6 +3280,8 @@ public class WindmillStateInternalsTest {
     assertTrue(valueUpdate.isInitialized());
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2900,6 +3302,8 @@ public class WindmillStateInternalsTest {
     assertEquals(0, valueUpdate.getValue().getData().size());
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2914,6 +3318,8 @@ public class WindmillStateInternalsTest {
     assertEquals(0, commitBuilder.getValueUpdatesCount());
 
     Mockito.verifyNoMoreInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test
@@ -2937,7 +3343,7 @@ public class WindmillStateInternalsTest {
     value.write("Hi");
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(132, cache.getWeight());
+    assertEquals(221, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -2945,7 +3351,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(130, cache.getWeight());
+    assertEquals(219, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -2977,7 +3383,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(140, cache.getWeight());
+    assertEquals(227, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -2997,7 +3403,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(133, cache.getWeight());
+    assertEquals(220, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -3008,7 +3414,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(134, cache.getWeight());
+    assertEquals(221, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -3039,7 +3445,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(138, cache.getWeight());
+    assertEquals(231, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -3048,7 +3454,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(138, cache.getWeight());
+    assertEquals(231, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -3079,7 +3485,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(131, cache.getWeight());
+    assertEquals(224, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
@@ -3090,7 +3496,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(130, cache.getWeight());
+    assertEquals(223, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);

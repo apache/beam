@@ -87,6 +87,8 @@ runShadow {
 def sickbayTests = [
         // TODO(BEAM-13498)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+        // TODO(https://github.com/apache/beam/issues/29973)
+        'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata',
 ]
 
 def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests) {
@@ -106,6 +108,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
 
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -115,7 +118,6 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
@@ -157,12 +159,23 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
         // // Assertion error: incorrect output
         excludeTestsMatching 'CombineTest$BasicTests.testHotKeyCombining'
+        // TODO(https://github.com/apache/beam/issues/29973)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+        // TODO(https://github.com/apache/beam/issues/31231)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+        // TODO(https://github.com/apache/beam/issues/31234) same reason as GroupByKeyTest and ReshuffleTest above
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterFixedWindows'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterSlidingWindows'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterFixedWindowsAndGroupByKey'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterSessionsAndGroupByKey'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterSlidingWindowsAndGroupByKey'
       }
     }
     else {
       // Batch
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -173,7 +186,6 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
@@ -193,7 +205,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
       testFilter = {
         // TODO (https://github.com/apache/beam/issues/20189)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-
+        // TODO(https://github.com/apache/beam/issues/31231)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
         for (String test : sickbayTests) {
           excludeTestsMatching test
         }

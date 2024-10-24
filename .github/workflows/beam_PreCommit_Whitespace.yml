@@ -19,10 +19,10 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['**.md', '**.build.gradle', 'build.gradle.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
+    paths: ['**.md', '**.gradle', '**.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['**.md', '**.build.gradle', 'build.gradle.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Whitespace.json']
+    paths: ['**.md', '**.gradle', '**.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Whitespace.json']
   issue_comment:
     types: [created]
   schedule:
@@ -50,7 +50,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -80,8 +80,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          python-version: 3.8
+          java-version: default
+          python-version: default
       - name: run whitespacePreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

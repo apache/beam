@@ -13,17 +13,12 @@ on:
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: true
-      PYPI_USER:
-        description: PyPi username to perform the upload with
-        required: true
-      PYPI_PASSWORD:
-        description: PyPi password to perform the upload with
+      PYPI_API_TOKEN:
+        description: PyPi API token to perform the PyPi upload with
         required: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 jobs:
   deploy_release_candidate_pypi:
@@ -31,14 +26,16 @@ jobs:
     steps:
     - name: Mask PyPi id/password
       run: |
-        echo "::add-mask::${{ github.event.inputs.PYPI_USER }}"
-        echo "::add-mask::${{ github.event.inputs.PYPI_PASSWORD }}"
+        # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+        PYPI_API_TOKEN=$(jq -r '.inputs.PYPI_API_TOKEN' $GITHUB_EVENT_PATH)
+        echo "::add-mask::$PYPI_API_TOKEN"
     - name: Checkout
       uses: actions/checkout@v4
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
         python-version: 3.11
+        disable-cache: true
     - name: Install dependencies
       run: |
         pip install python-dateutil
@@ -70,8 +67,8 @@ jobs:
         cd "${PYTHON_ARTIFACTS_DIR}"
         ls
 
-        echo "------Checking Hash Value for apache-beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
-        sha512sum -c "apache-beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
+        echo "------Checking Hash Value for apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
+        sha512sum -c "apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
         
         for artifact in *.whl; do
           echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -86,4 +83,4 @@ jobs:
         echo "Will upload the following files to PyPI:"
         ls
 
-        twine upload * -u ${{ github.event.inputs.PYPI_USER }} -p ${{ github.event.inputs.PYPI_PASSWORD }}
+        twine upload * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"

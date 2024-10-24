@@ -27,7 +27,7 @@ import { Schema } from "../proto/schema";
 import { RowCoder } from "../coders/row_coder";
 
 export function readFromText(
-  filePattern: string
+  filePattern: string,
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<string>> {
   return async function readFromText(root: beam.Root) {
     return root.applyAsync(
@@ -35,8 +35,8 @@ export function readFromText(
         "apache_beam.io.ReadFromText",
         {
           file_pattern: filePattern,
-        }
-      )
+        },
+      ),
     );
   };
 }
@@ -50,9 +50,9 @@ export function writeToText(
     shardNameTemplate?: string;
     header?: string;
     footer?: string;
-  } = {}
+  } = {},
 ): (
-  toWrite: beam.PCollection<string>
+  toWrite: beam.PCollection<string>,
 ) => Promise<{ filesWritten: beam.PCollection<string> }> {
   return async function writeToText(pcoll: beam.PCollection<string>) {
     return {
@@ -63,7 +63,7 @@ export function writeToText(
           pythonTransform("apache_beam.io.WriteToText", {
             file_path_prefix: filePathPrefix,
             ...camelToSnakeOptions(options),
-          })
+          }),
         ),
     };
   };
@@ -71,7 +71,7 @@ export function writeToText(
 
 export function readFromCsv(
   filePattern: string,
-  options: {} = {}
+  options: {} = {},
 ): (root: beam.Root) => Promise<beam.PCollection<any>> {
   return async function readFromCsv(root: beam.Root) {
     return root.applyAsync(
@@ -79,7 +79,7 @@ export function readFromCsv(
         path: filePattern,
         format: "csv",
         ...camelToSnakeOptions(options),
-      })
+      }),
     );
   };
 }
@@ -87,9 +87,9 @@ export function readFromCsv(
 export function writeToCsv(
   filePathPrefix: string,
   schema: Schema | undefined = undefined,
-  options: {} = {}
+  options: {} = {},
 ): (
-  toWrite: beam.PCollection<Object>
+  toWrite: beam.PCollection<Object>,
 ) => Promise<{ filesWritten: beam.PCollection<string> }> {
   return async function writeToCsv(toWrite: beam.PCollection<Object>) {
     if (schema != undefined) {
@@ -102,7 +102,7 @@ export function writeToCsv(
           format: "csv",
           index: false,
           ...camelToSnakeOptions(options),
-        })
+        }),
       ),
     };
   };
@@ -110,7 +110,7 @@ export function writeToCsv(
 
 export function readFromJson(
   filePattern: string,
-  options: {} = {}
+  options: {} = {},
 ): (root: beam.Root) => Promise<beam.PCollection<any>> {
   return async function readFromJson(root: beam.Root) {
     return root.applyAsync(
@@ -120,7 +120,7 @@ export function readFromJson(
         orient: "records",
         lines: true,
         ...camelToSnakeOptions(options),
-      })
+      }),
     );
   };
 }
@@ -128,9 +128,9 @@ export function readFromJson(
 export function writeToJson(
   filePathPrefix: string,
   schema: Schema | undefined = undefined,
-  options: {} = {}
+  options: {} = {},
 ): (
-  toWrite: beam.PCollection<Object>
+  toWrite: beam.PCollection<Object>,
 ) => Promise<{ filesWritten: beam.PCollection<string> }> {
   return async function writeToJson(toWrite: beam.PCollection<Object>) {
     if (schema != undefined) {
@@ -144,7 +144,7 @@ export function writeToJson(
           orient: "records",
           lines: true,
           ...camelToSnakeOptions(options),
-        })
+        }),
       ),
     };
   };

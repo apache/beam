@@ -45,6 +45,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import List
+from typing import Optional
 from typing import Union
 
 from apache_beam.portability import common_urns
@@ -135,11 +136,7 @@ class DisplayData(object):
     # type: (...) -> List[beam_runner_api_pb2.DisplayData]
 
     """Returns a List of Beam proto representation of Display data."""
-    def create_payload(dd):
-      if isinstance(dd, beam_runner_api_pb2.DisplayData):
-        return dd
-
-      display_data_dict = None
+    def create_payload(dd) -> Optional[beam_runner_api_pb2.LabelledPayload]:
       try:
         display_data_dict = dd.get_dict()
       except ValueError:
@@ -186,12 +183,15 @@ class DisplayData(object):
 
     dd_protos = []
     for dd in self.items:
-      dd_proto = create_payload(dd)
-      if dd_proto:
-        dd_protos.append(
-            beam_runner_api_pb2.DisplayData(
-                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
-                payload=dd_proto.SerializeToString()))
+      if isinstance(dd, beam_runner_api_pb2.DisplayData):
+        dd_protos.append(dd)
+      else:
+        dd_payload = create_payload(dd)
+        if dd_payload:
+          dd_protos.append(
+              beam_runner_api_pb2.DisplayData(
+                  urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                  payload=dd_payload.SerializeToString()))
     return dd_protos
 
   @classmethod

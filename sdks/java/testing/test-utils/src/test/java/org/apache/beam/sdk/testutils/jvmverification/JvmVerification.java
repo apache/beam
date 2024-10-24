@@ -71,6 +71,12 @@ public class JvmVerification {
 
   // jvm
   @Test
+  public void verifyRunningJVMVersionIs8() {
+    final String version = getJavaSpecification();
+    assertEquals(v1_8.name, version);
+  }
+
+  @Test
   public void verifyRunningJVMVersionIs11() {
     final String version = getJavaSpecification();
     assertEquals(v11.name, version);
