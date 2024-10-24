@@ -18,33 +18,24 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Bounded set of queues, with a maximum total weight. */
+/** Queue bounded by a {@link WeightedSemaphore}. */
 public final class WeightedBoundedQueue<V> {
 
   private final LinkedBlockingQueue<V> queue;
-  private final int maxWeight;
-  private final Semaphore limit;
-  private final Function<V, Integer> weigher;
+  private final WeightedSemaphore<V> weigher;
 
   private WeightedBoundedQueue(
-      LinkedBlockingQueue<V> linkedBlockingQueue,
-      int maxWeight,
-      Semaphore limit,
-      Function<V, Integer> weigher) {
+      LinkedBlockingQueue<V> linkedBlockingQueue, WeightedSemaphore<V> weigher) {
     this.queue = linkedBlockingQueue;
-    this.maxWeight = maxWeight;
-    this.limit = limit;
     this.weigher = weigher;
   }
 
-  public static <V> WeightedBoundedQueue<V> create(int maxWeight, Function<V, Integer> weigherFn) {
-    return new WeightedBoundedQueue<>(
-        new LinkedBlockingQueue<>(), maxWeight, new Semaphore(maxWeight, true), weigherFn);
+  public static <V> WeightedBoundedQueue<V> create(WeightedSemaphore<V> weigher) {
+    return new WeightedBoundedQueue<>(new LinkedBlockingQueue<>(), weigher);
   }
 
   /**
@@ -52,7 +43,7 @@ public final class WeightedBoundedQueue<V> {
    * limit.
    */
   public void put(V value) {
-    limit.acquireUninterruptibly(weigher.apply(value));
+    weigher.acquire(value);
     queue.add(value);
   }
 
@@ -60,7 +51,7 @@ public final class WeightedBoundedQueue<V> {
   public @Nullable V poll() {
     V result = queue.poll();
     if (result != null) {
-      limit.release(weigher.apply(result));
+      weigher.release(result);
     }
     return result;
   }
@@ -78,7 +69,7 @@ public final class WeightedBoundedQueue<V> {
   public @Nullable V poll(long timeout, TimeUnit unit) throws InterruptedException {
     V result = queue.poll(timeout, unit);
     if (result != null) {
-      limit.release(weigher.apply(result));
+      weigher.release(result);
     }
     return result;
   }
@@ -86,16 +77,18 @@ public final class WeightedBoundedQueue<V> {
   /** Returns and removes the next value, or blocks until one is available. */
   public @Nullable V take() throws InterruptedException {
     V result = queue.take();
-    limit.release(weigher.apply(result));
+    weigher.release(result);
     return result;
   }
 
   /** Returns the current weight of the queue. */
-  public int queuedElementsWeight() {
-    return maxWeight - limit.availablePermits();
+  @VisibleForTesting
+  int queuedElementsWeight() {
+    return weigher.currentWeight();
   }
 
-  public int size() {
+  @VisibleForTesting
+  int size() {
     return queue.size();
   }
 }
