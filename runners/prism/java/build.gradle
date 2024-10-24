@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
@@ -42,4 +44,222 @@ dependencies {
 tasks.test {
     var prismBuildTask = dependsOn(':runners:prism:build')
     systemProperty 'prism.buildTarget', prismBuildTask.project.property('buildTarget').toString()
+}
+
+// Below is configuration to support running the Java Validates Runner tests.
+
+configurations {
+  validatesRunner
+}
+
+dependencies {
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:harness", configuration: "shadow")
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_guava_32_1_2_jre
+
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.slf4j_jdk14
+
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
+}
+
+
+// Set using -PjobEndpoint=, for example: -PjobEndpoint=localhost:8073
+def jobEndpointPropertyName = "jobEndpoint"
+def jobPortPropertyName = "18073"
+
+project.evaluationDependsOn(":sdks:java:core")
+project.evaluationDependsOn(":sdks:python")
+project.evaluationDependsOn(":runners:core-java")
+
+ext.pythonSdkDir = project.findProject(":sdks:python").getProjectDir().getAbsoluteFile().toString()
+
+def sickbayTests = [
+
+        //TODO: https://github.com/apache/beam/issues/20631
+        'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation',
+]
+
+/**
+ * Runs Java ValidatesRunner tests against the Prism Runner
+ * with the specified environment type.
+ */
+def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = "" ->
+  Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
+    description "PrismRunner Java $environmentType ValidatesRunner suite"
+    classpath = configurations.validatesRunner
+    var jobEndpointOption = "--$jobEndpointPropertyName=localhost:$jobPortPropertyName"
+
+    var prismBuildTask = dependsOn(':runners:prism:build')
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+        "--runner=TestPrismRunner",
+        "--experiments=beam_fn_api",
+        "--prismLogLevel=warn",
+        "--prismLocation=${prismBuildTask.project.property('buildTarget').toString()}",
+        "--enableWebUI=false",
+    ])
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // Should be run only in a properly configured SDK harness environment
+      excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+
+      // Not yet implemented in Prism
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+      // Hangs forever on Prism
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+
+       // Not supported in Portable Java SDK
+       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState' 
+    }
+    filter {
+        // PortableMetrics doesn't implement "getCommitedOrNull" from Metrics
+        // Preventing Prism from passing these tests.
+        // In particular, it doesn't subclass MetricResult with an override, and
+        // it explicilty passes "false" to commited supported in create.
+        // 
+        // There is not currently a category for excluding these _only_ in committed mode
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics'
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics'
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedStringSetMetrics'
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics'
+
+        // Triggers / Accumulation modes not yet implemented in prism.
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testNoWindowFnDoesNotReassignWindows'
+
+        // Prism not firing sessions correctly (seems to be merging inapppropriately)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
+
+        // Java side dying during execution. 
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
+        // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
+        // Likely due to prism't coder changes.
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+        // java.lang.IllegalStateException: Output with tag Tag<output> must have a schema in order to call getRowReceiver
+        // Ultimately because getRoeReceiver code path SDK side isn't friendly to LengthPrefix wrapping of coders.
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWrite'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteMultiOutput'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteWithSchemaRegistry'
+
+        // Technically these tests "succeed"
+        // the test is just complaining that an AssertionException isn't a RuntimeException
+        // 
+        // java.lang.RuntimeException: test error in finalize
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInFinishBatch'
+        // java.lang.RuntimeException: test error in process
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInProcessElement'
+        // java.lang.RuntimeException: test error in initialize
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInStartBatch'
+        
+        // Only known window fns supported, not general window merging
+        // Custom window fns not yet implemented in prism.
+        // https://github.com/apache/beam/issues/20437
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testMergingWindowing'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
+
+        // Possibly a different error being hidden behind the main error.
+        // org.apache.beam.sdk.util.WindowedValue$ValueInGlobalWindow cannot be cast to class java.lang.String 
+        // TODO(https://github.com/apache/beam/issues/29973)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+        // TODO(https://github.com/apache/beam/issues/31231)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+
+        // Prism isn't handling Java's side input views properly.
+        // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view. 
+        // Consider using Combine.globally().asSingleton() to combine the PCollection into a single value
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testDiscardingNonSingletonSideInput'
+        // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testDiscardingNonSingletonSideInput'
+        // ava.lang.IllegalArgumentException: Duplicate values for a
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMapSideInputWithNullValuesCatchesDuplicates'
+        // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view....
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
+        // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
+        // Prism side encoding error.
+        // java.lang.IllegalStateException: java.io.EOFException
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables'
+
+        // Filtered by PortableRunner tests.
+        // Teardown not called in exceptions
+        // https://github.com/apache/beam/issues/20372
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
+
+        for (String test : sickbayTests) {
+            excludeTestsMatching test
+        }
+    }
+  }
+
+  if (environmentType == "DOCKER") {
+    if(dockerImageTask.isEmpty()) {
+      throw new StopExecutionException("dockerImageTask is required for a Docker environment test task");
+    }
+    vrTask.dependsOn dockerImageTask
+  }
+
+  return vrTask
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+    group = "Verification"
+    description "Validates Prism local runner (Sickbay Tests)"
+
+    var prismBuildTask = dependsOn(':runners:prism:build')
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+        "--runner=TestPrismRunner",
+        "--experiments=beam_fn_api",
+        "--enableWebUI=false",
+        "--prismLogLevel=warn",
+        "--prismLocation=${prismBuildTask.project.property('buildTarget').toString()}"
+    ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
+}
+
+task prismDockerValidatesRunner {
+  dependsOn createPrismValidatesRunnerTask("prismDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:java8:docker")
+}
+
+task prismLoopbackValidatesRunner {
+  dependsOn createPrismValidatesRunnerTask("prismLoopbackValidatesRunnerTests", "LOOPBACK") 
 }
