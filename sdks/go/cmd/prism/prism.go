@@ -44,10 +44,10 @@ var (
 
 // Logging flags
 var (
-	debug = flag.Bool("debug", false,
-		"Enables full verbosity debug logging from the runner by default. Used to build SDKs or debug Prism itself.")
 	logKind = flag.String("log_kind", "dev",
 		"Determines the format of prism's logging to std err: valid values are `dev', 'json', or 'text'. Default is `dev`.")
+	logLevelFlag = flag.String("log_level", "info",
+		"Sets the minimum log level of Prism. Valid options are 'debug', 'info','warn', and 'error'. Default is 'info'. Debug adds prism source lines.")
 )
 
 var logLevel = new(slog.LevelVar)
@@ -59,13 +59,20 @@ func main() {
 	var logHandler slog.Handler
 	loggerOutput := os.Stderr
 	handlerOpts := &slog.HandlerOptions{
-		Level:     logLevel,
-		AddSource: *debug,
+		Level: logLevel,
 	}
-	if *debug {
+	switch strings.ToLower(*logLevelFlag) {
+	case "debug":
 		logLevel.Set(slog.LevelDebug)
-		// Print the Prism source line for a log in debug mode.
 		handlerOpts.AddSource = true
+	case "info":
+		logLevel.Set(slog.LevelInfo)
+	case "warn":
+		logLevel.Set(slog.LevelWarn)
+	case "error":
+		logLevel.Set(slog.LevelError)
+	default:
+		log.Fatalf("Invalid value for log_level: %v, must be 'debug', 'info', 'warn', or 'error'", *logKind)
 	}
 	switch strings.ToLower(*logKind) {
 	case "dev":
