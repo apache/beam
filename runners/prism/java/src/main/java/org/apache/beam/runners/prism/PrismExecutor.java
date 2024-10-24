@@ -50,6 +50,7 @@ abstract class PrismExecutor {
   static final String IDLE_SHUTDOWN_TIMEOUT = "-idle_shutdown_timeout=%s";
   static final String JOB_PORT_FLAG_TEMPLATE = "-job_port=%s";
   static final String SERVE_HTTP_FLAG_TEMPLATE = "-serve_http=%s";
+  static final String LOG_LEVEL_FLAG_TEMPLATE = "-log_level=%s";
 
   protected @MonotonicNonNull Process process;
   protected ExecutorService executorService = Executors.newSingleThreadExecutor();
