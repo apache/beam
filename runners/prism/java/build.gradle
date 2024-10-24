@@ -278,7 +278,7 @@ tasks.register("validatesRunnerSickbay", Test) {
 
 task prismDockerValidatesRunner {
   Task vrTask = createPrismValidatesRunnerTask("prismDockerValidatesRunnerTests", "DOCKER")
-  vrTask.dependsOn ":sdks:java:container:java8:docker"
+  vrTask.dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
 }
 
 task prismLoopbackValidatesRunner {
