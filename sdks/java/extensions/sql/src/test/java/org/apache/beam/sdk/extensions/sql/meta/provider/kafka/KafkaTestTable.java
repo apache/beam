@@ -138,10 +138,6 @@ public class KafkaTestTable extends BeamKafkaTable {
                     .collect(Collectors.toList());
             super.assign(realPartitions);
             assignedPartitions.set(ImmutableList.copyOf(realPartitions));
-            for (TopicPartition tp : realPartitions) {
-              updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long) kafkaRecords.get(tp).size()));
-            }
           }
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
@@ -163,8 +159,12 @@ public class KafkaTestTable extends BeamKafkaTable {
           }
         };
 
-    for (String topic : getTopics()) {
-      consumer.updatePartitions(topic, partitionInfoMap.get(topic));
+    for (Map.Entry<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> entry :
+        kafkaRecords.entrySet()) {
+      consumer.updatePartitions(
+          entry.getKey().topic(), partitionInfoMap.get(entry.getKey().topic()));
+      consumer.updateBeginningOffsets(ImmutableMap.of(entry.getKey(), 0L));
+      consumer.updateEndOffsets(ImmutableMap.of(entry.getKey(), (long) entry.getValue().size()));
     }
 
     Runnable recordEnqueueTask =
