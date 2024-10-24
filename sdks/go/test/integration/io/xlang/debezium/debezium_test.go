@@ -34,7 +34,9 @@ import (
 )
 
 const (
-	debeziumImage = "debezium/example-postgres:latest"
+	// TODO(https://github.com/apache/beam/issues/32937): use latest tag once a
+	// container exists again
+	debeziumImage = "debezium/example-postgres:3.0.0.final"
 	debeziumPort  = "5432/tcp"
 	maxRetries    = 5
 )

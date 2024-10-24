@@ -45,8 +45,10 @@ public class DebeziumReadSchemaTransformTest {
 
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
+      // TODO(https://github.com/apache/beam/issues/32937): use latest tag once
+	    // a container exists again
       new PostgreSQLContainer<>(
-              DockerImageName.parse("debezium/example-postgres:latest")
+              DockerImageName.parse("debezium/example-postgres:3.0.0.final")
                   .asCompatibleSubstituteFor("postgres"))
           .withPassword("dbz")
           .withUsername("debezium")
