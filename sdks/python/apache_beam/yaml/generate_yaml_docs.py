@@ -218,11 +218,9 @@ def main():
     json_config_schemas = []
     markdown_out = io.StringIO()
     providers = yaml_provider.standard_providers()
-    markdown_map = {}
     for transform_base, transforms in itertools.groupby(
         sorted(providers.keys(), key=io_grouping_key),
         key=lambda s: s.split('-')[0]):
-      markdown_current = io.StringIO()
       transforms = list(transforms)
       if include(transform_base) and not exclude(transform_base):
         print(transform_base)
@@ -232,12 +230,9 @@ def main():
                 t.split('-')[-1] for t in sorted(transforms))
           else:
             extra_docs = ''
-          markdown_current.write(
+          markdown_out.write(
               transform_docs(transform_base, transforms, providers, extra_docs))
-          markdown_current.write('\n\n')
-        markdown_map[transform_base] = markdown_current.getvalue()
-        if options.markdown_file:
-          markdown_out.write(markdown_current.getvalue())
+          markdown_out.write('\n\n')
         if options.schema_file:
           for transform in transforms:
             schema = providers[transform][0].config_schema(transform)
@@ -332,6 +327,7 @@ def main():
             display: inline-block;
             padding: 4px 6px;
             margin-bottom: 1em;
+            text-decoration:none;
           }
           .nav-header>div.version {
             margin-top: -.5em;
@@ -339,7 +335,7 @@ def main():
             font-weight: normal;
             color: rgba(255, 255, 255, 0.3);
           }
-          .nav-transform-list {
+          .toc {
             width: 300px;
             text-align: left;
             overflow-y: auto;
@@ -347,16 +343,16 @@ def main():
             scrollbar-width: thin;
             scrollbar-color: #9b9b9b #343131;
           }
-          .nav-transform-list ul {
+          .toc ul {
             margin: 0;
             padding: 0;
             list-style: none;
           }
-          .nav-transform-list li {
+          .toc li {
             border-bottom: 1px solid #4e4a4a;
             margin-left: 1em;
           }
-          .nav-transform-list a {
+          .toc a {
             display: block;
             line-height: 36px;
             font-size: 90%;
@@ -365,7 +361,7 @@ def main():
             text-decoration: none;
             transition: background-color 0.3s ease, color 0.3s ease;
           }
-          .nav-transform-list a:hover {
+          .toc a:hover {
             background-color: #4e4a4a;
             color: #ffffff;
           }
@@ -376,17 +372,29 @@ def main():
           .transform-content {
             padding: 1.5em 3em;
             margin: 20px;
-            padding-top: 2em;
             padding-bottom: 2em;
-          }  
+          }
           .transform-content li::marker {
             display: inline-block;
             width: 0.5em;
+          }
+          .transform-content h1 {
+            font-size: 40px;
           }
           .transform-content ul {
             margin-left: 0.75em;
             text-align: left;
             list-style-type: disc;
+          }
+          hr {
+            color: gray;
+            display: block;
+            height: 1px;
+            border: 0;
+            border-top: 1px solid #e1e4e5;
+            margin-bottom: 3em;
+            margin-top: 3em;
+            padding: 0;
           }
           .codehilite {
             background: #f5f5f5;
@@ -398,71 +406,52 @@ def main():
             font-size: 14px;
             line-height: 1.5;
           }
+          p code, li code {
+              white-space: nowrap;
+              max-width: 100%;
+              background: #fff;
+              border: solid 1px #e1e4e5;
+              padding: 0 5px;
+              font-family: monospace;
+              color: #404040;
+              font-weight: bold;
+              padding: 2px 5px;
+          }
           '''
 
-      html = '''
-          <html>
-            <head>
-              <title>{title}</title>
-              <style>
-              {pygments_style}
-              {extra_style}
-              </style>
-            </head>
-            <body class="body-for-nav">
-              <div class="grid-for-nav">
-                <nav class="nav-side">
-                  <div class="nav-header">
-                    <a>Beam YAML Transform Index</a>
-                    <div class="version">
-                      {beam_version}
+      html = md.convert(markdown_out.getvalue())
+      with open(options.html_file, 'w') as html_out:
+        html_out.write(
+            f'''
+            <html>
+              <head>
+                <title>{title}</title>
+                <style>
+                {pygments_style}
+                {extra_style}
+                </style>
+              </head>
+              <body class="body-for-nav">
+                <div class="grid-for-nav">
+                  <nav class="nav-side">
+                    <div class="nav-header">
+                      <a href=#>Beam YAML Transform Index</a>
+                      <div class="version">
+                        {beam_version}
+                      </div>
                     </div>
-                  </div>
-                  <div class="nav-transform-list">
-                    <ul>
-                      {nav_transform_list}
-                    </ul>
-                  </div>
-                </nav>
-                <section class="transform-content-wrap">
-                  <div class="transform-content">
-                    {transform_content}
-                  </div>
-                </section>
-              </div>
-            </body>
-          </html>
-          '''
-
-      def transform_html_file(transform):
-        return f'{transform}_{options.html_file.split("/")[-1]}'
-
-      nav_transform_list = '\n'.join([
-          f'<li><a href="{transform_html_file(transform)}">{transform}</a></li>'
-          for transform in markdown_map
-      ])
-
-      def write_html(html_file, transform_content):
-        with open(html_file, 'w') as html_out:
-          html_out.write(
-              html.format(
-                  title=title,
-                  pygments_style=pygments_style,
-                  extra_style=extra_style,
-                  beam_version=beam_version,
-                  nav_transform_list=nav_transform_list,
-                  transform_content=transform_content))
-
-      output_path = "/".join(options.html_file.split("/")[:-1])
-      for i, (transform_name, transform_md) in enumerate(markdown_map.items()):
-        if not i:
-          write_html(options.html_file, md.convert(transform_md))
-        write_html(
-            '/'.join([
-                p for p in [output_path, transform_html_file(transform_name)]
-                if p != ''
-            ]),
-            md.convert(transform_md))
+                    {getattr(md, 'toc')}
+                  </nav>
+                  <section class="transform-content-wrap">
+                    <div class="transform-content">
+                      <h1>{title}</h1>
+                      {html.replace('<h2', '<hr><h2')}
+                    </div>
+                  </section>
+                </div>
+              </body>
+            </html>
+            ''')
 
 
 if __name__ == '__main__':
