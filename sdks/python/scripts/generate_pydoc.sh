@@ -64,6 +64,7 @@ excluded_patterns=(
     'apache_beam/runners/portability/'
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
+    'apache_beam/runners/dask/transform_evaluator.*'
     'apache_beam/testing/benchmarks/chicago_taxi/'
     'apache_beam/testing/benchmarks/cloudml/'
     'apache_beam/testing/benchmarks/inference/'
@@ -134,7 +135,7 @@ autodoc_member_order = 'bysource'
 autodoc_mock_imports = ["tensorrt", "cuda", "torch",
     "onnxruntime", "onnx", "tensorflow", "tensorflow_hub",
     "tensorflow_transform", "tensorflow_metadata", "transformers", "xgboost", "datatable", "transformers",
-    "sentence_transformers", "redis", "tensorflow_text", "feast",
+    "sentence_transformers", "redis", "tensorflow_text", "feast", "dask",
     ]
 
 # Allow a special section for documenting DataFrame API

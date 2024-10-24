@@ -512,8 +512,15 @@ if __name__ == '__main__':
           ],
           'dataframe': dataframe_dependency,
           'dask': [
-              'dask >= 2022.6',
-              'distributed >= 2022.6',
+              'distributed >= 2024.4.2',
+              'dask >= 2024.4.2',
+              # For development, 'distributed >= 2023.12.1' should work with
+              # the above dask PR, however it can't be installed as part of
+              # a single `pip` call, since distributed releases are pinned to
+              # specific dask releases. As a workaround, distributed can be
+              # installed first, and then `.[dask]` installed second, with the
+              # `--update` / `-U` flag to replace the dask release brought in
+              # by distributed.
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
