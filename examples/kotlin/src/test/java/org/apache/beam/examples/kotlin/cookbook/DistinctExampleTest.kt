@@ -39,7 +39,6 @@ class DistinctExampleTest {
     fun pipeline(): TestPipeline = pipeline
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testDistinct() {
         val strings = listOf("k1", "k5", "k5", "k2", "k1", "k2", "k3")
         val input = pipeline.apply(Create.of(strings).withCoder(StringUtf8Coder.of()))
@@ -49,7 +48,6 @@ class DistinctExampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testDistinctEmpty() {
         val strings = listOf<String>()
         val input = pipeline.apply(Create.of(strings).withCoder(StringUtf8Coder.of()))
