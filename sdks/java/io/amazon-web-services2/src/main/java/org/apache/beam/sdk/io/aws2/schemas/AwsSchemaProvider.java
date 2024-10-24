@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.aws2.schemas;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.beam.sdk.io.aws2.schemas.AwsSchemaUtils.getter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.difference;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkPojo;
@@ -73,17 +73,20 @@ public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
     return AwsTypes.schemaFor(sdkFields((Class<? extends SdkPojo>) type.getRawType()));
   }
 
-  @SuppressWarnings("rawtypes")
   @Override
-  public List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
     ConverterFactory fromAws = ConverterFactory.fromAws();
     Map<String, SdkField<?>> sdkFields =
         sdkFieldsByName((Class<? extends SdkPojo>) targetTypeDescriptor.getRawType());
-    List<FieldValueGetter> getters = new ArrayList<>(schema.getFieldCount());
-    for (String field : schema.getFieldNames()) {
+    List<FieldValueGetter<@NonNull T, Object>> getters = new ArrayList<>(schema.getFieldCount());
+    for (@NonNull String field : schema.getFieldNames()) {
       SdkField<?> sdkField = checkStateNotNull(sdkFields.get(field), "Unknown field");
-      getters.add(getter(field, fromAws.create(sdkField::getValueOrDefault, sdkField)));
+      getters.add(
+          AwsSchemaUtils.getter(
+              field,
+              (SerializableFunction<@NonNull T, Object>)
+                  fromAws.create(sdkField::getValueOrDefault, sdkField)));
     }
     return getters;
   }
