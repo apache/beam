@@ -72,8 +72,9 @@
 
 ## New Features / Improvements
 
-* Added support for read with metadata in MqttIO (Java) ([#32195](https://github.com/apache/beam/issues/32195))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added support for read with metadata in MqttIO (Java) ([#32195](https://github.com/apache/beam/issues/32195))
+* Added support for reading from multiple topics in MqttIO (Java) ([#32468](https://github.com/apache/beam/issues/32468)).
 * Added support for processing events which use a global sequence to "ordered" extension (Java) [#32540](https://github.com/apache/beam/pull/32540)
 * Add new meta-transform FlattenWith and Tee that allow one to introduce branching
   without breaking the linear/chaining style of pipeline construction.
