@@ -39,9 +39,7 @@ class JavaJarJobServerStub(JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port,
-        '--jar_cache_dir',
-        jar_cache_dir
+        expansion_port
     ]
 
   def path_to_jar(self):
@@ -49,7 +47,7 @@ class JavaJarJobServerStub(JavaJarJobServer):
 
   @staticmethod
   def local_jar(url, jar_cache_dir):
-    print(f'using {jar_cache_dir}')
+    print(f'local_jar url({url}) jar_cache_dir({jar_cache_dir})')
     return url
 
 
@@ -80,9 +78,7 @@ class JavaJarJobServerTest(unittest.TestCase):
             '--artifact-port',
             8098,
             '--expansion-port',
-            8097,
-            '--jar_cache_dir',
-            '/path/to/cache_dir'
+            8097
         ])
     self.assertEqual(endpoint, 'localhost:8099')
 
