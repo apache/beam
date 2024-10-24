@@ -110,7 +110,8 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
     PrismExecutor executor =
         PrismExecutor.builder()
             .setCommand(command)
-            .setArguments(Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag, logLevelFlag))
+            .setArguments(
+                Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag, logLevelFlag))
             .build();
     executor.execute();
     checkState(executor.isAlive());

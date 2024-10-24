@@ -112,9 +112,7 @@ class PrismLocator {
 
     // If the location is set, and it's not an http request or a zip,
     // use the binary directly.
-    if (!from.startsWith("http")
-        && !from.endsWith("zip")
-        && Files.exists(Paths.get(from))) {
+    if (!from.startsWith("http") && !from.endsWith("zip") && Files.exists(Paths.get(from))) {
       return from;
     }
 
