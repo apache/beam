@@ -69,7 +69,7 @@ final class GrpcGetDataStream
   private static final StreamingGetDataRequest HEALTH_CHECK_REQUEST =
       StreamingGetDataRequest.newBuilder().build();
 
-  /** @implNote insertion and removal is guarded by {@link #shutdownLock} */
+  /** @implNote {@link QueuedBatch} objects in the queue are is guarded by {@link #shutdownLock} */
   private final Deque<QueuedBatch> batches;
 
   private final Map<Long, AppendableInputStream> pending;
@@ -349,13 +349,24 @@ final class GrpcGetDataStream
         "Cannot send request=[" + request + "] on closed stream.");
   }
 
-  private void handleShutdown(QueuedRequest request, Throwable cause) {
+  private void handleShutdown(QueuedRequest request, Throwable... causes) {
     if (isShutdown()) {
       WindmillStreamShutdownException shutdownException =
           new WindmillStreamShutdownException(
               "Cannot send request=[" + request + "] on closed stream.");
-      shutdownException.addSuppressed(cause);
+
+      for (Throwable cause : causes) {
+        shutdownException.addSuppressed(cause);
+      }
+
       throw shutdownException;
+    }
+  }
+
+  private void handleShutdown(QueuedBatch batch) {
+    if (isShutdown()) {
+      throw new WindmillStreamShutdownException(
+          "Stream was closed when attempting to send " + batch.requestsCount() + " requests.");
     }
   }
 
@@ -364,6 +375,10 @@ final class GrpcGetDataStream
     boolean responsibleForSend = false;
     @Nullable QueuedBatch prevBatch = null;
     synchronized (shutdownLock) {
+      if (isShutdown()) {
+        handleShutdown(request);
+      }
+
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
           || batch.isFinalized()
@@ -389,6 +404,10 @@ final class GrpcGetDataStream
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
       synchronized (shutdownLock) {
+        if (isShutdown()) {
+          handleShutdown(batch);
+        }
+
         verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
         batch.markFinalized();
       }
@@ -403,6 +422,10 @@ final class GrpcGetDataStream
     try {
       sendBatch(batch);
       synchronized (shutdownLock) {
+        if (isShutdown()) {
+          handleShutdown(batch);
+        }
+
         verify(
             batch == batches.pollFirst(),
             "Sent GetDataStream request batch removed before send() was complete.");

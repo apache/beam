@@ -225,86 +225,89 @@ final class GrpcCommitWorkStream
   }
 
   private void issueSingleRequest(long id, PendingRequest pendingRequest) {
-    if (prepareForSend(id, pendingRequest)) {
-      StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
-      requestBuilder
-          .addCommitChunkBuilder()
-          .setComputationId(pendingRequest.computationId())
-          .setRequestId(id)
-          .setShardingKey(pendingRequest.shardingKey())
-          .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
-      StreamingCommitWorkRequest chunk = requestBuilder.build();
-      try {
-        send(chunk);
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
-    } else {
+    if (!prepareForSend(id, pendingRequest)) {
       pendingRequest.abort();
+      return;
+    }
+
+    StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
+    requestBuilder
+        .addCommitChunkBuilder()
+        .setComputationId(pendingRequest.computationId())
+        .setRequestId(id)
+        .setShardingKey(pendingRequest.shardingKey())
+        .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
+    StreamingCommitWorkRequest chunk = requestBuilder.build();
+    try {
+      send(chunk);
+    } catch (IllegalStateException e) {
+      // Stream was broken, request will be retried when stream is reopened.
     }
   }
 
   private void issueBatchedRequest(Map<Long, PendingRequest> requests) {
-    if (prepareForSend(requests)) {
-      StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
-      String lastComputation = null;
-      for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
-        PendingRequest request = entry.getValue();
-        StreamingCommitRequestChunk.Builder chunkBuilder = requestBuilder.addCommitChunkBuilder();
-        if (lastComputation == null || !lastComputation.equals(request.computationId())) {
-          chunkBuilder.setComputationId(request.computationId());
-          lastComputation = request.computationId();
-        }
-        chunkBuilder
-            .setRequestId(entry.getKey())
-            .setShardingKey(request.shardingKey())
-            .setSerializedWorkItemCommit(request.serializedCommit());
-      }
-      StreamingCommitWorkRequest request = requestBuilder.build();
-      try {
-        send(request);
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
-    } else {
+    if (!prepareForSend(requests)) {
       requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
+      return;
+    }
+
+    StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
+    String lastComputation = null;
+    for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
+      PendingRequest request = entry.getValue();
+      StreamingCommitRequestChunk.Builder chunkBuilder = requestBuilder.addCommitChunkBuilder();
+      if (lastComputation == null || !lastComputation.equals(request.computationId())) {
+        chunkBuilder.setComputationId(request.computationId());
+        lastComputation = request.computationId();
+      }
+      chunkBuilder
+          .setRequestId(entry.getKey())
+          .setShardingKey(request.shardingKey())
+          .setSerializedWorkItemCommit(request.serializedCommit());
+    }
+    StreamingCommitWorkRequest request = requestBuilder.build();
+    try {
+      send(request);
+    } catch (IllegalStateException e) {
+      // Stream was broken, request will be retried when stream is reopened.
     }
   }
 
   private void issueMultiChunkRequest(long id, PendingRequest pendingRequest) {
-    if (prepareForSend(id, pendingRequest)) {
-      checkNotNull(pendingRequest.computationId(), "Cannot commit WorkItem w/o a computationId.");
-      ByteString serializedCommit = pendingRequest.serializedCommit();
-      synchronized (this) {
-        for (int i = 0;
-            i < serializedCommit.size();
-            i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
-          int end = i + AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE;
-          ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));
+    if (!prepareForSend(id, pendingRequest)) {
+      pendingRequest.abort();
+      return;
+    }
 
-          StreamingCommitRequestChunk.Builder chunkBuilder =
-              StreamingCommitRequestChunk.newBuilder()
-                  .setRequestId(id)
-                  .setSerializedWorkItemCommit(chunk)
-                  .setComputationId(pendingRequest.computationId())
-                  .setShardingKey(pendingRequest.shardingKey());
-          int remaining = serializedCommit.size() - end;
-          if (remaining > 0) {
-            chunkBuilder.setRemainingBytesForWorkItem(remaining);
-          }
+    checkNotNull(pendingRequest.computationId(), "Cannot commit WorkItem w/o a computationId.");
+    ByteString serializedCommit = pendingRequest.serializedCommit();
+    synchronized (this) {
+      for (int i = 0;
+          i < serializedCommit.size();
+          i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
+        int end = i + AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE;
+        ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));
 
-          StreamingCommitWorkRequest requestChunk =
-              StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
-          try {
-            send(requestChunk);
-          } catch (IllegalStateException e) {
-            // Stream was broken, request will be retried when stream is reopened.
-            break;
-          }
+        StreamingCommitRequestChunk.Builder chunkBuilder =
+            StreamingCommitRequestChunk.newBuilder()
+                .setRequestId(id)
+                .setSerializedWorkItemCommit(chunk)
+                .setComputationId(pendingRequest.computationId())
+                .setShardingKey(pendingRequest.shardingKey());
+        int remaining = serializedCommit.size() - end;
+        if (remaining > 0) {
+          chunkBuilder.setRemainingBytesForWorkItem(remaining);
+        }
+
+        StreamingCommitWorkRequest requestChunk =
+            StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
+        try {
+          send(requestChunk);
+        } catch (IllegalStateException e) {
+          // Stream was broken, request will be retried when stream is reopened.
+          break;
         }
       }
-    } else {
-      pendingRequest.abort();
     }
   }
 

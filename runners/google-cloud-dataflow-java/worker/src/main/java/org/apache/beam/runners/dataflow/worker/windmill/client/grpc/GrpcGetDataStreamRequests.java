@@ -108,6 +108,11 @@ final class GrpcGetDataStreamRequests {
         builder.addGlobalDataRequest(dataRequest.global());
       }
     }
+
+    @Override
+    public final String toString() {
+      return "QueuedRequest{" + "dataRequest=" + dataRequest + ", id=" + id + '}';
+    }
   }
 
   /**
