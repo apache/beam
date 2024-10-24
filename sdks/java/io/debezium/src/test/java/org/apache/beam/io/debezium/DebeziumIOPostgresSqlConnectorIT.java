@@ -56,7 +56,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
       // TODO(https://github.com/apache/beam/issues/32937): use latest tag once
-	  // a container exists again
+      // a container exists again
       new PostgreSQLContainer<>(
               DockerImageName.parse("debezium/example-postgres:3.0.0.Final")
                   .asCompatibleSubstituteFor("postgres"))

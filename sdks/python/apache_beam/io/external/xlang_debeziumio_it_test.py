@@ -102,8 +102,9 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
 
 # Creating a container with testcontainers sometimes raises ReadTimeout
 # error. In java there are 2 retries set by default.
-# TODO(https://github.com/apache/beam/issues/32937): use latest tag once a 
+# TODO(https://github.com/apache/beam/issues/32937): use latest tag once a
 # container exists again
+
   def start_db_container(self, retries):
     for i in range(retries):
       try:
