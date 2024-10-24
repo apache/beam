@@ -23,8 +23,10 @@ import com.google.auto.value.AutoBuilder;
 import com.google.auto.value.AutoOneOf;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -103,11 +105,25 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         "Multiple calls to {}.start() are not allowed.",
         getClass());
     workCommitter.start();
-    workProviderExecutor.execute(
-        () -> {
-          getDispatchLoop().run();
-          LOG.info("Dispatch done");
-        });
+    while (isRunning.get()) {
+      Future<?> dispatchLoopFuture =
+          workProviderExecutor.submit(
+              () -> {
+                getDispatchLoop().run();
+                LOG.info("Dispatch done");
+              });
+      try {
+        dispatchLoopFuture.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } catch (ExecutionException e) {
+        // We can decide what we do here.
+        // 1. If we want to crash the worker we can throw an exception like below
+        // 2. or if we want to just retry/restart running the dispatch loop, we can LOG here and the
+        //    loop will restart the dispatch loop.
+        throw new AssertionError(e);
+      }
+    }
   }
 
   private Runnable getDispatchLoop() {
