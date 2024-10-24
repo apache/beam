@@ -94,7 +94,7 @@ jobs:
       - name: run validatesPortableRunnerBatch script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.19:job-server:validatesPortableRunnerBatch
+          gradle-command: :runners:flink:1.20:job-server:validatesPortableRunnerBatch
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH }}
       - name: Archive JUnit Test Results

@@ -83,7 +83,7 @@ jobs:
       - name: run Publish Docker Snapshots script for Flink
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.17:job-server-container:dockerPush
+          gradle-command: :runners:flink:1.20:job-server-container:dockerPush
           arguments: |
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability \
             -Pdocker-tag-list=latest

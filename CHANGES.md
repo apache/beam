@@ -61,6 +61,7 @@
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * [Python] Introduce Managed Transforms API ([#31495](https://github.com/apache/beam/pull/31495))
 * Flink 1.19 support added ([#32648](https://github.com/apache/beam/pull/32648))
+* Flink 1.20 support added ([#32863](https://github.com/apache/beam/pull/32863))
 
 ## I/Os
 

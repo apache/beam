@@ -228,7 +228,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private static final int MAX_NUMBER_PENDING_BUNDLE_FINALIZATIONS = 32;
 
   protected transient InternalTimerService<TimerData> timerService;
-  private transient InternalTimeServiceManager<?> timeServiceManager;
+
+  /**
+   * In Flink 1.19 and below, this is a private field of the superclass that we access and cache
+   * here to avoid the boilerplate of `Optional` unpacking every time.
+   *
+   * <p>In Flink 1.20 and above, this becomes a protected field and we can remove it.
+   */
+  private transient InternalTimeServiceManager<?> cachedTimeServiceManager;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
@@ -474,7 +481,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       }
 
       timerInternals = new FlinkTimerInternals(timerService);
-      timeServiceManager =
+      cachedTimeServiceManager =
           getTimeServiceManager()
               .orElseThrow(() -> new IllegalStateException("Time service manager is not set."));
     }
@@ -688,17 +695,18 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     return getTimeServiceManager()
         .map(
             manager -> {
-              if (timeServiceManager instanceof InternalTimeServiceManagerImpl) {
+              if (cachedTimeServiceManager instanceof InternalTimeServiceManagerImpl) {
                 final InternalTimeServiceManagerImpl<?> cast =
-                    (InternalTimeServiceManagerImpl<?>) timeServiceManager;
+                    (InternalTimeServiceManagerImpl<?>) cachedTimeServiceManager;
                 return cast.numProcessingTimeTimers();
-              } else if (timeServiceManager instanceof BatchExecutionInternalTimeServiceManager) {
+              } else if (cachedTimeServiceManager
+                  instanceof BatchExecutionInternalTimeServiceManager) {
                 return 0;
               } else {
                 throw new IllegalStateException(
                     String.format(
                         "Unknown implementation of InternalTimerServiceManager. %s",
-                        timeServiceManager));
+                        cachedTimeServiceManager));
               }
             })
         .orElse(0);
@@ -837,7 +845,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private void processInputWatermark(boolean advanceInputWatermark) throws Exception {
     long inputWatermarkHold = applyInputWatermarkHold(getEffectiveInputWatermark());
     if (keyCoder != null && advanceInputWatermark) {
-      timeServiceManager.advanceWatermark(new Watermark(inputWatermarkHold));
+      cachedTimeServiceManager.advanceWatermark(new Watermark(inputWatermarkHold));
     }
 
     long potentialOutputWatermark =

@@ -102,7 +102,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:nexmark:run
           arguments: |
-            -Pnexmark.runner=:runners:flink:1.19 \
+            -Pnexmark.runner=:runners:flink:1.20 \
              "${{ env.GRADLE_COMMAND_ARGUMENTS }} --streaming=${{ matrix.streaming }} --queryLanguage=${{ matrix.queryLanguage }}" \
       - name: run PostCommit Java Nexmark Flink (${{ matrix.streaming }}) script
         if: matrix.queryLanguage == 'none'
@@ -110,5 +110,5 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:nexmark:run
           arguments: |
-            -Pnexmark.runner=:runners:flink:1.19 \
+            -Pnexmark.runner=:runners:flink:1.20 \
             "${{ env.GRADLE_COMMAND_ARGUMENTS }}--streaming=${{ matrix.streaming }}"
