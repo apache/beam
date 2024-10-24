@@ -218,6 +218,7 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
         "--runner=TestPrismRunner",
         "--experiments=beam_fn_api",
+        "--defaultEnvironmentType=${environmentType}",
         "--prismLogLevel=warn",
         "--prismLocation=${prismBuildTask.project.property('buildTarget').toString()}",
         "--enableWebUI=false",
