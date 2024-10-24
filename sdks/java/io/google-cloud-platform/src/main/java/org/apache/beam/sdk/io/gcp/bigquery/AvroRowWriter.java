@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.io.DatumWriter;
+import org.apache.beam.sdk.extensions.avro.io.AvroSink;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.MimeTypes;
 
@@ -36,7 +36,7 @@ class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
       String basename,
       Schema schema,
       SerializableFunction<AvroWriteRequest<T>, AvroT> toAvroRecord,
-      SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory)
+      AvroSink.DatumWriterFactory<AvroT> writerFactory)
       throws Exception {
     super(basename, MimeTypes.BINARY);
 

@@ -142,11 +142,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   // Use cases of AvroSource are:
   // 1) AvroSource<GenericRecord> Reading GenericRecord records with a specified schema.
   // 2) AvroSource<Foo> Reading records of a generated Avro class Foo.
-  // 3) AvroSource<T> Reading GenericRecord records with an unspecified schema
+  // 3) AvroSource<T> Reading GenericRecord records with an (un)specified schema
   //    and converting them to type T.
   //                     |    Case 1     |    Case 2   |     Case 3    |
   // type                | GenericRecord |     Foo     | GenericRecord |
-  // readerSchemaString  |    non-null   |   non-null  |     null      |
+  // readerSchemaString  |    non-null   |   non-null  |    either     |
   // parseFn             |      null     |     null    |   non-null    |
   // outputCoder         |     either    |    either   |   non-null    |
   // readerFactory       |     either    |    either   |    either     |
