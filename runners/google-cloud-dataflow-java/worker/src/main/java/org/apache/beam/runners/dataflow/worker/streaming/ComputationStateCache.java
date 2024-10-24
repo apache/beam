@@ -147,8 +147,10 @@ public final class ComputationStateCache implements StatusDataProvider {
         | ComputationStateNotFoundException e) {
       if (e.getCause() instanceof ComputationStateNotFoundException
           || e instanceof ComputationStateNotFoundException) {
-        LOG.error(
-            "Trying to fetch unknown computation={}, known computations are {}.",
+        LOG.warn(
+            "Computation {} is currently unknown, "
+                + "known computations are {}. "
+                + "This is transient and safe to ignore.",
             computationId,
             ImmutableSet.copyOf(computationCache.asMap().keySet()));
       } else {
