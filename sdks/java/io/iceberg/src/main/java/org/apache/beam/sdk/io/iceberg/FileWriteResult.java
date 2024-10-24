@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
@@ -46,9 +47,9 @@ abstract class FileWriteResult {
   }
 
   @SchemaIgnore
-  public DataFile getDataFile(PartitionSpec spec) {
+  public DataFile getDataFile(Map<Integer, PartitionSpec> specs) {
     if (cachedDataFile == null) {
-      cachedDataFile = getSerializableDataFile().createDataFile(spec);
+      cachedDataFile = getSerializableDataFile().createDataFile(specs);
     }
     return cachedDataFile;
   }
