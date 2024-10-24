@@ -86,7 +86,7 @@ Additionally, you can read more about the Dataflow Runner [here](https://beam.ap
 ```
 $ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
+$ go install -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --output gs://<your-gcs-bucket>/counts \
 --runner dataflow \
@@ -175,7 +175,7 @@ It is necessary to give an endpoint where the runner is raised with `--endpoint`
 ```
 $ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
+$ go install -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --output gs://<your-gcs-bucket>/counts \
 --runner flink \
@@ -278,7 +278,7 @@ It is necessary to give an endpoint where the runner is raised with `--endpoint`
 ```
 $ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
+$ go install -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --output gs://<your-gcs-bucket>/counts \
 --runner spark \
@@ -419,7 +419,7 @@ It is necessary to give an endpoint where the runner is raised with `--endpoint`
 ```
 $ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
+$ go install -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --output gs://<your-gcs-bucket>/counts \
 --runner samza \
