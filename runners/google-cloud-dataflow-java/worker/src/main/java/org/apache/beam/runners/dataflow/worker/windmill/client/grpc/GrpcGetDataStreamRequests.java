@@ -110,7 +110,9 @@ final class GrpcGetDataStreamRequests {
     }
   }
 
-  /** Represents a batch of queued requests. Methods are thread-safe unless commented otherwise. */
+  /**
+   * Represents a batch of queued requests. Methods are not thread-safe unless commented otherwise.
+   */
   static class QueuedBatch {
     private final List<QueuedRequest> requests = new ArrayList<>();
     private final CountDownLatch sent = new CountDownLatch(1);
@@ -144,22 +146,26 @@ final class GrpcGetDataStreamRequests {
       finalized = true;
     }
 
-    /**
-     * Adds a request to the batch.
-     *
-     * @implNote Requires external synchronization to be thread safe.
-     */
+    /** Adds a request to the batch. */
     void addRequest(QueuedRequest request) {
       requests.add(request);
       byteSize += request.byteSize();
     }
 
-    /** Let waiting for threads know that the request has been successfully sent. */
+    /**
+     * Let waiting for threads know that the request has been successfully sent.
+     *
+     * @implNote Thread safe.
+     */
     void notifySent() {
       sent.countDown();
     }
 
-    /** Let waiting for threads know that a failure occurred. */
+    /**
+     * Let waiting for threads know that a failure occurred.
+     *
+     * @implNote Thread safe.
+     */
     void notifyFailed() {
       failed = true;
       sent.countDown();
@@ -168,6 +174,8 @@ final class GrpcGetDataStreamRequests {
     /**
      * Block until notified of a successful send via {@link #notifySent()} or a non-retryable
      * failure via {@link #notifyFailed()}. On failure, throw an exception for waiters.
+     *
+     * @implNote Thread safe.
      */
     void waitForSendOrFailNotification() throws InterruptedException {
       sent.await();
@@ -188,7 +196,7 @@ final class GrpcGetDataStreamRequests {
       }
     }
 
-    ImmutableList<String> createStreamCancelledErrorMessages() {
+    private ImmutableList<String> createStreamCancelledErrorMessages() {
       return requests.stream()
           .flatMap(
               request -> {

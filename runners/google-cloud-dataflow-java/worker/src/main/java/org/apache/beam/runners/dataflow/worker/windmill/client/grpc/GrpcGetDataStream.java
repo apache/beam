@@ -69,7 +69,9 @@ final class GrpcGetDataStream
   private static final StreamingGetDataRequest HEALTH_CHECK_REQUEST =
       StreamingGetDataRequest.newBuilder().build();
 
+  /** @implNote insertion and removal is guarded by {@link #shutdownLock} */
   private final Deque<QueuedBatch> batches;
+
   private final Map<Long, AppendableInputStream> pending;
   private final AtomicLong idGenerator;
   private final ThrottleTimer getDataThrottleTimer;
@@ -289,14 +291,12 @@ final class GrpcGetDataStream
     // Future calls to send RPCs will fail.
     pending.values().forEach(AppendableInputStream::cancel);
     pending.clear();
-    synchronized (batches) {
-      batches.forEach(
-          batch -> {
-            batch.markFinalized();
-            batch.notifyFailed();
-          });
-      batches.clear();
-    }
+    batches.forEach(
+        batch -> {
+          batch.markFinalized();
+          batch.notifyFailed();
+        });
+    batches.clear();
   }
 
   @Override
@@ -363,7 +363,7 @@ final class GrpcGetDataStream
     QueuedBatch batch;
     boolean responsibleForSend = false;
     @Nullable QueuedBatch prevBatch = null;
-    synchronized (batches) {
+    synchronized (shutdownLock) {
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
           || batch.isFinalized()
@@ -388,7 +388,7 @@ final class GrpcGetDataStream
       }
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
-      synchronized (batches) {
+      synchronized (shutdownLock) {
         verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
         batch.markFinalized();
       }
@@ -402,7 +402,7 @@ final class GrpcGetDataStream
   void trySendBatch(QueuedBatch batch) {
     try {
       sendBatch(batch.sortedRequestsReadOnly());
-      synchronized (batches) {
+      synchronized (shutdownLock) {
         verify(
             batch == batches.pollFirst(),
             "Sent GetDataStream request batch removed before send() was complete.");
