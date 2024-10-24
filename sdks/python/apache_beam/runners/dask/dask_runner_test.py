@@ -322,7 +322,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
           equal_to([("a", [1, 3]), ("b", [2])]),
       )
 
-  def test_pardo_unfusable_side_inputs(self):
+  def test_pardo_unfusable_side_inputs__one(self):
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
@@ -335,6 +335,11 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
           equal_to([("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")]),
           label="assert_that1",
       )
+
+  def test_pardo_unfusable_side_inputs__two(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
 
     with self.pipeline as p:
       pcoll = p | "Create2" >> beam.Create(["a", "b"])
