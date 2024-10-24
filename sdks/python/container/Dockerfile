@@ -82,7 +82,7 @@ RUN  \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
-#ENTRYPOINT ["/opt/apache/beam/boot"]
+ENTRYPOINT ["/opt/apache/beam/boot"]
 
 ####
 # Pull and add third party licenses to the image if pull_licenses is true.
@@ -110,9 +110,17 @@ RUN if [ "$pull_licenses" != "true" ] ; then \
       rm -rf /opt/apache/beam/third_party_licenses ; \
     fi
 
+ARG TARGETARCH
 FROM gcr.io/distroless/python3-debian12:latest-${TARGETARCH} as distroless
+ARG py_version
+COPY --from=base /usr/local/include /usr/local/include
 COPY --from=base /usr/local/bin /usr/local/bin
-COPY --from=base /usr/local/lib/python${pyversion} /usr/local/lib/python${pyversion}
-COPY --from=base /root /root
+COPY --from=base /usr/local/lib /usr/local/lib
+# Python standard library modules:
+COPY --from=base /usr/lib/python${py_version} /usr/lib/python${py_version}
+# Contains the boot entrypoint:
 COPY --from=base /opt /opt
 ENV PATH "$PATH:/usr/local/bin"
+
+# Despite the ENTRYPOINT set above, need to reset since deriving the layer from a different image:
+ENTRYPOINT ["/opt/apache/beam/boot"]
