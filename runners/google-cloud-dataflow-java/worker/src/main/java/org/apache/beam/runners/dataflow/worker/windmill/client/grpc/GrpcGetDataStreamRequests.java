@@ -120,14 +120,30 @@ final class GrpcGetDataStreamRequests {
     private volatile boolean finalized = false;
     private volatile boolean failed = false;
 
-    /**
-     * Returns a read-only view of requests sorted with {@link QueuedRequest#globalRequestsFirst()}.
-     */
-    List<QueuedRequest> sortedRequestsReadOnly() {
-      // Put all global data requests first because there is only a single repeated field for
-      // request ids and the initial ids correspond to global data requests if they are present.
-      requests.sort(QueuedRequest.globalRequestsFirst());
+    /** Returns a read-only view of requests. */
+    List<QueuedRequest> requestsReadOnly() {
       return Collections.unmodifiableList(requests);
+    }
+
+    /**
+     * Converts the batch to a {@link
+     * org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataRequest}.
+     */
+    Windmill.StreamingGetDataRequest asGetDataRequest() {
+      Windmill.StreamingGetDataRequest.Builder builder =
+          Windmill.StreamingGetDataRequest.newBuilder();
+
+      requests.stream()
+          // Put all global data requests first because there is only a single repeated field for
+          // request ids and the initial ids correspond to global data requests if they are present.
+          .sorted(QueuedRequest.globalRequestsFirst())
+          .forEach(request -> request.addToStreamingGetDataRequest(builder));
+
+      return builder.build();
+    }
+
+    boolean isEmpty() {
+      return requests.isEmpty();
     }
 
     int requestsCount() {

@@ -401,7 +401,7 @@ final class GrpcGetDataStream
 
   void trySendBatch(QueuedBatch batch) {
     try {
-      sendBatch(batch.sortedRequestsReadOnly());
+      sendBatch(batch);
       synchronized (shutdownLock) {
         verify(
             batch == batches.pollFirst(),
@@ -419,12 +419,12 @@ final class GrpcGetDataStream
     }
   }
 
-  private void sendBatch(List<QueuedRequest> requests) {
-    if (requests.isEmpty()) {
+  private void sendBatch(QueuedBatch batch) {
+    if (batch.isEmpty()) {
       return;
     }
 
-    StreamingGetDataRequest batchedRequest = flushToBatch(requests);
+    StreamingGetDataRequest batchedRequest = batch.asGetDataRequest();
     synchronized (shutdownLock) {
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
@@ -433,9 +433,10 @@ final class GrpcGetDataStream
         // to it.
         if (isShutdown()) {
           throw new WindmillStreamShutdownException(
-              "Stream was closed when attempting to send " + requests.size() + " requests.");
+              "Stream was closed when attempting to send " + batch.requestsCount() + " requests.");
         }
-        for (QueuedRequest request : requests) {
+
+        for (QueuedRequest request : batch.requestsReadOnly()) {
           // Map#put returns null if there was no previous mapping for the key, meaning we have not
           // seen it before.
           verify(
@@ -451,14 +452,6 @@ final class GrpcGetDataStream
       // The stream broke before this call went through; onNewStream will retry the fetch.
       LOG.warn("GetData stream broke before call started.", e);
     }
-  }
-
-  private StreamingGetDataRequest flushToBatch(List<QueuedRequest> requests) {
-    StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
-    for (QueuedRequest request : requests) {
-      request.addToStreamingGetDataRequest(builder);
-    }
-    return builder.build();
   }
 
   private void verify(boolean condition, String message) {
