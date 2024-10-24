@@ -267,10 +267,6 @@ public class KafkaIOTest {
           public synchronized void assign(final Collection<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
-            for (TopicPartition tp : assigned) {
-              updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
-            }
           }
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
@@ -290,8 +286,11 @@ public class KafkaIOTest {
           }
         };
 
-    for (String topic : topics) {
-      consumer.updatePartitions(topic, partitionMap.get(topic));
+    for (Map.Entry<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> entry :
+        records.entrySet()) {
+      consumer.updatePartitions(entry.getKey().topic(), partitionMap.get(entry.getKey().topic()));
+      consumer.updateBeginningOffsets(ImmutableMap.of(entry.getKey(), 0L));
+      consumer.updateEndOffsets(ImmutableMap.of(entry.getKey(), (long) entry.getValue().size()));
     }
 
     // MockConsumer does not maintain any relationship between partition seek position and the
