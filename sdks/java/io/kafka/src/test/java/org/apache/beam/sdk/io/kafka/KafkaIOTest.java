@@ -77,7 +77,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
-import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.EndOffsetErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Lineage;
@@ -267,10 +267,6 @@ public class KafkaIOTest {
           public synchronized void assign(final Collection<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
-            for (TopicPartition tp : assigned) {
-              updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
-            }
           }
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
@@ -290,8 +286,11 @@ public class KafkaIOTest {
           }
         };
 
-    for (String topic : topics) {
-      consumer.updatePartitions(topic, partitionMap.get(topic));
+    for (Map.Entry<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> entry :
+        records.entrySet()) {
+      consumer.updatePartitions(entry.getKey().topic(), partitionMap.get(entry.getKey().topic()));
+      consumer.updateBeginningOffsets(ImmutableMap.of(entry.getKey(), 0L));
+      consumer.updateEndOffsets(ImmutableMap.of(entry.getKey(), (long) entry.getValue().size()));
     }
 
     // MockConsumer does not maintain any relationship between partition seek position and the
@@ -1525,13 +1524,14 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("topic_a");
 
-    PositionErrorConsumerFactory positionErrorConsumerFactory = new PositionErrorConsumerFactory();
+    EndOffsetErrorConsumerFactory endOffsetErrorConsumerFactory =
+        new EndOffsetErrorConsumerFactory();
 
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopics(topics)
-            .withConsumerFactoryFn(positionErrorConsumerFactory)
+            .withConsumerFactoryFn(endOffsetErrorConsumerFactory)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .makeSource();
@@ -1540,7 +1540,7 @@ public class KafkaIOTest {
 
     reader.start();
 
-    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partition");
+    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partitions");
 
     reader.close();
   }
