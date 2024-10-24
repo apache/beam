@@ -127,14 +127,14 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
 
        // Not supported in Portable Java SDK
-       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState' 
+       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
     }
     filter {
         // PortableMetrics doesn't implement "getCommitedOrNull" from Metrics
         // Preventing Prism from passing these tests.
         // In particular, it doesn't subclass MetricResult with an override, and
         // it explicilty passes "false" to commited supported in create.
-        // 
+        //
         // There is not currently a category for excluding these _only_ in committed mode
         excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics'
         excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
@@ -151,7 +151,7 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
         excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
 
-        // Java side dying during execution. 
+        // Java side dying during execution.
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
         // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
         // Likely due to prism't coder changes.
@@ -164,14 +164,14 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
 
         // Technically these tests "succeed"
         // the test is just complaining that an AssertionException isn't a RuntimeException
-        // 
+        //
         // java.lang.RuntimeException: test error in finalize
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInFinishBatch'
         // java.lang.RuntimeException: test error in process
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInProcessElement'
         // java.lang.RuntimeException: test error in initialize
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInStartBatch'
-        
+
         // Only known window fns supported, not general window merging
         // Custom window fns not yet implemented in prism.
         // https://github.com/apache/beam/issues/20437
@@ -183,14 +183,14 @@ def createPrismValidatesRunnerTask = { name, environmentType, dockerImageTask = 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
 
         // Possibly a different error being hidden behind the main error.
-        // org.apache.beam.sdk.util.WindowedValue$ValueInGlobalWindow cannot be cast to class java.lang.String 
+        // org.apache.beam.sdk.util.WindowedValue$ValueInGlobalWindow cannot be cast to class java.lang.String
         // TODO(https://github.com/apache/beam/issues/29973)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
         // TODO(https://github.com/apache/beam/issues/31231)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
 
         // Prism isn't handling Java's side input views properly.
-        // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view. 
+        // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view.
         // Consider using Combine.globally().asSingleton() to combine the PCollection into a single value
         excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testDiscardingNonSingletonSideInput'
         // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.
@@ -261,5 +261,5 @@ task prismDockerValidatesRunner {
 }
 
 task prismLoopbackValidatesRunner {
-  dependsOn createPrismValidatesRunnerTask("prismLoopbackValidatesRunnerTests", "LOOPBACK") 
+  dependsOn createPrismValidatesRunnerTask("prismLoopbackValidatesRunnerTests", "LOOPBACK")
 }
