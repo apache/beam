@@ -110,7 +110,8 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
       return self.path_to_beam_jar(
           ':runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
-  def java_arguments(self, job_port, artifact_port, expansion_port, artifacts_dir):
+  def java_arguments(
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
         '--flink-master',
         self._master_url,

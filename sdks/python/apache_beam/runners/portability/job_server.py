@@ -130,11 +130,7 @@ class JavaJarJobServer(SubprocessJobServer):
     self._jar_cache_dir = options.jar_cache_dir
 
   def java_arguments(
-      self,
-      job_port,
-      artifact_port,
-      expansion_port,
-      artifacts_dir):
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     raise NotImplementedError(type(self))
 
   def path_to_jar(self):

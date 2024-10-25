@@ -25,11 +25,7 @@ from apache_beam.runners.portability.job_server import JavaJarJobServer
 
 class JavaJarJobServerStub(JavaJarJobServer):
   def java_arguments(
-      self,
-      job_port,
-      artifact_port,
-      expansion_port,
-      artifacts_dir):
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
         '--artifacts-dir',
         artifacts_dir,
@@ -45,7 +41,8 @@ class JavaJarJobServerStub(JavaJarJobServer):
     return '/path/to/jar'
 
   @staticmethod
-  def local_jar(url):
+  def local_jar(url, jar_cache_dir):
+    logging.debug(f"url({url}), jar_cache_dir({jar_cache_dir})")
     return url
 
 
