@@ -115,8 +115,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
       job_port,
       artifact_port,
       expansion_port,
-      artifacts_dir,
-      jar_cache_dir):
+      artifacts_dir):
     return [
         '--flink-master',
         self._master_url,
@@ -127,7 +126,5 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port,
-        '--jar-cache-dir',
-        jar_cache_dir
+        expansion_port
     ]

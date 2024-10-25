@@ -29,8 +29,7 @@ class JavaJarJobServerStub(JavaJarJobServer):
       job_port,
       artifact_port,
       expansion_port,
-      artifacts_dir,
-      jar_cache_dir):
+      artifacts_dir):
     return [
         '--artifacts-dir',
         artifacts_dir,
@@ -39,9 +38,7 @@ class JavaJarJobServerStub(JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port,
-        '--jar-cache-dir',
-        jar_cache_dir
+        expansion_port
     ]
 
   def path_to_jar(self):
@@ -62,7 +59,6 @@ class JavaJarJobServerTest(unittest.TestCase):
         '--artifacts_dir=/path/to/artifacts/',
         '--job_server_java_launcher=/path/to/java',
         '--job_server_jvm_properties=-Dsome.property=value'
-        '--jar_cache_dir=/path/to/cache_dir/'
     ])
     job_server = JavaJarJobServerStub(pipeline_options)
     subprocess_cmd, endpoint = job_server.subprocess_cmd_and_endpoint()
@@ -75,8 +71,6 @@ class JavaJarJobServerTest(unittest.TestCase):
             '/path/to/jar',
             '--artifacts-dir',
             '/path/to/artifacts/',
-            '--jar-cache-dir',
-            '/path/to/cache_dir/',
             '--job-port',
             8099,
             '--artifact-port',

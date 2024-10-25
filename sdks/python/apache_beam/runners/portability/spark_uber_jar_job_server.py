@@ -49,8 +49,6 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     self._rest_url = rest_url
     self._artifact_port = (
         options.view_as(pipeline_options.JobServerOptions).artifact_port)
-    self._jar_cache_dir = (
-        options.view_as(pipeline_options.JobServerOptions).jar_cache_dir)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-spark')
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     self._executable_jar = spark_options.spark_job_server_jar

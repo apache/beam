@@ -134,8 +134,7 @@ class JavaJarJobServer(SubprocessJobServer):
       job_port,
       artifact_port,
       expansion_port,
-      artifacts_dir,
-      jar_cache_dir):
+      artifacts_dir):
     raise NotImplementedError(type(self))
 
   def path_to_jar(self):
@@ -162,6 +161,5 @@ class JavaJarJobServer(SubprocessJobServer):
                               job_port,
                               self._artifact_port,
                               self._expansion_port,
-                              artifacts_dir,
-                              self._jar_cache_dir))
+                              artifacts_dir))
     return (subprocess_cmd, 'localhost:%s' % job_port)
