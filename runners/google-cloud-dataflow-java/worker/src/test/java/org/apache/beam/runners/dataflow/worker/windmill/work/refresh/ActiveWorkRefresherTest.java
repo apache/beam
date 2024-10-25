@@ -107,7 +107,7 @@ public class ActiveWorkRefresherTest {
         stuckCommitDurationMillis,
         computations,
         DataflowExecutionStateSampler.instance(),
-        Executors.newSingleThreadScheduledExecutor(),
+        ignored -> Executors.newSingleThreadScheduledExecutor(),
         heartbeatTracker);
   }
 

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import com.google.auto.value.AutoBuilder;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,6 +28,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors.TerminatingExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.sdk.annotations.Internal;
@@ -51,7 +51,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
-  private final ExecutorService commitSenders;
+  private final TerminatingExecutorService commitSenders;
   private final AtomicLong activeCommitBytes;
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;

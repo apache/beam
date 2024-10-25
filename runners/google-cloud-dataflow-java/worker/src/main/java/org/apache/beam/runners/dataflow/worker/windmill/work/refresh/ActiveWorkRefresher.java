@@ -25,9 +25,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors.TerminatingExecutorService;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -63,7 +64,7 @@ public final class ActiveWorkRefresher {
   private final int stuckCommitDurationMillis;
   private final HeartbeatTracker heartbeatTracker;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
-  private final ExecutorService fanOutActiveWorkRefreshExecutor;
+  private final TerminatingExecutorService fanOutActiveWorkRefreshExecutor;
 
   public ActiveWorkRefresher(
       Supplier<Instant> clock,
@@ -71,14 +72,14 @@ public final class ActiveWorkRefresher {
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
-      ScheduledExecutorService activeWorkRefreshExecutor,
+      Function<Logger, ScheduledExecutorService> activeWorkRefreshExecutor,
       HeartbeatTracker heartbeatTracker) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
-    this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
+    this.activeWorkRefreshExecutor = activeWorkRefreshExecutor.apply(LOG);
     this.heartbeatTracker = heartbeatTracker;
     this.fanOutActiveWorkRefreshExecutor =
         TerminatingExecutors.newCachedThreadPool(

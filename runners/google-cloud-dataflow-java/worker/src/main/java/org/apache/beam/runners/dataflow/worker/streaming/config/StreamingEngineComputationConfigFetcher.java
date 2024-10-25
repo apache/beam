@@ -97,7 +97,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         new StreamingGlobalConfigHandleImpl(),
-        TerminatingExecutors.newSingleThreadedScheduledExecutor(
+        TerminatingExecutors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME), LOG));
   }
 

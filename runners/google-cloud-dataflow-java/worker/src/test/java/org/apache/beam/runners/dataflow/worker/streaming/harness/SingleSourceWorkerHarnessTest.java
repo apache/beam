@@ -18,22 +18,31 @@
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.WorkerUncaughtExceptionHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.JvmRuntime;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class SingleSourceWorkerHarnessTest {
+  private static final Logger LOG = LoggerFactory.getLogger(SingleSourceWorkerHarnessTest.class);
   private final WorkCommitter workCommitter = mock(WorkCommitter.class);
   private final GetDataClient getDataClient = mock(GetDataClient.class);
   private final HeartbeatSender heartbeatSender = mock(HeartbeatSender.class);
@@ -43,7 +52,7 @@ public class SingleSourceWorkerHarnessTest {
   private final StreamingWorkScheduler streamingWorkScheduler = mock(StreamingWorkScheduler.class);
 
   private SingleSourceWorkerHarness createWorkerHarness(
-      SingleSourceWorkerHarness.GetWorkSender getWorkSender) {
+      SingleSourceWorkerHarness.GetWorkSender getWorkSender, JvmRuntime runtime) {
     return SingleSourceWorkerHarness.builder()
         .setWorkCommitter(workCommitter)
         .setGetDataClient(getDataClient)
@@ -52,33 +61,65 @@ public class SingleSourceWorkerHarnessTest {
         .setStreamingWorkScheduler(streamingWorkScheduler)
         .setComputationStateFetcher(computationStateFetcher)
         .setGetWorkSender(getWorkSender)
+        .setWorkProviderExecutor(
+            TerminatingExecutors.newSingleThreadedExecutorForTesting(
+                runtime,
+                new ThreadFactoryBuilder()
+                    .setDaemon(true)
+                    .setPriority(Thread.MIN_PRIORITY)
+                    .setNameFormat("DispatchThread"),
+                LOG))
         .build();
   }
 
   @Test
-  public void testDispatchLoopFailureThrowsException_appliance() {
-    RuntimeException expected = new RuntimeException("something bad happened");
+  public void testDispatchLoop_unexpectedFailureKillsJvm_appliance() {
     SingleSourceWorkerHarness.GetWorkSender getWorkSender =
         SingleSourceWorkerHarness.GetWorkSender.forAppliance(
             () -> {
-              throw expected;
+              throw new RuntimeException("something bad happened");
             });
 
-    SingleSourceWorkerHarness harness = createWorkerHarness(getWorkSender);
-    Throwable actual = assertThrows(AssertionError.class, harness::start);
-    assertThat(actual).hasCauseThat().hasCauseThat().isEqualTo(expected);
+    FakeJvmRuntime fakeJvmRuntime = new FakeJvmRuntime();
+    createWorkerHarness(getWorkSender, fakeJvmRuntime).start();
+    assertTrue(fakeJvmRuntime.waitForRuntimeDeath(5, TimeUnit.SECONDS));
+    fakeJvmRuntime.assertJvmTerminated();
   }
 
   @Test
-  public void testDispatchLoopFailureThrowsException_streamingEngine() {
-    RuntimeException expected = new RuntimeException("something bad happened");
+  public void testDispatchLoop_unexpectedFailureKillsJvm_streamingEngine() {
     SingleSourceWorkerHarness.GetWorkSender getWorkSender =
         SingleSourceWorkerHarness.GetWorkSender.forStreamingEngine(
             workItemReceiver -> {
-              throw expected;
+              throw new RuntimeException("something bad happened");
             });
-    SingleSourceWorkerHarness harness = createWorkerHarness(getWorkSender);
-    Throwable actual = assertThrows(AssertionError.class, harness::start);
-    assertThat(actual).hasCauseThat().hasCauseThat().isEqualTo(expected);
+
+    FakeJvmRuntime fakeJvmRuntime = new FakeJvmRuntime();
+    createWorkerHarness(getWorkSender, fakeJvmRuntime).start();
+    assertTrue(fakeJvmRuntime.waitForRuntimeDeath(5, TimeUnit.SECONDS));
+    fakeJvmRuntime.assertJvmTerminated();
+  }
+
+  private static class FakeJvmRuntime implements JvmRuntime {
+    private final CountDownLatch haltedLatch = new CountDownLatch(1);
+    private volatile int exitStatus = 0;
+
+    @Override
+    public void halt(int status) {
+      exitStatus = status;
+      haltedLatch.countDown();
+    }
+
+    public boolean waitForRuntimeDeath(long timeout, TimeUnit unit) {
+      try {
+        return haltedLatch.await(timeout, unit);
+      } catch (InterruptedException e) {
+        return false;
+      }
+    }
+
+    private void assertJvmTerminated() {
+      assertThat(exitStatus).isEqualTo(WorkerUncaughtExceptionHandler.JVM_TERMINATED_STATUS_CODE);
+    }
   }
 }

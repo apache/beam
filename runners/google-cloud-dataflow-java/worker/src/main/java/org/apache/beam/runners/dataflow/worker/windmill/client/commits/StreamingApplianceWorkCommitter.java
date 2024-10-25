@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
@@ -29,6 +28,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors.TerminatingExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.sdk.annotations.Internal;
@@ -46,7 +46,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
 
   private final Consumer<CommitWorkRequest> commitWorkFn;
   private final WeightedBoundedQueue<Commit> commitQueue;
-  private final ExecutorService commitWorkers;
+  private final TerminatingExecutorService commitWorkers;
   private final AtomicLong activeCommitBytes;
   private final Consumer<CompleteCommit> onCommitComplete;
 
@@ -57,7 +57,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
         WeightedBoundedQueue.create(
             MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
     this.commitWorkers =
-        TerminatingExecutors.newSingleThreadedExecutor(
+        TerminatingExecutors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MAX_PRIORITY)

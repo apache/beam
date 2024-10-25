@@ -28,7 +28,8 @@ import org.slf4j.Logger;
  * This uncaught exception handler logs the {@link Throwable} to the logger, {@link System#err} and
  * exits the application with status code 1.
  */
-public class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
+public final class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
+  @VisibleForTesting public static final int JVM_TERMINATED_STATUS_CODE = 1;
   private final JvmRuntime runtime;
   private final Logger logger;
 
@@ -36,8 +37,7 @@ public class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler 
     this(JvmRuntime.INSTANCE, logger);
   }
 
-  @VisibleForTesting
-  WorkerUncaughtExceptionHandler(JvmRuntime runtime, Logger logger) {
+  public WorkerUncaughtExceptionHandler(JvmRuntime runtime, Logger logger) {
     this.runtime = runtime;
     this.logger = logger;
   }
@@ -59,7 +59,7 @@ public class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler 
         t.printStackTrace(originalStdErr);
       }
     } finally {
-      runtime.halt(1);
+      runtime.halt(JVM_TERMINATED_STATUS_CODE);
     }
   }
 }

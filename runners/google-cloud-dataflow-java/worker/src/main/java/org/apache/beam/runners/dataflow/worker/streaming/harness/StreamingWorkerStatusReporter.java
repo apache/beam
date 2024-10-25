@@ -151,7 +151,7 @@ public final class StreamingWorkerStatusReporter {
         memoryMonitor,
         workExecutor,
         threadName ->
-            TerminatingExecutors.newSingleThreadedScheduledExecutor(
+            TerminatingExecutors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat(threadName), LOG),
         windmillHarnessUpdateReportingPeriodMillis,
         perWorkerMetricsUpdateReportingPeriodMillis);

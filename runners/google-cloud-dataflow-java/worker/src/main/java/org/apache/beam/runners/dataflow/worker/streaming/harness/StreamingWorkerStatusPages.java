@@ -116,7 +116,7 @@ public final class StreamingWorkerStatusPages {
   public static StreamingWorkerStatusPages.Builder builder() {
     return new AutoBuilder_StreamingWorkerStatusPages_Builder()
         .setStatusPageDumper(
-            TerminatingExecutors.newSingleThreadedScheduledExecutor(
+            TerminatingExecutors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat(DUMP_STATUS_PAGES_EXECUTOR), LOG));
   }
 

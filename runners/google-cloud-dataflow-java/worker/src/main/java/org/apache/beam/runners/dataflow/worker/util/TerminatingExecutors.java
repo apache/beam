@@ -17,12 +17,22 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.dataflow.worker.WorkerUncaughtExceptionHandler;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.JvmRuntime;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 
 /**
@@ -35,27 +45,37 @@ import org.slf4j.Logger;
 public final class TerminatingExecutors {
   private TerminatingExecutors() {}
 
-  public static ExecutorService newSingleThreadedExecutor(
+  public static TerminatingExecutorService newSingleThreadExecutor(
       ThreadFactoryBuilder threadFactoryBuilder, Logger logger) {
-    return Executors.newSingleThreadExecutor(
-        terminatingThreadFactory(threadFactoryBuilder, logger));
+    return new TerminatingExecutorService(
+        Executors.newSingleThreadExecutor(terminatingThreadFactory(threadFactoryBuilder, logger)));
   }
 
-  public static ScheduledExecutorService newSingleThreadedScheduledExecutor(
+  public static TerminatingScheduledExecutorService newSingleThreadScheduledExecutor(
       ThreadFactoryBuilder threadFactoryBuilder, Logger logger) {
-    return Executors.newSingleThreadScheduledExecutor(
-        terminatingThreadFactory(threadFactoryBuilder, logger));
+    return new TerminatingScheduledExecutorService(
+        Executors.newSingleThreadScheduledExecutor(
+            terminatingThreadFactory(threadFactoryBuilder, logger)));
   }
 
-  public static ExecutorService newCachedThreadPool(
+  public static TerminatingExecutorService newCachedThreadPool(
       ThreadFactoryBuilder threadFactoryBuilder, Logger logger) {
-    return Executors.newCachedThreadPool(terminatingThreadFactory(threadFactoryBuilder, logger));
+    return new TerminatingExecutorService(
+        Executors.newCachedThreadPool(terminatingThreadFactory(threadFactoryBuilder, logger)));
   }
 
-  public static ExecutorService newFixedThreadPool(
+  public static TerminatingExecutorService newFixedThreadPool(
       int numThreads, ThreadFactoryBuilder threadFactoryBuilder, Logger logger) {
-    return Executors.newFixedThreadPool(
-        numThreads, terminatingThreadFactory(threadFactoryBuilder, logger));
+    return new TerminatingExecutorService(
+        Executors.newFixedThreadPool(
+            numThreads, terminatingThreadFactory(threadFactoryBuilder, logger)));
+  }
+
+  public static TerminatingExecutorService newSingleThreadedExecutorForTesting(
+      JvmRuntime jvmRuntime, ThreadFactoryBuilder threadFactoryBuilder, Logger logger) {
+    return new TerminatingExecutorService(
+        Executors.newSingleThreadExecutor(
+            terminatingThreadFactoryForTesting(jvmRuntime, threadFactoryBuilder, logger)));
   }
 
   private static ThreadFactory terminatingThreadFactory(
@@ -63,5 +83,124 @@ public final class TerminatingExecutors {
     return threadFactoryBuilder
         .setUncaughtExceptionHandler(new WorkerUncaughtExceptionHandler(logger))
         .build();
+  }
+
+  private static ThreadFactory terminatingThreadFactoryForTesting(
+      JvmRuntime jvmRuntime, ThreadFactoryBuilder threadFactoryBuilder, Logger logger) {
+    return threadFactoryBuilder
+        .setUncaughtExceptionHandler(new WorkerUncaughtExceptionHandler(jvmRuntime, logger))
+        .build();
+  }
+
+  /** Wrapper for {@link ScheduledExecutorService}(s) created by {@link TerminatingExecutors}. */
+  public static final class TerminatingScheduledExecutorService extends TerminatingExecutorService
+      implements ScheduledExecutorService {
+    private final ScheduledExecutorService delegate;
+
+    private TerminatingScheduledExecutorService(ScheduledExecutorService delegate) {
+      super(delegate);
+      this.delegate = delegate;
+    }
+
+    @Override
+    public ScheduledFuture<@Nullable ?> schedule(Runnable command, long delay, TimeUnit unit) {
+      return delegate.schedule(command, delay, unit);
+    }
+
+    @Override
+    public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+      return delegate.schedule(callable, delay, unit);
+    }
+
+    @Override
+    public ScheduledFuture<@Nullable ?> scheduleAtFixedRate(
+        Runnable command, long initialDelay, long period, TimeUnit unit) {
+      return delegate.scheduleAtFixedRate(command, initialDelay, period, unit);
+    }
+
+    @Override
+    public ScheduledFuture<@Nullable ?> scheduleWithFixedDelay(
+        Runnable command, long initialDelay, long delay, TimeUnit unit) {
+      return delegate.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+    }
+  }
+
+  /** Wrapper for {@link ExecutorService}(s) created by {@link TerminatingExecutors}. */
+  public static class TerminatingExecutorService implements ExecutorService {
+    private final ExecutorService delegate;
+
+    private TerminatingExecutorService(ExecutorService delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void shutdown() {
+      delegate.shutdown();
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+      return delegate.shutdownNow();
+    }
+
+    @Override
+    public boolean isShutdown() {
+      return delegate.isShutdown();
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return delegate.isTerminated();
+    }
+
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+      return delegate.awaitTermination(timeout, unit);
+    }
+
+    @Override
+    public <T> Future<T> submit(Callable<T> task) {
+      return delegate.submit(task);
+    }
+
+    @Override
+    public <T> Future<T> submit(Runnable task, T result) {
+      return delegate.submit(task, result);
+    }
+
+    @Override
+    public Future<@Nullable ?> submit(Runnable task) {
+      return delegate.submit(task);
+    }
+
+    @Override
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+        throws InterruptedException {
+      return delegate.invokeAll(tasks);
+    }
+
+    @Override
+    public <T> List<Future<T>> invokeAll(
+        Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+        throws InterruptedException {
+      return delegate.invokeAll(tasks, timeout, unit);
+    }
+
+    @Override
+    public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+        throws InterruptedException, ExecutionException {
+      return delegate.invokeAny(tasks);
+    }
+
+    @Override
+    public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+      return delegate.invokeAny(tasks, timeout, unit);
+    }
+
+    @Override
+    public void execute(Runnable command) {
+      delegate.execute(command);
+    }
   }
 }

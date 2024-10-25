@@ -98,7 +98,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       String backendWorkerToken) {
     this.backendWorkerToken = backendWorkerToken;
     this.executor =
-        TerminatingExecutors.newSingleThreadedExecutor(
+        TerminatingExecutors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setNameFormat(createThreadName(debugStreamType, backendWorkerToken)),

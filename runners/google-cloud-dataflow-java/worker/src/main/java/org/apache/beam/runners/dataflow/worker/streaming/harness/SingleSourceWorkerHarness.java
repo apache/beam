@@ -23,9 +23,6 @@ import com.google.auto.value.AutoBuilder;
 import com.google.auto.value.AutoOneOf;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -34,6 +31,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors.TerminatingExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.RpcException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
@@ -43,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -66,7 +65,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
   private final StreamingWorkScheduler streamingWorkScheduler;
   private final Runnable waitForResources;
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
-  private final ExecutorService workProviderExecutor;
+  private final TerminatingExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
 
   SingleSourceWorkerHarness(
@@ -76,27 +75,28 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher,
-      GetWorkSender getWorkSender) {
+      GetWorkSender getWorkSender,
+      TerminatingExecutorService workProviderExecutor) {
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
     this.heartbeatSender = heartbeatSender;
     this.streamingWorkScheduler = streamingWorkScheduler;
     this.waitForResources = waitForResources;
     this.computationStateFetcher = computationStateFetcher;
-    this.workProviderExecutor =
-        TerminatingExecutors.newSingleThreadedExecutor(
-            new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .setPriority(Thread.MIN_PRIORITY)
-                .setNameFormat("DispatchThread"),
-            LOG);
-
+    this.workProviderExecutor = workProviderExecutor;
     this.isRunning = new AtomicBoolean(false);
     this.getWorkSender = getWorkSender;
   }
 
   public static SingleSourceWorkerHarness.Builder builder() {
-    return new AutoBuilder_SingleSourceWorkerHarness_Builder();
+    return new AutoBuilder_SingleSourceWorkerHarness_Builder()
+        .setWorkProviderExecutor(
+            TerminatingExecutors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder()
+                    .setDaemon(true)
+                    .setPriority(Thread.MIN_PRIORITY)
+                    .setNameFormat("DispatchThread"),
+                LOG));
   }
 
   @Override
@@ -106,22 +106,11 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         "Multiple calls to {}.start() are not allowed.",
         getClass());
     workCommitter.start();
-    while (isRunning.get()) {
-      Future<?> dispatchLoopFuture =
-          workProviderExecutor.submit(
-              () -> {
-                getDispatchLoop().run();
-                LOG.info("Dispatch done");
-              });
-
-      try {
-        dispatchLoopFuture.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      } catch (ExecutionException e) {
-        throw new AssertionError("GetWork failed with error.", e);
-      }
-    }
+    workProviderExecutor.execute(
+        () -> {
+          getDispatchLoop().run();
+          LOG.info("Dispatch done");
+        });
   }
 
   private Runnable getDispatchLoop() {
@@ -267,6 +256,9 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         Function<String, Optional<ComputationState>> computationStateFetcher);
 
     Builder setGetWorkSender(GetWorkSender getWorkSender);
+
+    @VisibleForTesting
+    Builder setWorkProviderExecutor(TerminatingExecutorService workProviderExecutor);
 
     SingleSourceWorkerHarness build();
   }
