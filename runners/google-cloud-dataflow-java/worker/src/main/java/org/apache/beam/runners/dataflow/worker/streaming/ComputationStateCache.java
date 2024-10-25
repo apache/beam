@@ -150,7 +150,7 @@ public final class ComputationStateCache implements StatusDataProvider {
         LOG.warn(
             "Computation {} is currently unknown, "
                 + "known computations are {}. "
-                + "This is transient and safe to ignore.",
+                + "This is transient and will get retried.",
             computationId,
             ImmutableSet.copyOf(computationCache.asMap().keySet()));
       } else {
