@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -35,11 +38,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
@@ -175,26 +176,27 @@ class AppendFilesToTables
         throws IOException {
       String uuid = UUID.randomUUID().toString();
       Map<Integer, PartitionSpec> specs = table.specs();
-      Map<Integer, ManifestWriter<DataFile>> manifestFileWriters = Maps.newHashMap();
-      // first add datafiles to the appropriate manifest file, according to its spec id
+
+      Map<Integer, List<DataFile>> dataFilesBySpec = new HashMap<>();
       for (FileWriteResult result : fileWriteResults) {
         DataFile dataFile = result.getDataFile(specs);
-        int specId = dataFile.specId();
-        PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        ManifestWriter<DataFile> writer =
-            manifestFileWriters.computeIfAbsent(
-                specId, id -> createManifestWriter(table.location(), uuid, spec, table.io()));
-        writer.add(dataFile);
-        committedDataFileByteSize.update(dataFile.fileSizeInBytes());
-        committedDataFileRecordCount.update(dataFile.recordCount());
+        dataFilesBySpec.computeIfAbsent(dataFile.specId(), i -> new ArrayList<>()).add(dataFile);
       }
 
-      // append all manifest files and commit
       AppendFiles update = table.newAppend();
-      for (ManifestWriter<DataFile> writer : manifestFileWriters.values()) {
+      for (Map.Entry<Integer, List<DataFile>> entry : dataFilesBySpec.entrySet()) {
+        int specId = entry.getKey();
+        List<DataFile> files = entry.getValue();
+        PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
+        ManifestWriter<DataFile> writer =
+            createManifestWriter(table.location(), uuid, spec, table.io());
+        for (DataFile file : files) {
+          writer.add(file);
+          committedDataFileByteSize.update(file.fileSizeInBytes());
+          committedDataFileRecordCount.update(file.recordCount());
+        }
         writer.close();
-        ManifestFile manifestFile = writer.toManifestFile();
-        update.appendManifest(manifestFile);
+        update.appendManifest(writer.toManifestFile());
       }
       update.commit();
     }
