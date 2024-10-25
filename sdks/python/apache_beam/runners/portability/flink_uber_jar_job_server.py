@@ -50,7 +50,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
             pipeline_options.FlinkRunnerOptions).flink_job_server_jar)
     self._artifact_port = (
         options.view_as(pipeline_options.JobServerOptions).artifact_port)
-    self._jar_cache_dir = (options.view_as(pipeline_options.JobServerOptions.jar_cache_dir))
+    self._jar_cache_dir = (options.view_as(pipeline_options.JobServerOptions).jar_cache_dir)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')
 
   def start(self):
