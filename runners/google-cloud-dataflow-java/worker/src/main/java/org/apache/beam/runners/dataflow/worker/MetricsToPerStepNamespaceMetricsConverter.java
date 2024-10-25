@@ -32,13 +32,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
+import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * Converts metric updates to {@link PerStepNamespaceMetrics} protos. Currently we only support
- * converting metrics from {@link BigQuerySinkMetrics} with this converter.
+ * converting metrics from {@link BigQuerySinkMetrics} and from {@link KafkaSinkMetrics} with this
+ * converter.
  */
 public class MetricsToPerStepNamespaceMetricsConverter {
 
@@ -65,7 +67,10 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       MetricName metricName,
       Long value,
       Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
-    if (value == 0 || !metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)) {
+
+    if (value == 0
+        || (!metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)
+            && !metricName.getNamespace().equals(KafkaSinkMetrics.METRICS_NAMESPACE))) {
       return Optional.empty();
     }
 
