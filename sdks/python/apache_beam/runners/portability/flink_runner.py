@@ -127,5 +127,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port
+        expansion_port,
+        '--jar-cache-dir',
+        jar_cache_dir
     ]
