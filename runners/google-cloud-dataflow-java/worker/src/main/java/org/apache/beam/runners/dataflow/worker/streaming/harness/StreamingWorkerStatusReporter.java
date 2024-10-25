@@ -34,7 +34,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -151,8 +151,8 @@ public final class StreamingWorkerStatusReporter {
         memoryMonitor,
         workExecutor,
         threadName ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
+            TerminatingExecutors.newSingleThreadedScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(threadName), LOG),
         windmillHarnessUpdateReportingPeriodMillis,
         perWorkerMetricsUpdateReportingPeriodMillis);
   }
@@ -228,6 +228,22 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
+  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
+  // WorkerMessages RPC schedule. The desired reporting period
+  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
+  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
+  private static long getPerWorkerMetricsUpdateFrequency(
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
+    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
+      return 0;
+    }
+    return LongMath.divide(
+        perWorkerMetricsUpdateReportingPeriodMillis,
+        windmillHarnessUpdateReportingPeriodMillis,
+        RoundingMode.CEILING);
+  }
+
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     reportHarnessStartup();
@@ -274,22 +290,6 @@ public final class StreamingWorkerStatusReporter {
     } catch (IOException e) {
       LOG.warn("Failed to send harness startup counter", e);
     }
-  }
-
-  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
-  // WorkerMessages RPC schedule. The desired reporting period
-  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
-  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
-  private static long getPerWorkerMetricsUpdateFrequency(
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
-      return 0;
-    }
-    return LongMath.divide(
-        perWorkerMetricsUpdateReportingPeriodMillis,
-        windmillHarnessUpdateReportingPeriodMillis,
-        RoundingMode.CEILING);
   }
 
   /** Sends counter updates to Dataflow backend. */

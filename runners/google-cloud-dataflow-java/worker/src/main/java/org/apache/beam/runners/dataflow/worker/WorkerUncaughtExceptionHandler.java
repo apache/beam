@@ -28,11 +28,11 @@ import org.slf4j.Logger;
  * This uncaught exception handler logs the {@link Throwable} to the logger, {@link System#err} and
  * exits the application with status code 1.
  */
-class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
+public class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
   private final JvmRuntime runtime;
   private final Logger logger;
 
-  WorkerUncaughtExceptionHandler(Logger logger) {
+  public WorkerUncaughtExceptionHandler(Logger logger) {
     this(JvmRuntime.INSTANCE, logger);
   }
 

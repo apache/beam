@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
@@ -29,6 +28,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.sdk.annotations.Internal;
@@ -57,12 +57,12 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
         WeightedBoundedQueue.create(
             MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
     this.commitWorkers =
-        Executors.newSingleThreadScheduledExecutor(
+        TerminatingExecutors.newSingleThreadedExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MAX_PRIORITY)
-                .setNameFormat("CommitThread-%d")
-                .build());
+                .setNameFormat("CommitThread-%d"),
+            LOG);
     this.activeCommitBytes = new AtomicLong();
     this.onCommitComplete = onCommitComplete;
   }

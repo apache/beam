@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.io.PrintWriter;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -56,8 +56,8 @@ public final class ChannelCache implements StatusDataProvider {
             .removalListener(
                 RemovalListeners.asynchronous(
                     onChannelRemoved,
-                    Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build())))
+                    TerminatingExecutors.newCachedThreadPool(
+                        new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser"), LOG)))
             .build(
                 new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
                   @Override

@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import com.google.auto.value.AutoBuilder;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,6 +28,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.sdk.annotations.Internal;
@@ -67,7 +67,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         WeightedBoundedQueue.create(
             MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
     this.commitSenders =
-        Executors.newFixedThreadPool(
+        TerminatingExecutors.newFixedThreadPool(
             numCommitSenders,
             new ThreadFactoryBuilder()
                 .setDaemon(true)
@@ -75,8 +75,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                 .setNameFormat(
                     backendWorkerToken.isEmpty()
                         ? "CommitThread-%d"
-                        : "CommitThread-" + backendWorkerToken + "-%d")
-                .build());
+                        : "CommitThread-" + backendWorkerToken + "-%d"),
+            LOG);
     this.activeCommitBytes = new AtomicLong();
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;

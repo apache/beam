@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -51,7 +51,7 @@ public final class GetWorkBudgetRefresher {
       Supplier<Boolean> isBudgetRefreshPaused, Runnable redistributeBudget) {
     this.budgetRefreshTrigger = new AdvancingPhaser(1);
     this.budgetRefreshExecutor =
-        Executors.newSingleThreadScheduledExecutor(
+        TerminatingExecutors.newSingleThreadedExecutor(
             new ThreadFactoryBuilder()
                 .setNameFormat(BUDGET_REFRESH_THREAD)
                 .setUncaughtExceptionHandler(
@@ -59,8 +59,8 @@ public final class GetWorkBudgetRefresher {
                         LOG.error(
                             "{} failed due to uncaught exception during execution. ",
                             t.getName(),
-                            e))
-                .build());
+                            e)),
+            LOG);
     this.isBudgetRefreshPaused = isBudgetRefreshPaused;
     this.redistributeBudget = redistributeBudget;
   }

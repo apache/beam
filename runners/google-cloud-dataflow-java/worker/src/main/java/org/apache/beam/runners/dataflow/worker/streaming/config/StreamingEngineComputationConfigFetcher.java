@@ -26,7 +26,6 @@ import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
 import java.util.Optional;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,6 +34,7 @@ import java.util.stream.StreamSupport;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
@@ -97,8 +97,8 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         new StreamingGlobalConfigHandleImpl(),
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME).build()));
+        TerminatingExecutors.newSingleThreadedScheduledExecutor(
+            new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME), LOG));
   }
 
   @VisibleForTesting
@@ -157,6 +157,19 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
   }
 
+  private static Optional<ComputationConfig> createComputationConfig(StreamingConfigTask config) {
+    return Optional.ofNullable(config.getStreamingComputationConfigs())
+        .map(Iterables::getOnlyElement)
+        .map(
+            streamingComputationConfig ->
+                ComputationConfig.create(
+                    createMapTask(streamingComputationConfig),
+                    streamingComputationConfig.getTransformUserNameToStateFamily(),
+                    config.getUserStepToStateFamilyNameMap() != null
+                        ? config.getUserStepToStateFamilyNameMap()
+                        : ImmutableMap.of()));
+  }
+
   private StreamingGlobalConfig createPipelineConfig(StreamingConfigTask config) {
     StreamingGlobalConfig.Builder pipelineConfig = StreamingGlobalConfig.builder();
     OperationalLimits.Builder operationalLimits = OperationalLimits.builder();
@@ -213,19 +226,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
 
     return pipelineConfig.build();
-  }
-
-  private static Optional<ComputationConfig> createComputationConfig(StreamingConfigTask config) {
-    return Optional.ofNullable(config.getStreamingComputationConfigs())
-        .map(Iterables::getOnlyElement)
-        .map(
-            streamingComputationConfig ->
-                ComputationConfig.create(
-                    createMapTask(streamingComputationConfig),
-                    streamingComputationConfig.getTransformUserNameToStateFamily(),
-                    config.getUserStepToStateFamilyNameMap() != null
-                        ? config.getUserStepToStateFamilyNameMap()
-                        : ImmutableMap.of()));
   }
 
   @Override

@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.RpcException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
@@ -84,12 +84,13 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
     this.waitForResources = waitForResources;
     this.computationStateFetcher = computationStateFetcher;
     this.workProviderExecutor =
-        Executors.newSingleThreadScheduledExecutor(
+        TerminatingExecutors.newSingleThreadedExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MIN_PRIORITY)
-                .setNameFormat("DispatchThread")
-                .build());
+                .setNameFormat("DispatchThread"),
+            LOG);
+
     this.isRunning = new AtomicBoolean(false);
     this.getWorkSender = getWorkSender;
   }
@@ -112,16 +113,13 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                 getDispatchLoop().run();
                 LOG.info("Dispatch done");
               });
+
       try {
         dispatchLoopFuture.get();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       } catch (ExecutionException e) {
-        // We can decide what we do here.
-        // 1. If we want to crash the worker we can throw an exception like below
-        // 2. or if we want to just retry/restart running the dispatch loop, we can LOG here and the
-        //    loop will restart the dispatch loop.
-        throw new AssertionError(e);
+        throw new AssertionError("GetWork failed with error.", e);
       }
     }
   }
