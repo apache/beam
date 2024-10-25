@@ -29,12 +29,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Rule;
@@ -165,7 +165,7 @@ public class BufferedElementCountingOutputStreamTest {
   public void testWritingBytesWhenFinishedThrows() throws Exception {
     expectedException.expect(IOException.class);
     expectedException.expectMessage("Stream has been finished.");
-    testValues(toBytes("a")).write("b".getBytes(Charsets.UTF_8));
+    testValues(toBytes("a")).write("b".getBytes(StandardCharsets.UTF_8));
   }
 
   @Test
@@ -203,7 +203,7 @@ public class BufferedElementCountingOutputStreamTest {
   private List<byte[]> toBytes(String... values) {
     ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
     for (String value : values) {
-      builder.add(value.getBytes(Charsets.UTF_8));
+      builder.add(value.getBytes(StandardCharsets.UTF_8));
     }
     return builder.build();
   }

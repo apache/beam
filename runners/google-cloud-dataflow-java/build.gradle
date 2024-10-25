@@ -51,8 +51,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20240306'
-ext.dataflowFnapiContainerVersion = 'beam-master-20240306'
+ext.dataflowLegacyContainerVersion = 'beam-master-20240930'
+ext.dataflowFnapiContainerVersion = 'beam-master-20240930'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -108,8 +108,8 @@ dependencies {
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_http_client
-  implementation library.java.google_http_client_jackson2
-  permitUnusedDeclared library.java.google_http_client_jackson2 // BEAM-11761
+  implementation library.java.google_http_client_gson
+  permitUnusedDeclared library.java.google_http_client_gson // BEAM-11761
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -138,18 +138,18 @@ dependencies {
   googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
 }
 
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
-def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
-def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
-def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
-def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+def dataflowValidatesTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
+def dataflowPostCommitTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+def dataflowPostCommitTempRootKms = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
+def dataflowUploadTemp = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
-def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
+def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject.replaceAll(':', '/')}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
 def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
@@ -158,8 +158,8 @@ ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
 def legacyPipelineOptions = [
   "--runner=TestDataflowRunner",
-  "--project=${dataflowProject}",
-  "--region=${dataflowRegion}",
+  "--project=${gcpProject}",
+  "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
   "--workerHarnessContainerImage=",
@@ -167,8 +167,8 @@ def legacyPipelineOptions = [
 
 def runnerV2PipelineOptions = [
   "--runner=TestDataflowRunner",
-  "--project=${dataflowProject}",
-  "--region=${dataflowRegion}",
+  "--project=${gcpProject}",
+  "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
@@ -185,7 +185,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesTestStream',
-  'org.apache.beam.sdk.testing.UsesParDoLifecycle',
+  'org.apache.beam.sdk.testing.UsesParDoLifecycle', // doesn't support remote runner
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesBundleFinalizer',
 ]
@@ -193,6 +193,7 @@ def commonLegacyExcludeCategories = [
 def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesExternalService',
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+        'org.apache.beam.sdk.testing.UsesStringSetMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
         'org.apache.beam.sdk.testing.UsesMultimapState',
@@ -433,14 +434,14 @@ createCrossLanguageValidatesRunnerTask(
   semiPersistDir: "/var/opt/google",
   pythonPipelineOptions: [
     "--runner=TestDataflowRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
@@ -453,9 +454,9 @@ createCrossLanguageValidatesRunnerTask(
   ],
   goScriptOptions: [
     "--runner dataflow",
-    "--project ${dataflowProject}",
-    "--dataflow_project ${dataflowProject}",
-    "--region ${dataflowRegion}",
+    "--project ${gcpProject}",
+    "--dataflow_project ${gcpProject}",
+    "--region ${gcpRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
   ],
@@ -552,8 +553,8 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
+          "--project=${gcpProject}",
+          "--region=${gcpRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -572,6 +573,13 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
   }
 }
 
@@ -580,8 +588,8 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
+          "--project=${gcpProject}",
+          "--region=${gcpRegion}",
           "--tempRoot=${dataflowPostCommitTempRootKms}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -622,7 +630,15 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
+  }
 }
 
 task examplesJavaRunnerV2PreCommit(type: Test) {
@@ -641,6 +657,9 @@ task examplesJavaRunnerV2PreCommit(type: Test) {
 task examplesJavaRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
   dependsOn buildAndPushDockerJavaContainer
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
@@ -666,8 +685,8 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
+          "--project=${gcpProject}",
+          "--region=${gcpRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -712,8 +731,6 @@ task postCommitRunnerV2 {
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
 
-def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
@@ -743,7 +760,7 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
         bqDataset: bqDataset,
         pubsubTopic: pubsubTopic)
 
-// Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
+// Standalone task for testing GCS upload, use with -PfilesToStage and -PgcpTempRoot.
 task GCSUpload(type: JavaExec) {
   mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath

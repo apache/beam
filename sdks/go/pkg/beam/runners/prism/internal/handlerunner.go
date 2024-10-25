@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"reflect"
 	"sort"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
@@ -244,7 +244,7 @@ func (h *runner) ExecuteTransform(stageID, tid string, t *pipepb.PTransform, com
 		kc := coders[kcID]
 		ec := coders[ecID]
 
-		data = append(data, gbkBytes(ws, wc, kc, ec, inputData, coders, watermark))
+		data = append(data, gbkBytes(ws, wc, kc, ec, inputData, coders))
 		if len(data[0]) == 0 {
 			panic("no data for GBK")
 		}
@@ -290,22 +290,34 @@ func windowingStrategy(comps *pipepb.Components, tid string) *pipepb.WindowingSt
 }
 
 // gbkBytes re-encodes gbk inputs in a gbk result.
-func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregate [][]byte, coders map[string]*pipepb.Coder, watermark mtime.Time) []byte {
-	var outputTime func(typex.Window, mtime.Time) mtime.Time
+func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregate [][]byte, coders map[string]*pipepb.Coder) []byte {
+	// Pick how the timestamp of the aggregated output is computed.
+	var outputTime func(typex.Window, mtime.Time, mtime.Time) mtime.Time
 	switch ws.GetOutputTime() {
 	case pipepb.OutputTime_END_OF_WINDOW:
-		outputTime = func(w typex.Window, et mtime.Time) mtime.Time {
+		outputTime = func(w typex.Window, _, _ mtime.Time) mtime.Time {
 			return w.MaxTimestamp()
 		}
-	case pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE:
-		outputTime = func(w typex.Window, et mtime.Time) mtime.Time {
-			return et
+	case pipepb.OutputTime_EARLIEST_IN_PANE:
+		outputTime = func(_ typex.Window, cur, et mtime.Time) mtime.Time {
+			if et < cur {
+				return et
+			}
+			return cur
+		}
+	case pipepb.OutputTime_LATEST_IN_PANE:
+		outputTime = func(_ typex.Window, cur, et mtime.Time) mtime.Time {
+			if et > cur {
+				return et
+			}
+			return cur
 		}
 	default:
 		// TODO need to correct session logic if output time is different.
 		panic(fmt.Sprintf("unsupported OutputTime behavior: %v", ws.GetOutputTime()))
 	}
-	wDec, wEnc := makeWindowCoders(wc)
+
+	_, wDec, wEnc := makeWindowCoders(wc)
 
 	type keyTime struct {
 		key    []byte
@@ -321,9 +333,8 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 	kd := pullDecoder(kc, coders)
 	vd := pullDecoder(vc, coders)
 
-	// Right, need to get the key coder, and the element coder.
-	// Cus I'll need to pull out anything the runner knows how to deal with.
-	// And repeat.
+	// Aggregate by windows and keys, using the window coder and KV coders.
+	// We need to extract and split the key bytes from the element bytes.
 	for _, data := range toAggregate {
 		// Parse out each element's data, and repeat.
 		buf := bytes.NewBuffer(data)
@@ -340,14 +351,18 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 			key := string(keyByt)
 			value := vd(buf)
 			for _, w := range ws {
-				ft := outputTime(w, tm)
 				wk, ok := windows[w]
 				if !ok {
 					wk = make(map[string]keyTime)
 					windows[w] = wk
 				}
-				kt := wk[key]
-				kt.time = ft
+				kt, ok := wk[key]
+				if !ok {
+					// If the window+key map doesn't have a value, inititialize time with the element time.
+					// This allows earliest or latest to work properly in the outputTime function's first use.
+					kt.time = tm
+				}
+				kt.time = outputTime(w, kt.time, tm)
 				kt.key = keyByt
 				kt.w = w
 				kt.values = append(kt.values, value)
@@ -372,34 +387,41 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 		}
 		// Use a decreasing sort (latest to earliest) so we can correct
 		// the output timestamp to the new end of window immeadiately.
-		// TODO need to correct this if output time is different.
 		sort.Slice(ordered, func(i, j int) bool {
 			return ordered[i].MaxTimestamp() > ordered[j].MaxTimestamp()
 		})
 
 		cur := ordered[0]
 		sessionData := windows[cur]
+		delete(windows, cur)
 		for _, iw := range ordered[1:] {
-			// If they overlap, then we merge the data.
+			// Check if the gap between windows is less than the gapSize.
+			// If not, this window is done, and we start a next window.
 			if iw.End+gapSize < cur.Start {
-				// Start a new session.
+				// Store current data with the current window.
 				windows[cur] = sessionData
+				// Use the incoming window instead, and clear it from the map.
 				cur = iw
 				sessionData = windows[iw]
+				delete(windows, cur)
+				// There's nothing to merge, since we've just started with this windowed data.
 				continue
 			}
-			// Extend the session
+			// Extend the session with the incoming window, and merge the the incoming window's data.
 			cur.Start = iw.Start
 			toMerge := windows[iw]
 			delete(windows, iw)
 			for k, kt := range toMerge {
 				skt := sessionData[k]
+				// Ensure the output time matches the given function.
+				skt.time = outputTime(cur, kt.time, skt.time)
 				skt.key = kt.key
 				skt.w = cur
 				skt.values = append(skt.values, kt.values...)
 				sessionData[k] = skt
 			}
 		}
+		windows[cur] = sessionData
 	}
 	// Everything's aggregated!
 	// Time to turn things into a windowed KV<K, Iterable<V>>

@@ -71,6 +71,8 @@ public class IcebergSchemaTransformTranslationTest {
           .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
           .put("warehouse", "test_location")
           .build();
+  private static final Map<String, String> CONFIG_PROPERTIES =
+      ImmutableMap.<String, String>builder().put("key", "value").put("key2", "value2").build();
 
   @Test
   public void testReCreateWriteTransformFromRow() {
@@ -79,6 +81,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
     IcebergWriteSchemaTransform writeTransform =
         (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
@@ -110,6 +113,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("table", "test_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
 
     IcebergWriteSchemaTransform writeTransform =
@@ -161,6 +165,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
 
     IcebergReadSchemaTransform readTransform =
@@ -192,6 +197,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("table", identifier)
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
+            .withFieldValue("config_properties", CONFIG_PROPERTIES)
             .build();
 
     IcebergReadSchemaTransform readTransform =

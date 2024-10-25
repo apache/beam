@@ -60,11 +60,6 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public boolean isReady() {
-    return true;
-  }
-
-  @Override
   public Windmill.GetWorkResponse getWork(Windmill.GetWorkRequest workRequest) {
     try {
       byte[] requestBytes = workRequest.toByteArray();

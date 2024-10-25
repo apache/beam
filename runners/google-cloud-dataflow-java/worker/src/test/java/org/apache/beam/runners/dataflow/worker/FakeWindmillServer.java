@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -89,11 +90,10 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final AtomicInteger expectedExceptionCount;
   private final ErrorCollector errorCollector;
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
-  private int commitsRequested = 0;
   private final List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
-  private boolean isReady = true;
-  private boolean dropStreamingCommits = false;
   private final Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private int commitsRequested = 0;
+  private boolean dropStreamingCommits = false;
 
   @GuardedBy("this")
   private ImmutableSet<HostAndPort> dispatcherEndpoints;
@@ -232,21 +232,21 @@ public final class FakeWindmillServer extends WindmillServerStub {
     final CountDownLatch done = new CountDownLatch(1);
     return new GetWorkStream() {
       @Override
-      public void close() {
+      public String backendWorkerToken() {
+        return "";
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public void halfClose() {
         done.countDown();
       }
 
       @Override
-      public void adjustBudget(long itemsDelta, long bytesDelta) {
+      public void setBudget(GetWorkBudget newBudget) {
         // no-op.
-      }
-
-      @Override
-      public GetWorkBudget remainingBudget() {
-        return GetWorkBudget.builder()
-            .setItems(request.getMaxItems())
-            .setBytes(request.getMaxBytes())
-            .build();
       }
 
       @Override
@@ -257,7 +257,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
             try {
               sleepMillis(500);
             } catch (InterruptedException e) {
-              close();
+              halfClose();
               Thread.currentThread().interrupt();
             }
             continue;
@@ -295,6 +295,14 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant startTime = Instant.now();
     return new GetDataStream() {
       @Override
+      public String backendWorkerToken() {
+        return "";
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
       public Windmill.KeyedGetDataResponse requestKeyedData(
           String computation, KeyedGetDataRequest request) {
         Windmill.GetDataRequest getDataRequest =
@@ -330,9 +338,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+      public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+        for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
           builder.addComputationHeartbeatRequest(
               ComputationHeartbeatRequest.newBuilder()
                   .setComputationId(entry.getKey())
@@ -348,7 +356,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void close() {}
+      public void halfClose() {}
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {
@@ -368,18 +376,16 @@ public final class FakeWindmillServer extends WindmillServerStub {
     return new CommitWorkStream() {
 
       @Override
+      public String backendWorkerToken() {
+        return "";
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
       public RequestBatcher batcher() {
         return new RequestBatcher() {
-          class RequestAndDone {
-            final Consumer<Windmill.CommitStatus> onDone;
-            final WorkItemCommitRequest request;
-
-            RequestAndDone(WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
-              this.request = request;
-              this.onDone = onDone;
-            }
-          }
-
           final List<RequestAndDone> requests = new ArrayList<>();
 
           @Override
@@ -427,11 +433,21 @@ public final class FakeWindmillServer extends WindmillServerStub {
             }
             requests.clear();
           }
+
+          class RequestAndDone {
+            final Consumer<Windmill.CommitStatus> onDone;
+            final WorkItemCommitRequest request;
+
+            RequestAndDone(WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
+              this.request = request;
+              this.onDone = onDone;
+            }
+          }
         };
       }
 
       @Override
-      public void close() {}
+      public void halfClose() {}
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {
@@ -523,27 +539,13 @@ public final class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
-    synchronized (this) {
-      this.dispatcherEndpoints = ImmutableSet.copyOf(endpoints);
-      isReady = true;
-    }
+  public synchronized ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
+    return dispatcherEndpoints;
   }
 
   @Override
-  public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
-    synchronized (this) {
-      return dispatcherEndpoints;
-    }
-  }
-
-  @Override
-  public boolean isReady() {
-    return isReady;
-  }
-
-  public void setIsReady(boolean ready) {
-    this.isReady = ready;
+  public synchronized void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
+    this.dispatcherEndpoints = ImmutableSet.copyOf(endpoints);
   }
 
   public static class ResponseQueue<T, U> {

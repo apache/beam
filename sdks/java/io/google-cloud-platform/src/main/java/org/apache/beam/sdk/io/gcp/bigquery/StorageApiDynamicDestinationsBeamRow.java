@@ -35,6 +35,7 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final TableSchema tableSchema;
   private final SerializableFunction<T, Row> toRow;
+  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
 
   private final boolean usesCdc;
 
@@ -42,10 +43,12 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       DynamicDestinations<T, DestinationT> inner,
       Schema schema,
       SerializableFunction<T, Row> toRow,
+      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.tableSchema = BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(schema);
     this.toRow = toRow;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     this.usesCdc = usesCdc;
   }
 
@@ -96,12 +99,19 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       Message msg =
           BeamRowToStorageApiProto.messageFromBeamRow(
               descriptorToUse, toRow.apply(element), changeType, changeSequenceNum);
-      return StorageApiWritePayload.of(msg.toByteArray(), null);
+      return StorageApiWritePayload.of(
+          msg.toByteArray(),
+          null,
+          formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
 
     @Override
-    public TableRow toTableRow(T element) {
-      return BigQueryUtils.toTableRow(toRow.apply(element));
+    public TableRow toFailsafeTableRow(T element) {
+      if (formatRecordOnFailureFunction != null) {
+        return formatRecordOnFailureFunction.apply(element);
+      } else {
+        return BigQueryUtils.toTableRow(toRow.apply(element));
+      }
     }
   };
 }

@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
@@ -42,7 +42,7 @@ interface BigtableService extends Serializable {
      *
      * @throws IOException if there is an error submitting the write.
      */
-    CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+    CompletableFuture<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException;
 
     /**
@@ -57,6 +57,9 @@ interface BigtableService extends Serializable {
      * @throws IOException if there is an error closing the writer
      */
     void close() throws IOException;
+
+    /** Report Lineage metrics to runner. */
+    default void reportLineage() {}
   }
 
   /** The interface of a class that reads from Cloud Bigtable. */
@@ -77,6 +80,9 @@ interface BigtableService extends Serializable {
     Row getCurrentRow() throws NoSuchElementException;
 
     void close();
+
+    /** Report Lineage metrics to runner. */
+    default void reportLineage() {}
   }
 
   /** Returns a {@link Reader} that will read from the specified source. */

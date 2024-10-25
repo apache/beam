@@ -31,6 +31,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -60,12 +61,14 @@ import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.Kafka
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
@@ -103,8 +106,10 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -114,6 +119,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -886,7 +892,6 @@ public class KafkaIO {
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
         }
-        System.out.println("xxx builder service" + builder.toString());
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -1450,6 +1455,24 @@ public class KafkaIO {
       return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 
+    /**
+     * Creates and sets the Application Default Credentials for a Kafka consumer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
+     */
+    public Read<K, V> withGCPApplicationDefaultCredentials() {
+
+      return withConsumerConfigUpdates(
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
+              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+              SaslConfigs.SASL_JAAS_CONFIG,
+              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1693,11 +1716,12 @@ public class KafkaIO {
         }
 
         if (kafkaRead.isRedistributed()) {
-          // fail here instead.
-          checkArgument(
-              kafkaRead.isCommitOffsetsInFinalizeEnabled(),
-              "commitOffsetsInFinalize() can't be enabled with isRedistributed");
+          if (kafkaRead.isCommitOffsetsInFinalizeEnabled() && kafkaRead.isAllowDuplicates()) {
+            LOG.warn(
+                "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
+          }
           PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+
           if (kafkaRead.getRedistributeNumKeys() == 0) {
             return output.apply(
                 "Insert Redistribute",
@@ -1730,8 +1754,6 @@ public class KafkaIO {
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
-                .withRedistribute()
-                .withAllowDuplicates() // must be set with withRedistribute option.
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
                 .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());
@@ -1795,7 +1817,7 @@ public class KafkaIO {
             return pcol.apply(
                 "Insert Redistribute with Shards",
                 Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(true)
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
                     .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
           }
         }
@@ -2138,9 +2160,9 @@ public class KafkaIO {
    * the transform will expand to:
    *
    * <pre>{@code
-   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Reshuffle() --> Map(output KafkaRecord)
-   *                                                                                                                                         |
-   *                                                                                                                                         --> KafkaCommitOffset
+   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Map(output KafkaRecord)
+   *                                                                                                          |
+   *                                                                                                          --> KafkaCommitOffset
    * }</pre>
    *
    * . Note that this expansion is not supported when running with x-lang on Dataflow.
@@ -2652,6 +2674,12 @@ public class KafkaIO {
         if (getRedistributeNumKeys() == 0) {
           LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
         }
+        if ((isCommitOffsetEnabled() || configuredKafkaCommit()) && isAllowDuplicates()) {
+          LOG.warn(
+              "Either auto_commit is set, or commitOffsetEnabled is enabled (or both), but since "
+                  + "withRestribute() is enabled with allow duplicates, the runner may have additional work processed that "
+                  + "is ahead of the current checkpoint");
+        }
       }
 
       if (getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) == null) {
@@ -2684,31 +2712,67 @@ public class KafkaIO {
                             .getSchemaRegistry()
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
-        if (isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute()) {
-          outputWithDescriptor =
-              outputWithDescriptor
-                  .apply(Reshuffle.viaRandomKey())
-                  .setCoder(
-                      KvCoder.of(
-                          input
-                              .getPipeline()
-                              .getSchemaRegistry()
-                              .getSchemaCoder(KafkaSourceDescriptor.class),
-                          recordCoder));
 
-          PCollection<Void> unused = outputWithDescriptor.apply(new KafkaCommitOffset<K, V>(this));
-          unused.setCoder(VoidCoder.of());
+        boolean applyCommitOffsets = isCommitOffsetEnabled() && !configuredKafkaCommit();
+        if (!applyCommitOffsets) {
+          return outputWithDescriptor
+              .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+              .setCoder(recordCoder);
         }
-        PCollection<KafkaRecord<K, V>> output =
-            outputWithDescriptor
-                .apply(
-                    MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
-                        .via(element -> element.getValue()))
-                .setCoder(recordCoder);
-        return output;
+
+        // Add transform for committing offsets to Kafka with consistency with beam pipeline data
+        // processing.
+        String requestedVersionString =
+            input
+                .getPipeline()
+                .getOptions()
+                .as(StreamingOptions.class)
+                .getUpdateCompatibilityVersion();
+        if (requestedVersionString != null) {
+          List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
+          List<String> targetVersion = Arrays.asList("2", "60", "0");
+
+          if (Comparators.lexicographical(Comparator.<String>naturalOrder())
+                  .compare(requestedVersion, targetVersion)
+              < 0) {
+            // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
+            // prior to the redistribute. The reshuffle will occur before commits are offsetted and
+            // before outputting KafkaRecords. Adding a redistribute then afterwards doesn't provide
+            // additional performance benefit.
+            checkArgument(
+                !isRedistribute(),
+                "Can not enable isRedistribute() while committing offsets prior to "
+                    + String.join(".", targetVersion));
+
+            return expand259Commits(
+                outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
+          }
+        }
+        outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
+        return outputWithDescriptor
+            .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+            .setCoder(recordCoder);
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e.getMessage());
       }
+    }
+
+    private PCollection<KafkaRecord<K, V>> expand259Commits(
+        PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor,
+        Coder<KafkaRecord<K, V>> recordCoder,
+        SchemaRegistry schemaRegistry)
+        throws NoSuchSchemaException {
+      // Reshuffles the data and then branches off applying commit offsets.
+      outputWithDescriptor =
+          outputWithDescriptor
+              .apply(Reshuffle.viaRandomKey())
+              .setCoder(
+                  KvCoder.of(
+                      schemaRegistry.getSchemaCoder(KafkaSourceDescriptor.class), recordCoder));
+      outputWithDescriptor.apply(new KafkaCommitOffset<>(this, true)).setCoder(VoidCoder.of());
+      return outputWithDescriptor
+          .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+          .setCoder(recordCoder);
     }
 
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
@@ -3316,6 +3380,23 @@ public class KafkaIO {
     public Write<K, V> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return withWriteRecordsTransform(
           getWriteRecordsTransform().withBadRecordErrorHandler(badRecordErrorHandler));
+    }
+
+    /**
+     * Creates and sets the Application Default Credentials for a Kafka producer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
+     */
+    public Write<K, V> withGCPApplicationDefaultCredentials() {
+      return withProducerConfigUpdates(
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
+              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+              SaslConfigs.SASL_JAAS_CONFIG,
+              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
     @Override

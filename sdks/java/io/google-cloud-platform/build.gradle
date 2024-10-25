@@ -84,7 +84,7 @@ dependencies {
   implementation library.java.google_cloud_spanner
   implementation library.java.google_code_gson
   implementation library.java.google_http_client
-  implementation library.java.google_http_client_jackson2
+  implementation library.java.google_http_client_gson
   // bigdataoss_util declares old google_oauth_client version that does not have
   // IdTokenVerifier.verifyPayload method. Let's declare the newer one.
   implementation library.java.google_oauth_client
@@ -219,6 +219,10 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // https://github.com/apache/beam/issues/32071
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableSegmentRead'
+    }
   }
 }
 

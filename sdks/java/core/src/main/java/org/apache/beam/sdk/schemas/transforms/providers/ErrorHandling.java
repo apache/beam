@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.schemas.transforms.providers;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.values.Row;
 
 @AutoValue
-public abstract class ErrorHandling {
+public abstract class ErrorHandling implements Serializable {
   @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
   public abstract String getOutput();
 

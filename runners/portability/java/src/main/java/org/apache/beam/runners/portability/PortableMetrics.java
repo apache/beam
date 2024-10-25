@@ -90,6 +90,7 @@ public class PortableMetrics extends MetricResults {
   private static PortableMetrics convertMonitoringInfosToMetricResults(
       JobApi.MetricResults jobMetrics) {
     List<MetricsApi.MonitoringInfo> monitoringInfoList = new ArrayList<>();
+    // TODO(https://github.com/apache/beam/issues/32001) dedup Attempted and Committed metrics
     monitoringInfoList.addAll(jobMetrics.getAttemptedList());
     monitoringInfoList.addAll(jobMetrics.getCommittedList());
     Iterable<MetricResult<Long>> countersFromJobMetrics =

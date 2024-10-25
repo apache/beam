@@ -400,6 +400,7 @@ from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -417,7 +418,6 @@ from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
-from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import retry
@@ -809,6 +809,11 @@ class _CustomBigQuerySource(BoundedSource):
             self.table_reference.get(), project=self._get_project())
       elif not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
+      Lineage.sources().add(
+          'bigquery',
+          self.table_reference.projectId,
+          self.table_reference.datasetId,
+          self.table_reference.tableId)
 
       schema, metadata_list = self._export_files(bq)
       self.export_result = _BigQueryExportResult(
@@ -1154,6 +1159,11 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
+          self.table_reference.projectId,
+          self.table_reference.datasetId,
+          self.table_reference.tableId)
+      Lineage.sources().add(
+          "bigquery",
           self.table_reference.projectId,
           self.table_reference.datasetId,
           self.table_reference.tableId)
@@ -1570,7 +1580,8 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
-  def process(self, element, *schema_side_inputs):
+  def process(
+      self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
 
     if callable(self.schema):
@@ -1597,12 +1608,11 @@ class BigQueryWriteFn(DoFn):
         return [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
-                GlobalWindows.windowed_value(
+                window_value.with_value(
                     (destination, row_and_insert_id[0], error))),
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS,
-                GlobalWindows.windowed_value(
-                    (destination, row_and_insert_id[0])))
+                window_value.with_value((destination, row_and_insert_id[0])))
         ]
 
       # Flush current batch first if adding this row will exceed our limits
@@ -1613,11 +1623,11 @@ class BigQueryWriteFn(DoFn):
         flushed_batch = self._flush_batch(destination)
         # After flushing our existing batch, we now buffer the current row
         # for the next flush
-        self._rows_buffer[destination].append(row_and_insert_id)
+        self._rows_buffer[destination].append((row_and_insert_id, window_value))
         self._destination_buffer_byte_size[destination] = row_byte_size
         return flushed_batch
 
-      self._rows_buffer[destination].append(row_and_insert_id)
+      self._rows_buffer[destination].append((row_and_insert_id, window_value))
       self._destination_buffer_byte_size[destination] += row_byte_size
       self._total_buffered_rows += 1
       if self._total_buffered_rows >= self._max_buffered_rows:
@@ -1625,7 +1635,8 @@ class BigQueryWriteFn(DoFn):
     else:
       # The input is already batched per destination, flush the rows now.
       batched_rows = element[1]
-      self._rows_buffer[destination].extend(batched_rows)
+      for r in batched_rows:
+        self._rows_buffer[destination].append((r, window_value))
       return self._flush_batch(destination)
 
   def finish_bundle(self):
@@ -1648,7 +1659,7 @@ class BigQueryWriteFn(DoFn):
   def _flush_batch(self, destination):
 
     # Flush the current batch of rows to BigQuery.
-    rows_and_insert_ids = self._rows_buffer[destination]
+    rows_and_insert_ids_with_windows = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
@@ -1657,9 +1668,10 @@ class BigQueryWriteFn(DoFn):
     _LOGGER.debug(
         'Flushing data to %s. Total %s rows.',
         destination,
-        len(rows_and_insert_ids))
-    self.batch_size_metric.update(len(rows_and_insert_ids))
+        len(rows_and_insert_ids_with_windows))
+    self.batch_size_metric.update(len(rows_and_insert_ids_with_windows))
 
+    rows_and_insert_ids, window_values = zip(*rows_and_insert_ids_with_windows)
     rows = [r[0] for r in rows_and_insert_ids]
     if self.ignore_insert_ids:
       insert_ids = [None for r in rows_and_insert_ids]
@@ -1678,8 +1690,10 @@ class BigQueryWriteFn(DoFn):
           ignore_unknown_values=self.ignore_unknown_columns)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
-      failed_rows = [(rows[entry['index']], entry["errors"])
+      failed_rows = [(
+          rows[entry['index']], entry["errors"], window_values[entry['index']])
                      for entry in errors]
+      failed_insert_ids = [insert_ids[entry['index']] for entry in errors]
       retry_backoff = next(self._backoff_calculator, None)
 
       # If retry_backoff is None, then we will not retry and must log.
@@ -1710,7 +1724,11 @@ class BigQueryWriteFn(DoFn):
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        # We can now safely discard all information about successful rows and
+        # just focus on the failed ones
         rows = [fr[0] for fr in failed_rows]
+        window_values = [fr[2] for fr in failed_rows]
+        insert_ids = failed_insert_ids
         self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
@@ -1718,19 +1736,21 @@ class BigQueryWriteFn(DoFn):
     if destination in self._destination_buffer_byte_size:
       del self._destination_buffer_byte_size[destination]
 
-    return itertools.chain([
-        pvalue.TaggedOutput(
-            BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
-            GlobalWindows.windowed_value((destination, row, err))) for row,
-        err in failed_rows
-    ],
-                           [
-                               pvalue.TaggedOutput(
-                                   BigQueryWriteFn.FAILED_ROWS,
-                                   GlobalWindows.windowed_value(
-                                       (destination, row))) for row,
-                               unused_err in failed_rows
-                           ])
+    return itertools.chain(
+        [
+            pvalue.TaggedOutput(
+                BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                w.with_value((destination, row, err))) for row,
+            err,
+            w in failed_rows
+        ],
+        [
+            pvalue.TaggedOutput(
+                BigQueryWriteFn.FAILED_ROWS, w.with_value((destination, row)))
+            for row,
+            unused_err,
+            w in failed_rows
+        ])
 
 
 # The number of shards per destination when writing via streaming inserts.
@@ -1910,6 +1930,8 @@ class WriteToBigQuery(PTransform):
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
+      use_cdc_writes: bool = False,
+      primary_key: List[str] = None,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
 
@@ -2075,6 +2097,15 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         GCP expansion service. Used for STORAGE_WRITE_API method.
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
+      use_cdc_writes: Configure the usage of CDC writes on BigQuery.
+        The argument can be used by passing True and the Beam Rows will be
+        sent as they are to the BigQuery sink which expects a 'record'
+        and 'row_mutation_info' properties.
+        Used for STORAGE_WRITE_API, working on 'at least once' mode.
+      primary_key: When using CDC write on BigQuery and
+        CREATE_IF_NEEDED mode for the underlying tables a list of column names
+        is required to be configured as the primary key. Used for
+        STORAGE_WRITE_API, working on 'at least once' mode.
     """
     self._table = table
     self._dataset = dataset
@@ -2116,6 +2147,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.load_job_project_id = load_job_project_id
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
+    self._use_cdc_writes = use_cdc_writes
+    self._primary_key = primary_key
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2269,8 +2302,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
           num_storage_api_streams=self._num_storage_api_streams,
+          use_cdc_writes=self._use_cdc_writes,
+          primary_key=self._primary_key,
           expansion_service=self.expansion_service)
-
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
 
@@ -2498,6 +2532,10 @@ class StorageWriteToBigQuery(PTransform):
   # fields for rows sent to Storage API with dynamic destinations
   DESTINATION = "destination"
   RECORD = "record"
+  # field names for rows sent to Storage API for CDC functionality
+  CDC_INFO = "row_mutation_info"
+  CDC_MUTATION_TYPE = "mutation_type"
+  CDC_SQN = "change_sequence_number"
   # magic string to tell Java that these rows are going to dynamic destinations
   DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
 
@@ -2512,6 +2550,8 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
+      use_cdc_writes: bool = False,
+      primary_key: List[str] = None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2522,6 +2562,8 @@ class StorageWriteToBigQuery(PTransform):
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
     self._num_storage_api_streams = num_storage_api_streams
+    self._use_cdc_writes = use_cdc_writes
+    self._primary_key = primary_key
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2532,11 +2574,11 @@ class StorageWriteToBigQuery(PTransform):
         is_rows = True
       except TypeError as exn:
         raise ValueError(
-            "A schema is required in order to prepare rows"
+            "A schema is required in order to prepare rows "
             "for writing with STORAGE_WRITE_API.") from exn
     elif callable(self._schema):
       raise NotImplementedError(
-          "Writing with dynamic schemas is not"
+          "Writing with dynamic schemas is not "
           "supported for this write method.")
     elif isinstance(self._schema, vp.ValueProvider):
       schema = self._schema.get()
@@ -2604,6 +2646,8 @@ class StorageWriteToBigQuery(PTransform):
             auto_sharding=self._with_auto_sharding,
             num_streams=self._num_storage_api_streams,
             use_at_least_once_semantics=self._use_at_least_once,
+            use_cdc_writes=self._use_cdc_writes,
+            primary_key=self._primary_key,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))

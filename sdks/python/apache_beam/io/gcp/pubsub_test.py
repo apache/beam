@@ -38,6 +38,7 @@ from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
 from apache_beam.io.gcp.pubsub import WriteToPubSub
 from apache_beam.io.gcp.pubsub import _PubSubSink
 from apache_beam.io.gcp.pubsub import _PubSubSource
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
@@ -391,6 +392,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     pcoll = (
         p
         | ReadFromPubSub('projects/fakeprj/topics/baz')
+        | beam.Map(lambda x: PubsubMessage(x))
         | WriteToPubSub(
             'projects/fakeprj/topics/a_topic', with_attributes=True)
         | beam.Map(lambda x: x))
@@ -818,6 +820,30 @@ class TestReadFromPubSub(unittest.TestCase):
         'projects/fakeprj/subscriptions/a_subscription',
         transform_from_proto.source.full_subscription)
 
+  def test_read_from_pubsub_no_overwrite(self, unused_mock):
+    expected_elements = [
+        TestWindowedValue(
+            b'apache',
+            timestamp.Timestamp(1520861826.234567), [window.GlobalWindow()]),
+        TestWindowedValue(
+            b'beam',
+            timestamp.Timestamp(1520861824.234567), [window.GlobalWindow()])
+    ]
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    for test_case in ('topic', 'subscription'):
+      with TestPipeline(options=options) as p:
+        # Direct runner currently overwrites the whole ReadFromPubSub transform.
+        # This test part of composite transform without overwrite.
+        pcoll = p | beam.Create([b'apache', b'beam']) | beam.Map(
+            lambda x: window.TimestampedValue(x, 1520861820.234567 + len(x)))
+        args = {test_case: f'projects/fakeprj/{test_case}s/topic_or_sub'}
+        pcoll = ReadFromPubSub(**args).expand_continued(pcoll)
+        assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
+      self.assertSetEqual(
+          Lineage.query(p.result.metrics(), Lineage.SOURCE),
+          set([f"pubsub:{test_case}:fakeprj.topic_or_sub"]))
+
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 @mock.patch('google.cloud.pubsub.PublisherClient')
@@ -875,7 +901,7 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    with self.assertRaisesRegex(AttributeError, r'str.*has no attribute.*data'):
+    with self.assertRaisesRegex(Exception, r'Type hint violation'):
       with TestPipeline(options=options) as p:
         _ = (
             p
@@ -897,7 +923,9 @@ class TestWriteToPubSub(unittest.TestCase):
             p
             | Create(payloads)
             | WriteToPubSub(
-                'projects/fakeprj/topics/a_topic', id_label='a_label'))
+                'projects/fakeprj/topics/a_topic',
+                id_label='a_label',
+                with_attributes=True))
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -909,7 +937,8 @@ class TestWriteToPubSub(unittest.TestCase):
             | Create(payloads)
             | WriteToPubSub(
                 'projects/fakeprj/topics/a_topic',
-                timestamp_attribute='timestamp'))
+                timestamp_attribute='timestamp',
+                with_attributes=True))
 
   def test_runner_api_transformation(self, unused_mock_pubsub):
     sink = _PubSubSink(
@@ -969,6 +998,38 @@ class TestWriteToPubSub(unittest.TestCase):
     self.assertTrue(isinstance(transform_from_proto.sink, _PubSubSink))
     self.assertIsNone(transform_from_proto.sink.id_label)
     self.assertIsNone(transform_from_proto.sink.timestamp_attribute)
+
+  def test_write_to_pubsub_no_overwrite(self, unused_mock):
+    data = 'data'
+    payloads = [data]
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      pcoll = p | Create(payloads)
+      WriteToPubSub(
+          'projects/fakeprj/topics/a_topic',
+          with_attributes=False).expand(pcoll)
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["pubsub:topic:fakeprj.a_topic"]))
+
+  def test_write_to_pubsub_with_attributes_no_overwrite(self, unused_mock):
+    data = b'data'
+    attributes = {'key': 'value'}
+    payloads = [PubsubMessage(data, attributes)]
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      pcoll = p | Create(payloads)
+      # Avoid direct runner overwrites WriteToPubSub
+      WriteToPubSub(
+          'projects/fakeprj/topics/a_topic',
+          with_attributes=True).expand(pcoll)
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["pubsub:topic:fakeprj.a_topic"]))
 
 
 if __name__ == '__main__':

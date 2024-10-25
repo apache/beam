@@ -42,6 +42,7 @@ import com.google.api.services.dataflow.model.Environment;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -110,7 +111,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.commons.codec.EncoderException;
 import org.apache.commons.codec.net.PercentCodec;
@@ -423,7 +423,7 @@ public class DataflowPipelineTranslator {
       if (options.getDataflowKmsKey() != null) {
         environment.setServiceKmsKeyName(options.getDataflowKmsKey());
       }
-      if (options.isHotKeyLoggingEnabled()) {
+      if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
         DebugOptions debugOptions = new DebugOptions();
         debugOptions.setEnableHotKeyLogging(true);
         environment.setDebugOptions(debugOptions);
@@ -618,7 +618,7 @@ public class DataflowPipelineTranslator {
     // For compatibility with URL encoding implementations that represent space as +,
     // always encode + as %2b even though we don't encode space as +.
     private final PercentCodec percentCodec =
-        new PercentCodec("+".getBytes(Charsets.US_ASCII), false);
+        new PercentCodec("+".getBytes(StandardCharsets.US_ASCII), false);
 
     private StepTranslator(Translator translator, Step step) {
       this.translator = translator;
@@ -764,7 +764,8 @@ public class DataflowPipelineTranslator {
         try {
           urlEncodedHints.put(
               entry.getKey(),
-              new String(percentCodec.encode(entry.getValue().toBytes()), Charsets.US_ASCII));
+              new String(
+                  percentCodec.encode(entry.getValue().toBytes()), StandardCharsets.US_ASCII));
         } catch (EncoderException e) {
           // Should never happen.
           throw new RuntimeException("Invalid value for resource hint: " + entry.getKey(), e);

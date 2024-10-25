@@ -34,8 +34,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 )
 
 func init() {
@@ -181,13 +181,13 @@ func TestMarshal(t *testing.T) {
 			}
 
 			if got, want := len(p.GetComponents().GetTransforms()), test.transforms; got != want {
-				t.Errorf("got %d transforms, want %d : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("got %d transforms, want %d : %v", got, want, p.String())
 			}
 			if got, want := len(p.GetRootTransformIds()), test.roots; got != want {
-				t.Errorf("got %d roots, want %d : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("got %d roots, want %d : %v", got, want, p.String())
 			}
 			if got, want := p.GetRequirements(), test.requirements; !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
-				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, p.String())
 			}
 		})
 	}
@@ -248,7 +248,7 @@ func TestMarshal_PTransformAnnotations(t *testing.T) {
 
 			pts := p.GetComponents().GetTransforms()
 			if got, want := len(pts), test.transforms; got != want {
-				t.Errorf("got %d transforms, want %d : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("got %d transforms, want %d : %v", got, want, p.String())
 			}
 			for _, pt := range pts {
 				// Context annotations only apply to composites, and are not duplicated to leaves.

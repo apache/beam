@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import java.io.Closeable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -32,8 +33,12 @@ import org.joda.time.Instant;
 /** Superclass for streams returned by streaming Windmill methods. */
 @ThreadSafe
 public interface WindmillStream {
+
+  /** An identifier for the backend worker where the stream is sending/receiving RPCs. */
+  String backendWorkerToken();
+
   /** Indicates that no more requests will be sent. */
-  void close();
+  void halfClose();
 
   /** Waits for the server to close its end of the connection, with timeout. */
   boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
@@ -41,14 +46,21 @@ public interface WindmillStream {
   /** Returns when the stream was opened. */
   Instant startTime();
 
+  /**
+   * Shutdown the stream. There should be no further interactions with the stream once this has been
+   * called.
+   */
+  void shutdown();
+
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {
     /** Adjusts the {@link GetWorkBudget} for the stream. */
-    void adjustBudget(long itemsDelta, long bytesDelta);
+    void setBudget(GetWorkBudget newBudget);
 
-    /** Returns the remaining in-flight {@link GetWorkBudget}. */
-    GetWorkBudget remainingBudget();
+    default void setBudget(long newItems, long newBytes) {
+      setBudget(GetWorkBudget.builder().setItems(newItems).setBytes(newBytes).build());
+    }
   }
 
   /** Interface for streaming GetDataRequests to Windmill. */
@@ -62,7 +74,7 @@ public interface WindmillStream {
     Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
 
     /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats);
+    void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats);
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
   }
@@ -70,6 +82,12 @@ public interface WindmillStream {
   /** Interface for streaming CommitWorkRequests to Windmill. */
   @ThreadSafe
   interface CommitWorkStream extends WindmillStream {
+    /**
+     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
+     * different builders for the same stream may be used simultaneously.
+     */
+    CommitWorkStream.RequestBatcher batcher();
+
     @NotThreadSafe
     interface RequestBatcher extends Closeable {
       /**
@@ -92,12 +110,6 @@ public interface WindmillStream {
         flush();
       }
     }
-
-    /**
-     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
-     * different builders for the same stream may be used simultaneously.
-     */
-    RequestBatcher batcher();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */

@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 cimport libc.stdint
 cimport libc.stdlib
 cimport libc.string

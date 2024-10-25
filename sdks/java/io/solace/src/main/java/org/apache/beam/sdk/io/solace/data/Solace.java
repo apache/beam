@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +119,7 @@ public class Solace {
      *
      * @return The message ID, or null if not available.
      */
+    @SchemaFieldNumber("0")
     public abstract @Nullable String getMessageId();
 
     /**
@@ -127,6 +129,7 @@ public class Solace {
      *
      * @return The message payload.
      */
+    @SchemaFieldNumber("1")
     public abstract ByteBuffer getPayload();
     /**
      * Gets the destination (topic or queue) to which the message was sent.
@@ -135,6 +138,7 @@ public class Solace {
      *
      * @return The destination, or null if not available.
      */
+    @SchemaFieldNumber("2")
     public abstract @Nullable Destination getDestination();
 
     /**
@@ -146,6 +150,7 @@ public class Solace {
      *
      * @return The expiration timestamp.
      */
+    @SchemaFieldNumber("3")
     public abstract long getExpiration();
 
     /**
@@ -155,6 +160,7 @@ public class Solace {
      *
      * @return The message priority.
      */
+    @SchemaFieldNumber("4")
     public abstract int getPriority();
 
     /**
@@ -164,6 +170,7 @@ public class Solace {
      *
      * @return True if redelivered, false otherwise.
      */
+    @SchemaFieldNumber("5")
     public abstract boolean getRedelivered();
 
     /**
@@ -173,6 +180,7 @@ public class Solace {
      *
      * @return The reply-to destination, or null if not specified.
      */
+    @SchemaFieldNumber("6")
     public abstract @Nullable Destination getReplyTo();
 
     /**
@@ -183,6 +191,7 @@ public class Solace {
      *
      * @return The timestamp.
      */
+    @SchemaFieldNumber("7")
     public abstract long getReceiveTimestamp();
 
     /**
@@ -191,6 +200,7 @@ public class Solace {
      *
      * @return The sender timestamp, or null if not available.
      */
+    @SchemaFieldNumber("8")
     public abstract @Nullable Long getSenderTimestamp();
 
     /**
@@ -200,6 +210,7 @@ public class Solace {
      *
      * @return The sequence number, or null if not available.
      */
+    @SchemaFieldNumber("9")
     public abstract @Nullable Long getSequenceNumber();
 
     /**
@@ -210,6 +221,7 @@ public class Solace {
      *
      * @return The time-to-live value.
      */
+    @SchemaFieldNumber("10")
     public abstract long getTimeToLive();
 
     /**
@@ -225,7 +237,9 @@ public class Solace {
      *
      * @return The replication group message ID, or null if not present.
      */
+    @SchemaFieldNumber("11")
     public abstract @Nullable String getReplicationGroupMessageId();
+
     /**
      * Gets the attachment data of the message as a ByteString, if any. This might represent files
      * or other binary content associated with the message.
@@ -234,6 +248,7 @@ public class Solace {
      *
      * @return The attachment data, or an empty ByteString if no attachment is present.
      */
+    @SchemaFieldNumber("12")
     public abstract ByteBuffer getAttachmentBytes();
 
     static Builder builder() {
@@ -271,6 +286,90 @@ public class Solace {
       abstract Record build();
     }
   }
+
+  /**
+   * The result of writing a message to Solace. This will be returned by the {@link
+   * com.google.cloud.dataflow.dce.io.solace.SolaceIO.Write} connector.
+   *
+   * <p>This class provides a builder to create instances, but you will probably not need it. The
+   * write connector will create and return instances of {@link Solace.PublishResult}.
+   *
+   * <p>If the message has been published, {@link Solace.PublishResult#getPublished()} will be true.
+   * If it is false, it means that the message could not be published, and {@link
+   * Solace.PublishResult#getError()} will contain more details about why the message could not be
+   * published.
+   */
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class PublishResult {
+    /** The message id of the message that was published. */
+    @SchemaFieldNumber("0")
+    public abstract String getMessageId();
+
+    /** Whether the message was published or not. */
+    @SchemaFieldNumber("1")
+    public abstract Boolean getPublished();
+
+    /**
+     * The publishing latency in milliseconds. This is the difference between the time the message
+     * was created, and the time the message was published. It is only available if the {@link
+     * CorrelationKey} class is used as correlation key of the messages.
+     */
+    @SchemaFieldNumber("2")
+    public abstract @Nullable Long getLatencyMilliseconds();
+
+    /** The error details if the message could not be published. */
+    @SchemaFieldNumber("3")
+    public abstract @Nullable String getError();
+
+    public static Builder builder() {
+      return new AutoValue_Solace_PublishResult.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setMessageId(String messageId);
+
+      public abstract Builder setPublished(Boolean published);
+
+      public abstract Builder setLatencyMilliseconds(Long latencyMs);
+
+      public abstract Builder setError(String error);
+
+      public abstract PublishResult build();
+    }
+  }
+
+  /**
+   * The correlation key is an object that is passed back to the client during the event broker ack
+   * or nack.
+   *
+   * <p>In the streaming writer is optionally used to calculate publish latencies, by calculating
+   * the time difference between the creation of the correlation key, and the time of the ack.
+   */
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class CorrelationKey {
+    @SchemaFieldNumber("0")
+    public abstract String getMessageId();
+
+    @SchemaFieldNumber("1")
+    public abstract long getPublishMonotonicMillis();
+
+    public static Builder builder() {
+      return new AutoValue_Solace_CorrelationKey.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setMessageId(String messageId);
+
+      public abstract Builder setPublishMonotonicMillis(long millis);
+
+      public abstract CorrelationKey build();
+    }
+  }
+
   /**
    * A utility class for mapping {@link BytesXMLMessage} instances to {@link Solace.Record} objects.
    * This simplifies the process of converting raw Solace messages into a format suitable for use

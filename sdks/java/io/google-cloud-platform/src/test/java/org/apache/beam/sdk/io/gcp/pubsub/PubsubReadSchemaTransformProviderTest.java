@@ -25,6 +25,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -47,7 +48,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
@@ -170,7 +170,7 @@ public class PubsubReadSchemaTransformProviderTest {
     PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
 
     Schema rawSchema = Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
-    byte[] payload = "some payload".getBytes(Charsets.UTF_8);
+    byte[] payload = "some payload".getBytes(StandardCharsets.UTF_8);
 
     try (PubsubTestClientFactory clientFactory =
         clientFactory(ImmutableList.of(incomingMessageOf(payload, CLOCK.currentTimeMillis())))) {
@@ -211,7 +211,7 @@ public class PubsubReadSchemaTransformProviderTest {
             .addStringField("attr")
             .addMapField("attrMap", Schema.FieldType.STRING, Schema.FieldType.STRING)
             .build();
-    byte[] payload = "some payload".getBytes(Charsets.UTF_8);
+    byte[] payload = "some payload".getBytes(StandardCharsets.UTF_8);
     String attr = "attr value";
 
     try (PubsubTestClientFactory clientFactory =

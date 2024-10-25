@@ -70,6 +70,11 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        # TODO(https://github.com/apache/beam/issues/32208) move to Java11 after bump to Samza 1.8
+        with:
+          java-version: 8
       - name: run Go Samza ValidatesRunner script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}

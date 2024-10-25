@@ -311,14 +311,14 @@ class DockerEnvironment(Environment):
   ):
     super().__init__(capabilities, artifacts, resource_hints)
     if container_image:
-      logging.info(
+      logging.debug(
           'Using provided Python SDK container image: %s' % (container_image))
       self.container_image = container_image
     else:
-      logging.info('No image given, using default Python SDK image')
+      logging.debug('No image given, using default Python SDK image')
       self.container_image = self.default_docker_image()
 
-    logging.info(
+    logging.debug(
         'Python SDK container image set to "%s" for Docker environment' %
         (self.container_image))
 
@@ -895,6 +895,7 @@ def _python_sdk_capabilities_iter():
   yield common_urns.primitives.TO_STRING.urn
   yield common_urns.protocols.DATA_SAMPLING.urn
   yield common_urns.protocols.SDK_CONSUMING_RECEIVED_DATA.urn
+  yield common_urns.protocols.ORDERED_LIST_STATE.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):

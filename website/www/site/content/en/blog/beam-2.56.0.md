@@ -54,6 +54,12 @@ For more information on changes in 2.56.0, check out the [detailed release notes
 * Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
 * Fixed logging issue that caused silecing the pip output when installing of dependencies provided in `--requirements_file` (Python).
 
+## Known Issues
+
+* Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue ([#32169](https://github.com/apache/beam/issues/32169)). The issue will be fixed in 2.59.0 ([#32135](https://github.com/apache/beam/pull/32135)). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.
+
+For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
+
 ## List of Contributors
 
 According to git shortlog, the following people contributed to the 2.56.0 release. Thank you to all contributors!

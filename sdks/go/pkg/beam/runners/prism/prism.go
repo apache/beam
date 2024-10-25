@@ -19,6 +19,7 @@ package prism
 
 import (
 	"context"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
@@ -58,13 +59,24 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 // Options for in process server creation.
 type Options struct {
+	// Port the Job Management Server should start on.
 	Port int
+
+	// The time prism will wait for new jobs before shuting itself down.
+	IdleShutdownTimeout time.Duration
+	// CancelFn allows Prism to terminate the program due to it's internal state, such as via the idle shutdown timeout.
+	// If unset, os.Exit(1) will be called instead.
+	CancelFn context.CancelCauseFunc
 }
 
 // CreateJobServer returns a Beam JobServicesClient connected to an in memory JobServer.
 // This call is non-blocking.
 func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
 	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
+
+	if opts.IdleShutdownTimeout > 0 {
+		s.IdleShutdown(opts.IdleShutdownTimeout, opts.CancelFn)
+	}
 	go s.Serve()
 	clientConn, err := grpc.DialContext(ctx, s.Endpoint(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {

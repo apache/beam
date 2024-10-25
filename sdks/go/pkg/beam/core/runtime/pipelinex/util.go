@@ -19,7 +19,7 @@ import (
 	"sort"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // Bounded returns true iff all PCollections are bounded.

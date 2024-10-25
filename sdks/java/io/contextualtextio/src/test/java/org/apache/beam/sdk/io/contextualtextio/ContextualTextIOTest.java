@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -87,7 +88,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -524,7 +524,7 @@ public class ContextualTextIOTest {
       try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
         for (String elem : input) {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-          String line = new String(encodedElem, Charsets.UTF_8);
+          String line = new String(encodedElem, StandardCharsets.UTF_8);
           writer.println(line);
         }
       }
@@ -548,7 +548,7 @@ public class ContextualTextIOTest {
           for (int lineNum = 0; lineNum < numLines; ++lineNum) {
             String elem = filename + " " + lineNum;
             byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-            String line = new String(encodedElem, Charsets.UTF_8);
+            String line = new String(encodedElem, StandardCharsets.UTF_8);
             writer.println(line);
           }
         }
@@ -588,7 +588,7 @@ public class ContextualTextIOTest {
           for (int lineNum = 0; lineNum < 10 + num; ++lineNum) {
             String elem = filename + " " + lineNum;
             byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-            String line = new String(encodedElem, Charsets.UTF_8);
+            String line = new String(encodedElem, StandardCharsets.UTF_8);
             writer.println(line);
           }
         }
@@ -817,7 +817,7 @@ public class ContextualTextIOTest {
       try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
         for (String elem : expected) {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-          String line = new String(encodedElem, Charsets.UTF_8);
+          String line = new String(encodedElem, StandardCharsets.UTF_8);
           writer.println(line);
         }
       }
@@ -840,7 +840,7 @@ public class ContextualTextIOTest {
         int lineNum = 0;
         for (String elem : expected) {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-          String line = new String(encodedElem, Charsets.UTF_8);
+          String line = new String(encodedElem, StandardCharsets.UTF_8);
           writer.println(line);
           actualExpected.add(lineNum + " " + filePath + " " + line);
           lineNum++;
@@ -1121,7 +1121,7 @@ public class ContextualTextIOTest {
     public void testProgressTextFile() throws IOException {
       String file = "line1\nline2\nline3";
       try (BoundedSource.BoundedReader<Row> reader =
-          prepareSource(file.getBytes(Charsets.UTF_8))
+          prepareSource(file.getBytes(StandardCharsets.UTF_8))
               .createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
@@ -1157,7 +1157,7 @@ public class ContextualTextIOTest {
     @Test
     public void testProgressAfterSplitting() throws IOException {
       String file = "line1\nline2\nline3";
-      BoundedSource<Row> source = prepareSource(file.getBytes(Charsets.UTF_8));
+      BoundedSource<Row> source = prepareSource(file.getBytes(StandardCharsets.UTF_8));
       BoundedSource<Row> remainder;
 
       // Create the remainder, verifying properties pre- and post-splitting.

@@ -18,9 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.solace',
-        exportJavadoc: false,
-        publish: false,
+        automaticModuleName: 'org.apache.beam.sdk.io.solace'
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -36,6 +34,9 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.solace
     implementation library.java.google_cloud_core
+    implementation library.java.google_cloud_secret_manager
+    implementation library.java.proto_google_cloud_secret_manager_v1
+    implementation library.java.protobuf_java
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(":sdks:java:extensions:avro")
     implementation library.java.avro

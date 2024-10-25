@@ -27,14 +27,14 @@ import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -45,7 +45,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -54,11 +56,11 @@ import org.joda.time.Instant;
 /**
  * Represents the state of an attempt to process a {@link WorkItem} by executing user code.
  *
- * @implNote Not thread safe, should not be executed or accessed by more than 1 thread at a time.
+ * @implNote Not thread safe, should not be modified by more than 1 thread at a time.
  */
 @NotThreadSafe
 @Internal
-public final class Work {
+public final class Work implements RefreshableWork {
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -68,8 +70,9 @@ public final class Work {
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
   private final String latencyTrackingId;
-  private TimedState currentState;
+  private volatile TimedState currentState;
   private volatile boolean isFailed;
+  private volatile String processingThreadName = "";
 
   private Work(
       WorkItem workItem,
@@ -105,9 +108,21 @@ public final class Work {
 
   public static ProcessingContext createProcessingContext(
       String computationId,
-      BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
-      Consumer<Commit> workCommitter) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter);
+      GetDataClient getDataClient,
+      Consumer<Commit> workCommitter,
+      HeartbeatSender heartbeatSender) {
+    return ProcessingContext.create(
+        computationId, getDataClient, workCommitter, heartbeatSender, /* backendWorkerToken= */ "");
+  }
+
+  public static ProcessingContext createProcessingContext(
+      String computationId,
+      GetDataClient getDataClient,
+      Consumer<Commit> workCommitter,
+      HeartbeatSender heartbeatSender,
+      String backendWorkerToken) {
+    return ProcessingContext.create(
+        computationId, getDataClient, workCommitter, heartbeatSender, backendWorkerToken);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -151,12 +166,21 @@ public final class Work {
     return workItem;
   }
 
+  @Override
   public ShardedKey getShardedKey() {
     return shardedKey;
   }
 
   public Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest keyedGetDataRequest) {
-    return processingContext.keyedDataFetcher().apply(keyedGetDataRequest);
+    return processingContext.fetchKeyedState(keyedGetDataRequest);
+  }
+
+  public GlobalData fetchSideInput(GlobalDataRequest request) {
+    return processingContext.getDataClient().getSideInputData(request);
+  }
+
+  public String backendWorkerToken() {
+    return processingContext.backendWorkerToken();
   }
 
   public Watermarks watermarks() {
@@ -180,6 +204,15 @@ public final class Work {
     this.currentState = TimedState.create(state, now);
   }
 
+  public String getProcessingThreadName() {
+    return processingThreadName;
+  }
+
+  public void setProcessingThreadName(String processingThreadName) {
+    this.processingThreadName = processingThreadName;
+  }
+
+  @Override
   public void setFailed() {
     this.isFailed = true;
   }
@@ -196,6 +229,11 @@ public final class Work {
     return latencyTrackingId;
   }
 
+  @Override
+  public HeartbeatSender heartbeatSender() {
+    return processingContext.heartbeatSender();
+  }
+
   public void queueCommit(WorkItemCommitRequest commitRequest, ComputationState computationState) {
     setState(State.COMMIT_QUEUED);
     processingContext.workCommitter().accept(Commit.create(commitRequest, computationState, this));
@@ -205,6 +243,7 @@ public final class Work {
     return WindmillStateReader.forWork(this);
   }
 
+  @Override
   public WorkId id() {
     return id;
   }
@@ -216,7 +255,25 @@ public final class Work {
     }
   }
 
+  @Override
+  public ImmutableList<LatencyAttribution> getHeartbeatLatencyAttributions(
+      DataflowExecutionStateSampler sampler) {
+    return getLatencyAttributions(/* isHeartbeat= */ true, sampler);
+  }
+
   public ImmutableList<LatencyAttribution> getLatencyAttributions(
+      DataflowExecutionStateSampler sampler) {
+    return getLatencyAttributions(/* isHeartbeat= */ false, sampler);
+  }
+
+  private Duration getTotalDurationAtLatencyAttributionState(LatencyAttribution.State state) {
+    Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
+    return state == this.currentState.state().toLatencyAttributionState()
+        ? duration.plus(new Duration(this.currentState.startTime(), clock.get()))
+        : duration;
+  }
+
+  private ImmutableList<LatencyAttribution> getLatencyAttributions(
       boolean isHeartbeat, DataflowExecutionStateSampler sampler) {
     return Arrays.stream(LatencyAttribution.State.values())
         .map(state -> Pair.of(state, getTotalDurationAtLatencyAttributionState(state)))
@@ -231,13 +288,6 @@ public final class Work {
                     sampler,
                     stateAndLatencyAttribution.getValue()))
         .collect(toImmutableList());
-  }
-
-  private Duration getTotalDurationAtLatencyAttributionState(LatencyAttribution.State state) {
-    Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
-    return state == this.currentState.state().toLatencyAttributionState()
-        ? duration.plus(new Duration(this.currentState.startTime(), clock.get()))
-        : duration;
   }
 
   private LatencyAttribution createLatencyAttribution(
@@ -314,25 +364,32 @@ public final class Work {
 
     private static ProcessingContext create(
         String computationId,
-        BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
-        Consumer<Commit> workCommitter) {
+        GetDataClient getDataClient,
+        Consumer<Commit> workCommitter,
+        HeartbeatSender heartbeatSender,
+        String backendWorkerToken) {
       return new AutoValue_Work_ProcessingContext(
-          computationId,
-          request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
-          workCommitter);
+          computationId, getDataClient, heartbeatSender, workCommitter, backendWorkerToken);
     }
 
     /** Computation that the {@link Work} belongs to. */
     public abstract String computationId();
 
     /** Handles GetData requests to streaming backend. */
-    public abstract Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>>
-        keyedDataFetcher();
+    public abstract GetDataClient getDataClient();
+
+    public abstract HeartbeatSender heartbeatSender();
 
     /**
      * {@link WorkCommitter} that commits completed work to the backend Windmill worker handling the
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
+
+    public abstract String backendWorkerToken();
+
+    private Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest request) {
+      return Optional.ofNullable(getDataClient().getStateData(computationId(), request));
+    }
   }
 }

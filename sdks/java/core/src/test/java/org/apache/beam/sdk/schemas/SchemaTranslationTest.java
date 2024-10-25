@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -214,6 +214,7 @@ public class SchemaTranslationTest {
   public static class FromProtoToProtoTest {
     @Parameters(name = "{index}: {0}")
     public static Iterable<SchemaApi.Schema> data() {
+      ImmutableList.Builder<SchemaApi.Schema> listBuilder = ImmutableList.builder();
       SchemaApi.Schema.Builder builder = SchemaApi.Schema.newBuilder();
       // A go 'int'
       builder.addFields(
@@ -232,6 +233,9 @@ public class SchemaTranslationTest {
               .setId(0)
               .setEncodingPosition(0)
               .build());
+      SchemaApi.Schema singleFieldSchema = builder.build();
+      listBuilder.add(singleFieldSchema);
+
       // A pickled python object
       builder.addFields(
           SchemaApi.Field.newBuilder()
@@ -243,7 +247,8 @@ public class SchemaTranslationTest {
                               .setUrn("pythonsdk:value")
                               .setPayload(
                                   ByteString.copyFrom(
-                                      "some payload describing a python type", Charsets.UTF_8))
+                                      "some payload describing a python type",
+                                      StandardCharsets.UTF_8))
                               .setRepresentation(
                                   SchemaApi.FieldType.newBuilder()
                                       .setAtomicType(SchemaApi.AtomicType.BYTES))
@@ -293,21 +298,51 @@ public class SchemaTranslationTest {
               .setId(2)
               .setEncodingPosition(2)
               .build());
-      SchemaApi.Schema unknownLogicalTypeSchema = builder.build();
+      SchemaApi.Schema multipleFieldSchema = builder.build();
+      listBuilder.add(multipleFieldSchema);
 
-      return ImmutableList.<SchemaApi.Schema>builder().add(unknownLogicalTypeSchema).build();
+      builder.clear();
+      builder.addFields(
+          SchemaApi.Field.newBuilder()
+              .setName("nested")
+              .setType(
+                  SchemaApi.FieldType.newBuilder()
+                      .setRowType(
+                          SchemaApi.RowType.newBuilder().setSchema(singleFieldSchema).build())
+                      .build())
+              .build());
+      SchemaApi.Schema nestedSchema = builder.build();
+      listBuilder.add(nestedSchema);
+
+      return listBuilder.build();
     }
 
     @Parameter(0)
     public SchemaApi.Schema schemaProto;
+
+    private void clearIds(SchemaApi.Schema.Builder builder) {
+      builder.clearId();
+      for (SchemaApi.Field.Builder field : builder.getFieldsBuilderList()) {
+        if (field.hasType()
+            && field.getType().hasRowType()
+            && field.getType().getRowType().hasSchema()) {
+          clearIds(field.getTypeBuilder().getRowTypeBuilder().getSchemaBuilder());
+        }
+      }
+    }
 
     @Test
     public void fromProtoAndToProto() throws Exception {
       Schema decodedSchema = SchemaTranslation.schemaFromProto(schemaProto);
 
       SchemaApi.Schema reencodedSchemaProto = SchemaTranslation.schemaToProto(decodedSchema, true);
+      SchemaApi.Schema.Builder builder = reencodedSchemaProto.toBuilder();
+      clearIds(builder);
+      assertThat(builder.build(), equalTo(schemaProto));
 
-      assertThat(reencodedSchemaProto, equalTo(schemaProto));
+      SchemaApi.Schema reencodedSchemaProtoWithoutUUID =
+          SchemaTranslation.schemaToProto(decodedSchema, true, false);
+      assertThat(reencodedSchemaProtoWithoutUUID, equalTo(schemaProto));
     }
   }
 
@@ -431,8 +466,8 @@ public class SchemaTranslationTest {
     public Schema.FieldType fieldType;
 
     @Test
-    public void testLogicalTypeSerializeDeserilizeCorrectly() {
-      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, true);
+    public void testLogicalTypeSerializeDeserializeCorrectly() {
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, true, false);
       Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
 
       assertThat(
@@ -450,7 +485,7 @@ public class SchemaTranslationTest {
 
     @Test
     public void testLogicalTypeFromToProtoCorrectly() {
-      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, false);
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, false, false);
       Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
 
       if (STANDARD_LOGICAL_TYPES.containsKey(translated.getLogicalType().getIdentifier())) {

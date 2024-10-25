@@ -31,22 +31,22 @@ RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && 
     mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.22.5
+ARG go_version=1.23.1
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
 ENV PATH="${PATH}:/usr/local/go/bin"
 #Install Java
-RUN curl -OL https://cdn.azul.com/zulu/bin/zulu8.70.0.23-ca-jdk8.0.372-linux_x64.tar.gz && \
-    tar -C /usr/local -xzf zulu8.70.0.23-ca-jdk8.0.372-linux_x64.tar.gz && \
-    rm zulu8.70.0.23-ca-jdk8.0.372-linux_x64.tar.gz && \
-    mv /usr/local/zulu8.70.0.23-ca-jdk8.0.372-linux_x64 /usr/local/java
+RUN curl -OL https://cdn.azul.com/zulu/bin/zulu11.74.15-ca-jdk11.0.24-linux_x64.tar.gz && \
+    tar -C /usr/local -xzf zulu11.74.15-ca-jdk11.0.24-linux_x64.tar.gz && \
+    rm zulu11.74.15-ca-jdk11.0.24-linux_x64.tar.gz && \
+    mv /usr/local/zulu11.74.15-ca-jdk11.0.24-linux_x64 /usr/local/java
 ENV PATH="${PATH}:/usr/local/java/bin"
 #Install Gradle
-RUN curl -OL https://services.gradle.org/distributions/gradle-7.3.3-bin.zip && \
-    unzip gradle-7.3.3-bin.zip && \
-    rm gradle-7.3.3-bin.zip && \
-    mv gradle-7.3.3 /usr/local/gradle
+RUN curl -OL https://services.gradle.org/distributions/gradle-8.4-bin.zip && \
+    unzip gradle-8.4-bin.zip && \
+    rm gradle-8.4-bin.zip && \
+    mv gradle-8.4 /usr/local/gradle
 ENV PATH="${PATH}:/usr/local/gradle/bin"
 #Install GitHub CLI
 RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \

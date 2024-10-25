@@ -27,6 +27,12 @@ applyJavaNature(
   shadowClosure: {},
 )
 
+// TODO(https://github.com/apache/beam/pull/32486/) Use library.java.kafka_clients once >=3.1.0 is set as default
+configurations.runtimeClasspath {
+  // Pin kafka-clients version due to <3.1.0 missing auth callback classes
+  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.1.2'
+}
+
 shadowJar {
   mergeServiceFiles()
 }
@@ -37,6 +43,8 @@ ext.summary = "Expansion service serving several Java IOs"
 dependencies {
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:managed")
+  permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
   implementation project(":sdks:java:io:iceberg")
   permitUnusedDeclared project(":sdks:java:io:iceberg") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
@@ -44,9 +52,13 @@ dependencies {
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
 
-  // Needed by Iceberg I/O users that use GCS for the warehouse location.
-  implementation library.java.bigdataoss_gcs_connector
-  permitUnusedDeclared library.java.bigdataoss_gcs_connector
+  // **** IcebergIO runtime dependencies ****
+  runtimeOnly library.java.hadoop_client
+  // Needed when using GCS as the warehouse location.
+  runtimeOnly library.java.bigdataoss_gcs_connector
+  // Needed for HiveCatalog
+  runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
+  runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14

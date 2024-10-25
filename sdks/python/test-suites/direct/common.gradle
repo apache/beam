@@ -436,7 +436,7 @@ project.tasks.register("inferencePostCommitIT") {
 }
 
 // Create cross-language tasks for running tests against Java expansion service(s)
-def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(

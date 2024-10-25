@@ -62,9 +62,11 @@ To develop the SDK, it should be sufficient to clone the repository, make
 changes and execute tests from within the module directory (`<repo>/sdks/...`).
 
 Go users can just `go get` the code directly. For example:
-```
+
+```bash
 go get github.com/apache/beam/sdks/v2/go/pkg/beam
 ```
+
 Developers must invoke Go for cross-compilation manually, if desired.
 
 If you make changes to .proto files, you will need to rebuild the generated code.
@@ -72,10 +74,13 @@ Consult `pkg/beam/model/PROTOBUF.md`.
 
 If you make changes to .tmpl files, then add the specialize tool to your path.
 You can install specialize using:
-```
+
+```bash
 go get github.com/apache/beam/sdks/v2/go/cmd/specialize
 ```
+
 Add it to your path:
-```
+
+```bash
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 ```

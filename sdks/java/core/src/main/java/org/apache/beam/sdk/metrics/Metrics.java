@@ -93,21 +93,22 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
-  /**
-   * Create a metric that can have its new value set, and is aggregated by taking the last reported
-   * value.
-   */
+  /** Create a metric that accumulates and reports set of unique string values. */
   public static StringSet stringSet(String namespace, String name) {
     return new DelegatingStringSet(MetricName.named(namespace, name));
   }
 
-  /**
-   * Create a metric that can have its new value set, and is aggregated by taking the last reported
-   * value.
-   */
+  /** Create a metric that accumulates and reports set of unique string values. */
   public static StringSet stringSet(Class<?> namespace, String name) {
     return new DelegatingStringSet(MetricName.named(namespace, name));
   }
+
+  /*
+   * A dedicated namespace for client throttling time. User DoFn can increment this metrics and then
+   * runner will put back pressure on scaling decision, if supported.
+   */
+  public static final String THROTTLE_TIME_NAMESPACE = "beam-throttling-metrics";
+  public static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
 
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.

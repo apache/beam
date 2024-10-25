@@ -48,6 +48,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
@@ -212,6 +213,26 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected String getScheme() {
     return "gs";
+  }
+
+  @Override
+  protected void reportLineage(GcsResourceId resourceId, Lineage lineage) {
+    reportLineage(resourceId, lineage, LineageLevel.FILE);
+  }
+
+  @Override
+  protected void reportLineage(GcsResourceId resourceId, Lineage lineage, LineageLevel level) {
+    GcsPath path = resourceId.getGcsPath();
+    if (!path.getBucket().isEmpty()) {
+      ImmutableList.Builder<String> segments =
+          ImmutableList.<String>builder().add(path.getBucket());
+      if (level != LineageLevel.TOP_LEVEL && !path.getObject().isEmpty()) {
+        segments.add(path.getObject());
+      }
+      lineage.add("gcs", segments.build());
+    } else {
+      LOG.warn("Report Lineage on relative path {} is unsupported", path.getObject());
+    }
   }
 
   private List<MatchResult> matchGlobs(List<GcsPath> globs) {

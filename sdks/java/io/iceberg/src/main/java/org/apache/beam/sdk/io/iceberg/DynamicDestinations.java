@@ -20,17 +20,20 @@ package org.apache.beam.sdk.io.iceberg;
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 public interface DynamicDestinations extends Serializable {
 
-  Schema getMetadataSchema();
+  Schema getDataSchema();
 
-  Row assignDestinationMetadata(Row data);
+  Row getData(Row element);
 
-  IcebergDestination instantiateDestination(Row dest);
+  IcebergDestination instantiateDestination(String destination);
 
-  static DynamicDestinations singleTable(TableIdentifier tableId) {
-    return new OneTableDynamicDestinations(tableId);
+  String getTableStringIdentifier(ValueInSingleWindow<Row> element);
+
+  static DynamicDestinations singleTable(TableIdentifier tableId, Schema inputSchema) {
+    return new OneTableDynamicDestinations(tableId, inputSchema);
   }
 }

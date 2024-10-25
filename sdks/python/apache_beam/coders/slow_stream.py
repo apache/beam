@@ -30,11 +30,10 @@ class OutputStream(object):
 
   A pure Python implementation of stream.OutputStream."""
   def __init__(self):
-    self.data = []  # type: List[bytes]
+    self.data: List[bytes] = []
     self.byte_count = 0
 
-  def write(self, b, nested=False):
-    # type: (bytes, bool) -> None
+  def write(self, b: bytes, nested: bool = False) -> None:
     assert isinstance(b, bytes)
     if nested:
       self.write_var_int64(len(b))
@@ -45,8 +44,7 @@ class OutputStream(object):
     self.data.append(chr(val).encode('latin-1'))
     self.byte_count += 1
 
-  def write_var_int64(self, v):
-    # type: (int) -> None
+  def write_var_int64(self, v: int) -> None:
     if v < 0:
       v += 1 << 64
       if v <= 0:
@@ -78,16 +76,13 @@ class OutputStream(object):
   def write_bigendian_float(self, v):
     self.write(struct.pack('>f', v))
 
-  def get(self):
-    # type: () -> bytes
+  def get(self) -> bytes:
     return b''.join(self.data)
 
-  def size(self):
-    # type: () -> int
+  def size(self) -> int:
     return self.byte_count
 
-  def _clear(self):
-    # type: () -> None
+  def _clear(self) -> None:
     self.data = []
     self.byte_count = 0
 
@@ -101,8 +96,7 @@ class ByteCountingOutputStream(OutputStream):
     super().__init__()
     self.count = 0
 
-  def write(self, byte_array, nested=False):
-    # type: (bytes, bool) -> None
+  def write(self, byte_array: bytes, nested: bool = False) -> None:
     blen = len(byte_array)
     if nested:
       self.write_var_int64(blen)
@@ -125,25 +119,21 @@ class InputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.InputStream."""
-  def __init__(self, data):
-    # type: (bytes) -> None
+  def __init__(self, data: bytes) -> None:
     self.data = data
     self.pos = 0
 
   def size(self):
     return len(self.data) - self.pos
 
-  def read(self, size):
-    # type: (int) -> bytes
+  def read(self, size: int) -> bytes:
     self.pos += size
     return self.data[self.pos - size:self.pos]
 
-  def read_all(self, nested):
-    # type: (bool) -> bytes
+  def read_all(self, nested: bool) -> bytes:
     return self.read(self.read_var_int64() if nested else self.size())
 
-  def read_byte(self):
-    # type: () -> int
+  def read_byte(self) -> int:
     self.pos += 1
     return self.data[self.pos - 1]
 

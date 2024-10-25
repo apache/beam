@@ -193,9 +193,7 @@ def is_background_caching_job_needed(user_pipeline):
           cache_changed))
 
 
-def is_cache_complete(pipeline_id):
-  # type: (str) -> bool
-
+def is_cache_complete(pipeline_id: str) -> bool:
   """Returns True if the backgrond cache for the given pipeline is done.
   """
   user_pipeline = ie.current_env().pipeline_id_to_pipeline(pipeline_id)

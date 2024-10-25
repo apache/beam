@@ -16,14 +16,18 @@
 package jobservices
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"net"
+	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
-	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 )
 
@@ -39,8 +43,17 @@ type Server struct {
 
 	// Job Management
 	mu    sync.Mutex
-	index uint32
+	index uint32 // Use with atomics.
 	jobs  map[string]*Job
+
+	// IdleShutdown management. Needs to use atomics, since they
+	// may be both while already holding the lock, or when not
+	// (eg via job state).
+	idleTimer          atomic.Pointer[time.Timer]
+	terminatedJobCount uint32 // Use with atomics.
+	idleTimeout        time.Duration
+	cancelFn           context.CancelCauseFunc
+	logger             *slog.Logger
 
 	// execute defines how a job is executed.
 	execute func(*Job)
@@ -59,8 +72,9 @@ func NewServer(port int, execute func(*Job)) *Server {
 		lis:     lis,
 		jobs:    make(map[string]*Job),
 		execute: execute,
+		logger:  slog.Default(), // TODO substitute with a configured logger.
 	}
-	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
+	s.logger.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 	}
@@ -90,4 +104,43 @@ func (s *Server) Serve() {
 // Stop the GRPC server.
 func (s *Server) Stop() {
 	s.server.GracefulStop()
+}
+
+// IdleShutdown allows the server to call the cancelFn if there have been no active jobs
+// for at least the given timeout.
+func (s *Server) IdleShutdown(timeout time.Duration, cancelFn context.CancelCauseFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.idleTimeout = timeout
+	s.cancelFn = cancelFn
+
+	// Stop gap to kill the process less gracefully.
+	if s.cancelFn == nil {
+		s.cancelFn = func(cause error) {
+			os.Exit(1)
+		}
+	}
+
+	s.idleTimer.Store(time.AfterFunc(timeout, s.idleShutdownCallback))
+}
+
+// idleShutdownCallback is called by the AfterFunc timer for idle shutdown.
+func (s *Server) idleShutdownCallback() {
+	index := atomic.LoadUint32(&s.index)
+	terminated := atomic.LoadUint32(&s.terminatedJobCount)
+	if index == terminated {
+		slog.Info("shutting down after being idle", "idleTimeout", s.idleTimeout)
+		s.cancelFn(nil)
+	}
+}
+
+// jobTerminated marks that the job has been terminated, and if there are no active jobs, starts the idle timer.
+func (s *Server) jobTerminated() {
+	if s.idleTimer.Load() != nil {
+		terminated := atomic.AddUint32(&s.terminatedJobCount, 1)
+		total := atomic.LoadUint32(&s.index)
+		if total == terminated {
+			s.idleTimer.Store(time.AfterFunc(s.idleTimeout, s.idleShutdownCallback))
+		}
+	}
 }

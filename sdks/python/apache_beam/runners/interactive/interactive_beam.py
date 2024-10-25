@@ -36,7 +36,9 @@ this module in your notebook or application code.
 
 import logging
 from datetime import timedelta
+from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Union
@@ -46,6 +48,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
+from apache_beam.pvalue import PCollection
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
 from apache_beam.runners.interactive.dataproc.types import ClusterIdentifier
@@ -405,10 +408,11 @@ class Clusters:
   To configure a pipeline to run on a local FlinkRunner, explicitly set the
   default cluster metadata to None: ib.clusters.set_default_cluster(None).
   """
-  # Explicitly set the Flink version here to ensure compatibility with 2.1
+  # Explicitly set the Flink version here to ensure compatibility with 2.2
   # Dataproc images:
-  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.1
-  DATAPROC_FLINK_VERSION = '1.15'
+  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.2
+  # you can manually override this by importing Clusters
+  DATAPROC_FLINK_VERSION = '1.17'
 
   # The minimum worker number to create a Dataproc cluster.
   DATAPROC_MINIMUM_WORKER_NUM = 2
@@ -681,13 +685,11 @@ def watch(watchable):
 
 @progress_indicated
 def show(
-    *pcolls,
-    include_window_info=False,
-    visualize_data=False,
-    n='inf',
-    duration='inf'):
-  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None # noqa: F821
-
+    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    include_window_info: bool = False,
+    visualize_data: bool = False,
+    n: Union[int, str] = 'inf',
+    duration: Union[int, str] = 'inf'):
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
@@ -875,7 +877,15 @@ def show(
 
 
 @progress_indicated
-def collect(pcoll, n='inf', duration='inf', include_window_info=False):
+def collect(
+    *pcolls,
+    n='inf',
+    duration='inf',
+    include_window_info=False,
+    runner=None,
+    options=None,
+    force_compute=False,
+    force_tuple=False):
   """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -884,11 +894,19 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   it is assumed to be infinite.
 
   Args:
+    pcolls: PCollections to compute.
     n: (optional) max number of elements to visualize. Default 'inf'.
     duration: (optional) max duration of elements to read in integer seconds or
         a string duration. Default 'inf'.
     include_window_info: (optional) if True, appends the windowing information
         to each row. Default False.
+    runner: (optional) the runner with which to compute the results
+    options: (optional) any additional pipeline options to use to compute the
+        results
+    force_compute: (optional) if True, forces recomputation rather than using
+        cached PCollections
+    force_tuple: (optional) if True, return a 1-tuple or results rather than
+        the bare results if only one PCollection is computed
 
   For example::
 
@@ -899,17 +917,27 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     # Run the pipeline and bring the PCollection into memory as a Dataframe.
     in_memory_square = head(square, n=5)
   """
-  # Remember the element type so we can make an informed decision on how to
-  # collect the result in elements_to_df.
-  if isinstance(pcoll, DeferredBase):
-    # Get the proxy so we can get the output shape of the DataFrame.
-    pcoll, element_type = deferred_df_to_pcollection(pcoll)
-    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
-  else:
-    element_type = pcoll.element_type
+  if len(pcolls) == 0:
+    return ()
 
-  assert isinstance(pcoll, beam.pvalue.PCollection), (
-      '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
+  def as_pcollection(pcoll_or_df):
+    if isinstance(pcoll_or_df, DeferredBase):
+      # Get the proxy so we can get the output shape of the DataFrame.
+      pcoll, element_type = deferred_df_to_pcollection(pcoll_or_df)
+      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+      return pcoll, element_type
+    elif isinstance(pcoll_or_df, beam.pvalue.PCollection):
+      return pcoll_or_df, pcoll_or_df.element_type
+    else:
+      raise TypeError(f'{pcoll} is not an apache_beam.pvalue.PCollection.')
+
+  pcolls_with_element_types = [as_pcollection(p) for p in pcolls]
+  pcolls_to_element_types = dict(pcolls_with_element_types)
+  pcolls = [pcoll for pcoll, _ in pcolls_with_element_types]
+  pipelines = set(pcoll.pipeline for pcoll in pcolls)
+  if len(pipelines) != 1:
+    raise ValueError('All PCollections must belong to the same pipeline.')
+  pipeline, = pipelines
 
   if isinstance(n, str):
     assert n == 'inf', (
@@ -928,42 +956,56 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   if duration == 'inf':
     duration = float('inf')
 
-  user_pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  user_pipeline = ie.current_env().user_pipeline(pipeline)
   # Possibly collecting a PCollection defined in a local scope that is not
   # explicitly watched. Ad hoc watch it though it's a little late.
   if not user_pipeline:
-    watch({'anonymous_pipeline_{}'.format(id(pcoll.pipeline)): pcoll.pipeline})
-    user_pipeline = pcoll.pipeline
+    watch({'anonymous_pipeline_{}'.format(id(pipeline)): pipeline})
+    user_pipeline = pipeline
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
 
   # If already computed, directly read the stream and return.
-  if pcoll in ie.current_env().computed_pcollections:
-    pcoll_name = find_pcoll_name(pcoll)
-    elements = list(
-        recording_manager.read(pcoll_name, pcoll, n, duration).read())
-    return elements_to_df(
-        elements,
-        include_window_info=include_window_info,
-        element_type=element_type)
+  computed = {}
+  for pcoll in pcolls_to_element_types.keys():
+    if pcoll in ie.current_env().computed_pcollections and not force_compute:
+      pcoll_name = find_pcoll_name(pcoll)
+      computed[pcoll] = list(
+          recording_manager.read(pcoll_name, pcoll, n, duration).read())
 
-  recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
+  uncomputed = set(pcolls) - set(computed.keys())
+  if uncomputed:
+    recording = recording_manager.record(
+        uncomputed,
+        max_n=n,
+        max_duration=duration,
+        runner=runner,
+        options=options,
+        force_compute=force_compute)
 
-  try:
-    elements = list(recording.stream(pcoll).read())
-  except KeyboardInterrupt:
-    recording.cancel()
-    return pd.DataFrame()
+    try:
+      for pcoll in uncomputed:
+        computed[pcoll] = list(recording.stream(pcoll).read())
+    except KeyboardInterrupt:
+      recording.cancel()
 
   if n == float('inf'):
     n = None
 
   # Collecting DataFrames may have a length > n, so slice again to be sure. Note
   # that array[:None] returns everything.
-  return elements_to_df(
-      elements,
-      include_window_info=include_window_info,
-      element_type=element_type)[:n]
+  empty = pd.DataFrame()
+  result_tuple = tuple(
+      elements_to_df(
+          computed[pcoll],
+          include_window_info=include_window_info,
+          element_type=pcolls_to_element_types[pcoll])[:n] if pcoll in
+      computed else empty for pcoll in pcolls)
+
+  if len(result_tuple) == 1 and not force_tuple:
+    return result_tuple[0]
+  else:
+    return result_tuple
 
 
 @progress_indicated

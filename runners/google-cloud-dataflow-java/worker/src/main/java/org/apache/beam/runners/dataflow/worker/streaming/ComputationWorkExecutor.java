@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * @implNote Once closed, it cannot be reused.
  */
 // TODO(m-trieu): See if this can be combined/cleaned up with StreamingModeExecutionContext as the
-// seperation of responsibilities are unclear.
+// separation of responsibilities are unclear.
 @AutoValue
 @Internal
 @NotThreadSafe

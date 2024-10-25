@@ -73,6 +73,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
@@ -110,14 +111,14 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public ErrorCollector errorCollector = new ErrorCollector();
 
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
   private int remainingErrors = 20;
@@ -146,8 +147,9 @@ public class GrpcWindmillServerTest {
             name,
             experiments,
             clientId,
-            new FakeWindmillStubFactory(
-                () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name))));
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(
+                    () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name)))));
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
@@ -213,7 +215,9 @@ public class GrpcWindmillServerTest {
 
     this.client =
         GrpcWindmillServer.newApplianceTestInstance(
-            inprocessChannel, new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel));
+            inprocessChannel,
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel)));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());
@@ -329,7 +333,7 @@ public class GrpcWindmillServerTest {
             });
     assertTrue(latch.await(30, TimeUnit.SECONDS));
 
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
@@ -490,7 +494,7 @@ public class GrpcWindmillServerTest {
           });
     }
     done.await();
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
     executor.shutdown();
   }
@@ -688,7 +692,7 @@ public class GrpcWindmillServerTest {
     // Make the commit requests, waiting for each of them to be verified and acknowledged.
     CommitWorkStream stream = client.commitWorkStream();
     commitWorkTestHelper(stream, commitRequests, 0, 500);
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
@@ -723,7 +727,7 @@ public class GrpcWindmillServerTest {
     for (Future<?> f : futures) {
       f.get();
     }
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
     executor.shutdown();
   }
@@ -825,7 +829,7 @@ public class GrpcWindmillServerTest {
       }
     }
 
-    stream.close();
+    stream.halfClose();
     isClientClosed.set(true);
 
     deadline = System.currentTimeMillis() + 60_000; // 1 min
@@ -957,13 +961,13 @@ public class GrpcWindmillServerTest {
     Map<String, List<KeyedGetDataRequest>> expectedKeyedGetDataRequests = new HashMap<>();
     expectedKeyedGetDataRequests.put("Computation1", makeGetDataHeartbeatRequest(computation1Keys));
     expectedKeyedGetDataRequests.put("Computation2", makeGetDataHeartbeatRequest(computation2Keys));
-    Map<String, List<HeartbeatRequest>> heartbeatsToRefresh = new HashMap<>();
+    Map<String, Collection<HeartbeatRequest>> heartbeatsToRefresh = new HashMap<>();
     heartbeatsToRefresh.put("Computation1", makeHeartbeatRequest(computation1Keys));
     heartbeatsToRefresh.put("Computation2", makeHeartbeatRequest(computation2Keys));
 
     GetDataStream stream = client.getDataStream();
     stream.refreshActiveWork(heartbeatsToRefresh);
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
 
     boolean receivedAllGetDataHeartbeats = false;
@@ -1058,13 +1062,13 @@ public class GrpcWindmillServerTest {
     }
     expectedHeartbeats.add(comp1Builder.build());
     expectedHeartbeats.add(comp2Builder.build());
-    Map<String, List<HeartbeatRequest>> heartbeatRequestMap = new HashMap<>();
+    Map<String, Collection<HeartbeatRequest>> heartbeatRequestMap = new HashMap<>();
     heartbeatRequestMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
     heartbeatRequestMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
 
     GetDataStream stream = client.getDataStream();
     stream.refreshActiveWork(heartbeatRequestMap);
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
 
     boolean receivedAllHeartbeatRequests = false;
@@ -1143,7 +1147,13 @@ public class GrpcWindmillServerTest {
                         StreamingGetWorkResponseChunk.newBuilder()
                             .setStreamId(id)
                             .setSerializedWorkItem(serializedResponse)
-                            .setRemainingBytesForWorkItem(0);
+                            .setRemainingBytesForWorkItem(0)
+                            .setComputationMetadata(
+                                ComputationWorkItemMetadata.newBuilder()
+                                    .setComputationId("computation")
+                                    .setInputDataWatermark(1L)
+                                    .setDependentRealtimeInputWatermark(1L)
+                                    .build());
                     try {
                       responseObserver.onNext(builder.build());
                     } catch (IllegalStateException e) {
@@ -1176,16 +1186,14 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 Windmill.WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
-              latch.countDown();
-            });
+                Collection<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
     // Wait for 100 items or 30 seconds.
     assertTrue(latch.await(30, TimeUnit.SECONDS));
     // Confirm that we report at least as much throttle time as our server sent errors for.  We will
     // actually report more due to backoff in restarting streams.
     assertTrue(this.client.getAndResetThrottleTime() > throttleTime);
 
-    stream.close();
+    stream.halfClose();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 

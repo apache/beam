@@ -98,7 +98,6 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
           { "py_ver": "3.11", "tox_env": "py311" },
@@ -113,10 +112,14 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Install tox
         run: pip install tox
-      - name: Run tests basic unix
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+      - name: Run tests basic linux
+        if: startsWith(matrix.os, 'ubuntu')
         working-directory: ./sdks/python
         run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}
+      - name: Run tests basic macos
+        if: startsWith(matrix.os, 'macos')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-macos
       - name: Run tests basic windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
@@ -135,7 +138,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -153,6 +156,8 @@ jobs:
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
+    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     needs:
       - build_python_sdk_source
     runs-on: ${{ matrix.os }}
@@ -160,7 +165,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -170,17 +175,16 @@ jobs:
           python-version: ${{ matrix.python }}
           go-version: default
       - name: Download source from artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.8
         with:
           name: python_sdk_source
           path: apache-beam-source
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
+        id: auth
+        uses: google-github-actions/auth@v1
         with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
       - name: Install requirements
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e ".[gcp]"

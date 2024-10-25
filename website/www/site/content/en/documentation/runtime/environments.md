@@ -111,14 +111,14 @@ This method requires building image artifacts from Beam source. For additional i
   cd $BEAM_WORKDIR
 
   # The default repository of each SDK
-  ./gradlew :sdks:java:container:java8:docker
   ./gradlew :sdks:java:container:java11:docker
   ./gradlew :sdks:java:container:java17:docker
+  ./gradlew :sdks:java:container:java21:docker
   ./gradlew :sdks:go:container:docker
-  ./gradlew :sdks:python:container:py38:docker
   ./gradlew :sdks:python:container:py39:docker
   ./gradlew :sdks:python:container:py310:docker
   ./gradlew :sdks:python:container:py311:docker
+  ./gradlew :sdks:python:container:py312:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container:buildAll
@@ -168,9 +168,9 @@ builds the Python 3.6 container and tags it as `example-repo/beam_python3.6_sdk:
 From Beam 2.21.0 and later, a `docker-pull-licenses` flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:
 
 ```
-./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses
+./gradlew :sdks:java:container:java11:docker -Pdocker-pull-licenses
 ```
-creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_party_licenses/`.
+creates a Java 11 SDK image with appropriate licenses in `/opt/apache/beam/third_party_licenses/`.
 
 By default, no licenses/notices are added to the docker images.
 

@@ -44,13 +44,13 @@ task check {
           paths = workflow.getAt(true).pull_request_target.paths as List
         } catch (Exception e) {
           errors.add("Fail to get the trigger path for ${fname}. " +
-                  "Make sure it has a pull_request_target trigger.")
+                    "Make sure it has a pull_request_target trigger.")
           return
         }
 
         // precommit and postcommit should triggered by this specific file
         // this is to ensure not missing test during release branch verification
-        if (paths != null && !paths.contains('release/trigger_all_tests.json') && !fname.toLowerCase().contains('sickbay')) {
+        if (paths != null && !paths.contains('release/trigger_all_tests.json') && !fname.toLowerCase().contains('sickbay') && !workflow.name.toLowerCase().contains('disabled')) {
           errors.add("Error validating ${fname}: " +
                   "Please add 'release/trigger_all_tests.json' to the trigger path")
           return

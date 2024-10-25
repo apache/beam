@@ -45,10 +45,11 @@ jobs:
   check_env_variables:
     timeout-minutes: 5
     name: "Check environment variables"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     env:
       EVENT_NAME: ${{ github.event_name }}
-      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+      # Keep in sync with py_version matrix value below - if changed, change that as well.
+      PY_VERSIONS_FULL: "cp39-* cp310-* cp311-* cp312-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -59,8 +60,8 @@ jobs:
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
         env:
-          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_SA_EMAIL: "not used by self hosted runner"
+          GCP_SA_KEY: "not used by self hosted runner"
           GCP_PYTHON_WHEELS_BUCKET: ${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}
           GCP_PROJECT_ID: "not-needed-here"
           GCP_REGION: "not-needed-here"
@@ -80,7 +81,7 @@ jobs:
           echo "py-versions-full=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
 
   build_source:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
@@ -91,7 +92,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Get tag
         id: get_tag
         run: |
@@ -126,14 +127,12 @@ jobs:
         # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_zip
           path: sdks/python/dist
@@ -171,15 +170,13 @@ jobs:
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -190,14 +187,9 @@ jobs:
     needs:
       - build_source
       - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Remove existing files on GCS bucket
         run: gsutil rm -r ${{ env.GCP_PATH }} || true
 
@@ -206,72 +198,66 @@ jobs:
     needs:
       - prepare_gcs
       - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.8
         with:
           name: source_zip
           path: source/
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Copy sources to GCS bucket
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
+    name: Build python ${{matrix.py_version}} wheels on ${{matrix.os_python.arch}} for ${{ matrix.os_python.os }}
     needs:
       - check_env_variables
       - build_source
     env:
-      CIBW_ARCHS_LINUX: ${{matrix.arch}}
-    runs-on: ${{ matrix.os_python.os }}
+      CIBW_ARCHS_LINUX: ${{matrix.os_python.arch}}
+    runs-on: ${{ matrix.os_python.runner }}
+    timeout-minutes: 480
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
+          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
           # Temporarily pin to macos-13 because macos-latest breaks this build
           # TODO(https://github.com/apache/beam/issues/31114)
-          {"os": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
-          {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": "macos-13", "runner": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
+          {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
+          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
-        arch: [auto]
-        include:
-          - os_python: {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
-            arch: aarch64
+        # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
+        py_version: ["cp39-", "cp310-", "cp311-", "cp312-"]
     steps:
     - name: Download python source distribution from artifacts
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.8
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.8
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.9
     - uses: docker/setup-qemu-action@v1
-      if: ${{matrix.arch == 'aarch64'}}
+      if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
       run: pip install cibuildwheel==2.17.0 setuptools
     - name: Build wheel
+      # Only build wheel if it is one of the target versions for this platform, otherwise no-op
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source
       env:
-        CIBW_BUILD: ${{ matrix.os_python.python }}
+        CIBW_BUILD: ${{ matrix.py_version }}*
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
@@ -281,6 +267,7 @@ jobs:
       if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source/wheelhouse/
       run: |
         for file in *.whl; do
@@ -288,16 +275,17 @@ jobs:
         done
       shell: bash
     - name: Upload wheels as artifacts
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v3
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
+        name: wheelhouse-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
     - name: Build RC wheels
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      # Only build wheel if it is one of the target versions for this platform, otherwise no-op
+      if: ${{ needs.build_source.outputs.is_rc == 1 && contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source-rc
       env:
-        CIBW_BUILD: ${{ matrix.os_python.python }}
+        CIBW_BUILD: ${{ matrix.py_version }}*
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
@@ -313,10 +301,9 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
+        name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source-rc/wheelhouse/
 
   upload_wheels_to_gcs:
@@ -324,29 +311,15 @@ jobs:
     needs:
       - build_wheels
       - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
-    strategy:
-      matrix:
-        # Temporarily pin to macos-13 because macos-latest breaks this build
-        # TODO(https://github.com/apache/beam/issues/31114)
-        os : [ubuntu-latest, macos-13, windows-latest]
-        arch: [auto]
-        include:
-          - os: "ubuntu-latest"
-            arch: aarch64
     steps:
     - name: Download wheels from artifacts
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
-        name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
+        pattern: wheelhouse-*
+        merge-multiple: true
         path: wheelhouse/
-    - name: Authenticate on GCP
-      uses: google-github-actions/setup-gcloud@v0
-      with:
-        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
       run: gsutil cp -r -a public-read wheelhouse/* ${{ env.GCP_PATH }}
     - name: Create github action information file on GCS bucket
@@ -375,14 +348,9 @@ jobs:
     needs:
      - upload_wheels_to_gcs
      - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
-    - name: Authenticate on GCP
-      uses: google-github-actions/setup-gcloud@v0
-      with:
-        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: List file on Google Cloud Storage Bucket
       run: gsutil ls "${{ env.GCP_PATH }}*"
 
@@ -393,7 +361,7 @@ jobs:
     needs:
       - build_source
       - build_wheels
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:

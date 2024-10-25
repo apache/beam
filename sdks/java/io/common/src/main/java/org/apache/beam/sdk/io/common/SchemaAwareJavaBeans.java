@@ -137,7 +137,7 @@ public class SchemaAwareJavaBeans {
         .build();
   }
 
-  private static final TypeDescriptor<AllPrimitiveDataTypes>
+  public static final TypeDescriptor<AllPrimitiveDataTypes>
       ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(AllPrimitiveDataTypes.class);
 
   /** The schema for {@link AllPrimitiveDataTypes}. */
@@ -160,7 +160,7 @@ public class SchemaAwareJavaBeans {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
-  private static final TypeDescriptor<NullableAllPrimitiveDataTypes>
+  public static final TypeDescriptor<NullableAllPrimitiveDataTypes>
       NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR =
           TypeDescriptor.of(NullableAllPrimitiveDataTypes.class);
 
@@ -187,7 +187,7 @@ public class SchemaAwareJavaBeans {
         NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
-  private static final TypeDescriptor<TimeContaining> TIME_CONTAINING_TYPE_DESCRIPTOR =
+  public static final TypeDescriptor<TimeContaining> TIME_CONTAINING_TYPE_DESCRIPTOR =
       TypeDescriptor.of(TimeContaining.class);
 
   /** The schema for {@link TimeContaining}. */
@@ -250,7 +250,7 @@ public class SchemaAwareJavaBeans {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(BYTE_SEQUENCE_TYPE_TYPE_DESCRIPTOR);
   }
 
-  private static final TypeDescriptor<ArrayPrimitiveDataTypes>
+  public static final TypeDescriptor<ArrayPrimitiveDataTypes>
       ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(ArrayPrimitiveDataTypes.class);
 
   /** The schema for {@link ArrayPrimitiveDataTypes}. */

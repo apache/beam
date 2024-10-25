@@ -19,6 +19,8 @@
 
 # pytype: skip-file
 
+import collections
+import importlib
 import logging
 import math
 import random
@@ -27,6 +29,7 @@ import time
 import unittest
 import warnings
 from datetime import datetime
+from typing import Mapping
 
 import pytest
 import pytz
@@ -1016,13 +1019,13 @@ class WithKeysTest(unittest.TestCase):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys('k')
-    assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
 
   def test_callable_k(self):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x * x)
-    assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+      assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
 
   @staticmethod
   def _test_args_kwargs_fn(x, multiply, subtract):
@@ -1033,7 +1036,7 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(
           WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
-    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+      assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
 
   def test_sideinputs(self):
     with TestPipeline() as p:
@@ -1046,7 +1049,7 @@ class WithKeysTest(unittest.TestCase):
           the_singleton: x + sum(the_list) + the_singleton,
           si1,
           the_singleton=si2)
-    assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
+      assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
 
 
 class GroupIntoBatchesTest(unittest.TestCase):
@@ -1810,6 +1813,32 @@ class RegexTest(unittest.TestCase):
           "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"
       ]]
       assert_that(result, equal_to(expected_result))
+
+
+class TeeTest(unittest.TestCase):
+  _side_effects: Mapping[str, int] = collections.defaultdict(int)
+
+  def test_tee(self):
+    # The imports here are to avoid issues with the class (and its attributes)
+    # possibly being pickled rather than referenced.
+    def cause_side_effect(element):
+      importlib.import_module(__name__).TeeTest._side_effects[element] += 1
+
+    def count_side_effects(element):
+      return importlib.import_module(__name__).TeeTest._side_effects[element]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | 'TeePTransform' >> beam.Tee(beam.Map(cause_side_effect))
+          | 'TeeCallable' >> beam.Tee(
+              lambda pcoll: pcoll | beam.Map(
+                  lambda element: cause_side_effect('X' + element))))
+      assert_that(result, equal_to(['a', 'b', 'c']))
+
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('Xa'), 1)
 
 
 class WaitOnTest(unittest.TestCase):

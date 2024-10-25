@@ -52,6 +52,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_INT64);
     public static final String USER_DISTRIBUTION_DOUBLE =
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_DOUBLE);
+    public static final String USER_SET_STRING =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_SET_STRING);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);

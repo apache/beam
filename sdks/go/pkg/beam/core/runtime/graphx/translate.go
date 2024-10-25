@@ -34,7 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -494,6 +494,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
+			payload.RequestsFinalization = true
 			m.requirements[URNRequiresBundleFinalization] = true
 		}
 		if _, ok := edge.Edge.DoFn.ProcessElementFn().StateProvider(); ok {
@@ -1209,13 +1210,13 @@ func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, 
 }
 
 func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string {
-	key := proto.MarshalTextString(w)
-	if id, exists := m.windowing2id[key]; exists {
+	key := w.String()
+	if id, exists := m.windowing2id[(key)]; exists {
 		return id
 	}
 
 	id := fmt.Sprintf("w%v", len(m.windowing2id))
-	m.windowing2id[key] = id
+	m.windowing2id[string(key)] = id
 	m.windowing[id] = w
 	return id
 }

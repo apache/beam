@@ -33,6 +33,7 @@ import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
@@ -47,12 +48,28 @@ def gcs_temp_dir(bucket):
 
 
 @contextlib.contextmanager
+def temp_spanner_table(project, prefix='temp_spanner_db_'):
+  spanner_client = SpannerWrapper(project)
+  spanner_client._create_database()
+  instance = "beam-test"
+  database = spanner_client._test_database
+  table = 'tmp_table'
+  columns = ['UserId', 'Key']
+  logging.info("Created Spanner database: %s", database)
+  try:
+    yield [f'{project}', f'{instance}', f'{database}', f'{table}', columns]
+  finally:
+    logging.info("Deleting Spanner database: %s", database)
+    spanner_client._delete_database()
+
+
+@contextlib.contextmanager
 def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   bigquery_client = BigQueryWrapper()
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  yield f'{project}:{dataset_id}.tmp_table'
+  yield f'{project}.{dataset_id}.tmp_table'
   request = bigquery.BigqueryDatasetsDeleteRequest(
       projectId=project, datasetId=dataset_id, deleteContents=True)
   logging.info("Deleting dataset %s in project %s", dataset_id, project)

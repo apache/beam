@@ -26,9 +26,13 @@
 #
 # Transform identifiers listed in the `skip_transforms` field will be skipped.
 #
+#
 # Any new gradle targets added here should also be added to:
 # - sdks/python/build.gradle (as a dependency in the 'generateExternalTransformsConfig' task)
 # - sdks/python/test-suites/xlang/build.gradle (look for 'servicesToGenerateFrom')
+#
+# After making changes here, please run `./gradlew generateExternalTransformsConfig`
+# to regenerate the config file at sdks/standard_external_transforms.yaml
 #
 # Refer to sdks/python/gen_xlang_wrappers.py for more info.
 
@@ -44,7 +48,7 @@
     # Handwritten Kafka wrappers already exist in apache_beam/io/kafka.py
     - 'beam:schematransform:org.apache.beam:kafka_write:v1'
     - 'beam:schematransform:org.apache.beam:kafka_read:v1'
-    # Not ready to generate
+    # Available through apache_beam.transforms.managed.[Read/Write]
     - 'beam:schematransform:org.apache.beam:iceberg_write:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
 

@@ -159,6 +159,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStringSetMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
@@ -252,7 +253,7 @@ tasks.register("validatesRunnerSickbay", Test) {
 }
 
 task ulrDockerValidatesRunner {
-  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:java8:docker")
+  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:${project.ext.currentJavaVersion}:docker")
 }
 
 task ulrLoopbackValidatesRunner {

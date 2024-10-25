@@ -1906,8 +1906,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -1939,8 +1939,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException {
+    public CompletableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws IOException {
       if (failureOptions.getFailAtWriteRecord()) {
         throw new IOException("Fake IOException in writeRecord()");
       }

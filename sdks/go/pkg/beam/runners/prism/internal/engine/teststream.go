@@ -147,7 +147,7 @@ func (ts *testStreamHandler) UpdateHold(em *ElementManager, newHold mtime.Time) 
 	kick.merge(em.impulses)
 
 	// This executes under the refreshCond lock, so we can't call em.addRefreshes.
-	em.watermarkRefreshes.merge(kick)
+	em.changedStages.merge(kick)
 	em.refreshCond.Broadcast()
 }
 
@@ -190,13 +190,13 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 		ss := em.stages[sID]
 		added := ss.AddPending(pending)
 		em.addPending(added)
-		em.watermarkRefreshes.insert(sID)
+		em.changedStages.insert(sID)
 	}
 
 	for _, link := range em.sideConsumers[t.pcollection] {
 		ss := em.stages[link.Global]
 		ss.AddPendingSide(pending, link.Transform, link.Local)
-		em.watermarkRefreshes.insert(link.Global)
+		em.changedStages.insert(link.Global)
 	}
 }
 
@@ -220,7 +220,7 @@ func (ev tsWatermarkEvent) Execute(em *ElementManager) {
 	for _, sID := range em.consumers[t.pcollection] {
 		ss := em.stages[sID]
 		ss.updateUpstreamWatermark(ss.inputID, t.watermark)
-		em.watermarkRefreshes.insert(sID)
+		em.changedStages.insert(sID)
 	}
 	// Clear the default hold after the inserts have occured.
 	em.testStreamHandler.UpdateHold(em, t.watermark)
@@ -241,7 +241,7 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	// Add the refreshes now so our block prevention logic works.
 	emNow := em.ProcessingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
-	em.watermarkRefreshes.merge(toRefresh)
+	em.changedStages.merge(toRefresh)
 }
 
 // tsFinalEvent is the "last" event we perform after all preceeding events.
@@ -256,7 +256,7 @@ func (ev tsFinalEvent) Execute(em *ElementManager) {
 	ss := em.stages[ev.stageID]
 	kickSet := ss.updateWatermarks(em)
 	kickSet.insert(ev.stageID)
-	em.watermarkRefreshes.merge(kickSet)
+	em.changedStages.merge(kickSet)
 }
 
 // TestStreamBuilder builds a synthetic sequence of events for the engine to execute.

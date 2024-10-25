@@ -26,10 +26,12 @@ import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.io.FileSystem.LineageLevel;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -297,6 +299,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
           System.currentTimeMillis() - startTime,
           expandedFiles.size(),
           splitResults.size());
+
+      reportSourceLineage(expandedFiles);
       return splitResults;
     } else {
       if (isSplittable()) {
@@ -310,6 +314,37 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
                 + "the file is not seekable",
             fileOrPattern);
         return ImmutableList.of(this);
+      }
+    }
+  }
+
+  /**
+   * Report source Lineage. Due to the size limit of Beam metrics, report full file name or only dir
+   * depend on the number of files.
+   *
+   * <p>- Number of files<=100, report full file paths;
+   *
+   * <p>- Number of directory<=100, report directory names (one level up);
+   *
+   * <p>- Otherwise, report top level only.
+   */
+  private static void reportSourceLineage(List<Metadata> expandedFiles) {
+    if (expandedFiles.size() <= 100) {
+      for (Metadata metadata : expandedFiles) {
+        FileSystems.reportSourceLineage(metadata.resourceId());
+      }
+    } else {
+      HashSet<ResourceId> uniqueDirs = new HashSet<>();
+      for (Metadata metadata : expandedFiles) {
+        ResourceId dir = metadata.resourceId().getCurrentDirectory();
+        uniqueDirs.add(dir);
+        if (uniqueDirs.size() > 100) {
+          FileSystems.reportSourceLineage(dir, LineageLevel.TOP_LEVEL);
+          return;
+        }
+      }
+      for (ResourceId uniqueDir : uniqueDirs) {
+        FileSystems.reportSourceLineage(uniqueDir);
       }
     }
   }

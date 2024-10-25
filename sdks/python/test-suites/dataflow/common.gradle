@@ -424,6 +424,39 @@ def tensorRTTests = tasks.create("tensorRTtests") {
  }
 }
 
+def vllmTests = tasks.create("vllmTests") {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+ doLast {
+  def testOpts = basicPytestOpts
+  def argMap = [
+    "runner": "DataflowRunner",
+    "machine_type":"n1-standard-4",
+    // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
+    // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
+    // declaration for this project.
+    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile
+    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
+    "sdk_location": files(configurations.distTarBall.files).singleFile,
+    "project": "apache-beam-testing",
+    "region": "us-central1",
+    "model": "facebook/opt-125m",
+    "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
+    "disk_size_gb": 75
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  // Exec one version with and one version without the chat option
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+  }
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat true --chat_template 'gs://apache-beam-ml/additional_files/sample_chat_template.jinja' --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+  }
+ }
+}
+
 // Vertex AI RunInference IT tests
 task vertexAIInferenceTest {
   dependsOn 'initializeForDataflowJob'
@@ -521,10 +554,16 @@ project.tasks.register("inferencePostCommitIT") {
   ]
 }
 
+project.tasks.register("inferencePostCommitITPy312") {
+  dependsOn = [
+  'vllmTests',
+  ]
+}
+
 
 // Create cross-language tasks for running tests against Java expansion service(s)
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
@@ -533,8 +572,8 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
       collectMarker: taskMetadata.collectMarker,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
-        "--project=${dataflowProject}",
-        "--region=${dataflowRegion}",
+        "--project=${gcpProject}",
+        "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],

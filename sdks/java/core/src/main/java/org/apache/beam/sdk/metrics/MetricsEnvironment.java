@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.StringUtils;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -134,10 +135,14 @@ public class MetricsEnvironment {
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       if (isMetricsSupported()) {
         LOG.error(
-            "Unable to update metrics on the current thread. "
-                + "Most likely caused by using metrics outside the managed work-execution thread.");
+            "Unable to update metrics on the current thread. Most likely caused by using metrics "
+                + "outside the managed work-execution thread:\n  {}",
+            StringUtils.arrayToNewlines(Thread.currentThread().getStackTrace(), 10));
       } else {
-        LOG.warn("Reporting metrics are not supported in the current execution environment.");
+        // rate limiting this log as it can be emitted each time metrics incremented
+        LOG.warn(
+            "Reporting metrics are not supported in the current execution environment:\n  {}",
+            StringUtils.arrayToNewlines(Thread.currentThread().getStackTrace(), 10));
       }
     }
     return container;

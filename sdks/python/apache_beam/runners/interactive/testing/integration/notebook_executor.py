@@ -40,8 +40,7 @@ except ImportError:
 class NotebookExecutor(object):
   """Executor that reads notebooks, executes it and gathers outputs into static
   HTML pages that can be served."""
-  def __init__(self, path):
-    # type: (str) -> None
+  def __init__(self, path: str) -> None:
 
     assert _interactive_integration_ready, (
         '[interactive_test] dependency is not installed.')

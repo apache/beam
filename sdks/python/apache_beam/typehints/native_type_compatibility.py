@@ -184,7 +184,7 @@ def is_forward_ref(typ):
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
-_type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
+_type_var_cache: typing.Dict[int, typehints.TypeVariable] = {}
 
 
 def convert_builtin_to_typing(typ):

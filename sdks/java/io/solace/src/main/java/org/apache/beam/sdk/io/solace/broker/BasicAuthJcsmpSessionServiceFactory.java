@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
+import static org.apache.beam.sdk.io.solace.broker.SessionService.DEFAULT_VPN_NAME;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -39,7 +40,7 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
   public abstract String vpnName();
 
   public static Builder builder() {
-    return new AutoValue_BasicAuthJcsmpSessionServiceFactory.Builder();
+    return new AutoValue_BasicAuthJcsmpSessionServiceFactory.Builder().vpnName(DEFAULT_VPN_NAME);
   }
 
   @AutoValue.Builder

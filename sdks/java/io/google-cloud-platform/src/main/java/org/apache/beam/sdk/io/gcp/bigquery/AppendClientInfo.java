@@ -28,6 +28,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
@@ -40,8 +41,8 @@ import org.apache.beam.sdk.metrics.Metrics;
  */
 @AutoValue
 abstract class AppendClientInfo {
-  private final Counter activeConnections =
-      Metrics.counter(AppendClientInfo.class, "activeConnections");
+  private final Counter activeStreamAppendClients =
+      Metrics.counter(AppendClientInfo.class, "activeStreamAppendClients");
 
   abstract @Nullable BigQueryServices.StreamAppendClient getStreamAppendClient();
 
@@ -123,7 +124,7 @@ abstract class AppendClientInfo {
           writeStreamService.getStreamAppendClient(
               streamName, getDescriptor(), useConnectionPool, missingValueInterpretation);
 
-      activeConnections.inc();
+      activeStreamAppendClients.inc();
 
       return toBuilder().setStreamName(streamName).setStreamAppendClient(client).build();
     }
@@ -133,7 +134,7 @@ abstract class AppendClientInfo {
     BigQueryServices.StreamAppendClient client = getStreamAppendClient();
     if (client != null) {
       getCloseAppendClient().accept(client);
-      activeConnections.dec();
+      activeStreamAppendClients.dec();
     }
   }
 
@@ -166,12 +167,13 @@ abstract class AppendClientInfo {
     }
   }
 
-  public TableRow toTableRow(ByteString protoBytes) {
+  public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
           DynamicMessage.parseFrom(
               TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
-          true);
+          true,
+          includeField);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

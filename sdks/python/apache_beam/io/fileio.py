@@ -90,7 +90,6 @@ parameter can be anything, as long as elements can be grouped by it.
 
 import collections
 import logging
-import os
 import random
 import uuid
 from collections import namedtuple
@@ -558,6 +557,8 @@ class WriteToFiles(beam.PTransform):
         class signature or an instance of FileSink to this parameter. If none is
         provided, a ``TextSink`` is used.
       shards (int): The number of shards per destination and trigger firing.
+      output_fn (callable, optional): A callable to process the output. This
+        parameter is currently unused and retained for backward compatibility.
       max_writers_per_bundle (int): The number of writers that can be open
         concurrently in a single worker that's processing one bundle.
     """
@@ -702,9 +703,10 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
     move_from = [f.file_name for f in temp_file_results]
     move_to = [f.file_name for f in final_file_results]
+
     _LOGGER.info(
-        'Moving temporary files %s to dir: %s as %s',
-        map(os.path.basename, move_from),
+        'Moving %d temporary files to dir: %s as %s',
+        len(move_from),
         self.path.get(),
         move_to)
 
@@ -745,13 +747,13 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
       if len(orphaned_files) > 0:
-        _LOGGER.info(
+        _LOGGER.warning(
             'Some files may be left orphaned in the temporary folder: %s. '
-            'This may be a result of insufficient permissions to delete'
-            'these temp files.',
+            'This may be a result of retried work items or insufficient'
+            'permissions to delete these temp files.',
             orphaned_files)
     except BeamIOError as e:
-      _LOGGER.info('Exceptions when checking orphaned files: %s', e)
+      _LOGGER.warning('Exceptions when checking orphaned files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):

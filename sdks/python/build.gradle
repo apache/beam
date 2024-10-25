@@ -95,7 +95,7 @@ tasks.register("generateYamlDocs") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  def extraPackages = "pyyaml markdown docstring_parser pandas pygments"
+  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2"
 
   doLast {
     exec {

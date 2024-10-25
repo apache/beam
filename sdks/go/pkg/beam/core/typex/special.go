@@ -69,8 +69,18 @@ type Window interface {
 	Equals(o Window) bool
 }
 
-// BundleFinalization allows registering callbacks to be performed after the runner durably persists bundle results.
+// BundleFinalization allows registering callbacks for the runner to invoke after the bundle completes and the runner
+// commits the output. Parameter is accessible during DoFn StartBundle, ProcessElement, FinishBundle.
+// However, if your DoFn implementation requires BundleFinalization in StartBundle or FinishBundle, it is needed in the
+// ProcessElement signature, even if not invoked,
+// Common use cases for BundleFinalization would be to perform work after elements in a bundle have been processed.
+// See beam.ParDo for documentation on these DoFn lifecycle methods.
 type BundleFinalization interface {
+
+	// RegisterCallback registers the runner to invoke func() after the runner persists the bundle of processed elements.
+	// The time.Duration configures the callback expiration, after which the runner will not invoke func().
+	// Returning error communicates to the runner that bundle finalization failed and the runner may choose to attempt
+	// finalization again.
 	RegisterCallback(time.Duration, func() error)
 }
 

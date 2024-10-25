@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -508,7 +509,7 @@ public class ByteBuddyUtils {
     return new TransformingMap<>(sourceMap, keyFunction, valueFunction);
   }
 
-  public static class TransformingMap<K1, V1, K2, V2> implements Map<K2, V2> {
+  public static class TransformingMap<K1, V1, K2, V2> implements Map<K2, V2>, Serializable {
     private final Map<K2, V2> delegateMap;
 
     public TransformingMap(

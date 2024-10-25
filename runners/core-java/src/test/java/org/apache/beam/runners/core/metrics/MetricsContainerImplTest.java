@@ -271,6 +271,38 @@ public class MetricsContainerImplTest {
   }
 
   @Test
+  public void testMonitoringInfosArePopulatedForUserStringSets() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+    StringSetCell stringSetCellA = testObject.getStringSet(MetricName.named("ns", "nameA"));
+    StringSetCell stringSetCellB = testObject.getStringSet(MetricName.named("ns", "nameB"));
+    stringSetCellA.add("A");
+    stringSetCellB.add("BBB");
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_SET_STRING)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "nameA")
+        .setStringSetValue(stringSetCellA.getCumulative())
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_SET_STRING)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "nameB")
+        .setStringSetValue(stringSetCellB.getCumulative())
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    List<MonitoringInfo> actualMonitoringInfos = new ArrayList<>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(mi);
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+  }
+
+  @Test
   public void testMonitoringInfosArePopulatedForSystemDistributions() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<>();
