@@ -136,4 +136,8 @@ class RecordWriter {
   public DataFile getDataFile() {
     return icebergDataWriter.toDataFile();
   }
+
+  public String path() {
+    return absoluteFilename;
+  }
 }
