@@ -172,6 +172,20 @@ public abstract class BigQueryWriteConfiguration {
   @Nullable
   public abstract ErrorHandling getErrorHandling();
 
+  @SchemaFieldDescription(
+      "This option enables the use of BigQuery CDC functionality. The expected PCollection"
+          + " should contain Beam Rows with a schema wrapping the record to be inserted and"
+          + " adding the CDC info similar to: {row_mutation_info: {mutation_type:\"...\", "
+          + "change_sequence_number:\"...\"}, record: {...}}")
+  @Nullable
+  public abstract Boolean getUseCdcWrites();
+
+  @SchemaFieldDescription(
+      "If CREATE_IF_NEEDED disposition is set, BigQuery table(s) will be created with this"
+          + " columns as primary key. Required when CDC writes are enabled with CREATE_IF_NEEDED.")
+  @Nullable
+  public abstract List<String> getPrimaryKey();
+
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -193,6 +207,10 @@ public abstract class BigQueryWriteConfiguration {
     public abstract Builder setKmsKey(String kmsKey);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+
+    public abstract Builder setUseCdcWrites(Boolean cdcWrites);
+
+    public abstract Builder setPrimaryKey(List<String> pkColumns);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();

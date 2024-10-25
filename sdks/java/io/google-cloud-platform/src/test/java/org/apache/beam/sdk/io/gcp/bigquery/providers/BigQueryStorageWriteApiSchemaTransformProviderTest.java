@@ -269,8 +269,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     String tableSpec = "project:dataset.cdc_write";
     List<String> primaryKeyColumns = ImmutableList.of("name");
 
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setUseAtLeastOnceSemantics(true)
             .setTable(tableSpec)
             .setUseCdcWrites(true)
@@ -300,9 +300,9 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testCDCWriteToDynamicDestinations() throws Exception {
     List<String> primaryKeyColumns = ImmutableList.of("name");
-    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    String dynamic = BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setUseAtLeastOnceSemantics(true)
             .setTable(dynamic)
             .setUseCdcWrites(true)
