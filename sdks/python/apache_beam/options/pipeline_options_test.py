@@ -31,8 +31,8 @@ from parameterized import parameterized
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import JobServerOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
