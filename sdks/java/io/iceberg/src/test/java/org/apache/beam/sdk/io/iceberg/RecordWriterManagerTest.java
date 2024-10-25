@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -41,6 +42,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -300,7 +302,13 @@ public class RecordWriterManagerTest {
     DataFile datafile = writer.getDataFile();
     assertEquals(2L, datafile.recordCount());
 
-    String partitionPath = IcebergUtils.resolvePartitionPath(partitionKey.toPath(), PARTITION_SPEC);
+    Map<String, PartitionField> partitionFieldMap = new HashMap<>();
+    for (PartitionField partitionField : PARTITION_SPEC.fields()) {
+      partitionFieldMap.put(partitionField.name(), partitionField);
+    }
+
+    String partitionPath =
+        RecordWriterManager.getPartitionDataPath(partitionKey.toPath(), partitionFieldMap);
     DataFile roundTripDataFile =
         SerializableDataFile.from(datafile, partitionPath).createDataFile(PARTITION_SPEC);
     // DataFile doesn't implement a .equals() method. Check equality manually

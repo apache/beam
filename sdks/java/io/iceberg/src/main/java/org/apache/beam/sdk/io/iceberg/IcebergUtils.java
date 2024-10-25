@@ -24,10 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.time.YearMonth;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,17 +35,9 @@ import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.expressions.Literal;
-import org.apache.iceberg.transforms.Transform;
-import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
@@ -516,64 +505,5 @@ public class IcebergUtils {
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
-  }
-
-  /**
-   * Determines partition values for partition a {@link Record}'s values and returns another {@link
-   * Record} that can be applied to the given {@link PartitionSpec}.
-   */
-  static Record getPartitionableRecord(Record record, PartitionSpec spec) {
-    if (spec.isUnpartitioned()) {
-      return record;
-    }
-    Record output = GenericRecord.create(spec.schema());
-    for (PartitionField partitionField : spec.fields()) {
-      Transform<?, ?> transform = partitionField.transform();
-      int id = partitionField.sourceId();
-      Types.NestedField field = spec.schema().findField(id);
-      String name = field.name();
-      Object value = record.getField(name);
-      @Nullable Literal<Object> literal = Literal.of(value.toString()).to(field.type());
-      if (literal == null || transform.isVoid() || transform.isIdentity()) {
-        output.setField(name, value);
-      } else {
-        output.setField(name, literal.value());
-      }
-    }
-    return output;
-  }
-
-  private static final DateTimeFormatter HOUR_FORMATTER =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
-  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
-
-  static String resolvePartitionPath(String path, PartitionSpec spec) {
-    if (Strings.isNullOrEmpty(path) || spec.isUnpartitioned()) {
-      return path;
-    }
-    List<String> resolved = new ArrayList<>();
-    List<PartitionField> partitionFields = spec.fields();
-    Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
-    for (PartitionField partitionField : partitionFields) {
-      partitionFieldMap.put(partitionField.name(), partitionField);
-    }
-    for (String partition : Splitter.on('/').splitToList(path)) {
-      List<String> parts = Splitter.on('=').splitToList(partition);
-      String name = parts.get(0);
-      String value = parts.get(1);
-      PartitionField partitionField =
-          Preconditions.checkArgumentNotNull(partitionFieldMap.get(name));
-      String transformName = partitionField.transform().toString();
-      if (Transforms.month().toString().equals(transformName)) {
-        int month = YearMonth.parse(value).getMonthValue();
-        value = String.valueOf(month);
-      } else if (Transforms.hour().toString().equals(transformName)) {
-        LocalDateTime targetDateTime = LocalDateTime.parse(value, HOUR_FORMATTER);
-        long hour = ChronoUnit.HOURS.between(EPOCH, targetDateTime);
-        value = String.valueOf(hour);
-      }
-      resolved.add(name + "=" + value);
-    }
-    return String.join("/", resolved);
   }
 }
