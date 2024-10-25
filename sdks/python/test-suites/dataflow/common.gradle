@@ -370,12 +370,9 @@ task validatesContainer() {
   dependsOn 'initializeForDataflowJob'
   dependsOn ":sdks:python:container:py${pyversion}:docker"
   def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
-  var containerBuildTarget = project.containerBuildTarget() ?: ''
-  var imageSuffix = containerBuildTarget != '' ? "_sdk_${containerBuildTarget}": '_sdk'
   doLast {
     exec {
       executable 'sh'
-      environment 'IMAGE_SUFFIX', imageSuffix
       args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
               "${project.ext.pythonVersion} " +
               "${project.ext.sdkLocation}"
