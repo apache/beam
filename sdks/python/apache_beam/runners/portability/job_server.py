@@ -155,11 +155,9 @@ class JavaJarJobServer(SubprocessJobServer):
         self._artifacts_dir if self._artifacts_dir else self.local_temp_dir(
             prefix='artifacts'))
     job_port, = subprocess_server.pick_port(self._job_port)
-    subprocess_cmd = [self._java_launcher, '-jar'
-                      ] + self._jvm_properties + [jar_path] + list(
-                          self.java_arguments(
-                              job_port,
-                              self._artifact_port,
-                              self._expansion_port,
-                              artifacts_dir))
+    subprocess_cmd = [self._java_launcher, '-jar'] + self._jvm_properties + [
+        jar_path
+    ] + list(
+        self.java_arguments(
+            job_port, self._artifact_port, self._expansion_port, artifacts_dir))
     return (subprocess_cmd, 'localhost:%s' % job_port)
