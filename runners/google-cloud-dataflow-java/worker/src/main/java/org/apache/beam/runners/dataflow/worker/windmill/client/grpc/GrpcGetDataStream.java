@@ -144,6 +144,16 @@ final class GrpcGetDataStream
         processHeartbeatResponses);
   }
 
+  private static WindmillStreamShutdownException shutdownException(QueuedBatch batch) {
+    return new WindmillStreamShutdownException(
+        "Stream was closed when attempting to send " + batch.requestsCount() + " requests.");
+  }
+
+  private static WindmillStreamShutdownException shutdownException(QueuedRequest request) {
+    return new WindmillStreamShutdownException(
+        "Cannot send request=[" + request + "] on closed stream.");
+  }
+
   @Override
   protected synchronized void onNewStream() {
     if (isShutdown()) {
@@ -349,24 +359,11 @@ final class GrpcGetDataStream
         "Cannot send request=[" + request + "] on closed stream.");
   }
 
-  private void handleShutdown(QueuedRequest request, Throwable... causes) {
+  private void handleShutdown(QueuedRequest request, Throwable cause) {
     if (isShutdown()) {
-      WindmillStreamShutdownException shutdownException =
-          new WindmillStreamShutdownException(
-              "Cannot send request=[" + request + "] on closed stream.");
-
-      for (Throwable cause : causes) {
-        shutdownException.addSuppressed(cause);
-      }
-
+      WindmillStreamShutdownException shutdownException = shutdownException(request);
+      shutdownException.addSuppressed(cause);
       throw shutdownException;
-    }
-  }
-
-  private void handleShutdown(QueuedBatch batch) {
-    if (isShutdown()) {
-      throw new WindmillStreamShutdownException(
-          "Stream was closed when attempting to send " + batch.requestsCount() + " requests.");
     }
   }
 
@@ -376,7 +373,7 @@ final class GrpcGetDataStream
     @Nullable QueuedBatch prevBatch = null;
     synchronized (shutdownLock) {
       if (isShutdown()) {
-        handleShutdown(request);
+        throw shutdownException(request);
       }
 
       batch = batches.isEmpty() ? null : batches.getLast();
@@ -405,7 +402,7 @@ final class GrpcGetDataStream
       // queue so that a subsequent batch will wait for its completion.
       synchronized (shutdownLock) {
         if (isShutdown()) {
-          handleShutdown(batch);
+          throw shutdownException(batch);
         }
 
         verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
@@ -423,7 +420,7 @@ final class GrpcGetDataStream
       sendBatch(batch);
       synchronized (shutdownLock) {
         if (isShutdown()) {
-          handleShutdown(batch);
+          throw shutdownException(batch);
         }
 
         verify(
@@ -434,7 +431,6 @@ final class GrpcGetDataStream
       // of the next batch (if one exists).
       batch.notifySent();
     } catch (Exception e) {
-      LOG.error("Error occurred sending batch.", e);
       // Free waiters if the send() failed.
       batch.notifyFailed();
       // Propagate the exception to the calling thread.
@@ -447,7 +443,6 @@ final class GrpcGetDataStream
       return;
     }
 
-    StreamingGetDataRequest batchedRequest = batch.asGetDataRequest();
     synchronized (shutdownLock) {
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
@@ -455,8 +450,7 @@ final class GrpcGetDataStream
         // shutdown() clears pending, once the stream is shutdown, prevent values from being added
         // to it.
         if (isShutdown()) {
-          throw new WindmillStreamShutdownException(
-              "Stream was closed when attempting to send " + batch.requestsCount() + " requests.");
+          throw shutdownException(batch);
         }
 
         for (QueuedRequest request : batch.requestsReadOnly()) {
@@ -470,7 +464,7 @@ final class GrpcGetDataStream
     }
 
     try {
-      send(batchedRequest);
+      send(batch.asGetDataRequest());
     } catch (IllegalStateException e) {
       // The stream broke before this call went through; onNewStream will retry the fetch.
       LOG.warn("GetData stream broke before call started.", e);
