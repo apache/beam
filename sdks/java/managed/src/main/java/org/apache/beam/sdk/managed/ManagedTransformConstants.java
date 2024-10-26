@@ -66,7 +66,11 @@ public class ManagedTransformConstants {
       ImmutableMap.<String, Map<String, String>>builder()
           .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ), KAFKA_READ_MAPPINGS)
           .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE), KAFKA_WRITE_MAPPINGS)
-          .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ), BIGQUERY_READ_MAPPINGS)
-          .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE), BIGQUERY_WRITE_MAPPINGS)
+          .put(
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ),
+              BIGQUERY_READ_MAPPINGS)
+          .put(
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE),
+              BIGQUERY_WRITE_MAPPINGS)
           .build();
 }
