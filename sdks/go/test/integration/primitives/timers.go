@@ -69,7 +69,9 @@ type eventTimeFn struct {
 
 func (fn *eventTimeFn) ProcessElement(w beam.Window, sp state.Provider, tp timers.Provider, key string, value int, emit func(kv[string, int])) {
 	fn.Callback.Set(tp, w.MaxTimestamp().ToTime())
-	fn.MyKey.Write(sp, key)
+	if err := fn.MyKey.Write(sp, key); err != nil {
+		panic("Failed to write state for key: " + key)
+	}
 	emit(kvfn(key, value+fn.Offset))
 }
 
@@ -84,6 +86,9 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 			}
 			if !ok {
 				panic("State must be set for key: " + key)
+			}
+			if read != key {
+				panic(fmt.Sprintf("read key mismatched with state key: got %q, want %q", read, key))
 			}
 			emit(kvfn(read, fn.TimerOutput))
 		default:

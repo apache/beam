@@ -709,6 +709,7 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 					Bag:      append([][]byte(nil), data.Bag...),
 					Multimap: mm,
 				}
+				slog.Debug("StateForBundle", slog.String("bundleID", rb.BundleID), slog.Any("state", wlinkMap[key]), slog.Any("key", key), slog.Any("window", w), slog.Any("ret", ret))
 			}
 		}
 	}
@@ -865,6 +866,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// watermark advancement.
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
+	slog.Warn("PersistBundle-cleanup", slog.String("bundle", rb.BundleID))
 	em.addPending(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
 	for k := range stage.inprogressKeysByBundle[rb.BundleID] {
@@ -926,6 +928,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			}
 		}
 	}
+	slog.Warn("PersistBundle-cleanup finished", slog.String("bundle", rb.BundleID))
 	stage.mu.Unlock()
 
 	em.markChangedAndClearBundle(stage.ID, rb.BundleID, ptRefreshes)
@@ -1006,7 +1009,8 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 }
 
 // FailBundle clears the extant data allowing the execution to shut down.
-func (em *ElementManager) FailBundle(rb RunBundle) {
+func (em *ElementManager) FailBundle(rb RunBundle, err error) {
+	slog.Debug("FailBundle", slog.String("bundle", rb.BundleID), slog.Int64("livePending", em.livePending.Load()), slog.Any("error", err))
 	stage := em.stages[rb.StageID]
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]

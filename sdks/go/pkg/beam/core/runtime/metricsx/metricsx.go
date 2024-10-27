@@ -58,12 +58,12 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		}
 	}
 
-	var errs []error
+	var errs []string
 
 	for _, minfo := range minfos {
 		key, err := extractKey(minfo, pcolToTransform)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, err.Error())
 			continue
 		}
 
@@ -72,14 +72,14 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		case UrnToString(UrnUserSumInt64):
 			value, err := extractCounterValue(r)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err.Error())
 				continue
 			}
 			counters[key] = value
 		case UrnToString(UrnUserDistInt64):
 			value, err := extractDistributionValue(r)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err.Error())
 				continue
 			}
 			distributions[key] = value
@@ -89,7 +89,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 			UrnToString(UrnUserBottomNInt64):
 			value, err := extractGaugeValue(r)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err.Error())
 				continue
 			}
 			gauges[key] = value
@@ -100,7 +100,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 			UrnToString(UrnTransformTotalTime):
 			value, err := extractMsecValue(r)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err.Error())
 				continue
 			}
 			v := msecs[key]
@@ -118,7 +118,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		case UrnToString(UrnElementCount):
 			value, err := extractCounterValue(r)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err.Error())
 				continue
 			}
 			v := pcols[key]
@@ -127,7 +127,7 @@ func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 		case UrnToString(UrnSampledByteSize):
 			value, err := extractDistributionValue(r)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err.Error())
 				continue
 			}
 			v := pcols[key]
