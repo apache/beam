@@ -100,7 +100,7 @@ type jobDetailsData struct {
 	JobID, JobName string
 	State          jobpb.JobState_Enum
 	Transforms     []pTransform
-	PCols          map[metrics.StepKey]metrics.PColResult
+	PCols          []metrics.PColResult
 	DisplayData    []*pipepb.LabelledPayload
 
 	errorHolder
@@ -189,12 +189,27 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	results := metricsx.FromMonitoringInfos(pipeResp.GetPipeline(), mets.GetAttempted(), mets.GetCommitted())
 
 	pcols := map[metrics.StepKey]metrics.PColResult{}
+	var pcolList []metrics.PColResult
 	allMetsPCol := results.AllMetrics().PCols()
 	for _, res := range allMetsPCol {
 		pcols[res.Key] = res
+		pcolList = append(pcolList, res)
 	}
+	sort.Slice(pcolList, func(i, j int) bool {
+		if pcolList[i].Key.Step < pcolList[j].Key.Step {
+			return true
+		} else if pcolList[i].Key.Step > pcolList[j].Key.Step {
+			return false
+		}
+		if pcolList[i].Key.Namespace < pcolList[j].Key.Namespace {
+			return true
+		} else if pcolList[i].Key.Namespace > pcolList[j].Key.Namespace {
+			return false
+		}
+		return pcolList[i].Key.Name < pcolList[j].Key.Name
+	})
 
-	data.PCols = pcols
+	data.PCols = pcolList
 	trs := pipeResp.GetPipeline().GetComponents().GetTransforms()
 	col2T, topo := preprocessTransforms(trs)
 

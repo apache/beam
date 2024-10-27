@@ -554,6 +554,11 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapKeysUserState()
 					data = b.OutputData.GetMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+				case *fnpb.StateKey_OrderedListUserState_:
+					olkey := key.GetOrderedListUserState()
+					data = b.OutputData.GetOrderedListState(
+						engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+						olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -570,14 +575,24 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				}
 
 			case *fnpb.StateRequest_Append:
+				slog.Debug("StateRequest_Append", "request", prototext.Format(req), "bundle", b)
 				key := req.GetStateKey()
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					b.OutputData.AppendBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
+					b.OutputData.AppendBagState(
+						engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()},
+						bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+					b.OutputData.AppendMultimapState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+				case *fnpb.StateKey_OrderedListUserState_:
+					olkey := key.GetOrderedListUserState()
+					b.OutputData.AppendOrderedListState(
+						engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+						olkey.GetWindow(), olkey.GetKey(), req.GetAppend().GetData())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -590,6 +605,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				}
 
 			case *fnpb.StateRequest_Clear:
+				slog.Debug("StateRequest_Clear", "request", prototext.Format(req), "bundle", b)
 				key := req.GetStateKey()
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
@@ -601,6 +617,11 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapUserState()
 					b.OutputData.ClearMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+				case *fnpb.StateKey_OrderedListUserState_:
+					olkey := key.GetOrderedListUserState()
+					b.OutputData.ClearOrderedListState(engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+						olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
+
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
