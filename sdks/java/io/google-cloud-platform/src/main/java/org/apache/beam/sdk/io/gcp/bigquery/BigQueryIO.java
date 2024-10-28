@@ -3014,7 +3014,7 @@ public class BigQueryIO {
      * runner determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()}
      * instead.
      *
-     * <p>For batch pipelines, it inserts a redistribute. To not not reshufle and keep the pipeline
+     * <p>For batch pipelines, it inserts a redistribute. To not reshufle and keep the pipeline
      * parallelism as is, set this to zero.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
