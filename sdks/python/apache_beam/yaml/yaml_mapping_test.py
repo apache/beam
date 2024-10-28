@@ -164,9 +164,6 @@ class YamlMappingTest(unittest.TestCase):
               output: bad
           ''')
 
-      def normalize(row):
-        return row.small, row.nested.big
-
       assert_that(
           result['good'] | beam.Map(lambda x: x.key), equal_to(['good']))
       assert_that(

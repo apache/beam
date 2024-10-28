@@ -307,7 +307,7 @@ def _validate_compatible(weak_schema, strong_schema):
 
 
 def row_validator(
-    beam_schema: schema_pb2.FieldType,
+    beam_schema: schema_pb2.Schema,
     json_schema: Dict[str, Any]) -> Callable[[Any], Any]:
   """Returns a callable that will fail on elements not respecting json_schema.
   """
