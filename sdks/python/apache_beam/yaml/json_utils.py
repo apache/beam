@@ -306,9 +306,8 @@ def _validate_compatible(weak_schema, strong_schema):
             'perhaps additionalProperties: False is missing?')
 
 
-def row_validator(
-    beam_schema: schema_pb2.Schema,
-    json_schema: Dict[str, Any]) -> Callable[[Any], Any]:
+def row_validator(beam_schema: schema_pb2.Schema,
+                  json_schema: Dict[str, Any]) -> Callable[[Any], Any]:
   """Returns a callable that will fail on elements not respecting json_schema.
   """
   if not json_schema:
