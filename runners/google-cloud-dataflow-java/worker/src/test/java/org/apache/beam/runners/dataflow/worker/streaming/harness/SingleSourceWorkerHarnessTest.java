@@ -23,8 +23,11 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.DataflowWorkerHarnessHelper;
 import org.apache.beam.runners.dataflow.worker.WorkerUncaughtExceptionHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;

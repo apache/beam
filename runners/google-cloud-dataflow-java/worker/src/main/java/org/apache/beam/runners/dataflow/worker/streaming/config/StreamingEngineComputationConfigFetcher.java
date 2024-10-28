@@ -157,19 +157,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
   }
 
-  private static Optional<ComputationConfig> createComputationConfig(StreamingConfigTask config) {
-    return Optional.ofNullable(config.getStreamingComputationConfigs())
-        .map(Iterables::getOnlyElement)
-        .map(
-            streamingComputationConfig ->
-                ComputationConfig.create(
-                    createMapTask(streamingComputationConfig),
-                    streamingComputationConfig.getTransformUserNameToStateFamily(),
-                    config.getUserStepToStateFamilyNameMap() != null
-                        ? config.getUserStepToStateFamilyNameMap()
-                        : ImmutableMap.of()));
-  }
-
   private StreamingGlobalConfig createPipelineConfig(StreamingConfigTask config) {
     StreamingGlobalConfig.Builder pipelineConfig = StreamingGlobalConfig.builder();
     OperationalLimits.Builder operationalLimits = OperationalLimits.builder();
@@ -226,6 +213,19 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
 
     return pipelineConfig.build();
+  }
+
+  private static Optional<ComputationConfig> createComputationConfig(StreamingConfigTask config) {
+    return Optional.ofNullable(config.getStreamingComputationConfigs())
+        .map(Iterables::getOnlyElement)
+        .map(
+            streamingComputationConfig ->
+                ComputationConfig.create(
+                    createMapTask(streamingComputationConfig),
+                    streamingComputationConfig.getTransformUserNameToStateFamily(),
+                    config.getUserStepToStateFamilyNameMap() != null
+                        ? config.getUserStepToStateFamilyNameMap()
+                        : ImmutableMap.of()));
   }
 
   @Override

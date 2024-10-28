@@ -228,22 +228,6 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
-  // WorkerMessages RPC schedule. The desired reporting period
-  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
-  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
-  private static long getPerWorkerMetricsUpdateFrequency(
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
-      return 0;
-    }
-    return LongMath.divide(
-        perWorkerMetricsUpdateReportingPeriodMillis,
-        windmillHarnessUpdateReportingPeriodMillis,
-        RoundingMode.CEILING);
-  }
-
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     reportHarnessStartup();
@@ -266,6 +250,22 @@ public final class StreamingWorkerStatusReporter {
     } else {
       LOG.info("Periodic worker status reporting is disabled.");
     }
+  }
+
+  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
+  // WorkerMessages RPC schedule. The desired reporting period
+  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
+  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
+  private static long getPerWorkerMetricsUpdateFrequency(
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
+    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
+      return 0;
+    }
+    return LongMath.divide(
+        perWorkerMetricsUpdateReportingPeriodMillis,
+        windmillHarnessUpdateReportingPeriodMillis,
+        RoundingMode.CEILING);
   }
 
   public void stop() {
