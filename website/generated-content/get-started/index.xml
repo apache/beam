@@ -6177,7 +6177,7 @@ limitations under the License.
 &lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;p>The Python SDK supports Python 3.8, 3.9, 3.10 and 3.11. Beam 2.48.0 was the last release with support for Python 3.7.&lt;/p>
+&lt;p>The Python SDK supports Python 3.8, 3.9, 3.10, 3.11 and 3.12. Beam 2.48.0 was the last release with support for Python 3.7.&lt;/p>
 &lt;h2 id="set-up-your-environment">Set up your environment&lt;/h2>
 &lt;p>For details, see
 &lt;a href="/get-started/quickstart/python#set-up-your-development-environment">Set up your development environment&lt;/a>.&lt;/p>

@@ -5564,7 +5564,7 @@ programming guide, take a look at the
 &lt;li data-value="yaml">Yaml API&lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;p class="language-py">The Python SDK supports Python 3.8, 3.9, 3.10, and 3.11.&lt;/p>
+&lt;p class="language-py">The Python SDK supports Python 3.8, 3.9, 3.10, 3.11, and 3.12.&lt;/p>
 &lt;p class="language-go">The &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go SDK&lt;/a> supports Go v1.20+.&lt;/p>
 &lt;p class="language-typescript">The Typescript SDK supports Node v16+ and is still experimental.&lt;/p>
 &lt;p class="language-yaml">YAML is supported as of Beam 2.52, but is under active development and the most
