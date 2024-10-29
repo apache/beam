@@ -225,6 +225,7 @@ public final class StreamingWorkScheduler {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
+    work.setProcessingThreadName(Thread.currentThread().getName());
     work.setState(Work.State.PROCESSING);
     setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
@@ -288,6 +289,7 @@ public final class StreamingWorkScheduler {
       }
 
       resetWorkLoggingContext(work.getLatencyTrackingId());
+      work.setProcessingThreadName("");
     }
   }
 
@@ -410,6 +412,7 @@ public final class StreamingWorkScheduler {
       // If processing failed due to a thrown exception, close the executionState. Do not
       // return/release the executionState back to computationState as that will lead to this
       // executionState instance being reused.
+      LOG.info("Invalidating executor after work item {} failed with Exception:", key, t);
       computationWorkExecutor.invalidate();
 
       // Re-throw the exception, it will be caught and handled by workFailureProcessor downstream.

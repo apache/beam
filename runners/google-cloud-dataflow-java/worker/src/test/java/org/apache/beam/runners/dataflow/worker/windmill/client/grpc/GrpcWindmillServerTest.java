@@ -73,6 +73,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
@@ -110,6 +111,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
+
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
@@ -145,8 +147,9 @@ public class GrpcWindmillServerTest {
             name,
             experiments,
             clientId,
-            new FakeWindmillStubFactory(
-                () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name))));
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(
+                    () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name)))));
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
@@ -212,7 +215,9 @@ public class GrpcWindmillServerTest {
 
     this.client =
         GrpcWindmillServer.newApplianceTestInstance(
-            inprocessChannel, new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel));
+            inprocessChannel,
+            new FakeWindmillStubFactoryFactory(
+                new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel)));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());

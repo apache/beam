@@ -22,13 +22,22 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.ordered.combiner.DefaultSequenceCombiner;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
  * Parent class for Ordered Processing configuration handlers.
+ *
+ * <p>There are two types of processing - when the sequence numbers are contiguous per key and these
+ * sequences per keys are independent of each other, and when there is a global sequence shared by
+ * all keys. In case of the global sequence processing the custom handler must extend from {@see
+ * OrderedProcessingGlobalSequenceHandler}.
  *
  * @param <EventT> type of events to be processed
  * @param <KeyT> type of keys which will be used to group the events
@@ -216,5 +225,76 @@ public abstract class OrderedProcessingHandler<
    */
   public void setMaxOutputElementsPerBundle(int maxOutputElementsPerBundle) {
     this.maxOutputElementsPerBundle = maxOutputElementsPerBundle;
+  }
+
+  /**
+   * Parent class for Ordered Processing configuration handlers to handle processing of the events
+   * where global sequence is used.
+   *
+   * @param <EventT> type of events to be processed
+   * @param <KeyT> type of keys which will be used to group the events
+   * @param <StateT> type of internal State which will be used for processing
+   * @param <ResultT> type of the result of the processing which will be output
+   */
+  public abstract static class OrderedProcessingGlobalSequenceHandler<
+          EventT, KeyT, StateT extends MutableState<EventT, ?>, ResultT>
+      extends OrderedProcessingHandler<EventT, KeyT, StateT, ResultT> {
+
+    public OrderedProcessingGlobalSequenceHandler(
+        Class<EventT> eventTClass,
+        Class<KeyT> keyTClass,
+        Class<StateT> stateTClass,
+        Class<ResultT> resultTClass) {
+      super(eventTClass, keyTClass, stateTClass, resultTClass);
+    }
+
+    /**
+     * Provide the global sequence combiner. Default is to use {@link DefaultSequenceCombiner}.
+     *
+     * @return combiner
+     */
+    public GloballyAsSingletonView<
+            TimestampedValue<KV<KeyT, KV<Long, EventT>>>, ContiguousSequenceRange>
+        getGlobalSequenceCombiner() {
+      return Combine.globally(new DefaultSequenceCombiner<KeyT, EventT, StateT>(getEventExaminer()))
+          .asSingletonView();
+    }
+
+    /**
+     * How frequently the combiner should reevaluate the maximum range? This parameter only affects
+     * the behaviour of streaming pipelines.
+     *
+     * <p>This parameter is used together with {@link
+     * OrderedProcessingGlobalSequenceHandler#getMaxElementCountToTriggerContinuousSequenceRangeReevaluation()}.
+     * The re-evaluation will occur as soon as the number of new elements exceeds the threshold or
+     * the time exceeds the frequency.
+     *
+     * <p>Notice that some runners cache the output of side inputs and this parameter might not
+     * appear to have an effect unless the cache time-to-live is equal or less than this frequency.
+     * For Dataflow runner, see {@link <a
+     * href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowStreamingPipelineOptions.html#getStreamingSideInputCacheExpirationMillis--">this
+     * Dataflow streaming pipeline option</a>}
+     *
+     * @return frequency of reevaluating the {@link ContiguousSequenceRange}. Default - every
+     *     second.
+     * @see
+     *     OrderedProcessingGlobalSequenceHandler#getMaxElementCountToTriggerContinuousSequenceRangeReevaluation()
+     */
+    public Duration getContiguousSequenceRangeReevaluationFrequency() {
+      return Duration.standardSeconds(1);
+    }
+
+    /**
+     * Number of new elements to trigger the re-evaluation.
+     *
+     * <p>See {@link
+     * OrderedProcessingGlobalSequenceHandler#getContiguousSequenceRangeReevaluationFrequency()} for
+     * additional details.
+     *
+     * @return batch size. Default - 1000.
+     */
+    public int getMaxElementCountToTriggerContinuousSequenceRangeReevaluation() {
+      return 1000;
+    }
   }
 }

@@ -24,7 +24,6 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import logging
 import os
 from typing import Any
 from typing import Callable
@@ -251,7 +250,6 @@ def _create_formatter(
 
   if format.islower():
     format = format.upper()
-    logging.warning('Lowercase formats will be deprecated in version 2.60')
 
   if format == 'RAW':
     if schema:
@@ -259,7 +257,20 @@ def _create_formatter(
     field_names = [field.name for field in beam_schema.fields]
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
-    return lambda row: getattr(row, field_names[0])
+
+    def convert_to_bytes(row):
+      output = getattr(row, field_names[0])
+      if isinstance(output, bytes):
+        return output
+      elif isinstance(output, str):
+        return output.encode('utf-8')
+      else:
+        raise ValueError(
+            f"Cannot encode payload for WriteToPubSub. "
+            f"Expected valid string or bytes object, "
+            f"got {repr(output)} of type {type(output)}.")
+
+    return convert_to_bytes
   elif format == 'JSON':
     return json_utils.json_formater(beam_schema)
   elif format == 'AVRO':

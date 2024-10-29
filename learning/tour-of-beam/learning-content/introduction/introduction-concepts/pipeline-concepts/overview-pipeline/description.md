@@ -22,7 +22,7 @@ The Beam SDKs provide several abstractions that simplify the mechanics of large-
 
 → `PCollection`: A PCollection represents a distributed data set that your Beam pipeline operates on. The data set can be bounded, meaning it comes from a fixed source like a file, or unbounded, meaning it comes from a continuously updating source via a subscription or other mechanism. Your pipeline typically creates an initial PCollection by reading data from an external data source, but you can also create a PCollection from in-memory data within your driver program. From there, PCollections are the inputs and outputs for each step in your pipeline.
 
-→ `PTransform`: A PTransform represents a data processing operation, or a step, in your pipeline. Every PTransform takes one or more PCollection objects as the input, performs a processing function that you provide on the elements of that PCollection, and then produces zero or more output PCollection objects.
+→ `PTransform`: A PTransform represents a data processing operation, or a step, in your pipeline. Every PTransform takes zero or more PCollection objects as the input, performs a processing function that you provide on the elements of that PCollection, and then produces zero or more output PCollection objects.
 {{if (eq .Sdk "go")}}
 
 → `Scope`: The Go SDK has an explicit scope variable used to build a `Pipeline`. A Pipeline can return it’s root scope with the `Root()` method. The scope variable is then passed to `PTransform` functions that place them in the `Pipeline` that owns the `Scope`.

@@ -975,6 +975,11 @@ class GoogleCloudOptions(PipelineOptions):
   # Log warning if soft delete policy is enabled in a gcs bucket
   # that is specified in an argument.
   def _warn_if_soft_delete_policy_enabled(self, arg_name):
+    # skip the check if it is in dry-run mode because the later step requires
+    # internet connection to access GCS
+    if self.view_as(TestOptions).dry_run:
+      return
+
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
@@ -1674,7 +1679,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.15', '1.16', '1.17', '1.18']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19']
 
   @classmethod
   def _add_argparse_args(cls, parser):

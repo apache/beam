@@ -335,7 +335,7 @@ public class Pipeline {
   /** Returns the {@link CoderRegistry} that this {@link Pipeline} uses. */
   public CoderRegistry getCoderRegistry() {
     if (coderRegistry == null) {
-      coderRegistry = CoderRegistry.createDefault();
+      coderRegistry = CoderRegistry.createDefault(getSchemaRegistry());
     }
     return coderRegistry;
   }

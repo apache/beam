@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript yaml >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.8, 3.9, 3.10, and 3.11.
+The Python SDK supports Python 3.8, 3.9, 3.10, 3.11, and 3.12.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -2024,7 +2024,7 @@ playerAccuracies := ... // PCollection<string,int>
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-py">[`Flatten`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten)</span>
 <span class="language-go">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go)</span>
 <span class="language-typescript">`Flatten`</span>
 is a Beam transform for `PCollection` objects that store the same data type.
@@ -2045,11 +2045,47 @@ PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight java >}}
+PCollection<String> merged = pc1
+    .apply(...)
+    // Merges the elements of pc2 in at this point...
+    .apply(FlattenWith.of(pc2))
+    .apply(...)
+    // and the elements of pc3 at this point.
+    .apply(FlattenWith.of(pc3))
+    .apply(...);
+{{< /highlight >}}
+
 
 {{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlattenWith)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+`FlattenWith` can take root `PCollection`-producing transforms
+(such as `Create` and `Read`) as well as already constructed PCollections,
+and will apply them and flatten their outputs into the resulting output
+PCollection.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transform >}}
 {{< /highlight >}}
 
 {{< highlight go >}}

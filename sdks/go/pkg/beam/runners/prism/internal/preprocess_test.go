@@ -134,7 +134,11 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 			}})
 
 			gotStages := pre.preProcessGraph(test.input, nil)
-			if diff := cmp.Diff(test.wantStages, gotStages, cmp.AllowUnexported(stage{}, link{}), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(test.wantStages, gotStages,
+				cmp.AllowUnexported(stage{}, link{}),
+				cmpopts.EquateEmpty(),
+				cmpopts.IgnoreFields(stage{}, "baseProgTick"),
+			); diff != "" {
 				t.Errorf("preProcessGraph(%q) stages diff (-want,+got)\n%v", test.name, diff)
 			}
 

@@ -137,7 +137,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
 
     FlushBuffer<Element<Write>> flushBuffer = spy(newFlushBuffer(rpcQosOptions));
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(attemptStart)).thenReturn(flushBuffer);
+    when(attempt.<Element<Write>>newFlushBuffer(attemptStart)).thenReturn(flushBuffer);
     when(flushBuffer.offer(element1)).thenReturn(true);
     when(flushBuffer.iterator()).thenReturn(newArrayList(element1).iterator());
     when(flushBuffer.getBufferedElementsCount()).thenReturn(1);
@@ -224,7 +224,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     FlushBuffer<Element<Write>> flushBuffer = spy(newFlushBuffer(options));
     when(processContext.element()).thenReturn(write);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(attemptStart)).thenReturn(flushBuffer);
+    when(attempt.<Element<Write>>newFlushBuffer(attemptStart)).thenReturn(flushBuffer);
     ArgumentCaptor<BatchWriteRequest> requestCaptor =
         ArgumentCaptor.forClass(BatchWriteRequest.class);
     when(callable.call(requestCaptor.capture())).thenReturn(response);
@@ -267,7 +267,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     FlushBuffer<Element<Write>> flushBuffer = spy(newFlushBuffer(rpcQosOptions));
     when(processContext.element()).thenReturn(write);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(attemptStart)).thenReturn(flushBuffer);
+    when(attempt.<Element<Write>>newFlushBuffer(attemptStart)).thenReturn(flushBuffer);
     when(flushBuffer.isFull()).thenReturn(true);
     when(flushBuffer.offer(element1)).thenReturn(true);
     when(flushBuffer.iterator()).thenReturn(newArrayList(element1).iterator());
@@ -324,14 +324,14 @@ public abstract class BaseFirestoreV1WriteFnTest<
     when(attempt2.awaitSafeToProceed(any()))
         .thenReturn(true)
         .thenThrow(new IllegalStateException("too many attempt2#awaitSafeToProceed"));
-    when(attempt2.<Write, Element<Write>>newFlushBuffer(any()))
+    when(attempt2.<Element<Write>>newFlushBuffer(any()))
         .thenAnswer(invocation -> newFlushBuffer(options));
     // finish bundle attempt
     RpcQos.RpcWriteAttempt finishBundleAttempt = mock(RpcWriteAttempt.class);
     when(finishBundleAttempt.awaitSafeToProceed(any()))
         .thenReturn(true, true)
         .thenThrow(new IllegalStateException("too many finishBundleAttempt#awaitSafeToProceed"));
-    when(finishBundleAttempt.<Write, Element<Write>>newFlushBuffer(any()))
+    when(finishBundleAttempt.<Element<Write>>newFlushBuffer(any()))
         .thenAnswer(invocation -> newFlushBuffer(options));
     when(rpcQos.newWriteAttempt(any())).thenReturn(attempt, attempt2, finishBundleAttempt);
     when(callable.call(requestCaptor.capture())).thenReturn(response);
@@ -519,20 +519,15 @@ public abstract class BaseFirestoreV1WriteFnTest<
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
     when(attempt2.awaitSafeToProceed(any())).thenReturn(true);
 
-    when(attempt.<Write, Element<Write>>newFlushBuffer(enqueue0))
-        .thenReturn(newFlushBuffer(options));
-    when(attempt.<Write, Element<Write>>newFlushBuffer(enqueue1))
-        .thenReturn(newFlushBuffer(options));
-    when(attempt.<Write, Element<Write>>newFlushBuffer(enqueue2))
-        .thenReturn(newFlushBuffer(options));
-    when(attempt.<Write, Element<Write>>newFlushBuffer(enqueue3))
-        .thenReturn(newFlushBuffer(options));
-    when(attempt.<Write, Element<Write>>newFlushBuffer(enqueue4)).thenReturn(flushBuffer);
+    when(attempt.<Element<Write>>newFlushBuffer(enqueue0)).thenReturn(newFlushBuffer(options));
+    when(attempt.<Element<Write>>newFlushBuffer(enqueue1)).thenReturn(newFlushBuffer(options));
+    when(attempt.<Element<Write>>newFlushBuffer(enqueue2)).thenReturn(newFlushBuffer(options));
+    when(attempt.<Element<Write>>newFlushBuffer(enqueue3)).thenReturn(newFlushBuffer(options));
+    when(attempt.<Element<Write>>newFlushBuffer(enqueue4)).thenReturn(flushBuffer);
     when(callable.call(expectedGroup1Request)).thenReturn(group1Response);
 
-    when(attempt2.<Write, Element<Write>>newFlushBuffer(enqueue5))
-        .thenReturn(newFlushBuffer(options));
-    when(attempt2.<Write, Element<Write>>newFlushBuffer(finalFlush)).thenReturn(flushBuffer2);
+    when(attempt2.<Element<Write>>newFlushBuffer(enqueue5)).thenReturn(newFlushBuffer(options));
+    when(attempt2.<Element<Write>>newFlushBuffer(finalFlush)).thenReturn(flushBuffer2);
     when(callable.call(expectedGroup2Request)).thenReturn(group2Response);
 
     runFunction(
@@ -603,7 +598,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
 
     when(rpcQos.newWriteAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(any()))
+    when(attempt.<Element<Write>>newFlushBuffer(any()))
         .thenAnswer(invocation -> newFlushBuffer(options));
     when(attempt.isCodeRetryable(Code.INVALID_ARGUMENT)).thenReturn(true);
     when(attempt.isCodeRetryable(Code.FAILED_PRECONDITION)).thenReturn(true);
@@ -673,9 +668,9 @@ public abstract class BaseFirestoreV1WriteFnTest<
         .thenThrow(new IllegalStateException("too many attempt calls"));
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
     when(attempt2.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(any()))
+    when(attempt.<Element<Write>>newFlushBuffer(any()))
         .thenAnswer(invocation -> newFlushBuffer(options));
-    when(attempt2.<Write, Element<Write>>newFlushBuffer(any()))
+    when(attempt2.<Element<Write>>newFlushBuffer(any()))
         .thenAnswer(invocation -> newFlushBuffer(options));
 
     FnT fn = getFn(clock, ff, options, CounterFactory.DEFAULT, DistributionFactory.DEFAULT);
@@ -723,7 +718,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
 
     when(rpcQos.newWriteAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(any()))
+    when(attempt.<Element<Write>>newFlushBuffer(any()))
         .thenAnswer(invocation -> newFlushBuffer(options));
 
     FnT fn = getFn(clock, ff, options, CounterFactory.DEFAULT, DistributionFactory.DEFAULT);
@@ -779,7 +774,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     }
   }
 
-  protected FlushBufferImpl<Write, Element<Write>> newFlushBuffer(RpcQosOptions options) {
+  protected FlushBufferImpl<Element<Write>> newFlushBuffer(RpcQosOptions options) {
     return new FlushBufferImpl<>(options.getBatchMaxCount(), options.getBatchMaxBytes());
   }
 

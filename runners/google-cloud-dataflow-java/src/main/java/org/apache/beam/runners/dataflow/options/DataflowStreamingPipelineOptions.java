@@ -125,17 +125,15 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
   @Description("If true, a most a single active rpc will be used per channel.")
-  @Default.Boolean(false)
-  boolean getUseWindmillIsolatedChannels();
+  Boolean getUseWindmillIsolatedChannels();
 
-  void setUseWindmillIsolatedChannels(boolean value);
+  void setUseWindmillIsolatedChannels(Boolean value);
 
   @Description(
       "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
-  @Default.Boolean(false)
-  boolean getUseSeparateWindmillHeartbeatStreams();
+  Boolean getUseSeparateWindmillHeartbeatStreams();
 
-  void setUseSeparateWindmillHeartbeatStreams(boolean value);
+  void setUseSeparateWindmillHeartbeatStreams(Boolean value);
 
   @Description("The number of streams to use for GetData requests.")
   @Default.Integer(1)
