@@ -631,8 +631,7 @@ class BigQueryWrapper(object):
 
     return self._start_job(request)
 
-  def wait_for_bq_job(
-      self, job_reference, sleep_duration_sec=5, max_retries=0, location=None):
+  def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
     """Poll job until it is DONE.
 
     Args:
@@ -640,7 +639,6 @@ class BigQueryWrapper(object):
       sleep_duration_sec: Specifies the delay in seconds between retries.
       max_retries: The total number of times to retry. If equals to 0,
         the function waits forever.
-      location: Fall back on this location if job_reference doesn't have one.
 
     Raises:
       `RuntimeError`: If the job is FAILED or the number of retries has been
@@ -650,9 +648,7 @@ class BigQueryWrapper(object):
     while True:
       retry += 1
       job = self.get_job(
-          job_reference.projectId,
-          job_reference.jobId,
-          job_reference.location or location)
+          job_reference.projectId, job_reference.jobId, job_reference.location)
       _LOGGER.info('Job %s status: %s', job.id, job.status.state)
       if job.status.state == 'DONE' and job.status.errorResult:
         raise RuntimeError(
