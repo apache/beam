@@ -84,9 +84,7 @@ public final class DataflowWorkerHarnessHelper {
   public static void initializeLogging(Class<?> workerHarnessClass) {
     // Set up exception handling for raw Threads tied to the workerHarnessClass.
     // Does NOT handle exceptions thrown by threads created by
-    // ScheduledExecutors/ScheduledExecutorServices. To prevent silent/hidden exceptions, it is
-    // important to either set WorkerUncaughtExceptionHandler on the ThreadFactory used to create
-    // the Executor/ExecutorService or use util/TerminatingExecutors.
+    // ScheduledExecutors/ScheduledExecutorServices.
     Thread.setDefaultUncaughtExceptionHandler(
         new WorkerUncaughtExceptionHandler(LoggerFactory.getLogger(workerHarnessClass)));
 

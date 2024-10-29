@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,7 +51,6 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -151,8 +151,8 @@ public final class StreamingWorkerStatusReporter {
         memoryMonitor,
         workExecutor,
         threadName ->
-            TerminatingExecutors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName), LOG),
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
         windmillHarnessUpdateReportingPeriodMillis,
         perWorkerMetricsUpdateReportingPeriodMillis);
   }
@@ -252,6 +252,15 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
+  public void stop() {
+    shutdownExecutor(globalWorkerUpdateReporter);
+    shutdownExecutor(workerMessageReporter);
+    // one last send
+    reportPeriodicWorkerUpdates();
+    this.workerMessagesIndex.set(this.perWorkerMetricsUpdateFrequency);
+    reportPeriodicWorkerMessage();
+  }
+
   // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
   // WorkerMessages RPC schedule. The desired reporting period
   // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
@@ -266,15 +275,6 @@ public final class StreamingWorkerStatusReporter {
         perWorkerMetricsUpdateReportingPeriodMillis,
         windmillHarnessUpdateReportingPeriodMillis,
         RoundingMode.CEILING);
-  }
-
-  public void stop() {
-    shutdownExecutor(globalWorkerUpdateReporter);
-    shutdownExecutor(workerMessageReporter);
-    // one last send
-    reportPeriodicWorkerUpdates();
-    this.workerMessagesIndex.set(this.perWorkerMetricsUpdateFrequency);
-    reportPeriodicWorkerMessage();
   }
 
   private void reportHarnessStartup() {

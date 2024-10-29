@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,7 +30,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
@@ -98,11 +98,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       String backendWorkerToken) {
     this.backendWorkerToken = backendWorkerToken;
     this.executor =
-        TerminatingExecutors.newSingleThreadExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
-                .setNameFormat(createThreadName(debugStreamType, backendWorkerToken)),
-            LOG);
+                .setNameFormat(createThreadName(debugStreamType, backendWorkerToken))
+                .build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
     this.logEveryNStreamFailures = logEveryNStreamFailures;

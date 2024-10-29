@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
@@ -60,7 +59,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorker
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusReporter;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
@@ -176,7 +174,7 @@ public final class StreamingDataflowWorker {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       GrpcWindmillStreamFactory windmillStreamFactory,
-      BiFunction<String, Logger, ScheduledExecutorService> activeWorkRefreshExecutorFn,
+      Function<String, ScheduledExecutorService> activeWorkRefreshExecutorFn,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
@@ -286,7 +284,7 @@ public final class StreamingDataflowWorker {
             stuckCommitDurationMillis,
             computationStateCache::getAllPresentComputations,
             sampler,
-            logger -> activeWorkRefreshExecutorFn.apply("RefreshWork", logger),
+            activeWorkRefreshExecutorFn.apply("RefreshWork"),
             getDataMetricTracker::trackHeartbeats);
 
     this.statusPages =
@@ -415,9 +413,9 @@ public final class StreamingDataflowWorker {
         streamingCounters,
         memoryMonitor,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
-        (threadName, logger) ->
-            TerminatingExecutors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName), logger),
+        (threadName) ->
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
         stageInfo);
   }
 
@@ -595,7 +593,7 @@ public final class StreamingDataflowWorker {
                     options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
                 .build()
             : windmillStreamFactory.build(),
-        (threadName, ignored) -> executorSupplier.apply(threadName),
+        executorSupplier,
         stageInfo);
   }
 

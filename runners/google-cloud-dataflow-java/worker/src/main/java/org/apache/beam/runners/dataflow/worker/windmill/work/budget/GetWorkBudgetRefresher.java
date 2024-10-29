@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors.TerminatingExecutorService;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -43,7 +43,7 @@ public final class GetWorkBudgetRefresher {
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkBudgetRefresher.class);
 
   private final AdvancingPhaser budgetRefreshTrigger;
-  private final TerminatingExecutorService budgetRefreshExecutor;
+  private final ExecutorService budgetRefreshExecutor;
   private final Supplier<Boolean> isBudgetRefreshPaused;
   private final Runnable redistributeBudget;
 
@@ -51,7 +51,7 @@ public final class GetWorkBudgetRefresher {
       Supplier<Boolean> isBudgetRefreshPaused, Runnable redistributeBudget) {
     this.budgetRefreshTrigger = new AdvancingPhaser(1);
     this.budgetRefreshExecutor =
-        TerminatingExecutors.newSingleThreadExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setNameFormat(BUDGET_REFRESH_THREAD)
                 .setUncaughtExceptionHandler(
@@ -59,8 +59,8 @@ public final class GetWorkBudgetRefresher {
                         LOG.error(
                             "{} failed due to uncaught exception during execution. ",
                             t.getName(),
-                            e)),
-            LOG);
+                            e))
+                .build());
     this.isBudgetRefreshPaused = isBudgetRefreshPaused;
     this.redistributeBudget = redistributeBudget;
   }

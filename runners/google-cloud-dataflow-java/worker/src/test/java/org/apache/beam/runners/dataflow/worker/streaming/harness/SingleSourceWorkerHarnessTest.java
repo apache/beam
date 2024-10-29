@@ -23,20 +23,15 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import org.apache.beam.runners.dataflow.worker.DataflowWorkerHarnessHelper;
 import org.apache.beam.runners.dataflow.worker.WorkerUncaughtExceptionHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.JvmRuntime;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -56,6 +51,7 @@ public class SingleSourceWorkerHarnessTest {
 
   private SingleSourceWorkerHarness createWorkerHarness(
       SingleSourceWorkerHarness.GetWorkSender getWorkSender, JvmRuntime runtime) {
+    Thread.setDefaultUncaughtExceptionHandler(new WorkerUncaughtExceptionHandler(runtime, LOG));
     return SingleSourceWorkerHarness.builder()
         .setWorkCommitter(workCommitter)
         .setGetDataClient(getDataClient)
@@ -64,14 +60,6 @@ public class SingleSourceWorkerHarnessTest {
         .setStreamingWorkScheduler(streamingWorkScheduler)
         .setComputationStateFetcher(computationStateFetcher)
         .setGetWorkSender(getWorkSender)
-        .setWorkProviderExecutor(
-            TerminatingExecutors.newSingleThreadedExecutorForTesting(
-                runtime,
-                new ThreadFactoryBuilder()
-                    .setDaemon(true)
-                    .setPriority(Thread.MIN_PRIORITY)
-                    .setNameFormat("DispatchThread"),
-                LOG))
         .build();
   }
 

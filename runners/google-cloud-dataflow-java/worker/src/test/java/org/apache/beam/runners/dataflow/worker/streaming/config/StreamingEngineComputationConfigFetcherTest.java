@@ -33,9 +33,9 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
-import org.apache.beam.runners.dataflow.worker.util.TerminatingExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -45,13 +45,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.internal.stubbing.answers.Returns;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineComputationConfigFetcherTest {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(StreamingEngineComputationConfigFetcherTest.class);
   private final WorkUnitClient mockDataflowServiceClient =
       mock(WorkUnitClient.class, new Returns(Optional.empty()));
   private StreamingEngineComputationConfigFetcher streamingEngineConfigFetcher;
@@ -65,8 +61,7 @@ public class StreamingEngineComputationConfigFetcherTest {
         globalConfigRefreshPeriod,
         mockDataflowServiceClient,
         globalConfigHandle,
-        ignored ->
-            TerminatingExecutors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder(), LOG));
+        ignored -> Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().build()));
   }
 
   @After
