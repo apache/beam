@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -34,11 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * significant for larger schemas) on each lookup. This wrapper caches the value returned by the
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
-public class CachingFactory<CreatedT> implements Factory<CreatedT> {
+public class CachingFactory<CreatedT extends @NonNull Object> implements Factory<CreatedT> {
   private transient @Nullable ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = null;
 
   private final @NotOnlyInitialized Factory<CreatedT> innerFactory;
@@ -47,11 +44,16 @@ public class CachingFactory<CreatedT> implements Factory<CreatedT> {
     this.innerFactory = innerFactory;
   }
 
-  @Override
-  public CreatedT create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+  private ConcurrentHashMap<TypeDescriptor<?>, CreatedT> getCache() {
     if (cache == null) {
       cache = new ConcurrentHashMap<>();
     }
+    return cache;
+  }
+
+  @Override
+  public CreatedT create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+    ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = getCache();
     CreatedT cached = cache.get(typeDescriptor);
     if (cached != null) {
       return cached;
