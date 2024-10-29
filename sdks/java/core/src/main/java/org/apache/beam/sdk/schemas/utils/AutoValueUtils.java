@@ -27,6 +27,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -204,11 +205,12 @@ public class AutoValueUtils {
       return null;
     }
 
-    Map<String, FieldValueTypeInformation> setterTypes =
-        ReflectUtils.getMethods(builderClass).stream()
-            .filter(ReflectUtils::isSetter)
-            .map(m -> FieldValueTypeInformation.forSetter(TypeDescriptor.of(builderClass), m))
-            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+    Map<String, FieldValueTypeInformation> setterTypes = new HashMap<>();
+
+    ReflectUtils.getMethods(builderClass).stream()
+        .filter(ReflectUtils::isSetter)
+        .map(m -> FieldValueTypeInformation.forSetter(TypeDescriptor.of(builderClass), m))
+        .forEach(fv -> setterTypes.putIfAbsent(fv.getName(), fv));
 
     List<FieldValueTypeInformation> setterMethods =
         Lists.newArrayList(); // The builder methods to call in order.
