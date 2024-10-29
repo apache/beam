@@ -114,7 +114,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   private class ToRowWithValueGetters<T extends @NonNull Object>
       implements SerializableFunction<T, Row> {
     private final Schema schema;
-    private final Factory<List<FieldValueGetter<?, ?>>> getterFactory;
+    private final Factory<List<FieldValueGetter<T, Object>>> getterFactory;
 
     public ToRowWithValueGetters(Schema schema) {
       this.schema = schema;
@@ -123,7 +123,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       // prevents having to lookup the getter list each time createGetters is called.
       this.getterFactory =
           RowValueGettersFactory.of(
-              (Factory<List<FieldValueGetter<?, ?>>>)
+              (Factory<List<FieldValueGetter<T, Object>>>)
                   (typeDescriptor, schema1) ->
                       (List)
                           GetterBasedSchemaProvider.this.fieldValueGetters(
@@ -132,7 +132,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
     @Override
     public Row apply(T input) {
-      return Row.withSchema(schema).withFieldValueGetters((Factory) getterFactory, input);
+      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input);
     }
 
     private GetterBasedSchemaProvider getOuter() {
@@ -188,24 +188,27 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     return obj != null && this.getClass() == obj.getClass();
   }
 
-  private static class RowValueGettersFactory implements Factory<List<FieldValueGetter<?, ?>>> {
-    private final Factory<List<FieldValueGetter<?, ?>>> gettersFactory;
-    private final @NotOnlyInitialized Factory<List<FieldValueGetter<?, ?>>> cachingGettersFactory;
+  private static class RowValueGettersFactory<T extends @NonNull Object>
+      implements Factory<List<FieldValueGetter<T, Object>>> {
+    private final Factory<List<FieldValueGetter<T, Object>>> gettersFactory;
+    private final @NotOnlyInitialized Factory<List<FieldValueGetter<T, Object>>>
+        cachingGettersFactory;
 
-    static Factory<List<FieldValueGetter<?, ?>>> of(
-        Factory<List<FieldValueGetter<?, ?>>> gettersFactory) {
-      return new RowValueGettersFactory(gettersFactory).cachingGettersFactory;
+    static <T extends @NonNull Object> Factory<List<FieldValueGetter<T, Object>>> of(
+        Factory<List<FieldValueGetter<T, Object>>> gettersFactory) {
+      return new RowValueGettersFactory<>(gettersFactory).cachingGettersFactory;
     }
 
-    RowValueGettersFactory(Factory<List<FieldValueGetter<?, ?>>> gettersFactory) {
+    RowValueGettersFactory(Factory<List<FieldValueGetter<T, Object>>> gettersFactory) {
       this.gettersFactory = gettersFactory;
       this.cachingGettersFactory = new CachingFactory<>(this);
     }
 
     @Override
-    public List<FieldValueGetter<?, ?>> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
-      List<FieldValueGetter<?, ?>> getters = gettersFactory.create(typeDescriptor, schema);
-      List<FieldValueGetter<?, ?>> rowGetters = new ArrayList<>(getters.size());
+    public List<FieldValueGetter<T, Object>> create(
+        TypeDescriptor<?> typeDescriptor, Schema schema) {
+      List<FieldValueGetter<T, Object>> getters = gettersFactory.create(typeDescriptor, schema);
+      List<FieldValueGetter<T, Object>> rowGetters = new ArrayList<>(getters.size());
       for (int i = 0; i < getters.size(); i++) {
         rowGetters.add(rowValueGetter(getters.get(i), schema.getField(i).getType()));
       }
@@ -223,7 +226,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
                   || needsConversion(Verify.verifyNotNull(type.getMapValueType()))));
     }
 
-    FieldValueGetter<?, ?> rowValueGetter(FieldValueGetter base, FieldType type) {
+    FieldValueGetter<T, Object> rowValueGetter(FieldValueGetter base, FieldType type) {
       TypeName typeName = type.getTypeName();
       if (!needsConversion(type)) {
         return base;
@@ -270,12 +273,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     static class GetRow<T extends @NonNull Object, V extends @NonNull Object>
         extends Converter<T, V> {
       final Schema schema;
-      final Factory<List<FieldValueGetter<V, ?>>> factory;
+      final Factory<List<FieldValueGetter<V, Object>>> factory;
 
       GetRow(
           FieldValueGetter<T, V> getter,
           Schema schema,
-          Factory<List<FieldValueGetter<V, ?>>> factory) {
+          Factory<List<FieldValueGetter<V, Object>>> factory) {
         super(getter);
         this.schema = schema;
         this.factory = factory;

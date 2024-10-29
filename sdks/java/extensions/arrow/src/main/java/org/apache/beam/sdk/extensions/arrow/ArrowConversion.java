@@ -276,11 +276,11 @@ public class ArrowConversion {
         new ArrowValueConverterVisitor();
     private final Schema schema;
     private final VectorSchemaRoot vectorSchemaRoot;
-    private final Factory<List<FieldValueGetter<Integer, ?>>> fieldValueGetters;
+    private final Factory<List<FieldValueGetter<Integer, Object>>> fieldValueGetters;
     private Integer currRowIndex;
 
     private static class FieldVectorListValueGetterFactory
-        implements Factory<List<FieldValueGetter<Integer, ?>>> {
+        implements Factory<List<FieldValueGetter<Integer, Object>>> {
       private final List<FieldVector> fieldVectors;
 
       static FieldVectorListValueGetterFactory of(List<FieldVector> fieldVectors) {
@@ -292,7 +292,7 @@ public class ArrowConversion {
       }
 
       @Override
-      public List<FieldValueGetter<Integer, ?>> create(
+      public List<FieldValueGetter<Integer, Object>> create(
           TypeDescriptor<?> typeDescriptor, Schema schema) {
         return this.fieldVectors.stream()
             .map(
