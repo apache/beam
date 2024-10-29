@@ -161,7 +161,7 @@ final class GrpcGetDataStream
     }
 
     send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
-    if (clientClosed.get() && !isShutdown()) {
+    if (clientClosed && !isShutdown()) {
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
