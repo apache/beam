@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
@@ -41,6 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
+@Internal
 public abstract class FieldValueTypeInformation implements Serializable {
   /** Optionally returns the field index. */
   public abstract @Nullable Integer getNumber();
@@ -120,10 +122,6 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setMapValueType(null)
         .setOneOfTypes(oneOfTypes)
         .build();
-  }
-
-  public static FieldValueTypeInformation forField(Field field, int index) {
-    return forField(null, field, index);
   }
 
   public static FieldValueTypeInformation forField(
