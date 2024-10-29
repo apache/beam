@@ -26,9 +26,9 @@ import base64
 import datetime
 import html
 import logging
+import warnings
 from datetime import timedelta
 from typing import Optional
-import warnings
 
 from dateutil import tz
 
