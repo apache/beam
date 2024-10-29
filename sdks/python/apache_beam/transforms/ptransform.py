@@ -497,13 +497,12 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         at_context = ' %s %s' % (input_or_output, context) if context else ''
         raise TypeCheckError(
             '{type} type hint violation at {label}{context}: expected {hint}, '
-            'got {actual_type}\nFull type hint:\n{debug_str}'.format(
+            'got {actual_type}'.format(
                 type=input_or_output.title(),
                 label=self.label,
                 context=at_context,
                 hint=hint,
-                actual_type=pvalue_.element_type,
-                debug_str=type_hints.debug_str()))
+                actual_type=pvalue_.element_type))
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
