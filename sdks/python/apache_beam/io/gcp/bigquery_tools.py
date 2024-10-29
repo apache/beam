@@ -564,13 +564,13 @@ class BigQueryWrapper(object):
     """Parse job location from Exception content."""
     if isinstance(content, bytes):
       content = content.decode('ascii', 'replace')
-      # search for "Already Exists: Job <project-id>:<location>.<job id>"
-      m = re.search(r"Already Exists: Job \S+\:(\S+)\." + job_id, content)
-      if not m:
-        _LOGGER.warning(
-            "Not able to parse BigQuery load job location for {}", job_id)
-        return None
-      return m.group(1)
+    # search for "Already Exists: Job <project-id>:<location>.<job id>"
+    m = re.search(r"Already Exists: Job \S+\:(\S+)\." + job_id, content)
+    if not m:
+      _LOGGER.warning(
+          "Not able to parse BigQuery load job location for %s", job_id)
+      return None
+    return m.group(1)
 
   def _start_job(
       self,
