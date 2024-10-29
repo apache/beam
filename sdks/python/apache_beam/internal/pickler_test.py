@@ -19,6 +19,9 @@
 
 # pytype: skip-file
 
+# MOE:begin_strip
+import os
+# MOE:end_strip
 import sys
 import threading
 import types
@@ -110,6 +113,15 @@ from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
 
+# MOE:begin_strip
+  def test_save_relative_paths(self):
+    f = loads(dumps(lambda x: x))
+    co_filename = f.__code__.co_filename
+    self.assertEqual(
+        co_filename,
+        'apache_beam/internal/pickler_test.py')
+    self.assertFalse(os.path.isabs(co_filename))
+# MOE:end_strip
 
 if __name__ == '__main__':
   unittest.main()

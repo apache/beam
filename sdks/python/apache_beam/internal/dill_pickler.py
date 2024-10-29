@@ -33,6 +33,9 @@ the coders.*PickleCoder classes should be used instead.
 import base64
 import bz2
 import logging
+# MOE:begin_strip
+import os
+# MOE:end_strip
 import sys
 import threading
 import traceback
@@ -46,9 +49,29 @@ import dill
 
 settings = {'dill_byref': None}
 
-if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
-  # Let's make dill 0.3.1.1 support Python 3.11.
+# Let's make dill 0.3.1.1 support Python 3.11.
+patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == '0.3.1.1'
 
+# MOE:begin_strip
+def get_relative_path(filename):
+  """Returns the path of filename relative to the first directory in sys.path
+  containing filename.
+
+  Returns the unchanged filename if it is not in any sys.path directory.
+  """
+  for dir_path in sys.path:
+    # The path for /aaa/bbb/c.py is relative to /aaa/bbb and not /aaa/bb.
+    if not dir_path.endswith(os.path.sep):
+      dir_path += os.path.sep
+    if filename.startswith(dir_path):
+      return os.path.relpath(filename, dir_path)
+  return filename
+
+
+patch_save_code = True
+# MOE:end_strip
+
+if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
   # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
   # Copyright (c) 2008-2015 California Institute of Technology.
@@ -66,6 +89,12 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
 
   @dill.register(CodeType)
   def save_code(pickler, obj):
+    co_filename = obj.co_filename
+    # MOE:begin_strip
+    # Use relative paths to make pickling lambdas deterministic across Borg task
+    # restarts. This is needed for FlumePython Auto-Retry to cache work.
+    co_filename = get_relative_path(co_filename)
+    # MOE:end_strip
     if hasattr(obj, "co_endlinetable"):  # python 3.11a (20 args)
       args = (
           obj.co_argcount,
@@ -78,7 +107,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_qualname,
           obj.co_firstlineno,
@@ -100,7 +129,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_qualname,
           obj.co_firstlineno,
@@ -120,7 +149,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_firstlineno,
           obj.co_linetable,
@@ -138,7 +167,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_firstlineno,
           obj.co_lnotab,
