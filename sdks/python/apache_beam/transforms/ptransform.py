@@ -948,7 +948,7 @@ class PTransformWithSideInputs(PTransform):
         producer_label = "/".join(
             split_producer_label[:transform_nest_level + 1])
         raise TypeCheckError(
-            f"The transform '{self.label}' only accepts "
+            f"The transform '{self.label}' requires "
             f"PCollections of type '{element_hint}' "
             f"but was applied to a PCollection of type"
             f" '{bindings[element_arg]}' "
