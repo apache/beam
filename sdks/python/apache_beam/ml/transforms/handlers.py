@@ -19,12 +19,11 @@
 import collections
 import copy
 import os
+from collections.abc import Sequence
 import typing
 from typing import Any
-from typing import Dict
-from typing import List
+from typing import NamedTuple
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import numpy as np
@@ -71,18 +70,18 @@ _default_type_to_tensor_type_map = {
     np.str_: tf.string,
 }
 _primitive_types_to_typing_container_type = {
-    int: List[int], float: List[float], str: List[str], bytes: List[bytes]
+    int: list[int], float: list[float], str: list[str], bytes: list[bytes]
 }
 
-tft_process_handler_input_type = typing.Union[typing.NamedTuple,
+tft_process_handler_input_type = Union[NamedTuple,
                                               beam.Row,
-                                              Dict[str,
-                                                   typing.Union[str,
+                                              dict[str,
+                                                   Union[str,
                                                                 float,
                                                                 int,
                                                                 bytes,
                                                                 np.ndarray]]]
-tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
+tft_process_handler_output_type = Union[beam.Row, dict[str, np.ndarray]]
 
 
 class _DataCoder:
@@ -131,15 +130,15 @@ class _ConvertScalarValuesToListValues(beam.DoFn):
 
 
 class _ConvertNamedTupleToDict(
-    beam.PTransform[beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]],
-                    beam.PCollection[Dict[str,
+    beam.PTransform[beam.PCollection[Union[beam.Row, NamedTuple]],
+                    beam.PCollection[dict[str,
                                           common_types.InstanceDictType]]]):
   """
     A PTransform that converts a collection of NamedTuples or Rows into a
     collection of dictionaries.
   """
   def expand(
-      self, pcoll: beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]]
+      self, pcoll: beam.PCollection[Union[beam.Row, NamedTuple]]
   ) -> beam.PCollection[common_types.InstanceDictType]:
     """
     Args:
@@ -163,7 +162,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     operations.
     """
     self.transforms = transforms if transforms else []
-    self.transformed_schema: Dict[str, type] = {}
+    self.transformed_schema: dict[str, type] = {}
     self.artifact_location = artifact_location
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
@@ -217,7 +216,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     return column_type_mapping
 
   def get_raw_data_feature_spec(
-      self, input_types: Dict[str, type]) -> Dict[str, tf.io.VarLenFeature]:
+      self, input_types: dict[str, type]) -> dict[str, tf.io.VarLenFeature]:
     """
     Return a DatasetMetadata object to be used with
     tft_beam.AnalyzeAndTransformDataset.
@@ -265,7 +264,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
             f"Union type is not supported for column: {col_name}. "
             f"Please pass a PCollection with valid schema for column "
             f"{col_name} by passing a single type "
-            "in container. For example, List[int].")
+            "in container. For example, list[int].")
     elif issubclass(typ, np.generic) or typ in _default_type_to_tensor_type_map:
       dtype = typ
     else:
@@ -276,7 +275,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
 
   def get_raw_data_metadata(
-      self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
+      self, input_types: dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
     raw_data_feature_spec[_TEMP_KEY] = tf.io.VarLenFeature(dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
@@ -305,8 +304,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           "to convert your PCollection to GlobalWindow.")
 
   def process_data_fn(
-      self, inputs: Dict[str, common_types.ConsistentTensorType]
-  ) -> Dict[str, common_types.ConsistentTensorType]:
+      self, inputs: dict[str, common_types.ConsistentTensorType]
+  ) -> dict[str, common_types.ConsistentTensorType]:
     """
     This method is used in the AnalyzeAndTransformDataset step. It applies
     the transforms to the `inputs` in sequential order on the columns
@@ -335,11 +334,11 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       name = feature.name
       feature_type = feature.type
       if feature_type == schema_pb2.FeatureType.FLOAT:
-        transformed_types[name] = typing.Sequence[np.float32]
+        transformed_types[name] = Sequence[np.float32]
       elif feature_type == schema_pb2.FeatureType.INT:
-        transformed_types[name] = typing.Sequence[np.int64]  # type: ignore[assignment]
+        transformed_types[name] = Sequence[np.int64]  # type: ignore[assignment]
       else:
-        transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
+        transformed_types[name] = Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
   def expand(
@@ -372,7 +371,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         raw_data = (
             raw_data
             | _ConvertNamedTupleToDict().with_output_types(
-                Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
+                dict[str, Union[tuple(column_type_mapping.values())]]))  # type: ignore
         # AnalyzeAndTransformDataset raise type hint since this is
         # schema'd PCollection and the current output type would be a
         # custom type(NamedTuple) or a beam.Row type.
@@ -408,7 +407,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         raw_data = (
             raw_data
             | _ConvertNamedTupleToDict().with_output_types(
-                Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
+                dict[str, Union[tuple(column_type_mapping.values())]]))  # type: ignore
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
 

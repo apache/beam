@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Iterable
-from typing import List
+from collections.abc import Iterable
 from typing import Optional
 
 import apache_beam as beam
@@ -90,7 +89,7 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
 class TensorflowHubTextEmbeddings(EmbeddingsManager):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       hub_url: str,
       preprocessing_url: Optional[str] = None,
       **kwargs):
@@ -136,7 +135,7 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
 
 
 class TensorflowHubImageEmbeddings(EmbeddingsManager):
-  def __init__(self, columns: List[str], hub_url: str, **kwargs):
+  def __init__(self, columns: list[str], hub_url: str, **kwargs):
     """
     Embedding config for tensorflow hub models. This config can be used with
     MLTransform to embed image data. Models are loaded using the RunInference
