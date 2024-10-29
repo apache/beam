@@ -261,6 +261,21 @@ public final class StreamingWorkerStatusReporter {
     reportPeriodicWorkerMessage();
   }
 
+  private void reportHarnessStartup() {
+    DataflowWorkerLoggingMDC.setStageName("startup");
+    CounterSet restartCounter = new CounterSet();
+    restartCounter
+        .longSum(
+            DataflowSystemMetrics.StreamingSystemCounterNames.JAVA_HARNESS_RESTARTS.counterName())
+        .addValue(1L);
+    try {
+      // Sending a one time update. Use empty counter set for cumulativeCounters (2nd arg).
+      sendWorkerUpdatesToDataflowService(restartCounter, new CounterSet());
+    } catch (IOException e) {
+      LOG.warn("Failed to send harness startup counter", e);
+    }
+  }
+
   // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
   // WorkerMessages RPC schedule. The desired reporting period
   // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
@@ -275,21 +290,6 @@ public final class StreamingWorkerStatusReporter {
         perWorkerMetricsUpdateReportingPeriodMillis,
         windmillHarnessUpdateReportingPeriodMillis,
         RoundingMode.CEILING);
-  }
-
-  private void reportHarnessStartup() {
-    DataflowWorkerLoggingMDC.setStageName("startup");
-    CounterSet restartCounter = new CounterSet();
-    restartCounter
-        .longSum(
-            DataflowSystemMetrics.StreamingSystemCounterNames.JAVA_HARNESS_RESTARTS.counterName())
-        .addValue(1L);
-    try {
-      // Sending a one time update. Use empty counter set for cumulativeCounters (2nd arg).
-      sendWorkerUpdatesToDataflowService(restartCounter, new CounterSet());
-    } catch (IOException e) {
-      LOG.warn("Failed to send harness startup counter", e);
-    }
   }
 
   /** Sends counter updates to Dataflow backend. */

@@ -174,7 +174,7 @@ public final class StreamingDataflowWorker {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       GrpcWindmillStreamFactory windmillStreamFactory,
-      Function<String, ScheduledExecutorService> activeWorkRefreshExecutorFn,
+      ScheduledExecutorService activeWorkRefreshExecutorFn,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
@@ -284,7 +284,7 @@ public final class StreamingDataflowWorker {
             stuckCommitDurationMillis,
             computationStateCache::getAllPresentComputations,
             sampler,
-            activeWorkRefreshExecutorFn.apply("RefreshWork"),
+            activeWorkRefreshExecutorFn,
             getDataMetricTracker::trackHeartbeats);
 
     this.statusPages =
@@ -413,9 +413,8 @@ public final class StreamingDataflowWorker {
         streamingCounters,
         memoryMonitor,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
-        (threadName) ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder().setNameFormat("threadName").build()),
         stageInfo);
   }
 
@@ -593,7 +592,7 @@ public final class StreamingDataflowWorker {
                     options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
                 .build()
             : windmillStreamFactory.build(),
-        executorSupplier,
+        executorSupplier.apply("RefreshWork"),
         stageInfo);
   }
 

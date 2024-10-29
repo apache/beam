@@ -38,7 +38,6 @@ import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Test;
@@ -61,7 +60,7 @@ public class StreamingEngineComputationConfigFetcherTest {
         globalConfigRefreshPeriod,
         mockDataflowServiceClient,
         globalConfigHandle,
-        ignored -> Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().build()));
+        ignored -> Executors.newSingleThreadScheduledExecutor());
   }
 
   @After
