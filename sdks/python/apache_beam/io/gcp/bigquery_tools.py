@@ -32,6 +32,7 @@ import decimal
 import io
 import json
 import logging
+import re
 import sys
 import time
 import uuid
@@ -558,6 +559,19 @@ class BigQueryWrapper(object):
         ))
     return self._start_job(request, stream=source_stream).jobReference
 
+  @staticmethod
+  def _parse_location_from_exc(content, job_id):
+    """Parse job location from Exception content."""
+    if isinstance(content, bytes):
+      content = content.decode('ascii', 'replace')
+      # search for "Already Exists: Job <project-id>:<location>.<job id>"
+      m = re.search(r"Already Exists: Job \S+\:(\S+)\." + job_id, content)
+      if not m:
+        _LOGGER.warning(
+            "Not able to parse BigQuery load job location for {}", job_id)
+        return None
+      return m.group(1)
+
   def _start_job(
       self,
       request,  # type: bigquery.BigqueryJobsInsertRequest
@@ -585,11 +599,17 @@ class BigQueryWrapper(object):
       return response
     except HttpError as exn:
       if exn.status_code == 409:
+        jobId = request.job.jobReference.jobId
         _LOGGER.info(
             "BigQuery job %s already exists, will not retry inserting it: %s",
             request.job.jobReference,
             exn)
-        return request.job
+        job_location = self._parse_location_from_exc(exn.content, jobId)
+        response = request.job
+        if not response.jobReference.location and job_location:
+          # Request not constructed with location
+          response.jobReference.location = job_location
+        return response
       else:
         _LOGGER.info(
             "Failed to insert job %s: %s", request.job.jobReference, exn)
