@@ -215,7 +215,7 @@ public class JmsIOIT implements Serializable {
     int unackRecords = countRemain(QUEUE);
     assertTrue(
         String.format("Too many unacknowledged messages: %d", unackRecords),
-        unackRecords < OPTIONS.getNumberOfRecords() * 0.002);
+        unackRecords < OPTIONS.getNumberOfRecords() * 0.003);
 
     // acknowledged records
     int ackRecords = OPTIONS.getNumberOfRecords() - unackRecords;

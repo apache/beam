@@ -40,9 +40,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -128,19 +125,17 @@ public class SpannerReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:spanner_read:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Collections.singletonList("output");
   }
 
@@ -222,14 +217,12 @@ public class SpannerReadSchemaTransformProvider
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerReadSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<SpannerReadSchemaTransformConfiguration> configurationClass() {
     return SpannerReadSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      SpannerReadSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(SpannerReadSchemaTransformConfiguration configuration) {
     return new SpannerSchemaTransformRead(configuration);
   }
 }

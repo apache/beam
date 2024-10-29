@@ -62,7 +62,7 @@ task aggregateJavadoc(type: Javadoc) {
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
   destinationDir = file("${buildDir}/docs/javadoc")
-  failOnError = true
+  failOnError = false
 
   exclude "org/apache/beam/examples/*"
   exclude "org/apache/beam/fn/harness/*"

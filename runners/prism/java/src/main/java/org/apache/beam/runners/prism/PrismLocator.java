@@ -110,6 +110,12 @@ class PrismLocator {
   String resolve() throws IOException {
     String from = resolveSource();
 
+    // If the location is set, and it's not an http request or a zip,
+    // use the binary directly.
+    if (!from.startsWith("http") && !from.endsWith("zip") && Files.exists(Paths.get(from))) {
+      return from;
+    }
+
     String fromFileName = getNameWithoutExtension(from);
     Path to = Paths.get(userHome(), PRISM_BIN_PATH, fromFileName);
 

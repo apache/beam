@@ -59,4 +59,10 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   String getIdleShutdownTimeout();
 
   void setIdleShutdownTimeout(String idleShutdownTimeout);
+
+  @Description("Sets the log level for Prism. Can be set to 'debug', 'info', 'warn', or 'error'.")
+  @Default.String("warn")
+  String getPrismLogLevel();
+
+  void setPrismLogLevel(String prismLogLevel);
 }
