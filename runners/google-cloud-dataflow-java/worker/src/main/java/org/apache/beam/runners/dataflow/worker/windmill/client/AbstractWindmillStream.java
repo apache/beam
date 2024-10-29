@@ -276,21 +276,38 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    *     information. Blocking sends are made beneath this stream object's lock which could block
    *     status page rendering.
    */
+  @SuppressWarnings("GuardedBy")
   public final void appendSummaryHtml(PrintWriter writer) {
     appendSpecificHtml(writer);
-    debugMetrics.printRestartsHtml(writer);
+    StreamDebugMetrics.Snapshot summaryMetrics = debugMetrics.getSummaryMetrics();
+    summaryMetrics
+        .restartMetrics()
+        .ifPresent(
+            metrics ->
+                writer.format(
+                    ", %d restarts, last restart reason [ %s ] at [%s], %d errors",
+                    metrics.restartCount(),
+                    metrics.lastRestartReason(),
+                    metrics.lastRestartTime(),
+                    metrics.errorCount()));
+
     if (clientClosed) {
       writer.write(", client closed");
     }
-    long nowMs = Instant.now().getMillis();
-    long sleepLeft = debugMetrics.sleepLeft();
-    if (sleepLeft > 0) {
-      writer.format(", %dms backoff remaining", sleepLeft);
+
+    if (summaryMetrics.sleepLeft() > 0) {
+      writer.format(", %dms backoff remaining", summaryMetrics.sleepLeft());
     }
-    debugMetrics.printSummaryHtml(writer, nowMs);
+
     writer.format(
-        ", closed: %s, " + "isShutdown: %s, shutdown time: %s",
-        streamClosed, isShutdown, debugMetrics.shutdownTime());
+        ", current stream is %dms old, last send %dms, last response %dms, closed: %s, "
+            + "isShutdown: %s, shutdown time: %s",
+        summaryMetrics.streamAge(),
+        summaryMetrics.timeSinceLastSend(),
+        summaryMetrics.timeSinceLastResponse(),
+        streamClosed,
+        isShutdown,
+        summaryMetrics.shutdownTime().orElse(null));
   }
 
   /**

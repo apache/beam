@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import java.io.PrintWriter;
+import com.google.auto.value.AutoValue;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.joda.time.DateTime;
@@ -89,10 +91,6 @@ final class StreamDebugMetrics {
     sleepUntil = nowMs() + sleepMs;
   }
 
-  synchronized long sleepLeft() {
-    return sleepUntil - nowMs();
-  }
-
   int incrementAndGetRestarts() {
     return restartCount.incrementAndGet();
   }
@@ -111,25 +109,74 @@ final class StreamDebugMetrics {
         : "received response " + (nowMillis - lastResponseTimeMs) + "ms ago";
   }
 
-  void printRestartsHtml(PrintWriter writer) {
+  private Optional<RestartMetrics> getRestartMetrics() {
     if (restartCount.get() > 0) {
       synchronized (this) {
-        writer.format(
-            ", %d restarts, last restart reason [ %s ] at [%s], %d errors",
-            restartCount.get(), lastRestartReason, lastRestartTime, errorCount.get());
+        return Optional.of(
+            RestartMetrics.create(
+                restartCount.get(), lastRestartReason, lastRestartTime, errorCount.get()));
       }
     }
+
+    return Optional.empty();
   }
 
-  synchronized DateTime shutdownTime() {
-    return shutdownTime;
-  }
-
-  synchronized void printSummaryHtml(PrintWriter writer, long nowMs) {
-    writer.format(
-        ", current stream is %dms old, last send %dms, last response %dms",
+  synchronized Snapshot getSummaryMetrics() {
+    long nowMs = Instant.now().getMillis();
+    return Snapshot.create(
         debugDuration(nowMs, startTimeMs),
         debugDuration(nowMs, lastSendTimeMs),
-        debugDuration(nowMs, lastResponseTimeMs));
+        debugDuration(nowMs, lastResponseTimeMs),
+        getRestartMetrics(),
+        sleepUntil - nowMs(),
+        shutdownTime);
+  }
+
+  @AutoValue
+  abstract static class Snapshot {
+    private static Snapshot create(
+        long streamAge,
+        long timeSinceLastSend,
+        long timeSinceLastResponse,
+        Optional<RestartMetrics> restartMetrics,
+        long sleepLeft,
+        @Nullable DateTime shutdownTime) {
+      return new AutoValue_StreamDebugMetrics_Snapshot(
+          streamAge,
+          timeSinceLastSend,
+          timeSinceLastResponse,
+          restartMetrics,
+          sleepLeft,
+          Optional.ofNullable(shutdownTime));
+    }
+
+    abstract long streamAge();
+
+    abstract long timeSinceLastSend();
+
+    abstract long timeSinceLastResponse();
+
+    abstract Optional<RestartMetrics> restartMetrics();
+
+    abstract long sleepLeft();
+
+    abstract Optional<DateTime> shutdownTime();
+  }
+
+  @AutoValue
+  abstract static class RestartMetrics {
+    private static RestartMetrics create(
+        int restartCount, String restartReason, DateTime lastRestartTime, int errorCount) {
+      return new AutoValue_StreamDebugMetrics_RestartMetrics(
+          restartCount, restartReason, lastRestartTime, errorCount);
+    }
+
+    abstract int restartCount();
+
+    abstract String lastRestartReason();
+
+    abstract DateTime lastRestartTime();
+
+    abstract int errorCount();
   }
 }
