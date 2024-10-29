@@ -430,7 +430,7 @@ class MainInputTest(unittest.TestCase):
       return pcoll | beam.ParDo(fn)
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'ParDo.*requires.*float.*got.*str'):
+                                r'ParDo.*requires.*float.*applied.*str'):
       _ = ['1', '2', '3'] | MyMap()
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'MyMap.*expected.*str.*got.*bytes'):
