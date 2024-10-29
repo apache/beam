@@ -939,30 +939,37 @@ class PTransformWithSideInputs(PTransform):
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(
           argspec_fn, *input_types[0], **input_types[1])
-      for arg, hint in hints.items():
+      arg_hints = iter(hints.items())
+      element_arg, element_hint = next(arg_hints)
+      if not typehints.is_consistent_with(
+          bindings.get(element_arg, typehints.Any), element_hint):
+        transform_nest_level = self.label.count("/")
+        split_producer_label = pvalueish.producer.full_label.split("/")
+        producer_label = "/".join(
+            split_producer_label[:transform_nest_level + 1])
+        raise TypeCheckError(
+            f"The transform '{self.label}' only accepts "
+            f"PCollections of type '{element_hint}' "
+            f"but was applied to a PCollection of type"
+            f" '{bindings[element_arg]}' "
+            f"(produced by the transform '{producer_label}'). "
+            "Please ensure the input PCollection contains "
+            "elements of the correct type.")
+      for arg, hint in arg_hints:
         if arg.startswith('__unknown__'):
           continue
         if hint is None:
           continue
         if not typehints.is_consistent_with(bindings.get(arg, typehints.Any),
                                             hint):
-          #raise TypeCheckError(
-          #'Type hint violation for \'{label}\': requires {hint} but got '
-          #'{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
-          #label=self.label,
-          #hint=hint,
-          #actual_type=bindings[arg],
-          #arg=arg,
-          #debug_str=type_hints.debug_str()))
-          transform_nest_level = self.label.count("/")
-          split_producer_label = pvalueish.producer.full_label.split("/")
-          producer_label = "/".join(
-              split_producer_label[:transform_nest_level + 1])
           raise TypeCheckError(
-              f"The transform '{self.label}' only accepts PCollections of type '{hint}' "
-              f"but was applied to a PCollection of type '{bindings[arg]}' (produced by the transform '{producer_label}'). "
-              "Please ensure the input PCollection contains elements of the correct type."
-          )
+              'Type hint violation for \'{label}\': requires {hint} but got '
+              '{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
+                  label=self.label,
+                  hint=hint,
+                  actual_type=bindings[arg],
+                  arg=arg,
+                  debug_str=type_hints.debug_str()))
 
   def _process_argspec_fn(self):
     """Returns an argspec of the function actually consuming the data.
