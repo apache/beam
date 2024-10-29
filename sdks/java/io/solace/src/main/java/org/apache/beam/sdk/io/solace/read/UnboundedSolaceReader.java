@@ -71,36 +71,39 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public boolean start() {
-    populateSession();
-    populateMessageConsumer();
+    getOrInitializeSessionService();
+    getOrInitializeMessageReceiver();
     return advance();
   }
 
-  public void populateSession() {
+  public SessionService getOrInitializeSessionService() {
     if (sessionService == null) {
       sessionService = getCurrentSource().getSessionServiceFactory().create();
     }
-    if (sessionService.isClosed()) {
-      checkNotNull(sessionService).connect();
+    SessionService service = checkNotNull(sessionService);
+    if (service.isClosed()) {
+      service.connect();
     }
+    return service;
   }
 
-  private void populateMessageConsumer() {
+  private MessageReceiver getOrInitializeMessageReceiver() {
     if (messageReceiver == null) {
-      messageReceiver = checkNotNull(sessionService).createReceiver();
+      messageReceiver = getOrInitializeSessionService().createReceiver();
       messageReceiver.start();
     }
     MessageReceiver receiver = checkNotNull(messageReceiver);
     if (receiver.isClosed()) {
       receiver.start();
     }
+    return receiver;
   }
 
   @Override
   public boolean advance() {
     BytesXMLMessage receivedXmlMessage;
     try {
-      receivedXmlMessage = checkNotNull(messageReceiver).receive();
+      receivedXmlMessage = getOrInitializeMessageReceiver().receive();
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Exception when pulling messages from the broker.", e);
       return false;
@@ -119,13 +122,15 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   @Override
   public void close() {
     active.set(false);
-    checkNotNull(sessionService).close();
+    if (sessionService != null && !sessionService.isClosed()) {
+      checkNotNull(sessionService).close();
+    }
   }
 
   @Override
   public Instant getWatermark() {
-    // should be only used by a test receiver
-    if (checkNotNull(messageReceiver).isEOF()) {
+    // should be only used by a test receiver in unit/integration tests
+    if (getOrInitializeMessageReceiver().isEOF()) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
     return watermarkPolicy.getWatermark();
