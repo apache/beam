@@ -952,9 +952,7 @@ class PTransformWithSideInputs(PTransform):
             f"PCollections of type '{element_hint}' "
             f"but was applied to a PCollection of type"
             f" '{bindings[element_arg]}' "
-            f"(produced by the transform '{producer_label}'). "
-            "Please ensure the input PCollection contains "
-            "elements of the correct type.")
+            f"(produced by the transform '{producer_label}'). ")
       for arg, hint in arg_hints:
         if arg.startswith('__unknown__'):
           continue
