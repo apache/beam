@@ -98,12 +98,11 @@ class PicklerTest(unittest.TestCase):
     self.assertIsInstance(loads(dumps(rlock_instance)), rlock_type)
 
   # MOE:begin_strip
-  def test_save_relative_paths(self):
+  def test_save_paths(self):
     f = loads(dumps(lambda x: x))
     co_filename = f.__code__.co_filename
-    self.assertTrue(
-        co_filename.endswith('pickler_test.py'))
-    self.assertFalse(os.path.isabs(co_filename))
+    """Tests that co_filename contains a path. Will be relative path for dill and absolute otherwise"""
+    self.assertTrue(co_filename.endswith('pickler_test.py'))
   # MOE:end_strip
 
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
