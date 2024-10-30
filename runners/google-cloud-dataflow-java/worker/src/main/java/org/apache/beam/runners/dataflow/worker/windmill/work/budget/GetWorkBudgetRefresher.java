@@ -51,7 +51,7 @@ public final class GetWorkBudgetRefresher {
       Supplier<Boolean> isBudgetRefreshPaused, Runnable redistributeBudget) {
     this.budgetRefreshTrigger = new AdvancingPhaser(1);
     this.budgetRefreshExecutor =
-        Executors.newSingleThreadScheduledExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setNameFormat(BUDGET_REFRESH_THREAD)
                 .setUncaughtExceptionHandler(

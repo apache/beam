@@ -175,7 +175,7 @@ public final class StreamingDataflowWorker {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       GrpcWindmillStreamFactory windmillStreamFactory,
-      Function<String, ScheduledExecutorService> executorSupplier,
+      ScheduledExecutorService activeWorkRefreshExecutorFn,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
@@ -285,7 +285,7 @@ public final class StreamingDataflowWorker {
             stuckCommitDurationMillis,
             computationStateCache::getAllPresentComputations,
             sampler,
-            executorSupplier.apply("RefreshWork"),
+            activeWorkRefreshExecutorFn,
             getDataMetricTracker::trackHeartbeats);
 
     this.statusPages =
@@ -347,10 +347,7 @@ public final class StreamingDataflowWorker {
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
             .build();
-    Function<String, ScheduledExecutorService> executorSupplier =
-        threadName ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build());
+
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
         createGrpcwindmillStreamFactoryBuilder(options, clientId);
 
@@ -417,7 +414,8 @@ public final class StreamingDataflowWorker {
         streamingCounters,
         memoryMonitor,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
-        executorSupplier,
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()),
         stageInfo);
   }
 
@@ -595,7 +593,7 @@ public final class StreamingDataflowWorker {
                     options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
                 .build()
             : windmillStreamFactory.build(),
-        executorSupplier,
+        executorSupplier.apply("RefreshWork"),
         stageInfo);
   }
 
