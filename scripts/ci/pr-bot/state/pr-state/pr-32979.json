@@ -1,8 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
-  "stopReviewerNotifications": true,
+  "reviewersAssignedForLabels": {
+    "python": "tvalentyn"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
