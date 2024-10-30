@@ -414,7 +414,7 @@ public final class StreamingDataflowWorker {
         memoryMonitor,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("threadName").build()),
+            new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()),
         stageInfo);
   }
 
