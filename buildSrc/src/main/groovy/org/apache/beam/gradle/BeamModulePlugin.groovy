@@ -576,10 +576,6 @@ class BeamModulePlugin implements Plugin<Project> {
       return project.containerArchitectures() != [project.nativeArchitecture()]
     }
 
-    project.ext.containerBuildTarget = {
-      return project.findProperty('container-build-target')
-    }
-
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -3218,19 +3214,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.getVersionsAsList = { String propertyName ->
         return project.getProperty(propertyName).split(',')
       }
-    }
-    // Reports the container image URL i.e. <registry>/<image-name>:tag based on gradle properties state and
-    // ext.containerBuildTarget.
-    project.ext.containerImageURL = {
-      var baseTarget = 'base'
-      var buildTarget = project.containerBuildTarget() ?: baseTarget
-      var imageName = project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk"
-      if (buildTarget != baseTarget) {
-        imageName += "_${buildTarget}"
-      }
-      var root = project.findProperty('docker-repository-root') ?: project.docker_image_default_repo_root
-      var tag = project.findProperty('docker-tag') ?: project.sdk_version
-      return project.containerImageName( name: imageName, root: root, tag: tag)
     }
   }
 

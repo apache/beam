@@ -380,38 +380,6 @@ task validatesContainer() {
   }
 }
 
-task validatesDistrolessContainer() {
-  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
-  dependsOn 'initializeForDataflowJob'
-  rootProject.ext['container-build-target'] = 'distroless'
-  rootProject.ext['docker-repository-root'] = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-  rootProject.ext['docker-tag'] = java.time.Instant.now().getEpochSecond()
-  dependsOn ":sdks:python:container:py${pyversion}:docker"
-  dependsOn ":sdks:python:container:py${pyversion}:dockerPush"
-
-  var testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
-  var imageURL = project.containerImageURL()
-
-  def argMap = [
-          "output": "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
-          "project": "apache-beam-testing",
-          "region": "us-central1",
-          "runner": "TestDataflowRunner",
-          "sdk_container_image": imageURL,
-          "sdk_location": "container",
-          "staging_location": "gs://temp-storage-for-end-to-end-tests/staging-it",
-          "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
-  ]
-  def cmdArgs = mapToArgString(argMap)
-  doLast {
-    exec {
-      workingDir = "${rootDir}/sdks/python"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pytest ${testTarget} --test-pipeline-options=\"${cmdArgs}\""
-    }
-  }
-}
-
 task validatesContainerARM() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
