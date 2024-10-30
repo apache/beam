@@ -19,8 +19,8 @@
 import collections
 import copy
 import os
-from collections.abc import Sequence
 import typing
+from collections.abc import Sequence
 from typing import Any
 from typing import NamedTuple
 from typing import Optional
@@ -74,13 +74,13 @@ _primitive_types_to_typing_container_type = {
 }
 
 tft_process_handler_input_type = Union[NamedTuple,
-                                              beam.Row,
-                                              dict[str,
-                                                   Union[str,
-                                                                float,
-                                                                int,
-                                                                bytes,
-                                                                np.ndarray]]]
+                                       beam.Row,
+                                       dict[str,
+                                            Union[str,
+                                                  float,
+                                                  int,
+                                                  bytes,
+                                                  np.ndarray]]]
 tft_process_handler_output_type = Union[beam.Row, dict[str, np.ndarray]]
 
 
