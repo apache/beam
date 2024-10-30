@@ -71,21 +71,10 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
 }
 
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
-var baseTarget = 'base'
-var buildTarget = project.containerBuildTarget() ?: baseTarget
-var imageName = project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk"
-if (buildTarget != baseTarget) {
-  imageName += "_${buildTarget}"
-}
+var buildTarget = project.containerBuildTarget() ?: 'base'
 
 docker {
-  name containerImageName(
-          name: imageName,
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root,
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project.sdk_version)
+  name project.containerImageURL()
   // tags used by dockerTag task
   tags containerImageTags()
   files "../Dockerfile", "./build"

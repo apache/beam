@@ -113,14 +113,23 @@ RUN if [ "$pull_licenses" != "true" ] ; then \
 ARG TARGETARCH
 FROM gcr.io/distroless/python3-debian12:latest-${TARGETARCH} as distroless
 ARG py_version
+
+# Contains header files needed by the Python interpreter.
 COPY --from=base /usr/local/include /usr/local/include
+
+# Contains the Python interpreter executables.
 COPY --from=base /usr/local/bin /usr/local/bin
+
+# Contains the Python library dependencies.
 COPY --from=base /usr/local/lib /usr/local/lib
-# Python standard library modules:
+
+# Python standard library modules.
 COPY --from=base /usr/lib/python${py_version} /usr/lib/python${py_version}
-# Contains the boot entrypoint:
+
+# Contains the boot entrypoint and related files such as licenses.
 COPY --from=base /opt /opt
+
 ENV PATH "$PATH:/usr/local/bin"
 
-# Despite the ENTRYPOINT set above, need to reset since deriving the layer from a different image:
+# Despite the ENTRYPOINT set above, need to reset since deriving the layer derives from a different image.
 ENTRYPOINT ["/opt/apache/beam/boot"]
