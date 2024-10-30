@@ -52,7 +52,6 @@ settings = {'dill_byref': None}
 # Let's make dill 0.3.1.1 support Python 3.11.
 patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == '0.3.1.1'
 
-
 # MOE:begin_strip
 def get_relative_path(filename):
   """Returns the path of filename relative to the first directory in sys.path
