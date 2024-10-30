@@ -51,7 +51,7 @@ public class SingleSourceWorkerHarnessTest {
 
   private SingleSourceWorkerHarness createWorkerHarness(
       SingleSourceWorkerHarness.GetWorkSender getWorkSender, JvmRuntime runtime) {
-    // In non-test scenario this is set in StreamingDataflowWorker.main(...).
+    // In non-test scenario this is set in DataflowWorkerHarnessHelper.initializeLogging(...).
     Thread.setDefaultUncaughtExceptionHandler(new WorkerUncaughtExceptionHandler(runtime, LOG));
     return SingleSourceWorkerHarness.builder()
         .setWorkCommitter(workCommitter)
