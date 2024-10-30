@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-# MOE:begin_strip
-import os
-# MOE:end_strip
 import sys
 import threading
 import types
@@ -101,7 +98,6 @@ class PicklerTest(unittest.TestCase):
   def test_save_paths(self):
     f = loads(dumps(lambda x: x))
     co_filename = f.__code__.co_filename
-    """Tests that co_filename contains a path. Will be relative path for dill and absolute otherwise"""
     self.assertTrue(co_filename.endswith('pickler_test.py'))
 
   # MOE:end_strip
