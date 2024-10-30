@@ -1415,7 +1415,7 @@ class PartitionFn(WithTypeHints):
   def default_label(self):
     return self.__class__.__name__
 
-  def partition_for(self, element, num_partitions, *args, **kwargs): # type: ignore[empty-body]
+  def partition_for(self, element, num_partitions, *args, **kwargs):  # type: ignore[empty-body]
     # type: (T, int, *typing.Any, **typing.Any) -> int
 
     """Specify which partition will receive this element.

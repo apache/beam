@@ -53,7 +53,7 @@ def _compare_prediction_result(a: PredictionResult, b: PredictionResult):
     example_equal = numpy.array_equal(a.example.todense(), b.example.todense())
 
   else:
-    example_equal = numpy.array_equal(a.example, b.example) # type: ignore[arg-type]
+    example_equal = numpy.array_equal(a.example, b.example)  # type: ignore[arg-type]
   if isinstance(a.inference, dict):
     return all(
         x == y for x, y in zip(a.inference.values(),
