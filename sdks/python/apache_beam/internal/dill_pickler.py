@@ -52,6 +52,7 @@ settings = {'dill_byref': None}
 # Let's make dill 0.3.1.1 support Python 3.11.
 patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == '0.3.1.1'
 
+
 # MOE:begin_strip
 def get_relative_path(filename):
   """Returns the path of filename relative to the first directory in sys.path
@@ -196,6 +197,7 @@ if patch_save_code:
 
 
 class _NoOpContextManager(object):
+
   def __enter__(self):
     pass
 
@@ -273,6 +275,7 @@ def _nested_type_wrapper(fun):
   For nested class object only it will save the containing class object so
   the nested structure is recreated during unpickle.
   """
+
   def wrapper(pickler, obj):
     # When the nested class is defined in the __main__ module we do not have to
     # do anything special because the pickler itself will save the constituent
@@ -331,7 +334,8 @@ if 'save_module' in dir(dill.dill):
     else:
       dill_log.info('M2: %s' % obj)
       # pylint: disable=protected-access
-      pickler.save_reduce(dill.dill._import_module, (obj.__name__, ), obj=obj)
+      pickler.save_reduce(
+          dill.dill._import_module, (obj.__name__, ), obj=obj)
       # pylint: enable=protected-access
       dill_log.info('# M2')
 

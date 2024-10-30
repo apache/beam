@@ -103,6 +103,7 @@ class PicklerTest(unittest.TestCase):
     co_filename = f.__code__.co_filename
     """Tests that co_filename contains a path. Will be relative path for dill and absolute otherwise"""
     self.assertTrue(co_filename.endswith('pickler_test.py'))
+
   # MOE:end_strip
 
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
@@ -120,6 +121,7 @@ class PicklerTest(unittest.TestCase):
 from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
+
 
 if __name__ == '__main__':
   unittest.main()
