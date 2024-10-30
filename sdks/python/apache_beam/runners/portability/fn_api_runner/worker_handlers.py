@@ -1071,7 +1071,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
 
     if state_key.WhichOneof('type') not in self._SUPPORTED_STATE_TYPES:
       raise NotImplementedError(
-          'Unknown state type: ' + state_key.WhichOneof('type'))
+          'Unknown state type: ' + state_key.WhichOneof('type')) # type: ignore[operator]
 
     with self._lock:
       if not continuation_token:

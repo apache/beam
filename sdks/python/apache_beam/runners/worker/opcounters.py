@@ -259,7 +259,7 @@ class OperationCounters(object):
     self.type_check(windowed_value.value)
 
     size, observables = (
-        self.coder_impl.get_estimated_size_and_observables(windowed_value))
+        self.coder_impl.get_estimated_size_and_observables(windowed_value)) # type: ignore[union-attr]
     if not observables:
       self.current_size = size
     else:

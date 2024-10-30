@@ -299,7 +299,7 @@ def validate_stateful_dofn(dofn: 'DoFn') -> None:
           'callback: %s.') % (dofn, timer_spec))
     method_name = timer_spec._attached_callback.__name__
     if (timer_spec._attached_callback != getattr(dofn, method_name,
-                                                 None).__func__):
+                                                 None).__func__): # type: ignore[union-attr]
       raise ValueError((
           'The on_timer callback for %s is not the specified .%s method '
           'for DoFn %r (perhaps it was overwritten?).') %
@@ -314,7 +314,7 @@ class BaseTimer(object):
     raise NotImplementedError
 
 
-_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))
+_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp')) # type: ignore[name-match]
 
 
 class RuntimeTimer(BaseTimer):

@@ -104,7 +104,7 @@ class Profile(object):
         self.profile.create_stats()
         self.profile_output = self._upload_profile_data(
             # typing: seems stats attr is missing from typeshed
-            self.profile_location, 'cpu_profile', self.profile.stats)  # type: ignore[attr-defined]
+            self.profile_location, 'cpu_profile', self.profile.stats)
 
       if self.enable_memory_profiling:
         if not self.hpy:

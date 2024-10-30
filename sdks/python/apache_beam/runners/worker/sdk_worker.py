@@ -1335,8 +1335,8 @@ class GlobalCachingStateHandler(CachingStateHandler):
         return self._context.user_state_cache_token
       else:
         return self._context.bundle_cache_token
-    elif state_key.WhichOneof('type').endswith('_side_input'):
-      side_input = getattr(state_key, state_key.WhichOneof('type'))
+    elif state_key.WhichOneof('type').endswith('_side_input'): # type: ignore[union-attr]
+      side_input = getattr(state_key, state_key.WhichOneof('type')) # type: ignore[arg-type]
       return self._context.side_input_cache_tokens.get(
           (side_input.transform_id, side_input.side_input_id),
           self._context.bundle_cache_token)

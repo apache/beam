@@ -125,7 +125,7 @@ class FnApiLogRecordHandler(logging.Handler):
       log_entry.message = (
           "Failed to format '%s' with args '%s' during logging." %
           (str(record.msg), record.args))
-    log_entry.thread = record.threadName
+    log_entry.thread = record.threadName # type: ignore[assignment]
     log_entry.log_location = '%s:%s' % (
         record.pathname or record.module, record.lineno or record.funcName)
     (fraction, seconds) = math.modf(record.created)
