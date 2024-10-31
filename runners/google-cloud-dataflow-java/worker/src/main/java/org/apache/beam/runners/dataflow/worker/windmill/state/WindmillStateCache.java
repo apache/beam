@@ -440,4 +440,9 @@ public class WindmillStateCache implements StatusDataProvider {
       localCache.forEach(stateCache::put);
     }
   }
+
+  @FunctionalInterface
+  public interface PerComputationStateCacheFetcher {
+    ForComputation forComputation(String computationId);
+  }
 }

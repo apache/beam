@@ -57,7 +57,7 @@ public class ChannelzServletTest {
         ImmutableSet.of(HostAndPort.fromHost(windmill1), HostAndPort.fromHost(windmill2)));
     options.setChannelzShowOnlyWindmillServiceChannels(false);
     ChannelzServlet channelzServlet =
-        new ChannelzServlet("/channelz", options, fakeWindmillServer::getWindmillServiceEndpoints);
+        new ChannelzServlet(options, fakeWindmillServer::getWindmillServiceEndpoints);
     StringWriter stringWriter = new StringWriter();
     PrintWriter writer = new PrintWriter(stringWriter);
     channelzServlet.captureData(writer);
@@ -90,7 +90,7 @@ public class ChannelzServletTest {
         ImmutableSet.of(HostAndPort.fromHost(windmill1), HostAndPort.fromHost(windmill2)));
     options.setChannelzShowOnlyWindmillServiceChannels(true);
     ChannelzServlet channelzServlet =
-        new ChannelzServlet("/channelz", options, fakeWindmillServer::getWindmillServiceEndpoints);
+        new ChannelzServlet(options, fakeWindmillServer::getWindmillServiceEndpoints);
     StringWriter stringWriter = new StringWriter();
     PrintWriter writer = new PrintWriter(stringWriter);
     channelzServlet.captureData(writer);

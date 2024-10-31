@@ -52,24 +52,10 @@ public class ReaderCache {
   //   - API is strictly a 1:1 wrapper over Cache API (not counting cache.cleanUp() calls).
   //       - i.e. it does not invoke more than one call, which could make it inconsistent.
   // If any of these conditions changes, please test ensure and test thread safety.
-
-  private static class CacheEntry {
-
-    final UnboundedSource.UnboundedReader<?> reader;
-    final long cacheToken;
-    final long workToken;
-
-    CacheEntry(UnboundedSource.UnboundedReader<?> reader, long cacheToken, long workToken) {
-      this.reader = reader;
-      this.cacheToken = cacheToken;
-      this.workToken = workToken;
-    }
-  }
-
   private final Cache<WindmillComputationKey, CacheEntry> cache;
 
   /** Cache reader for {@code cacheDuration}. Readers will be closed on {@code executor}. */
-  ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
+  public ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
     this.invalidationExecutor = invalidationExecutor;
     this.cache =
         CacheBuilder.newBuilder()
@@ -139,8 +125,26 @@ public class ReaderCache {
   }
 
   /** If a reader is cached for this key, remove and close it. */
-  void invalidateReader(WindmillComputationKey computationKey) {
+  public void invalidateReader(WindmillComputationKey computationKey) {
     // use an invalid cache token that will trigger close.
     acquireReader(computationKey, -1L, -1);
+  }
+
+  @FunctionalInterface
+  public interface ReaderInvalidator {
+    void invalidateReader(WindmillComputationKey computationKey);
+  }
+
+  private static class CacheEntry {
+
+    final UnboundedSource.UnboundedReader<?> reader;
+    final long cacheToken;
+    final long workToken;
+
+    CacheEntry(UnboundedSource.UnboundedReader<?> reader, long cacheToken, long workToken) {
+      this.reader = reader;
+      this.cacheToken = cacheToken;
+      this.workToken = workToken;
+    }
   }
 }

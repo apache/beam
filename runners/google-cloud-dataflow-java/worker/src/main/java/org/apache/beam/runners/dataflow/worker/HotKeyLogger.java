@@ -38,7 +38,7 @@ public class HotKeyLogger {
   /** Throttles logging the detection to every loggingPeriod */
   private final Duration loggingPeriod = Duration.standardMinutes(5);
 
-  HotKeyLogger() {}
+  public HotKeyLogger() {}
 
   HotKeyLogger(Clock clock) {
     this.clock = clock;
