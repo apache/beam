@@ -1465,7 +1465,6 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_filter_does_not_type_check_using_type_hints_method(self):
     # Filter is expecting an int but instead looks to the 'left' and sees a str
     # incoming.
-
     with self.assertRaises(typehints.TypeCheckError) as e:
       (
           self.p
