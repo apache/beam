@@ -47,10 +47,9 @@ import dill
 settings = {'dill_byref': None}
 
 
-def get_normalized_path(filename):
-  """Retruns the normalized path."""
-  normalized_filename = filename
-  return normalized_filename
+def get_normalized_path(path):
+  """Returns a normalized path. This function is intended to be overridden."""
+  return path
 
 
 patch_save_code = True
