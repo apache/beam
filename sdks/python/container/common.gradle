@@ -71,7 +71,6 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
 }
 
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
-def baseBuildTarget = 'base'
 
 docker {
   name containerImageName(
@@ -91,7 +90,30 @@ docker {
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers
   push pushContainers
-  target project.rootProject.findProperty('container-build-target') ?: baseBuildTarget
+  target 'base'
+}
+
+task dockerDistroless {
+  group = 'docker'
+  docker{
+    name containerImageName(
+            name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk_distroless",
+            root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                    project.rootProject["docker-repository-root"] :
+                    project.docker_image_default_repo_root,
+            tag: project.rootProject.hasProperty(["docker-tag"]) ?
+                    project.rootProject["docker-tag"] : project.sdk_version)
+    tags containerImageTags()
+    files "../Dockerfile", "./build"
+    buildArgs(['py_version': "${project.ext.pythonVersion}",
+               'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                       project.rootProject.hasProperty(["isRelease"])])
+    buildx project.useBuildx()
+    platform(*project.containerPlatforms())
+    load project.useBuildx() && !pushContainers
+    push pushContainers
+    target 'distroless'
+  }
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
