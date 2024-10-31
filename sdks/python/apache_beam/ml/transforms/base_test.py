@@ -21,11 +21,9 @@ import shutil
 import tempfile
 import typing
 import unittest
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Sequence
 
 import numpy as np
 from parameterized import param
@@ -162,7 +160,7 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
           }],
           input_types={
-              'x': List[int], 'y': List[float]
+              'x': list[int], 'y': list[float]
           },
           expected_dtype={
               'x': typing.Sequence[np.float32],
@@ -320,7 +318,7 @@ class BaseMLTransformTest(unittest.TestCase):
 
 
 class FakeModel:
-  def __call__(self, example: List[str]) -> List[str]:
+  def __call__(self, example: list[str]) -> list[str]:
     for i in range(len(example)):
       if not isinstance(example[i], str):
         raise TypeError('Input must be a string')
@@ -333,7 +331,7 @@ class FakeModelHandler(ModelHandler):
       self,
       batch: Sequence[str],
       model: Any,
-      inference_args: Optional[Dict[str, Any]] = None):
+      inference_args: Optional[dict[str, Any]] = None):
     return model(batch)
 
   def load_model(self):
@@ -508,7 +506,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
 
 
 class FakeImageModel:
-  def __call__(self, example: List[PIL_Image]) -> List[PIL_Image]:
+  def __call__(self, example: list[PIL_Image]) -> list[PIL_Image]:
     for i in range(len(example)):
       if not isinstance(example[i], PIL_Image):
         raise TypeError('Input must be an Image')
@@ -520,7 +518,7 @@ class FakeImageModelHandler(ModelHandler):
       self,
       batch: Sequence[PIL_Image],
       model: Any,
-      inference_args: Optional[Dict[str, Any]] = None):
+      inference_args: Optional[dict[str, Any]] = None):
     return model(batch)
 
   def load_model(self):
