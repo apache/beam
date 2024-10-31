@@ -393,7 +393,7 @@ capability-matrix:
             - class: dataflow
               l1: "Partially"
               l2: non-merging windows
-              l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
+              l3: "State is supported for non-merging windows. The MapState, SetState, and MultimapState state types are supported in the following scenarios: Java pipelines that don't use Streaming Engine; Java pipelines that use Streaming Engine and version 2.58.0 or later of the Java SDK. SetState, MapState, and MultimapState are not supported for pipelines that use Runner v2."
             - class: flink
               l1: "Partially"
               l2: non-merging windows
