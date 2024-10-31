@@ -938,6 +938,8 @@ class PTransformWithSideInputs(PTransform):
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(
           argspec_fn, *input_types[0], **input_types[1])
+
+      # First check the main input.
       arg_hints = iter(hints.items())
       element_arg, element_hint = next(arg_hints)
       if not typehints.is_consistent_with(
@@ -952,6 +954,8 @@ class PTransformWithSideInputs(PTransform):
             f"but was applied to a PCollection of type"
             f" '{bindings[element_arg]}' "
             f"(produced by the transform '{producer_label}'). ")
+
+      # Now check the side inputs.
       for arg, hint in arg_hints:
         if arg.startswith('__unknown__'):
           continue
