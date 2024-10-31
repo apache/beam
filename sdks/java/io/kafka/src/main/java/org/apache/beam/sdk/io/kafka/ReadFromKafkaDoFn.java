@@ -367,7 +367,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
     KafkaLatestOffsetEstimator offsetEstimator = offsetEstimatorCacheInstance.get(topicPartition);
-    if (offsetEstimator == null || offsetEstimator.isClosed()) {
+    if (offsetEstimator == null) {
       Map<String, Object> updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
 
