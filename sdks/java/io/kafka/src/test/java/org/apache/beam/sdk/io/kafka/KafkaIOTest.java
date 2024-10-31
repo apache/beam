@@ -286,12 +286,12 @@ public class KafkaIOTest {
           }
         };
 
-    for (Map.Entry<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> entry :
-        records.entrySet()) {
-      consumer.updatePartitions(entry.getKey().topic(), partitionMap.get(entry.getKey().topic()));
-      consumer.updateBeginningOffsets(ImmutableMap.of(entry.getKey(), 0L));
-      consumer.updateEndOffsets(ImmutableMap.of(entry.getKey(), (long) entry.getValue().size()));
-    }
+    partitionMap.forEach(consumer::updatePartitions);
+    consumer.updateBeginningOffsets(
+        records.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> 0L)));
+    consumer.updateEndOffsets(
+        records.entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> (long) e.getValue().size())));
 
     // MockConsumer does not maintain any relationship between partition seek position and the
     // records added. e.g. if we add 10 records to a partition and then seek to end of the
