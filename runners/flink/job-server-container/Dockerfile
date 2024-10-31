@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM eclipse-temurin:11
+FROM openjdk:8
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libltdl7
