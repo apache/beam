@@ -46,13 +46,13 @@ import dill
 
 settings = {'dill_byref': None}
 
+patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
+
 
 def get_normalized_path(path):
   """Returns a normalized path. This function is intended to be overridden."""
   return path
 
-
-patch_save_code = True
 
 if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
