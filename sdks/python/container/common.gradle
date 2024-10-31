@@ -71,6 +71,7 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
 }
 
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+def baseBuildTarget = 'base'
 
 docker {
   name containerImageName(
@@ -90,7 +91,7 @@ docker {
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers
   push pushContainers
-  target project.findProperty('container-build-target') ?: 'base'
+  target project.rootProject.findProperty('container-build-target') ?: baseBuildTarget
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
