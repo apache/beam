@@ -124,8 +124,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       else:
         raise TypeError(
             "No SerializeToString method is detected on loaded model. " +
-            f"Type of model: {type(model_proto)}"
-        )
+            f"Type of model: {type(model_proto)}")
     ort_session = ort.InferenceSession(
         model_proto_bytes,
         sess_options=self._session_options,
