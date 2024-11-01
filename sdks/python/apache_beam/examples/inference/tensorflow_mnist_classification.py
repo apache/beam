@@ -17,8 +17,7 @@
 
 import argparse
 import logging
-from typing import Iterable
-from typing import Tuple
+from collections.abc import Iterable
 
 import numpy
 
@@ -33,7 +32,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
 
-def process_input(row: str) -> Tuple[int, numpy.ndarray]:
+def process_input(row: str) -> tuple[int, numpy.ndarray]:
   data = row.split(',')
   label, pixels = int(data[0]), data[1:]
   pixels = [int(pixel) for pixel in pixels]
@@ -46,7 +45,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
-  def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
+  def process(self, element: tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = numpy.argmax(prediction_result.inference, axis=0)
     yield '{},{}'.format(label, prediction)
