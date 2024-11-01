@@ -316,15 +316,16 @@ def row_validator(beam_schema: schema_pb2.Schema,
   # Validate that this compiles, but avoid pickling the validator itself.
   _ = jsonschema.validators.validator_for(json_schema)(json_schema)
   _validate_compatible(beam_schema_to_json_schema(beam_schema), json_schema)
-  validator_ptr = [None]
+  validator = None
 
   convert = row_to_json(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
 
   def validate(row):
-    if validator_ptr[0] is None:
-      validator_ptr[0] = jsonschema.validators.validator_for(json_schema)(
+    nonlocal validator
+    if validator is None:
+      validator = jsonschema.validators.validator_for(json_schema)(
           json_schema)
-    validator_ptr[0].validate(convert(row))
+    validator.validate(convert(row))
 
   return validate
