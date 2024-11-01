@@ -52,6 +52,7 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
   // Create one bigtable data/admin client per bigtable config (project/instance/table/app profile)
   private static final ConcurrentHashMap<BigtableConfig, BigtableChangeStreamAccessor>
       bigtableAccessors = new ConcurrentHashMap<>();
+  private static Duration readChangeStreamTimeout = Duration.ofSeconds(15);
 
   private final BigtableDataClient dataClient;
   private final BigtableTableAdminClient tableAdminClient;
@@ -81,6 +82,10 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
       instanceAdminClient.close();
     }
     bigtableAccessors.remove(bigtableConfig);
+  }
+
+  public static void setReadChangeStreamTimeout(Duration timeout) {
+    readChangeStreamTimeout = timeout;
   }
 
   /**
@@ -204,9 +209,9 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
         .readChangeStreamSettings()
         .setRetrySettings(
             readChangeStreamRetrySettings
-                .setInitialRpcTimeout(Duration.ofSeconds(15))
-                .setTotalTimeout(Duration.ofSeconds(15))
-                .setMaxRpcTimeout(Duration.ofSeconds(15))
+                .setInitialRpcTimeout(readChangeStreamTimeout)
+                .setTotalTimeout(readChangeStreamTimeout)
+                .setMaxRpcTimeout(readChangeStreamTimeout)
                 .setMaxAttempts(10)
                 .build());
 

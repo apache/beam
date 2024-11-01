@@ -26,12 +26,13 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
+import org.joda.time.Duration;
 
 // Allows transient fields to be intialized later
 @SuppressWarnings("initialization.fields.uninitialized")
 @Internal
 public class DaoFactory implements Serializable, AutoCloseable {
-  private static final long serialVersionUID = 3732208768248394205L;
+  private static final long serialVersionUID = -3423959768580600281L;
 
   private transient ChangeStreamDao changeStreamDao;
   private transient MetadataTableAdminDao metadataTableAdminDao;
@@ -45,17 +46,21 @@ public class DaoFactory implements Serializable, AutoCloseable {
   private final String metadataTableId;
   private final String changeStreamName;
 
+  private final Duration readChangeStreamTimeout;
+
   public DaoFactory(
       BigtableConfig changeStreamConfig,
       BigtableConfig metadataTableConfig,
       String tableId,
       String metadataTableId,
-      String changeStreamName) {
+      String changeStreamName,
+      Duration readChangeStreamTimeout) {
     this.changeStreamConfig = changeStreamConfig;
     this.metadataTableConfig = metadataTableConfig;
     this.changeStreamName = changeStreamName;
     this.tableId = tableId;
     this.metadataTableId = metadataTableId;
+    this.readChangeStreamTimeout = readChangeStreamTimeout;
   }
 
   @Override
@@ -106,6 +111,8 @@ public class DaoFactory implements Serializable, AutoCloseable {
       checkArgumentNotNull(changeStreamConfig.getProjectId());
       checkArgumentNotNull(changeStreamConfig.getInstanceId());
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
+      BigtableChangeStreamAccessor.setReadChangeStreamTimeout(
+          org.threeten.bp.Duration.ofMillis(readChangeStreamTimeout.getMillis()));
       BigtableDataClient dataClient =
           BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).getDataClient();
       changeStreamDao = new ChangeStreamDao(dataClient, this.tableId);

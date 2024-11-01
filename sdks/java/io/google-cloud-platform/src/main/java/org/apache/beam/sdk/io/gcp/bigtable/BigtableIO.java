@@ -2114,6 +2114,8 @@ public class BigtableIO {
     private static final Duration DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT =
         Duration.standardSeconds(30);
 
+    private static final Duration DEFAULT_READ_CHANGE_STREAM_TIMEOUT = Duration.standardSeconds(15);
+
     static ReadChangeStream create() {
       BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
       BigtableConfig metadataTableconfig = BigtableConfig.builder().setValidate(true).build();
@@ -2144,6 +2146,8 @@ public class BigtableIO {
     abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
 
     abstract @Nullable Duration getBacklogReplicationAdjustment();
+
+    abstract @Nullable Duration getReadChangeStreamTimeout();
 
     abstract @Nullable Boolean getValidateConfig();
 
@@ -2352,6 +2356,22 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that overrides timeout for ReadChangeStream
+     * requests.
+     *
+     * <p>This is useful to override the default of 15s timeout if the checkpoint duration is longer
+     * than 15s. Setting this value to longer than periodic checkpoint duration ensures that
+     * ReadChangeStream will stream until the next checkpoint is initiated.
+     *
+     * <p>Optional: defaults to 15 seconds.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withReadChangeStreamTimeout(Duration timeout) {
+      return toBuilder().setReadChangeStreamTimeout(timeout).build();
+    }
+
+    /**
      * Disables validation that the table being read and the metadata table exists, and that the app
      * profile used is single cluster and single row transaction enabled. Set this option if the
      * caller does not have additional Bigtable permissions to validate the configurations.
@@ -2461,11 +2481,21 @@ public class BigtableIO {
         backlogReplicationAdjustment = DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT;
       }
 
+      Duration readChangeStreamTimeout = getReadChangeStreamTimeout();
+      if (readChangeStreamTimeout == null) {
+        readChangeStreamTimeout = DEFAULT_READ_CHANGE_STREAM_TIMEOUT;
+      }
+
       ActionFactory actionFactory = new ActionFactory();
       ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       DaoFactory daoFactory =
           new DaoFactory(
-              bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
+              bigtableConfig,
+              metadataTableConfig,
+              getTableId(),
+              metadataTableId,
+              changeStreamName,
+              readChangeStreamTimeout);
 
       // Validate the configuration is correct before creating the pipeline, if required.
       try {
@@ -2542,6 +2572,8 @@ public class BigtableIO {
 
       abstract ReadChangeStream.Builder setBacklogReplicationAdjustment(Duration adjustment);
 
+      abstract ReadChangeStream.Builder setReadChangeStreamTimeout(Duration timeout);
+
       abstract ReadChangeStream.Builder setValidateConfig(boolean validateConfig);
 
       abstract ReadChangeStream build();
@@ -2578,7 +2610,14 @@ public class BigtableIO {
       tableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
     }
 
-    DaoFactory daoFactory = new DaoFactory(null, bigtableConfig, null, tableId, null);
+    DaoFactory daoFactory =
+        new DaoFactory(
+            null,
+            bigtableConfig,
+            null,
+            tableId,
+            null,
+            ReadChangeStream.DEFAULT_READ_CHANGE_STREAM_TIMEOUT);
 
     try {
       MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
