@@ -324,8 +324,7 @@ def row_validator(beam_schema: schema_pb2.Schema,
   def validate(row):
     nonlocal validator
     if validator is None:
-      validator = jsonschema.validators.validator_for(json_schema)(
-          json_schema)
+      validator = jsonschema.validators.validator_for(json_schema)(json_schema)
     validator.validate(convert(row))
 
   return validate
