@@ -390,16 +390,10 @@ task validatesContainer() {
  * for more information on setting up different Python versions.
  */
 task validatesDistrolessContainer() {
-  def buildTarget = 'distroless'
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  def buildTarget = 'distroless'
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = java.time.Instant.now().getEpochSecond()
-  if (project.hasProperty("testRCDependencies")) {
-    // Generate a requirements file with pre-release versions for the docker task
-    // if testing with pre-release dependencies.
-    dependsOn ":sdks:python:container:py${pyversion}:generatePythonRequirements"
-    mustRunAfter ":sdks:python:container:py${pyversion}:generatePythonRequirements"
-  }
   def imageURL = "${repository}/beam_python${project.ext.pythonVersion}_sdk_${buildTarget}:${tag}"
   dependsOn 'initializeForDataflowJob'
   def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
@@ -416,9 +410,9 @@ task validatesDistrolessContainer() {
   def cmdArgs = mapToArgString(argMap)
   doFirst {
     exec {
-      workingDir = "${rootDir}/sdks/python/container"
+      workingDir = "${rootDir}/sdks/python/container/${pyversion}"
       executable 'sh'
-      args '-c', "docker build -t ${imageURL} --target=${buildTarget} ."
+      args '-c', "docker build -t ${imageURL} --target=${buildTarget} -f ../Dockerfile --build-arg=py_version=${project.ext.pythonVersion} ."
     }
     exec {
       executable 'sh'
