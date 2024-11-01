@@ -120,7 +120,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     if not isinstance(model_proto, bytes):
         if (hasattr(model_proto, "SerializeToString")
             and callable(model_proto.SerializeToString)):
-            model_proto = model_proto.SerializeToString()
+            model_proto_bytes = model_proto.SerializeToString()
         else:
             raise TypeError(
               f"No SerializeToString method is detected on loaded model. "
