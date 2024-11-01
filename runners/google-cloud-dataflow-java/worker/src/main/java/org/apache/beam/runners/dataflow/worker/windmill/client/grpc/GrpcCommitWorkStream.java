@@ -170,7 +170,7 @@ final class GrpcCommitWorkStream
       CommitStatus commitStatus =
           i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
       if (pendingRequest == null) {
-        if (!isShutdown()) {
+        if (!hasReceivedShutdownSignal()) {
           // Skip responses when the stream is shutdown since they are now invalid.
           LOG.error("Got unknown commit request ID: {}", requestId);
         }
@@ -225,11 +225,6 @@ final class GrpcCommitWorkStream
   }
 
   private void issueSingleRequest(long id, PendingRequest pendingRequest) {
-    if (!prepareForSend(id, pendingRequest)) {
-      pendingRequest.abort();
-      return;
-    }
-
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
@@ -238,19 +233,20 @@ final class GrpcCommitWorkStream
         .setShardingKey(pendingRequest.shardingKey())
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
-    try {
-      send(chunk);
-    } catch (IllegalStateException e) {
-      // Stream was broken, request will be retried when stream is reopened.
+    synchronized (this) {
+      try {
+        if (!prepareForSend(id, pendingRequest)) {
+          pendingRequest.abort();
+          return;
+        }
+        send(chunk);
+      } catch (IllegalStateException e) {
+        // Stream was broken, request will be retried when stream is reopened.
+      }
     }
   }
 
   private void issueBatchedRequest(Map<Long, PendingRequest> requests) {
-    if (!prepareForSend(requests)) {
-      requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
-      return;
-    }
-
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     String lastComputation = null;
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
@@ -266,28 +262,33 @@ final class GrpcCommitWorkStream
           .setSerializedWorkItemCommit(request.serializedCommit());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
-    try {
-      send(request);
-    } catch (IllegalStateException e) {
-      // Stream was broken, request will be retried when stream is reopened.
+    synchronized (this) {
+      if (!prepareForSend(requests)) {
+        requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
+        return;
+      }
+      try {
+        send(request);
+      } catch (IllegalStateException e) {
+        // Stream was broken, request will be retried when stream is reopened.
+      }
     }
   }
 
   private void issueMultiChunkRequest(long id, PendingRequest pendingRequest) {
-    if (!prepareForSend(id, pendingRequest)) {
-      pendingRequest.abort();
-      return;
-    }
-
     checkNotNull(pendingRequest.computationId(), "Cannot commit WorkItem w/o a computationId.");
     ByteString serializedCommit = pendingRequest.serializedCommit();
     synchronized (this) {
+      if (!prepareForSend(id, pendingRequest)) {
+        pendingRequest.abort();
+        return;
+      }
+
       for (int i = 0;
           i < serializedCommit.size();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         int end = i + AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE;
         ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));
-
         StreamingCommitRequestChunk.Builder chunkBuilder =
             StreamingCommitRequestChunk.newBuilder()
                 .setRequestId(id)
@@ -298,7 +299,6 @@ final class GrpcCommitWorkStream
         if (remaining > 0) {
           chunkBuilder.setRemainingBytesForWorkItem(remaining);
         }
-
         StreamingCommitWorkRequest requestChunk =
             StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
         try {
@@ -312,28 +312,24 @@ final class GrpcCommitWorkStream
   }
 
   /** Returns true if prepare for send succeeded. */
-  private boolean prepareForSend(long id, PendingRequest request) {
+  private synchronized boolean prepareForSend(long id, PendingRequest request) {
     synchronized (shutdownLock) {
-      synchronized (this) {
-        if (!isShutdown()) {
-          pending.put(id, request);
-          return true;
-        }
-        return false;
+      if (!hasReceivedShutdownSignal()) {
+        pending.put(id, request);
+        return true;
       }
+      return false;
     }
   }
 
   /** Returns true if prepare for send succeeded. */
-  private boolean prepareForSend(Map<Long, PendingRequest> requests) {
+  private synchronized boolean prepareForSend(Map<Long, PendingRequest> requests) {
     synchronized (shutdownLock) {
-      synchronized (this) {
-        if (!isShutdown()) {
-          pending.putAll(requests);
-          return true;
-        }
-        return false;
+      if (!hasReceivedShutdownSignal()) {
+        pending.putAll(requests);
+        return true;
       }
+      return false;
     }
   }
 
@@ -418,12 +414,8 @@ final class GrpcCommitWorkStream
     @Override
     public boolean commitWorkItem(
         String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
-      if (isShutdown()) {
-        onDone.accept(CommitStatus.ABORTED);
-        return false;
-      }
-
-      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())
+          || hasReceivedShutdownSignal()) {
         return false;
       }
 
@@ -436,7 +428,7 @@ final class GrpcCommitWorkStream
     @Override
     public void flush() {
       try {
-        if (!isShutdown()) {
+        if (!hasReceivedShutdownSignal()) {
           flushInternal(queue);
         } else {
           queue.forEach((ignored, request) -> request.abort());
@@ -448,13 +440,9 @@ final class GrpcCommitWorkStream
     }
 
     void add(long id, PendingRequest request) {
-      if (isShutdown()) {
-        request.abort();
-      } else {
-        Preconditions.checkState(canAccept(request.getBytes()));
-        queuedBytes += request.getBytes();
-        queue.put(id, request);
-      }
+      Preconditions.checkState(canAccept(request.getBytes()));
+      queuedBytes += request.getBytes();
+      queue.put(id, request);
     }
 
     private boolean canAccept(long requestBytes) {

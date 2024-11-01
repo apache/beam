@@ -156,12 +156,12 @@ final class GrpcGetDataStream
 
   @Override
   protected synchronized void onNewStream() {
-    if (isShutdown()) {
+    if (hasReceivedShutdownSignal()) {
       return;
     }
 
     send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
-    if (clientClosed && !isShutdown()) {
+    if (clientClosed && !hasReceivedShutdownSignal()) {
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
@@ -218,7 +218,7 @@ final class GrpcGetDataStream
 
   @Override
   public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
-    if (isShutdown()) {
+    if (hasReceivedShutdownSignal()) {
       throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
     }
 
@@ -334,7 +334,7 @@ final class GrpcGetDataStream
   }
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
-    while (!isShutdown()) {
+    while (!hasReceivedShutdownSignal()) {
       request.resetResponseStream();
       try {
         queueRequestAndWait(request);
@@ -360,7 +360,7 @@ final class GrpcGetDataStream
   }
 
   private void handleShutdown(QueuedRequest request, Throwable cause) {
-    if (isShutdown()) {
+    if (hasReceivedShutdownSignal()) {
       WindmillStreamShutdownException shutdownException = shutdownException(request);
       shutdownException.addSuppressed(cause);
       throw shutdownException;
@@ -372,7 +372,7 @@ final class GrpcGetDataStream
     boolean responsibleForSend = false;
     @Nullable QueuedBatch prevBatch = null;
     synchronized (shutdownLock) {
-      if (isShutdown()) {
+      if (hasReceivedShutdownSignal()) {
         throw shutdownException(request);
       }
 
@@ -401,7 +401,7 @@ final class GrpcGetDataStream
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
       synchronized (shutdownLock) {
-        if (isShutdown()) {
+        if (hasReceivedShutdownSignal()) {
           throw shutdownException(batch);
         }
 
@@ -419,7 +419,7 @@ final class GrpcGetDataStream
     try {
       sendBatch(batch);
       synchronized (shutdownLock) {
-        if (isShutdown()) {
+        if (hasReceivedShutdownSignal()) {
           throw shutdownException(batch);
         }
 
@@ -443,36 +443,36 @@ final class GrpcGetDataStream
       return;
     }
 
-    synchronized (shutdownLock) {
-      // Synchronization of pending inserts is necessary with send to ensure duplicates are not
-      // sent on stream reconnect.
-      synchronized (this) {
+    // Synchronization of pending inserts is necessary with send to ensure duplicates are not
+    // sent on stream reconnect.
+    synchronized (this) {
+      synchronized (shutdownLock) {
         // shutdown() clears pending, once the stream is shutdown, prevent values from being added
         // to it.
-        if (isShutdown()) {
+        if (hasReceivedShutdownSignal()) {
           throw shutdownException(batch);
         }
-
-        for (QueuedRequest request : batch.requestsReadOnly()) {
-          // Map#put returns null if there was no previous mapping for the key, meaning we have not
-          // seen it before.
-          verify(
-              pending.put(request.id(), request.getResponseStream()) == null,
-              "Request already sent.");
-        }
       }
-    }
 
-    try {
-      send(batch.asGetDataRequest());
-    } catch (IllegalStateException e) {
-      // The stream broke before this call went through; onNewStream will retry the fetch.
-      LOG.warn("GetData stream broke before call started.", e);
+      for (QueuedRequest request : batch.requestsReadOnly()) {
+        // Map#put returns null if there was no previous mapping for the key, meaning we have not
+        // seen it before.
+        verify(
+            pending.put(request.id(), request.getResponseStream()) == null,
+            "Request already sent.");
+      }
+
+      try {
+        send(batch.asGetDataRequest());
+      } catch (IllegalStateException e) {
+        // The stream broke before this call went through; onNewStream will retry the fetch.
+        LOG.warn("GetData stream broke before call started.", e);
+      }
     }
   }
 
   private void verify(boolean condition, String message) {
-    Verify.verify(condition || isShutdown(), message);
+    Verify.verify(condition || hasReceivedShutdownSignal(), message);
   }
 
   @FunctionalInterface

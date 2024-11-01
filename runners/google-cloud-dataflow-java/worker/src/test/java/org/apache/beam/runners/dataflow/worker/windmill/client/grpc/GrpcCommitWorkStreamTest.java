@@ -165,7 +165,7 @@ public class GrpcCommitWorkStreamTest {
         Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
         assertFalse(
             batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), commitStatuses::add));
-        assertThat(commitStatuses).containsExactly(Windmill.CommitStatus.ABORTED);
+        assertThat(commitStatuses).isEmpty();
       }
     }
   }

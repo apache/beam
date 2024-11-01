@@ -117,8 +117,8 @@ public class GrpcDirectGetWorkStreamTest {
 
   @After
   public void cleanUp() {
-    inProcessChannel.shutdownNow();
     checkNotNull(stream).shutdown();
+    inProcessChannel.shutdownNow();
   }
 
   private GrpcDirectGetWorkStream createGetWorkStream(

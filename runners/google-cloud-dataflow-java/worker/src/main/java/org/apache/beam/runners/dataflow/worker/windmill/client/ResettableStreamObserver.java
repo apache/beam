@@ -40,10 +40,6 @@ final class ResettableStreamObserver<T> implements StreamObserver<T> {
   @GuardedBy("this")
   private @Nullable StreamObserver<T> delegateStreamObserver;
 
-  /**
-   * Indicates that the request observer should no longer be used. Attempts to perform operations on
-   * the request observer will throw an {@link WindmillStreamShutdownException}.
-   */
   @GuardedBy("this")
   private boolean isPoisoned;
 
@@ -63,6 +59,7 @@ final class ResettableStreamObserver<T> implements StreamObserver<T> {
         "requestObserver cannot be null. Missing a call to startStream() to initialize.");
   }
 
+  /** Creates a new delegate to use for future {@link StreamObserver} methods. */
   synchronized void reset() {
     if (isPoisoned) {
       throw new WindmillStreamShutdownException("Explicit call to shutdown stream.");
@@ -71,6 +68,10 @@ final class ResettableStreamObserver<T> implements StreamObserver<T> {
     delegateStreamObserver = streamObserverFactory.get();
   }
 
+  /**
+   * Indicates that the request observer should no longer be used. Attempts to perform operations on
+   * the request observer will throw an {@link WindmillStreamShutdownException}.
+   */
   synchronized void poison() {
     if (!isPoisoned) {
       isPoisoned = true;

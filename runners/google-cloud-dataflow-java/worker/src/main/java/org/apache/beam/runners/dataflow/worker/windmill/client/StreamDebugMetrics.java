@@ -19,18 +19,24 @@ package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** Records stream metrics for debugging. */
 @ThreadSafe
 final class StreamDebugMetrics {
-  private final AtomicInteger restartCount = new AtomicInteger();
-  private final AtomicInteger errorCount = new AtomicInteger();
+  private final Supplier<Instant> clock;
+
+  @GuardedBy("this")
+  private int errorCount = 0;
+
+  @GuardedBy("this")
+  private int restartCount = 0;
 
   @GuardedBy("this")
   private long sleepUntil = 0;
@@ -53,12 +59,25 @@ final class StreamDebugMetrics {
   @GuardedBy("this")
   private DateTime shutdownTime = null;
 
+  private StreamDebugMetrics(Supplier<Instant> clock) {
+    this.clock = clock;
+  }
+
+  static StreamDebugMetrics create() {
+    return new StreamDebugMetrics(Instant::now);
+  }
+
+  @VisibleForTesting
+  static StreamDebugMetrics forTesting(Supplier<Instant> fakeClock) {
+    return new StreamDebugMetrics(fakeClock);
+  }
+
   private static long debugDuration(long nowMs, long startMs) {
     return startMs <= 0 ? -1 : Math.max(0, nowMs - startMs);
   }
 
-  private static long nowMs() {
-    return Instant.now().getMillis();
+  private long nowMs() {
+    return clock.get().getMillis();
   }
 
   synchronized void recordSend() {
@@ -76,14 +95,14 @@ final class StreamDebugMetrics {
 
   synchronized void recordRestartReason(String error) {
     lastRestartReason = error;
-    lastRestartTime = DateTime.now();
+    lastRestartTime = clock.get().toDateTime();
   }
 
-  synchronized long startTimeMs() {
+  synchronized long getStartTimeMs() {
     return startTimeMs;
   }
 
-  synchronized long lastSendTimeMs() {
+  synchronized long getLastSendTimeMs() {
     return lastSendTimeMs;
   }
 
@@ -91,38 +110,35 @@ final class StreamDebugMetrics {
     sleepUntil = nowMs() + sleepMs;
   }
 
-  int incrementAndGetRestarts() {
-    return restartCount.incrementAndGet();
+  synchronized int incrementAndGetRestarts() {
+    return restartCount++;
   }
 
-  int incrementAndGetErrors() {
-    return errorCount.incrementAndGet();
+  synchronized int incrementAndGetErrors() {
+    return errorCount++;
   }
 
   synchronized void recordShutdown() {
-    shutdownTime = DateTime.now();
+    shutdownTime = clock.get().toDateTime();
   }
 
-  synchronized String responseDebugString(long nowMillis) {
+  synchronized Optional<String> responseDebugString(long nowMillis) {
     return lastResponseTimeMs == 0
-        ? "never received response"
-        : "received response " + (nowMillis - lastResponseTimeMs) + "ms ago";
+        ? Optional.empty()
+        : Optional.of("received response " + (nowMillis - lastResponseTimeMs) + "ms ago");
   }
 
-  private Optional<RestartMetrics> getRestartMetrics() {
-    if (restartCount.get() > 0) {
-      synchronized (this) {
-        return Optional.of(
-            RestartMetrics.create(
-                restartCount.get(), lastRestartReason, lastRestartTime, errorCount.get()));
-      }
+  private synchronized Optional<RestartMetrics> getRestartMetrics() {
+    if (restartCount > 0) {
+      return Optional.of(
+          RestartMetrics.create(restartCount, lastRestartReason, lastRestartTime, errorCount));
     }
 
     return Optional.empty();
   }
 
   synchronized Snapshot getSummaryMetrics() {
-    long nowMs = Instant.now().getMillis();
+    long nowMs = clock.get().getMillis();
     return Snapshot.create(
         debugDuration(nowMs, startTimeMs),
         debugDuration(nowMs, lastSendTimeMs),

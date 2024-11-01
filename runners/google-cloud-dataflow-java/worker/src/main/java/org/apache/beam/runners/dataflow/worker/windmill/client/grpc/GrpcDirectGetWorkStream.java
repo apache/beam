@@ -198,7 +198,7 @@ final class GrpcDirectGetWorkStream
   @Override
   protected synchronized void onNewStream() {
     workItemAssemblers.clear();
-    if (!isShutdown()) {
+    if (!hasReceivedShutdownSignal()) {
       budgetTracker.reset();
       GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
       StreamingGetWorkRequest request =
