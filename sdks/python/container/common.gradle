@@ -90,6 +90,7 @@ docker {
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers
   push pushContainers
+  target 'base'
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
