@@ -118,13 +118,13 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     model_proto = onnx.load(f)
     model_proto_bytes = model_proto
     if not isinstance(model_proto, bytes):
-      if (hasattr(model_proto, "SerializeToString")
-          and callable(model_proto.SerializeToString)):
+      if (hasattr(model_proto, "SerializeToString") and
+          callable(model_proto.SerializeToString)):
         model_proto_bytes = model_proto.SerializeToString()
       else:
         raise TypeError(
-          f"No SerializeToString method is detected on loaded model. "
-          + f"Type of model: {type(model_proto)}"
+          "No SerializeToString method is detected on loaded model. " +
+          f"Type of model: {type(model_proto)}"
         )
     ort_session = ort.InferenceSession(
         model_proto_bytes,
