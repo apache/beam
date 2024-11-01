@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:23.05-py3
+ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:23.06-py3
 
 FROM ${BUILD_IMAGE} 
 
