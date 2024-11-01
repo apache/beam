@@ -380,22 +380,28 @@ task validatesContainer() {
   }
 }
 
+/**
+ * Validates the distroless (https://github.com/GoogleContainerTools/distroless)variant of the Python SDK container
+ * image (sdks/python/container/Dockerfile).
+ * To test a single version of Python:
+ * ./gradlew :sdks:python:test-suites:dataflow:py311:validatesDistrolessContainer \
+ *    -PpythonVersion=3 -Pjava11Home=$JAVA_HOME -PtestJavaVersion=11
+ * See https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-VirtualEnvironmentSetup
+ * for more information on setting up different Python versions.
+ */
 task validatesDistrolessContainer() {
+  def buildTarget = 'distroless'
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = java.time.Instant.now().getEpochSecond()
-  project.rootProject.ext['docker-tag'] = tag
-  rootProject.ext['docker-repository-root'] = repository
   if (project.hasProperty("testRCDependencies")) {
     // Generate a requirements file with pre-release versions for the docker task
     // if testing with pre-release dependencies.
     dependsOn ":sdks:python:container:py${pyversion}:generatePythonRequirements"
     mustRunAfter ":sdks:python:container:py${pyversion}:generatePythonRequirements"
   }
-  def imageURL = "${repository}/beam_python${project.ext.pythonVersion}_sdk_distroless:${tag}"
+  def imageURL = "${repository}/beam_python${project.ext.pythonVersion}_sdk_${buildTarget}:${tag}"
   dependsOn 'initializeForDataflowJob'
-  dependsOn ":sdks:python:container:py${pyversion}:dockerDistroless"
-  dependsOn ":sdks:python:container:py${pyversion}:dockerPush"
   def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
   def argMap = [
           "output": "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
@@ -408,6 +414,17 @@ task validatesDistrolessContainer() {
           "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
   ]
   def cmdArgs = mapToArgString(argMap)
+  doFirst {
+    exec {
+      workingDir = "${rootDir}/sdks/python/container"
+      executable 'sh'
+      args '-c', "docker build -t ${imageURL} --target=${buildTarget} ."
+    }
+    exec {
+      executable 'sh'
+      args '-c', "docker push ${imageURL}"
+    }
+  }
   doLast {
     exec {
       workingDir = "${rootDir}/sdks/python"
