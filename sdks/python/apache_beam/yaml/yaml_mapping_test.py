@@ -144,7 +144,7 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Validate
+          type: ValidateWithSchema
           config:
             schema:
               type: object

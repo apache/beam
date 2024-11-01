@@ -833,7 +833,7 @@ def create_mapping_providers():
           'Partition-python': _Partition,
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
-          'Validate': _Validate,
+          'ValidateWithSchema': _Validate,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,
