@@ -269,7 +269,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * @return List of local file paths where any GCS paths have been downloaded locally
    * @throws RuntimeException if there are errors copying GCS files locally
    */
-  private List<String> replaceGcsFilesWithLocalFiles(List<String> filesToStage) {
+  private static List<String> replaceGcsFilesWithLocalFiles(List<String> filesToStage) {
     List<String> processedFiles = new ArrayList<>();
     
     for (String fileToStage : filesToStage) {
