@@ -41,6 +41,7 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -180,14 +181,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
-import java.io.FileOutputStream;
 
 /**
  * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
@@ -260,10 +260,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /** Dataflow service endpoints are expected to match this pattern. */
   static final String ENDPOINT_REGEXP = "https://[\\S]*googleapis\\.com[/]?";
 
-
   /**
-   * Replaces GCS file paths with local file paths by downloading the GCS files locally.
-   * This is useful when files need to be accessed locally before being staged to Dataflow.
+   * Replaces GCS file paths with local file paths by downloading the GCS files locally. This is
+   * useful when files need to be accessed locally before being staged to Dataflow.
    *
    * @param filesToStage List of file paths that may contain GCS paths (gs://) and local paths
    * @return List of local file paths where any GCS paths have been downloaded locally
@@ -271,7 +270,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static List<String> replaceGcsFilesWithLocalFiles(List<String> filesToStage) {
     List<String> processedFiles = new ArrayList<>();
-    
+
     for (String fileToStage : filesToStage) {
       String localPath;
       if (fileToStage.contains("=")) {
@@ -279,7 +278,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         String[] components = fileToStage.split("=", 2);
         String stagingName = components[0];
         String filePath = components[1];
-        
+
         if (filePath.startsWith("gs://")) {
           try {
             // Create temp file with exact same name as GCS file
@@ -288,14 +287,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             tempDir.deleteOnExit();
             File tempFile = new File(tempDir, gcsFileName);
             tempFile.deleteOnExit();
-            
+
             // Copy GCS file to local temp file
             ResourceId source = FileSystems.matchNewResource(filePath, false);
             try (ReadableByteChannel reader = FileSystems.open(source);
-                 FileOutputStream writer = new FileOutputStream(tempFile)) {
+                FileOutputStream writer = new FileOutputStream(tempFile)) {
               ByteStreams.copy(Channels.newInputStream(reader), writer);
             }
-            
+
             localPath = stagingName + "=" + tempFile.getAbsolutePath();
           } catch (IOException e) {
             throw new RuntimeException("Failed to copy GCS file locally: " + filePath, e);
@@ -313,14 +312,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             tempDir.deleteOnExit();
             File tempFile = new File(tempDir, gcsFileName);
             tempFile.deleteOnExit();
-            
+
             // Copy GCS file to local temp file
             ResourceId source = FileSystems.matchNewResource(fileToStage, false);
             try (ReadableByteChannel reader = FileSystems.open(source);
-                 FileOutputStream writer = new FileOutputStream(tempFile)) {
+                FileOutputStream writer = new FileOutputStream(tempFile)) {
               ByteStreams.copy(Channels.newInputStream(reader), writer);
             }
-            
+
             localPath = tempFile.getAbsolutePath();
           } catch (IOException e) {
             throw new RuntimeException("Failed to copy GCS file locally: " + fileToStage, e);
@@ -331,7 +330,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       processedFiles.add(localPath);
     }
-    
+
     return processedFiles;
   }
 
@@ -391,7 +390,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (dataflowOptions.getFilesToStage() != null) {
       // Replace GCS file paths with local file paths
-      dataflowOptions.setFilesToStage(replaceGcsFilesWithLocalFiles(dataflowOptions.getFilesToStage()));
+      dataflowOptions.setFilesToStage(
+          replaceGcsFilesWithLocalFiles(dataflowOptions.getFilesToStage()));
       // The user specifically requested these files, so fail now if they do not exist.
       // (automatically detected classpath elements are permitted to not exist, so later
       // staging will not fail on nonexistent files)
@@ -2751,5 +2751,4 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .build();
     }
   }
-
 }
