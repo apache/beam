@@ -26,12 +26,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class WeightedBoundedQueue<V> {
 
   private final LinkedBlockingQueue<V> queue;
-  private final WeightedSemaphore<V> weigher;
+  private final WeightedSemaphore<V> weightedSemaphore;
 
   private WeightedBoundedQueue(
-      LinkedBlockingQueue<V> linkedBlockingQueue, WeightedSemaphore<V> weigher) {
+      LinkedBlockingQueue<V> linkedBlockingQueue, WeightedSemaphore<V> weightedSemaphore) {
     this.queue = linkedBlockingQueue;
-    this.weigher = weigher;
+    this.weightedSemaphore = weightedSemaphore;
   }
 
   public static <V> WeightedBoundedQueue<V> create(WeightedSemaphore<V> weigher) {
@@ -43,15 +43,15 @@ public final class WeightedBoundedQueue<V> {
    * limit.
    */
   public void put(V value) {
-    weigher.acquire(value);
+    weightedSemaphore.acquireUninterruptibly(value);
     queue.add(value);
   }
 
   /** Returns and removes the next value, or null if there is no such value. */
   public @Nullable V poll() {
-    V result = queue.poll();
+    @Nullable V result = queue.poll();
     if (result != null) {
-      weigher.release(result);
+      weightedSemaphore.release(result);
     }
     return result;
   }
@@ -67,24 +67,18 @@ public final class WeightedBoundedQueue<V> {
    * @throws InterruptedException if interrupted while waiting
    */
   public @Nullable V poll(long timeout, TimeUnit unit) throws InterruptedException {
-    V result = queue.poll(timeout, unit);
+    @Nullable V result = queue.poll(timeout, unit);
     if (result != null) {
-      weigher.release(result);
+      weightedSemaphore.release(result);
     }
     return result;
   }
 
   /** Returns and removes the next value, or blocks until one is available. */
-  public @Nullable V take() throws InterruptedException {
+  public V take() throws InterruptedException {
     V result = queue.take();
-    weigher.release(result);
+    weightedSemaphore.release(result);
     return result;
-  }
-
-  /** Returns the current weight of the queue. */
-  @VisibleForTesting
-  int queuedElementsWeight() {
-    return weigher.currentWeight();
   }
 
   @VisibleForTesting

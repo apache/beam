@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int TARGET_COMMIT_BATCH_KEYS = 5;
-  private static final int MAX_QUEUED_COMMITS_BYTES = 500 << 20; // 500MB
   private static final String NO_BACKEND_WORKER_TOKEN = "";
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
@@ -63,9 +62,9 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       int numCommitSenders,
       Consumer<CompleteCommit> onCommitComplete,
       String backendWorkerToken,
-      WeightedSemaphore<Commit> weigher) {
+      WeightedSemaphore<Commit> commitByteSemaphore) {
     this.commitWorkStreamFactory = commitWorkStreamFactory;
-    this.commitQueue = WeightedBoundedQueue.create(weigher);
+    this.commitQueue = WeightedBoundedQueue.create(commitByteSemaphore);
     this.commitSenders =
         Executors.newFixedThreadPool(
             numCommitSenders,
@@ -86,10 +85,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   public static Builder builder() {
     return new AutoBuilder_StreamingEngineWorkCommitter_Builder()
         .setBackendWorkerToken(NO_BACKEND_WORKER_TOKEN)
-        .setWeigher(
-            WeightedSemaphore.create(
-                MAX_QUEUED_COMMITS_BYTES,
-                commit -> Math.min(MAX_QUEUED_COMMITS_BYTES, commit.getSize())))
         .setNumCommitSenders(1);
   }
 
@@ -169,6 +164,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             return;
           }
         }
+
+        // take() blocks until a value is available in the commitQueue.
         Preconditions.checkNotNull(initialCommit);
 
         if (initialCommit.work().isFailed()) {
@@ -261,7 +258,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     Builder setCommitWorkStreamFactory(
         Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory);
 
-    Builder setWeigher(WeightedSemaphore<Commit> weigher);
+    Builder setCommitByteSemaphore(WeightedSemaphore<Commit> commitByteSemaphore);
 
     Builder setNumCommitSenders(int numCommitSenders);
 

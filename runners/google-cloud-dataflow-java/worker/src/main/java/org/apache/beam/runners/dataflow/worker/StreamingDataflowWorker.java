@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commits;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
@@ -119,17 +120,19 @@ public final class StreamingDataflowWorker {
    */
   public static final int MAX_SINK_BYTES = 10_000_000;
 
-  public static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL =
-      "streaming_engine_use_job_settings_for_heartbeat_pool";
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
+
   /**
    * Maximum number of threads for processing. Currently, each thread processes one key at a time.
    */
   private static final int MAX_PROCESSING_THREADS = 300;
+
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator ID_GENERATOR = IdGenerators.decrementingLongs();
+
   /** Maximum size of the result of a GetWork request. */
   private static final long MAX_GET_WORK_FETCH_BYTES = 64L << 20; // 64m
+
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
 
@@ -197,6 +200,7 @@ public final class StreamingDataflowWorker {
     this.workCommitter =
         windmillServiceEnabled
             ? StreamingEngineWorkCommitter.builder()
+                .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
                 .setCommitWorkStreamFactory(
                     WindmillStreamPool.create(
                             numCommitThreads,

@@ -35,11 +35,11 @@ public final class WeightedSemaphore<V> {
     return new WeightedSemaphore<>(maxWeight, new Semaphore(maxWeight, true), weigherFn);
   }
 
-  void acquire(V value) {
+  public void acquireUninterruptibly(V value) {
     limit.acquireUninterruptibly(weigher.apply(value));
   }
 
-  void release(V value) {
+  public void release(V value) {
     limit.release(weigher.apply(value));
   }
 
