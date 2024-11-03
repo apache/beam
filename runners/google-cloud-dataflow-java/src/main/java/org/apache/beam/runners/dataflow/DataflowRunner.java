@@ -288,7 +288,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             File tempFile = new File(tempDir, gcsFileName);
             tempFile.deleteOnExit();
 
-            LOG.info("Downloading GCS file {} to local temp file {}", filePath, tempFile.getAbsolutePath());
+            LOG.info(
+                "Downloading GCS file {} to local temp file {}",
+                filePath,
+                tempFile.getAbsolutePath());
 
             // Copy GCS file to local temp file
             ResourceId source = FileSystems.matchNewResource(filePath, false);
@@ -316,7 +319,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             File tempFile = new File(tempDir, gcsFileName);
             tempFile.deleteOnExit();
 
-            LOG.info("Downloading GCS file {} to local temp file {}", fileToStage, tempFile.getAbsolutePath());
+            LOG.info(
+                "Downloading GCS file {} to local temp file {}",
+                fileToStage,
+                tempFile.getAbsolutePath());
 
             // Copy GCS file to local temp file
             ResourceId source = FileSystems.matchNewResource(fileToStage, false);
