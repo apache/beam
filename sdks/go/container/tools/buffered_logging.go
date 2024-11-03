@@ -104,3 +104,8 @@ func (b *BufferedLogger) Printf(ctx context.Context, format string, args ...any)
 	}
 	b.logger.Printf(ctx, format, args...)
 }
+
+// Retrieves the logger object field
+func (b *BufferedLogger) GetLogger() *Logger {
+	return b.logger
+}
