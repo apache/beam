@@ -288,6 +288,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             File tempFile = new File(tempDir, gcsFileName);
             tempFile.deleteOnExit();
 
+            LOG.info("Downloading GCS file {} to local temp file {}", filePath, tempFile.getAbsolutePath());
+
             // Copy GCS file to local temp file
             ResourceId source = FileSystems.matchNewResource(filePath, false);
             try (ReadableByteChannel reader = FileSystems.open(source);
@@ -296,6 +298,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             }
 
             localPath = stagingName + "=" + tempFile.getAbsolutePath();
+            LOG.info("Replaced GCS path {} with local path {}", fileToStage, localPath);
           } catch (IOException e) {
             throw new RuntimeException("Failed to copy GCS file locally: " + filePath, e);
           }
@@ -313,6 +316,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             File tempFile = new File(tempDir, gcsFileName);
             tempFile.deleteOnExit();
 
+            LOG.info("Downloading GCS file {} to local temp file {}", fileToStage, tempFile.getAbsolutePath());
+
             // Copy GCS file to local temp file
             ResourceId source = FileSystems.matchNewResource(fileToStage, false);
             try (ReadableByteChannel reader = FileSystems.open(source);
@@ -321,6 +326,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             }
 
             localPath = tempFile.getAbsolutePath();
+            LOG.info("Replaced GCS path {} with local path {}", fileToStage, localPath);
           } catch (IOException e) {
             throw new RuntimeException("Failed to copy GCS file locally: " + fileToStage, e);
           }
