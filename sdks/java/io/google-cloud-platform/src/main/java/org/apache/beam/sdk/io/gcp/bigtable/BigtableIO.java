@@ -2360,8 +2360,8 @@ public class BigtableIO {
      * requests.
      *
      * <p>This is useful to override the default of 15s timeout if the checkpoint duration is longer
-     * than 15s. Setting this value to longer than periodic checkpoint duration ensures that
-     * ReadChangeStream will stream until the next checkpoint is initiated.
+     * than 15s. Setting this value to longer (to add some padding) than periodic checkpoint
+     * duration ensures that ReadChangeStream will stream until the next checkpoint is initiated.
      *
      * <p>Optional: defaults to 15 seconds.
      *
