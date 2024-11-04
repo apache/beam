@@ -115,6 +115,8 @@ To run a Gradle task, use the command `./gradlew -p <PROJECT_PATH> <TASK>` or th
 ./gradlew :sdks:java:harness:test
 ```
 
+**It is recommended to run `./gradlew clean` if you run into some strange errors such as `java.lang.NoClassDefFoundError`.**
+
 #### Beam-specific Gradle project configuration
 
 For Apache Beam, one plugin manages everything: `buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin`.
@@ -145,7 +147,7 @@ in the Google Cloud documentation.
 
 Depending on the languages involved, your `PATH` file needs to have the following elements configured.
 
-* A Java environment that uses a supported Java version, preferably Java 8.
+* A Java environment that uses a supported Java version, preferably Java 11.
   * This environment is needed for all development, because Beam is a Gradle project that uses JVM.
   * Recommended: To manage Java versions, use [sdkman](https://sdkman.io/install).
 
