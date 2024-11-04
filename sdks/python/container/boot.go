@@ -73,8 +73,6 @@ const (
 	workerPoolIdEnv   = "BEAM_PYTHON_WORKER_POOL_ID"
 
 	standardArtifactFileTypeUrn = "beam:artifact:type:file:v1"
-
-	loggerFlushInterval time.Duration = 15 * time.Second
 )
 
 func main() {
@@ -280,8 +278,7 @@ func launchSDKProcess() error {
 		go func(workerId string) {
 			defer wg.Done()
 
-			bufLogger := tools.NewBufferedLoggerWithFlushInterval(context.Background(), logger, loggerFlushInterval)
-			errorCount := 0
+			bufLogger := tools.NewBufferedLogger(logger)
 			for {
 				childPids.mu.Lock()
 				if childPids.canceled {
