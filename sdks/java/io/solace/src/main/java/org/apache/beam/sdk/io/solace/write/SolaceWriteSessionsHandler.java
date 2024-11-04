@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.solace.SolaceIO.DEFAULT_WRITER_CLIENTS_PER_
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
@@ -39,15 +40,17 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
  * than one, each {@link SessionServiceFactory} instance keeps their own pool of producers.
  */
 final class SolaceWriteSessionsHandler {
+
   private static final ConcurrentHashMap<SessionConfigurationIndex, SessionService> sessionsMap =
       new ConcurrentHashMap<>(DEFAULT_WRITER_CLIENTS_PER_WORKER);
 
-  public static SessionService getSessionService(
-      int producerIndex, SessionServiceFactory sessionServiceFactory) {
+  public static SessionService getSessionServiceWithProducer(
+      int producerIndex, SessionServiceFactory sessionServiceFactory, UUID writerTransformUuid) {
     SessionConfigurationIndex key =
         SessionConfigurationIndex.builder()
             .producerIndex(producerIndex)
             .sessionServiceFactory(sessionServiceFactory)
+            .writerTransformUuid(writerTransformUuid)
             .build();
     return sessionsMap.computeIfAbsent(
         key, SolaceWriteSessionsHandler::createSessionAndStartProducer);
@@ -61,17 +64,19 @@ final class SolaceWriteSessionsHandler {
     checkStateNotNull(
         mode,
         "SolaceIO.Write: Submission mode is not set. You need to set it to create write sessions.");
-    sessionService.getProducer(mode);
+    sessionService.getInitializeProducer(mode);
     return sessionService;
   }
 
   /** Disconnect all the sessions from Solace, and clear the corresponding state. */
-  public static void disconnectFromSolace(SessionServiceFactory factory, int producersCardinality) {
+  public static void disconnectFromSolace(
+      SessionServiceFactory factory, int producersCardinality, UUID writerTransformUuid) {
     for (int i = 0; i < producersCardinality; i++) {
       SessionConfigurationIndex key =
           SessionConfigurationIndex.builder()
               .producerIndex(i)
               .sessionServiceFactory(factory)
+              .writerTransformUuid(writerTransformUuid)
               .build();
 
       SessionService sessionService = sessionsMap.remove(key);
@@ -87,6 +92,8 @@ final class SolaceWriteSessionsHandler {
 
     abstract SessionServiceFactory sessionServiceFactory();
 
+    abstract UUID writerTransformUuid();
+
     static Builder builder() {
       return new AutoValue_SolaceWriteSessionsHandler_SessionConfigurationIndex.Builder();
     }
@@ -96,6 +103,8 @@ final class SolaceWriteSessionsHandler {
       abstract Builder producerIndex(int producerIndex);
 
       abstract Builder sessionServiceFactory(SessionServiceFactory sessionServiceFactory);
+
+      abstract Builder writerTransformUuid(UUID writerTransformUuid);
 
       abstract SessionConfigurationIndex build();
     }

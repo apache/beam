@@ -69,7 +69,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
       Metrics.counter(UnboundedBatchedSolaceWriter.class, "msgs_sent_to_broker");
 
   private final Counter batchesRejectedByBroker =
-      Metrics.counter(UnboundedBatchedSolaceWriter.class, "batches_rejected");
+      Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
   // State variables are never explicitly "used"
   @SuppressWarnings("UnusedVariable")
@@ -142,8 +142,8 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   private void publishBatch(List<Solace.Record> records) {
     try {
       int entriesPublished =
-          solaceSessionService()
-              .getProducer(getSubmissionMode())
+          solaceSessionServiceWithProducer()
+              .getInitializeProducer(getSubmissionMode())
               .publishBatch(
                   records, shouldPublishLatencyMetrics(), getDestinationFn(), getDeliveryMode());
       sentToBroker.inc(entriesPublished);
@@ -159,7 +159,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
                       e.getMessage()))
               .setLatencyNanos(System.nanoTime())
               .build();
-      PublishResultsReceiver.addResult(errorPublish);
+      solaceSessionServiceWithProducer().getPublishResultsReceiver().addResult(errorPublish);
     }
   }
 }

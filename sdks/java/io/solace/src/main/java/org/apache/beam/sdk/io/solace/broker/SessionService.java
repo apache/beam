@@ -21,6 +21,7 @@ import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,7 +138,15 @@ public abstract class SessionService implements Serializable {
    * this method is used, the producer is created from the session instance, otherwise it returns
    * the producer created initially.
    */
-  public abstract MessageProducer getProducer(SubmissionMode mode);
+  public abstract MessageProducer getInitializeProducer(SubmissionMode mode);
+
+  /**
+   * Returns the {@link PublishResultsReceiver} instance associated with this session.
+   *
+   * <p>The {@link PublishResultsReceiver} handles asynchronous callbacks from Solace, providing
+   * results for message publications.
+   */
+  public abstract PublishResultsReceiver getPublishResultsReceiver();
 
   /**
    * Override this method and provide your specific properties, including all those related to

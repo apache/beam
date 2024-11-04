@@ -30,14 +30,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 public final class PublishResultsReceiver {
-  private static final ConcurrentLinkedQueue<PublishResult> resultsQueue =
-      new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<PublishResult> resultsQueue = new ConcurrentLinkedQueue<>();
 
-  public static @Nullable PublishResult pollResults() {
+  public @Nullable PublishResult pollResults() {
     return resultsQueue.poll();
   }
 
-  public static boolean addResult(PublishResult result) {
+  public boolean addResult(PublishResult result) {
     return resultsQueue.add(result);
   }
 }

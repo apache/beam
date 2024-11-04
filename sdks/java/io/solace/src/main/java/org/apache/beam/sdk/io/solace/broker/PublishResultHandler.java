@@ -22,6 +22,9 @@ import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
+import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +41,13 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
+  private final PublishResultsReceiver publishResultsReceiver;
+  private final Counter batchesRejectedByBroker =
+      Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
+
+  public PublishResultHandler(PublishResultsReceiver publishResultsReceiver) {
+    this.publishResultsReceiver = publishResultsReceiver;
+  }
 
   @Override
   public void handleErrorEx(Object key, JCSMPException cause, long timestamp) {
@@ -64,6 +74,7 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
 
     resultBuilder = resultBuilder.setMessageId(messageId).setPublished(isPublished);
     if (!isPublished) {
+      batchesRejectedByBroker.inc();
       if (cause != null) {
         resultBuilder = resultBuilder.setError(cause.getMessage());
       } else {
@@ -78,7 +89,7 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     PublishResult publishResult = resultBuilder.build();
     // Static reference, it receives all callbacks from all publications
     // from all threads
-    PublishResultsReceiver.addResult(publishResult);
+    publishResultsReceiver.addResult(publishResult);
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {

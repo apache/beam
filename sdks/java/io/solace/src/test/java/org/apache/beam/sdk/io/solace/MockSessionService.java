@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -44,6 +45,8 @@ public abstract class MockSessionService extends SessionService {
   public abstract int minMessagesReceived();
 
   public abstract @Nullable SubmissionMode mode();
+
+  private final PublishResultsReceiver publishResultsReceiver = new PublishResultsReceiver();
 
   public static Builder builder() {
     return new AutoValue_MockSessionService.Builder().minMessagesReceived(0);
@@ -81,11 +84,16 @@ public abstract class MockSessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getProducer(SubmissionMode mode) {
+  public MessageProducer getInitializeProducer(SubmissionMode mode) {
     if (messageProducer == null) {
-      messageProducer = new MockProducer(new PublishResultHandler());
+      messageProducer = new MockProducer(new PublishResultHandler(publishResultsReceiver));
     }
     return messageProducer;
+  }
+
+  @Override
+  public PublishResultsReceiver getPublishResultsReceiver() {
+    return publishResultsReceiver;
   }
 
   @Override

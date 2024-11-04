@@ -36,6 +36,7 @@ import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
@@ -46,6 +47,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  */
 @AutoValue
 public abstract class BasicAuthJcsmpSessionService extends SessionService {
+
   /** The name of the queue to receive messages from. */
   public abstract @Nullable String queueName();
 
@@ -83,6 +85,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   @Nullable private transient JCSMPSession jcsmpSession;
   @Nullable private transient MessageReceiver messageReceiver;
   @Nullable private transient MessageProducer messageProducer;
+  private final PublishResultsReceiver publishResultsReceiver = new PublishResultsReceiver();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   @Override
@@ -119,7 +122,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getProducer(SubmissionMode submissionMode) {
+  public MessageProducer getInitializeProducer(SubmissionMode submissionMode) {
     if (this.messageProducer == null || this.messageProducer.isClosed()) {
       Callable<MessageProducer> create = () -> createXMLMessageProducer(submissionMode);
       this.messageProducer =
@@ -129,19 +132,27 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
+  public PublishResultsReceiver getPublishResultsReceiver() {
+    return publishResultsReceiver;
+  }
+
+  @Override
   public boolean isClosed() {
     return jcsmpSession == null || jcsmpSession.isClosed();
   }
 
   private MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
       throws JCSMPException, IOException {
+
     if (isClosed()) {
       connectWriteSession(submissionMode);
     }
 
     @SuppressWarnings("nullness")
     Callable<XMLMessageProducer> initProducer =
-        () -> Objects.requireNonNull(jcsmpSession).getMessageProducer(new PublishResultHandler());
+        () ->
+            Objects.requireNonNull(jcsmpSession)
+                .getMessageProducer(new PublishResultHandler(publishResultsReceiver));
 
     XMLMessageProducer producer =
         retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
+import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
 
 @AutoValue
 public abstract class MockEmptySessionService extends SessionService {
@@ -49,7 +50,12 @@ public abstract class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getProducer(SubmissionMode mode) {
+  public MessageProducer getInitializeProducer(SubmissionMode mode) {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
+  public PublishResultsReceiver getPublishResultsReceiver() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 

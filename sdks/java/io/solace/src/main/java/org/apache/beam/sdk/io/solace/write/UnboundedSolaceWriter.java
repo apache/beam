@@ -27,6 +27,7 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
@@ -80,6 +81,8 @@ public abstract class UnboundedSolaceWriter
   private @Nullable Instant bundleTimestamp;
   private @Nullable BoundedWindow bundleWindow;
 
+  final UUID writerTransformUuid = UUID.randomUUID();
+
   public UnboundedSolaceWriter(
       SerializableFunction<Solace.Record, Destination> destinationFn,
       SessionServiceFactory sessionServiceFactory,
@@ -101,7 +104,8 @@ public abstract class UnboundedSolaceWriter
 
   @Teardown
   public void teardown() {
-    SolaceWriteSessionsHandler.disconnectFromSolace(sessionServiceFactory, producersMapCardinality);
+    SolaceWriteSessionsHandler.disconnectFromSolace(
+        sessionServiceFactory, producersMapCardinality, writerTransformUuid);
   }
 
   public void updateProducerIndex() {
@@ -115,9 +119,9 @@ public abstract class UnboundedSolaceWriter
     batchToEmit.clear();
   }
 
-  public SessionService solaceSessionService() {
-    return SolaceWriteSessionsHandler.getSessionService(
-        currentBundleProducerIndex, sessionServiceFactory);
+  public SessionService solaceSessionServiceWithProducer() {
+    return SolaceWriteSessionsHandler.getSessionServiceWithProducer(
+        currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
   }
 
   public void publishResults(BeamContextWrapper context) {
@@ -131,7 +135,9 @@ public abstract class UnboundedSolaceWriter
     long minFailed = Long.MAX_VALUE;
     long maxFailed = 0;
 
-    Solace.PublishResult result = PublishResultsReceiver.pollResults();
+    PublishResultsReceiver publishResultsReceiver =
+        solaceSessionServiceWithProducer().getPublishResultsReceiver();
+    Solace.PublishResult result = publishResultsReceiver.pollResults();
 
     if (result != null) {
       if (getCurrentBundleTimestamp() == null) {
@@ -174,7 +180,7 @@ public abstract class UnboundedSolaceWriter
             FAILED_PUBLISH_TAG, result, getCurrentBundleTimestamp(), getCurrentBundleWindow());
       }
 
-      result = PublishResultsReceiver.pollResults();
+      result = publishResultsReceiver.pollResults();
     }
 
     if (shouldPublishLatencyMetrics()) {
