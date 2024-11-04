@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
@@ -74,6 +75,7 @@ public abstract class UnboundedSolaceWriter
   private final SubmissionMode submissionMode;
   private final int producersMapCardinality;
   private final boolean publishLatencyMetrics;
+  public static final AtomicInteger bundleProducerIndexCounter = new AtomicInteger();
   private int currentBundleProducerIndex = 0;
 
   private final List<Solace.Record> batchToEmit;
@@ -109,7 +111,8 @@ public abstract class UnboundedSolaceWriter
   }
 
   public void updateProducerIndex() {
-    currentBundleProducerIndex = (int) (Math.random() * producersMapCardinality);
+    currentBundleProducerIndex =
+        bundleProducerIndexCounter.getAndIncrement() % producersMapCardinality;
   }
 
   @StartBundle
