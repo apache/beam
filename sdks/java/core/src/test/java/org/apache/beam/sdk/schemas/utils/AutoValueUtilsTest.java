@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.junit.Assert.assertEquals;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.util.Map;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
@@ -55,6 +56,56 @@ public class AutoValueUtilsTest {
 
       public abstract GenericAutoValue<T, NumberT> build();
     }
+  }
+
+  @AutoValue
+  public abstract static class GenericAutoValueMemoized<T> {
+    public abstract T getT();
+
+    @Memoized
+    public String getTString() {
+      return getT().toString() + "Memoized";
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder<T> {
+      public abstract Builder<T> setT(T t);
+
+      public abstract GenericAutoValueMemoized<T> build();
+    }
+  }
+
+  @Test
+  public void testGetBaseAutoValueGenericMemoized() throws Exception {
+    TypeDescriptor<?> actual =
+        AutoValueUtils.getBaseAutoValueClass(
+            new TypeDescriptor<
+                AutoValue_AutoValueUtilsTest_GenericAutoValueMemoized<Map<String, String>>>() {});
+
+    assertEquals(new TypeDescriptor<GenericAutoValueMemoized<Map<String, String>>>() {}, actual);
+  }
+
+  @Test
+  public void testGetAutoValueGeneratedGenericMemoized() throws Exception {
+    TypeDescriptor<?> actual =
+        AutoValueUtils.getAutoValueGenerated(
+            new TypeDescriptor<GenericAutoValueMemoized<Map<String, String>>>() {});
+    assertEquals(
+        new TypeDescriptor<
+            AutoValue_AutoValueUtilsTest_GenericAutoValueMemoized<Map<String, String>>>() {},
+        actual);
+  }
+
+  @Test
+  public void testGetAutoValueGeneratedBuilderGenericMemoized() throws Exception {
+    TypeDescriptor<?> actual =
+        AutoValueUtils.getAutoValueGeneratedBuilder(
+            new TypeDescriptor<GenericAutoValueMemoized<Map<String, String>>>() {});
+    assertEquals(
+        new TypeDescriptor<
+            AutoValue_AutoValueUtilsTest_GenericAutoValueMemoized.Builder<
+                Map<String, String>>>() {},
+        actual);
   }
 
   @Test
