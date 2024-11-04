@@ -30,10 +30,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
     "2102": "2.10.2",
     "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
