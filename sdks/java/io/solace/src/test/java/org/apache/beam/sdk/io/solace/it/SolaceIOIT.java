@@ -183,7 +183,7 @@ public class SolaceIOIT {
                 .withWriterType(writerType)
                 .withDeliveryMode(DeliveryMode.PERSISTENT)
                 .withNumberOfClientsPerWorker(1)
-                .withMaxNumOfUsedWorkers(1)
+                .withNumShards(1)
                 .withSessionServiceFactory(
                     BasicAuthJcsmpSessionServiceFactory.builder()
                         .host("localhost:" + solaceContainerManager.jcsmpPortMapped)

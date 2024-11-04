@@ -252,7 +252,7 @@ import org.slf4j.LoggerFactory;
  * default VPN name by setting the required JCSMP property in the session factory (in this case,
  * with {@link BasicAuthJcsmpSessionServiceFactory#vpnName()}), the number of clients per worker
  * with {@link Write#withNumberOfClientsPerWorker(int)} and the number of parallel write clients
- * using {@link Write#withMaxNumOfUsedWorkers(int)}.
+ * using {@link Write#withNumShards(int)}.
  *
  * <h3>Writing to dynamic destinations</h3>
  *
@@ -414,7 +414,7 @@ public class SolaceIO {
   private static final boolean DEFAULT_DEDUPLICATE_RECORDS = false;
   private static final Duration DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD =
       Duration.standardSeconds(30);
-  public static final int DEFAULT_WRITER_MAX_NUMBER_OF_WORKERS = 20;
+  public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
   public static final int DEFAULT_WRITER_CLIENTS_PER_WORKER = 4;
   public static final Boolean DEFAULT_WRITER_PUBLISH_LATENCY_METRICS = false;
   public static final SubmissionMode DEFAULT_WRITER_SUBMISSION_MODE =
@@ -886,8 +886,8 @@ public class SolaceIO {
      * cluster, and the need for performance when writing to Solace (more workers will achieve
      * higher throughput).
      */
-    public Write<T> withMaxNumOfUsedWorkers(int maxNumOfUsedWorkers) {
-      return toBuilder().setMaxNumOfUsedWorkers(maxNumOfUsedWorkers).build();
+    public Write<T> withNumShards(int numShards) {
+      return toBuilder().setNumShards(numShards).build();
     }
 
     /**
@@ -900,7 +900,7 @@ public class SolaceIO {
      * the number of clients created per VM. The clients will be re-used across different threads in
      * the same worker.
      *
-     * <p>Set this number in combination with {@link #withMaxNumOfUsedWorkers}, to ensure that the
+     * <p>Set this number in combination with {@link #withNumShards}, to ensure that the
      * limit for number of clients in your Solace cluster is not exceeded.
      *
      * <p>Normally, using a higher number of clients with fewer workers will achieve better
@@ -998,7 +998,7 @@ public class SolaceIO {
       return toBuilder().setSessionServiceFactory(factory).build();
     }
 
-    abstract int getMaxNumOfUsedWorkers();
+    abstract int getNumShards();
 
     abstract int getNumberOfClientsPerWorker();
 
@@ -1019,7 +1019,7 @@ public class SolaceIO {
     static <T> Builder<T> builder() {
       return new AutoValue_SolaceIO_Write.Builder<T>()
           .setDeliveryMode(DEFAULT_WRITER_DELIVERY_MODE)
-          .setMaxNumOfUsedWorkers(DEFAULT_WRITER_MAX_NUMBER_OF_WORKERS)
+          .setNumShards(DEFAULT_WRITER_NUM_SHARDS)
           .setNumberOfClientsPerWorker(DEFAULT_WRITER_CLIENTS_PER_WORKER)
           .setPublishLatencyMetrics(DEFAULT_WRITER_PUBLISH_LATENCY_METRICS)
           .setDispatchMode(DEFAULT_WRITER_SUBMISSION_MODE)
@@ -1030,7 +1030,7 @@ public class SolaceIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setMaxNumOfUsedWorkers(int maxNumOfUsedWorkers);
+      abstract Builder<T> setNumShards(int numShards);
 
       abstract Builder<T> setNumberOfClientsPerWorker(int numberOfClientsPerWorker);
 
@@ -1093,7 +1093,7 @@ public class SolaceIO {
 
       PCollection<KV<Integer, Solace.Record>> withShardKeys =
           withGlobalWindow.apply(
-              "Add shard key", ParDo.of(new AddShardKeyDoFn(getMaxNumOfUsedWorkers())));
+              "Add shard key", ParDo.of(new AddShardKeyDoFn(getNumShards())));
 
       String label =
           getWriterType() == WriterType.STREAMING ? "Publish (streaming)" : "Publish (batched)";
@@ -1199,7 +1199,7 @@ public class SolaceIO {
       }
 
       checkArgument(
-          getMaxNumOfUsedWorkers() > 0,
+          getNumShards() > 0,
           "SolaceIO.Write: The number of used workers must be positive.");
       checkArgument(
           getNumberOfClientsPerWorker() > 0,
