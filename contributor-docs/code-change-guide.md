@@ -115,8 +115,6 @@ To run a Gradle task, use the command `./gradlew -p <PROJECT_PATH> <TASK>` or th
 ./gradlew :sdks:java:harness:test
 ```
 
-**It is recommended to run `./gradlew clean` if you run into some strange errors such as `java.lang.NoClassDefFoundError`.**
-
 #### Beam-specific Gradle project configuration
 
 For Apache Beam, one plugin manages everything: `buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin`.
@@ -625,6 +623,11 @@ Tips for using the Dataflow runner:
 <!-- # Cross-language Guide -->
 
 ## Appendix
+
+### Common Issues
+
+* If you run into some strange errors such as `java.lang.NoClassDefFoundError`, run `./gradlew clean` first
+* To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
 ### Directories of snapshot builds
 
