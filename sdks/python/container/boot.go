@@ -279,6 +279,7 @@ func launchSDKProcess() error {
 			defer wg.Done()
 
 			bufLogger := tools.NewBufferedLogger(logger)
+			errorCount := 0
 			for {
 				childPids.mu.Lock()
 				if childPids.canceled {
