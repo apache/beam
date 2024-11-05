@@ -81,7 +81,6 @@ public abstract class UnboundedSolaceWriter
   private final List<Solace.Record> batchToEmit;
 
   private @Nullable Instant bundleTimestamp;
-  private @Nullable BoundedWindow bundleWindow;
 
   final UUID writerTransformUuid = UUID.randomUUID();
 
@@ -146,10 +145,6 @@ public abstract class UnboundedSolaceWriter
       if (getCurrentBundleTimestamp() == null) {
         setCurrentBundleTimestamp(Instant.now());
       }
-
-      if (getCurrentBundleWindow() == null) {
-        setCurrentBundleWindow(GlobalWindow.INSTANCE);
-      }
     }
 
     while (result != null) {
@@ -177,10 +172,10 @@ public abstract class UnboundedSolaceWriter
 
       if (result.getPublished()) {
         context.output(
-            SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), getCurrentBundleWindow());
+            SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
       } else {
         context.output(
-            FAILED_PUBLISH_TAG, result, getCurrentBundleTimestamp(), getCurrentBundleWindow());
+            FAILED_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
       }
 
       result = publishResultsReceiver.pollResults();
@@ -307,18 +302,10 @@ public abstract class UnboundedSolaceWriter
     return bundleTimestamp;
   }
 
-  public @Nullable BoundedWindow getCurrentBundleWindow() {
-    return bundleWindow;
-  }
-
   public void setCurrentBundleTimestamp(Instant bundleTimestamp) {
     if (this.bundleTimestamp == null || bundleTimestamp.isBefore(this.bundleTimestamp)) {
       this.bundleTimestamp = bundleTimestamp;
     }
-  }
-
-  public void setCurrentBundleWindow(BoundedWindow bundleWindow) {
-    this.bundleWindow = bundleWindow;
   }
 
   /**

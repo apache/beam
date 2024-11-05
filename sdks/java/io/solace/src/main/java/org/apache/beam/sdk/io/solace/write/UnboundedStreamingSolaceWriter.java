@@ -29,7 +29,6 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -89,11 +88,9 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
   public void processElement(
       @Element KV<Integer, Solace.Record> element,
       @Timestamp Instant timestamp,
-      @AlwaysFetched @StateId("current_key") ValueState<Integer> currentKeyState,
-      BoundedWindow window) {
+      @AlwaysFetched @StateId("current_key") ValueState<Integer> currentKeyState) {
 
     setCurrentBundleTimestamp(timestamp);
-    setCurrentBundleWindow(window);
 
     Integer currentKey = currentKeyState.read();
     Integer elementKey = element.getKey();

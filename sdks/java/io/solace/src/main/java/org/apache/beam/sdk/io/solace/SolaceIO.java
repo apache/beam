@@ -42,7 +42,6 @@ import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
 import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
-import org.apache.beam.sdk.io.solace.write.RecordToPublishResultDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
 import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -62,7 +60,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -900,8 +897,8 @@ public class SolaceIO {
      * the number of clients created per VM. The clients will be re-used across different threads in
      * the same worker.
      *
-     * <p>Set this number in combination with {@link #withNumShards}, to ensure that the
-     * limit for number of clients in your Solace cluster is not exceeded.
+     * <p>Set this number in combination with {@link #withNumShards}, to ensure that the limit for
+     * number of clients in your Solace cluster is not exceeded.
      *
      * <p>Normally, using a higher number of clients with fewer workers will achieve better
      * throughput at a lower cost, since the workers are better utilized. A good rule of thumb to
@@ -1079,21 +1076,11 @@ public class SolaceIO {
                   MapElements.into(TypeDescriptor.of(Solace.Record.class))
                       .via(checkNotNull(getFormatFunction())));
 
-      // Store the current window used by the input
-      PCollection<Solace.PublishResult> captureWindow =
-          records.apply("Capture window", ParDo.of(new RecordToPublishResultDoFn()));
-
-      @SuppressWarnings("unchecked")
-      WindowingStrategy<Solace.PublishResult, BoundedWindow> windowingStrategy =
-          (WindowingStrategy<Solace.PublishResult, BoundedWindow>)
-              captureWindow.getWindowingStrategy();
-
       PCollection<Solace.Record> withGlobalWindow =
           records.apply("Global window", Window.into(new GlobalWindows()));
 
       PCollection<KV<Integer, Solace.Record>> withShardKeys =
-          withGlobalWindow.apply(
-              "Add shard key", ParDo.of(new AddShardKeyDoFn(getNumShards())));
+          withGlobalWindow.apply("Add shard key", ParDo.of(new AddShardKeyDoFn(getNumShards())));
 
       String label =
           getWriterType() == WriterType.STREAMING ? "Publish (streaming)" : "Publish (batched)";
@@ -1105,10 +1092,7 @@ public class SolaceIO {
         PCollection<Solace.PublishResult> failedPublish = solaceOutput.get(FAILED_PUBLISH_TAG);
         PCollection<Solace.PublishResult> successfulPublish =
             solaceOutput.get(SUCCESSFUL_PUBLISH_TAG);
-        output =
-            rewindow(
-                SolaceOutput.in(input.getPipeline(), failedPublish, successfulPublish),
-                windowingStrategy);
+        output = SolaceOutput.in(input.getPipeline(), failedPublish, successfulPublish);
       } else {
         LOG.info(
             "Solace.Write: omitting writer output because delivery mode is {}", getDeliveryMode());
@@ -1142,51 +1126,6 @@ public class SolaceIO {
       return writer.withOutputTags(FAILED_PUBLISH_TAG, TupleTagList.of(SUCCESSFUL_PUBLISH_TAG));
     }
 
-    private SolaceOutput rewindow(
-        SolaceOutput solacePublishResult,
-        WindowingStrategy<Solace.PublishResult, BoundedWindow> strategy) {
-      PCollection<Solace.PublishResult> correct = solacePublishResult.getSuccessfulPublish();
-      PCollection<Solace.PublishResult> failed = solacePublishResult.getFailedPublish();
-
-      PCollection<Solace.PublishResult> correctWithWindow = null;
-      PCollection<Solace.PublishResult> failedWithWindow = null;
-
-      if (correct != null) {
-        correctWithWindow = applyOriginalWindow(correct, strategy, "Rewindow correct");
-      }
-
-      if (failed != null) {
-        failedWithWindow = applyOriginalWindow(failed, strategy, "Rewindow failed");
-      }
-
-      return SolaceOutput.in(
-          solacePublishResult.getPipeline(), failedWithWindow, correctWithWindow);
-    }
-
-    private static PCollection<Solace.PublishResult> applyOriginalWindow(
-        PCollection<Solace.PublishResult> pcoll,
-        WindowingStrategy<Solace.PublishResult, BoundedWindow> strategy,
-        String label) {
-      Window<Solace.PublishResult> originalWindow = captureWindowDetails(strategy);
-
-      if (strategy.getMode() == WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES) {
-        originalWindow = originalWindow.accumulatingFiredPanes();
-      } else {
-        originalWindow = originalWindow.discardingFiredPanes();
-      }
-
-      return pcoll.apply(label, originalWindow);
-    }
-
-    private static Window<Solace.PublishResult> captureWindowDetails(
-        WindowingStrategy<Solace.PublishResult, BoundedWindow> strategy) {
-      return Window.<Solace.PublishResult>into(strategy.getWindowFn())
-          .withAllowedLateness(strategy.getAllowedLateness())
-          .withOnTimeBehavior(strategy.getOnTimeBehavior())
-          .withTimestampCombiner(strategy.getTimestampCombiner())
-          .triggering(strategy.getTrigger());
-    }
-
     /**
      * Called before running the Pipeline to verify this transform is fully and correctly specified.
      */
@@ -1199,8 +1138,7 @@ public class SolaceIO {
       }
 
       checkArgument(
-          getNumShards() > 0,
-          "SolaceIO.Write: The number of used workers must be positive.");
+          getNumShards() > 0, "SolaceIO.Write: The number of used workers must be positive.");
       checkArgument(
           getNumberOfClientsPerWorker() > 0,
           "SolaceIO.Write: The number of clients per worker must be positive.");

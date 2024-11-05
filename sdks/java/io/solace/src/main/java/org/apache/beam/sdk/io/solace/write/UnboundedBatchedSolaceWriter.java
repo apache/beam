@@ -31,7 +31,6 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -97,11 +96,9 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   public void processElement(
       @Element KV<Integer, Solace.Record> element,
       @TimerId("bundle_flusher") Timer bundleFlusherTimer,
-      @Timestamp Instant timestamp,
-      BoundedWindow window) {
+      @Timestamp Instant timestamp) {
 
     setCurrentBundleTimestamp(timestamp);
-    setCurrentBundleWindow(window);
 
     Solace.Record record = element.getValue();
 
