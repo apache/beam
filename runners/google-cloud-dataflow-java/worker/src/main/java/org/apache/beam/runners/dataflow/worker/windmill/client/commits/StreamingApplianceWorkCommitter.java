@@ -27,7 +27,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
-import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -43,7 +42,6 @@ import org.slf4j.LoggerFactory;
 public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingApplianceWorkCommitter.class);
   private static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
-  private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
 
   private final Consumer<CommitWorkRequest> commitWorkFn;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -54,11 +52,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private StreamingApplianceWorkCommitter(
       Consumer<CommitWorkRequest> commitWorkFn, Consumer<CompleteCommit> onCommitComplete) {
     this.commitWorkFn = commitWorkFn;
-    this.commitQueue =
-        WeightedBoundedQueue.create(
-            WeightedSemaphore.create(
-                MAX_COMMIT_QUEUE_BYTES,
-                commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize())));
+    this.commitQueue = WeightedBoundedQueue.create(Commits.maxCommitByteSemaphore());
     this.commitWorkers =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()

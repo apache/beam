@@ -227,7 +227,6 @@ public class WeightBoundedQueueTest {
     Thread.sleep(100);
     assertEquals(MAX_WEIGHT, weigher.currentWeight());
     assertEquals(1, queue1.size());
-    assertEquals(MAX_WEIGHT, weigher.currentWeight());
     assertEquals(0, queue2.size());
 
     // Poll queue1, pulling off the only value inside and freeing up the capacity in the weigher.
@@ -238,5 +237,8 @@ public class WeightBoundedQueueTest {
 
     assertEquals(MAX_WEIGHT, weigher.currentWeight());
     assertEquals(1, queue2.size());
+    queue2.poll();
+    assertEquals(0, queue2.size());
+    assertEquals(0, weigher.currentWeight());
   }
 }

@@ -31,7 +31,6 @@ public final class Commits {
   private Commits() {}
 
   public static WeightedSemaphore<Commit> maxCommitByteSemaphore() {
-    return WeightedSemaphore.create(
-        MAX_QUEUED_COMMITS_BYTES, commit -> Math.min(MAX_QUEUED_COMMITS_BYTES, commit.getSize()));
+    return WeightedSemaphore.create(MAX_QUEUED_COMMITS_BYTES, Commit::getSize);
   }
 }

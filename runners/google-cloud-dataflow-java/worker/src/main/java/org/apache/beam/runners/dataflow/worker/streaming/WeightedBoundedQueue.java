@@ -34,8 +34,8 @@ public final class WeightedBoundedQueue<V> {
     this.weightedSemaphore = weightedSemaphore;
   }
 
-  public static <V> WeightedBoundedQueue<V> create(WeightedSemaphore<V> weigher) {
-    return new WeightedBoundedQueue<>(new LinkedBlockingQueue<>(), weigher);
+  public static <V> WeightedBoundedQueue<V> create(WeightedSemaphore<V> weightedSemaphore) {
+    return new WeightedBoundedQueue<>(new LinkedBlockingQueue<>(), weightedSemaphore);
   }
 
   /**

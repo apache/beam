@@ -36,11 +36,15 @@ public final class WeightedSemaphore<V> {
   }
 
   public void acquireUninterruptibly(V value) {
-    limit.acquireUninterruptibly(weigher.apply(value));
+    limit.acquireUninterruptibly(computePermits(value));
   }
 
   public void release(V value) {
-    limit.release(weigher.apply(value));
+    limit.release(computePermits(value));
+  }
+
+  private int computePermits(V value) {
+    return Math.min(weigher.apply(value), maxWeight);
   }
 
   public int currentWeight() {
