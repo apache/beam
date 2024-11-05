@@ -365,8 +365,14 @@ public class RecordWriterManagerTest {
     writer.close();
 
     // fetch data file and its serializable version
+    Map<String, PartitionField> partitionFieldMap = new HashMap<>();
+    for (PartitionField partitionField : PARTITION_SPEC.fields()) {
+      partitionFieldMap.put(partitionField.name(), partitionField);
+    }
+    String partitionPath =
+        RecordWriterManager.getPartitionDataPath(partitionKey.toPath(), partitionFieldMap);
     DataFile datafile = writer.getDataFile();
-    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, partitionKey);
+    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, partitionPath);
 
     assertEquals(2L, datafile.recordCount());
     assertEquals(serializableDataFile.getPartitionSpecId(), datafile.specId());
@@ -619,7 +625,9 @@ public class RecordWriterManagerTest {
       expectedPartitions.add(expected);
     }
     String expectedPartition = String.join("/", expectedPartitions);
-    DataFile dataFile = serializableDataFile.createDataFile(spec);
+    DataFile dataFile =
+        serializableDataFile.createDataFile(
+            catalog.loadTable(dest.getValue().getTableIdentifier()).specs());
     assertThat(dataFile.path().toString(), containsString(expectedPartition));
   }
 }
