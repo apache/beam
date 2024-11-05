@@ -2365,18 +2365,7 @@ limitations under the License.
 &lt;h2 itemprop="name headline">Beam and Geocoding&lt;/h2>
 &lt;/header>
 &lt;p>GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided.&lt;/p>
-&lt;/div></description></item><item><title>Case-Studies: Behalf</title><link>/case-studies/behalf/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/behalf/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---></description></item><item><title>Case-Studies: Bell Labs</title><link>/case-studies/belllabs/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/belllabs/</guid><description>
+&lt;/div></description></item><item><title>Case-Studies: Bell Labs</title><link>/case-studies/belllabs/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/belllabs/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -2682,4 +2671,33 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---></description></item></channel></rss>
+--></description></item><item><title>Case-Studies: Kio</title><link>/case-studies/kio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/kio/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div class="case-study-post">
+&lt;h1 id="kio-is-a-set-of-kotlin-extensions-for-apache-beam-to-implement-fluent-like-api-for-java-sdk">Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.&lt;/h1>
+&lt;h2 id="word-count-example">Word Count example&lt;/h2>
+&lt;pre tabindex="0">&lt;code>// Create Kio context
+val kio = Kio.fromArguments(args)
+// Configure a pipeline
+kio.read().text(&amp;#34;~/input.txt&amp;#34;)
+.map { it.toLowerCase() }
+.flatMap { it.split(&amp;#34;\\W+&amp;#34;.toRegex()) }
+.filter { it.isNotEmpty() }
+.countByValue()
+.forEach { println(it) }
+// And execute it
+kio.execute().waitUntilDone()
+&lt;/code>&lt;/pre>&lt;h2 id="documentation">Documentation&lt;/h2>
+&lt;p>For more information about Kio, please see the documentation here: &lt;a href="https://code.chermenin.ru/kio">https://code.chermenin.ru/kio&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item></channel></rss>
