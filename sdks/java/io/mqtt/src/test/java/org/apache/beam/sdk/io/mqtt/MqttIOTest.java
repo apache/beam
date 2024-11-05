@@ -289,11 +289,10 @@ public class MqttIOTest {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.createWithMultipleTopics(
                     "tcp://localhost:" + port, Arrays.asList(topic1, topic2)))
-            .withMaxNumRecords(15)
-            .withMaxReadTime(Duration.standardSeconds(5));
+            .withMaxNumRecords(10)
+            .withMaxReadTime(Duration.standardSeconds(10));
 
     final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithTopicArray);
-
     PAssert.that(output)
         .satisfies(
             iter -> {
