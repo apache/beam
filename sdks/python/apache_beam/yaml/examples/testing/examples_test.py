@@ -40,8 +40,8 @@ from apache_beam.yaml.readme_test import replace_recursive
 
 
 def check_output(expected: List[str]):
-  def _check_inner(actual: PCollection[str]):
-    formatted_actual = actual | beam.Map(
+  def _check_inner(actual: List[PCollection[str]]):
+    formatted_actual = actual | beam.Flatten() | beam.Map(
         lambda row: str(beam.Row(**row._asdict())))
     assert_matches_stdout(formatted_actual, expected)
 
@@ -84,9 +84,12 @@ def create_test_method(
           pickle_library='cloudpickle',
           **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
               'options', {})))) as p:
-        actual = yaml_transform.expand_pipeline(p, pipeline_spec)
-        if not actual:
-          actual = p.transforms_stack[0].parts[-1].outputs[None]
+        actual = [yaml_transform.expand_pipeline(p, pipeline_spec)]
+        if not actual[0]:
+          actual = list(p.transforms_stack[0].parts[-1].outputs.values())
+          for transform in p.transforms_stack[0].parts[:-1]:
+            if transform.transform.label == 'log_for_testing':
+              actual += list(transform.outputs.values())
         check_output(expected)(actual)
 
   return test_yaml_example
@@ -155,8 +158,12 @@ def _wordcount_test_preprocessor(
       env.input_file('kinglear.txt', '\n'.join(lines)))
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(
-    ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_simple_filter_yaml',
+    'test_simple_filter_and_combine_yaml',
+    'test_spanner_read_yaml',
+    'test_spanner_write_yaml'
+])
 def _file_io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 
@@ -167,7 +174,8 @@ def _file_io_write_test_preprocessor(
         transform['config'] = {
             k: v
             for k,
-            v in transform.get('config', {}).items() if k.startswith('__')
+            v in transform.get('config', {}).items()
+            if (k.startswith('__') or k == 'error_handling')
         }
 
   return test_spec
@@ -204,6 +212,10 @@ ElementWiseTest = YamlExamplesTestSuite(
 AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
+
+IOTest = YamlExamplesTestSuite(
+    'IOExamplesTest', os.path.join(YAML_DOCS_DIR,
+                                   '../transforms/io/*.yaml')).run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

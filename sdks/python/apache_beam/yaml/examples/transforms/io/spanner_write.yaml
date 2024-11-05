@@ -51,3 +51,6 @@ pipeline:
       input: WriteSpanner.my_error_output
       config:
         path: errors.json
+
+# Expected:
+#  Row(shipment_id='S5', customer_id='C5', shipment_date='2023-05-09', shipment_cost=300.0, customer_name='Erin', customer_email='erin@example.com')

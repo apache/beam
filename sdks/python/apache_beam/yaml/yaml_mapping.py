@@ -16,8 +16,6 @@
 #
 
 """This module defines the basic MapToFields operation."""
-import functools
-import inspect
 import itertools
 import re
 from collections import abc
@@ -27,7 +25,6 @@ from typing import Collection
 from typing import Dict
 from typing import List
 from typing import Mapping
-from typing import NamedTuple
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -41,7 +38,6 @@ from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
-from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.typehints.schemas import typing_from_runner_api
@@ -49,6 +45,10 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_errors import map_errors_to_standard_format
+from apache_beam.yaml.yaml_errors import exception_handling_args
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 # Import js2py package if it exists
@@ -418,71 +418,6 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
     return func
 
 
-class ErrorHandlingConfig(NamedTuple):
-  """Class to define Error Handling parameters.
-
-      Args:
-        output (str): Name to use for the output error collection
-      """
-  output: str
-  # TODO: Other parameters are valid here too, but not common to Java.
-
-
-def exception_handling_args(error_handling_spec):
-  if error_handling_spec:
-    return {
-        'dead_letter_tag' if k == 'output' else k: v
-        for (k, v) in error_handling_spec.items()
-    }
-  else:
-    return None
-
-
-def _map_errors_to_standard_format(input_type):
-  # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
-
-  return beam.Map(
-      lambda x: beam.Row(
-          element=x[0], msg=str(x[1][1]), stack=''.join(x[1][2]))
-  ).with_output_types(
-      RowTypeConstraint.from_fields([("element", input_type), ("msg", str),
-                                     ("stack", str)]))
-
-
-def maybe_with_exception_handling(inner_expand):
-  def expand(self, pcoll):
-    wrapped_pcoll = beam.core._MaybePValueWithErrors(
-        pcoll, self._exception_handling_args)
-    return inner_expand(self, wrapped_pcoll).as_result(
-        _map_errors_to_standard_format(pcoll.element_type))
-
-  return expand
-
-
-def maybe_with_exception_handling_transform_fn(transform_fn):
-  @functools.wraps(transform_fn)
-  def expand(pcoll, error_handling=None, **kwargs):
-    wrapped_pcoll = beam.core._MaybePValueWithErrors(
-        pcoll, exception_handling_args(error_handling))
-    return transform_fn(wrapped_pcoll, **kwargs).as_result(
-        _map_errors_to_standard_format(pcoll.element_type))
-
-  original_signature = inspect.signature(transform_fn)
-  new_parameters = list(original_signature.parameters.values())
-  error_handling_param = inspect.Parameter(
-      'error_handling',
-      inspect.Parameter.KEYWORD_ONLY,
-      default=None,
-      annotation=ErrorHandlingConfig)
-  if new_parameters[-1].kind == inspect.Parameter.VAR_KEYWORD:
-    new_parameters.insert(-1, error_handling_param)
-  else:
-    new_parameters.append(error_handling_param)
-  expand.__signature__ = original_signature.replace(parameters=new_parameters)
-
-  return expand
-
-
 class _StripErrorMetadata(beam.PTransform):
   """Strips error metadata from outputs returned via error handling.
 
@@ -845,9 +780,8 @@ def _Partition(
   splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
   result = {out: getattr(splits, out) for out in output_set}
   if error_output:
-    result[
-        error_output] = result[error_output] | _map_errors_to_standard_format(
-            pcoll.element_type)
+    result[error_output] = result[error_output] | map_errors_to_standard_format(
+        pcoll.element_type)
   return result
 
 
