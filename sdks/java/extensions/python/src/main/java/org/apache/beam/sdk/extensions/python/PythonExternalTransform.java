@@ -25,7 +25,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -390,8 +389,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
             fieldName,
             StaticSchemaInference.fieldFromType(
                 TypeDescriptor.of(field.getClass()),
-                JavaFieldSchema.JavaFieldTypeSupplier.INSTANCE,
-                Collections.emptyMap()));
+                JavaFieldSchema.JavaFieldTypeSupplier.INSTANCE));
       }
 
       counter++;

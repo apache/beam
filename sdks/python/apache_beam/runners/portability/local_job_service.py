@@ -35,7 +35,7 @@ from typing import Optional
 import grpc
 from google.protobuf import json_format
 from google.protobuf import struct_pb2
-from google.protobuf import text_format  # type: ignore # not in typeshed
+from google.protobuf import text_format
 
 from apache_beam import pipeline
 from apache_beam.metrics import monitoring_infos

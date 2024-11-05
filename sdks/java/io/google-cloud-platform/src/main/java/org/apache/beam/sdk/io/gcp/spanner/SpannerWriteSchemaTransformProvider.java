@@ -51,9 +51,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -113,14 +111,12 @@ public class SpannerWriteSchemaTransformProvider
         SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerWriteSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<SpannerWriteSchemaTransformConfiguration> configurationClass() {
     return SpannerWriteSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      SpannerWriteSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(SpannerWriteSchemaTransformConfiguration configuration) {
     return new SpannerSchemaTransformWrite(configuration);
   }
 
@@ -230,19 +226,17 @@ public class SpannerWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:spanner_write:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Arrays.asList("post-write", "errors");
   }
 
