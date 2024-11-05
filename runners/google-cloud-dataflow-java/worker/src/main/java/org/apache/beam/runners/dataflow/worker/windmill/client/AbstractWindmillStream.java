@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
-
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Set;
@@ -73,14 +71,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private static final String NEVER_RECEIVED_RESPONSE_LOG_STRING = "never received response";
   protected final Sleeper sleeper;
 
-  /**
-   * Used to guard {@link #start()} and {@link #shutdown()} behavior.
-   *
-   * @implNote Do NOT hold when performing IO. If also locking on {@code this} in the same context,
-   *     should acquire shutdownLock after {@code this} to prevent deadlocks.
-   */
-  protected final Object shutdownLock = new Object();
-
   private final Logger logger;
   private final ExecutorService executor;
   private final BackOff backoff;
@@ -88,21 +78,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
   private final int logEveryNStreamFailures;
   private final String backendWorkerToken;
-  private final ResettableStreamObserver<RequestT> requestObserver;
+  private final ResettableThrowingStreamObserver<RequestT> requestObserver;
   private final StreamDebugMetrics debugMetrics;
   protected volatile boolean clientClosed;
 
-  /**
-   * Indicates if the current {@link ResettableStreamObserver} was closed by calling {@link
-   * #halfClose()}. Separate from {@link #clientClosed} as this is specific to the requestObserver
-   * and is initially false on retry.
-   */
-  private volatile boolean streamClosed;
-
-  @GuardedBy("shutdownLock")
+  @GuardedBy("this")
   private boolean isShutdown;
 
-  @GuardedBy("shutdownLock")
+  @GuardedBy("this")
   private boolean started;
 
   protected AbstractWindmillStream(
@@ -127,16 +110,16 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.clientClosed = false;
     this.isShutdown = false;
     this.started = false;
-    this.streamClosed = false;
     this.finishLatch = new CountDownLatch(1);
+    this.logger = logger;
     this.requestObserver =
-        new ResettableStreamObserver<>(
+        new ResettableThrowingStreamObserver<>(
             () ->
                 streamObserverFactory.from(
                     clientFactory,
-                    new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()));
+                    new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()),
+            logger);
     this.sleeper = Sleeper.DEFAULT;
-    this.logger = logger;
     this.debugMetrics = StreamDebugMetrics.create();
   }
 
@@ -150,7 +133,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void onResponse(ResponseT response);
 
   /** Called when a new underlying stream to the server has been opened. */
-  protected abstract void onNewStream();
+  protected abstract void onNewStream()
+      throws StreamClosedException, WindmillStreamShutdownException;
 
   /** Returns whether there are any pending requests that should be retried on a stream break. */
   protected abstract boolean hasPendingRequests();
@@ -163,43 +147,21 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void startThrottleTimer();
 
   /** Reflects that {@link #shutdown()} was explicitly called. */
-  protected boolean hasReceivedShutdownSignal() {
-    synchronized (shutdownLock) {
-      return isShutdown;
-    }
+  protected synchronized boolean hasReceivedShutdownSignal() {
+    return isShutdown;
   }
 
   /** Send a request to the server. */
-  protected final void send(RequestT request) {
-    synchronized (this) {
-      if (hasReceivedShutdownSignal()) {
-        return;
-      }
-
-      if (streamClosed) {
-        // TODO(m-trieu): throw a more specific exception here (i.e StreamClosedException)
-        throw new IllegalStateException("Send called on a client closed stream.");
-      }
-
-      try {
-        verify(!Thread.holdsLock(shutdownLock), "shutdownLock should not be held during send.");
-        debugMetrics.recordSend();
-        requestObserver.onNext(request);
-      } catch (StreamObserverCancelledException e) {
-        if (hasReceivedShutdownSignal()) {
-          logger.debug("Stream was shutdown during send.", e);
-          return;
-        }
-
-        requestObserver.onError(e);
-      }
-    }
+  protected final synchronized void send(RequestT request)
+      throws StreamClosedException, WindmillStreamShutdownException {
+    debugMetrics.recordSend();
+    requestObserver.onNext(request);
   }
 
   @Override
   public final void start() {
     boolean shouldStartStream = false;
-    synchronized (shutdownLock) {
+    synchronized (this) {
       if (!isShutdown && !started) {
         started = true;
         shouldStartStream = true;
@@ -218,11 +180,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     while (true) {
       try {
         synchronized (this) {
-          if (hasReceivedShutdownSignal()) {
-            break;
-          }
           debugMetrics.recordStart();
-          streamClosed = false;
           requestObserver.reset();
           onNewStream();
           if (clientClosed) {
@@ -231,7 +189,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           return;
         }
       } catch (WindmillStreamShutdownException e) {
-        logger.debug("Stream was shutdown waiting to start.", e);
+        logger.debug("Stream was shutdown while creating new stream.", e);
       } catch (Exception e) {
         logger.error("Failed to create new stream, retrying: ", e);
         try {
@@ -271,13 +229,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     if (!clientClosed && debugMetrics.getLastSendTimeMs() < lastSendThreshold.getMillis()) {
       try {
         sendHealthCheck();
-      } catch (RuntimeException e) {
+      } catch (Exception e) {
         logger.debug("Received exception sending health check.", e);
       }
     }
   }
 
-  protected abstract void sendHealthCheck();
+  protected abstract void sendHealthCheck()
+      throws WindmillStreamShutdownException, StreamClosedException;
 
   /**
    * @implNote Care is taken that synchronization on this is unnecessary for all status page
@@ -312,7 +271,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         summaryMetrics.streamAge(),
         summaryMetrics.timeSinceLastSend(),
         summaryMetrics.timeSinceLastResponse(),
-        streamClosed,
+        requestObserver.isClosed(),
         hasReceivedShutdownSignal(),
         summaryMetrics.shutdownTime().orElse(null));
   }
@@ -327,8 +286,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   public final synchronized void halfClose() {
     // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed = true;
-    requestObserver.onCompleted();
-    streamClosed = true;
+    try {
+      requestObserver.onCompleted();
+    } catch (StreamClosedException | WindmillStreamShutdownException e) {
+      logger.warn("Stream was previously closed or shutdown.");
+    }
   }
 
   @Override
@@ -348,13 +310,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final void shutdown() {
-    // Don't lock on "this" as isShutdown checks are used in the stream to free blocked
-    // threads or as exit conditions to loops.
-    synchronized (shutdownLock) {
+    // Don't lock on "this" before poisoning the request observer as allow IO to block shutdown.
+    requestObserver.poison();
+    synchronized (this) {
       if (!isShutdown) {
         isShutdown = true;
         debugMetrics.recordShutdown();
-        requestObserver.poison();
+
         shutdownInternal();
       }
     }

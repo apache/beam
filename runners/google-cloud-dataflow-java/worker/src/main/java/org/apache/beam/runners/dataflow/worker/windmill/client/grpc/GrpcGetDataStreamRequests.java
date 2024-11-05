@@ -198,7 +198,8 @@ final class GrpcGetDataStreamRequests {
      *
      * @implNote Thread safe.
      */
-    void waitForSendOrFailNotification() throws InterruptedException {
+    void waitForSendOrFailNotification()
+        throws InterruptedException, WindmillStreamShutdownException {
       sent.await();
       if (failed) {
         ImmutableList<String> cancelledRequests = createStreamCancelledErrorMessages();

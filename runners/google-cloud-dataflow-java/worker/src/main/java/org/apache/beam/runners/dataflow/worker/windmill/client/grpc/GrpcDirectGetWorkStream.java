@@ -33,7 +33,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
@@ -188,7 +190,7 @@ final class GrpcDirectGetWorkStream
             budgetTracker.recordBudgetRequested(extension);
             try {
               send(request);
-            } catch (IllegalStateException e) {
+            } catch (StreamClosedException | WindmillStreamShutdownException e) {
               // Stream was closed.
             }
           });
@@ -196,24 +198,23 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  protected synchronized void onNewStream() {
+  protected synchronized void onNewStream()
+      throws WindmillStreamShutdownException, StreamClosedException {
     workItemAssemblers.clear();
-    if (!hasReceivedShutdownSignal()) {
-      budgetTracker.reset();
-      GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
-      StreamingGetWorkRequest request =
-          StreamingGetWorkRequest.newBuilder()
-              .setRequest(
-                  requestHeader
-                      .toBuilder()
-                      .setMaxItems(initialGetWorkBudget.items())
-                      .setMaxBytes(initialGetWorkBudget.bytes())
-                      .build())
-              .build();
-      lastRequest.set(request);
-      budgetTracker.recordBudgetRequested(initialGetWorkBudget);
-      send(request);
-    }
+    budgetTracker.reset();
+    GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
+    StreamingGetWorkRequest request =
+        StreamingGetWorkRequest.newBuilder()
+            .setRequest(
+                requestHeader
+                    .toBuilder()
+                    .setMaxItems(initialGetWorkBudget.items())
+                    .setMaxBytes(initialGetWorkBudget.bytes())
+                    .build())
+            .build();
+    lastRequest.set(request);
+    budgetTracker.recordBudgetRequested(initialGetWorkBudget);
+    send(request);
   }
 
   @Override
@@ -231,7 +232,7 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public void sendHealthCheck() {
+  public void sendHealthCheck() throws WindmillStreamShutdownException, StreamClosedException {
     send(HEALTH_CHECK_REQUEST);
   }
 

@@ -28,7 +28,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
@@ -132,7 +134,7 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected void onNewStream() {
+  protected void onNewStream() throws StreamClosedException, WindmillStreamShutdownException {
     send(workerMetadataRequest);
   }
 
@@ -150,7 +152,7 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected void sendHealthCheck() {
+  protected void sendHealthCheck() throws StreamClosedException, WindmillStreamShutdownException {
     send(HEALTH_CHECK_REQUEST);
   }
 

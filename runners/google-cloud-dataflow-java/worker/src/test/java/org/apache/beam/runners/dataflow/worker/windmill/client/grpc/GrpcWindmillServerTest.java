@@ -72,6 +72,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
@@ -489,16 +490,24 @@ public class GrpcWindmillServerTest {
       final String s = i % 5 == 0 ? largeString(i) : "tag";
       executor.submit(
           () -> {
-            errorCollector.checkThat(
-                stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
-                Matchers.equalTo(makeGetDataResponse(s)));
+            try {
+              errorCollector.checkThat(
+                  stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
+                  Matchers.equalTo(makeGetDataResponse(s)));
+            } catch (WindmillStreamShutdownException e) {
+              throw new RuntimeException(e);
+            }
             done.countDown();
           });
       executor.execute(
           () -> {
-            errorCollector.checkThat(
-                stream.requestGlobalData(makeGlobalDataRequest(key)),
-                Matchers.equalTo(makeGlobalDataResponse(key)));
+            try {
+              errorCollector.checkThat(
+                  stream.requestGlobalData(makeGlobalDataRequest(key)),
+                  Matchers.equalTo(makeGlobalDataResponse(key)));
+            } catch (WindmillStreamShutdownException e) {
+              throw new RuntimeException(e);
+            }
             done.countDown();
           });
     }

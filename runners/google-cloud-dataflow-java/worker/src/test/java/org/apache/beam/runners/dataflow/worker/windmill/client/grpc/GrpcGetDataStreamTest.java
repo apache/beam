@@ -126,14 +126,19 @@ public class GrpcGetDataStreamTest {
                               throw new RuntimeException(e);
                             }
                           }
-                          getDataStream.requestKeyedData(
-                              "computationId",
-                              Windmill.KeyedGetDataRequest.newBuilder()
-                                  .setKey(ByteString.EMPTY)
-                                  .setShardingKey(i)
-                                  .setCacheToken(i)
-                                  .setWorkToken(i)
-                                  .build());
+                          try {
+
+                            getDataStream.requestKeyedData(
+                                "computationId",
+                                Windmill.KeyedGetDataRequest.newBuilder()
+                                    .setKey(ByteString.EMPTY)
+                                    .setShardingKey(i)
+                                    .setCacheToken(i)
+                                    .setWorkToken(i)
+                                    .build());
+                          } catch (WindmillStreamShutdownException e) {
+                            throw new RuntimeException(e);
+                          }
                         })
             // Run the code above on multiple threads.
             .map(runnable -> CompletableFuture.runAsync(runnable, getDataStreamSenders))
@@ -154,7 +159,10 @@ public class GrpcGetDataStreamTest {
       if (i % 2 == 0) {
         assertTrue(sendFuture.isCompletedExceptionally());
         ExecutionException e = assertThrows(ExecutionException.class, sendFuture::get);
-        assertThat(e).hasCauseThat().isInstanceOf(WindmillStreamShutdownException.class);
+        assertThat(e)
+            .hasCauseThat()
+            .hasCauseThat()
+            .isInstanceOf(WindmillStreamShutdownException.class);
       }
     }
   }

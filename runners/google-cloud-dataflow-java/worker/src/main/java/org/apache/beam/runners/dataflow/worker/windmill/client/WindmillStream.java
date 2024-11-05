@@ -75,13 +75,16 @@ public interface WindmillStream {
   interface GetDataStream extends WindmillStream {
     /** Issues a keyed GetData fetch, blocking until the result is ready. */
     Windmill.KeyedGetDataResponse requestKeyedData(
-        String computation, Windmill.KeyedGetDataRequest request);
+        String computation, Windmill.KeyedGetDataRequest request)
+        throws WindmillStreamShutdownException;
 
     /** Issues a global GetData fetch, blocking until the result is ready. */
-    Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
+    Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request)
+        throws WindmillStreamShutdownException;
 
     /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats);
+    void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats)
+        throws WindmillStreamShutdownException;
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
   }

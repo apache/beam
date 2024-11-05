@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * becomes ready.
  */
 @ThreadSafe
-public final class DirectStreamObserver<T> implements StreamObserver<T> {
+public final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private static final long OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS = 30;
 
@@ -69,7 +69,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   }
 
   @Override
-  public void onNext(T value) {
+  public void onNext(T value) throws StreamObserverCancelledException {
     int awaitPhase = -1;
     long totalSecondsWaited = 0;
     long waitSeconds = 1;
@@ -155,8 +155,6 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onError(Throwable t) {
-    // Free the blocked threads in onNext().
-    isReadyNotifier.forceTermination();
     synchronized (lock) {
       outboundObserver.onError(t);
     }
@@ -164,10 +162,20 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onCompleted() {
-    // Free the blocked threads in onNext().
-    isReadyNotifier.forceTermination();
     synchronized (lock) {
       outboundObserver.onCompleted();
+    }
+  }
+
+  @Override
+  public void terminate(Throwable terminationException) {
+    // Free the blocked threads in onNext().
+    isReadyNotifier.forceTermination();
+    try {
+      onError(terminationException);
+    } catch (RuntimeException e) {
+      // If onError or onComplete was previously called, this will throw.
+      LOG.warn("StreamObserver was already terminated.");
     }
   }
 

@@ -15,11 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 
-/** Thrown when operations are requested on a {@link WindmillStream} has been shutdown/closed. */
-public final class WindmillStreamShutdownException extends Exception {
-  public WindmillStreamShutdownException(String message) {
-    super(message);
-  }
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+
+@Internal
+public interface TerminatingStreamObserver<T> extends StreamObserver<T> {
+
+  /** Terminates the StreamObserver. */
+  void terminate(Throwable terminationException);
 }

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-/** Thrown when operations are requested on a {@link WindmillStream} has been shutdown/closed. */
-public final class WindmillStreamShutdownException extends Exception {
-  public WindmillStreamShutdownException(String message) {
-    super(message);
+/** Indicates that the current stream was closed. */
+public final class StreamClosedException extends Exception {
+  StreamClosedException(String s) {
+    super(s);
   }
 }

@@ -37,6 +37,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
+import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
@@ -255,7 +257,7 @@ public class GrpcGetWorkerMetadataStreamTest {
   }
 
   @Test
-  public void testSendHealthCheck() {
+  public void testSendHealthCheck() throws StreamClosedException, WindmillStreamShutdownException {
     TestGetWorkMetadataRequestObserver requestObserver =
         Mockito.spy(new TestGetWorkMetadataRequestObserver());
     GetWorkerMetadataTestStub testStub = new GetWorkerMetadataTestStub(requestObserver);

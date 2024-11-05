@@ -28,7 +28,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequestExtension;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
@@ -120,14 +122,15 @@ final class GrpcGetWorkStream
         () -> {
           try {
             send(extension);
-          } catch (IllegalStateException e) {
+          } catch (StreamClosedException | WindmillStreamShutdownException e) {
             // Stream was closed.
           }
         });
   }
 
   @Override
-  protected synchronized void onNewStream() {
+  protected synchronized void onNewStream()
+      throws StreamClosedException, WindmillStreamShutdownException {
     workItemAssemblers.clear();
     inflightMessages.set(request.getMaxItems());
     inflightBytes.set(request.getMaxBytes());
@@ -151,7 +154,7 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  public void sendHealthCheck() {
+  public void sendHealthCheck() throws StreamClosedException, WindmillStreamShutdownException {
     send(
         StreamingGetWorkRequest.newBuilder()
             .setRequestExtension(
