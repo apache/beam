@@ -34,6 +34,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -109,7 +111,6 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   public void testInvalidConfig() {
     List<BigQueryWriteConfiguration.Builder> invalidConfigs =
         Arrays.asList(
-            BigQueryWriteConfiguration.builder().setTable("not_a_valid_table_spec"),
             BigQueryWriteConfiguration.builder()
                 .setTable("project:dataset.table")
                 .setCreateDisposition("INVALID_DISPOSITION"));
@@ -163,10 +164,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   public boolean rowEquals(Row expectedRow, TableRow actualRow) {
-    return expectedRow.getValue("name").equals(actualRow.get("name"))
-        && expectedRow
-            .getValue("number")
-            .equals(Long.parseLong(actualRow.get("number").toString()));
+    return expectedRow.equals(BigQueryUtils.toBeamRow(expectedRow.getSchema(), actualRow));
   }
 
   @Test
@@ -218,6 +216,33 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         rowEquals(
             ROWS.get(2),
             fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
+  }
+
+  @Test
+  public void testWriteToPortableDynamicDestinations() throws Exception {
+    String destinationTemplate = "project:dataset.dynamic_write_{name}_{number}";
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
+            .setTable(destinationTemplate)
+            .setKeep(Arrays.asList("number", "dt"))
+            .build();
+
+    runWithConfig(config);
+    p.run().waitUntilFinish();
+
+    RowFilter rowFilter = new RowFilter(SCHEMA).keep(Arrays.asList("number", "dt"));
+    assertTrue(
+        rowEquals(
+            rowFilter.filter(ROWS.get(0)),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_a_1").get(0)));
+    assertTrue(
+        rowEquals(
+            rowFilter.filter(ROWS.get(1)),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_b_2").get(0)));
+    assertTrue(
+        rowEquals(
+            rowFilter.filter(ROWS.get(2)),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_c_3").get(0)));
   }
 
   List<Row> createCDCUpsertRows(List<Row> rows, boolean dynamicDestination, String tablePrefix) {

@@ -27,6 +27,8 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -88,19 +90,20 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rowPCollection = input.getSinglePCollection();
-      BigQueryIO.Write<Row> write = toWrite();
+      BigQueryIO.Write<Row> write = toWrite(rowPCollection.getSchema());
       rowPCollection.apply(write);
 
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
-    BigQueryIO.Write<Row> toWrite() {
+    BigQueryIO.Write<Row> toWrite(Schema schema) {
+      PortableBigQueryDestinations dynamicDestinations =
+          new PortableBigQueryDestinations(schema, configuration);
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
-              .to(configuration.getTable())
+              .to(dynamicDestinations)
               .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
-              .withFormatFunction(BigQueryUtils.toTableRow())
-              .useBeamSchema();
+              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
