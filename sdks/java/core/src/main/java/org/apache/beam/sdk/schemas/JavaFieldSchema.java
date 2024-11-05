@@ -21,22 +21,22 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
+import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A {@link SchemaProvider} for Java POJO objects.
@@ -51,7 +51,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
  * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
  * on the schema.
  */
-@SuppressWarnings({"nullness", "rawtypes"})
 public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on public fields. */
   @VisibleForTesting
@@ -64,13 +63,11 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
           ReflectUtils.getFields(typeDescriptor.getRawType()).stream()
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
-
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(fields.size());
-      Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
       for (int i = 0; i < fields.size(); ++i) {
-        types.add(FieldValueTypeInformation.forField(fields.get(i), i, boundTypes));
+        types.add(FieldValueTypeInformation.forField(typeDescriptor, fields.get(i), i));
       }
-      types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
+      types.sort(JavaBeanUtils.comparingNullFirst(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
 
       // If there are no creators registered, then make sure none of the schema fields are final,
@@ -79,7 +76,9 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
           && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
         Optional<Field> finalField =
             types.stream()
-                .map(FieldValueTypeInformation::getField)
+                .flatMap(
+                    fvti ->
+                        Optional.ofNullable(fvti.getField()).map(Stream::of).orElse(Stream.empty()))
                 .filter(f -> Modifier.isFinal(f.getModifiers()))
                 .findAny();
         if (finalField.isPresent()) {
@@ -115,14 +114,12 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(typeDescriptor);
-    return POJOUtils.schemaFromPojoClass(
-        typeDescriptor, JavaFieldTypeSupplier.INSTANCE, boundTypes);
+    return POJOUtils.schemaFromPojoClass(typeDescriptor, JavaFieldTypeSupplier.INSTANCE);
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
     return POJOUtils.getGetters(
         targetTypeDescriptor,
         schema,
@@ -155,7 +152,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
         ReflectUtils.getAnnotatedConstructor(targetTypeDescriptor.getRawType());
     if (constructor != null) {
       return POJOUtils.getConstructorCreator(
-          targetTypeDescriptor,
+          (TypeDescriptor) targetTypeDescriptor,
           constructor,
           schema,
           JavaFieldTypeSupplier.INSTANCE,

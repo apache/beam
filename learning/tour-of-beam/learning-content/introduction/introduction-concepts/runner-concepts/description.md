@@ -191,8 +191,8 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 {{if (eq .Sdk "java")}}
 
 ##### Portable
-1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.15`, `Flink 1.16`, `Flink 1.17`, `Flink 1.18`.
-2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
+1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.16`, `Flink 1.17`, `Flink 1.18`.
+2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest`
 3. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService). Optionally set environment_type set to LOOPBACK. For example:
 
 ```
@@ -233,8 +233,8 @@ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 {{end}}
 
 {{if (eq .Sdk "python")}}
-1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.10`, `Flink 1.11`, `Flink 1.12`, `Flink 1.13`, `Flink 1.14`.
-2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
+1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.16`, `Flink 1.17`, `Flink 1.18`.
+2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest`
 3. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService). Optionally set environment_type set to LOOPBACK. For example:
 
 ```

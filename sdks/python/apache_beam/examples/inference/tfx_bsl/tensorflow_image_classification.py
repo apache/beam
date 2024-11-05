@@ -32,10 +32,9 @@ import argparse
 import io
 import logging
 import os
-from typing import Iterable
-from typing import Iterator
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Optional
-from typing import Tuple
 
 import apache_beam as beam
 import tensorflow as tf
@@ -60,7 +59,7 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 def read_and_process_image(
     image_file_name: str,
-    path_to_dir: Optional[str] = None) -> Tuple[str, tf.Tensor]:
+    path_to_dir: Optional[str] = None) -> tuple[str, tf.Tensor]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
@@ -97,7 +96,7 @@ def convert_image_to_example_proto(tensor: tf.Tensor) -> tf.train.Example:
 
 class ProcessInferenceToString(beam.DoFn):
   def process(
-      self, element: Tuple[str,
+      self, element: tuple[str,
                            prediction_log_pb2.PredictionLog]) -> Iterable[str]:
     """
     Args:

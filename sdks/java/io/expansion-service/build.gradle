@@ -35,6 +35,7 @@ configurations.runtimeClasspath {
 
 shadowJar {
   mergeServiceFiles()
+  outputs.upToDateWhen { false }
 }
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"

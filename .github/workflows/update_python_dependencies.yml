@@ -56,7 +56,6 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.8
             3.9
             3.10
             3.11

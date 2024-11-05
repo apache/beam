@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -75,6 +76,7 @@ import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
 import org.apache.samza.system.SystemStreamPartition;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -90,6 +92,12 @@ public class SamzaStoreStateInternalsTest implements Serializable {
   public final transient TestPipeline pipeline =
       TestPipeline.fromOptions(
           PipelineOptionsFactory.fromArgs("--runner=TestSamzaRunner").create());
+
+  @BeforeClass
+  public static void beforeClass() {
+    // TODO(https://github.com/apache/beam/issues/32208)
+    assumeTrue(System.getProperty("java.version").startsWith("1."));
+  }
 
   @Test
   public void testMapStateIterator() {

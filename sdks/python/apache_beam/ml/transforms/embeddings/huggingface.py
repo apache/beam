@@ -18,13 +18,11 @@ __all__ = ["SentenceTransformerEmbeddings", "InferenceAPIEmbeddings"]
 
 import logging
 import os
+from collections.abc import Callable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 
 import requests
 
@@ -80,7 +78,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
       self,
       batch: Sequence[str],
       model: SentenceTransformer,
-      inference_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[dict[str, Any]] = None,
   ):
     inference_args = inference_args or {}
     return model.encode(batch, **inference_args)
@@ -113,7 +111,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: List[str],
+      columns: list[str],
       max_seq_length: Optional[int] = None,
       image_model: bool = False,
       **kwargs):
@@ -216,7 +214,7 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       hf_token: Optional[str],
-      columns: List[str],
+      columns: list[str],
       model_name: Optional[str] = None, # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
       api_url: Optional[str] = None,
       **kwargs,

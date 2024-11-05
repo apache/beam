@@ -17,10 +17,8 @@
 
 import argparse
 import logging
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Tuple
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Union
 
 import numpy
@@ -48,7 +46,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
-  def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
+  def process(self, element: tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = prediction_result.inference
     yield '{},{}'.format(label, prediction)
@@ -89,7 +87,7 @@ def parse_known_args(argv):
 def load_sklearn_iris_test_data(
     data_type: Callable,
     split: bool = True,
-    seed: int = 999) -> List[Union[numpy.array, pandas.DataFrame]]:
+    seed: int = 999) -> list[Union[numpy.array, pandas.DataFrame]]:
   """
     Loads test data from the sklearn Iris dataset in a given format,
     either in a single or multiple batches.

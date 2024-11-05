@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import static org.junit.Assume.assumeTrue;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -35,11 +37,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for GroupByKeyOp. */
 public class GroupByKeyOpTest implements Serializable {
+
+  @BeforeClass
+  public static void beforeClass() {
+    // TODO(https://github.com/apache/beam/issues/32208)
+    assumeTrue(System.getProperty("java.version").startsWith("1."));
+  }
+
   @Rule
   public final transient TestPipeline pipeline =
       TestPipeline.fromOptions(

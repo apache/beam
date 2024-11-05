@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -24,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
@@ -142,12 +143,14 @@ abstract class SerializableDataFile {
    * it from Beam-compatible types.
    */
   @SuppressWarnings("nullness")
-  DataFile createDataFile(PartitionSpec partitionSpec) {
-    Preconditions.checkState(
-        partitionSpec.specId() == getPartitionSpecId(),
-        "Invalid partition spec id '%s'. This DataFile was originally created with spec id '%s'.",
-        partitionSpec.specId(),
-        getPartitionSpecId());
+  DataFile createDataFile(Map<Integer, PartitionSpec> partitionSpecs) {
+    PartitionSpec partitionSpec =
+        checkStateNotNull(
+            partitionSpecs.get(getPartitionSpecId()),
+            "This DataFile was originally created with spec id '%s'. Could not find "
+                + "this among table's partition specs: %s.",
+            getPartitionSpecId(),
+            partitionSpecs.keySet());
 
     Metrics dataFileMetrics =
         new Metrics(
