@@ -86,6 +86,7 @@ public class BigQueryManagedIT {
   public static void cleanup() {
     BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
+
   @Test
   public void testBatchFileLoadsWriteRead() {
     String table =
