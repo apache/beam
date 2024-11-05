@@ -48,6 +48,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.FutureConnection;
@@ -71,16 +73,28 @@ import org.slf4j.LoggerFactory;
  * <p>To configure a MQTT source, you have to provide a MQTT connection configuration including
  * {@code ClientId}, a {@code ServerURI}, a {@code Topic} pattern, and optionally {@code username}
  * and {@code password} to connect to the MQTT broker. The following example illustrates how to
- * configure the source with multiple topics:
+ * configure the source with a single topic:
  *
  * <pre>{@code
  * pipeline.apply(
  *   MqttIO.read()
  *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
  *      "tcp://host:11883",
- *      "topic1",
- *      "topic2",
- *      "topic3"))
+ *      "my_topic"))
+ * );
+ * }</pre>
+ *
+ * <p>For subscribing to multiple topics, use {@link
+ * ConnectionConfiguration#createWithMultipleTopics(String, Iterable)}. This allows subscribing to
+ * multiple topics with a single configuration:
+ *
+ * <pre>{@code
+ * pipeline.apply(
+ *   MqttIO.read()
+ *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.createWithMultipleTopics(
+ *      "tcp://host:11883",
+ *      Arrays.asList("topic1", "topic2", "topic3")))
+ * );
  * }</pre>
  *
  * <h3>Reading with Metadata from a MQTT broker</h3>
@@ -91,17 +105,16 @@ import org.slf4j.LoggerFactory;
  * and payload. This allows you to implement business logic that can differ depending on the topic
  * from which the message was received.
  *
- * <p>You can also subscribe to multiple topics with {@code readWithMetadata}, as shown in the
- * following example:
+ * <p>Similar to the {@code read} method, you can also subscribe to multiple topics with {@code
+ * readWithMetadata}:
  *
  * <pre>{@code
  * PCollection<MqttRecord> records = pipeline.apply(
  *   MqttIO.readWithMetadata()
- *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
+ *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.createWithMultipleTopics(
  *      "tcp://host:11883",
- *      "topic1",
- *      "topic2",
- *      "topic3"))
+ *      Arrays.asList("topic1", "topic2", "topic3")))
+ * );
  * }</pre>
  *
  * <p>By using the topic information, you can apply different processing logic depending on the
@@ -252,23 +265,36 @@ public class MqttIO {
      * @param topic The MQTT getTopic pattern.
      * @return A connection configuration to the MQTT broker.
      */
-    public static ConnectionConfiguration create(
-        String serverUri, String topic, @Nullable String... additionalTopics) {
+    public static ConnectionConfiguration create(String serverUri, String topic) {
       checkArgument(serverUri != null, "serverUri can not be null");
       checkArgument(topic != null, "topic can not be null");
+      return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
+          .setServerUri(serverUri)
+          .setTopic(topic)
+          .build();
+    }
 
-      if (additionalTopics != null && additionalTopics.length > 0) {
-        List<String> topics = new ArrayList<>(additionalTopics.length + 1);
-        Collections.addAll(topics, additionalTopics);
-        Collections.addAll(topics, topic);
-        return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
-            .setServerUri(serverUri)
-            .setTopicList(topics)
-            .build();
+    /**
+     * Creates a connection configuration to the MQTT broker for multiple topics. This method allows
+     * subscribing to multiple topics simultaneously.
+     *
+     * @param serverUri The MQTT broker URI.
+     * @param topics An iterable collection of MQTT topic patterns to subscribe to.
+     * @return A connection configuration to the MQTT broker with the specified topics.
+     */
+    public static ConnectionConfiguration createWithMultipleTopics(
+        String serverUri, Iterable<String> topics) {
+      checkArgument(serverUri != null, "serverUri can not be null");
+      checkArgument(topics != null, "topics can not be null");
+      int topicsSize = Iterables.size(topics);
+      checkArgument(topicsSize > 0, "topics can not be empty");
+
+      if (topicsSize == 1) {
+        return create(serverUri, Iterables.getOnlyElement(topics));
       } else {
         return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
             .setServerUri(serverUri)
-            .setTopic(topic)
+            .setTopicList(Lists.newArrayList(topics))
             .build();
       }
     }

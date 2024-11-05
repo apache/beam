@@ -33,6 +33,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -278,7 +279,7 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 60 * 1000)
-  public void testReadWithTopicArray() throws Exception {
+  public void testReadWithMultipleTopics() throws Exception {
     final String topic1 = "some-topic-1";
     final String topic2 = "some-topic-2";
     final String topic3 = "some-topic-3";
@@ -286,7 +287,8 @@ public class MqttIOTest {
     final Read<MqttRecord> mqttReaderWithTopicArray =
         MqttIO.readWithMetadata()
             .withConnectionConfiguration(
-                MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, topic1, topic2))
+                MqttIO.ConnectionConfiguration.createWithMultipleTopics(
+                    "tcp://localhost:" + port, Arrays.asList(topic1, topic2)))
             .withMaxNumRecords(15)
             .withMaxReadTime(Duration.standardSeconds(5));
 
@@ -636,15 +638,15 @@ public class MqttIOTest {
   }
 
   @Test
-  public void testWriteWithMultipleTopic() {
+  public void testWriteWithMultipleTopics() {
     final IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
             () ->
                 MqttIO.write()
                     .withConnectionConfiguration(
-                        MqttIO.ConnectionConfiguration.create(
-                            "serverUri", "topic1", "topic2", "topic3"))
+                        MqttIO.ConnectionConfiguration.createWithMultipleTopics(
+                            "serverUri", Arrays.asList("topic1", "topic2", "topic3")))
                     .expand(pipeline.apply(Create.of(new byte[] {}))));
 
     assertEquals("can not have multiple topics", exception.getMessage());
@@ -688,9 +690,10 @@ public class MqttIOTest {
   }
 
   @Test
-  public void testCreateConnectionWithMultipleTopic() {
+  public void testCreateConnectionWithMultipleTopics() {
     final MqttIO.ConnectionConfiguration connectionConfiguration =
-        MqttIO.ConnectionConfiguration.create("serverUri", "topic1", "topic2", "topic3", "topic4");
+        MqttIO.ConnectionConfiguration.createWithMultipleTopics(
+            "serverUri", Arrays.asList("topic1", "topic2", "topic3", "topic4"));
 
     assertNull(connectionConfiguration.getTopic());
     assertNotNull(connectionConfiguration.getTopicList());
