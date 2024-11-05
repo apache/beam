@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -49,8 +52,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 public class BigQueryFileLoadsWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
 
-  private static final String IDENTIFIER =
-      "beam:schematransform:org.apache.beam:bigquery_fileloads:v1";
   static final String INPUT_TAG = "input";
 
   @Override
@@ -60,7 +61,7 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return IDENTIFIER;
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_FILE_LOADS);
   }
 
   @Override

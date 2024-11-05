@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableConstraints;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
@@ -98,7 +100,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"; // getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE);
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_STORAGE_WRITE);
   }
 
   @Override

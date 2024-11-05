@@ -24,12 +24,12 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -39,15 +39,22 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** This class tests the execution of {@link Managed} BigQueryIO. */
 @RunWith(JUnit4.class)
 public class BigQueryManagedIT {
+  @Rule public TestName testName = new TestName();
+  @Rule public transient TestPipeline writePipeline = TestPipeline.create();
+  @Rule public transient TestPipeline readPipeline = TestPipeline.create();
+
   private static final Schema SCHEMA =
       Schema.of(
           Schema.Field.of("str", Schema.FieldType.STRING),
@@ -79,34 +86,58 @@ public class BigQueryManagedIT {
   public static void cleanup() {
     BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
+  @Test
+  public void testBatchFileLoadsWriteRead() {
+    String table =
+        String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
+    Map<String, Object> config = ImmutableMap.of("table", table);
+
+    // file loads requires a GCS temp location
+    String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
+    writePipeline.getOptions().setTempLocation(tempLocation);
+
+    // batch write
+    PCollectionRowTuple.of("input", getInput(writePipeline, false))
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
+    writePipeline.run().waitUntilFinish();
+
+    // read and validate
+    PCollection<Row> outputRows =
+        readPipeline
+            .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
+            .getSinglePCollection();
+    PAssert.that(outputRows).containsInAnyOrder(ROWS);
+
+    readPipeline.run().waitUntilFinish();
+  }
 
   @Test
   public void testStreamingStorageWriteRead() {
-    String table = String.format("%s:%s.managed_storage_write_read", PROJECT, BIG_QUERY_DATASET_ID);
+    String table =
+        String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
+    Map<String, Object> config = ImmutableMap.of("table", table);
 
-    Map<String, Object> writeConfig =
-        ImmutableMap.<String, Object>builder().put("table", table).build();
-    Pipeline p = Pipeline.create();
-    PCollectionRowTuple.of("input", getInput(p, true))
-        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
-    p.run().waitUntilFinish();
+    // streaming write
+    PCollectionRowTuple.of("input", getInput(writePipeline, true))
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
+    writePipeline.run().waitUntilFinish();
 
-    Map<String, Object> readConfig =
-        ImmutableMap.<String, Object>builder().put("table", table).build();
-    Pipeline q = Pipeline.create();
+    // read and validate
     PCollection<Row> outputRows =
-        PCollectionRowTuple.empty(p)
-            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
-            .get(BigQueryDirectReadSchemaTransformProvider.OUTPUT_TAG);
+        readPipeline
+            .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
+            .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
-    q.run().waitUntilFinish();
+
+    readPipeline.run().waitUntilFinish();
   }
 
   public PCollection<Row> getInput(Pipeline p, boolean isStreaming) {
     if (isStreaming) {
       return p.apply(
               PeriodicImpulse.create()
-                  .stopAfter(Duration.millis(20))
+                  .startAt(new Instant(0))
+                  .stopAt(new Instant(19))
                   .withInterval(Duration.millis(1)))
           .apply(
               MapElements.into(TypeDescriptors.rows())

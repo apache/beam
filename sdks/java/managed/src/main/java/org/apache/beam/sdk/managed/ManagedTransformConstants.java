@@ -70,7 +70,7 @@ public class ManagedTransformConstants {
               getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ),
               BIGQUERY_READ_MAPPINGS)
           .put(
-              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE),
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_STORAGE_WRITE),
               BIGQUERY_WRITE_MAPPINGS)
           .build();
 }

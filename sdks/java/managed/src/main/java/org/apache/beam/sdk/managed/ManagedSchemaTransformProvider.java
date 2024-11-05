@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.managed.Managed.BIGQUERY;
+import static org.apache.beam.sdk.managed.Managed.WRITE_TRANSFORMS;
 import static org.apache.beam.sdk.managed.ManagedTransformConstants.MAPPINGS;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -44,6 +48,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -97,6 +102,8 @@ public class ManagedSchemaTransformProvider
     @SchemaFieldDescription("YAML string config used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfig();
 
+    public abstract Builder toBuilder();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTransformIdentifier(String identifier);
@@ -134,53 +141,62 @@ public class ManagedSchemaTransformProvider
 
       return YamlUtils.yamlStringToMap(yamlTransformConfig);
     }
+
+    @VisibleForTesting
+    ManagedConfig resolveUnderlyingTransform(PCollectionRowTuple input) {
+      String identifier = getTransformIdentifier();
+      if (identifier.equals(WRITE_TRANSFORMS.get(BIGQUERY))) {
+        if (input.getSinglePCollection().isBounded().equals(PCollection.IsBounded.BOUNDED)) {
+          identifier = getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_FILE_LOADS);
+        }
+      }
+      return toBuilder().setTransformIdentifier(identifier).build();
+    }
   }
 
   @Override
   protected SchemaTransform from(ManagedConfig managedConfig) {
     managedConfig.validate();
-    SchemaTransformProvider schemaTransformProvider =
-        Preconditions.checkNotNull(
-            getAllProviders().get(managedConfig.getTransformIdentifier()),
-            "Could not find a transform with the identifier "
-                + "%s. This could be either due to the dependency with the "
-                + "transform not being available in the classpath or due to "
-                + "the specified transform not being supported.",
-            managedConfig.getTransformIdentifier());
-
-    return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);
+    return new ManagedSchemaTransform(managedConfig, getAllProviders());
   }
 
   static class ManagedSchemaTransform extends SchemaTransform {
-    private final ManagedConfig managedConfig;
-    private final Row underlyingRowConfig;
-    private final SchemaTransformProvider underlyingTransformProvider;
+    private ManagedConfig managedConfig;
+    private final Map<String, SchemaTransformProvider> providers;
 
     ManagedSchemaTransform(
-        ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
-      // parse config before expansion to check if it matches underlying transform's config schema
-      Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
-      Row underlyingRowConfig;
-      try {
-        underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
-      } catch (Exception e) {
-        throw new IllegalArgumentException(
-            "Encountered an error when retrieving a Row configuration", e);
-      }
-
-      this.underlyingRowConfig = underlyingRowConfig;
-      this.underlyingTransformProvider = underlyingTransformProvider;
+        ManagedConfig managedConfig, Map<String, SchemaTransformProvider> providers) {
+      this.providers = providers;
       this.managedConfig = managedConfig;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      LOG.debug(
-          "Building transform \"{}\" with Row configuration: {}",
-          underlyingTransformProvider.identifier(),
-          underlyingRowConfig);
+      managedConfig = managedConfig.resolveUnderlyingTransform(input);
 
-      return input.apply(underlyingTransformProvider.from(underlyingRowConfig));
+      SchemaTransformProvider schemaTransformProvider =
+          Preconditions.checkNotNull(
+              providers.get(managedConfig.getTransformIdentifier()),
+              "Could not find a transform with the identifier "
+                  + "%s. This could be either due to the dependency with the "
+                  + "transform not being available in the classpath or due to "
+                  + "the specified transform not being supported.",
+              managedConfig.getTransformIdentifier());
+      Schema transformConfigSchema = schemaTransformProvider.configurationSchema();
+      Row transformRowConfig;
+      try {
+        transformRowConfig = getRowConfig(managedConfig, transformConfigSchema);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Encountered an error when retrieving a Row configuration", e);
+      }
+
+      LOG.debug(
+          "Building transform \"{}\" with configuration: {}",
+          schemaTransformProvider.identifier(),
+          transformRowConfig);
+
+      return input.apply(schemaTransformProvider.from(transformRowConfig));
     }
 
     public ManagedConfig getManagedConfig() {
@@ -226,7 +242,7 @@ public class ManagedSchemaTransformProvider
     return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
-  // We load providers seperately, after construction, to prevent the
+  // We load providers separately, after construction, to prevent the
   // 'ManagedSchemaTransformProvider' from being initialized in a recursive loop
   // when being loaded using 'AutoValue'.
   synchronized Map<String, SchemaTransformProvider> getAllProviders() {
