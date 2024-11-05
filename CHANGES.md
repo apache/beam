@@ -87,6 +87,7 @@
 * Removed support for Flink 1.15 and 1.16
 * Removed support for Python 3.8
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Upgrade antlr from 4.7 to 4.13.1 ([#33016](https://github.com/apache/beam/pull/33016)).
 
 ## Bugfixes
 
