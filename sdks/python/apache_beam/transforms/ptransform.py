@@ -497,13 +497,12 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         at_context = ' %s %s' % (input_or_output, context) if context else ''
         raise TypeCheckError(
             '{type} type hint violation at {label}{context}: expected {hint}, '
-            'got {actual_type}\nFull type hint:\n{debug_str}'.format(
+            'got {actual_type}'.format(
                 type=input_or_output.title(),
                 label=self.label,
                 context=at_context,
                 hint=hint,
-                actual_type=pvalue_.element_type,
-                debug_str=type_hints.debug_str()))
+                actual_type=pvalue_.element_type))
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
@@ -748,7 +747,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
     # typing: only ParDo supports extra_kwargs
-    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(https://github.com/apache/beam/issues/18713): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
@@ -939,7 +938,25 @@ class PTransformWithSideInputs(PTransform):
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(
           argspec_fn, *input_types[0], **input_types[1])
-      for arg, hint in hints.items():
+
+      # First check the main input.
+      arg_hints = iter(hints.items())
+      element_arg, element_hint = next(arg_hints)
+      if not typehints.is_consistent_with(
+          bindings.get(element_arg, typehints.Any), element_hint):
+        transform_nest_level = self.label.count("/")
+        split_producer_label = pvalueish.producer.full_label.split("/")
+        producer_label = "/".join(
+            split_producer_label[:transform_nest_level + 1])
+        raise TypeCheckError(
+            f"The transform '{self.label}' requires "
+            f"PCollections of type '{element_hint}' "
+            f"but was applied to a PCollection of type"
+            f" '{bindings[element_arg]}' "
+            f"(produced by the transform '{producer_label}'). ")
+
+      # Now check the side inputs.
+      for arg, hint in arg_hints:
         if arg.startswith('__unknown__'):
           continue
         if hint is None:

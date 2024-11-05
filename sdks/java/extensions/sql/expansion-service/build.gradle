@@ -46,3 +46,7 @@ task runExpansionService (type: JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
+
+shadowJar {
+  outputs.upToDateWhen { false }
+}

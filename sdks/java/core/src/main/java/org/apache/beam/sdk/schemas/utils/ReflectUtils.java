@@ -26,7 +26,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 import java.security.InvalidParameterException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,7 +35,6 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -211,8 +209,7 @@ public class ReflectUtils {
   }
 
   /** For an array T[] or a subclass of Iterable<T>, return a TypeDescriptor describing T. */
-  public static @Nullable TypeDescriptor getIterableComponentType(
-      TypeDescriptor valueType, Map<Type, Type> boundTypes) {
+  public static @Nullable TypeDescriptor getIterableComponentType(TypeDescriptor valueType) {
     TypeDescriptor componentType = null;
     if (valueType.isArray()) {
       Type component = valueType.getComponentType().getType();
@@ -226,7 +223,7 @@ public class ReflectUtils {
         ParameterizedType ptype = (ParameterizedType) collection.getType();
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 1);
-        componentType = TypeDescriptor.of(resolveType(params[0], boundTypes));
+        componentType = TypeDescriptor.of(params[0]);
       } else {
         throw new RuntimeException("Collection parameter is not parameterized!");
       }
@@ -234,15 +231,14 @@ public class ReflectUtils {
     return componentType;
   }
 
-  public static TypeDescriptor getMapType(
-      TypeDescriptor valueType, int index, Map<Type, Type> boundTypes) {
+  public static TypeDescriptor getMapType(TypeDescriptor valueType, int index) {
     TypeDescriptor mapType = null;
     if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);
       if (map.getType() instanceof ParameterizedType) {
         ParameterizedType ptype = (ParameterizedType) map.getType();
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        mapType = TypeDescriptor.of(resolveType(params[index], boundTypes));
+        mapType = TypeDescriptor.of(params[index]);
       } else {
         throw new RuntimeException("Map type is not parameterized! " + map);
       }
@@ -254,50 +250,5 @@ public class ReflectUtils {
     return typeDescriptor.getRawType().isPrimitive()
         ? TypeDescriptor.of(Primitives.wrap(typeDescriptor.getRawType()))
         : typeDescriptor;
-  }
-
-  /**
-   * If this (or a base class)is a paremeterized type, return a map of all TypeVariable->Type
-   * bindings. This allows us to resolve types in any contained fields or methods.
-   */
-  public static <T> Map<Type, Type> getAllBoundTypes(TypeDescriptor<T> typeDescriptor) {
-    Map<Type, Type> boundParameters = Maps.newHashMap();
-    TypeDescriptor<?> currentType = typeDescriptor;
-    do {
-      if (currentType.getType() instanceof ParameterizedType) {
-        ParameterizedType parameterizedType = (ParameterizedType) currentType.getType();
-        TypeVariable<?>[] typeVariables = currentType.getRawType().getTypeParameters();
-        Type[] typeArguments = parameterizedType.getActualTypeArguments();
-        ;
-        if (typeArguments.length != typeVariables.length) {
-          throw new RuntimeException("Unmatching arguments lengths in type " + typeDescriptor);
-        }
-        for (int i = 0; i < typeVariables.length; ++i) {
-          boundParameters.put(typeVariables[i], typeArguments[i]);
-        }
-      }
-      Type superClass = currentType.getRawType().getGenericSuperclass();
-      if (superClass == null || superClass.equals(Object.class)) {
-        break;
-      }
-      currentType = TypeDescriptor.of(superClass);
-    } while (true);
-    return boundParameters;
-  }
-
-  public static Type resolveType(Type type, Map<Type, Type> boundTypes) {
-    TypeDescriptor<?> typeDescriptor = TypeDescriptor.of(type);
-    if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Iterable.class))
-        || typeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
-      // Don't resolve these as we special case map and interable.
-      return type;
-    }
-
-    if (type instanceof TypeVariable) {
-      TypeVariable<?> typeVariable = (TypeVariable<?>) type;
-      return Preconditions.checkArgumentNotNull(boundTypes.get(typeVariable));
-    } else {
-      return type;
-    }
   }
 }

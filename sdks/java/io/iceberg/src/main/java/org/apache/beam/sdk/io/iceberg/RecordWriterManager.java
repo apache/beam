@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.Preconditions;
@@ -199,7 +198,9 @@ class RecordWriterManager implements AutoCloseable {
 
   private final Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
       totalSerializableDataFiles = Maps.newHashMap();
-  private static final Cache<TableIdentifier, Table> TABLE_CACHE =
+
+  @VisibleForTesting
+  static final Cache<TableIdentifier, Table> TABLE_CACHE =
       CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   private boolean isClosed = false;
@@ -225,22 +226,28 @@ class RecordWriterManager implements AutoCloseable {
   private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema) {
     @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
     if (table == null) {
-      try {
-        table = catalog.loadTable(identifier);
-      } catch (NoSuchTableException e) {
+      synchronized (TABLE_CACHE) {
         try {
-          org.apache.iceberg.Schema tableSchema =
-              IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
-          // TODO(ahmedabu98): support creating a table with a specified partition spec
-          table = catalog.createTable(identifier, tableSchema);
-          LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
-        } catch (AlreadyExistsException alreadyExistsException) {
-          // handle race condition where workers are concurrently creating the same table.
-          // if running into already exists exception, we perform one last load
           table = catalog.loadTable(identifier);
+        } catch (NoSuchTableException e) {
+          try {
+            org.apache.iceberg.Schema tableSchema =
+                IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+            // TODO(ahmedabu98): support creating a table with a specified partition spec
+            table = catalog.createTable(identifier, tableSchema);
+            LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
+          } catch (AlreadyExistsException alreadyExistsException) {
+            // handle race condition where workers are concurrently creating the same table.
+            // if running into already exists exception, we perform one last load
+            table = catalog.loadTable(identifier);
+          }
         }
+        TABLE_CACHE.put(identifier, table);
       }
-      TABLE_CACHE.put(identifier, table);
+    } else {
+      // If fetching from cache, refresh the table to avoid working with stale metadata
+      // (e.g. partition spec)
+      table.refresh();
     }
     return table;
   }
@@ -258,15 +265,7 @@ class RecordWriterManager implements AutoCloseable {
             icebergDestination,
             destination -> {
               TableIdentifier identifier = destination.getValue().getTableIdentifier();
-              Table table;
-              try {
-                table =
-                    TABLE_CACHE.get(
-                        identifier, () -> getOrCreateTable(identifier, row.getSchema()));
-              } catch (ExecutionException e) {
-                throw new RuntimeException(
-                    "Error while fetching or creating table: " + identifier, e);
-              }
+              Table table = getOrCreateTable(identifier, row.getSchema());
               return new DestinationState(destination.getValue(), table);
             });
 

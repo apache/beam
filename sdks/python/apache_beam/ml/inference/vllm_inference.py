@@ -131,7 +131,7 @@ class _VLLMModelServer():
         server_cmd.append(v)
       self._server_process, self._server_port = start_process(server_cmd)
 
-    self.check_connectivity()
+    self.check_connectivity(retries)
 
   def get_server_port(self) -> int:
     if not self._server_started:

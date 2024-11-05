@@ -19,6 +19,8 @@
 
 # pytype: skip-file
 
+import collections
+import importlib
 import logging
 import math
 import random
@@ -27,6 +29,7 @@ import time
 import unittest
 import warnings
 from datetime import datetime
+from typing import Mapping
 
 import pytest
 import pytz
@@ -1810,6 +1813,32 @@ class RegexTest(unittest.TestCase):
           "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"
       ]]
       assert_that(result, equal_to(expected_result))
+
+
+class TeeTest(unittest.TestCase):
+  _side_effects: Mapping[str, int] = collections.defaultdict(int)
+
+  def test_tee(self):
+    # The imports here are to avoid issues with the class (and its attributes)
+    # possibly being pickled rather than referenced.
+    def cause_side_effect(element):
+      importlib.import_module(__name__).TeeTest._side_effects[element] += 1
+
+    def count_side_effects(element):
+      return importlib.import_module(__name__).TeeTest._side_effects[element]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | 'TeePTransform' >> beam.Tee(beam.Map(cause_side_effect))
+          | 'TeeCallable' >> beam.Tee(
+              lambda pcoll: pcoll | beam.Map(
+                  lambda element: cause_side_effect('X' + element))))
+      assert_that(result, equal_to(['a', 'b', 'c']))
+
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('Xa'), 1)
 
 
 class WaitOnTest(unittest.TestCase):

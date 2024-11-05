@@ -40,12 +40,16 @@ jobs:
                 repo: context.repo.repo,
                 assignees: [context.payload.comment.user.login]
               });
-              github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'awaiting triage'
-              });
+              try {
+                github.rest.issues.removeLabel({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: 'awaiting triage'
+                });
+              } catch (error) {
+                console.log(`Failed to remove awaiting triage label. It may not exist on this issue. Error ${error}`);
+              }
             } else if (bodyString == '.close-issue') {
               console.log('Closing issue');
               if (i + 1 < body.length && body[i+1].toLowerCase() == 'not_planned') {
