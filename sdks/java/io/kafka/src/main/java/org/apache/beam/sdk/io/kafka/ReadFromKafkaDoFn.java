@@ -248,7 +248,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
     private final Supplier<Long> memoizedBacklog;
-    private boolean closed;
 
     KafkaLatestOffsetEstimator(
         Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
@@ -274,7 +273,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     protected void finalize() {
       try {
         Closeables.close(offsetConsumer, true);
-        closed = true;
         LOG.info("Offset Estimator consumer was closed for {}", topicPartition);
       } catch (Exception anyException) {
         LOG.warn("Failed to close offset consumer for {}", topicPartition);
@@ -284,10 +282,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     @Override
     public long estimate() {
       return memoizedBacklog.get();
-    }
-
-    public boolean isClosed() {
-      return closed;
     }
   }
 
@@ -377,7 +371,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
     KafkaLatestOffsetEstimator offsetEstimator = offsetEstimatorCacheInstance.get(topicPartition);
-    if (offsetEstimator == null || offsetEstimator.isClosed()) {
+    if (offsetEstimator == null) {
       Map<String, Object> updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
 
