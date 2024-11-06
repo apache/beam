@@ -121,6 +121,7 @@ public class StreamingEngineWorkCommitterTest {
 
   private WorkCommitter createWorkCommitter(Consumer<CompleteCommit> onCommitComplete) {
     return StreamingEngineWorkCommitter.builder()
+        .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
         .setCommitWorkStreamFactory(commitWorkStreamFactory)
         .setOnCommitComplete(onCommitComplete)
         .build();
@@ -342,6 +343,7 @@ public class StreamingEngineWorkCommitterTest {
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter =
         StreamingEngineWorkCommitter.builder()
+            .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
             .setCommitWorkStreamFactory(commitWorkStreamFactory)
             .setNumCommitSenders(5)
             .setOnCommitComplete(completeCommits::add)
