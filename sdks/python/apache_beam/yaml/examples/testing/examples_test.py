@@ -267,7 +267,7 @@ def _spanner_io_read_test_preprocessor(
             for k, v in config.items() if k.startswith('__')
         }
         transform['config']['elements'] = INPUT_TABLES[(
-            instance, database, table)]
+            str(instance), str(database), str(table))]
 
   return test_spec
 
