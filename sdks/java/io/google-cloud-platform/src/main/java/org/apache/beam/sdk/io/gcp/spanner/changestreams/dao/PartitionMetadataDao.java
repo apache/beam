@@ -82,9 +82,7 @@ public class PartitionMetadataDao {
   public boolean tableExists() {
     final String checkTableExistsStmt =
         "SELECT t.table_name FROM information_schema.tables AS t "
-            + "WHERE t.table_catalog = '' AND "
-            + "t.table_schema = '' AND "
-            + "t.table_name = '"
+            + "WHERE t.table_name = '"
             + metadataTableName
             + "'";
     try (ResultSet queryResultSet =
