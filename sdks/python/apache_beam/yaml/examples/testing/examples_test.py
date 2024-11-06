@@ -213,9 +213,11 @@ def _wordcount_test_preprocessor(
     'test_simple_filter_yaml',
     'test_simple_filter_and_combine_yaml',
     'test_spanner_read_yaml',
-    'test_spanner_write_yaml'
+    'test_spanner_write_yaml',
+    'test_bigtable_enrichment_yaml',
+    'test_enrich_spanner_with_bigquery_yaml'
 ])
-def _io_write_test_preprocessor(
+def _file_io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 
   if pipeline := test_spec.get('pipeline', None):

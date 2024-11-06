@@ -94,3 +94,6 @@ pipeline:
       config:
         path: 'errors.json'
 
+# Expected:
+#  Row(customer_id=1001, customer_name='Alice', customer_email='alice@gmail.com', product_id=2001, order_date='24-03-24', order_amount=150)
+#  Row(customer_id=1003, customer_name='Claire', customer_email='claire@gmail.com', product_id=2003, order_date='7-05-24', order_amount=110)

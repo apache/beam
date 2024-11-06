@@ -48,5 +48,8 @@ pipeline:
   # We can also store it somewhere like a json file
     - type: LogForTesting
 
-  # Expected:
-  #  Row(sale_id = 1, customer_id = 1, product_id = 1, quantity = 1, product = Row(product_id: "1", product_name = "pixel 5", product_stock = "2"))
+options:
+  yaml_experimental_features: Enrichment
+  
+# Expected:
+#  Row(sale_id=1, customer_id=1, product_id=1, quantity=1, product={'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'})
