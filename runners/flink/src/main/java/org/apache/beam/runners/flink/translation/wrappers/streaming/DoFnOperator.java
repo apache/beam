@@ -812,7 +812,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       WindowedValue<InputT> element = it.next();
       // we need to set the correct key in case the operator is
       // a (keyed) window operator
-      setKeyContextElement1(new StreamRecord<>(element));
+      if (keySelector != null) {
+        setCurrentKey(keySelector.getKey(element));
+      }
 
       Iterable<WindowedValue<InputT>> justPushedBack =
           pushbackDoFnRunner.processElementInReadyWindows(element);
