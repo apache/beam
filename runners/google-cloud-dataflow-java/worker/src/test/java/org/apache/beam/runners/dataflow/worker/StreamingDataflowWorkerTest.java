@@ -96,6 +96,7 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
+import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
@@ -104,6 +105,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.environment.Environment;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -129,6 +132,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -178,6 +182,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedLong;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -271,15 +276,15 @@ public class StreamingDataflowWorkerTest {
           return idGenerator.getAndIncrement();
         }
       };
-
+  private final WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
+  private final StreamingGlobalConfigHandleImpl mockGlobalConfigHandle =
+      mock(StreamingGlobalConfigHandleImpl.class);
+  private final HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public BlockingFn blockingFn = new BlockingFn();
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
-  WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
-  StreamingGlobalConfigHandleImpl mockGlobalConfigHandle =
-      mock(StreamingGlobalConfigHandleImpl.class);
-  HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
+  private WindmillStateCache stateCache;
 
   private @Nullable ComputationStateCache computationStateCache = null;
   private final FakeWindmillServer server =
@@ -302,17 +307,6 @@ public class StreamingDataflowWorkerTest {
       }
     }
     return null;
-  }
-
-  @Before
-  public void setUp() {
-    server.clearCommitsReceived();
-  }
-
-  @After
-  public void cleanUp() {
-    Optional.ofNullable(computationStateCache)
-        .ifPresent(ComputationStateCache::closeAndInvalidateAll);
   }
 
   private static ExecutableWork createMockWork(
@@ -340,6 +334,27 @@ public class StreamingDataflowWorkerTest {
             Instant::now,
             Collections.emptyList()),
         processWorkFn);
+  }
+
+  private static Iterable<CounterUpdate> buildCounters(StreamingCounters streamingCounters) {
+    return Iterables.concat(
+        streamingCounters
+            .pendingDeltaCounters()
+            .extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE),
+        streamingCounters
+            .pendingCumulativeCounters()
+            .extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
+  }
+
+  @Before
+  public void setUp() {
+    server.clearCommitsReceived();
+  }
+
+  @After
+  public void cleanUp() {
+    Optional.ofNullable(computationStateCache)
+        .ifPresent(ComputationStateCache::closeAndInvalidateAll);
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -840,6 +855,12 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorker makeWorker(
       StreamingDataflowWorkerTestParams streamingDataflowWorkerTestParams) {
+    this.stateCache =
+        WindmillStateCache.builder()
+            .setSizeMb(streamingDataflowWorkerTestParams.options().getWorkerCacheMb())
+            .setSupportMapViaMultimap(
+                streamingDataflowWorkerTestParams.options().isEnableStreamingEngine())
+            .build();
     when(mockGlobalConfigHandle.getConfig())
         .thenReturn(streamingDataflowWorkerTestParams.streamingGlobalConfig());
     StreamingDataflowWorker worker =
@@ -856,7 +877,8 @@ public class StreamingDataflowWorkerTest {
             streamingDataflowWorkerTestParams.clock(),
             streamingDataflowWorkerTestParams.executorSupplier(),
             mockGlobalConfigHandle,
-            streamingDataflowWorkerTestParams.localRetryTimeoutMs());
+            streamingDataflowWorkerTestParams.localRetryTimeoutMs(),
+            stateCache);
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
@@ -1715,7 +1737,7 @@ public class StreamingDataflowWorkerTest {
                 intervalWindowBytes(WINDOW_AT_ZERO)));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    Iterable<CounterUpdate> counters = worker.buildCounters();
+    Iterable<CounterUpdate> counters = buildCounters(worker.getStreamingCounters());
 
     // These tags and data are opaque strings and this is a change detector test.
     // The "/u" indicates the user's namespace, versus "/s" for system namespace
@@ -1836,7 +1858,7 @@ public class StreamingDataflowWorkerTest {
     expectedBytesRead += dataBuilder.build().getSerializedSize();
 
     result = server.waitForAndGetCommits(1);
-    counters = worker.buildCounters();
+    counters = buildCounters(worker.getStreamingCounters());
     actualOutput = result.get(2L);
 
     assertEquals(1, actualOutput.getOutputMessagesCount());
@@ -2004,7 +2026,7 @@ public class StreamingDataflowWorkerTest {
                 intervalWindowBytes(WINDOW_AT_ZERO)));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    Iterable<CounterUpdate> counters = worker.buildCounters();
+    Iterable<CounterUpdate> counters = buildCounters(worker.getStreamingCounters());
 
     // These tags and data are opaque strings and this is a change detector test.
     // The "/u" indicates the user's namespace, versus "/s" for system namespace
@@ -2125,7 +2147,7 @@ public class StreamingDataflowWorkerTest {
     expectedBytesRead += dataBuilder.build().getSerializedSize();
 
     result = server.waitForAndGetCommits(1);
-    counters = worker.buildCounters();
+    counters = buildCounters(worker.getStreamingCounters());
     actualOutput = result.get(2L);
 
     assertEquals(1, actualOutput.getOutputMessagesCount());
@@ -2193,7 +2215,7 @@ public class StreamingDataflowWorkerTest {
     // No input messages
     assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
 
-    CacheStats stats = worker.getStateCacheStats();
+    CacheStats stats = stateCache.getCacheStats();
     LOG.info("cache stats {}", stats);
     assertEquals(1, stats.hitCount());
     assertEquals(4, stats.missCount());
@@ -2430,7 +2452,7 @@ public class StreamingDataflowWorkerTest {
                 null));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    Iterable<CounterUpdate> counters = worker.buildCounters();
+    Iterable<CounterUpdate> counters = buildCounters(worker.getStreamingCounters());
     Windmill.WorkItemCommitRequest commit = result.get(1L);
     UnsignedLong finalizeId =
         UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
@@ -2492,7 +2514,7 @@ public class StreamingDataflowWorkerTest {
                 null));
 
     result = server.waitForAndGetCommits(1);
-    counters = worker.buildCounters();
+    counters = buildCounters(worker.getStreamingCounters());
 
     commit = result.get(2L);
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
@@ -2540,7 +2562,7 @@ public class StreamingDataflowWorkerTest {
                 null));
 
     result = server.waitForAndGetCommits(1);
-    counters = worker.buildCounters();
+    counters = buildCounters(worker.getStreamingCounters());
 
     commit = result.get(3L);
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
@@ -2710,7 +2732,7 @@ public class StreamingDataflowWorkerTest {
     server.whenGetWorkCalled().thenReturn(work);
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    Iterable<CounterUpdate> counters = worker.buildCounters();
+    Iterable<CounterUpdate> counters = buildCounters(worker.getStreamingCounters());
     Windmill.WorkItemCommitRequest commit = result.get(1L);
     UnsignedLong finalizeId =
         UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
@@ -3848,8 +3870,8 @@ public class StreamingDataflowWorkerTest {
 
     // Matcher to ensure that commit size is within 10% of max bundle size.
     Matcher<Integer> isWithinBundleSizeLimits =
-        both(greaterThan(StreamingDataflowWorker.MAX_SINK_BYTES * 9 / 10))
-            .and(lessThan(StreamingDataflowWorker.MAX_SINK_BYTES * 11 / 10));
+        both(greaterThan(Environment.maxSinkBytes() * 9 / 10))
+            .and(lessThan(Environment.maxSinkBytes() * 11 / 10));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Windmill.WorkItemCommitRequest commit = result.get(1L);
@@ -3929,8 +3951,8 @@ public class StreamingDataflowWorkerTest {
 
     // Matcher to ensure that commit size is within 10% of max bundle size.
     Matcher<Integer> isWithinBundleSizeLimits =
-        both(greaterThan(StreamingDataflowWorker.MAX_SINK_BYTES * 9 / 10))
-            .and(lessThan(StreamingDataflowWorker.MAX_SINK_BYTES * 11 / 10));
+        both(greaterThan(Environment.maxSinkBytes() * 9 / 10))
+            .and(lessThan(Environment.maxSinkBytes() * 11 / 10));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Windmill.WorkItemCommitRequest commit = result.get(1L);

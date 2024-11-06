@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
+import com.google.auto.value.AutoBuilder;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -29,7 +30,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -50,7 +50,7 @@ public final class WorkFailureProcessor {
   private final Supplier<Instant> clock;
   private final int retryLocallyDelayMs;
 
-  private WorkFailureProcessor(
+  WorkFailureProcessor(
       BoundedQueueExecutor workUnitExecutor,
       FailureTracker failureTracker,
       HeapDumper heapDumper,
@@ -60,31 +60,13 @@ public final class WorkFailureProcessor {
     this.failureTracker = failureTracker;
     this.heapDumper = heapDumper;
     this.clock = clock;
-    this.retryLocallyDelayMs = retryLocallyDelayMs;
+    this.retryLocallyDelayMs =
+        retryLocallyDelayMs >= 0 ? retryLocallyDelayMs : DEFAULT_RETRY_LOCALLY_MS;
   }
 
-  public static WorkFailureProcessor create(
-      BoundedQueueExecutor workUnitExecutor,
-      FailureTracker failureTracker,
-      HeapDumper heapDumper,
-      Supplier<Instant> clock) {
-    return new WorkFailureProcessor(
-        workUnitExecutor, failureTracker, heapDumper, clock, DEFAULT_RETRY_LOCALLY_MS);
-  }
-
-  @VisibleForTesting
-  public static WorkFailureProcessor forTesting(
-      BoundedQueueExecutor workUnitExecutor,
-      FailureTracker failureTracker,
-      HeapDumper heapDumper,
-      Supplier<Instant> clock,
-      int retryLocallyDelayMs) {
-    return new WorkFailureProcessor(
-        workUnitExecutor,
-        failureTracker,
-        heapDumper,
-        clock,
-        retryLocallyDelayMs >= 0 ? retryLocallyDelayMs : DEFAULT_RETRY_LOCALLY_MS);
+  public static Builder builder() {
+    return new AutoBuilder_WorkFailureProcessor_Builder()
+        .setRetryLocallyDelayMs(DEFAULT_RETRY_LOCALLY_MS);
   }
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
@@ -185,5 +167,20 @@ public final class WorkFailureProcessor {
     }
 
     return false;
+  }
+
+  @AutoBuilder
+  public interface Builder {
+    Builder setWorkUnitExecutor(BoundedQueueExecutor workUnitExecutor);
+
+    Builder setFailureTracker(FailureTracker failureTracker);
+
+    Builder setHeapDumper(HeapDumper heapDumper);
+
+    Builder setClock(Supplier<Instant> clock);
+
+    Builder setRetryLocallyDelayMs(int retryLocallyDelayMs);
+
+    WorkFailureProcessor build();
   }
 }

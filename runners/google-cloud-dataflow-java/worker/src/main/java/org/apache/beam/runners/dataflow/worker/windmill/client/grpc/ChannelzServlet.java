@@ -45,16 +45,16 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.Capturable {
 
   private static final int MAX_TOP_CHANNELS_TO_RETURN = 500;
+  private static final String CHANNELZ_PATH = "/channelz";
 
   private final ChannelzService channelzService;
   private final Supplier<ImmutableSet<HostAndPort>> currentWindmillEndpoints;
   private final boolean showOnlyWindmillServiceChannels;
 
   public ChannelzServlet(
-      String path,
       DataflowStreamingPipelineOptions options,
       Supplier<ImmutableSet<HostAndPort>> currentWindmillEndpoints) {
-    super(path);
+    super(CHANNELZ_PATH);
     channelzService = ChannelzService.newInstance(MAX_TOP_CHANNELS_TO_RETURN);
     this.currentWindmillEndpoints = currentWindmillEndpoints;
     showOnlyWindmillServiceChannels = options.getChannelzShowOnlyWindmillServiceChannels();

@@ -33,7 +33,6 @@ import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.ReaderRegistry;
 import org.apache.beam.runners.dataflow.worker.SinkRegistry;
-import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.WindmillKeyedWorkItem;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -48,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.environment.Environment;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -121,7 +121,7 @@ final class ComputationWorkExecutorFactory {
     this.maxSinkBytes =
         hasExperiment(options, DISABLE_SINK_BYTE_LIMIT_EXPERIMENT)
             ? Long.MAX_VALUE
-            : StreamingDataflowWorker.MAX_SINK_BYTES;
+            : Environment.maxSinkBytes();
     this.throwExceptionOnLargeOutput =
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
   }

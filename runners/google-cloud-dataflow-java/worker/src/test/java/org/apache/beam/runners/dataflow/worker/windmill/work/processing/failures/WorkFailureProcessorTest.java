@@ -63,8 +63,13 @@ public class WorkFailureProcessorTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build());
-
-    return WorkFailureProcessor.forTesting(workExecutor, failureTracker, Optional::empty, clock, 0);
+    return WorkFailureProcessor.builder()
+        .setWorkUnitExecutor(workExecutor)
+        .setFailureTracker(failureTracker)
+        .setHeapDumper(Optional::empty)
+        .setClock(clock)
+        .setRetryLocallyDelayMs(0)
+        .build();
   }
 
   private static WorkFailureProcessor createWorkFailureProcessor(FailureTracker failureTracker) {

@@ -39,7 +39,7 @@ public class StreamPoolHeartbeatSenderTest {
   public void sendsHeartbeatsOnStream() {
     FakeWindmillServer server = new FakeWindmillServer(new ErrorCollector(), c -> Optional.empty());
     StreamPoolHeartbeatSender heartbeatSender =
-        StreamPoolHeartbeatSender.Create(
+        StreamPoolHeartbeatSender.create(
             WindmillStreamPool.create(1, Duration.standardSeconds(10), server::getDataStream));
     Heartbeats.Builder heartbeatsBuilder = Heartbeats.builder();
     heartbeatsBuilder
@@ -59,7 +59,7 @@ public class StreamPoolHeartbeatSenderTest {
     FakeGlobalConfigHandle configHandle =
         new FakeGlobalConfigHandle(getGlobalConfig(/*useSeparateHeartbeatStreams=*/ true));
     StreamPoolHeartbeatSender heartbeatSender =
-        StreamPoolHeartbeatSender.Create(
+        StreamPoolHeartbeatSender.create(
             WindmillStreamPool.create(
                 1, Duration.standardSeconds(10), dedicatedServer::getDataStream),
             WindmillStreamPool.create(
@@ -104,7 +104,7 @@ public class StreamPoolHeartbeatSenderTest {
     FakeGlobalConfigHandle configHandle =
         new FakeGlobalConfigHandle(getGlobalConfig(/*useSeparateHeartbeatStreams=*/ false));
     StreamPoolHeartbeatSender heartbeatSender =
-        StreamPoolHeartbeatSender.Create(
+        StreamPoolHeartbeatSender.create(
             WindmillStreamPool.create(
                 1, Duration.standardSeconds(10), dedicatedServer::getDataStream),
             WindmillStreamPool.create(

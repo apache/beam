@@ -212,6 +212,11 @@ public final class ComputationStateCache implements StatusDataProvider {
     }
   }
 
+  @FunctionalInterface
+  public interface ComputationStateFetcher {
+    Optional<ComputationState> fetch(String computationId);
+  }
+
   @VisibleForTesting
   static class ComputationStateNotFoundException extends IllegalStateException {
     private ComputationStateNotFoundException(String computationId) {
