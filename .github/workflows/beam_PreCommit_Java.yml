@@ -19,6 +19,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
+      - "buildSrc/**"
       - 'model/**'
       - 'sdks/java/**'
       - 'runners/**'
