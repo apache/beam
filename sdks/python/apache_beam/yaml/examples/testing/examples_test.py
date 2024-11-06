@@ -59,6 +59,57 @@ def products_csv():
   ])
 
 
+def spanner_data():
+  return [{
+      'shipment_id': 'S1',
+      'customer_id': 'C1',
+      'shipment_date': '2023-05-01',
+      'shipment_cost': 150.0,
+      'customer_name': 'Alice',
+      'customer_email': 'alice@example.com'
+  },
+          {
+              'shipment_id': 'S2',
+              'customer_id': 'C2',
+              'shipment_date': '2023-06-12',
+              'shipment_cost': 300.0,
+              'customer_name': 'Bob',
+              'customer_email': 'bob@example.com'
+          },
+          {
+              'shipment_id': 'S3',
+              'customer_id': 'C1',
+              'shipment_date': '2023-05-10',
+              'shipment_cost': 20.0,
+              'customer_name': 'Alice',
+              'customer_email': 'alice@example.com'
+          },
+          {
+              'shipment_id': 'S4',
+              'customer_id': 'C4',
+              'shipment_date': '2024-07-01',
+              'shipment_cost': 150.0,
+              'customer_name': 'Derek',
+              'customer_email': 'derek@example.com'
+          },
+          {
+              'shipment_id': 'S5',
+              'customer_id': 'C5',
+              'shipment_date': '2023-05-09',
+              'shipment_cost': 300.0,
+              'customer_name': 'Erin',
+              'customer_email': 'erin@example.com'
+          },
+          {
+              'shipment_id': 'S6',
+              'customer_id': 'C4',
+              'shipment_date': '2024-07-02',
+              'shipment_cost': 150.0,
+              'customer_name': 'Derek',
+              'customer_email': 'derek@example.com'
+          }]
+
+
 def create_test_method(
     pipeline_spec_file: str,
     custom_preprocessors: List[Callable[..., Union[Dict, List]]]):
@@ -164,7 +215,7 @@ def _wordcount_test_preprocessor(
     'test_spanner_read_yaml',
     'test_spanner_write_yaml'
 ])
-def _file_io_write_test_preprocessor(
+def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 
   if pipeline := test_spec.get('pipeline', None):
@@ -199,7 +250,30 @@ def _file_io_read_test_preprocessor(
   return test_spec
 
 
+@YamlExamplesTestSuite.register_test_preprocessor(['test_spanner_read_yaml'])
+def _spanner_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '').startswith('ReadFromSpanner'):
+        config = transform['config']
+        instance, database = config['instance_id'], config['database_id']
+        if table := config.get('table', None) is None:
+          table = config.get('query', '').split('FROM')[-1].strip()
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            instance, database, table)]
+
+  return test_spec
+
+
 INPUT_FILES = {'products.csv': products_csv()}
+INPUT_TABLES = {('shipment-test', 'shipment', 'shipments'): spanner_data()}
 
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 ExamplesTest = YamlExamplesTestSuite(

@@ -18,8 +18,8 @@
 pipeline:
   transforms:
 
-  # Step 1: Creating rows to be written to Spanner
-  # The element names correspond to the column names in the Spanner table
+    # Step 1: Creating rows to be written to Spanner
+    # The element names correspond to the column names in the Spanner table
     - type: Create
       name: CreateRows
       config:
@@ -31,10 +31,10 @@ pipeline:
             customer_name: "Erin"
             customer_email: "erin@example.com"
 
-  # Step 2: Writing the created rows to a Spanner database
-  # We require the project ID, instance ID, database ID and table ID to connect to Spanner
-  # Error handling can be specified optionally to ensure any failed operations aren't lost
-  # The failed data is passed on in the pipeline and can be handled 
+    # Step 2: Writing the created rows to a Spanner database
+    # We require the project ID, instance ID, database ID and table ID to connect to Spanner
+    # Error handling can be specified optionally to ensure any failed operations aren't lost
+    # The failed data is passed on in the pipeline and can be handled
     - type: WriteToSpanner
       name: WriteSpanner
       input: CreateRows
@@ -46,7 +46,7 @@ pipeline:
         error_handling:
           output: my_error_output
 
-  # Step 3: Writing the failed records to a JSON file
+    # Step 3: Writing the failed records to a JSON file
     - type: WriteToJson
       input: WriteSpanner.my_error_output
       config:
