@@ -367,6 +367,36 @@ message MonitoringInfoSpecs {
         }
       ]
     }];
+
+
+    USER_PER_WORKER_HISTOGRAM = 22 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:per_worker_histogram_int64:v1",
+      type: "beam:metrics:per_worker_histogram_int64:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents per worker metrics 
+    PER_WORKER_LATENCY_METRIC= 23 [(monitoring_info_spec) = {
+      urn: "beam:metrics:per_worker_metric:v1",
+      type: "beam:metrics:per_worker_histogram_int64:v1",
+      required_labels: [
+        "PTRANSFORM"
+      ],
+      annotations: [
+        {
+          key: "description",
+          value: "Histogram counts for request latencies made to IO service APIs to batch read or write elements."
+        },
+        {
+          key: "units",
+          value: "Milliseconds"
+        }
+      ]
+    }];
   }
 }
 
@@ -575,6 +605,10 @@ message MonitoringInfoTypeUrns {
     //   - valueX: beam:coder:stringutf8:v1
     SET_STRING_TYPE = 11 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:set_string:v1"];
+
+    PER_WORKER_HISTOGRAM = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:metrics:per_worker_histogram_int64:v1"];
+
 
     // General monitored state information which contains structured information
     // which does not fit into a typical metric format. See MonitoringTableData

@@ -304,6 +304,17 @@ public class HistogramData implements Serializable {
     return numBoundedBucketRecords + numTopRecords + numBottomRecords;
   }
 
+  public HistogramData extractResult() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    return other;
+  }
+
+  public HistogramData combine(HistogramData value) {
+    this.update(value);
+    return this;
+  }
+
   public synchronized String getPercentileString(String elemType, String unit) {
     return String.format(
         "Total number of %s: %s, P99: %.0f %s, P90: %.0f %s, P50: %.0f %s",

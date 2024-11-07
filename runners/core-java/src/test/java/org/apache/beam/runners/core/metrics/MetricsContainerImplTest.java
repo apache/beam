@@ -372,6 +372,7 @@ public class MetricsContainerImplTest {
     HistogramData.BucketType bucketType = HistogramData.LinearBuckets.of(0, 2, 5);
     MetricName hName = MetricName.named("namespace", "histogram");
     MetricName stringSetName = MetricName.named("namespace", "stringset");
+    MetricName pwhName = MetricName.named("namespace", "perWorkerHistogram");
 
     MetricsContainerImpl prevContainer = new MetricsContainerImpl(null);
     prevContainer.getCounter(cName).inc(2L);
@@ -382,6 +383,10 @@ public class MetricsContainerImplTest {
     prevContainer.getHistogram(hName, bucketType).update(1);
     prevContainer.getHistogram(hName, bucketType).update(3);
     prevContainer.getHistogram(hName, bucketType).update(20);
+
+     // Set PerWorkerBucketCounts to [0,1,1,0,0,0,0]
+     prevContainer.getPerWorkerHistogram(pwhName, bucketType).update(1);
+     prevContainer.getPerWorkerHistogram(pwhName, bucketType).update(3);
 
     MetricsContainerImpl nextContainer = new MetricsContainerImpl(null);
     nextContainer.getCounter(cName).inc(9L);
@@ -400,6 +405,10 @@ public class MetricsContainerImplTest {
     nextContainer.getHistogram(hName, bucketType).update(20);
     nextContainer.getHistogram(hName, bucketType).update(20);
     nextContainer.getHistogram(hName, bucketType).update(20);
+
+     // Set PerWorkerBucketCounts to [1,0,0,0,0,0,1]
+     nextContainer.getPerWorkerHistogram(pwhName, bucketType).update(-1);
+     nextContainer.getPerWorkerHistogram(pwhName, bucketType).update(20);
 
     MetricsContainerImpl deltaContainer =
         MetricsContainerImpl.deltaContainer(prevContainer, nextContainer);
@@ -426,6 +435,20 @@ public class MetricsContainerImplTest {
     }
     assertEquals(
         2, deltaContainer.getHistogram(hName, bucketType).getCumulative().getTopBucketCount());
+
+    // Expect per worker bucket counts: [1,0,0,0,0,0,1]
+    assertEquals(
+      1,
+      deltaContainer
+          .getPerWorkerHistogram(pwhName, bucketType)
+          .getCumulative()
+          .getBottomBucketCount());
+  assertEquals(
+      1,
+      deltaContainer
+          .getPerWorkerHistogram(pwhName, bucketType)
+          .getCumulative()
+          .getTopBucketCount());
   }
 
   @Test

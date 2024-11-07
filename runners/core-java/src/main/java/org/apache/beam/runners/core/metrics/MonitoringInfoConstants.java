@@ -54,6 +54,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_DOUBLE);
     public static final String USER_SET_STRING =
         extractUrn(MonitoringInfoSpecs.Enum.USER_SET_STRING);
+    public static final String USER_PER_WORKER_HISTOGRAM =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_PER_WORKER_HISTOGRAM);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);
@@ -64,7 +66,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_COUNT);
     public static final String API_REQUEST_LATENCIES =
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_LATENCIES);
-
+    public static final String PER_WORKER_LATENCY_METRIC =
+        extractUrn(MonitoringInfoSpecs.Enum.PER_WORKER_LATENCY_METRIC);
     static {
       // Validate that compile time constants match the values stored in the protos.
       // Defining these as constants allows for usage in switch case statements and also
@@ -165,7 +168,8 @@ public final class MonitoringInfoConstants {
     public static final String BOTTOM_N_DOUBLE_TYPE = "beam:metrics:bottom_n_double:v1";
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
     public static final String SET_STRING_TYPE = "beam:metrics:set_string:v1";
-
+    public static final String PER_WORKER_HISTOGRAM_TYPE =
+        "beam:metrics:per_worker_histogram_int64:v1";
     static {
       // Validate that compile time constants match the values stored in the protos.
       // Defining these as constants allows for usage in switch case statements and also
@@ -191,6 +195,9 @@ public final class MonitoringInfoConstants {
           BOTTOM_N_DOUBLE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOTTOM_N_DOUBLE_TYPE)));
       checkArgument(PROGRESS_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.PROGRESS_TYPE)));
       checkArgument(SET_STRING_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SET_STRING_TYPE)));
+      checkArgument(
+        PER_WORKER_HISTOGRAM_TYPE.equals(
+            getUrn(MonitoringInfoTypeUrns.Enum.PER_WORKER_HISTOGRAM)));
     }
   }
 

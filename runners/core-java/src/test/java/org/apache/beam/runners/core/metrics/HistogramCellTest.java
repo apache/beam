@@ -106,4 +106,13 @@ public class HistogramCellTest {
     assertThat(cell.getCumulative(), equalTo(HistogramData.linear(0, 10, 100)));
     assertThat(cell.getDirty(), equalTo(new DirtyState()));
   }
+  
+  @Test
+  public void testUpdateWithHistogramData() {
+    HistogramCell cell = new HistogramCell(KV.of(MetricName.named("hello", "world"), bucketType));
+    HistogramData data = HistogramData.linear(0, 10, 100);
+    data.record(5, 7, 9);
+    cell.update(data);
+    assertThat(cell.getCumulative(), equalTo(data));
+  }
 }
