@@ -45,8 +45,8 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
-from apache_beam.yaml.yaml_errors import map_errors_to_standard_format
 from apache_beam.yaml.yaml_errors import exception_handling_args
+from apache_beam.yaml.yaml_errors import map_errors_to_standard_format
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 from apache_beam.yaml.yaml_provider import dicts_to_rows

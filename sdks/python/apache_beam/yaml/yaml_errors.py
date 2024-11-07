@@ -19,9 +19,8 @@ import functools
 import inspect
 from typing import NamedTuple
 
-from apache_beam.typehints.row_type import RowTypeConstraint
-
 import apache_beam as beam
+from apache_beam.typehints.row_type import RowTypeConstraint
 
 
 class ErrorHandlingConfig(NamedTuple):
