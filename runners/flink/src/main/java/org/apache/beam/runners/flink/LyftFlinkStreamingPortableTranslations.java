@@ -86,6 +86,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.JobManagerWatermarkTracker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -106,6 +107,8 @@ public class LyftFlinkStreamingPortableTranslations {
   private static final String FLINK_S3_URN = "lyft:flinkS3Input";
   private static final String BYTES_ENCODING = "bytes";
   private static final String LYFT_BASE64_ZLIB_JSON = "lyft-base64-zlib-json";
+
+  private static final WatermarkTracker GLOBAL_WATERMARK = new JobManagerWatermarkTracker("globalWatermark");
 
   @AutoService(NativeTransforms.IsNativeTransform.class)
   public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
@@ -398,6 +401,9 @@ public class LyftFlinkStreamingPortableTranslations {
     source.setShardAssigner(
         InitialRoundRobinKinesisShardAssigner.fromInitialShards(
             properties, stream, context.getExecutionEnvironment().getConfig().getParallelism()));
+    if (params.hasNonNull("use_watermark_tracker")) {
+      source.setWatermarkTracker(GLOBAL_WATERMARK);
+    }
     context.addDataStream(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         context
