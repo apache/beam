@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "java": "kennknowles",
-    "build": "Abacn",
-    "io": "damondouglas"
+    "java": "robertwb",
+    "build": "damccorm",
+    "io": "chamikaramj"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
