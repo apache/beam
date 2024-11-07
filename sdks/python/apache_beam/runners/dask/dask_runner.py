@@ -45,7 +45,7 @@ try:
   # https://github.com/pytest-dev/pytest/issues/3216#issuecomment-1502451456
   import dask.distributed as ddist
 except ImportError:
-  distributed = {}
+  ddist = {}
 
 
 class DaskOptions(PipelineOptions):
