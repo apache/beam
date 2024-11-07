@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -61,6 +60,20 @@ public class BigQuerySchemaTransformTranslation {
     }
   }
 
+  public static class BigQueryFileLoadsSchemaTransformTranslator
+      extends SchemaTransformTranslation.SchemaTransformPayloadTranslator<
+          BigQueryFileLoadsSchemaTransform> {
+    @Override
+    public SchemaTransformProvider provider() {
+      return new BigQueryFileLoadsWriteSchemaTransformProvider();
+    }
+
+    @Override
+    public Row toConfigRow(BigQueryFileLoadsSchemaTransform transform) {
+      return transform.getConfigurationRow();
+    }
+  }
+
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class ReadWriteRegistrar implements TransformPayloadTranslatorRegistrar {
     @Override
@@ -79,6 +92,9 @@ public class BigQuerySchemaTransformTranslation {
           .put(
               BigQueryStorageWriteApiSchemaTransform.class,
               new BigQueryStorageWriteSchemaTransformTranslator())
+          .put(
+              BigQueryFileLoadsSchemaTransform.class,
+              new BigQueryFileLoadsSchemaTransformTranslator())
           .build();
     }
   }

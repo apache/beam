@@ -26,6 +26,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -55,7 +57,7 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
-    return new BigQueryWriteSchemaTransform(configuration);
+    return new BigQueryFileLoadsSchemaTransform(configuration);
   }
 
   @Override
@@ -73,13 +75,13 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     return Collections.emptyList();
   }
 
-  protected static class BigQueryWriteSchemaTransform extends SchemaTransform {
+  public static class BigQueryFileLoadsSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
     private final BigQueryWriteConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(BigQueryWriteConfiguration configuration) {
+    BigQueryFileLoadsSchemaTransform(BigQueryWriteConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }
@@ -125,6 +127,20 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     @VisibleForTesting
     void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
       this.testBigQueryServices = testBigQueryServices;
+    }
+
+    public Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(BigQueryWriteConfiguration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

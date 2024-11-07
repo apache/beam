@@ -28,7 +28,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryWriteSchemaTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -106,8 +106,8 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
             .setWriteDisposition(WriteDisposition.WRITE_TRUNCATE.name())
             .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
             .build();
-    BigQueryWriteSchemaTransform schemaTransform =
-        (BigQueryWriteSchemaTransform) provider.from(configuration);
+    BigQueryFileLoadsSchemaTransform schemaTransform =
+        (BigQueryFileLoadsSchemaTransform) provider.from(configuration);
     schemaTransform.setTestBigQueryServices(fakeBigQueryServices);
     String tag = provider.inputCollectionNames().get(0);
     PCollectionRowTuple input =
