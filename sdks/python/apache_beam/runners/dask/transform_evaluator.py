@@ -158,6 +158,7 @@ class Create(DaskBagOp):
 
 def apply_dofn_to_bundle(
     items, do_fn_invoker_args, do_fn_invoker_kwargs, tagged_receivers):
+  """Invokes a DoFn within a bundle, which is implemented as a Dask partition."""
 
   do_fn_invoker = DoFnInvoker.create_invoker(
       *do_fn_invoker_args, **do_fn_invoker_kwargs)
