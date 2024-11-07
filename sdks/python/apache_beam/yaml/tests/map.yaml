@@ -42,6 +42,6 @@ pipelines:
 
         - type: AssertEqual
           config:
-            element
+            elements:
               - {element: 100, named_field: 100, literal_int: 10, literal_float: 1.5, literal_str: "abc"}
               - {element: 200, named_field: 200, literal_int: 10, literal_float: 1.5, literal_str: "abc"}
