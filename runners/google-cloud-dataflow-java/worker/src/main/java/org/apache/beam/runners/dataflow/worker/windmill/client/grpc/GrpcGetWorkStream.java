@@ -28,7 +28,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequestExtension;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
@@ -121,20 +120,19 @@ final class GrpcGetWorkStream
     executeSafely(
         () -> {
           try {
-            send(extension);
-          } catch (StreamClosedException | WindmillStreamShutdownException e) {
+            trySend(extension);
+          } catch (WindmillStreamShutdownException e) {
             // Stream was closed.
           }
         });
   }
 
   @Override
-  protected synchronized void onNewStream()
-      throws StreamClosedException, WindmillStreamShutdownException {
+  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
     workItemAssemblers.clear();
     inflightMessages.set(request.getMaxItems());
     inflightBytes.set(request.getMaxBytes());
-    send(StreamingGetWorkRequest.newBuilder().setRequest(request).build());
+    trySend(StreamingGetWorkRequest.newBuilder().setRequest(request).build());
   }
 
   @Override
@@ -154,8 +152,8 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  public void sendHealthCheck() throws StreamClosedException, WindmillStreamShutdownException {
-    send(
+  public void sendHealthCheck() throws WindmillStreamShutdownException {
+    trySend(
         StreamingGetWorkRequest.newBuilder()
             .setRequestExtension(
                 StreamingGetWorkRequestExtension.newBuilder().setMaxItems(0).setMaxBytes(0).build())

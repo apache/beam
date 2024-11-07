@@ -38,7 +38,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommit
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -123,9 +122,8 @@ final class GrpcCommitWorkStream
   }
 
   @Override
-  protected synchronized void onNewStream()
-      throws StreamClosedException, WindmillStreamShutdownException {
-    send(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
+  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
+    trySend(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
         if (!resendBatcher.canAccept(entry.getValue().getBytes())) {
@@ -151,11 +149,11 @@ final class GrpcCommitWorkStream
   }
 
   @Override
-  public void sendHealthCheck() throws StreamClosedException, WindmillStreamShutdownException {
+  public void sendHealthCheck() throws WindmillStreamShutdownException {
     if (hasPendingRequests()) {
       StreamingCommitWorkRequest.Builder builder = StreamingCommitWorkRequest.newBuilder();
       builder.addCommitChunkBuilder().setRequestId(HEARTBEAT_REQUEST_ID);
-      send(builder.build());
+      trySend(builder.build());
     }
   }
 
@@ -173,9 +171,11 @@ final class GrpcCommitWorkStream
       CommitStatus commitStatus =
           i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
       if (pendingRequest == null) {
-        if (!hasReceivedShutdownSignal()) {
-          // Skip responses when the stream is shutdown since they are now invalid.
-          LOG.error("Got unknown commit request ID: {}", requestId);
+        synchronized (this) {
+          if (!isShutdown) {
+            // Missing responses are expected after shutdown() because it removes them.
+            LOG.error("Got unknown commit request ID: {}", requestId);
+          }
         }
       } else {
         try {
@@ -185,13 +185,12 @@ final class GrpcCommitWorkStream
           // other commits from being processed. Aggregate all the failures to throw after
           // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
-          failures.recordError(commitStatus, e);
+          failures.addError(commitStatus, e);
         }
       }
     }
-    if (failures.hasErrors()) {
-      throw failures;
-    }
+
+    failures.throwIfNonEmpty();
   }
 
   @Override
@@ -239,15 +238,11 @@ final class GrpcCommitWorkStream
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
     synchronized (this) {
-      try {
-        if (!prepareForSend(id, pendingRequest)) {
-          pendingRequest.abort();
-          return;
-        }
-        send(chunk);
-      } catch (StreamClosedException e) {
-        // Stream was broken, request will be retried when stream is reopened.
+      if (!prepareForSend(id, pendingRequest)) {
+        pendingRequest.abort();
+        return;
       }
+      trySend(chunk);
     }
   }
 
@@ -273,11 +268,7 @@ final class GrpcCommitWorkStream
         requests.forEach((ignored, pendingRequest) -> pendingRequest.abort());
         return;
       }
-      try {
-        send(request);
-      } catch (StreamClosedException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
+      trySend(request);
     }
   }
 
@@ -308,10 +299,9 @@ final class GrpcCommitWorkStream
         }
         StreamingCommitWorkRequest requestChunk =
             StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
-        try {
-          send(requestChunk);
-        } catch (StreamClosedException e) {
-          // Stream was broken, request will be retried when stream is reopened.
+
+        if (!trySend(requestChunk)) {
+          // The stream broke, don't try to send the rest of the chunks here.
           break;
         }
       }
@@ -320,7 +310,7 @@ final class GrpcCommitWorkStream
 
   /** Returns true if prepare for send succeeded. */
   private synchronized boolean prepareForSend(long id, PendingRequest request) {
-    if (!hasReceivedShutdownSignal()) {
+    if (!isShutdown) {
       pending.put(id, request);
       return true;
     }
@@ -329,7 +319,7 @@ final class GrpcCommitWorkStream
 
   /** Returns true if prepare for send succeeded. */
   private synchronized boolean prepareForSend(Map<Long, PendingRequest> requests) {
-    if (!hasReceivedShutdownSignal()) {
+    if (!isShutdown) {
       pending.putAll(requests);
       return true;
     }
@@ -382,15 +372,17 @@ final class GrpcCommitWorkStream
       this.detailedErrors = EvictingQueue.create(MAX_PRINTABLE_ERRORS);
     }
 
-    private void recordError(CommitStatus commitStatus, Throwable error) {
+    private void addError(CommitStatus commitStatus, Throwable error) {
       errorCounter.compute(
           Pair.of(commitStatus, error.getClass()),
           (ignored, current) -> current == null ? 1 : current + 1);
       detailedErrors.add(error);
     }
 
-    private boolean hasErrors() {
-      return !errorCounter.isEmpty();
+    private void throwIfNonEmpty() {
+      if (!errorCounter.isEmpty()) {
+        throw this;
+      }
     }
 
     @Override
@@ -417,8 +409,7 @@ final class GrpcCommitWorkStream
     @Override
     public boolean commitWorkItem(
         String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
-      if (!canAccept(commitRequest.getSerializedSize() + computation.length())
-          || hasReceivedShutdownSignal()) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
         return false;
       }
 
@@ -431,11 +422,7 @@ final class GrpcCommitWorkStream
     @Override
     public void flush() {
       try {
-        if (!hasReceivedShutdownSignal()) {
-          flushInternal(queue);
-        } else {
-          queue.forEach((ignored, request) -> request.abort());
-        }
+        flushInternal(queue);
       } catch (WindmillStreamShutdownException e) {
         queue.forEach((ignored, request) -> request.abort());
       } finally {

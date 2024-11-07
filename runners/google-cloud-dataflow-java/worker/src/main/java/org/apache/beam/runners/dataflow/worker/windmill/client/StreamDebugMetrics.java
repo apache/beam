@@ -59,6 +59,9 @@ final class StreamDebugMetrics {
   @GuardedBy("this")
   private DateTime shutdownTime = null;
 
+  @GuardedBy("this")
+  private boolean clientClosed = false;
+
   private StreamDebugMetrics(Supplier<Instant> clock) {
     this.clock = clock;
   }
@@ -122,6 +125,10 @@ final class StreamDebugMetrics {
     shutdownTime = clock.get().toDateTime();
   }
 
+  synchronized void recordHalfClose() {
+    clientClosed = true;
+  }
+
   synchronized Optional<String> responseDebugString(long nowMillis) {
     return lastResponseTimeMs == 0
         ? Optional.empty()
@@ -145,7 +152,8 @@ final class StreamDebugMetrics {
         debugDuration(nowMs, lastResponseTimeMs),
         getRestartMetrics(),
         sleepUntil - nowMs(),
-        shutdownTime);
+        shutdownTime,
+        clientClosed);
   }
 
   @AutoValue
@@ -156,14 +164,16 @@ final class StreamDebugMetrics {
         long timeSinceLastResponse,
         Optional<RestartMetrics> restartMetrics,
         long sleepLeft,
-        @Nullable DateTime shutdownTime) {
+        @Nullable DateTime shutdownTime,
+        boolean isClientClosed) {
       return new AutoValue_StreamDebugMetrics_Snapshot(
           streamAge,
           timeSinceLastSend,
           timeSinceLastResponse,
           restartMetrics,
           sleepLeft,
-          Optional.ofNullable(shutdownTime));
+          Optional.ofNullable(shutdownTime),
+          isClientClosed);
     }
 
     abstract long streamAge();
@@ -177,6 +187,8 @@ final class StreamDebugMetrics {
     abstract long sleepLeft();
 
     abstract Optional<DateTime> shutdownTime();
+
+    abstract boolean isClientClosed();
   }
 
   @AutoValue

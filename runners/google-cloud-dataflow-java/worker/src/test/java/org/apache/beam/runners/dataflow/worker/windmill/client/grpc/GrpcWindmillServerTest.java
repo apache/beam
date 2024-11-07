@@ -470,8 +470,9 @@ public class GrpcWindmillServerTest {
                       "Sending batched response of {} ids", responseBuilder.getRequestIdCount());
                   try {
                     responseObserver.onNext(responseBuilder.build());
-                  } catch (IllegalStateException e) {
+                  } catch (Exception e) {
                     // Stream is already closed.
+                    System.out.println("trieu: " + e);
                   }
                   responseBuilder.clear();
                 }

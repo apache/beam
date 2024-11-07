@@ -145,4 +145,14 @@ final class ResettableThrowingStreamObserver<T> {
   synchronized boolean isClosed() {
     return isCurrentStreamClosed;
   }
+
+  /**
+   * Indicates that the current stream was closed and the {@link StreamObserver} has finished via
+   * {@link StreamObserver#onCompleted()}. The stream may perform
+   */
+  static final class StreamClosedException extends Exception {
+    private StreamClosedException(String s) {
+      super(s);
+    }
+  }
 }

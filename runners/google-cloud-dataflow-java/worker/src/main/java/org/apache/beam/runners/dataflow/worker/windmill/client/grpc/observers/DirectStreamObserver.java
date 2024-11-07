@@ -52,6 +52,9 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
   private final int messagesBetweenIsReadyChecks;
 
   @GuardedBy("lock")
+  private boolean isClosed = false;
+
+  @GuardedBy("lock")
   private int messagesSinceReady = 0;
 
   public DirectStreamObserver(
@@ -117,7 +120,7 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
             isReadyNotifier.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
         // If nextPhase is a value less than 0, the phaser has been terminated.
         if (nextPhase < 0) {
-          return;
+          throw new StreamObserverCancelledException("StreamObserver was terminated.");
         }
 
         synchronized (lock) {
@@ -155,7 +158,9 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
 
   @Override
   public void onError(Throwable t) {
+    isReadyNotifier.forceTermination();
     synchronized (lock) {
+      isClosed = true;
       outboundObserver.onError(t);
     }
   }
@@ -163,6 +168,7 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
   @Override
   public void onCompleted() {
     synchronized (lock) {
+      isClosed = true;
       outboundObserver.onCompleted();
     }
   }
@@ -171,11 +177,10 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
   public void terminate(Throwable terminationException) {
     // Free the blocked threads in onNext().
     isReadyNotifier.forceTermination();
-    try {
-      onError(terminationException);
-    } catch (RuntimeException e) {
-      // If onError or onComplete was previously called, this will throw.
-      LOG.warn("StreamObserver was already terminated.");
+    synchronized (lock) {
+      if (!isClosed) {
+        onError(terminationException);
+      }
     }
   }
 

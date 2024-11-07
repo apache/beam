@@ -48,7 +48,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRes
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedBatch;
@@ -70,7 +69,9 @@ final class GrpcGetDataStream
   private static final StreamingGetDataRequest HEALTH_CHECK_REQUEST =
       StreamingGetDataRequest.newBuilder().build();
 
-  /** @implNote {@link QueuedBatch} objects in the queue are is guarded by {@code this} */
+  /**
+   * @implNote {@link QueuedBatch} objects in the queue are is guarded by {@code this}
+   */
   private final Deque<QueuedBatch> batches;
 
   private final Map<Long, AppendableInputStream> pending;
@@ -157,18 +158,13 @@ final class GrpcGetDataStream
 
   private void sendIgnoringClosed(StreamingGetDataRequest getDataRequest)
       throws WindmillStreamShutdownException {
-    try {
-      send(getDataRequest);
-    } catch (StreamClosedException e) {
-      // Stream was closed on send, will be retried on stream restart.
-    }
+    trySend(getDataRequest);
   }
 
   @Override
-  protected synchronized void onNewStream()
-      throws StreamClosedException, WindmillStreamShutdownException {
-    send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
-    if (clientClosed && !hasReceivedShutdownSignal()) {
+  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
+    trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
+    if (clientClosed) {
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
@@ -228,8 +224,10 @@ final class GrpcGetDataStream
   @Override
   public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats)
       throws WindmillStreamShutdownException {
-    if (hasReceivedShutdownSignal()) {
-      throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
+    synchronized (this) {
+      if (isShutdown) {
+        throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
+      }
     }
 
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
@@ -299,9 +297,9 @@ final class GrpcGetDataStream
   }
 
   @Override
-  public void sendHealthCheck() throws StreamClosedException, WindmillStreamShutdownException {
+  public void sendHealthCheck() throws WindmillStreamShutdownException {
     if (hasPendingRequests()) {
-      send(HEALTH_CHECK_REQUEST);
+      trySend(HEALTH_CHECK_REQUEST);
     }
   }
 
@@ -345,7 +343,7 @@ final class GrpcGetDataStream
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn)
       throws WindmillStreamShutdownException {
-    while (!hasReceivedShutdownSignal()) {
+    while (!isShutdownLocked()) {
       request.resetResponseStream();
       try {
         queueRequestAndWait(request);
@@ -366,13 +364,12 @@ final class GrpcGetDataStream
       }
     }
 
-    throw new WindmillStreamShutdownException(
-        "Cannot send request=[" + request + "] on closed stream.");
+    throw shutdownExceptionFor(request);
   }
 
-  private void handleShutdown(QueuedRequest request, Throwable cause)
+  private synchronized void handleShutdown(QueuedRequest request, Throwable cause)
       throws WindmillStreamShutdownException {
-    if (hasReceivedShutdownSignal()) {
+    if (isShutdown) {
       WindmillStreamShutdownException shutdownException = shutdownExceptionFor(request);
       shutdownException.addSuppressed(cause);
       throw shutdownException;
@@ -385,7 +382,7 @@ final class GrpcGetDataStream
     boolean responsibleForSend = false;
     @Nullable QueuedBatch prevBatch = null;
     synchronized (this) {
-      if (hasReceivedShutdownSignal()) {
+      if (isShutdown) {
         throw shutdownExceptionFor(request);
       }
 
@@ -414,7 +411,7 @@ final class GrpcGetDataStream
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
       synchronized (this) {
-        if (hasReceivedShutdownSignal()) {
+        if (isShutdown) {
           throw shutdownExceptionFor(batch);
         }
 
@@ -432,7 +429,7 @@ final class GrpcGetDataStream
     try {
       sendBatch(batch);
       synchronized (this) {
-        if (hasReceivedShutdownSignal()) {
+        if (isShutdown) {
           throw shutdownExceptionFor(batch);
         }
 
@@ -459,7 +456,7 @@ final class GrpcGetDataStream
     // Synchronization of pending inserts is necessary with send to ensure duplicates are not
     // sent on stream reconnect.
     synchronized (this) {
-      if (hasReceivedShutdownSignal()) {
+      if (isShutdown) {
         throw shutdownExceptionFor(batch);
       }
 
@@ -471,17 +468,19 @@ final class GrpcGetDataStream
             "Request already sent.");
       }
 
-      try {
-        send(batch.asGetDataRequest());
-      } catch (StreamClosedException e) {
+      if (!trySend(batch.asGetDataRequest())) {
         // The stream broke before this call went through; onNewStream will retry the fetch.
-        LOG.warn("GetData stream broke before call started.", e);
+        LOG.warn("GetData stream broke before call started.");
       }
     }
   }
 
-  private void verify(boolean condition, String message) {
-    Verify.verify(condition || hasReceivedShutdownSignal(), message);
+  private synchronized void verify(boolean condition, String message) {
+    Verify.verify(condition || isShutdown, message);
+  }
+
+  private synchronized boolean isShutdownLocked() {
+    return isShutdown;
   }
 
   @FunctionalInterface

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
@@ -146,7 +145,7 @@ public class GrpcCommitWorkStreamTest {
   }
 
   @Test
-  public void testCommitWorkItem_afterShutdownFalse() {
+  public void testCommitWorkItem_afterShutdown() {
     int numCommits = 5;
 
     CommitWorkStreamTestStub testStub =
@@ -160,14 +159,15 @@ public class GrpcCommitWorkStreamTest {
     }
     commitWorkStream.shutdown();
 
+    Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
-        Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
-        assertFalse(
+        assertTrue(
             batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), commitStatuses::add));
-        assertThat(commitStatuses).isEmpty();
       }
     }
+
+    assertThat(commitStatuses).containsExactly(Windmill.CommitStatus.ABORTED);
   }
 
   @Test
