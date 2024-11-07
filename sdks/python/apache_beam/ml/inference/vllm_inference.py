@@ -21,6 +21,7 @@ import asyncio
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -118,7 +119,7 @@ class _VLLMModelServer():
   def start_server(self, retries=3):
     if not self._server_started:
       server_cmd = [
-          'python',
+          sys.executable,
           '-m',
           'vllm.entrypoints.openai.api_server',
           '--model',
