@@ -21,10 +21,10 @@ import asyncio
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
-import sys
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
