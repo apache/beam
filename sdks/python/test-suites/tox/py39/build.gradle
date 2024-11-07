@@ -168,7 +168,9 @@ postCommitPyDep.dependsOn "testPy39transformers-430"
 
 toxTask "testPy39embeddingsMLTransform", "py39-embeddings", "${posargs}"
 test.dependsOn "testPy39embeddingsMLTransform"
-postCommitPyDep.dependsOn "testPy39embeddingsMLTransform"
+// TODO(https://github.com/apache/beam/issues/32965): re-enable this suite for the dep
+// postcommit once the sentence-transformers import error is debugged
+// postCommitPyDep.dependsOn "testPy39embeddingsMLTransform"
 
 // Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
 // mutliple versions so keeping this suite separate.

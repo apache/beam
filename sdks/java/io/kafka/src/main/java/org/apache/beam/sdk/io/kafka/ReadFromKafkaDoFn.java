@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -247,19 +248,21 @@ abstract class ReadFromKafkaDoFn<K, V>
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
     private final Supplier<Long> memoizedBacklog;
-    private boolean closed;
 
     KafkaLatestOffsetEstimator(
         Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
       this.offsetConsumer = offsetConsumer;
       this.topicPartition = topicPartition;
-      ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
       memoizedBacklog =
           Suppliers.memoizeWithExpiration(
               () -> {
                 synchronized (offsetConsumer) {
-                  ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
-                  return offsetConsumer.position(topicPartition);
+                  return Preconditions.checkStateNotNull(
+                      offsetConsumer
+                          .endOffsets(Collections.singleton(topicPartition))
+                          .get(topicPartition),
+                      "No end offset found for partition %s.",
+                      topicPartition);
                 }
               },
               1,
@@ -270,7 +273,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     protected void finalize() {
       try {
         Closeables.close(offsetConsumer, true);
-        closed = true;
         LOG.info("Offset Estimator consumer was closed for {}", topicPartition);
       } catch (Exception anyException) {
         LOG.warn("Failed to close offset consumer for {}", topicPartition);
@@ -280,10 +282,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     @Override
     public long estimate() {
       return memoizedBacklog.get();
-    }
-
-    public boolean isClosed() {
-      return closed;
     }
   }
 
@@ -373,7 +371,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
     KafkaLatestOffsetEstimator offsetEstimator = offsetEstimatorCacheInstance.get(topicPartition);
-    if (offsetEstimator == null || offsetEstimator.isClosed()) {
+    if (offsetEstimator == null) {
       Map<String, Object> updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
 

@@ -127,6 +127,7 @@ class JavaJarJobServer(SubprocessJobServer):
     self._artifacts_dir = options.artifacts_dir
     self._java_launcher = options.job_server_java_launcher
     self._jvm_properties = options.job_server_jvm_properties
+    self._jar_cache_dir = options.jar_cache_dir
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):
@@ -141,11 +142,11 @@ class JavaJarJobServer(SubprocessJobServer):
         gradle_target, artifact_id=artifact_id)
 
   @staticmethod
-  def local_jar(url):
-    return subprocess_server.JavaJarServer.local_jar(url)
+  def local_jar(url, jar_cache_dir=None):
+    return subprocess_server.JavaJarServer.local_jar(url, jar_cache_dir)
 
   def subprocess_cmd_and_endpoint(self):
-    jar_path = self.local_jar(self.path_to_jar())
+    jar_path = self.local_jar(self.path_to_jar(), self._jar_cache_dir)
     artifacts_dir = (
         self._artifacts_dir if self._artifacts_dir else self.local_temp_dir(
             prefix='artifacts'))

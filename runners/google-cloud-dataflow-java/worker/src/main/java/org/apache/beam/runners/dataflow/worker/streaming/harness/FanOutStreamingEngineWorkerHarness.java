@@ -137,7 +137,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setNameFormat(STREAM_MANAGER_THREAD_NAME).build());
     this.workerMetadataConsumer =
-        Executors.newSingleThreadScheduledExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build());
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.totalGetWorkBudget = totalGetWorkBudget;

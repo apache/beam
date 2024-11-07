@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @ThreadSafe
-public final class StreamingWorkScheduler {
+public class StreamingWorkScheduler {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkScheduler.class);
 
   private final DataflowWorkerHarnessOptions options;

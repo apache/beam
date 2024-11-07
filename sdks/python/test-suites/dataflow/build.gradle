@@ -60,6 +60,12 @@ task validatesContainerTests {
   }
 }
 
+task validatesDistrolessContainerTests {
+  getVersionsAsList('distroless_python_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesDistrolessContainer")
+  }
+}
+
 task examplesPostCommit {
   getVersionsAsList('dataflow_examples_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
