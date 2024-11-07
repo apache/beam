@@ -30,7 +30,7 @@ require (
 	cloud.google.com/go/pubsub v1.45.1
 	cloud.google.com/go/spanner v1.70.0
 	cloud.google.com/go/storage v1.45.0
-	github.com/aws/aws-sdk-go-v2 v1.32.3
+	github.com/aws/aws-sdk-go-v2 v1.32.4
 	github.com/aws/aws-sdk-go-v2/config v1.28.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.42
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.33
