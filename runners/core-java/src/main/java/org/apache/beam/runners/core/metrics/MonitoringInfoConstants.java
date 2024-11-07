@@ -56,6 +56,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_SET_STRING);
     public static final String USER_BOUNDED_TRIE =
         extractUrn(MonitoringInfoSpecs.Enum.USER_BOUNDED_TRIE);
+    public static final String USER_PER_WORKER_HISTOGRAM =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_PER_WORKER_HISTOGRAM);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);
@@ -168,6 +170,8 @@ public final class MonitoringInfoConstants {
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
     public static final String SET_STRING_TYPE = "beam:metrics:set_string:v1";
     public static final String BOUNDED_TRIE_TYPE = "beam:metrics:bounded_trie:v1";
+    public static final String PER_WORKER_HISTOGRAM_TYPE =
+        "beam:metrics:per_worker_histogram_int64:v1";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -196,6 +200,9 @@ public final class MonitoringInfoConstants {
       checkArgument(SET_STRING_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SET_STRING_TYPE)));
       checkArgument(
           BOUNDED_TRIE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOUNDED_TRIE_TYPE)));
+      checkArgument(
+          PER_WORKER_HISTOGRAM_TYPE.equals(
+              getUrn(MonitoringInfoTypeUrns.Enum.PER_WORKER_HISTOGRAM)));
     }
   }
 

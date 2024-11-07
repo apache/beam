@@ -97,7 +97,8 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(
                     MetricKey.create("step1", NAME4),
-                    new BoundedTrieData(ImmutableList.of("ab"))))));
+                    new BoundedTrieData(ImmutableList.of("ab")))),
+            ImmutableList.of()));
     metrics.commitLogical(
         bundle1,
         MetricUpdates.create(
@@ -115,8 +116,8 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(
                     MetricKey.create("step1", NAME4),
-                    new BoundedTrieData(ImmutableList.of("cd"))))));
-
+                    new BoundedTrieData(ImmutableList.of("cd")))),
+            ImmutableList.of()));
     MetricQueryResults results = metrics.allMetrics();
     assertThat(
         results.getCounters(),
