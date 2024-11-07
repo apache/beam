@@ -25,6 +25,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -42,16 +43,19 @@ public class DefaultMetricResults extends MetricResults {
   private final Iterable<MetricResult<DistributionResult>> distributions;
   private final Iterable<MetricResult<GaugeResult>> gauges;
   private final Iterable<MetricResult<StringSetResult>> stringSets;
+  private final Iterable<MetricResult<HistogramData>> perWorkerHistograms;
 
   public DefaultMetricResults(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
-      Iterable<MetricResult<StringSetResult>> stringSets) {
+      Iterable<MetricResult<StringSetResult>> stringSets,
+      Iterable<MetricResult<HistogramData>> perWorkerHistograms) {
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;
     this.stringSets = stringSets;
+    this.perWorkerHistograms = perWorkerHistograms;
   }
 
   @Override
@@ -62,6 +66,9 @@ public class DefaultMetricResults extends MetricResults {
             distributions, distribution -> MetricFiltering.matches(filter, distribution.getKey())),
         Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())),
         Iterables.filter(
-            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())));
+            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())),
+        Iterables.filter(
+            perWorkerHistograms,
+            perWorkerHistogram -> MetricFiltering.matches(filter, perWorkerHistogram.getKey())));
   }
 }

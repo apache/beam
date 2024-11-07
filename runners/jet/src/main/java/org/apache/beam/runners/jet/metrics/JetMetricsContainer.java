@@ -21,6 +21,7 @@ import com.hazelcast.jet.Util;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.map.IMap;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.StringSet;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Jet specific implementation of {@link MetricsContainer}. */
@@ -151,6 +153,11 @@ public class JetMetricsContainer implements MetricsContainer {
     @Override
     public Iterable<MetricUpdate<StringSetData>> stringSetUpdates() {
       return stringSets;
+    }
+
+    @Override
+    public Iterable<MetricUpdate<HistogramData>> perWorkerHistogramsUpdates() {
+      return Collections.emptyList(); // not implemented
     }
   }
 }
