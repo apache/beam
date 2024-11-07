@@ -83,6 +83,10 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-dask
+      - name: Run tests basic windows
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win-dask
       - name: Upload test logs
         uses: actions/upload-artifact@v4
         if: always()
