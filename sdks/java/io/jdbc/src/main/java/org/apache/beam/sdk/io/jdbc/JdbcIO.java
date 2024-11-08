@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -93,6 +95,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -1540,6 +1543,7 @@ public class JdbcIO {
 
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
+    private @Nullable String reportedLineage;
 
     private ReadFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn,
@@ -1560,10 +1564,26 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      if (this.connection == null) {
-        this.connection = checkStateNotNull(this.dataSource).getConnection();
+      Connection connection = this.connection;
+      if (connection == null) {
+        DataSource validSource = checkStateNotNull(this.dataSource);
+        connection = checkStateNotNull(validSource).getConnection();
+        this.connection = connection;
+
+        // report Lineage if not haven't done so
+        String table = JdbcUtil.extractTableFromReadQuery(query.get());
+        if (!table.equals(reportedLineage)) {
+          JdbcUtil.FQNComponents fqn = JdbcUtil.FQNComponents.of(validSource);
+          if (fqn == null) {
+            fqn = JdbcUtil.FQNComponents.of(connection);
+          }
+          if (fqn != null) {
+            fqn.reportLineage(Lineage.getSources(), table);
+            reportedLineage = table;
+          }
+        }
       }
-      return this.connection;
+      return connection;
     }
 
     @ProcessElement
@@ -2571,6 +2591,7 @@ public class JdbcIO {
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
     private @Nullable PreparedStatement preparedStatement;
+    private @Nullable String reportedLineage;
     private static @Nullable FluentBackoff retryBackOff;
 
     public WriteFn(WriteFnSpec<T, V> spec) {
@@ -2603,11 +2624,28 @@ public class JdbcIO {
     private Connection getConnection() throws SQLException {
       Connection connection = this.connection;
       if (connection == null) {
-        connection = checkStateNotNull(dataSource).getConnection();
+        DataSource validSource = checkStateNotNull(dataSource);
+        connection = validSource.getConnection();
         connection.setAutoCommit(false);
         preparedStatement =
             connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
         this.connection = connection;
+
+        // report Lineage if haven't done so
+        String table = spec.getTable();
+        if (Strings.isNullOrEmpty(table) && spec.getStatement() != null) {
+          table = JdbcUtil.extractTableFromWriteQuery(spec.getStatement().get());
+        }
+        if (!Objects.equals(table, reportedLineage)) {
+          JdbcUtil.FQNComponents fqn = JdbcUtil.FQNComponents.of(validSource);
+          if (fqn == null) {
+            fqn = JdbcUtil.FQNComponents.of(connection);
+          }
+          if (fqn != null) {
+            fqn.reportLineage(Lineage.getSinks(), table);
+            reportedLineage = table;
+          }
+        }
       }
       return connection;
     }
