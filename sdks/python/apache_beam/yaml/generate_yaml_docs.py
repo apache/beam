@@ -154,8 +154,9 @@ def config_docs(schema):
                               PythonCallableWithSource.load_from_expression(
                                   param.type_name),
                               param.description) for param in doc.params
-                      ]))),
-          description=f.description)
+                      ])),
+              nullable=True),
+          description=f.description or doc.short_description)
     return f
 
   def lines():
