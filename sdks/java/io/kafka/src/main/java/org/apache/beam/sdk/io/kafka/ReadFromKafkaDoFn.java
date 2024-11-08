@@ -231,6 +231,9 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
 
+  // Initialize only when used, since its not serializable
+  private @Nullable KafkaMetrics kafkaResults = null;
+
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
@@ -581,7 +584,12 @@ abstract class ReadFromKafkaDoFn<K, V>
     java.time.Duration elapsed = java.time.Duration.ZERO;
     java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
     while (true) {
+      kafkaResults = KafkaSinkMetrics.kafkaMetrics();
       final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
+      elapsed = sw.elapsed();
+      Preconditions.checkStateNotNull(kafkaResults);
+      kafkaResults.recordRpcLatencyMetric(topicPartition.topic(), elapsed);
+
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
@@ -590,7 +598,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         // there was no progress on the offset/position, which indicates end of stream
         return rawRecords;
       }
-      elapsed = sw.elapsed();
       if (elapsed.toMillis() >= timeout.toMillis()) {
         // timeout is over
         LOG.warn(

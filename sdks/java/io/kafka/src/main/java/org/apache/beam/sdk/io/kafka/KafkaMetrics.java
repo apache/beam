@@ -31,7 +31,11 @@ import org.slf4j.LoggerFactory;
 /** Stores and exports metrics for a batch of Kafka Client RPCs. */
 public interface KafkaMetrics {
 
+  /* Record latency, to be used later to update/create histogram in another thread */
   void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime);
+
+  /* Record and create histogram in current thread */
+  void recordRpcLatencyMetric(String topic, Duration duration);
 
   void updateKafkaMetrics();
 
@@ -41,6 +45,9 @@ public interface KafkaMetrics {
 
     @Override
     public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {}
+
+    @Override
+    public void recordRpcLatencyMetric(String topic, Duration elapsedTime) {}
 
     @Override
     public void updateKafkaMetrics() {}
@@ -78,7 +85,7 @@ public interface KafkaMetrics {
           new HashMap<String, ConcurrentLinkedQueue<Duration>>(), new AtomicBoolean(true));
     }
 
-    /** Record the rpc status and latency of a successful Kafka poll RPC call. */
+    /** Record the rpc latency of a successful Kafka poll RPC call. */
     @Override
     public void updateSuccessfulRpcMetrics(String topic, Duration elapsedTime) {
       if (isWritable().get()) {
@@ -93,7 +100,7 @@ public interface KafkaMetrics {
       }
     }
 
-    /** Record rpc latency histogram metrics for all recorded topics. */
+    /** Create or update histograms with rpc latency metrics for all recorded topics. */
     private void recordRpcLatencyMetrics() {
       for (Map.Entry<String, ConcurrentLinkedQueue<Duration>> topicLatencies :
           perTopicRpcLatencies().entrySet()) {
@@ -106,12 +113,25 @@ public interface KafkaMetrics {
                   KafkaSinkMetrics.RpcMethod.POLL, topicLatencies.getKey());
           latencyHistograms.put(topicLatencies.getKey(), topicHistogram);
         }
-        // update all the latencies
         for (Duration d : topicLatencies.getValue()) {
           Preconditions.checkArgumentNotNull(topicHistogram);
           topicHistogram.update(d.toMillis());
         }
       }
+    }
+
+    /** Create or update latency histogram for a singlar topic. */
+    @Override
+    public void recordRpcLatencyMetric(String topic, Duration duration) {
+      Histogram topicHistogram;
+      if (latencyHistograms.containsKey(topic)) {
+        topicHistogram = latencyHistograms.get(topic);
+      } else {
+        topicHistogram =
+            KafkaSinkMetrics.createRPCLatencyHistogram(KafkaSinkMetrics.RpcMethod.POLL, topic);
+        latencyHistograms.put(topic, topicHistogram);
+      }
+      topicHistogram.update(duration.toMillis());
     }
 
     /**
