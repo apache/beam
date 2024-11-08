@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -24,6 +26,8 @@ import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -32,13 +36,17 @@ import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTran
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -115,5 +123,24 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
     assertNotNull(fakeDatasetService.getTable(TABLE_REFERENCE));
     assertEquals(ROWS.size(), fakeDatasetService.getAllRows(PROJECT, DATASET, TABLE_ID).size());
+  }
+
+  @Test
+  public void testManagedChoosesFileLoadsForBoundedWrites() {
+    PCollection<Row> batchInput = p.apply(Create.of(ROWS)).setRowSchema(SCHEMA);
+    batchInput.apply(
+        Managed.write(Managed.BIGQUERY)
+            .withConfig(ImmutableMap.of("table", "project.dataset.table")));
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    List<RunnerApi.PTransform> writeTransformProto =
+        pipelineProto.getComponents().getTransformsMap().values().stream()
+            .filter(
+                tr ->
+                    tr.getUniqueName()
+                        .contains(BigQueryFileLoadsSchemaTransform.class.getSimpleName()))
+            .collect(Collectors.toList());
+    assertThat(writeTransformProto.size(), greaterThan(0));
+    p.enableAbandonedNodeEnforcement(false);
   }
 }

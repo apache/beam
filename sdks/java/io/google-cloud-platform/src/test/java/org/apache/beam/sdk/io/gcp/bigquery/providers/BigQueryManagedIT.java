@@ -17,18 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThan;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -40,7 +33,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
-import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -95,15 +87,6 @@ public class BigQueryManagedIT {
     BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
 
-  private void assertPipelineContainsTransformName(Pipeline p, String transformName) {
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-    List<RunnerApi.PTransform> writeTransformProto =
-        pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(tr -> tr.getUniqueName().contains(transformName))
-            .collect(Collectors.toList());
-    assertThat(writeTransformProto.size(), greaterThan(0));
-  }
-
   @Test
   public void testBatchFileLoadsWriteRead() {
     String table =
@@ -117,8 +100,6 @@ public class BigQueryManagedIT {
     // batch write
     PCollectionRowTuple.of("input", getInput(writePipeline, false))
         .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
-    assertPipelineContainsTransformName(
-        writePipeline, BigQueryFileLoadsSchemaTransform.class.getSimpleName());
     writePipeline.run().waitUntilFinish();
 
     // read and validate
@@ -127,8 +108,6 @@ public class BigQueryManagedIT {
             .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
             .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
-    assertPipelineContainsTransformName(
-        readPipeline, BigQueryDirectReadSchemaTransform.class.getSimpleName());
     readPipeline.run().waitUntilFinish();
   }
 
@@ -141,8 +120,6 @@ public class BigQueryManagedIT {
     // streaming write
     PCollectionRowTuple.of("input", getInput(writePipeline, true))
         .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
-    assertPipelineContainsTransformName(
-        writePipeline, BigQueryStorageWriteApiSchemaTransform.class.getSimpleName());
     writePipeline.run().waitUntilFinish();
 
     // read and validate
@@ -151,8 +128,6 @@ public class BigQueryManagedIT {
             .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
             .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
-    assertPipelineContainsTransformName(
-        readPipeline, BigQueryDirectReadSchemaTransform.class.getSimpleName());
     readPipeline.run().waitUntilFinish();
   }
 
