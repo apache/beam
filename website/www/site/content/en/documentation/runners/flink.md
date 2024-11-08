@@ -207,12 +207,17 @@ To run a pipeline on an embedded Flink cluster:
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
-(1) Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
+(1) Start the JobService endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest`
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
 The JobService is the central instance where you submit your Beam pipeline to.
 The JobService will create a Flink job for the pipeline and execute the job.
+Note that you might see the error message like `Caused by: java.io.IOException: Insufficient number of network buffers:...`,
+which can be fixed by passing a Flink configuration file to change the default ones.
+One example can be found [here](https://github.com/apache/beam/blob/master/runners/flink/src/test/resources/flink-conf.yaml).
+Then start the JobService endpoint by mounting a local configuration directory to `/flink`:
+`docker run --net=host -v <your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.18_job_server:latest`
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
@@ -243,7 +248,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
-(2) Start JobService with Flink Rest endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest --flink-master=localhost:8081`.
+(2) Start JobService with Flink Rest endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest --flink-master=localhost:8081`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
