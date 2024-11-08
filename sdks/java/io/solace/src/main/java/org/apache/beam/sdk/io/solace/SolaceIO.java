@@ -161,7 +161,7 @@ import org.slf4j.LoggerFactory;
  * function.
  *
  * <pre>{@code
- * @DefaultSchema(JavaBeanSchema.class)
+ * {@literal @}DefaultSchema(JavaBeanSchema.class)
  * public static class SimpleRecord {
  *    public String payload;
  *    public String messageId;
@@ -359,9 +359,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The streaming connector publishes each message individually, without holding up or batching
  * before the message is sent to Solace. This will ensure the lowest possible latency, but it will
- * offer a much lower throughput. The streaming connector does not use state & timers.
+ * offer a much lower throughput. The streaming connector does not use state and timers.
  *
- * <p>Both connectors uses state & timers to control the level of parallelism. If you are using
+ * <p>Both connectors uses state and timers to control the level of parallelism. If you are using
  * Cloud Dataflow, it is recommended that you enable <a
  * href="https://cloud.google.com/dataflow/docs/streaming-engine">Streaming Engine</a> to use this
  * connector.

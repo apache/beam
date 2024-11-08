@@ -23,16 +23,18 @@ import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * This abstract class serves as a blueprint for creating `SessionServiceFactory` objects. It introduces a
- * queue property and mandates the implementation of a create() method in concrete subclasses.
+ * This abstract class serves as a blueprint for creating `SessionServiceFactory` objects. It
+ * introduces a queue property and mandates the implementation of a create() method in concrete
+ * subclasses.
  *
- * <p>For basic authentication, use {@link BasicAuthJcsmpSessionServiceFactory}</p>.
+ * <p>For basic authentication, use {@link BasicAuthJcsmpSessionServiceFactory}.
  *
- * <p>For other situations, you need to extend this class. Classes extending from this abstract class must implement the `equals` method so two instances
- * can be compared by value, and not by reference. We recommend using AutoValue for that.
+ * <p>For other situations, you need to extend this class. Classes extending from this abstract
+ * class must implement the `equals` method so two instances can be compared by value, and not by
+ * reference. We recommend using AutoValue for that.
  *
  * <pre>{@code
- * @AutoValue
+ * {@literal @}AutoValue
  * public abstract class MyFactory implements SessionServiceClientFactory {
  *
  *   abstract String value1();
@@ -45,11 +47,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  *   ...
  *
- *   @Override
+ *   {@literal @}Override
  *   public SessionService create() {
  *     ...
  *   }
- *}</pre>
+ * }
+ * }</pre>
  */
 public abstract class SessionServiceFactory implements Serializable {
   /**

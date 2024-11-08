@@ -368,8 +368,8 @@ public class CsvIO {
    *
    * <pre>{@code
    * // SomeDataClass is a data class configured for Beam to automatically infer its Schema.
-   * @DefaultSchema(AutoValueSchema.class)
-   * @AutoValue
+   * {@literal @}DefaultSchema(AutoValueSchema.class)
+   * {@literal @}AutoValue
    * abstract class SomeDataClass {
    *
    *    abstract String getSomeString();

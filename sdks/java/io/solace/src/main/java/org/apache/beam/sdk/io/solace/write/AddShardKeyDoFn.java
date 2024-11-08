@@ -23,8 +23,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * This class a pseudo-key with a given cardinality. The downstream steps will use state & timers to
- * distribute the data and control for the number of parallel workers used for writing.
+ * This class a pseudo-key with a given cardinality. The downstream steps will use state {@literal
+ * &} timers to distribute the data and control for the number of parallel workers used for writing.
  */
 @Internal
 public class AddShardKeyDoFn extends DoFn<Solace.Record, KV<Integer, Solace.Record>> {

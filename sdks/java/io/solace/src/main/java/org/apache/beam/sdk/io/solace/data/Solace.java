@@ -299,7 +299,7 @@ public class Solace {
 
   /**
    * The result of writing a message to Solace. This will be returned by the {@link
-   * com.google.cloud.dataflow.dce.io.solace.SolaceIO.Write} connector.
+   * org.apache.beam.sdk.io.solace.SolaceIO.Write} connector.
    *
    * <p>This class provides a builder to create instances, but you will probably not need it. The
    * write connector will create and return instances of {@link Solace.PublishResult}.

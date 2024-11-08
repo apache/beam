@@ -183,7 +183,9 @@ public abstract class UnboundedSolaceWriter
                   result,
                   null,
                   null,
-                  result.getError() != null ? checkNotNull(result.getError()) : "SolaceIO.Write: unknown error.");
+                  result.getError() != null
+                      ? checkNotNull(result.getError())
+                      : "SolaceIO.Write: unknown error.");
           context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
         } catch (IOException e) {
           // ignore, the exception is thrown when the exception argument in the
