@@ -418,6 +418,11 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
 
 
 class ErrorHandlingConfig(NamedTuple):
+  """Class to define Error Handling parameters.
+
+      Args:
+        output (str): Name to use for the output error collection
+      """
   output: str
   # TODO: Other parameters are valid here too, but not common to Java.
 
