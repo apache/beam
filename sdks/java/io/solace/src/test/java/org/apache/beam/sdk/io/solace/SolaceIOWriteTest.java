@@ -21,9 +21,11 @@ import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.io.solace.MockSessionServiceFactory.SessionServiceType;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.SolaceIO.WriterType;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -35,6 +37,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -77,7 +82,11 @@ public class SolaceIOWriteTest {
             .via(kv -> SolaceDataUtils.getSolaceRecord(kv.getValue(), kv.getKey())));
   }
 
-  private SolaceOutput getWriteTransform(SubmissionMode mode, WriterType writerType, Pipeline p) {
+  private SolaceOutput getWriteTransform(
+      SubmissionMode mode,
+      WriterType writerType,
+      Pipeline p,
+      ErrorHandler<BadRecord, ?> errorHandler) {
     SessionServiceFactory fakeSessionServiceFactory =
         MockSessionServiceFactory.builder().mode(mode).build();
 
@@ -89,7 +98,8 @@ public class SolaceIOWriteTest {
             .withSubmissionMode(mode)
             .withWriterType(writerType)
             .withDeliveryMode(DeliveryMode.PERSISTENT)
-            .withSessionServiceFactory(fakeSessionServiceFactory));
+            .withSessionServiceFactory(fakeSessionServiceFactory)
+            .withErrorHandler(errorHandler));
   }
 
   private static PCollection<String> getIdsPCollection(SolaceOutput output) {
@@ -100,58 +110,99 @@ public class SolaceIOWriteTest {
   }
 
   @Test
-  public void testWriteLatencyStreaming() {
+  public void testWriteLatencyStreaming() throws Exception {
     SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
     WriterType writerType = WriterType.STREAMING;
 
-    SolaceOutput output = getWriteTransform(mode, writerType, pipeline);
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output = getWriteTransform(mode, writerType, pipeline, errorHandler);
     PCollection<String> ids = getIdsPCollection(output);
 
     PAssert.that(ids).containsInAnyOrder(keys);
-    PAssert.that(output.getFailedPublish()).empty();
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
 
     pipeline.run();
   }
 
   @Test
-  public void testWriteThroughputStreaming() {
+  public void testWriteThroughputStreaming() throws Exception {
     SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
     WriterType writerType = WriterType.STREAMING;
-
-    SolaceOutput output = getWriteTransform(mode, writerType, pipeline);
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output = getWriteTransform(mode, writerType, pipeline, errorHandler);
     PCollection<String> ids = getIdsPCollection(output);
 
     PAssert.that(ids).containsInAnyOrder(keys);
-    PAssert.that(output.getFailedPublish()).empty();
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
 
     pipeline.run();
   }
 
   @Test
-  public void testWriteLatencyBatched() {
+  public void testWriteLatencyBatched() throws Exception {
     SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
     WriterType writerType = WriterType.BATCHED;
-
-    SolaceOutput output = getWriteTransform(mode, writerType, pipeline);
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output = getWriteTransform(mode, writerType, pipeline, errorHandler);
     PCollection<String> ids = getIdsPCollection(output);
 
     PAssert.that(ids).containsInAnyOrder(keys);
-    PAssert.that(output.getFailedPublish()).empty();
-
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
     pipeline.run();
   }
 
   @Test
-  public void testWriteThroughputBatched() {
+  public void testWriteThroughputBatched() throws Exception {
     SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
     WriterType writerType = WriterType.BATCHED;
-
-    SolaceOutput output = getWriteTransform(mode, writerType, pipeline);
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output = getWriteTransform(mode, writerType, pipeline, errorHandler);
     PCollection<String> ids = getIdsPCollection(output);
 
     PAssert.that(ids).containsInAnyOrder(keys);
-    PAssert.that(output.getFailedPublish()).empty();
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
+    pipeline.run();
+  }
 
+  @Test
+  public void testWriteWithFailedRecords() throws Exception {
+    SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
+    WriterType writerType = WriterType.BATCHED;
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    SessionServiceFactory fakeSessionServiceFactory =
+        MockSessionServiceFactory.builder()
+            .mode(mode)
+            .sessionServiceType(SessionServiceType.WITH_FAILING_PRODUCER)
+            .build();
+
+    PCollection<Record> records = getRecords(pipeline);
+    SolaceOutput output =
+        records.apply(
+            "Write to Solace",
+            SolaceIO.write()
+                .to(Solace.Queue.fromName("queue"))
+                .withSubmissionMode(mode)
+                .withWriterType(writerType)
+                .withDeliveryMode(DeliveryMode.PERSISTENT)
+                .withSessionServiceFactory(fakeSessionServiceFactory)
+                .withErrorHandler(errorHandler));
+
+    PCollection<String> ids = getIdsPCollection(output);
+
+    PAssert.that(ids).empty();
+    errorHandler.close();
+    PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput()))
+        .isEqualTo((long) payloads.size());
     pipeline.run();
   }
 }

@@ -19,12 +19,14 @@ package org.apache.beam.sdk.io.solace.write;
 
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -36,10 +38,12 @@ import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
@@ -85,7 +89,7 @@ public abstract class UnboundedSolaceWriter
   final UUID writerTransformUuid = UUID.randomUUID();
 
   public UnboundedSolaceWriter(
-      SerializableFunction<Solace.Record, Destination> destinationFn,
+      SerializableFunction<Record, Destination> destinationFn,
       SessionServiceFactory sessionServiceFactory,
       DeliveryMode deliveryMode,
       SubmissionMode submissionMode,
@@ -169,13 +173,22 @@ public abstract class UnboundedSolaceWriter
           maxFailed = Math.max(maxFailed, latency);
         }
       }
-
       if (result.getPublished()) {
         context.output(
             SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
       } else {
-        context.output(
-            FAILED_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
+        try {
+          BadRecord b =
+              BadRecord.fromExceptionInformation(
+                  result,
+                  null,
+                  null,
+                  result.getError() != null ? checkNotNull(result.getError()) : "SolaceIO.Write: unknown error.");
+          context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
+        } catch (IOException e) {
+          // ignore, the exception is thrown when the exception argument in the
+          // `BadRecord.fromExceptionInformation` is not null.
+        }
       }
 
       result = publishResultsReceiver.pollResults();
@@ -330,9 +343,9 @@ public abstract class UnboundedSolaceWriter
       return beamContextWrapper;
     }
 
-    public void output(
-        TupleTag<Solace.PublishResult> tag,
-        Solace.PublishResult output,
+    public <T> void output(
+        TupleTag<T> tag,
+        T output,
         @Nullable Instant timestamp, // Not required for windowed context
         @Nullable BoundedWindow window) { // Not required for windowed context
       if (windowedContext != null) {

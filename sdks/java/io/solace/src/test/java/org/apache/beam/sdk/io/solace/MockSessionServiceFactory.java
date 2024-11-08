@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import org.apache.beam.sdk.io.solace.MockProducer.MockFailedProducer;
+import org.apache.beam.sdk.io.solace.MockProducer.MockSuccessProducer;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -33,12 +35,12 @@ public abstract class MockSessionServiceFactory extends SessionServiceFactory {
 
   public abstract int minMessagesReceived();
 
-  public abstract boolean useEmptySessionMock();
+  public abstract SessionServiceType sessionServiceType();
 
   public static Builder builder() {
     return new AutoValue_MockSessionServiceFactory.Builder()
         .minMessagesReceived(0)
-        .useEmptySessionMock(false);
+        .sessionServiceType(SessionServiceType.WITH_SUCCEEDING_PRODUCER);
   }
 
   public static SessionServiceFactory getDefaultMock() {
@@ -54,21 +56,39 @@ public abstract class MockSessionServiceFactory extends SessionServiceFactory {
 
     public abstract Builder minMessagesReceived(int minMessagesReceived);
 
-    public abstract Builder useEmptySessionMock(boolean useEmptySessionMock);
+    public abstract Builder sessionServiceType(SessionServiceType sessionServiceType);
 
     public abstract MockSessionServiceFactory build();
   }
 
   @Override
   public SessionService create() {
-    if (useEmptySessionMock()) {
-      return MockEmptySessionService.create();
-    } else {
-      return MockSessionService.builder()
-          .recordFn(recordFn())
-          .minMessagesReceived(minMessagesReceived())
-          .mode(mode())
-          .build();
+    switch (sessionServiceType()) {
+      case EMPTY:
+        return MockEmptySessionService.create();
+      case WITH_SUCCEEDING_PRODUCER:
+        return MockSessionService.builder()
+            .recordFn(recordFn())
+            .minMessagesReceived(minMessagesReceived())
+            .mode(mode())
+            .mockProducerFn(MockSuccessProducer::new)
+            .build();
+      case WITH_FAILING_PRODUCER:
+        return MockSessionService.builder()
+            .recordFn(recordFn())
+            .minMessagesReceived(minMessagesReceived())
+            .mode(mode())
+            .mockProducerFn(MockFailedProducer::new)
+            .build();
+      default:
+        throw new RuntimeException(
+            String.format("Unknown sessionServiceType: %s", sessionServiceType().name()));
     }
+  }
+
+  public enum SessionServiceType {
+    EMPTY,
+    WITH_SUCCEEDING_PRODUCER,
+    WITH_FAILING_PRODUCER
   }
 }

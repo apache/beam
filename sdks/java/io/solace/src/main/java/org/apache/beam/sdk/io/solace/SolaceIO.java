@@ -39,6 +39,7 @@ import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
 import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
@@ -51,6 +52,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -836,8 +839,7 @@ public class SolaceIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(Write.class);
 
-    public static final TupleTag<Solace.PublishResult> FAILED_PUBLISH_TAG =
-        new TupleTag<Solace.PublishResult>() {};
+    public static final TupleTag<BadRecord> FAILED_PUBLISH_TAG = new TupleTag<BadRecord>() {};
     public static final TupleTag<Solace.PublishResult> SUCCESSFUL_PUBLISH_TAG =
         new TupleTag<Solace.PublishResult>() {};
 
@@ -967,12 +969,14 @@ public class SolaceIO {
      * <p>The Solace writer can either use the JCSMP modes in streaming or batched.
      *
      * <p>In streaming mode, the publishing latency will be lower, but the throughput will also be
-     * lower.
+     * lower. todo validate the constant sec
      *
-     * <p>With the batched mode, messages are accumulated until a batch size of 50 is reached, or 5
-     * seconds have elapsed since the first message in the batch was received. The 50 messages are
-     * sent to Solace in a single batch. This writer offers higher throughput but higher publishing
-     * latency, as messages can be held up for up to 5 seconds until they are published.
+     * <p>With the batched mode, messages are accumulated until a batch size of 50 is reached, or
+     * {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS} seconds have elapsed since
+     * the first message in the batch was received. The 50 messages are sent to Solace in a single
+     * batch. This writer offers higher throughput but higher publishing latency, as messages can be
+     * held up for up to {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS}5seconds
+     * until they are published.
      *
      * <p>Notice that this is the message publishing latency, not the end-to-end latency. For very
      * large scale pipelines, you will probably prefer to use the HIGHER_THROUGHPUT mode, as with
@@ -995,6 +999,11 @@ public class SolaceIO {
       return toBuilder().setSessionServiceFactory(factory).build();
     }
 
+    /** todo docs */
+    public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setErrorHandler(errorHandler).build();
+    }
+
     abstract int getNumShards();
 
     abstract int getNumberOfClientsPerWorker();
@@ -1012,6 +1021,8 @@ public class SolaceIO {
     abstract @Nullable SerializableFunction<T, Solace.Record> getFormatFunction();
 
     abstract @Nullable SessionServiceFactory getSessionServiceFactory();
+
+    abstract @Nullable ErrorHandler<BadRecord, ?> getErrorHandler();
 
     static <T> Builder<T> builder() {
       return new AutoValue_SolaceIO_Write.Builder<T>()
@@ -1044,6 +1055,8 @@ public class SolaceIO {
       abstract Builder<T> setFormatFunction(SerializableFunction<T, Solace.Record> formatFunction);
 
       abstract Builder<T> setSessionServiceFactory(SessionServiceFactory factory);
+
+      abstract Builder<T> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
 
       abstract Write<T> build();
     }
@@ -1089,21 +1102,21 @@ public class SolaceIO {
 
       SolaceOutput output;
       if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
-        PCollection<Solace.PublishResult> failedPublish = solaceOutput.get(FAILED_PUBLISH_TAG);
-        PCollection<Solace.PublishResult> successfulPublish =
-            solaceOutput.get(SUCCESSFUL_PUBLISH_TAG);
-        output = SolaceOutput.in(input.getPipeline(), failedPublish, successfulPublish);
+        if (getErrorHandler() != null) {
+          checkNotNull(getErrorHandler()).addErrorCollection(solaceOutput.get(FAILED_PUBLISH_TAG));
+        }
+        output = SolaceOutput.in(input.getPipeline(), solaceOutput.get(SUCCESSFUL_PUBLISH_TAG));
       } else {
         LOG.info(
             "Solace.Write: omitting writer output because delivery mode is {}", getDeliveryMode());
-        output = SolaceOutput.in(input.getPipeline(), null, null);
+        output = SolaceOutput.in(input.getPipeline(), null);
       }
 
       return output;
     }
 
     private ParDo.MultiOutput<KV<Integer, Solace.Record>, Solace.PublishResult> getWriterTransform(
-        SerializableFunction<Solace.Record, Destination> destinationFn) {
+        SerializableFunction<Record, Destination> destinationFn) {
 
       ParDo.SingleOutput<KV<Integer, Solace.Record>, Solace.PublishResult> writer =
           ParDo.of(
@@ -1123,7 +1136,7 @@ public class SolaceIO {
                       getNumberOfClientsPerWorker(),
                       getPublishLatencyMetrics()));
 
-      return writer.withOutputTags(FAILED_PUBLISH_TAG, TupleTagList.of(SUCCESSFUL_PUBLISH_TAG));
+      return writer.withOutputTags(SUCCESSFUL_PUBLISH_TAG, TupleTagList.of(FAILED_PUBLISH_TAG));
     }
 
     /**

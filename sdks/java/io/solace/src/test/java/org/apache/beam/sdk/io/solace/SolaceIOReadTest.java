@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.solace.MockSessionServiceFactory.SessionServiceType;
 import org.apache.beam.sdk.io.solace.SolaceIO.Read;
 import org.apache.beam.sdk.io.solace.SolaceIO.Read.Configuration;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -305,7 +306,9 @@ public class SolaceIOReadTest {
             .from(Solace.Queue.fromName("queue"))
             .withSempClientFactory(new MockSempClientFactory(mockSempClient))
             .withSessionServiceFactory(
-                MockSessionServiceFactory.builder().useEmptySessionMock(true).build());
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build());
 
     int desiredNumSplits = 5;
 

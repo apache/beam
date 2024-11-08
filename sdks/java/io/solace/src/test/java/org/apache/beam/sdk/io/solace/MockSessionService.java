@@ -19,18 +19,16 @@ package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
-import com.solacesystems.jcsmp.DeliveryMode;
-import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import org.apache.beam.sdk.io.solace.MockProducer.MockSuccessProducer;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
-import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,10 +44,14 @@ public abstract class MockSessionService extends SessionService {
 
   public abstract @Nullable SubmissionMode mode();
 
+  public abstract Function<PublishResultHandler, MockProducer> mockProducerFn();
+
   private final PublishResultsReceiver publishResultsReceiver = new PublishResultsReceiver();
 
   public static Builder builder() {
-    return new AutoValue_MockSessionService.Builder().minMessagesReceived(0);
+    return new AutoValue_MockSessionService.Builder()
+        .minMessagesReceived(0)
+        .mockProducerFn(MockSuccessProducer::new);
   }
 
   @AutoValue.Builder
@@ -60,6 +62,9 @@ public abstract class MockSessionService extends SessionService {
     public abstract Builder minMessagesReceived(int minMessagesReceived);
 
     public abstract Builder mode(@Nullable SubmissionMode mode);
+
+    public abstract Builder mockProducerFn(
+        Function<PublishResultHandler, MockProducer> mockProducerFn);
 
     public abstract MockSessionService build();
   }
@@ -86,7 +91,7 @@ public abstract class MockSessionService extends SessionService {
   @Override
   public MessageProducer getInitializeProducer(SubmissionMode mode) {
     if (messageProducer == null) {
-      messageProducer = new MockProducer(new PublishResultHandler(publishResultsReceiver));
+      messageProducer = mockProducerFn().apply(new PublishResultHandler(publishResultsReceiver));
     }
     return messageProducer;
   }
@@ -141,51 +146,5 @@ public abstract class MockSessionService extends SessionService {
     public boolean isEOF() {
       return counter.get() >= minMessagesReceived;
     }
-  }
-
-  public static class MockProducer implements MessageProducer {
-    private final PublishResultHandler handler;
-
-    public MockProducer(PublishResultHandler handler) {
-      this.handler = handler;
-    }
-
-    @Override
-    public void publishSingleMessage(
-        Solace.Record msg,
-        Destination topicOrQueue,
-        boolean useCorrelationKeyLatency,
-        DeliveryMode deliveryMode) {
-      if (useCorrelationKeyLatency) {
-        handler.responseReceivedEx(
-            Solace.PublishResult.builder()
-                .setPublished(true)
-                .setMessageId(msg.getMessageId())
-                .build());
-      } else {
-        handler.responseReceivedEx(msg.getMessageId());
-      }
-    }
-
-    @Override
-    public int publishBatch(
-        List<Solace.Record> records,
-        boolean useCorrelationKeyLatency,
-        SerializableFunction<Solace.Record, Destination> destinationFn,
-        DeliveryMode deliveryMode) {
-      for (Solace.Record record : records) {
-        this.publishSingleMessage(
-            record, destinationFn.apply(record), useCorrelationKeyLatency, deliveryMode);
-      }
-      return records.size();
-    }
-
-    @Override
-    public boolean isClosed() {
-      return false;
-    }
-
-    @Override
-    public void close() {}
   }
 }

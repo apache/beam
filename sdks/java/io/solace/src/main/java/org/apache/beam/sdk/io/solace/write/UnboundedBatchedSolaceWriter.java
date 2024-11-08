@@ -19,11 +19,13 @@ package org.apache.beam.sdk.io.solace.write;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -76,7 +78,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   private final TimerSpec bundleFlusherTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
   public UnboundedBatchedSolaceWriter(
-      SerializableFunction<Solace.Record, Destination> destinationFn,
+      SerializableFunction<Record, Destination> destinationFn,
       SessionServiceFactory sessionServiceFactory,
       DeliveryMode deliveryMode,
       SubmissionMode submissionMode,
@@ -115,7 +117,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   }
 
   @FinishBundle
-  public void finishBundle(FinishBundleContext context) {
+  public void finishBundle(FinishBundleContext context) throws IOException {
     // Take messages in groups of 50 (if there are enough messages)
     List<Solace.Record> currentBundle = getCurrentBundle();
     for (int i = 0; i < currentBundle.size(); i += SOLACE_BATCH_LIMIT) {
@@ -132,7 +134,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   }
 
   @OnTimer("bundle_flusher")
-  public void flushBundle(OnTimerContext context) {
+  public void flushBundle(OnTimerContext context) throws IOException {
     publishResults(BeamContextWrapper.of(context));
   }
 
