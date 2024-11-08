@@ -81,7 +81,6 @@ dependencies {
   shadow library.java.vendored_grpc_1_60_1
   shadow library.java.vendored_guava_32_1_2_jre
   shadow library.java.byte_buddy
-  shadow library.java.antlr_runtime
   shadow library.java.commons_compress
   shadow library.java.commons_lang3
   testImplementation library.java.mockito_inline

@@ -380,6 +380,51 @@ task validatesContainer() {
   }
 }
 
+/**
+ * Validates the distroless (https://github.com/GoogleContainerTools/distroless) variant of the Python SDK container
+ * image (sdks/python/container/Dockerfile).
+ * To test a single version of Python:
+ * ./gradlew :sdks:python:test-suites:dataflow:py311:validatesDistrolessContainer
+ * See https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-VirtualEnvironmentSetup
+ * for more information on setting up different Python versions.
+ */
+task validatesDistrolessContainer() {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  def buildTarget = 'distroless'
+  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+  def tag = java.time.Instant.now().getEpochSecond()
+  def imageURL = "${repository}/beam_python${project.ext.pythonVersion}_sdk_${buildTarget}:${tag}"
+  project.rootProject.ext['docker-repository-root'] = repository
+  project.rootProject.ext['container-build-target'] = buildTarget
+  project.rootProject.ext['docker-tag'] = tag
+  if (project.rootProject.hasProperty('dry-run')) {
+    println "Running in dry run mode: imageURL: ${imageURL}, pyversion: ${pyversion}, buildTarget: ${buildTarget}, repository: ${repository}, tag: ${tag}, envdir: ${envdir}"
+    return
+  }
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
+  dependsOn ":sdks:python:container:py${pyversion}:dockerPush"
+  def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
+  def argMap = [
+          "output": "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
+          "project": "apache-beam-testing",
+          "region": "us-central1",
+          "runner": "TestDataflowRunner",
+          "sdk_container_image": "${imageURL}",
+          "sdk_location": "container",
+          "staging_location": "gs://temp-storage-for-end-to-end-tests/staging-it",
+          "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  doLast {
+    exec {
+      workingDir = "${rootDir}/sdks/python"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pytest ${testTarget} --test-pipeline-options=\"${cmdArgs}\""
+    }
+  }
+}
+
 task validatesContainerARM() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'

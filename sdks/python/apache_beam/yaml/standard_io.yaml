@@ -271,6 +271,8 @@
         table: 'table_id'
         query: 'query'
         columns: 'columns'
+        index: 'index'
+        batching: 'batching'
       'WriteToSpanner':
         project: 'project_id'
         instance: 'instance_id'

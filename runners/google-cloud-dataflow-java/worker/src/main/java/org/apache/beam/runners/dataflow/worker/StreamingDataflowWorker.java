@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commits;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
@@ -199,6 +200,7 @@ public final class StreamingDataflowWorker {
     this.workCommitter =
         windmillServiceEnabled
             ? StreamingEngineWorkCommitter.builder()
+                .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
                 .setCommitWorkStreamFactory(
                     WindmillStreamPool.create(
                             numCommitThreads,
