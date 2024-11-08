@@ -20,7 +20,7 @@ plugins { id 'org.apache.beam.module' }
 applyGoNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
-int min_python_version=8
+int min_python_version=9
 int max_python_version=12
 
 configurations {

@@ -57,7 +57,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
         WeightedBoundedQueue.create(
             MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
     this.commitWorkers =
-        Executors.newSingleThreadScheduledExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MAX_PRIORITY)
