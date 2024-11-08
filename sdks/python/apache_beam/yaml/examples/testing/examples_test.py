@@ -224,8 +224,7 @@ def _io_write_test_preprocessor(
         transform['type'] = 'LogForTesting'
         transform['config'] = {
             k: v
-            for k,
-            v in transform.get('config', {}).items()
+            for (k, v) in transform.get('config', {}).items()
             if (k.startswith('__') or k == 'error_handling')
         }
 
