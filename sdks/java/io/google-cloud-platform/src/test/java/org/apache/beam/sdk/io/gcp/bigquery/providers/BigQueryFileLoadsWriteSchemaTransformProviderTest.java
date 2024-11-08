@@ -28,7 +28,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -47,10 +47,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test for {@link
- * org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider}.
- */
+/** Test for {@link BigQueryFileLoadsSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
 public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
@@ -98,8 +95,8 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
   @Test
   public void testLoad() throws IOException, InterruptedException {
-    BigQueryFileLoadsWriteSchemaTransformProvider provider =
-        new BigQueryFileLoadsWriteSchemaTransformProvider();
+    BigQueryFileLoadsSchemaTransformProvider provider =
+        new BigQueryFileLoadsSchemaTransformProvider();
     BigQueryWriteConfiguration configuration =
         BigQueryWriteConfiguration.builder()
             .setTable(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))

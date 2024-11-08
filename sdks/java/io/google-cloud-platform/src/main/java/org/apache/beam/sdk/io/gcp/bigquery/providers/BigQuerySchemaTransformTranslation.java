@@ -18,8 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteSchemaTransformProvider.BigQueryWriteSchemaTransform;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -46,30 +45,16 @@ public class BigQuerySchemaTransformTranslation {
     }
   }
 
-  public static class BigQueryStorageWriteSchemaTransformTranslator
+  public static class BigQueryWriteSchemaTransformTranslator
       extends SchemaTransformTranslation.SchemaTransformPayloadTranslator<
-          BigQueryStorageWriteApiSchemaTransform> {
+          BigQueryWriteSchemaTransform> {
     @Override
     public SchemaTransformProvider provider() {
-      return new BigQueryStorageWriteApiSchemaTransformProvider();
+      return new BigQueryWriteSchemaTransformProvider();
     }
 
     @Override
-    public Row toConfigRow(BigQueryStorageWriteApiSchemaTransform transform) {
-      return transform.getConfigurationRow();
-    }
-  }
-
-  public static class BigQueryFileLoadsSchemaTransformTranslator
-      extends SchemaTransformTranslation.SchemaTransformPayloadTranslator<
-          BigQueryFileLoadsSchemaTransform> {
-    @Override
-    public SchemaTransformProvider provider() {
-      return new BigQueryFileLoadsWriteSchemaTransformProvider();
-    }
-
-    @Override
-    public Row toConfigRow(BigQueryFileLoadsSchemaTransform transform) {
+    public Row toConfigRow(BigQueryWriteSchemaTransform transform) {
       return transform.getConfigurationRow();
     }
   }
@@ -89,12 +74,7 @@ public class BigQuerySchemaTransformTranslation {
           .put(
               BigQueryDirectReadSchemaTransform.class,
               new BigQueryStorageReadSchemaTransformTranslator())
-          .put(
-              BigQueryStorageWriteApiSchemaTransform.class,
-              new BigQueryStorageWriteSchemaTransformTranslator())
-          .put(
-              BigQueryFileLoadsSchemaTransform.class,
-              new BigQueryFileLoadsSchemaTransformTranslator())
+          .put(BigQueryWriteSchemaTransform.class, new BigQueryWriteSchemaTransformTranslator())
           .build();
     }
   }

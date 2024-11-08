@@ -19,11 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQuerySchemaTransformTranslation.BigQueryFileLoadsSchemaTransformTranslator;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQuerySchemaTransformTranslation.BigQueryStorageReadSchemaTransformTranslator;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQuerySchemaTransformTranslation.BigQueryStorageWriteSchemaTransformTranslator;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQuerySchemaTransformTranslation.BigQueryWriteSchemaTransformTranslator;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteSchemaTransformProvider.BigQueryWriteSchemaTransform;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -51,14 +49,12 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BigQuerySchemaTransformTranslationTest {
-  static final BigQueryStorageWriteApiSchemaTransformProvider STORAGE_WRITE_PROVIDER =
-      new BigQueryStorageWriteApiSchemaTransformProvider();
-  static final BigQueryFileLoadsWriteSchemaTransformProvider FILE_LOADS_PROVIDER =
-      new BigQueryFileLoadsWriteSchemaTransformProvider();
+  static final BigQueryWriteSchemaTransformProvider WRITE_PROVIDER =
+      new BigQueryWriteSchemaTransformProvider();
   static final BigQueryDirectReadSchemaTransformProvider READ_PROVIDER =
       new BigQueryDirectReadSchemaTransformProvider();
   static final Row WRITE_CONFIG_ROW =
-      Row.withSchema(STORAGE_WRITE_PROVIDER.configurationSchema())
+      Row.withSchema(WRITE_PROVIDER.configurationSchema())
           .withFieldValue("table", "project:dataset.table")
           .withFieldValue("create_disposition", "create_never")
           .withFieldValue("write_disposition", "write_append")
@@ -77,37 +73,22 @@ public class BigQuerySchemaTransformTranslationTest {
           .build();
 
   @Test
-  public void testRecreateStorageWriteTransformFromRow() {
-    BigQueryStorageWriteApiSchemaTransform writeTransform =
-        (BigQueryStorageWriteApiSchemaTransform) STORAGE_WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
+  public void testRecreateWriteTransformFromRow() {
+    BigQueryWriteSchemaTransform writeTransform =
+        (BigQueryWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
 
-    BigQueryStorageWriteSchemaTransformTranslator translator =
-        new BigQueryStorageWriteSchemaTransformTranslator();
+    BigQueryWriteSchemaTransformTranslator translator =
+        new BigQueryWriteSchemaTransformTranslator();
     Row translatedRow = translator.toConfigRow(writeTransform);
 
-    BigQueryStorageWriteApiSchemaTransform writeTransformFromRow =
+    BigQueryWriteSchemaTransform writeTransformFromRow =
         translator.fromConfigRow(translatedRow, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
   }
 
   @Test
-  public void testRecreateFileLoadsTransformFromRow() {
-    BigQueryFileLoadsSchemaTransform writeTransform =
-        (BigQueryFileLoadsSchemaTransform) FILE_LOADS_PROVIDER.from(WRITE_CONFIG_ROW);
-
-    BigQueryFileLoadsSchemaTransformTranslator translator =
-        new BigQueryFileLoadsSchemaTransformTranslator();
-    Row translatedRow = translator.toConfigRow(writeTransform);
-
-    BigQueryFileLoadsSchemaTransform writeTransformFromRow =
-        translator.fromConfigRow(translatedRow, PipelineOptionsFactory.create());
-
-    assertEquals(WRITE_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
-  }
-
-  @Test
-  public void testStorageWriteTransformProtoTranslation()
+  public void testWriteTransformProtoTranslation()
       throws InvalidProtocolBufferException, IOException {
     // First build a pipeline
     Pipeline p = Pipeline.create();
@@ -119,8 +100,8 @@ public class BigQuerySchemaTransformTranslationTest {
                         Row.withSchema(inputSchema).addValue(new byte[] {1, 2, 3}).build())))
             .setRowSchema(inputSchema);
 
-    BigQueryStorageWriteApiSchemaTransform writeTransform =
-        (BigQueryStorageWriteApiSchemaTransform) STORAGE_WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
+    BigQueryWriteSchemaTransform writeTransform =
+        (BigQueryWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
     PCollectionRowTuple.of("input", input).apply(writeTransform);
 
     // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
@@ -134,7 +115,7 @@ public class BigQuerySchemaTransformTranslationTest {
                     return spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
                         && SchemaTransformPayload.parseFrom(spec.getPayload())
                             .getIdentifier()
-                            .equals(STORAGE_WRITE_PROVIDER.identifier());
+                            .equals(WRITE_PROVIDER.identifier());
                   } catch (InvalidProtocolBufferException e) {
                     throw new RuntimeException(e);
                   }
@@ -146,69 +127,15 @@ public class BigQuerySchemaTransformTranslationTest {
     // Check that the proto contains correct values
     SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    assertEquals(STORAGE_WRITE_PROVIDER.configurationSchema(), schemaFromSpec);
+    assertEquals(WRITE_PROVIDER.configurationSchema(), schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
 
     assertEquals(WRITE_CONFIG_ROW, rowFromSpec);
 
     // Use the information in the proto to recreate the KafkaWriteSchemaTransform
-    BigQueryStorageWriteSchemaTransformTranslator translator =
-        new BigQueryStorageWriteSchemaTransformTranslator();
-    BigQueryStorageWriteApiSchemaTransform writeTransformFromSpec =
-        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
-
-    assertEquals(WRITE_CONFIG_ROW, writeTransformFromSpec.getConfigurationRow());
-  }
-
-  @Test
-  public void testFileLoadsTransformProtoTranslation()
-      throws InvalidProtocolBufferException, IOException {
-    // First build a pipeline
-    Pipeline p = Pipeline.create();
-    Schema inputSchema = Schema.builder().addByteArrayField("b").build();
-    PCollection<Row> input =
-        p.apply(
-                Create.of(
-                    Collections.singletonList(
-                        Row.withSchema(inputSchema).addValue(new byte[] {1, 2, 3}).build())))
-            .setRowSchema(inputSchema);
-
-    BigQueryFileLoadsSchemaTransform writeTransform =
-        (BigQueryFileLoadsSchemaTransform) FILE_LOADS_PROVIDER.from(WRITE_CONFIG_ROW);
-    PCollectionRowTuple.of("input", input).apply(writeTransform);
-
-    // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-    List<RunnerApi.PTransform> writeTransformProto =
-        pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(
-                tr -> {
-                  RunnerApi.FunctionSpec spec = tr.getSpec();
-                  try {
-                    return spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
-                        && SchemaTransformPayload.parseFrom(spec.getPayload())
-                            .getIdentifier()
-                            .equals(FILE_LOADS_PROVIDER.identifier());
-                  } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .collect(Collectors.toList());
-    assertEquals(1, writeTransformProto.size());
-    RunnerApi.FunctionSpec spec = writeTransformProto.get(0).getSpec();
-
-    // Check that the proto contains correct values
-    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
-    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    assertEquals(FILE_LOADS_PROVIDER.configurationSchema(), schemaFromSpec);
-    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
-
-    assertEquals(WRITE_CONFIG_ROW, rowFromSpec);
-
-    // Use the information in the proto to recreate the KafkaWriteSchemaTransform
-    BigQueryFileLoadsSchemaTransformTranslator translator =
-        new BigQueryFileLoadsSchemaTransformTranslator();
-    BigQueryFileLoadsSchemaTransform writeTransformFromSpec =
+    BigQueryWriteSchemaTransformTranslator translator =
+        new BigQueryWriteSchemaTransformTranslator();
+    BigQueryWriteSchemaTransform writeTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromSpec.getConfigurationRow());

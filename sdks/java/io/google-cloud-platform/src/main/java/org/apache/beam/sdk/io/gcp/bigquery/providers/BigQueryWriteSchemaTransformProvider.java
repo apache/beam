@@ -22,15 +22,18 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import com.google.auto.service.AutoService;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * A BigQuery Write SchemaTransformProvider that routes to either {@link
- * BigQueryFileLoadsWriteSchemaTransformProvider} or {@link
+ * BigQueryFileLoadsSchemaTransformProvider} or {@link
  * BigQueryStorageWriteApiSchemaTransformProvider}.
  *
  * <p>Internal only. Used by the Managed Transform layer.
@@ -46,13 +49,13 @@ public class BigQueryWriteSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
-    return new BigQueryWriteRouter(configuration);
+    return new BigQueryWriteSchemaTransform(configuration);
   }
 
-  static class BigQueryWriteRouter extends SchemaTransform {
+  public static class BigQueryWriteSchemaTransform extends SchemaTransform {
     private final BigQueryWriteConfiguration configuration;
 
-    BigQueryWriteRouter(BigQueryWriteConfiguration configuration) {
+    BigQueryWriteSchemaTransform(BigQueryWriteConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }
@@ -60,10 +63,24 @@ public class BigQueryWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       if (input.getSinglePCollection().isBounded().equals(PCollection.IsBounded.BOUNDED)) {
-        return input.apply(new BigQueryFileLoadsWriteSchemaTransformProvider().from(configuration));
+        return input.apply(new BigQueryFileLoadsSchemaTransformProvider().from(configuration));
       } else { // UNBOUNDED
         return input.apply(
             new BigQueryStorageWriteApiSchemaTransformProvider().from(configuration));
+      }
+    }
+
+    public Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(BigQueryWriteConfiguration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
       }
     }
   }

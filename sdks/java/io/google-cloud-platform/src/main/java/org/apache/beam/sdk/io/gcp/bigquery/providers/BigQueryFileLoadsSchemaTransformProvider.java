@@ -26,8 +26,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -50,7 +48,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 })
 @Internal
 @AutoService(SchemaTransformProvider.class)
-public class BigQueryFileLoadsWriteSchemaTransformProvider
+public class BigQueryFileLoadsSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
 
   static final String INPUT_TAG = "input";
@@ -127,20 +125,6 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     @VisibleForTesting
     void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
       this.testBigQueryServices = testBigQueryServices;
-    }
-
-    public Row getConfigurationRow() {
-      try {
-        // To stay consistent with our SchemaTransform configuration naming conventions,
-        // we sort lexicographically
-        return SchemaRegistry.createDefault()
-            .getToRowFunction(BigQueryWriteConfiguration.class)
-            .apply(configuration)
-            .sorted()
-            .toSnakeCase();
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException(e);
-      }
     }
   }
 }
