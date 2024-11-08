@@ -87,7 +87,10 @@ class DaskBagWindowedIterator:
   window_fn: WindowFn
 
   def __iter__(self):
-    for result in iter(self.bag):
+    # FIXME(cisaacstern): list() is likely inefficient, since it presumably
+    # materializes the full result before iterating over it. doing this for
+    # now as a proof-of-concept. can we can generate results incrementally?
+    for result in list(self.bag):
       yield get_windowed_value(result, self.window_fn)
 
 
