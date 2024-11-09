@@ -14,18 +14,57 @@ limitations under the License.
 
 # Building Beam Python SDK Image Guide
 
+There are two options to build Beam Python SDK image. If you only need to modify
+[the Python SDK boot entrypoint binary](https://github.com/apache/beam/blob/master/sdks/python/container/boot.go),
+read [Update Boot Entrypoint Application Only](#update-boot-entrypoint-application-only).
+If you need to build a Beam Python SDK image fully,
+read [Build Beam Python SDK Image Fully](#build-beam-python-sdk-image-fully).
+
+
+## Update Boot Entrypoint Application Only.
+
+If you only need to make a change to [the Python SDK boot entrypoint binary](https://github.com/apache/beam/blob/master/sdks/python/container/boot.go). You
+can rebuild the boot application only and include the updated boot application
+in the preexisting image.
+Read [the Python container Dockerfile](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile)
+for reference.
+
+```shell
+# From beam repo root, make changes to boot.go.
+your_editor sdks/python/container/boot.go
+
+# Rebuild the entrypoint
+./gradlew :sdks:python:container:gobuild
+
+cd sdks/python/container/build/target/launcher/linux_amd64
+
+# Create a simple Dockerfile to use custom boot entrypoint.
+cat >Dockerfile <<EOF
+FROM apache/beam_python3.10_sdk:2.60.0
+COPY boot /opt/apache/beam/boot
+EOF
+
+# Build the image
+docker build . --tag us-central1-docker.pkg.dev/<MY_PROJECT>/<MY_REPOSITORY>/beam_python3.10_sdk:2.60.0-custom-boot
+docker push us-central1-docker.pkg.dev/<MY_PROJECT>/<MY_REPOSITORY>/beam_python3.10_sdk:2.60.0-custom-boot
+```
+
 You can build a docker image if your local environment has Java, Python, Golang
-and Docker properly. Try
+and Docker installation. Try
 `./gradlew :sdks:python:container:py<PYTHON_VERSION>:docker`. For example,
 `:sdks:python:container:py310:docker` builds `apache/beam_python3.10_sdk`
 locally if successful. You can follow this guide building a custom image from
 a VM if the build fails in your local environment.
 
-## Prepare VM
+## Build Beam Python SDK Image Fully
+
+This section introduces a way to build everything from the scratch.
+
+### Prepare VM
 
 Prepare a VM with Debian 11. This guide was tested on Debian 11.
 
-### Google Compute Engine
+#### Google Compute Engine
 
 An option to create a Debian 11 VM is using a GCE instance.
 
@@ -61,9 +100,9 @@ sudo apt-get update
 > * Use a zone in the region of your docker repository of Artifact Registry if
     you push the image to Artifact Registry.
 
-## Prerequisite Packages
+### Prerequisite Packages
 
-### Java
+#### Java
 
 You need Java to run Gradle tasks.
 
@@ -71,7 +110,7 @@ You need Java to run Gradle tasks.
 sudo apt-get install -y openjdk-11-jdk
 ```
 
-### Golang
+#### Golang
 
 Download and install. Reference: https://go.dev/doc/install.
 
@@ -99,7 +138,7 @@ go version go1.23.2 linux/amd64
 > [!NOTE]
 > Old Go version (e.g. 1.16) will fail at `:sdks:python:container:goBuild`.
 
-### Python
+#### Python
 
 This guide uses Pyenv to manage multiple Python versions.
 Reference: https://realpython.com/intro-to-pyenv/#build-dependencies
@@ -146,7 +185,7 @@ Python 3.9.17
 > versions). If you use the wrong version, the Gradle task
 `:sdks:python:setupVirtualenv` fails.
 
-### Docker
+#### Docker
 
 Install Docker
 following [the reference](https://docs.docker.com/engine/install/debian/#install-using-the-repository).
@@ -185,7 +224,7 @@ Confirm if you can run a container without the root privilege.
 docker run hello-world
 ```
 
-### Git
+#### Git
 
 Git is not necessary for building Python SDK image. Git is just used to download
 the Apache Beam code in this guide.
@@ -194,7 +233,7 @@ the Apache Beam code in this guide.
 sudo apt-get install -y git
 ```
 
-## Build Beam Python SDK Image
+### Build Beam Python SDK Image
 
 Download Apache Beam
 from [the Github repository](https://github.com/apache/beam).
@@ -209,7 +248,7 @@ Make changes to the Apache Beam code.
 Run the Gradle task to start Docker image build. This will take several minutes.
 You can run `:sdks:python:container:py<PYTHON_VERSION>:docker` to build an image
 for different Python version.
-See [the supported version list](https://github.com/apache/beam/tree/master/sdks/python/container).
+See [the supported Python version list](https://github.com/apache/beam/tree/master/sdks/python/container).
 For example, `py310` is for Python 3.10.
 
 ```shell
@@ -235,12 +274,12 @@ apache/beam_python3.10_sdk   2.60.0    33db45f57f25   About a minute ago   2.79G
 > try with `-PpythonVersion` with the Python version installed in your local
 > environment (e.g. `-PpythonVersion=3.10`)
 
-## Push to Repository
+### Push to Repository
 
 You may push the custom image to a image repository. The image can be used
 for [Dataflow custom container](https://cloud.google.com/dataflow/docs/guides/run-custom-container#usage).
 
-### Google Cloud Artifact Registry
+#### Google Cloud Artifact Registry
 
 You can push the image to Artifact Registry. No additional authentication is
 necessary if you use Google Compute Engine.
@@ -255,7 +294,7 @@ should configure [docker authentication with
 `gcloud`](https://cloud.google.com/artifact-registry/docs/docker/authentication#gcloud-helper)
 before `docker push`.
 
-### Docker Hub
+#### Docker Hub
 
 You can push your Docker hub repository
 after [docker login](https://docs.docker.com/reference/cli/docker/login/).
@@ -265,29 +304,3 @@ docker tag apache/beam_python3.10_sdk:2.60.0 <my-account>/beam_python3.10_sdk:2.
 docker push <my-account>/beam_python3.10_sdk:2.60.0-custom
 ```
 
-## (Optional) Update Boot Application Only.
-
-If you only need to make a change to the Python SDK boot application. You can
-rebuild the boot application only and include the updated boot application in
-the preexisting image.
-
-```shell
-# From beam repo root, make changes to boot.go.
-your_editor sdks/python/container/boot.go
-
-# Rebuild the entrypoint
-./gradlew :sdks:python:container:gobuild
-
-cd sdks/python/container/build/target/launcher/linux_amd64
-
-# Create a simple Dockerfile to use custom boot entrypoint.
-cat >Dockerfile <<EOF
-FROM apache/beam_python3.10_sdk:2.60.0
-COPY boot /opt/apache/beam/boot_modified
-ENTRYPOINT ["/opt/apache/beam/boot_modified"]
-EOF
-
-# Build the image
-docker build . --tag us-central1-docker.pkg.dev/<MY_PROJECT>/<MY_REPOSITORY>/beam_python3.10_sdk:2.60.0-custom-boot
-docker push us-central1-docker.pkg.dev/<MY_PROJECT>/<MY_REPOSITORY>/beam_python3.10_sdk:2.60.0-custom-boot
-```
