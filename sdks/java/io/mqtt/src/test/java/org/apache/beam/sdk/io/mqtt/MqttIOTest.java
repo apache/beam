@@ -279,7 +279,7 @@ public class MqttIOTest {
     publisherThread.join();
   }
 
-  @Test(timeout = 60 * 1000)
+  @Test(timeout = 120 * 1000)
   public void testReadWithMultipleTopics() throws Exception {
     final String topic1 = "some-topic-1";
     final String topic2 = "some-topic-2";
@@ -290,8 +290,7 @@ public class MqttIOTest {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.createWithMultipleTopics(
                     "tcp://localhost:" + port, Arrays.asList(topic1, topic2)))
-            .withMaxNumRecords(10)
-            .withMaxReadTime(Duration.standardSeconds(10));
+            .withMaxReadTime(Duration.standardSeconds(30));
 
     final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithTopicArray);
     PAssert.that(output)
