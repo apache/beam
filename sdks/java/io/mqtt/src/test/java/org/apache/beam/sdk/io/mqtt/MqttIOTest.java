@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CountDownLatch;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -325,6 +326,8 @@ public class MqttIOTest {
     client.setHost("tcp://localhost:" + port);
     final BlockingConnection publishConnection = client.blockingConnection();
     publishConnection.connect();
+
+    final CountDownLatch publishLatch = new CountDownLatch(3);
     Thread publisherThread =
         new Thread(
             () -> {
@@ -337,6 +340,7 @@ public class MqttIOTest {
                       QoS.EXACTLY_ONCE,
                       false);
                 }
+                publishLatch.countDown();
                 for (int i = 5; i < 10; i++) {
                   publishConnection.publish(
                       topic2,
@@ -344,6 +348,7 @@ public class MqttIOTest {
                       QoS.EXACTLY_ONCE,
                       false);
                 }
+                publishLatch.countDown();
                 for (int i = 10; i < 15; i++) {
                   publishConnection.publish(
                       topic3,
@@ -351,6 +356,7 @@ public class MqttIOTest {
                       QoS.EXACTLY_ONCE,
                       false);
                 }
+                publishLatch.countDown();
 
               } catch (Exception e) {
                 // nothing to do
@@ -359,8 +365,8 @@ public class MqttIOTest {
 
     publisherThread.start();
     pipeline.run();
-
     publishConnection.disconnect();
+    publishLatch.await();
     publisherThread.join();
   }
 
