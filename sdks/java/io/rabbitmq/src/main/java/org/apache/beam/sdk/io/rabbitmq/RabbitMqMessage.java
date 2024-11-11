@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * reason of this class is that AMQP.BasicProperties doesn't provide a serializable public API.
  */
 @SuppressWarnings({
-        "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RabbitMqMessage implements Serializable {
 
@@ -57,24 +57,24 @@ public class RabbitMqMessage implements Serializable {
     // in basicproperties, there may be LongString, which are *not* serializable
     BasicProperties properties = processed.getProps();
     BasicProperties nextProperties =
-            new BasicProperties.Builder()
-                    .appId(properties.getAppId())
-                    .clusterId(properties.getClusterId())
-                    .contentEncoding(properties.getContentEncoding())
-                    .contentType(properties.getContentType())
-                    .correlationId(properties.getCorrelationId())
-                    .deliveryMode(properties.getDeliveryMode())
-                    .expiration(properties.getExpiration())
-                    .headers(serializableHeaders(properties.getHeaders()))
-                    .messageId(properties.getMessageId())
-                    .priority(properties.getPriority())
-                    .replyTo(properties.getReplyTo())
-                    .timestamp(properties.getTimestamp())
-                    .type(properties.getType())
-                    .userId(properties.getUserId())
-                    .build();
+        new BasicProperties.Builder()
+            .appId(properties.getAppId())
+            .clusterId(properties.getClusterId())
+            .contentEncoding(properties.getContentEncoding())
+            .contentType(properties.getContentType())
+            .correlationId(properties.getCorrelationId())
+            .deliveryMode(properties.getDeliveryMode())
+            .expiration(properties.getExpiration())
+            .headers(serializableHeaders(properties.getHeaders()))
+            .messageId(properties.getMessageId())
+            .priority(properties.getPriority())
+            .replyTo(properties.getReplyTo())
+            .timestamp(properties.getTimestamp())
+            .type(properties.getType())
+            .userId(properties.getUserId())
+            .build();
     return new GetResponse(
-            envelope, nextProperties, processed.getBody(), processed.getMessageCount());
+        envelope, nextProperties, processed.getBody(), processed.getMessageCount());
   }
 
   @VisibleForTesting
@@ -91,21 +91,22 @@ public class RabbitMqMessage implements Serializable {
   private static Object convertLongStringIfNecessary(Object value) {
     if (value instanceof LongString) {
       return convertLongString(value);
-    }
-    else if (value instanceof List) {
-      return ((List<?>) value).stream()
-              .map(RabbitMqMessage::convertLongStringIfNecessary).collect(Collectors.toCollection(ArrayList::new));
-    }
-    else if (value instanceof Map) {
+    } else if (value instanceof List) {
+      return ((List<?>) value)
+          .stream()
+              .map(RabbitMqMessage::convertLongStringIfNecessary)
+              .collect(Collectors.toCollection(ArrayList::new));
+    } else if (value instanceof Map) {
       Map<String, Object> convertedValues = new HashMap<>();
-      ((Map<?, ?>) value).forEach((key, val) -> convertedValues.put((String) key, convertLongStringIfNecessary(val)));
+      ((Map<?, ?>) value)
+          .forEach(
+              (key, val) -> convertedValues.put((String) key, convertLongStringIfNecessary(val)));
       return convertedValues;
-    }
-    else if (!(value instanceof Serializable)) {
+    } else if (!(value instanceof Serializable)) {
       throw new UnsupportedOperationException(
-              String.format(
-                      "Can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
-                      value));
+          String.format(
+              "Can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
+              value));
     }
     return value;
   }
@@ -173,22 +174,22 @@ public class RabbitMqMessage implements Serializable {
   }
 
   public RabbitMqMessage(
-          String routingKey,
-          byte[] body,
-          String contentType,
-          String contentEncoding,
-          Map<String, Object> headers,
-          Integer deliveryMode,
-          Integer priority,
-          String correlationId,
-          String replyTo,
-          String expiration,
-          String messageId,
-          Date timestamp,
-          String type,
-          String userId,
-          String appId,
-          String clusterId) {
+      String routingKey,
+      byte[] body,
+      String contentType,
+      String contentEncoding,
+      Map<String, Object> headers,
+      Integer deliveryMode,
+      Integer priority,
+      String correlationId,
+      String replyTo,
+      String expiration,
+      String messageId,
+      Date timestamp,
+      String type,
+      String userId,
+      String appId,
+      String clusterId) {
     this.routingKey = routingKey;
     this.body = body;
     this.contentType = contentType;
@@ -273,42 +274,42 @@ public class RabbitMqMessage implements Serializable {
 
   public AMQP.BasicProperties createProperties() {
     return new AMQP.BasicProperties()
-            .builder()
-            .contentType(contentType)
-            .contentEncoding(contentEncoding)
-            .headers(headers)
-            .deliveryMode(deliveryMode)
-            .priority(priority)
-            .correlationId(correlationId)
-            .replyTo(replyTo)
-            .expiration(expiration)
-            .messageId(messageId)
-            .timestamp(timestamp)
-            .type(type)
-            .userId(userId)
-            .appId(appId)
-            .clusterId(clusterId)
-            .build();
+        .builder()
+        .contentType(contentType)
+        .contentEncoding(contentEncoding)
+        .headers(headers)
+        .deliveryMode(deliveryMode)
+        .priority(priority)
+        .correlationId(correlationId)
+        .replyTo(replyTo)
+        .expiration(expiration)
+        .messageId(messageId)
+        .timestamp(timestamp)
+        .type(type)
+        .userId(userId)
+        .appId(appId)
+        .clusterId(clusterId)
+        .build();
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-            routingKey,
-            Arrays.hashCode(body),
-            contentType,
-            contentEncoding,
-            deliveryMode,
-            priority,
-            correlationId,
-            replyTo,
-            expiration,
-            messageId,
-            timestamp,
-            type,
-            userId,
-            appId,
-            clusterId);
+        routingKey,
+        Arrays.hashCode(body),
+        contentType,
+        contentEncoding,
+        deliveryMode,
+        priority,
+        correlationId,
+        replyTo,
+        expiration,
+        messageId,
+        timestamp,
+        type,
+        userId,
+        appId,
+        clusterId);
   }
 
   @Override
@@ -316,20 +317,20 @@ public class RabbitMqMessage implements Serializable {
     if (obj instanceof RabbitMqMessage) {
       RabbitMqMessage other = (RabbitMqMessage) obj;
       return Objects.equals(routingKey, other.routingKey)
-              && Arrays.equals(body, other.body)
-              && Objects.equals(contentType, other.contentType)
-              && Objects.equals(contentEncoding, other.contentEncoding)
-              && Objects.equals(deliveryMode, other.deliveryMode)
-              && Objects.equals(priority, other.priority)
-              && Objects.equals(correlationId, other.correlationId)
-              && Objects.equals(replyTo, other.replyTo)
-              && Objects.equals(expiration, other.expiration)
-              && Objects.equals(messageId, other.messageId)
-              && Objects.equals(timestamp, other.timestamp)
-              && Objects.equals(type, other.type)
-              && Objects.equals(userId, other.userId)
-              && Objects.equals(appId, other.appId)
-              && Objects.equals(clusterId, other.clusterId);
+          && Arrays.equals(body, other.body)
+          && Objects.equals(contentType, other.contentType)
+          && Objects.equals(contentEncoding, other.contentEncoding)
+          && Objects.equals(deliveryMode, other.deliveryMode)
+          && Objects.equals(priority, other.priority)
+          && Objects.equals(correlationId, other.correlationId)
+          && Objects.equals(replyTo, other.replyTo)
+          && Objects.equals(expiration, other.expiration)
+          && Objects.equals(messageId, other.messageId)
+          && Objects.equals(timestamp, other.timestamp)
+          && Objects.equals(type, other.type)
+          && Objects.equals(userId, other.userId)
+          && Objects.equals(appId, other.appId)
+          && Objects.equals(clusterId, other.clusterId);
     }
     return false;
   }

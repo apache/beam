@@ -65,9 +65,9 @@ public class RabbitMqMessageTest implements Serializable {
     Map<String, Object> rawHeaders = new HashMap<>();
     List<String> expectedSerializedList = Lists.newArrayList("value1", "value2");
     List<LongString> rawList =
-            expectedSerializedList.stream()
-                    .map(LongStringHelper::asLongString)
-                    .collect(Collectors.toList());
+        expectedSerializedList.stream()
+            .map(LongStringHelper::asLongString)
+            .collect(Collectors.toList());
     String key1 = "key1";
     rawHeaders.put(key1, rawList);
 
@@ -78,51 +78,71 @@ public class RabbitMqMessageTest implements Serializable {
 
   @Test
   public void testSerializableHeadersWithNestedList() {
-    Map<String, Object> serializedHeaders = RabbitMqMessage.serializableHeaders(
-            ImmutableMap.of("listKey", Collections.singletonList(
-                    Collections.singletonList(LongStringHelper.asLongString("nestedLongStringVal")))));
+    Map<String, Object> serializedHeaders =
+        RabbitMqMessage.serializableHeaders(
+            ImmutableMap.of(
+                "listKey",
+                Collections.singletonList(
+                    Collections.singletonList(
+                        LongStringHelper.asLongString("nestedLongStringVal")))));
 
-    Map<String, Object> expected = ImmutableMap.of(
+    Map<String, Object> expected =
+        ImmutableMap.of(
             "listKey", Collections.singletonList(Collections.singletonList("nestedLongStringVal")));
     assertEquals(expected, serializedHeaders);
   }
 
   @Test
   public void testSerializableHeadersWithLongStringAndNestedList() {
-    Map<String, Object> serializedHeaders = RabbitMqMessage.serializableHeaders(
+    Map<String, Object> serializedHeaders =
+        RabbitMqMessage.serializableHeaders(
             ImmutableMap.of(
-                    "longStringKey", LongStringHelper.asLongString("longStringVal"),
-                    "listKey", Collections.singletonList(Collections.singletonList(
+                "longStringKey", LongStringHelper.asLongString("longStringVal"),
+                "listKey",
+                    Collections.singletonList(
+                        Collections.singletonList(
                             LongStringHelper.asLongString("nestedLongStringVal")))));
 
-    Map<String, Object> expected = ImmutableMap.of(
-            "longStringKey", "longStringVal",
-            "listKey", Collections.singletonList(Collections.singletonList("nestedLongStringVal")));
+    Map<String, Object> expected =
+        ImmutableMap.of(
+            "longStringKey",
+            "longStringVal",
+            "listKey",
+            Collections.singletonList(Collections.singletonList("nestedLongStringVal")));
     assertEquals(expected, serializedHeaders);
   }
 
   @Test
   public void testSerializableHeadersWithNestedMap() {
-    Map<String, Object> serializedHeaders = RabbitMqMessage.serializableHeaders(
-            ImmutableMap.of("mapKey",
-                    ImmutableMap.of("nestedLongStringKey", LongStringHelper.asLongString("nestedLongStringVal"))));
+    Map<String, Object> serializedHeaders =
+        RabbitMqMessage.serializableHeaders(
+            ImmutableMap.of(
+                "mapKey",
+                ImmutableMap.of(
+                    "nestedLongStringKey", LongStringHelper.asLongString("nestedLongStringVal"))));
 
     Map<?, ?> expected =
-            ImmutableMap.of("mapKey", ImmutableMap.of("nestedLongStringKey", "nestedLongStringVal"));
+        ImmutableMap.of("mapKey", ImmutableMap.of("nestedLongStringKey", "nestedLongStringVal"));
     assertEquals(expected, serializedHeaders);
   }
 
   @Test
   public void testSerializableHeadersWithLongStringAndNestedMap() {
-    Map<String, Object> serializedHeaders = RabbitMqMessage.serializableHeaders(
+    Map<String, Object> serializedHeaders =
+        RabbitMqMessage.serializableHeaders(
             ImmutableMap.of(
-                    "longStringKey", LongStringHelper.asLongString("longStringVal"),
-                    "mapKey", ImmutableMap.of(
-                            "nestedLongStringKey", LongStringHelper.asLongString("nestedLongStringVal"))));
+                "longStringKey", LongStringHelper.asLongString("longStringVal"),
+                "mapKey",
+                    ImmutableMap.of(
+                        "nestedLongStringKey",
+                        LongStringHelper.asLongString("nestedLongStringVal"))));
 
-    Map<?, ?> expected = ImmutableMap.of(
-            "longStringKey", "longStringVal",
-            "mapKey", ImmutableMap.of("nestedLongStringKey", "nestedLongStringVal"));
+    Map<?, ?> expected =
+        ImmutableMap.of(
+            "longStringKey",
+            "longStringVal",
+            "mapKey",
+            ImmutableMap.of("nestedLongStringKey", "nestedLongStringVal"));
     assertEquals(expected, serializedHeaders);
   }
 
