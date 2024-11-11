@@ -593,7 +593,8 @@ task mockAPITests {
 // TODO: https://github.com/apache/beam/issues/22651
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
-  // Temporarily disabled because of a container issue  
+  // TODO(https://github.com/apache/beam/issues/33078): restore the tensorRT tests once the staged
+  // model is fixed.
   // 'tensorRTtests',
   'vertexAIInferenceTest',
   'mockAPITests',
