@@ -40,7 +40,7 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 task copyRequirementsFile(type: Copy) {
-    from project(':sdks:python:container:py38').fileTree("./")
+    from project(':sdks:python:container:py39').fileTree("./")
     include 'base_image_requirements.txt'
     rename 'base_image_requirements.txt', 'requirements.txt'
     setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)

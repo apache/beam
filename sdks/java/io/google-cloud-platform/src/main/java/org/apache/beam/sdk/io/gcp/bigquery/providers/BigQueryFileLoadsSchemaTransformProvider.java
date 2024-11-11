@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
-
-import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
- * using {@link BigQueryWriteConfiguration}.
+ * using {@link org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -51,19 +51,19 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 })
 @Internal
 @AutoService(SchemaTransformProvider.class)
-public class BigQueryFileLoadsWriteSchemaTransformProvider
+public class BigQueryFileLoadsSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
 
   static final String INPUT_TAG = "input";
 
   @Override
   protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
-    return new BigQueryWriteSchemaTransform(configuration);
+    return new BigQueryFileLoadsSchemaTransform(configuration);
   }
 
   @Override
   public String identifier() {
-    return getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_FILE_LOADS);
+    return "beam:schematransform:org.apache.beam:bigquery_fileloads:v1";
   }
 
   @Override
@@ -76,13 +76,13 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     return Collections.emptyList();
   }
 
-  protected static class BigQueryWriteSchemaTransform extends SchemaTransform {
+  public static class BigQueryFileLoadsSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
     private final BigQueryWriteConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(BigQueryWriteConfiguration configuration) {
+    BigQueryFileLoadsSchemaTransform(BigQueryWriteConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }
@@ -90,20 +90,28 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rowPCollection = input.getSinglePCollection();
-      BigQueryIO.Write<Row> write = toWrite(rowPCollection.getSchema());
+      BigQueryIO.Write<Row> write =
+          toWrite(rowPCollection.getSchema(), input.getPipeline().getOptions());
       rowPCollection.apply(write);
 
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
-    BigQueryIO.Write<Row> toWrite(Schema schema) {
+    BigQueryIO.Write<Row> toWrite(Schema schema, PipelineOptions options) {
       PortableBigQueryDestinations dynamicDestinations =
           new PortableBigQueryDestinations(schema, configuration);
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
               .to(dynamicDestinations)
               .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
-              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false));
+              .withFormatFunction(BigQueryUtils.toTableRow())
+              // TODO(https://github.com/apache/beam/issues/33074) BatchLoad's
+              // createTempFilePrefixView() doesn't pick up the pipeline option
+              .withCustomGcsTempLocation(
+                  ValueProvider.StaticValueProvider.of(options.getTempLocation()))
+              .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false))
+              .useBeamSchema();
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =

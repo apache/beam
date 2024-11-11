@@ -64,7 +64,6 @@ class FilterExamplesTest {
     fun pipeline(): TestPipeline = pipeline
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testProjectionFn() {
         val input = pipeline.apply(Create.of(row1, row2, row3))
         val results = input.apply(ParDo.of(ProjectionFn()))
@@ -73,7 +72,6 @@ class FilterExamplesTest {
     }
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testFilterSingleMonthDataFn() {
         val input = pipeline.apply(Create.of(outRow1, outRow2, outRow3))
         val results = input.apply(ParDo.of(FilterSingleMonthDataFn(7)))

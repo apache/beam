@@ -99,7 +99,7 @@ public class Managed {
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
-          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_STORAGE_WRITE))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
           .build();
 
   /**
@@ -135,9 +135,6 @@ public class Managed {
    * </ul>
    */
   public static ManagedTransform write(String sink) {
-    List<String> supportedIdentifiers = new ArrayList<>(WRITE_TRANSFORMS.values());
-    supportedIdentifiers.add(getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_FILE_LOADS));
-
     return new AutoValue_Managed_ManagedTransform.Builder()
         .setIdentifier(
             Preconditions.checkNotNull(
@@ -145,7 +142,7 @@ public class Managed {
                 "An unsupported sink was specified: '%s'. Please specify one of the following sinks: %s",
                 sink,
                 WRITE_TRANSFORMS.keySet()))
-        .setSupportedIdentifiers(supportedIdentifiers)
+        .setSupportedIdentifiers(new ArrayList<>(WRITE_TRANSFORMS.values()))
         .build();
   }
 

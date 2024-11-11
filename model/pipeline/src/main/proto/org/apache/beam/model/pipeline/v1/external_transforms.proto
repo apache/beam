@@ -72,10 +72,8 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:kafka_write:v1"];
     BIGQUERY_READ = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"];
-    BIGQUERY_STORAGE_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-      "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"];
-    BIGQUERY_FILE_LOADS = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-      "beam:schematransform:org.apache.beam:bigquery_fileloads:v1"];
+    BIGQUERY_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:bigquery_write:v1"];
   }
 }
 

@@ -77,12 +77,16 @@ from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
+BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
 _EXPANSION_SERVICE_JAR_TARGETS = {
     "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
+    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
+        BIGQUERY
+    ]
 }
 
-__all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
+__all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
 
 class Read(PTransform):
@@ -90,6 +94,7 @@ class Read(PTransform):
   _READ_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn
   }
 
   def __init__(
@@ -130,6 +135,7 @@ class Write(PTransform):
   _WRITE_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_WRITE.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn
   }
 
   def __init__(

@@ -82,7 +82,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
     this.waitForResources = waitForResources;
     this.computationStateFetcher = computationStateFetcher;
     this.workProviderExecutor =
-        Executors.newSingleThreadScheduledExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MIN_PRIORITY)

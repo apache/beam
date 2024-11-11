@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformTranslation.BigQueryStorageReadSchemaTransformTranslator;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformTranslation.BigQueryStorageWriteSchemaTransformTranslator;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQuerySchemaTransformTranslation.BigQueryStorageReadSchemaTransformTranslator;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQuerySchemaTransformTranslation.BigQueryWriteSchemaTransformTranslator;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteSchemaTransformProvider.BigQueryWriteSchemaTransform;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -33,8 +33,6 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPaylo
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -51,8 +49,8 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BigQuerySchemaTransformTranslationTest {
-  static final BigQueryStorageWriteApiSchemaTransformProvider WRITE_PROVIDER =
-      new BigQueryStorageWriteApiSchemaTransformProvider();
+  static final BigQueryWriteSchemaTransformProvider WRITE_PROVIDER =
+      new BigQueryWriteSchemaTransformProvider();
   static final BigQueryDirectReadSchemaTransformProvider READ_PROVIDER =
       new BigQueryDirectReadSchemaTransformProvider();
   static final Row WRITE_CONFIG_ROW =
@@ -76,14 +74,14 @@ public class BigQuerySchemaTransformTranslationTest {
 
   @Test
   public void testRecreateWriteTransformFromRow() {
-    BigQueryStorageWriteApiSchemaTransform writeTransform =
-        (BigQueryStorageWriteApiSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
+    BigQueryWriteSchemaTransform writeTransform =
+        (BigQueryWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
 
-    BigQueryStorageWriteSchemaTransformTranslator translator =
-        new BigQueryStorageWriteSchemaTransformTranslator();
+    BigQueryWriteSchemaTransformTranslator translator =
+        new BigQueryWriteSchemaTransformTranslator();
     Row translatedRow = translator.toConfigRow(writeTransform);
 
-    BigQueryStorageWriteApiSchemaTransform writeTransformFromRow =
+    BigQueryWriteSchemaTransform writeTransformFromRow =
         translator.fromConfigRow(translatedRow, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
@@ -102,8 +100,8 @@ public class BigQuerySchemaTransformTranslationTest {
                         Row.withSchema(inputSchema).addValue(new byte[] {1, 2, 3}).build())))
             .setRowSchema(inputSchema);
 
-    BigQueryStorageWriteApiSchemaTransform writeTransform =
-        (BigQueryStorageWriteApiSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
+    BigQueryWriteSchemaTransform writeTransform =
+        (BigQueryWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
     PCollectionRowTuple.of("input", input).apply(writeTransform);
 
     // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
@@ -135,9 +133,9 @@ public class BigQuerySchemaTransformTranslationTest {
     assertEquals(WRITE_CONFIG_ROW, rowFromSpec);
 
     // Use the information in the proto to recreate the KafkaWriteSchemaTransform
-    BigQueryStorageWriteSchemaTransformTranslator translator =
-        new BigQueryStorageWriteSchemaTransformTranslator();
-    BigQueryStorageWriteApiSchemaTransform writeTransformFromSpec =
+    BigQueryWriteSchemaTransformTranslator translator =
+        new BigQueryWriteSchemaTransformTranslator();
+    BigQueryWriteSchemaTransform writeTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromSpec.getConfigurationRow());

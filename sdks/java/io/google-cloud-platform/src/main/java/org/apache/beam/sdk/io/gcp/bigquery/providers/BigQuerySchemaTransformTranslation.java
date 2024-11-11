@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteSchemaTransformProvider.BigQueryWriteSchemaTransform;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,16 +45,16 @@ public class BigQuerySchemaTransformTranslation {
     }
   }
 
-  public static class BigQueryStorageWriteSchemaTransformTranslator
+  public static class BigQueryWriteSchemaTransformTranslator
       extends SchemaTransformTranslation.SchemaTransformPayloadTranslator<
-          BigQueryStorageWriteApiSchemaTransform> {
+          BigQueryWriteSchemaTransform> {
     @Override
     public SchemaTransformProvider provider() {
-      return new BigQueryStorageWriteApiSchemaTransformProvider();
+      return new BigQueryWriteSchemaTransformProvider();
     }
 
     @Override
-    public Row toConfigRow(BigQueryStorageWriteApiSchemaTransform transform) {
+    public Row toConfigRow(BigQueryWriteSchemaTransform transform) {
       return transform.getConfigurationRow();
     }
   }
@@ -76,9 +74,7 @@ public class BigQuerySchemaTransformTranslation {
           .put(
               BigQueryDirectReadSchemaTransform.class,
               new BigQueryStorageReadSchemaTransformTranslator())
-          .put(
-              BigQueryStorageWriteApiSchemaTransform.class,
-              new BigQueryStorageWriteSchemaTransformTranslator())
+          .put(BigQueryWriteSchemaTransform.class, new BigQueryWriteSchemaTransformTranslator())
           .build();
     }
   }

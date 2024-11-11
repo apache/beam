@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -32,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
@@ -39,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSche
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -50,14 +54,17 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.util.RowFilter;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -472,5 +479,25 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     for (MetricResult<Long> count : counters) {
       assertEquals(expectedCount, count.getAttempted());
     }
+  }
+
+  @Test
+  public void testManagedChoosesStorageApiForUnboundedWrites() {
+    PCollection<Row> batchInput =
+        p.apply(TestStream.create(SCHEMA).addElements(ROWS.get(0)).advanceWatermarkToInfinity());
+    batchInput.apply(
+        Managed.write(Managed.BIGQUERY)
+            .withConfig(ImmutableMap.of("table", "project.dataset.table")));
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    List<RunnerApi.PTransform> writeTransformProto =
+        pipelineProto.getComponents().getTransformsMap().values().stream()
+            .filter(
+                tr ->
+                    tr.getUniqueName()
+                        .contains(BigQueryStorageWriteApiSchemaTransform.class.getSimpleName()))
+            .collect(Collectors.toList());
+    assertThat(writeTransformProto.size(), greaterThan(0));
+    p.enableAbandonedNodeEnforcement(false);
   }
 }

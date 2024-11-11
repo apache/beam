@@ -43,6 +43,7 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
+from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
@@ -417,6 +418,11 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
 
 
 class ErrorHandlingConfig(NamedTuple):
+  """Class to define Error Handling parameters.
+
+      Args:
+        output (str): Name to use for the output error collection
+      """
   output: str
   # TODO: Other parameters are valid here too, but not common to Java.
 
@@ -435,7 +441,8 @@ def _map_errors_to_standard_format(input_type):
   # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
 
   return beam.Map(
-      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))
+      lambda x: beam.Row(
+          element=x[0], msg=str(x[1][1]), stack=''.join(x[1][2]))
   ).with_output_types(
       RowTypeConstraint.from_fields([("element", input_type), ("msg", str),
                                      ("stack", str)]))
@@ -473,6 +480,40 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   expand.__signature__ = original_signature.replace(parameters=new_parameters)
 
   return expand
+
+
+class _Validate(beam.PTransform):
+  """Validates each element of a PCollection against a json schema.
+
+  Args:
+      schema: A json schema against which to validate each element.
+      error_handling: Whether and how to handle errors during iteration.
+          If this is not set, invalid elements will fail the pipeline, otherwise
+          invalid elements will be passed to the specified error output along
+          with information about how the schema was invalidated.
+  """
+  def __init__(
+      self,
+      schema: Dict[str, Any],
+      error_handling: Optional[Mapping[str, Any]] = None):
+    self._schema = schema
+    self._exception_handling_args = exception_handling_args(error_handling)
+
+  @maybe_with_exception_handling
+  def expand(self, pcoll):
+    validator = json_utils.row_validator(
+        schema_from_element_type(pcoll.element_type), self._schema)
+
+    def invoke_validator(x):
+      validator(x)
+      return x
+
+    return pcoll | beam.Map(invoke_validator)
+
+  def with_exception_handling(self, **kwargs):
+    # It's possible there's an error in iteration...
+    self._exception_handling_args = kwargs
+    return self
 
 
 class _Explode(beam.PTransform):
@@ -797,6 +838,7 @@ def create_mapping_providers():
           'Partition-python': _Partition,
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
+          'ValidateWithSchema': _Validate,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,

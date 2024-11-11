@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Configuration for writing to BigQuery with SchemaTransforms. Used by {@link
  * BigQueryStorageWriteApiSchemaTransformProvider} and {@link
- * org.apache.beam.sdk.io.gcp.bigquery.BigQueryFileLoadsWriteSchemaTransformProvider}.
+ * BigQueryFileLoadsSchemaTransformProvider}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue

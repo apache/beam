@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
@@ -107,7 +108,6 @@ public class BigQueryManagedIT {
             .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
             .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
-
     readPipeline.run().waitUntilFinish();
   }
 
@@ -128,7 +128,6 @@ public class BigQueryManagedIT {
             .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
             .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
-
     readPipeline.run().waitUntilFinish();
   }
 

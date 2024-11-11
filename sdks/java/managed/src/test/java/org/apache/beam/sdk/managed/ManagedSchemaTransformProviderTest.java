@@ -17,22 +17,15 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.sdk.managed.Managed.BIGQUERY;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedConfig;
-import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
@@ -135,32 +128,5 @@ public class ManagedSchemaTransformProviderTest {
         new ManagedSchemaTransformProvider(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER));
 
     assertTrue(provider.getAllProviders().containsKey(TestSchemaTransformProvider.IDENTIFIER));
-  }
-
-  @Test
-  public void testResolveBigQueryWrite() {
-    String yamlString = "table: test-table";
-    String storageApiIdentifier = Managed.WRITE_TRANSFORMS.get(BIGQUERY);
-    String fileLoadsIdentifier =
-        getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_FILE_LOADS);
-
-    ManagedConfig config =
-        ManagedConfig.builder()
-            .setTransformIdentifier(storageApiIdentifier)
-            .setConfig(yamlString)
-            .build();
-    Pipeline p = Pipeline.create();
-    PCollection<Row> input = p.apply(Create.of(Row.nullRow(Schema.builder().build())));
-
-    // streaming case, pick Storage Write API
-    PCollection<Row> unboundedInput = input.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
-    config = config.resolveUnderlyingTransform(PCollectionRowTuple.of("input", unboundedInput));
-    assertEquals(storageApiIdentifier, config.getTransformIdentifier());
-
-    // batch case, pick File Loads
-    PCollection<Row> boundedInput =
-        unboundedInput.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
-    config = config.resolveUnderlyingTransform(PCollectionRowTuple.of("input", boundedInput));
-    assertEquals(fileLoadsIdentifier, config.getTransformIdentifier());
   }
 }

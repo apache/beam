@@ -31,6 +31,7 @@ from parameterized import parameterized
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
@@ -644,6 +645,11 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--transform_name_mapping={\"from\":\"to\"}'])
     mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
     self.assertEqual(mapping['from'], 'to')
+
+  def test_jar_cache_dir(self):
+    options = PipelineOptions(['--jar_cache_dir=/path/to/jar_cache_dir'])
+    jar_cache_dir = options.view_as(JobServerOptions).jar_cache_dir
+    self.assertEqual(jar_cache_dir, '/path/to/jar_cache_dir')
 
   def test_dataflow_service_options(self):
     options = PipelineOptions([

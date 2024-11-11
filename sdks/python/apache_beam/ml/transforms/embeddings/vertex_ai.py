@@ -19,12 +19,10 @@
 # Follow https://cloud.google.com/vertex-ai/docs/python-sdk/use-vertex-ai-python-sdk # pylint: disable=line-too-long
 # to install Vertex AI Python SDK.
 
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
 from typing import Optional
-from typing import Sequence
 
 from google.auth.credentials import Credentials
 
@@ -80,7 +78,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
       self,
       batch: Sequence[str],
       model: Any,
-      inference_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable:
     embeddings = []
     batch_size = _BATCH_SIZE
@@ -110,7 +108,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: List[str],
+      columns: list[str],
       title: Optional[str] = None,
       task_type: str = DEFAULT_TASK_TYPE,
       project: Optional[str] = None,
@@ -179,7 +177,7 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
       self,
       batch: Sequence[Image],
       model: MultiModalEmbeddingModel,
-      inference_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable:
     embeddings = []
     # Maximum request size for muli-model embedding models is 1.
@@ -204,7 +202,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: List[str],
+      columns: list[str],
       dimension: Optional[int],
       project: Optional[str] = None,
       location: Optional[str] = None,

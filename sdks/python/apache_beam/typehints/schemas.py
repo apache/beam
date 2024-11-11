@@ -274,6 +274,7 @@ class SchemaTranslation(object):
                         self.option_to_runner_api(option_tuple)
                         for option_tuple in type_.field_options(field_name)
                     ],
+                    description=type_._field_descriptions.get(field_name, None),
                 ) for (field_name, field_type) in type_._fields
             ],
             id=schema_id,

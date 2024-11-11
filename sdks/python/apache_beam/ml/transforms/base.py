@@ -20,14 +20,11 @@ import logging
 import os
 import tempfile
 import uuid
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
 from typing import Generic
-from typing import List
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -67,7 +64,7 @@ OperationOutputT = TypeVar('OperationOutputT')
 
 
 def _convert_list_of_dicts_to_dict_of_lists(
-    list_of_dicts: Sequence[Dict[str, Any]]) -> Dict[str, List[Any]]:
+    list_of_dicts: Sequence[dict[str, Any]]) -> dict[str, list[Any]]:
   keys_to_element_list = collections.defaultdict(list)
   input_keys = list_of_dicts[0].keys()
   for d in list_of_dicts:
@@ -83,9 +80,9 @@ def _convert_list_of_dicts_to_dict_of_lists(
 
 
 def _convert_dict_of_lists_to_lists_of_dict(
-    dict_of_lists: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
+    dict_of_lists: dict[str, list[Any]]) -> list[dict[str, Any]]:
   batch_length = len(next(iter(dict_of_lists.values())))
-  result: List[Dict[str, Any]] = [{} for _ in range(batch_length)]
+  result: list[dict[str, Any]] = [{} for _ in range(batch_length)]
   # all the values in the dict_of_lists should have same length
   for key, values in dict_of_lists.items():
     assert len(values) == batch_length, (
@@ -140,7 +137,7 @@ class MLTransformProvider:
 class BaseOperation(Generic[OperationInputT, OperationOutputT],
                     MLTransformProvider,
                     abc.ABC):
-  def __init__(self, columns: List[str]) -> None:
+  def __init__(self, columns: list[str]) -> None:
     """
     Base Opertation class data processing transformations.
     Args:
@@ -150,7 +147,7 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
 
   @abc.abstractmethod
   def apply_transform(self, data: OperationInputT,
-                      output_column_name: str) -> Dict[str, OperationOutputT]:
+                      output_column_name: str) -> dict[str, OperationOutputT]:
     """
     Define any processing logic in the apply_transform() method.
     processing logics are applied on inputs and returns a transformed
@@ -160,7 +157,7 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     """
 
   def __call__(self, data: OperationInputT,
-               output_column_name: str) -> Dict[str, OperationOutputT]:
+               output_column_name: str) -> dict[str, OperationOutputT]:
     """
     This method is called when the instance of the class is called.
     This method will invoke the apply() method of the class.
@@ -172,7 +169,7 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
 class ProcessHandler(
     beam.PTransform[beam.PCollection[ExampleT],
                     Union[beam.PCollection[MLTransformOutputT],
-                          Tuple[beam.PCollection[MLTransformOutputT],
+                          tuple[beam.PCollection[MLTransformOutputT],
                                 beam.PCollection[beam.Row]]]],
     abc.ABC):
   """
@@ -190,10 +187,10 @@ class ProcessHandler(
 class EmbeddingsManager(MLTransformProvider):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       *,
       # common args for all ModelHandlers.
-      load_model_args: Optional[Dict[str, Any]] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
@@ -222,7 +219,7 @@ class EmbeddingsManager(MLTransformProvider):
 class MLTransform(
     beam.PTransform[beam.PCollection[ExampleT],
                     Union[beam.PCollection[MLTransformOutputT],
-                          Tuple[beam.PCollection[MLTransformOutputT],
+                          tuple[beam.PCollection[MLTransformOutputT],
                                 beam.PCollection[beam.Row]]]],
     Generic[ExampleT, MLTransformOutputT]):
   def __init__(
@@ -230,7 +227,7 @@ class MLTransform(
       *,
       write_artifact_location: Optional[str] = None,
       read_artifact_location: Optional[str] = None,
-      transforms: Optional[List[MLTransformProvider]] = None):
+      transforms: Optional[list[MLTransformProvider]] = None):
     """
     MLTransform is a Beam PTransform that can be used to apply
     transformations to the data. MLTransform is used to wrap the
@@ -304,12 +301,12 @@ class MLTransform(
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
     self._with_exception_handling = False
-    self._exception_handling_args: Dict[str, Any] = {}
+    self._exception_handling_args: dict[str, Any] = {}
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
   ) -> Union[beam.PCollection[MLTransformOutputT],
-             Tuple[beam.PCollection[MLTransformOutputT],
+             tuple[beam.PCollection[MLTransformOutputT],
                    beam.PCollection[beam.Row]]]:
     """
     This is the entrypoint for the MLTransform. This method will
@@ -533,7 +530,7 @@ class _MLTransformToPTransformMapper:
   """
   def __init__(
       self,
-      transforms: List[MLTransformProvider],
+      transforms: list[MLTransformProvider],
       artifact_location: str,
       artifact_mode: str = ArtifactMode.PRODUCE,
       pipeline_options: Optional[PipelineOptions] = None,
@@ -595,7 +592,7 @@ class _EmbeddingHandler(ModelHandler):
 
   For example, if the original mode is used with RunInference to take a
   PCollection[E] to a PCollection[P], this ModelHandler would take a
-  PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
+  PCollection[dict[str, E]] to a PCollection[dict[str, P]].
 
   _EmbeddingHandler will accept an EmbeddingsManager instance, which
   contains the details of the model to be loaded and the inference_fn to be
@@ -619,7 +616,7 @@ class _EmbeddingHandler(ModelHandler):
   def _validate_column_data(self, batch):
     pass
 
-  def _validate_batch(self, batch: Sequence[Dict[str, Any]]):
+  def _validate_batch(self, batch: Sequence[dict[str, Any]]):
     if not batch or not isinstance(batch[0], dict):
       raise TypeError(
           'Expected data to be dicts, got '
@@ -627,10 +624,10 @@ class _EmbeddingHandler(ModelHandler):
 
   def _process_batch(
       self,
-      dict_batch: Dict[str, List[Any]],
+      dict_batch: dict[str, list[Any]],
       model: ModelT,
-      inference_args: Optional[Dict[str, Any]]) -> Dict[str, List[Any]]:
-    result: Dict[str, List[Any]] = collections.defaultdict(list)
+      inference_args: Optional[dict[str, Any]]) -> dict[str, list[Any]]:
+    result: dict[str, list[Any]] = collections.defaultdict(list)
     input_keys = dict_batch.keys()
     missing_columns_in_data = set(self.columns) - set(input_keys)
     if missing_columns_in_data:
@@ -653,10 +650,10 @@ class _EmbeddingHandler(ModelHandler):
 
   def run_inference(
       self,
-      batch: Sequence[Dict[str, List[str]]],
+      batch: Sequence[dict[str, list[str]]],
       model: ModelT,
-      inference_args: Optional[Dict[str, Any]] = None,
-  ) -> List[Dict[str, Union[List[float], List[str]]]]:
+      inference_args: Optional[dict[str, Any]] = None,
+  ) -> list[dict[str, Union[list[float], list[str]]]]:
     """
     Runs inference on a batch of text inputs. The inputs are expected to be
     a list of dicts. Each dict should have the same keys, and the shape
@@ -696,7 +693,7 @@ class _TextEmbeddingHandler(_EmbeddingHandler):
 
   For example, if the original mode is used with RunInference to take a
   PCollection[E] to a PCollection[P], this ModelHandler would take a
-  PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
+  PCollection[dict[str, E]] to a PCollection[dict[str, P]].
 
   _TextEmbeddingHandler will accept an EmbeddingsManager instance, which
   contains the details of the model to be loaded and the inference_fn to be
@@ -713,8 +710,8 @@ class _TextEmbeddingHandler(_EmbeddingHandler):
   def _validate_column_data(self, batch):
     if not isinstance(batch[0], (str, bytes)):
       raise TypeError(
-          'Embeddings can only be generated on Dict[str, str].'
-          f'Got Dict[str, {type(batch[0])}] instead.')
+          'Embeddings can only be generated on dict[str, str].'
+          f'Got dict[str, {type(batch[0])}] instead.')
 
   def get_metrics_namespace(self) -> str:
     return (
@@ -730,7 +727,7 @@ class _ImageEmbeddingHandler(_EmbeddingHandler):
 
   For example, if the original mode is used with RunInference to take a
   PCollection[E] to a PCollection[P], this ModelHandler would take a
-  PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
+  PCollection[dict[str, E]] to a PCollection[dict[str, P]].
 
   _ImageEmbeddingHandler will accept an EmbeddingsManager instance, which
   contains the details of the model to be loaded and the inference_fn to be
@@ -750,8 +747,8 @@ class _ImageEmbeddingHandler(_EmbeddingHandler):
     # here, so just catch columns of primatives for now.
     if isinstance(batch[0], (int, str, float, bool)):
       raise TypeError(
-          'Embeddings can only be generated on Dict[str, Image].'
-          f'Got Dict[str, {type(batch[0])}] instead.')
+          'Embeddings can only be generated on dict[str, Image].'
+          f'Got dict[str, {type(batch[0])}] instead.')
 
   def get_metrics_namespace(self) -> str:
     return (
