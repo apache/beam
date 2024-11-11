@@ -24,7 +24,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 import collections
 import copy
-import cython
 import logging
 import sys
 import threading
@@ -70,6 +69,11 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import HomogeneousWindowedBatch
 from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
+
+try:
+  import cython
+except ImportError:
+  globals()['cython'] = type('fake_cython', (), {'annotation_typing': lambda x: (lambda x : x)})
 
 if TYPE_CHECKING:
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
