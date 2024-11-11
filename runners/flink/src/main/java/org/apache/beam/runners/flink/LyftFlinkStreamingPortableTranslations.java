@@ -401,7 +401,7 @@ public class LyftFlinkStreamingPortableTranslations {
     source.setShardAssigner(
         InitialRoundRobinKinesisShardAssigner.fromInitialShards(
             properties, stream, context.getExecutionEnvironment().getConfig().getParallelism()));
-    if (params.hasNonNull("use_watermark_tracker") && params.get("use_watermark_tracker").asBoolean()) {
+    if (params.hasNonNull("use_global_watermark_tracker") && params.get("use_global_watermark_tracker").asBoolean()) {
       source.setWatermarkTracker(GLOBAL_WATERMARK);
     }
     context.addDataStream(
