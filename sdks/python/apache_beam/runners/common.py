@@ -70,11 +70,6 @@ from apache_beam.utils.windowed_value import HomogeneousWindowedBatch
 from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
-try:
-  import cython
-except ImportError:
-  globals()['cython'] = type('fake_cython', (), {'annotation_typing': lambda x: (lambda x : x)})
-
 if TYPE_CHECKING:
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.transforms import sideinputs
@@ -1508,10 +1503,8 @@ class DoFnRunner:
       self._reraise_augmented(exn, windowed_value)
       return []
 
-  # Ignore type annotations to allow subclasses of BaseException
-  @cython.annotation_typing(False)
   def _maybe_sample_exception(
-      self, exn: BaseException,
+      self, exc_info: Tuple,
       windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
@@ -1523,7 +1516,7 @@ class DoFnRunner:
 
     output_sampler.sample_exception(
         windowed_value,
-        exn,
+        exc_info,
         self.transform_id,
         self.execution_context.instruction_id)
 
@@ -1615,7 +1608,7 @@ class DoFnRunner:
     _, _, tb = exc_info
 
     new_exn = new_exn.with_traceback(tb)
-    self._maybe_sample_exception(new_exn, windowed_value)
+    self._maybe_sample_exception(exc_info, windowed_value)
     _LOGGER.exception(new_exn)
     raise new_exn
 
