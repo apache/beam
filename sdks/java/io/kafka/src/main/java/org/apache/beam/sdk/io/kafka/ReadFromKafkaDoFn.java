@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
@@ -668,8 +670,12 @@ abstract class ReadFromKafkaDoFn<K, V>
   // TODO: Collapse the two moving average trackers into a single accumulator using a single Guava
   // AtomicDouble. Note that this requires that a single thread will call update and that while get
   // may be called by multiple threads the method must only load the accumulator itself.
+  @ThreadSafe
   private static class AverageRecordSize {
+    @GuardedBy("this")
     private MovingAvg avgRecordSize;
+
+    @GuardedBy("this")
     private MovingAvg avgRecordGap;
 
     public AverageRecordSize() {
