@@ -665,6 +665,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     return config;
   }
 
+  // TODO: Collapse the two moving average trackers into a single accumulator using a single Guava
+  // AtomicDouble. Note that this requires that a single thread will call update and that while get
+  // may be called by multiple threads the method must only load the accumulator itself.
   private static class AverageRecordSize {
     private MovingAvg avgRecordSize;
     private MovingAvg avgRecordGap;
@@ -688,6 +691,11 @@ abstract class ReadFromKafkaDoFn<K, V>
         avgRecordGap = this.avgRecordGap.get();
       }
 
+      // The offset increases between records in a batch fetched from a compacted topic may be
+      // greater than 1. Compacted topics only store records with the greatest offset per key per
+      // partition, the records in between are deleted and will not be observed by a consumer.
+      // The observed gap between offsets is used to estimate the number of records that are likely
+      // to be observed for the provided number of records.
       return avgRecordSize * numRecords / (1 + avgRecordGap);
     }
   }
