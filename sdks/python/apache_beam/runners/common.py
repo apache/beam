@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 import collections
 import copy
+import cython
 import logging
 import sys
 import threading
@@ -1503,6 +1504,8 @@ class DoFnRunner:
       self._reraise_augmented(exn, windowed_value)
       return []
 
+  # Ignore type annotations to allow subclasses of BaseException
+  @cython.annotation_typing(False)
   def _maybe_sample_exception(
       self, exn: BaseException,
       windowed_value: Optional[WindowedValue]) -> None:
