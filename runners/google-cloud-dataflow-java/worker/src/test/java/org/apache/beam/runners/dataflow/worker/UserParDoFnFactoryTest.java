@@ -393,7 +393,7 @@ public class UserParDoFnFactoryTest {
    * Regression test for global window + OnWindowExpiration + allowed lateness > max allowed time
    */
   @Test
-  public void testCleanupRegisteredForGlobalWindowWithAllowedLateness() throws Exception {
+  public void testCleanupTimerForGlobalWindowWithAllowedLateness() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     CounterSet counters = new CounterSet();
     DoFn<?, ?> initialFn = new TestStatefulDoFnWithWindowExpiration();
