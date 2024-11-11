@@ -342,11 +342,11 @@ abstract class ReadFromKafkaDoFn<K, V>
       throws Exception {
     final LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize =
         Preconditions.checkStateNotNull(this.avgRecordSize);
-    double numRecords =
+    double estimatedNumRecords =
         restrictionTracker(kafkaSourceDescriptor, offsetRange).getProgress().getWorkRemaining();
     // Before processing elements, we don't have a good estimated size of records and offset gap.
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
-      return numRecords;
+      return estimatedNumRecords;
     }
     if (offsetEstimatorCache != null) {
       for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
@@ -355,7 +355,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       }
     }
 
-    return avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getTotalSize(numRecords);
+    return estimatedNumRecords
+        * avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getGapsFilledWithZeros();
   }
 
   @NewTracker
@@ -688,7 +689,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       avgRecordGap.update(gap);
     }
 
-    public double getTotalSize(double numRecords) {
+    public double getGapsFilledWithZeros() {
       double avgRecordSize;
       double avgRecordGap;
 
@@ -702,7 +703,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       // partition, the records in between are deleted and will not be observed by a consumer.
       // The observed gap between offsets is used to estimate the number of records that are likely
       // to be observed for the provided number of records.
-      return avgRecordSize * numRecords / (1 + avgRecordGap);
+      return avgRecordSize / (1 + avgRecordGap);
     }
   }
 
