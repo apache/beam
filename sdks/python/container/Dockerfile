@@ -123,9 +123,6 @@ COPY --from=base /usr/local/bin /usr/local/bin
 # Contains the Python library dependencies.
 COPY --from=base /usr/local/lib /usr/local/lib
 
-# Python standard library modules.
-COPY --from=base /usr/lib/python${py_version} /usr/lib/python${py_version}
-
 # Contains the boot entrypoint and related files such as licenses.
 COPY --from=base /opt /opt
 
