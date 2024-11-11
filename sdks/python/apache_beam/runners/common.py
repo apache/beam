@@ -1504,8 +1504,7 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exc_info: Tuple,
-      windowed_value: Optional[WindowedValue]) -> None:
+      self, exc_info: Tuple, windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return
