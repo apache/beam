@@ -674,13 +674,21 @@ abstract class ReadFromKafkaDoFn<K, V>
       this.avgRecordGap = new MovingAvg();
     }
 
-    public void update(int recordSize, long gap) {
+    public synchronized void update(int recordSize, long gap) {
       avgRecordSize.update(recordSize);
       avgRecordGap.update(gap);
     }
 
     public double getTotalSize(double numRecords) {
-      return avgRecordSize.get() * numRecords / (1 + avgRecordGap.get());
+      double avgRecordSize;
+      double avgRecordGap;
+
+      synchronized (this) {
+        avgRecordSize = this.avgRecordSize.get();
+        avgRecordGap = this.avgRecordGap.get();
+      }
+
+      return avgRecordSize * numRecords / (1 + avgRecordGap);
     }
   }
 
