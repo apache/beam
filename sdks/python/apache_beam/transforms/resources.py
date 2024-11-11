@@ -26,9 +26,8 @@ See also: PTransforms.with_resource_hints().
 """
 
 import re
+from collections.abc import Mapping
 from typing import Any
-from typing import Dict
-from typing import Mapping
 from typing import Optional
 
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -51,11 +50,11 @@ class ResourceHint:
   # A unique URN, one per Resource Hint class.
   urn: Optional[str] = None
 
-  _urn_to_known_hints: Dict[str, type] = {}
-  _name_to_known_hints: Dict[str, type] = {}
+  _urn_to_known_hints: dict[str, type] = {}
+  _name_to_known_hints: dict[str, type] = {}
 
   @classmethod
-  def parse(cls, value: str) -> Dict[str, bytes]:
+  def parse(cls, value: str) -> dict[str, bytes]:
     """Describes how to parse the hint.
     Override to specify a custom parsing logic."""
     assert cls.urn is not None
@@ -159,7 +158,7 @@ class MinRamHint(ResourceHint):
   urn = resource_hints.MIN_RAM_BYTES.urn
 
   @classmethod
-  def parse(cls, value: str) -> Dict[str, bytes]:
+  def parse(cls, value: str) -> dict[str, bytes]:
     return {cls.urn: ResourceHint._parse_storage_size_str(value)}
 
   @classmethod
@@ -186,7 +185,7 @@ ResourceHint.register_resource_hint('cpu_count', CpuCountHint)
 ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
 
 
-def parse_resource_hints(hints: Dict[Any, Any]) -> Dict[str, bytes]:
+def parse_resource_hints(hints: dict[Any, Any]) -> dict[str, bytes]:
   parsed_hints = {}
   for hint, value in hints.items():
     try:
@@ -202,7 +201,7 @@ def parse_resource_hints(hints: Dict[Any, Any]) -> Dict[str, bytes]:
 
 
 def resource_hints_from_options(
-    options: Optional[PipelineOptions]) -> Dict[str, bytes]:
+    options: Optional[PipelineOptions]) -> dict[str, bytes]:
   if options is None:
     return {}
   hints = {}
@@ -219,7 +218,7 @@ def resource_hints_from_options(
 
 def merge_resource_hints(
     outer_hints: Mapping[str, bytes],
-    inner_hints: Mapping[str, bytes]) -> Dict[str, bytes]:
+    inner_hints: Mapping[str, bytes]) -> dict[str, bytes]:
   merged_hints = dict(inner_hints)
   for urn, outer_value in outer_hints.items():
     if urn in inner_hints:

@@ -28,8 +28,8 @@ import re
 import time
 import unittest
 import warnings
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Mapping
 
 import pytest
 import pytz

@@ -34,10 +34,8 @@ import itertools
 import logging
 import math
 import typing
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import List
-from typing import Tuple
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -322,7 +320,7 @@ class ApproximateQuantiles(object):
 
   @typehints.with_input_types(
       typehints.Union[typing.Sequence[T], typing.Tuple[T, float]])
-  @typehints.with_output_types(typing.List[T])
+  @typehints.with_output_types(list[T])
   class Globally(PTransform):
     """
     PTransform takes PCollection and returns a list whose single value is
@@ -374,9 +372,9 @@ class ApproximateQuantiles(object):
           input_batched=self._input_batched)
 
   @typehints.with_input_types(
-      typehints.Union[typing.Tuple[K, V],
-                      typing.Tuple[K, typing.Tuple[V, float]]])
-  @typehints.with_output_types(typing.Tuple[K, typing.List[V]])
+      typehints.Union[tuple[K, V],
+                      tuple[K, tuple[V, float]]])
+  @typehints.with_output_types(tuple[K, list[V]])
   class PerKey(PTransform):
     """
     PTransform takes PCollection of KV and returns a list based on each key
@@ -453,7 +451,7 @@ class _QuantileSpec(object):
       self.less_than = lambda a, b: key(a) < key(b)
 
   def get_argsort_key(self, elements):
-    # type: (List) -> Callable[[int], Any]
+    # type: (list) -> Callable[[int], Any]
 
     """Returns a key for sorting indices of elements by element's value."""
     if self.key is None:
@@ -478,7 +476,7 @@ class _QuantileBuffer(object):
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
   def __init__(
       self, elements, weights, weighted, level=0, min_val=None, max_val=None):
-    # type: (List, List, bool, int, Any, Any) -> None
+    # type: (list, list, bool, int, Any, Any) -> None
     self.elements = elements
     # In non-weighted case weights contains a single element representing weight
     # of the buffer in the sense of the original algorithm. In weighted case,
@@ -510,7 +508,7 @@ class _QuantileState(object):
   Compact summarization of a collection on which quantiles can be estimated.
   """
   def __init__(self, unbuffered_elements, unbuffered_weights, buffers, spec):
-    # type: (List, List, List[_QuantileBuffer], _QuantileSpec) -> None
+    # type: (list, list, list[_QuantileBuffer], _QuantileSpec) -> None
     self.buffers = buffers
     self.spec = spec
     if spec.weighted:
@@ -544,7 +542,7 @@ class _QuantileState(object):
     return not self.unbuffered_elements and not self.buffers
 
   def _add_unbuffered(self, elements, offset_fn):
-    # type: (List, Any) -> None
+    # type: (list, Any) -> None
 
     """
     Add elements to the unbuffered list, creating new buffers and
@@ -570,7 +568,7 @@ class _QuantileState(object):
     self.collapse_if_needed(offset_fn)
 
   def _add_unbuffered_weighted(self, elements, offset_fn):
-    # type: (List, Any) -> None
+    # type: (list, Any) -> None
 
     """
     Add elements with weights to the unbuffered list, creating new buffers and
@@ -657,7 +655,7 @@ class _QuantileState(object):
 
 
 def _collapse(buffers, offset_fn, spec):
-  # type: (List[_QuantileBuffer], Any, _QuantileSpec) -> _QuantileBuffer
+  # type: (list[_QuantileBuffer], Any, _QuantileSpec) -> _QuantileBuffer
 
   """
   Approximates elements from multiple buffers and produces a single buffer.
@@ -686,7 +684,7 @@ def _collapse(buffers, offset_fn, spec):
 
 
 def _interpolate(buffers, count, step, offset, spec):
-  # type: (List[_QuantileBuffer], int, float, float, _QuantileSpec) -> Tuple[List, List, Any, Any]
+  # type: (list[_QuantileBuffer], int, float, float, _QuantileSpec) -> tuple[list, list, Any, Any]
 
   """
   Emulates taking the ordered union of all elements in buffers, repeated
@@ -936,7 +934,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     return quantile_state
 
   def _add_inputs(self, quantile_state, elements):
-    # type: (_QuantileState, List) -> _QuantileState
+    # type: (_QuantileState, list) -> _QuantileState
 
     """
     Add a batch of elements to the collection being summarized by quantile

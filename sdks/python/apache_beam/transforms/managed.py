@@ -65,7 +65,6 @@ transforms, and Java's ManagedSchemaTransform is used under the hood.
 """
 
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 import yaml
@@ -95,7 +94,7 @@ class Read(PTransform):
   def __init__(
       self,
       source: str,
-      config: Optional[Dict[str, Any]] = None,
+      config: Optional[dict[str, Any]] = None,
       config_url: Optional[str] = None,
       expansion_service=None):
     super().__init__()
@@ -135,7 +134,7 @@ class Write(PTransform):
   def __init__(
       self,
       sink: str,
-      config: Optional[Dict[str, Any]] = None,
+      config: Optional[dict[str, Any]] = None,
       config_url: Optional[str] = None,
       expansion_service=None):
     super().__init__()

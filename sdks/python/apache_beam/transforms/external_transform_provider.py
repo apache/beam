@@ -20,9 +20,6 @@ import re
 from collections import namedtuple
 from inspect import Parameter
 from inspect import Signature
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
@@ -46,7 +43,7 @@ ParamInfo = namedtuple('ParamInfo', ['type', 'description', 'original_name'])
 
 
 def get_config_with_descriptions(
-    schematransform: SchemaTransformsConfig) -> Dict[str, ParamInfo]:
+    schematransform: SchemaTransformsConfig) -> dict[str, ParamInfo]:
   # Prepare a configuration schema that includes types and descriptions
   schema = named_tuple_to_schema(schematransform.configuration_schema)
   descriptions = schematransform.configuration_schema._field_descriptions
@@ -63,7 +60,7 @@ def get_config_with_descriptions(
 def _generate_signature(schematransform: SchemaTransformsConfig) -> Signature:
   schema = named_tuple_to_schema(schematransform.configuration_schema)
   descriptions = schematransform.configuration_schema._field_descriptions
-  params: List[Parameter] = []
+  params: list[Parameter] = []
   for field in schema.fields:
     annotation = str(typing_from_runner_api(field.type))
     description = descriptions[field.name]
@@ -88,7 +85,7 @@ class ExternalTransform(PTransform):
   # creating an ExternalTransform type
   default_expansion_service = None
   identifier: str = ""
-  configuration_schema: Dict[str, ParamInfo] = {}
+  configuration_schema: dict[str, ParamInfo] = {}
 
   def __init__(self, expansion_service=None, **kwargs):
     self._kwargs = kwargs
@@ -195,8 +192,8 @@ class ExternalTransformProvider:
       By default, the following pattern is used: [{STANDARD_URN_PATTERN}]
     """
     self._urn_pattern = urn_pattern
-    self._transforms: Dict[str, type(ExternalTransform)] = {}
-    self._name_to_urn: Dict[str, str] = {}
+    self._transforms: dict[str, type(ExternalTransform)] = {}
+    self._name_to_urn: dict[str, str] = {}
 
     if isinstance(expansion_services, set):
       expansion_services = list(expansion_services)
@@ -257,11 +254,11 @@ class ExternalTransformProvider:
     for transform in self._transforms.values():
       setattr(self, transform.__name__, transform)
 
-  def get_available(self) -> List[Tuple[str, str]]:
+  def get_available(self) -> list[tuple[str, str]]:
     """Get a list of available ExternalTransform names and identifiers"""
     return list(self._name_to_urn.items())
 
-  def get_all(self) -> Dict[str, ExternalTransform]:
+  def get_all(self) -> dict[str, ExternalTransform]:
     """Get all ExternalTransform"""
     return self._transforms
 

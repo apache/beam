@@ -22,15 +22,12 @@
 
 import collections
 import types
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import NamedTuple
 from typing import Optional
-from typing import Set
-from typing import Tuple
 from typing import TypeVar
 
 from apache_beam.coders import Coder
@@ -167,7 +164,7 @@ Timer = NamedTuple(
     [
         ('user_key', Any),
         ('dynamic_timer_tag', str),
-        ('windows', Tuple['windowed_value.BoundedWindow', ...]),
+        ('windows', tuple['windowed_value.BoundedWindow', ...]),
         ('clear_bit', bool),
         ('fire_timestamp', Optional['Timestamp']),
         ('hold_timestamp', Optional['Timestamp']),
@@ -228,7 +225,7 @@ def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
   return _inner
 
 
-def get_dofn_specs(dofn: 'DoFn') -> Tuple[Set[StateSpec], Set[TimerSpec]]:
+def get_dofn_specs(dofn: 'DoFn') -> tuple[set[StateSpec], set[TimerSpec]]:
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:
@@ -320,7 +317,7 @@ _TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))  #
 class RuntimeTimer(BaseTimer):
   """Timer interface object passed to user code."""
   def __init__(self) -> None:
-    self._timer_recordings: Dict[str, _TimerTuple] = {}
+    self._timer_recordings: dict[str, _TimerTuple] = {}
     self._cleared = False
     self._new_timestamp: Optional[Timestamp] = None
 
@@ -385,15 +382,15 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 
 class OrderedListRuntimeState(AccumulatingRuntimeState):
   """Ordered list state interface object passed to user code."""
-  def read(self) -> Iterable[Tuple[Timestamp, Any]]:
+  def read(self) -> Iterable[tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
-  def add(self, value: Tuple[Timestamp, Any]) -> None:
+  def add(self, value: tuple[Timestamp, Any]) -> None:
     raise NotImplementedError(type(self))
 
   def read_range(
       self, min_time_stamp: Timestamp,
-      limit_time_stamp: Timestamp) -> Iterable[Tuple[Timestamp, Any]]:
+      limit_time_stamp: Timestamp) -> Iterable[tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
   def clear_range(
