@@ -57,7 +57,7 @@ import org.junit.runners.JUnit4;
 
 /** Test for {@link BigQueryFileLoadsSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
-public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
+public class BigQueryFileLoadsSchemaTransformProviderTest {
 
   private static final String PROJECT = "fakeproject";
   private static final String DATASET = "fakedataset";
