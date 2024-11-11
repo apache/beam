@@ -73,6 +73,7 @@ dependencies {
   antlr library.java.antlr
   // antlr is used to generate code from sdks/java/core/src/main/antlr/
   permitUnusedDeclared library.java.antlr
+  permitUsedUndeclared library.java.antlr_runtime
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:fn-execution", configuration: "shadow")
