@@ -372,8 +372,7 @@ class ApproximateQuantiles(object):
           input_batched=self._input_batched)
 
   @typehints.with_input_types(
-      typehints.Union[tuple[K, V],
-                      tuple[K, tuple[V, float]]])
+      typehints.Union[tuple[K, V], tuple[K, tuple[V, float]]])
   @typehints.with_output_types(tuple[K, list[V]])
   class PerKey(PTransform):
     """
