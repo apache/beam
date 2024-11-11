@@ -1608,7 +1608,7 @@ class DoFnRunner:
     _, _, tb = exc_info
 
     new_exn = new_exn.with_traceback(tb)
-    self._maybe_sample_exception(exc_info, windowed_value)
+    self._maybe_sample_exception(new_exn, windowed_value)
     _LOGGER.exception(new_exn)
     raise new_exn
 
