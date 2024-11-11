@@ -22,7 +22,7 @@ requires = [
     "setuptools",
     "wheel>=0.36.0",
     "grpcio-tools==1.62.1",
-    "mypy-protobuf==3.5.0",
+    "mypy-protobuf==3.6.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
     "distlib==0.3.7",
     # Numpy headers
