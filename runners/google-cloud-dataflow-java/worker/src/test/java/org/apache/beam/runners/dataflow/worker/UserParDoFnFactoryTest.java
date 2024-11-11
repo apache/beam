@@ -402,10 +402,16 @@ public class UserParDoFnFactoryTest {
         getCloudObject(
             initialFn, WindowingStrategy.globalDefault().withAllowedLateness(allowedLateness));
 
+    StateInternals stateInternals = InMemoryStateInternals.forKey("dummy");
+
     TimerInternals timerInternals = mock(TimerInternals.class);
 
     DataflowStepContext stepContext = mock(DataflowStepContext.class);
     when(stepContext.timerInternals()).thenReturn(timerInternals);
+    DataflowStepContext userStepContext = mock(DataflowStepContext.class);
+    when(stepContext.namespacedToUser()).thenReturn(userStepContext);
+    when(stepContext.stateInternals()).thenReturn(stateInternals);
+    when(userStepContext.stateInternals()).thenReturn((StateInternals) stateInternals);
 
     DataflowExecutionContext<DataflowStepContext> executionContext =
         mock(DataflowExecutionContext.class);
@@ -441,6 +447,32 @@ public class UserParDoFnFactoryTest {
             GlobalWindow.Coder.INSTANCE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)));
+
+    StateNamespace globalWindowNamespace =
+        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, globalWindow);
+    StateTag<ValueState<String>> tag =
+        StateTags.tagForSpec(
+            TestStatefulDoFnWithWindowExpiration.STATE_ID, StateSpecs.value(StringUtf8Coder.of()));
+
+    when(userStepContext.getNextFiredTimer((Coder) GlobalWindow.Coder.INSTANCE)).thenReturn(null);
+    when(stepContext.getNextFiredTimer((Coder) GlobalWindow.Coder.INSTANCE))
+        .thenReturn(
+            TimerData.of(
+                SimpleParDoFn.CLEANUP_TIMER_ID,
+                globalWindowNamespace,
+                BoundedWindow.TIMESTAMP_MAX_VALUE,
+                BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
+                TimeDomain.EVENT_TIME))
+        .thenReturn(null);
+
+    // Set up non-empty state. We don't mock + verify calls to clear() but instead
+    // check that state is actually empty. We mustn't care how it is accomplished.
+    stateInternals.state(globalWindowNamespace, tag).write("first");
+
+    // And this should clean up the second window
+    parDoFn.processTimers();
+
+    assertThat(stateInternals.state(globalWindowNamespace, tag).read(), nullValue());
   }
 
   @Test
