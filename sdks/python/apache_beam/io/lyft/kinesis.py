@@ -20,6 +20,7 @@ class FlinkKinesisInput(PTransform):
   stream = None
   encoding = None
   max_out_of_orderness_millis = None
+  use_global_watermark_tracker = None
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (
@@ -42,7 +43,8 @@ class FlinkKinesisInput(PTransform):
       'stream': self.stream,
       'encoding': self.encoding,
       'max_out_of_orderness_millis': self.max_out_of_orderness_millis,
-      'properties': self.consumer_properties}))
+      'properties': self.consumer_properties,
+      'use_global_watermark_tracker': self.use_global_watermark_tracker}))
 
   @staticmethod
   @PTransform.register_urn("lyft:flinkKinesisInput", None)
@@ -54,6 +56,7 @@ class FlinkKinesisInput(PTransform):
     instance.encoding = payload['encoding']
     instance.max_out_of_orderness_millis = payload['max_out_of_orderness_millis']
     instance.consumer_properties = payload['properties']
+    instance.use_global_watermark_tracker = payload['use_global_watermark_tracker']
     return instance
 
   def with_stream(self, stream):
@@ -90,4 +93,12 @@ class FlinkKinesisInput(PTransform):
     self.set_consumer_property('aws.endpoint', endpoint)
     self.set_consumer_property('aws.credentials.provider.basic.accesskeyid', access_key)
     self.set_consumer_property('aws.credentials.provider.basic.secretkey', secret_key)
+    return self
+
+  def with_global_watermark_tracker(self, use_global_watermark_tracker):
+    """
+    Enables consumer watermark synchronization. This can be enabled to reduce event time skew.
+    https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/kinesis/#event-time-alignment-for-shard-consumers
+    """
+    self.use_global_watermark_tracker = use_global_watermark_tracker
     return self
