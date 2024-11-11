@@ -87,6 +87,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.JobManagerWatermarkTracker;
+import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -388,6 +389,9 @@ public class LyftFlinkStreamingPortableTranslations {
           throw new IllegalArgumentException("Unknown encoding '" + encoding + "'");
       }
 
+      if (params.hasNonNull("use_global_watermark_tracker") && params.get("use_global_watermark_tracker").asBoolean()) {
+        source.setWatermarkTracker(GLOBAL_WATERMARK);
+      }
       LOG.info(
           "Kinesis consumer for stream {} with properties {} and encoding {}",
           stream,
@@ -401,9 +405,6 @@ public class LyftFlinkStreamingPortableTranslations {
     source.setShardAssigner(
         InitialRoundRobinKinesisShardAssigner.fromInitialShards(
             properties, stream, context.getExecutionEnvironment().getConfig().getParallelism()));
-    if (params.hasNonNull("use_global_watermark_tracker") && params.get("use_global_watermark_tracker").asBoolean()) {
-      source.setWatermarkTracker(GLOBAL_WATERMARK);
-    }
     context.addDataStream(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         context
