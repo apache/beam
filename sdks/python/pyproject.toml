@@ -24,7 +24,7 @@ requires = [
     "grpcio-tools==1.62.1",
     "mypy-protobuf==3.5.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
-    "distlib==0.3.7",
+    "distlib==0.3.9",
     # Numpy headers
     "numpy>=1.14.3,<2.2.0", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
