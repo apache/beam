@@ -31,6 +31,7 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext {
     summary = "Library to read Kafka topics."
+    // newer versions e.g. 7.6.* require dropping support for older kafka versions.
     confluentVersion = "7.5.5"
 }
 
