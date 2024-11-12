@@ -68,17 +68,26 @@ public class LazyFlinkSourceSplitEnumerator<T>
 
   @Override
   public void start() {
-    try {
-      LOG.info("Starting source {}", beamSource);
-      List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
-      int i = 0;
-      for (Source<T> beamSplitSource : beamSplitSourceList) {
-        pendingSplits.add(new FlinkSourceSplit<>(i, beamSplitSource));
-        i++;
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    context.callAsync(
+        () -> {
+          try {
+            LOG.info("Starting source {}", beamSource);
+            List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
+            int i = 0;
+            for (Source<T> beamSplitSource : beamSplitSourceList) {
+              pendingSplits.add(new FlinkSourceSplit<>(i, beamSplitSource));
+              i++;
+            }
+            return pendingSplits;
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        },
+        (sourceSplits, error) -> {
+          if (error != null) {
+            throw new RuntimeException("Failed to start source enumerator.", error);
+          }
+        });
   }
 
   @Override
