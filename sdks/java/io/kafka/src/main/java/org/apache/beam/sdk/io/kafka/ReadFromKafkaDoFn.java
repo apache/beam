@@ -342,11 +342,11 @@ abstract class ReadFromKafkaDoFn<K, V>
       throws Exception {
     final LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize =
         Preconditions.checkStateNotNull(this.avgRecordSize);
-    double estimatedNumRecords =
+    double estimatedOffsetRange =
         restrictionTracker(kafkaSourceDescriptor, offsetRange).getProgress().getWorkRemaining();
     // Before processing elements, we don't have a good estimated size of records and offset gap.
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
-      return estimatedNumRecords;
+      return estimatedOffsetRange;
     }
     if (offsetEstimatorCache != null) {
       for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
@@ -355,7 +355,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       }
     }
 
-    return estimatedNumRecords
+    return estimatedOffsetRange
         * avgRecordSize
             .get(kafkaSourceDescriptor.getTopicPartition())
             .estimateRecordByteSizeToOffsetCountRatio();
