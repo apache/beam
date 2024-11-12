@@ -47,8 +47,10 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -62,6 +64,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DataflowMetrics}. */
@@ -542,5 +545,26 @@ public class DataflowMetricsTest {
         "The result of template creation should not be used.",
         UnsupportedOperationException.class,
         () -> metrics.queryMetrics(MetricsFilter.builder().build()));
+  }
+
+  @Test
+  public void testEnableDisableLineage() {
+    StringSet mockMetric = Mockito.mock(StringSet.class);
+    Lineage lineage = new Lineage(mockMetric);
+
+    try {
+      Lineage.setDefaultPipelineOptions(
+          PipelineOptionsFactory.fromArgs("--runner=DataflowRunner").create());
+      lineage.add("beam:path");
+      Mockito.verify(mockMetric, Mockito.never()).add("beam:path");
+
+      Lineage.setDefaultPipelineOptions(
+          PipelineOptionsFactory.fromArgs("--runner=DataflowRunner", "--experiments=enable_lineage")
+              .create());
+      lineage.add("beam:path2");
+      Mockito.verify(mockMetric, Mockito.times(1)).add("beam:path2");
+    } finally {
+      Lineage.resetDefaultPipelineOptions();
+    }
   }
 }

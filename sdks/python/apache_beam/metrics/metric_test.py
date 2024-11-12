@@ -20,6 +20,7 @@
 import unittest
 
 import hamcrest as hc
+import mock
 import pytest
 
 import apache_beam as beam
@@ -33,6 +34,7 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.metric_result_matchers import DistributionMatcher
 from apache_beam.testing.metric_result_matchers import MetricResultMatcher
@@ -279,6 +281,36 @@ class LineageTest(unittest.TestCase):
     lineage.add("s", "5", "6.7")
     lineage.add("s", "1", "2", subtype="t")
     self.assertSetEqual(stringset, {"s:1.2", "s:3.4", "s:t:1.2", "s:5.`6.7`"})
+
+  @pytest.mark.no_xdist
+  def test_lineage_enable_disable(self):
+    mock_metric = mock.Mock()
+    try:
+      lineage = Lineage(Lineage.SOURCE)
+      lineage.metric = mock_metric
+      lineage._LINEAGE_DISABLED = False
+      lineage.add('beam', 'path')
+      mock_metric.add.assert_called_once_with('beam:path')
+
+      options = PipelineOptions.from_dictionary(
+          {'experiments': ['disable_lineage']})
+      lineage.set_options(options)
+      lineage.add('beam', 'path2')
+      mock_metric.add.assert_called_once()
+
+      options = PipelineOptions.from_dictionary({'runner': 'DataflowRunner'})
+      lineage.set_options(options)
+      lineage.add('beam', 'path3')
+      mock_metric.add.assert_called_once()
+
+      options = PipelineOptions.from_dictionary({
+          'runner': 'DataflowRunner', 'experiments': ['enable_lineage']
+      })
+      lineage.set_options(options)
+      lineage.add('beam', 'path4')
+      mock_metric.add.assert_called_with('beam:path4')
+    finally:
+      lineage._LINEAGE_DISABLED = False
 
 
 if __name__ == '__main__':

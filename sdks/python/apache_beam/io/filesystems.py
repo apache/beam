@@ -116,6 +116,9 @@ class FileSystems(object):
     """
     cls._pipeline_options = pipeline_options
 
+    # entry to set other PipelineOption determined flags
+    Lineage.set_options(pipeline_options)
+
   @staticmethod
   def get_scheme(path):
     match_result = FileSystems.URI_SCHEMA_PATTERN.match(path.strip())

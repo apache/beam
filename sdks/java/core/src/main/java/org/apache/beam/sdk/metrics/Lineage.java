@@ -19,8 +19,12 @@ package org.apache.beam.sdk.metrics;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -33,11 +37,16 @@ public class Lineage {
   private static final Lineage SOURCES = new Lineage(Type.SOURCE);
   private static final Lineage SINKS = new Lineage(Type.SINK);
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.]");
-
+  private static final AtomicBoolean LINEAGE_DISABLED = new AtomicBoolean(false);
   private final StringSet metric;
 
   private Lineage(Type type) {
-    this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
+    this(Metrics.stringSet(LINEAGE_NAMESPACE, type.toString()));
+  }
+
+  @VisibleForTesting
+  public Lineage(StringSet metric) {
+    this.metric = metric;
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
@@ -48,6 +57,38 @@ public class Lineage {
   /** {@link Lineage} representing sinks. */
   public static Lineage getSinks() {
     return SINKS;
+  }
+
+  /**
+   * Enable/Disable Lineage on worker based on PipelineOptions and Runner type.
+   *
+   * <p>Lineage is enabled by default for most runners unless "disable_lineage" experiment is set.
+   *
+   * <p>Lineage is disabled by default for DataflowRunner unless "enable_lineage" experiment is set.
+   */
+  @Internal
+  public static void setDefaultPipelineOptions(PipelineOptions options) {
+    boolean disabled = false;
+    if (ExperimentalOptions.hasExperiment(options, "disable_lineage")) {
+      disabled = true;
+    } else {
+      String runner = "";
+      try {
+        runner = options.getRunner().getName();
+      } catch (Exception e) {
+        // RuntimeException is expected if Runner is not set or not in class path, skip
+        return;
+      }
+      if (runner.contains("DataflowRunner")) {
+        disabled = !ExperimentalOptions.hasExperiment(options, "enable_lineage");
+      }
+    }
+    LINEAGE_DISABLED.compareAndSet(!disabled, disabled);
+  }
+
+  @VisibleForTesting
+  public static void resetDefaultPipelineOptions() {
+    LINEAGE_DISABLED.compareAndSet(true, false);
   }
 
   /**
@@ -127,9 +168,13 @@ public class Lineage {
 
   /**
    * Adds the given details as Lineage. For asset level lineage the resource location should be
-   * specified as Dataplex FQN https://cloud.google.com/data-catalog/docs/fully-qualified-names
+   * specified as <a
+   * href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">Dataplex FQN</a>.
    */
   public void add(String details) {
+    if (LINEAGE_DISABLED.get()) {
+      return;
+    }
     metric.add(details);
   }
 

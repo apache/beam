@@ -20,11 +20,13 @@ package org.apache.beam.sdk.metrics;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Tests for {@link Lineage}. */
 @RunWith(JUnit4.class)
@@ -55,5 +57,24 @@ public class LineageTest {
             assertEquals(
                 "apache:beam:" + value + "." + value,
                 Lineage.getFqName("apache", "beam", ImmutableList.of(key, key))));
+  }
+
+  @Test
+  public void testEnableDisableLineage() {
+    StringSet mockMetric = Mockito.mock(StringSet.class);
+    Lineage lineage = new Lineage(mockMetric);
+
+    try {
+      Lineage.resetDefaultPipelineOptions();
+      lineage.add("beam:path");
+      Mockito.verify(mockMetric, Mockito.times(1)).add("beam:path");
+
+      Lineage.setDefaultPipelineOptions(
+          PipelineOptionsFactory.fromArgs("--experiments=disable_lineage").create());
+      lineage.add("beam:path2");
+      Mockito.verify(mockMetric, Mockito.never()).add("beam:path2");
+    } finally {
+      Lineage.resetDefaultPipelineOptions();
+    }
   }
 }

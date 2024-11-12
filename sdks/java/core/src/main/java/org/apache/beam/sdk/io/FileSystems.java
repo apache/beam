@@ -575,6 +575,9 @@ public class FileSystems {
     long id = options.getOptionsId();
     int nextRevision = options.revision();
 
+    // entry to set other PipelineOption determined flags
+    Lineage.setDefaultPipelineOptions(options);
+
     while (true) {
       KV<Long, Integer> revision = FILESYSTEM_REVISION.get();
       // only update file systems if the pipeline changed or the options revision increased

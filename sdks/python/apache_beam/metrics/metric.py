@@ -47,6 +47,9 @@ from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metricbase import StringSet
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 if TYPE_CHECKING:
   from apache_beam.metrics.execution import MetricKey
@@ -322,6 +325,8 @@ class Lineage:
       SINK: Metrics.string_set(LINEAGE_NAMESPACE, SINK)
   }
 
+  _LINEAGE_DISABLED = False
+
   def __init__(self, label: str) -> None:
     """Create a Lineage with valid label (:data:`~Lineage.SOURCE` or
     :data:`~Lineage.SINK`)
@@ -335,6 +340,32 @@ class Lineage:
   @classmethod
   def sinks(cls) -> 'Lineage':
     return cls(Lineage.SINK)
+
+  @classmethod
+  def set_options(cls, pipeline_options: PipelineOptions) -> None:
+    """
+    For internal use only; no backwards-compatibility guarantees.
+
+    Enable/Disable Lineage on worker based on PipelineOptions and Runner type.
+
+    Lineage is enabled by default for most runners, unless "disable_lineage"
+    experiment is set.
+
+    Lineage is disabled by default for DataflowRunner, unless "enable_lineage"
+    experiment is set.
+    """
+    debug_options: DebugOptions = pipeline_options.view_as(DebugOptions)
+    disabled = False
+    if debug_options.lookup_experiment('disable_lineage'):
+      disabled = True
+    else:
+      runner = debug_options.view_as(StandardOptions).runner
+      if isinstance(runner, str) and runner.find('DataflowRunner') != -1:
+        if debug_options.lookup_experiment('enable_lineage'):
+          disabled = False
+        else:
+          disabled = True
+    cls._LINEAGE_DISABLED = disabled
 
   _RESERVED_CHARS = re.compile(r'[:\s.]')
 
@@ -390,6 +421,9 @@ class Lineage:
     The first positional argument serves as system, if full segments are
     provided, or the full FQN if it is provided as a single argument.
     """
+    if Lineage._LINEAGE_DISABLED:
+      return
+
     system_or_details = system
     if len(segments) == 0 and subtype is None:
       self.metric.add(system_or_details)
