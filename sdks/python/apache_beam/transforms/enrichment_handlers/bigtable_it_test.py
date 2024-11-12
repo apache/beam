@@ -85,7 +85,7 @@ class ValidateResponse(beam.DoFn):
               "Response from bigtable should contain a %s column_family with "
               "%s columns." % (column_family, columns))
         if (self._include_timestamp and
-            not isinstance(element_dict[column_family][key][0], tuple)):  # type: ignore[arg-type]
+            not isinstance(element_dict[column_family][key][0], tuple)):
           raise BeamAssertException(
               "Response from bigtable should contain timestamp associated with "
               "its value.")
