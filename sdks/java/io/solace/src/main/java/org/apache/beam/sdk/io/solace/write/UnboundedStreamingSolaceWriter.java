@@ -127,7 +127,7 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
                       e.getMessage()))
               .setLatencyNanos(System.nanoTime())
               .build();
-      solaceSessionServiceWithProducer().getPublishResultsReceiver().addResult(errorPublish);
+      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
     }
   }
 

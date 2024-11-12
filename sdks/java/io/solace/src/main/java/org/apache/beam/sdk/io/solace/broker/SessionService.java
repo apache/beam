@@ -19,9 +19,10 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
+import java.util.Queue;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
-import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,12 +142,11 @@ public abstract class SessionService implements Serializable {
   public abstract MessageProducer getInitializeProducer(SubmissionMode mode);
 
   /**
-   * Returns the {@link PublishResultsReceiver} instance associated with this session.
-   *
-   * <p>The {@link PublishResultsReceiver} handles asynchronous callbacks from Solace, providing
-   * results for message publications.
+   * Returns the {@link Queue<PublishResult>} instance associated with this session, with the
+   * asynchronously received callbacks from Solace for message publications. The queue
+   * implementation has to be thread-safe for production use-cases.
    */
-  public abstract PublishResultsReceiver getPublishResultsReceiver();
+  public abstract Queue<PublishResult> getPublishedResultsQueue();
 
   /**
    * Override this method and provide your specific properties, including all those related to

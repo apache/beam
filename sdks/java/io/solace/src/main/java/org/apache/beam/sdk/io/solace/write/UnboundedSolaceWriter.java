@@ -29,6 +29,7 @@ import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -141,9 +143,9 @@ public abstract class UnboundedSolaceWriter
     long minFailed = Long.MAX_VALUE;
     long maxFailed = 0;
 
-    PublishResultsReceiver publishResultsReceiver =
-        solaceSessionServiceWithProducer().getPublishResultsReceiver();
-    Solace.PublishResult result = publishResultsReceiver.pollResults();
+    Queue<PublishResult> publishResultsQueue =
+        solaceSessionServiceWithProducer().getPublishedResultsQueue();
+    Solace.PublishResult result = publishResultsQueue.poll();
 
     if (result != null) {
       if (getCurrentBundleTimestamp() == null) {
@@ -193,7 +195,7 @@ public abstract class UnboundedSolaceWriter
         }
       }
 
-      result = publishResultsReceiver.pollResults();
+      result = publishResultsQueue.poll();
     }
 
     if (shouldPublishLatencyMetrics()) {

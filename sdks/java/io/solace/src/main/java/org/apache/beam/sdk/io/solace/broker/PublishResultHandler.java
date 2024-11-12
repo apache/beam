@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
+import java.util.Queue;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
-import org.apache.beam.sdk.io.solace.write.PublishResultsReceiver;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -41,12 +41,12 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
-  private final PublishResultsReceiver publishResultsReceiver;
+  private final Queue<PublishResult> publishResultsQueue;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(PublishResultsReceiver publishResultsReceiver) {
-    this.publishResultsReceiver = publishResultsReceiver;
+  public PublishResultHandler(Queue<PublishResult> publishResultsQueue) {
+    this.publishResultsQueue = publishResultsQueue;
   }
 
   @Override
@@ -89,7 +89,7 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     PublishResult publishResult = resultBuilder.build();
     // Static reference, it receives all callbacks from all publications
     // from all threads
-    publishResultsReceiver.addResult(publishResult);
+    publishResultsQueue.add(publishResult);
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {
