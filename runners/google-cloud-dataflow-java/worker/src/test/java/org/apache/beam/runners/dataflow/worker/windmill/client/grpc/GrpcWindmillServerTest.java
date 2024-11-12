@@ -22,6 +22,7 @@ import static org.junit.Assert.*;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -472,7 +473,8 @@ public class GrpcWindmillServerTest {
                     responseObserver.onNext(responseBuilder.build());
                   } catch (Exception e) {
                     // Stream is already closed.
-                    System.out.println("trieu: " + e);
+                    LOG.warn("trieu: ", e);
+                    LOG.warn(Arrays.toString(e.getStackTrace()));
                   }
                   responseBuilder.clear();
                 }
@@ -512,7 +514,9 @@ public class GrpcWindmillServerTest {
             done.countDown();
           });
     }
-    done.await();
+    while (done.await(5, TimeUnit.SECONDS)) {
+      LOG.info("trieu: {}", done.getCount());
+    }
     stream.halfClose();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
     executor.shutdown();

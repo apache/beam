@@ -36,6 +36,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.api.client.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 
@@ -71,6 +72,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // shutdown.
   private static final Status OK_STATUS = Status.fromCode(Status.Code.OK);
   private static final String NEVER_RECEIVED_RESPONSE_LOG_STRING = "never received response";
+  private static final String NOT_SHUTDOWN = "not shutdown";
   protected final Sleeper sleeper;
 
   private final Logger logger;
@@ -262,7 +264,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
                     ", %d restarts, last restart reason [ %s ] at [%s], %d errors",
                     metrics.restartCount(),
                     metrics.lastRestartReason(),
-                    metrics.lastRestartTime(),
+                    metrics.lastRestartTime().orElse(null),
                     metrics.errorCount()));
 
     if (summaryMetrics.isClientClosed()) {
@@ -275,13 +277,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     writer.format(
         ", current stream is %dms old, last send %dms, last response %dms, closed: %s, "
-            + "isShutdown: %s, shutdown time: %s",
+            + "shutdown time: %s",
         summaryMetrics.streamAge(),
         summaryMetrics.timeSinceLastSend(),
         summaryMetrics.timeSinceLastResponse(),
         requestObserver.isClosed(),
-        summaryMetrics.shutdownTime().isPresent(),
-        summaryMetrics.shutdownTime().orElse(null));
+        summaryMetrics.shutdownTime().map(DateTime::toString).orElse(NOT_SHUTDOWN));
   }
 
   /**
@@ -297,8 +298,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     clientClosed = true;
     try {
       requestObserver.onCompleted();
-    } catch (StreamClosedException | WindmillStreamShutdownException e) {
-      logger.warn("Stream was previously closed or shutdown.");
+    } catch (StreamClosedException e) {
+      logger.warn("Stream was previously closed.");
+    } catch (WindmillStreamShutdownException e) {
+      logger.warn("Stream was previously shutdown.");
     }
   }
 
@@ -317,10 +320,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     return backendWorkerToken;
   }
 
+  @SuppressWarnings("GuardedBy")
   @Override
   public final void shutdown() {
-    // Don't lock on "this" before poisoning the request observer as allow IO to block shutdown.
+    // Don't lock on "this" before poisoning the request observer since otherwise the observer may
+    // be blocking in send().
     requestObserver.poison();
+    isShutdown = true;
     synchronized (this) {
       if (!isShutdown) {
         isShutdown = true;
@@ -331,6 +337,18 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   protected abstract void shutdownInternal();
+
+  /** Returns true if the stream was torn down and should not be restarted internally. */
+  private synchronized boolean maybeTeardownStream() {
+    if (isShutdown || (clientClosed && !hasPendingRequests())) {
+      streamRegistry.remove(AbstractWindmillStream.this);
+      finishLatch.countDown();
+      executor.shutdownNow();
+      return true;
+    }
+
+    return false;
+  }
 
   private class ResponseObserver implements StreamObserver<ResponseT> {
 
@@ -351,7 +369,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         return;
       }
 
-      recordStreamStatus(Status.fromThrowable(t));
+      Status errorStatus = Status.fromThrowable(t);
+      recordStreamStatus(errorStatus);
+
+      // If the stream was stopped due to a resource exhausted error then we are throttled.
+      if (errorStatus.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+        startThrottleTimer();
+      }
 
       try {
         long sleep = backoff.nextBackOffMillis();
@@ -411,25 +435,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
                   .responseDebugString(nowMillis)
                   .orElse(NEVER_RECEIVED_RESPONSE_LOG_STRING));
         }
-
-        // If the stream was stopped due to a resource exhausted error then we are throttled.
-        if (status.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-          startThrottleTimer();
-        }
-      }
-    }
-
-    /** Returns true if the stream was torn down and should not be restarted internally. */
-    private boolean maybeTeardownStream() {
-      synchronized (AbstractWindmillStream.this) {
-        if (isShutdown || (clientClosed && !hasPendingRequests())) {
-          streamRegistry.remove(AbstractWindmillStream.this);
-          finishLatch.countDown();
-          executor.shutdownNow();
-          return true;
-        }
-
-        return false;
       }
     }
   }

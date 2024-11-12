@@ -55,7 +55,7 @@ final class ResettableThrowingStreamObserver<T> {
    * StreamObserver.
    */
   @GuardedBy("this")
-  private boolean isCurrentStreamClosed = false;
+  private boolean isCurrentStreamClosed = true;
 
   ResettableThrowingStreamObserver(
       Supplier<TerminatingStreamObserver<T>> streamObserverFactory, Logger logger) {
@@ -72,12 +72,10 @@ final class ResettableThrowingStreamObserver<T> {
 
     if (isCurrentStreamClosed) {
       throw new StreamClosedException(
-          "Current stream is closed, requires reset for future stream operations.");
+          "Current stream is closed, requires reset() for future stream operations.");
     }
 
-    return Preconditions.checkNotNull(
-        delegateStreamObserver,
-        "requestObserver cannot be null. Missing a call to startStream() to initialize.");
+    return Preconditions.checkNotNull(delegateStreamObserver, "requestObserver cannot be null.");
   }
 
   /** Creates a new delegate to use for future {@link StreamObserver} methods. */
@@ -131,9 +129,10 @@ final class ResettableThrowingStreamObserver<T> {
     }
   }
 
-  public void onError(Throwable throwable)
+  public synchronized void onError(Throwable throwable)
       throws StreamClosedException, WindmillStreamShutdownException {
     delegate().onError(throwable);
+    isCurrentStreamClosed = true;
   }
 
   public synchronized void onCompleted()

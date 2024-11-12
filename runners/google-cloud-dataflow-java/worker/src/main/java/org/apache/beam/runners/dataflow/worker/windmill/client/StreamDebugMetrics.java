@@ -45,7 +45,7 @@ final class StreamDebugMetrics {
   private String lastRestartReason = "";
 
   @GuardedBy("this")
-  private DateTime lastRestartTime = null;
+  private @Nullable DateTime lastRestartTime = null;
 
   @GuardedBy("this")
   private long lastResponseTimeMs = 0;
@@ -57,7 +57,7 @@ final class StreamDebugMetrics {
   private long startTimeMs = 0;
 
   @GuardedBy("this")
-  private DateTime shutdownTime = null;
+  private @Nullable DateTime shutdownTime = null;
 
   @GuardedBy("this")
   private boolean clientClosed = false;
@@ -194,16 +194,19 @@ final class StreamDebugMetrics {
   @AutoValue
   abstract static class RestartMetrics {
     private static RestartMetrics create(
-        int restartCount, String restartReason, DateTime lastRestartTime, int errorCount) {
+        int restartCount,
+        String restartReason,
+        @Nullable DateTime lastRestartTime,
+        int errorCount) {
       return new AutoValue_StreamDebugMetrics_RestartMetrics(
-          restartCount, restartReason, lastRestartTime, errorCount);
+          restartCount, restartReason, Optional.ofNullable(lastRestartTime), errorCount);
     }
 
     abstract int restartCount();
 
     abstract String lastRestartReason();
 
-    abstract DateTime lastRestartTime();
+    abstract Optional<DateTime> lastRestartTime();
 
     abstract int errorCount();
   }

@@ -146,6 +146,7 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
               "Output channel stalled for {}s, outbound thread {}.",
               totalSecondsWaited,
               Thread.currentThread().getName());
+          Thread.dumpStack();
         }
 
         waitSeconds = waitSeconds * 2;

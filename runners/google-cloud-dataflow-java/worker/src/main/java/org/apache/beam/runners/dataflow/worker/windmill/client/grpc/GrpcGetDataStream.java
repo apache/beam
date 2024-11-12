@@ -69,9 +69,7 @@ final class GrpcGetDataStream
   private static final StreamingGetDataRequest HEALTH_CHECK_REQUEST =
       StreamingGetDataRequest.newBuilder().build();
 
-  /**
-   * @implNote {@link QueuedBatch} objects in the queue are is guarded by {@code this}
-   */
+  /** @implNote {@link QueuedBatch} objects in the queue are is guarded by {@code this} */
   private final Deque<QueuedBatch> batches;
 
   private final Map<Long, AppendableInputStream> pending;

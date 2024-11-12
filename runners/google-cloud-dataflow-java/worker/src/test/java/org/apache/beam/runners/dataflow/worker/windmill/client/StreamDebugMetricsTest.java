@@ -78,8 +78,9 @@ public class StreamDebugMetricsTest {
     assertThat(restartMetrics.lastRestartReason()).isEqualTo(restartReason);
     assertThat(restartMetrics.restartCount()).isEqualTo(1);
     assertThat(restartMetrics.errorCount()).isEqualTo(1);
-    assertThat(restartMetrics.lastRestartTime()).isLessThan(DateTime.now());
-    assertThat(restartMetrics.lastRestartTime().toInstant()).isGreaterThan(Instant.EPOCH);
+    assertTrue(restartMetrics.lastRestartTime().isPresent());
+    assertThat(restartMetrics.lastRestartTime().get()).isLessThan(DateTime.now());
+    assertThat(restartMetrics.lastRestartTime().get().toInstant()).isGreaterThan(Instant.EPOCH);
   }
 
   @Test

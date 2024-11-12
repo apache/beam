@@ -102,7 +102,8 @@ public class ResettableThrowingStreamObserverTest {
 
   @Test
   public void testReset_usesNewDelegate()
-      throws WindmillStreamShutdownException, ResettableThrowingStreamObserver.StreamClosedException {
+      throws WindmillStreamShutdownException,
+          ResettableThrowingStreamObserver.StreamClosedException {
     List<StreamObserver<Integer>> delegates = new ArrayList<>();
     ResettableThrowingStreamObserver<Integer> observer =
         newStreamObserver(

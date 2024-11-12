@@ -142,7 +142,9 @@ public class AbstractWindmillStreamTest {
     @Override
     protected void startThrottleTimer() {}
 
-    public void testSend(Integer i) throws ResettableThrowingStreamObserver.StreamClosedException, WindmillStreamShutdownException {
+    public void testSend(Integer i)
+        throws ResettableThrowingStreamObserver.StreamClosedException,
+            WindmillStreamShutdownException {
       trySend(i);
     }
 
