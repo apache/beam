@@ -44,6 +44,7 @@ from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.typehints.schemas import schema_from_element_type
+from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
@@ -482,6 +483,65 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   return expand
 
 
+class _StripErrorMetadata(beam.PTransform):
+  """Strips error metadata from outputs returned via error handling.
+
+  Generally the error outputs for transformations return information about
+  the error encountered (e.g. error messages and tracebacks) in addition to the
+  failing element itself.  This transformation attempts to remove that metadata
+  and returns the bad element alone which can be useful for re-processing.
+
+  For example, in the following pipeline snippet::
+
+    - name: MyMappingTransform
+      type: MapToFields
+      input: SomeInput
+      config:
+        language: python
+        fields:
+          ...
+        error_handling:
+          output: errors
+
+    - name: RecoverOriginalElements
+      type: StripErrorMetadata
+      input: MyMappingTransform.errors
+
+  the output of `RecoverOriginalElements` will contain exactly those elements
+  from SomeInput that failed to processes (whereas `MyMappingTransform.errors`
+  would contain those elements paired with error information).
+
+  Note that this relies on the preceding transform actually returning the
+  failing input in a schema'd way.  Most built-in transformation follow the
+  correct conventions.
+  """
+
+  _ERROR_FIELD_NAMES = ('failed_row', 'element', 'record')
+
+  def expand(self, pcoll):
+    try:
+      existing_fields = {
+          fld.name: fld.type
+          for fld in schema_from_element_type(pcoll.element_type).fields
+      }
+    except TypeError:
+      fld = None
+    else:
+      for fld in self._ERROR_FIELD_NAMES:
+        if fld in existing_fields:
+          break
+      else:
+        raise ValueError(
+            f"No field name matches one of {self._ERROR_FIELD_NAMES}")
+
+    if fld is None:
+      # This handles with_exception_handling() that returns bare tuples.
+      return pcoll | beam.Map(lambda x: x[0])
+    else:
+      return pcoll | beam.Map(lambda x: getattr(x, fld)).with_output_types(
+          typing_from_runner_api(existing_fields[fld]))
+
+
 class _Validate(beam.PTransform):
   """Validates each element of a PCollection against a json schema.
 
@@ -838,6 +898,7 @@ def create_mapping_providers():
           'Partition-python': _Partition,
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
+          'StripErrorMetadata': _StripErrorMetadata,
           'ValidateWithSchema': _Validate,
       }),
       yaml_provider.SqlBackedProvider({
