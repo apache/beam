@@ -74,6 +74,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   private static final String FAILED_ROWS_TAG = "FailedRows";
   private static final String FAILED_ROWS_WITH_ERRORS_TAG = "FailedRowsWithErrors";
   // magic string that tells us to write to dynamic destinations
+  protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
   protected static final String ROW_PROPERTY_MUTATION_INFO = "row_mutation_info";
   protected static final String ROW_PROPERTY_MUTATION_TYPE = "mutation_type";
   protected static final String ROW_PROPERTY_MUTATION_SQN = "change_sequence_number";

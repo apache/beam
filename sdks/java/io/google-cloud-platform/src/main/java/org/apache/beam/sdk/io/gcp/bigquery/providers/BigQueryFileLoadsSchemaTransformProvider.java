@@ -110,8 +110,7 @@ public class BigQueryFileLoadsSchemaTransformProvider
               .withCustomGcsTempLocation(
                   ValueProvider.StaticValueProvider.of(options.getTempLocation()))
               .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false))
-              .useBeamSchema();
+              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =

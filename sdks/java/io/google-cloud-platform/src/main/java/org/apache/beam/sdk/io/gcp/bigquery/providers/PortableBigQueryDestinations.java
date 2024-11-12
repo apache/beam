@@ -97,6 +97,7 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
         row = checkStateNotNull(row.getRow("record"));
       }
       Row filtered = rowFilter.filter(row);
+      System.out.println("xxx filtered: " + filtered);
       return BigQueryUtils.toTableRow(filtered);
     };
   }
