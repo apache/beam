@@ -125,6 +125,7 @@ Config = typing.NamedTuple(
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
      ('fetch_size', typing.Optional[np.int16]),
+     ('disable_autocommit', typing.Optional[bool]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
      ('partition_column', typing.Optional[str]),
@@ -236,6 +237,7 @@ class WriteToJdbc(ExternalTransform):
                             write_statement=statement,
                             read_query=None,
                             fetch_size=None,
+                            disable_autcommit=None,
                             output_parallelization=None,
                             autosharding=autosharding,
                             max_connections=max_connections,
@@ -286,6 +288,7 @@ class ReadFromJdbc(ExternalTransform):
       username,
       password,
       query=None,
+      disable_autocommit=None,
       output_parallelization=None,
       fetch_size=None,
       partition_column=None,
@@ -305,6 +308,7 @@ class ReadFromJdbc(ExternalTransform):
     :param username: database username
     :param password: database password
     :param query: sql query to be executed
+    :param disable_autocommit: disable autocommit on read
     :param output_parallelization: is output parallelization on
     :param fetch_size: how many rows to fetch
     :param partition_column: enable partitioned reads by splitting on this
@@ -350,6 +354,7 @@ class ReadFromJdbc(ExternalTransform):
                             write_statement=None,
                             read_query=query,
                             fetch_size=fetch_size,
+                            disable_autocommit=disable_autocommit,
                             output_parallelization=output_parallelization,
                             autosharding=None,
                             max_connections=max_connections,
