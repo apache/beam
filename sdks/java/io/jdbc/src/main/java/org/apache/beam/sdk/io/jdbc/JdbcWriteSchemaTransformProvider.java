@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -55,32 +56,176 @@ public class JdbcWriteSchemaTransformProvider
         JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration> {
 
   @Override
+  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+    return "beam:schematransform:org.apache.beam:jdbc_write:v1";
+  }
+
+  @Override
+  public String description() {
+    return baseDescription("JDBC")
+        + "\n"
+        + "This transform can be used to write to a JDBC sink using either a given JDBC driver jar "
+        + "and class name, or by using one of the default packaged drivers given a `jdbc_type`.\n"
+        + "\n"
+        + "#### Using a default driver\n"
+        + "\n"
+        + "This transform comes packaged with drivers for several popular JDBC distributions. The following "
+        + "distributions can be declared as the `jdbc_type`: "
+        + JDBC_DRIVER_MAP.keySet().toString().replaceAll("[\\[\\]]", "")
+        + ".\n"
+        + "\n"
+        + "For example, writing to a MySQL sink using a SQL query: ::"
+        + "\n"
+        + "    - type: WriteToJdbc\n"
+        + "      config:\n"
+        + "        jdbc_type: mysql\n"
+        + "        url: \"jdbc:mysql://my-host:3306/database\"\n"
+        + "        query: \"INSERT INTO table VALUES(?, ?)\"\n"
+        + "\n"
+        + "\n"
+        + "**Note**: See the following transforms which are built on top of this transform and simplify "
+        + "this logic for several popular JDBC distributions:\n\n"
+        + " - WriteToMySql\n"
+        + " - WriteToPostgres\n"
+        + " - WriteToOracle\n"
+        + " - WriteToSqlServer\n"
+        + "\n"
+        + "#### Declaring custom JDBC drivers\n"
+        + "\n"
+        + "If writing to a JDBC sink not listed above, or if it is necessary to use a custom driver not "
+        + "packaged with Beam, one must define a JDBC driver and class name.\n"
+        + "\n"
+        + "For example, writing to a MySQL table: ::"
+        + "\n"
+        + "    - type: WriteToJdbc\n"
+        + "      config:\n"
+        + "        driver_jars: \"path/to/some/jdbc.jar\"\n"
+        + "        driver_class_name: \"com.mysql.jdbc.Driver\"\n"
+        + "        url: \"jdbc:mysql://my-host:3306/database\"\n"
+        + "        table: \"my-table\"\n"
+        + "\n"
+        + "#### Connection Properties\n"
+        + "\n"
+        + "Connection properties are properties sent to the Driver used to connect to the JDBC source. For example, "
+        + "to set the character encoding to UTF-8, one could write: ::\n"
+        + "\n"
+        + "    - type: WriteToJdbc\n"
+        + "      config:\n"
+        + "        connectionProperties: \"characterEncoding=UTF-8;\"\n"
+        + "        ...\n"
+        + "All properties should be semi-colon-delimited (e.g. \"key1=value1;key2=value2;\")\n";
+  }
+
+  protected String baseDescription(String jdbcType) {
+    return String.format(
+        "Write to a %s sink using a SQL query or by directly accessing " + "a single table.\n",
+        jdbcType);
+  }
+
+  protected String inheritedDescription(
+      String prettyName, String transformName, String prefix, int port) {
+    return String.format(
+        "\n"
+            + "This is a special case of WriteToJdbc that includes the "
+            + "necessary %s Driver and classes.\n"
+            + "\n"
+            + "An example of using %s with SQL query: ::\n"
+            + "\n"
+            + "    - type: %s\n"
+            + "      config:\n"
+            + "        url: \"jdbc:%s://my-host:%d/database\"\n"
+            + "        query: \"INSERT INTO table VALUES(?, ?)\"\n"
+            + "\n"
+            + "It is also possible to read a table by specifying a table name. For example, the "
+            + "following configuration will perform a read on an entire table: ::\n"
+            + "\n"
+            + "    - type: %s\n"
+            + "      config:\n"
+            + "        url: \"jdbc:%s://my-host:%d/database\"\n"
+            + "        table: \"my-table\"\n"
+            + "\n"
+            + "#### Advanced Usage\n"
+            + "\n"
+            + "It might be necessary to use a custom JDBC driver that is not packaged with this "
+            + "transform. If that is the case, see WriteToJdbc which "
+            + "allows for more custom configuration.",
+        prettyName, transformName, transformName, prefix, port, transformName, prefix, port);
+  }
+
+  @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<JdbcWriteSchemaTransformConfiguration>
       configurationClass() {
     return JdbcWriteSchemaTransformConfiguration.class;
   }
 
+  protected static void validateConfig(
+      JdbcWriteSchemaTransformConfiguration config, String jdbcType)
+      throws IllegalArgumentException {
+    if (Strings.isNullOrEmpty(config.getJdbcUrl())) {
+      throw new IllegalArgumentException("JDBC URL cannot be blank");
+    }
+
+    boolean driverClassNamePresent = !Strings.isNullOrEmpty(config.getDriverClassName());
+    boolean driverJarsPresent = !Strings.isNullOrEmpty(config.getDriverJars());
+    boolean jdbcTypePresent = !Strings.isNullOrEmpty(jdbcType);
+    if (!driverClassNamePresent && !driverJarsPresent && !jdbcTypePresent) {
+      throw new IllegalArgumentException(
+          "If JDBC type is not specified, then Driver Class Name and Driver Jars must be specified.");
+    }
+    if (!driverClassNamePresent && !jdbcTypePresent) {
+      throw new IllegalArgumentException(
+          "One of JDBC Driver class name or JDBC type must be specified.");
+    }
+    if (jdbcTypePresent
+        && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
+      throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
+    }
+
+    boolean writeStatementPresent =
+        (config.getWriteStatement() != null && !"".equals(config.getWriteStatement()));
+    boolean locationPresent = (config.getLocation() != null && !"".equals(config.getLocation()));
+
+    if (writeStatementPresent && locationPresent) {
+      throw new IllegalArgumentException(
+          "Write Statement and Table are mutually exclusive configurations");
+    }
+    if (!writeStatementPresent && !locationPresent) {
+      throw new IllegalArgumentException("Either Write Statement or Table must be set.");
+    }
+  }
+
+  protected static void validateConfig(JdbcWriteSchemaTransformConfiguration config)
+      throws IllegalArgumentException {
+    validateConfig(config, config.getJdbcType());
+  }
+
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcWriteSchemaTransformConfiguration configuration) {
-    configuration.validate();
+    validateConfig(configuration);
     return new JdbcWriteSchemaTransform(configuration);
   }
 
-  static class JdbcWriteSchemaTransform extends SchemaTransform implements Serializable {
+  protected static class JdbcWriteSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcWriteSchemaTransformConfiguration config;
+    private String jdbcType;
 
     public JdbcWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
       this.config = config;
+      this.jdbcType = config.getJdbcType();
+    }
+
+    public JdbcWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config, String jdbcType) {
+      this.config = config;
+      this.jdbcType = jdbcType;
     }
 
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
       String driverClassName = config.getDriverClassName();
 
       if (Strings.isNullOrEmpty(driverClassName)) {
-        driverClassName =
-            JDBC_DRIVER_MAP.get(Objects.requireNonNull(config.getJdbcType()).toLowerCase());
+        driverClassName = JDBC_DRIVER_MAP.get(Objects.requireNonNull(jdbcType).toLowerCase());
       }
 
       JdbcIO.DataSourceConfiguration dsConfig =
@@ -158,11 +303,6 @@ public class JdbcWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:jdbc_write:v1";
-  }
-
-  @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       inputCollectionNames() {
     return Collections.singletonList("input");
@@ -178,36 +318,32 @@ public class JdbcWriteSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class JdbcWriteSchemaTransformConfiguration implements Serializable {
 
-    @Nullable
-    public abstract String getDriverClassName();
-
-    @Nullable
-    public abstract String getJdbcType();
-
+    @SchemaFieldDescription("Connection URL for the JDBC sink.")
     public abstract String getJdbcUrl();
 
+    @SchemaFieldDescription(
+        "If true, enables using a dynamically determined number of shards to write.")
     @Nullable
-    public abstract String getUsername();
+    public abstract Boolean getAutosharding();
 
-    @Nullable
-    public abstract String getPassword();
-
-    @Nullable
-    public abstract String getConnectionProperties();
-
+    @SchemaFieldDescription(
+        "Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.")
     @Nullable
     public abstract List<@org.checkerframework.checker.nullness.qual.Nullable String>
         getConnectionInitSql();
 
+    @SchemaFieldDescription(
+        "Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be \"key1=value1;key2=value2;\".")
     @Nullable
-    public abstract String getLocation();
+    public abstract String getConnectionProperties();
 
+    @SchemaFieldDescription(
+        "Name of a Java Driver class to use to connect to the JDBC source. For example, \"com.mysql.jdbc.Driver\".")
     @Nullable
-    public abstract String getWriteStatement();
+    public abstract String getDriverClassName();
 
-    @Nullable
-    public abstract Boolean getAutosharding();
-
+    @SchemaFieldDescription(
+        "Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.")
     @Nullable
     public abstract String getDriverJars();
 
@@ -218,34 +354,26 @@ public class JdbcWriteSchemaTransformProvider
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
       }
+    @SchemaFieldDescription(
+        "Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.")
+    @Nullable
+    public abstract String getJdbcType();
 
-      boolean driverClassNamePresent = !Strings.isNullOrEmpty(getDriverClassName());
-      boolean jdbcTypePresent = !Strings.isNullOrEmpty(getJdbcType());
-      if (driverClassNamePresent && jdbcTypePresent) {
-        throw new IllegalArgumentException(
-            "JDBC Driver class name and JDBC type are mutually exclusive configurations.");
-      }
-      if (!driverClassNamePresent && !jdbcTypePresent) {
-        throw new IllegalArgumentException(
-            "One of JDBC Driver class name or JDBC type must be specified.");
-      }
-      if (jdbcTypePresent
-          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(getJdbcType()).toLowerCase())) {
-        throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
-      }
+    @SchemaFieldDescription("Name of the table to write to.")
+    @Nullable
+    public abstract String getLocation();
 
-      boolean writeStatementPresent =
-          (getWriteStatement() != null && !"".equals(getWriteStatement()));
-      boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+    @SchemaFieldDescription("Password for the JDBC source.")
+    @Nullable
+    public abstract String getPassword();
 
-      if (writeStatementPresent && locationPresent) {
-        throw new IllegalArgumentException(
-            "ReadQuery and Location are mutually exclusive configurations");
-      }
-      if (!writeStatementPresent && !locationPresent) {
-        throw new IllegalArgumentException("Either ReadQuery or Location must be set.");
-      }
-    }
+    @SchemaFieldDescription("Username for the JDBC source.")
+    @Nullable
+    public abstract String getUsername();
+
+    @SchemaFieldDescription("SQL query used to insert records into the JDBC sink.")
+    @Nullable
+    public abstract String getWriteStatement();
 
     public static Builder builder() {
       return new AutoValue_JdbcWriteSchemaTransformProvider_JdbcWriteSchemaTransformConfiguration
