@@ -58,7 +58,9 @@ cd beam
 export BEAM_WORKDIR=$PWD
 
 git checkout origin/release-$BEAM_SDK_VERSION
-</code></pre><ol start=2><li><p>Customize the <code>Dockerfile</code> for a given language, typically <code>sdks/&lt;language>/container/Dockerfile</code> directory (e.g. the <a href=https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile>Dockerfile for Python</a>.</p></li><li><p>Return to the root Beam directory and run the Gradle <code>docker</code> target for your image.</p></li></ol><pre tabindex=0><code>cd $BEAM_WORKDIR
+</code></pre><ol start=2><li><p>Customize the <code>Dockerfile</code> for a given language, typically <code>sdks/&lt;language>/container/Dockerfile</code> directory (e.g. the <a href=https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile>Dockerfile for Python</a>.</p></li><li><p>Return to the root Beam directory and run the Gradle <code>docker</code> target for your
+image. For self-contained instructions on building a container image,
+follow <a href=/documentation/sdks/python-sdk-image-build>this guide</a>.</p></li></ol><pre tabindex=0><code>cd $BEAM_WORKDIR
 
 # The default repository of each SDK
 ./gradlew :sdks:java:container:java11:docker

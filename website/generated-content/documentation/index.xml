@@ -1,4 +1,192 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Learn about Beam</title><link>/documentation/</link><description>Recent content in Learn about Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/documentation/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation: About Beam ML</title><link>/documentation/ml/about-ml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/about-ml/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Learn about Beam</title><link>/documentation/</link><description>Recent content in Learn about Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/documentation/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation:</title><link>/documentation/sdks/python-sdk-image-build/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/sdks/python-sdk-image-build/</guid><description>
+&lt;h1 id="building-beam-python-sdk-image-guide">Building Beam Python SDK Image Guide&lt;/h1>
+&lt;p>There are two options to build Beam Python SDK image. If you only need to modify
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/boot.go">the Python SDK boot entrypoint binary&lt;/a>,
+read &lt;a href="#update-boot-entrypoint-application-only">Update Boot Entrypoint Application Only&lt;/a>.
+If you need to build a Beam Python SDK image fully,
+read &lt;a href="#build-beam-python-sdk-image-fully">Build Beam Python SDK Image Fully&lt;/a>.&lt;/p>
+&lt;h2 id="update-boot-entrypoint-application-only">Update Boot Entrypoint Application Only.&lt;/h2>
+&lt;p>If you only need to make a change to &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/boot.go">the Python SDK boot entrypoint binary&lt;/a>. You
+can rebuild the boot application only and include the updated boot application
+in the preexisting image.
+Read &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">the Python container Dockerfile&lt;/a>
+for reference.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># From beam repo root, make changes to boot.go.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">your_editor sdks/python/container/boot.go
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Rebuild the entrypoint&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">./gradlew :sdks:python:container:gobuild
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">cd&lt;/span> sdks/python/container/build/target/launcher/linux_amd64
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Create a simple Dockerfile to use custom boot entrypoint.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">cat &amp;gt;Dockerfile &lt;span class="s">&amp;lt;&amp;lt;EOF
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s">FROM apache/beam_python3.10_sdk:2.60.0
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s">COPY boot /opt/apache/beam/boot
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s">EOF&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Build the image&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">docker build . --tag us-central1-docker.pkg.dev/&amp;lt;MY_PROJECT&amp;gt;/&amp;lt;MY_REPOSITORY&amp;gt;/beam_python3.10_sdk:2.60.0-custom-boot
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">docker push us-central1-docker.pkg.dev/&amp;lt;MY_PROJECT&amp;gt;/&amp;lt;MY_REPOSITORY&amp;gt;/beam_python3.10_sdk:2.60.0-custom-boot
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can build a docker image if your local environment has Java, Python, Golang
+and Docker installation. Try
+&lt;code>./gradlew :sdks:python:container:py&amp;lt;PYTHON_VERSION&amp;gt;:docker&lt;/code>. For example,
+&lt;code>:sdks:python:container:py310:docker&lt;/code> builds &lt;code>apache/beam_python3.10_sdk&lt;/code>
+locally if successful. You can follow this guide building a custom image from
+a VM if the build fails in your local environment.&lt;/p>
+&lt;h2 id="build-beam-python-sdk-image-fully">Build Beam Python SDK Image Fully&lt;/h2>
+&lt;p>This section introduces a way to build everything from the scratch.&lt;/p>
+&lt;h3 id="prepare-vm">Prepare VM&lt;/h3>
+&lt;p>Prepare a VM with Debian 11. This guide was tested on Debian 11.&lt;/p>
+&lt;h4 id="google-compute-engine">Google Compute Engine&lt;/h4>
+&lt;p>An option to create a Debian 11 VM is using a GCE instance.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">gcloud compute instances create beam-builder &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --zone&lt;span class="o">=&lt;/span>us-central1-a &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --image-project&lt;span class="o">=&lt;/span>debian-cloud &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --image-family&lt;span class="o">=&lt;/span>debian-11 &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --machine-type&lt;span class="o">=&lt;/span>n1-standard-8 &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --boot-disk-size&lt;span class="o">=&lt;/span>20GB &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --scopes&lt;span class="o">=&lt;/span>cloud-platform
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Login to the VM. All the following steps are executed inside the VM.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">gcloud compute ssh beam-builder --zone&lt;span class="o">=&lt;/span>us-central1-a --tunnel-through-iap
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Update the apt package list.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">sudo apt-get update
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
+&lt;p>[!NOTE]&lt;/p>
+&lt;ul>
+&lt;li>A high CPU machine is recommended to reduce the compile time.&lt;/li>
+&lt;li>The image build needs a large disk. The build will fail with &amp;ldquo;no space left
+on device&amp;rdquo; with the default disk size 10GB.&lt;/li>
+&lt;li>The &lt;code>cloud-platform&lt;/code> is recommended to avoid permission issues with Google
+Cloud Artifact Registry. You can use the default scopes if you don&amp;rsquo;t push
+the image to Google Cloud Artifact Registry.&lt;/li>
+&lt;li>Use a zone in the region of your docker repository of Artifact Registry if
+you push the image to Artifact Registry.&lt;/li>
+&lt;/ul>
+&lt;/blockquote>
+&lt;h3 id="prerequisite-packages">Prerequisite Packages&lt;/h3>
+&lt;h4 id="java">Java&lt;/h4>
+&lt;p>You need Java to run Gradle tasks.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">sudo apt-get install -y openjdk-11-jdk
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="golang">Golang&lt;/h4>
+&lt;p>Download and install. Reference: &lt;a href="https://go.dev/doc/install">https://go.dev/doc/install&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Download and install&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">curl -OL https://go.dev/dl/go1.23.2.linux-amd64.tar.gz
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo rm -rf /usr/local/go &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> sudo tar -C /usr/local -xzf go1.23.2.linux-amd64.tar.gz
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Add go to PATH.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">export&lt;/span> &lt;span class="nv">PATH&lt;/span>&lt;span class="o">=&lt;/span>:/usr/local/go/bin:&lt;span class="nv">$PATH&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Confirm the Golang version&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">go version
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Expected output:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-text" data-lang="text">&lt;span class="line">&lt;span class="cl">go version go1.23.2 linux/amd64
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
+&lt;p>[!NOTE]
+Old Go version (e.g. 1.16) will fail at &lt;code>:sdks:python:container:goBuild&lt;/code>.&lt;/p>
+&lt;/blockquote>
+&lt;h4 id="python">Python&lt;/h4>
+&lt;p>This guide uses Pyenv to manage multiple Python versions.
+Reference: &lt;a href="https://realpython.com/intro-to-pyenv/#build-dependencies">https://realpython.com/intro-to-pyenv/#build-dependencies&lt;/a>&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Install dependencies&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo apt-get install -y make build-essential libssl-dev zlib1g-dev &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span>libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span>libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Install Pyenv&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">curl https://pyenv.run &lt;span class="p">|&lt;/span> bash
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Add pyenv to PATH.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">export&lt;/span> &lt;span class="nv">PATH&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="nv">$HOME&lt;/span>&lt;span class="s2">/.pyenv/bin:&lt;/span>&lt;span class="nv">$PATH&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">eval&lt;/span> &lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="k">$(&lt;/span>pyenv init -&lt;span class="k">)&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">eval&lt;/span> &lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="k">$(&lt;/span>pyenv virtualenv-init -&lt;span class="k">)&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Install Python 3.9 and set the Python version. This will take several minutes.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">pyenv install 3.9
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">pyenv global 3.9
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Confirm the python version.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">python --version
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Expected output example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-text" data-lang="text">&lt;span class="line">&lt;span class="cl">Python 3.9.17
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
+&lt;p>[!NOTE]
+You can use a different Python version for building with &lt;a href="https://github.com/apache/beam/blob/v2.60.0/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L2956-L2961">
+&lt;code>-PpythonVersion&lt;/code> option&lt;/a>
+to Gradle task run. Otherwise, you should have &lt;code>python3.9&lt;/code> in the build
+environment for Apache Beam 2.60.0 or later (python3.8 for older Apache Beam
+versions). If you use the wrong version, the Gradle task
+&lt;code>:sdks:python:setupVirtualenv&lt;/code> fails.&lt;/p>
+&lt;/blockquote>
+&lt;h4 id="docker">Docker&lt;/h4>
+&lt;p>Install Docker
+following &lt;a href="https://docs.docker.com/engine/install/debian/#install-using-the-repository">the reference&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Add GPG keys.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo apt-get update
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo apt-get install ca-certificates curl
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo install -m &lt;span class="m">0755&lt;/span> -d /etc/apt/keyrings
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo chmod a+r /etc/apt/keyrings/docker.asc
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Add the Apt repository.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">echo&lt;/span> &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> &lt;span class="s2">&amp;#34;deb [arch=&lt;/span>&lt;span class="k">$(&lt;/span>dpkg --print-architecture&lt;span class="k">)&lt;/span>&lt;span class="s2"> signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &lt;/span>&lt;span class="k">$(&lt;/span>. /etc/os-release &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nb">echo&lt;/span> &lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="nv">$VERSION_CODENAME&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="k">)&lt;/span>&lt;span class="s2"> stable&amp;#34;&lt;/span> &lt;span class="p">|&lt;/span> &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> sudo tee /etc/apt/sources.list.d/docker.list &amp;gt; /dev/null
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo apt-get update
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Install docker packages.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You need to run &lt;code>docker&lt;/code> command without the root privilege in Beam Python SDK
+image build. You can do this
+by &lt;a href="https://docs.docker.com/engine/install/linux-postinstall/">adding your account to the docker group&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">sudo usermod -aG docker &lt;span class="nv">$USER&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">newgrp docker
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Confirm if you can run a container without the root privilege.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">docker run hello-world
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="git">Git&lt;/h4>
+&lt;p>Git is not necessary for building Python SDK image. Git is just used to download
+the Apache Beam code in this guide.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">sudo apt-get install -y git
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="build-beam-python-sdk-image">Build Beam Python SDK Image&lt;/h3>
+&lt;p>Download Apache Beam
+from &lt;a href="https://github.com/apache/beam">the Github repository&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">git clone https://github.com/apache/beam beam
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">cd&lt;/span> beam
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Make changes to the Apache Beam code.&lt;/p>
+&lt;p>Run the Gradle task to start Docker image build. This will take several minutes.
+You can run &lt;code>:sdks:python:container:py&amp;lt;PYTHON_VERSION&amp;gt;:docker&lt;/code> to build an image
+for different Python version.
+See &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/container">the supported Python version list&lt;/a>.
+For example, &lt;code>py310&lt;/code> is for Python 3.10.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">./gradlew :sdks:python:container:py310:docker
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>If the build is successful, you can see the built image locally.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">docker images
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Expected output:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-text" data-lang="text">&lt;span class="line">&lt;span class="cl">REPOSITORY TAG IMAGE ID CREATED SIZE
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">apache/beam_python3.10_sdk 2.60.0 33db45f57f25 About a minute ago 2.79GB
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
+&lt;p>[!NOTE]
+If you run the build in your local environment and Gradle task
+&lt;code>:sdks:python:setupVirtualenv&lt;/code> fails by an incompatible python version, please
+try with &lt;code>-PpythonVersion&lt;/code> with the Python version installed in your local
+environment (e.g. &lt;code>-PpythonVersion=3.10&lt;/code>)&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="push-to-repository">Push to Repository&lt;/h3>
+&lt;p>You may push the custom image to a image repository. The image can be used
+for &lt;a href="https://cloud.google.com/dataflow/docs/guides/run-custom-container#usage">Dataflow custom container&lt;/a>.&lt;/p>
+&lt;h4 id="google-cloud-artifact-registry">Google Cloud Artifact Registry&lt;/h4>
+&lt;p>You can push the image to Artifact Registry. No additional authentication is
+necessary if you use Google Compute Engine.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">docker tag apache/beam_python3.10_sdk:2.60.0 us-central1-docker.pkg.dev/&amp;lt;MY_PROJECT&amp;gt;/&amp;lt;MY_REPOSITORY&amp;gt;/beam_python3.10_sdk:2.60.0-custom
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">docker push us-central1-docker.pkg.dev/&amp;lt;MY_PROJECT&amp;gt;/&amp;lt;MY_REPOSITORY&amp;gt;/beam_python3.10_sdk:2.60.0-custom
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>If you push an image in an environment other than a VM in Google Cloud, you
+should configure &lt;a href="https://cloud.google.com/artifact-registry/docs/docker/authentication#gcloud-helper">docker authentication with
+&lt;code>gcloud&lt;/code>&lt;/a>
+before &lt;code>docker push&lt;/code>.&lt;/p>
+&lt;h4 id="docker-hub">Docker Hub&lt;/h4>
+&lt;p>You can push your Docker hub repository
+after &lt;a href="https://docs.docker.com/reference/cli/docker/login/">docker login&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">docker tag apache/beam_python3.10_sdk:2.60.0 &amp;lt;my-account&amp;gt;/beam_python3.10_sdk:2.60.0-custom
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">docker push &amp;lt;my-account&amp;gt;/beam_python3.10_sdk:2.60.0-custom
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Documentation: About Beam ML</title><link>/documentation/ml/about-ml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/about-ml/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18215,7 +18403,9 @@ git checkout origin/release-$BEAM_SDK_VERSION
 &lt;p>Customize the &lt;code>Dockerfile&lt;/code> for a given language, typically &lt;code>sdks/&amp;lt;language&amp;gt;/container/Dockerfile&lt;/code> directory (e.g. the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile for Python&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Return to the root Beam directory and run the Gradle &lt;code>docker&lt;/code> target for your image.&lt;/p>
+&lt;p>Return to the root Beam directory and run the Gradle &lt;code>docker&lt;/code> target for your
+image. For self-contained instructions on building a container image,
+follow &lt;a href="/documentation/sdks/python-sdk-image-build">this guide&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;pre tabindex="0">&lt;code>cd $BEAM_WORKDIR
@@ -20276,83 +20466,4 @@ limitations under the License.
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">readable_files&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">metadata&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">path&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read_utf8&lt;/span>&lt;span class="p">())))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;/div></description></item><item><title>Documentation: Filter</title><link>/documentation/transforms/java/elementwise/filter/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/elementwise/filter/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="filter">Filter&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Filter.html">
-&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>Given a predicate, filter out all elements that don&amp;rsquo;t satisfy that predicate.
-May also be used to filter based on an inequality with a given value based
-on the natural ordering of the element.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>&lt;strong>Example 1&lt;/strong>: Filtering with a predicate&lt;/p>
-&lt;p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">allStrings&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Hello&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;world&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;hi&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">longStrings&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">allStrings&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Filter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">by&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">SerializableFunction&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Boolean&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Override&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="n">Boolean&lt;/span> &lt;span class="nf">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">length&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-The result is a &lt;code>PCollection&lt;/code> containing &amp;ldquo;Hello&amp;rdquo; and &amp;ldquo;world&amp;rdquo;.&lt;/p>
-&lt;p>&lt;strong>Example 2&lt;/strong>: Filtering with an inequality&lt;/p>
-&lt;p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">numbers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1L&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">2L&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3L&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">4L&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">5L&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">bigNumbers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">numbers&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Filter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">greaterThan&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">3&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">smallNumbers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">numbers&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Filter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">lessThanEq&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">3&lt;/span>&lt;span class="o">));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-Other variants include &lt;code>Filter.greaterThanEq&lt;/code>, &lt;code>Filter.lessThan&lt;/code> and &lt;code>Filter.equal&lt;/code>.&lt;/p>
-&lt;p>&lt;strong>Example 3&lt;/strong>: Filtering with lambda&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-java playground-snippet"
-data-sdk="java"
-data-path="SDK_JAVA_Filter"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_Filter%22%2c%22sdk%22%3a%22java%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/flatmapelements">FlatMapElements&lt;/a> behaves the same as &lt;code>Map&lt;/code>, but for
-each input it might produce zero or more outputs.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a> is the most general element-wise mapping
-operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;/div></description></item></channel></rss>
