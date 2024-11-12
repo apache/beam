@@ -356,7 +356,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
 
     return estimatedNumRecords
-        * avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getGapsFilledWithZeros();
+        * avgRecordSize
+            .get(kafkaSourceDescriptor.getTopicPartition())
+            .estimateRecordByteSizeToOffsetCountRatio();
   }
 
   @NewTracker
@@ -689,7 +691,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       avgRecordGap.update(gap);
     }
 
-    public double getGapsFilledWithZeros() {
+    public double estimateRecordByteSizeToOffsetCountRatio() {
       double avgRecordSize;
       double avgRecordGap;
 
