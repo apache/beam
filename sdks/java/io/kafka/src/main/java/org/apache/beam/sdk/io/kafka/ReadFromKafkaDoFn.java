@@ -21,11 +21,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -463,7 +461,8 @@ abstract class ReadFromKafkaDoFn<K, V>
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
           if (!topicPartitionExists(
-              kafkaSourceDescriptor.getTopicPartition(), consumer.listTopics())) {
+              kafkaSourceDescriptor.getTopicPartition(),
+              consumer.partitionsFor(kafkaSourceDescriptor.getTopic()))) {
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
@@ -557,20 +556,10 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   private boolean topicPartitionExists(
-      TopicPartition topicPartition, Map<String, List<PartitionInfo>> topicListMap) {
+      TopicPartition topicPartition, List<PartitionInfo> partitionInfos) {
     // Check if the current TopicPartition still exists.
-    Set<TopicPartition> existingTopicPartitions = new HashSet<>();
-    for (List<PartitionInfo> topicPartitionList : topicListMap.values()) {
-      topicPartitionList.forEach(
-          partitionInfo -> {
-            existingTopicPartitions.add(
-                new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
-          });
-    }
-    if (!existingTopicPartitions.contains(topicPartition)) {
-      return false;
-    }
-    return true;
+    return partitionInfos.stream()
+        .anyMatch(partitionInfo -> partitionInfo.partition() == (topicPartition.partition()));
   }
 
   // see https://github.com/apache/beam/issues/25962
