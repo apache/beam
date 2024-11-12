@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -101,7 +102,7 @@ public class StringSetCellTest {
   }
 
   @Test(timeout = 5000)
-  public void testStringSetCellConcurrentAddRetrivial() throws InterruptedException {
+  public void testStringSetCellConcurrentAddRetrieval() throws InterruptedException {
     StringSetCell cell = new StringSetCell(MetricName.named("namespace", "name"));
     AtomicBoolean finished = new AtomicBoolean(false);
     Thread increment =
@@ -130,6 +131,11 @@ public class StringSetCellTest {
     } finally {
       increment.interrupt();
       increment.join();
+    }
+
+    Set<String> s = cell.getCumulative().stringSet();
+    for (long i = 0; i < s.size(); ++i) {
+      assertTrue(s.contains(String.valueOf(i)));
     }
   }
 }
