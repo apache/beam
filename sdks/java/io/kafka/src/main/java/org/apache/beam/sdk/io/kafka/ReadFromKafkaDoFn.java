@@ -463,7 +463,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
           if (!topicPartitionExists(
-              kafkaSourceDescriptor.getTopicPartition(), consumer.listTopics())) {
+              kafkaSourceDescriptor.getTopicPartition(), consumer.partitionsFor(kafkaSourceDescriptor.getTopic()))) {
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
@@ -557,20 +557,16 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   private boolean topicPartitionExists(
-      TopicPartition topicPartition, Map<String, List<PartitionInfo>> topicListMap) {
+      TopicPartition topicPartition, List<PartitionInfo> partitionInfos) {
     // Check if the current TopicPartition still exists.
     Set<TopicPartition> existingTopicPartitions = new HashSet<>();
-    for (List<PartitionInfo> topicPartitionList : topicListMap.values()) {
-      topicPartitionList.forEach(
-          partitionInfo -> {
-            existingTopicPartitions.add(
-                new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
-          });
-    }
-    if (!existingTopicPartitions.contains(topicPartition)) {
-      return false;
-    }
-    return true;
+    partitionInfos.forEach(
+        partitionInfo -> {
+          existingTopicPartitions.add(
+              new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
+        });
+
+    return existingTopicPartitions.contains(topicPartition);
   }
 
   // see https://github.com/apache/beam/issues/25962
