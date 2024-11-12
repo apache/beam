@@ -81,7 +81,7 @@ public abstract class UnboundedSolaceWriter
   private final SubmissionMode submissionMode;
   private final int producersMapCardinality;
   private final boolean publishLatencyMetrics;
-  public static final AtomicInteger bundleProducerIndexCounter = new AtomicInteger();
+  private static final AtomicInteger bundleProducerIndexCounter = new AtomicInteger();
   private int currentBundleProducerIndex = 0;
 
   private final List<Solace.Record> batchToEmit;
