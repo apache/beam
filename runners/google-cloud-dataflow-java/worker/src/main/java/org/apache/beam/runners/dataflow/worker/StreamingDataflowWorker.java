@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commits;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
@@ -93,6 +94,7 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
+import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -140,8 +142,6 @@ public final class StreamingDataflowWorker {
   private static final int DEFAULT_STATUS_PORT = 8081;
   private static final Random CLIENT_ID_GENERATOR = new Random();
   private static final String CHANNELZ_PATH = "/channelz";
-  public static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL =
-      "streaming_engine_use_job_settings_for_heartbeat_pool";
 
   private final WindmillStateCache stateCache;
   private final StreamingWorkerStatusPages statusPages;
@@ -176,7 +176,7 @@ public final class StreamingDataflowWorker {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       GrpcWindmillStreamFactory windmillStreamFactory,
-      Function<String, ScheduledExecutorService> executorSupplier,
+      ScheduledExecutorService activeWorkRefreshExecutorFn,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
@@ -200,6 +200,7 @@ public final class StreamingDataflowWorker {
     this.workCommitter =
         windmillServiceEnabled
             ? StreamingEngineWorkCommitter.builder()
+                .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
                 .setCommitWorkStreamFactory(
                     WindmillStreamPool.create(
                             numCommitThreads,
@@ -249,10 +250,7 @@ public final class StreamingDataflowWorker {
               GET_DATA_STREAM_TIMEOUT,
               windmillServer::getDataStream);
       getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
-      // Experiment gates the logic till backend changes are rollback safe
-      if (!DataflowRunner.hasExperiment(
-              options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL)
-          || options.getUseSeparateWindmillHeartbeatStreams() != null) {
+      if (options.getUseSeparateWindmillHeartbeatStreams() != null) {
         heartbeatSender =
             StreamPoolHeartbeatSender.Create(
                 Boolean.TRUE.equals(options.getUseSeparateWindmillHeartbeatStreams())
@@ -289,7 +287,7 @@ public final class StreamingDataflowWorker {
             stuckCommitDurationMillis,
             computationStateCache::getAllPresentComputations,
             sampler,
-            executorSupplier.apply("RefreshWork"),
+            activeWorkRefreshExecutorFn,
             getDataMetricTracker::trackHeartbeats);
 
     this.statusPages =
@@ -351,10 +349,7 @@ public final class StreamingDataflowWorker {
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
             .build();
-    Function<String, ScheduledExecutorService> executorSupplier =
-        threadName ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build());
+
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
         createGrpcwindmillStreamFactoryBuilder(options, clientId);
 
@@ -421,7 +416,8 @@ public final class StreamingDataflowWorker {
         streamingCounters,
         memoryMonitor,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
-        executorSupplier,
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()),
         stageInfo);
   }
 
@@ -599,7 +595,7 @@ public final class StreamingDataflowWorker {
                     options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
                 .build()
             : windmillStreamFactory.build(),
-        executorSupplier,
+        executorSupplier.apply("RefreshWork"),
         stageInfo);
   }
 
@@ -666,6 +662,10 @@ public final class StreamingDataflowWorker {
     if (options.isEnableStreamingEngine()
         && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {
       enableBigQueryMetrics();
+    }
+
+    if (DataflowRunner.hasExperiment(options, "enable_kafka_metrics")) {
+      KafkaSinkMetrics.setSupportKafkaMetrics(true);
     }
 
     JvmInitializers.runBeforeProcessing(options);

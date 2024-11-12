@@ -386,7 +386,7 @@ final class RpcQosImpl implements RpcQos {
     }
 
     @Override
-    public <T, ElementT extends Element<T>> FlushBufferImpl<T, ElementT> newFlushBuffer(
+    public <ElementT extends Element<?>> FlushBufferImpl<ElementT> newFlushBuffer(
         Instant instantSinceEpoch) {
       state.checkActive();
       int availableWriteCountBudget = writeRampUp.getAvailableWriteCountBudget(instantSinceEpoch);
@@ -935,7 +935,7 @@ final class RpcQosImpl implements RpcQos {
     }
   }
 
-  static class FlushBufferImpl<T, ElementT extends Element<T>> implements FlushBuffer<ElementT> {
+  static class FlushBufferImpl<ElementT extends Element<?>> implements FlushBuffer<ElementT> {
 
     final int nextBatchMaxCount;
     final long nextBatchMaxBytes;

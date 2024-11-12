@@ -92,6 +92,11 @@ public abstract class PTransformRunnerFactoryTestContext
                   boolean collectElementsIfNoFlushes) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
+
+              @Override
+              public void poisonInstructionId(String instructionId) {
+                throw new UnsupportedOperationException("Unexpected call during test.");
+              }
             })
         .beamFnStateClient(
             new BeamFnStateClient() {

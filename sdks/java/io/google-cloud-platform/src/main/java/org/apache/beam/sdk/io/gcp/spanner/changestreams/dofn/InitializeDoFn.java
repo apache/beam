@@ -64,6 +64,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
   public void processElement(OutputReceiver<PartitionMetadata> receiver) {
     PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     if (!partitionMetadataDao.tableExists()) {
+      // Creates partition metadata table and associated indexes
       daoFactory.getPartitionMetadataAdminDao().createPartitionMetadataTable();
       createFakeParentPartition();
     }

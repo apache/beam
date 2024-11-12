@@ -66,10 +66,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.gson.Gson;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -80,8 +77,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration> {
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerChangestreamsReadConfiguration>
-      configurationClass() {
+  protected Class<SpannerChangestreamsReadConfiguration> configurationClass() {
     return SpannerChangestreamsReadConfiguration.class;
   }
 
@@ -94,7 +90,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
       Schema.builder().addStringField("error").addNullableStringField("row").build();
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+  public SchemaTransform from(
       SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration
           configuration) {
     return new SchemaTransform() {
@@ -142,19 +138,17 @@ public class SpannerChangestreamsReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:spanner_cdc_read:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Arrays.asList("output", "errors");
   }
 

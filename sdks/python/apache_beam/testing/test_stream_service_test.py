@@ -30,9 +30,9 @@ from apache_beam.testing.test_stream_service import TestStreamServiceController
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
 # https://nose.readthedocs.io/en/latest/writing_tests.html
-beam_runner_api_pb2.TestStreamPayload.__test__ = False  # type: ignore[attr-defined]
-beam_interactive_api_pb2.TestStreamFileHeader.__test__ = False  # type: ignore[attr-defined]
-beam_interactive_api_pb2.TestStreamFileRecord.__test__ = False  # type: ignore[attr-defined]
+beam_runner_api_pb2.TestStreamPayload.__test__ = False
+beam_interactive_api_pb2.TestStreamFileHeader.__test__ = False
+beam_interactive_api_pb2.TestStreamFileRecord.__test__ = False
 
 
 class EventsReader:

@@ -22,9 +22,8 @@ TensorRT.
 import argparse
 import io
 import os
-from typing import Iterable
+from collections.abc import Iterable
 from typing import Optional
-from typing import Tuple
 
 import numpy as np
 
@@ -134,14 +133,14 @@ COCO_OBJ_DET_CLASSES = [
 
 
 def attach_im_size_to_key(
-    data: Tuple[str, Image.Image]) -> Tuple[Tuple[str, int, int], Image.Image]:
+    data: tuple[str, Image.Image]) -> tuple[tuple[str, int, int], Image.Image]:
   filename, image = data
   width, height = image.size
   return ((filename, width, height), image)
 
 
 def read_image(image_file_name: str,
-               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
+               path_to_dir: Optional[str] = None) -> tuple[str, Image.Image]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
@@ -168,7 +167,7 @@ class PostProcessor(beam.DoFn):
   an integer that we can transform into actual string class using
   COCO_OBJ_DET_CLASSES as reference.
   """
-  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+  def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     key, prediction_result = element
     filename, im_width, im_height = key
     num_detections = prediction_result.inference[0]

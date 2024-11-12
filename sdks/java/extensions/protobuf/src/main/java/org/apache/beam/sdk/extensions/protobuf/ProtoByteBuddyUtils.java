@@ -39,7 +39,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -105,16 +104,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =
@@ -271,7 +268,7 @@ class ProtoByteBuddyUtils {
             .build();
 
     @Override
-    public Type convert(TypeDescriptor typeDescriptor) {
+    public Type convert(TypeDescriptor<?> typeDescriptor) {
       if (typeDescriptor.equals(BYTE_STRING_TYPE_DESCRIPTOR)
           || typeDescriptor.isSubtypeOf(BYTE_STRING_TYPE_DESCRIPTOR)) {
         return byte[].class;
@@ -298,7 +295,7 @@ class ProtoByteBuddyUtils {
     }
 
     @Override
-    public StackManipulation convert(TypeDescriptor type) {
+    public StackManipulation convert(TypeDescriptor<?> type) {
       if (type.equals(BYTE_STRING_TYPE_DESCRIPTOR)
           || type.isSubtypeOf(BYTE_STRING_TYPE_DESCRIPTOR)) {
         return new Compound(
@@ -373,7 +370,7 @@ class ProtoByteBuddyUtils {
     }
 
     @Override
-    public StackManipulation convert(TypeDescriptor type) {
+    public StackManipulation convert(TypeDescriptor<?> type) {
       if (type.isSubtypeOf(TypeDescriptor.of(ByteString.class))) {
         return new Compound(
             readValue,
@@ -460,7 +457,7 @@ class ProtoByteBuddyUtils {
 
   // The list of getters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  private static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
+  private static final Map<ClassWithSchema, List<FieldValueGetter<?, ?>>> CACHED_GETTERS =
       Maps.newConcurrentMap();
 
   /**
@@ -468,35 +465,36 @@ class ProtoByteBuddyUtils {
    *
    * <p>The returned list is ordered by the order of fields in the schema.
    */
-  public static List<FieldValueGetter> getGetters(
-      Class<?> clazz,
+  public static <T> List<FieldValueGetter<@NonNull T, Object>> getGetters(
+      Class<? super T> clazz,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     Multimap<String, Method> methods = ReflectUtils.getMethodsMap(clazz);
-    return CACHED_GETTERS.computeIfAbsent(
-        ClassWithSchema.create(clazz, schema),
-        c -> {
-          List<FieldValueTypeInformation> types =
-              fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
-          return types.stream()
-              .map(
-                  t ->
-                      createGetter(
-                          t,
-                          typeConversionsFactory,
-                          clazz,
-                          methods,
-                          schema.getField(t.getName()),
-                          fieldValueTypeSupplier))
-              .collect(Collectors.toList());
-        });
+    return (List)
+        CACHED_GETTERS.computeIfAbsent(
+            ClassWithSchema.create(clazz, schema),
+            c -> {
+              List<FieldValueTypeInformation> types =
+                  fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
+              return types.stream()
+                  .map(
+                      t ->
+                          createGetter(
+                              t,
+                              typeConversionsFactory,
+                              clazz,
+                              methods,
+                              schema.getField(t.getName()),
+                              fieldValueTypeSupplier))
+                  .collect(Collectors.toList());
+            });
   }
 
-  static <ProtoT> FieldValueGetter<ProtoT, OneOfType.Value> createOneOfGetter(
+  static <ProtoT> FieldValueGetter<@NonNull ProtoT, OneOfType.Value> createOneOfGetter(
       FieldValueTypeInformation typeInformation,
-      TreeMap<Integer, FieldValueGetter<ProtoT, OneOfType.Value>> getterMethodMap,
-      Class protoClass,
+      TreeMap<Integer, FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> getterMethodMap,
+      Class<ProtoT> protoClass,
       OneOfType oneOfType,
       Method getCaseMethod) {
     Set<Integer> indices = getterMethodMap.keySet();
@@ -506,7 +504,7 @@ class ProtoByteBuddyUtils {
 
     int[] keys = getterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
-    DynamicType.Builder<FieldValueGetter> builder =
+    DynamicType.Builder<FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> builder =
         ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, protoClass, OneOfType.Value.class);
     builder =
         builder
@@ -515,7 +513,8 @@ class ProtoByteBuddyUtils {
             .method(ElementMatchers.named("get"))
             .intercept(new OneOfGetterInstruction(contiguous, keys, getCaseMethod));
 
-    List<FieldValueGetter> getters = Lists.newArrayList(getterMethodMap.values());
+    List<FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> getters =
+        Lists.newArrayList(getterMethodMap.values());
     builder =
         builder
             // Store a field with the list of individual getters. The get() instruction will pick
@@ -557,12 +556,12 @@ class ProtoByteBuddyUtils {
       FieldValueSetter<ProtoBuilderT, Object> createOneOfSetter(
           String name,
           TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> setterMethodMap,
-          Class protoBuilderClass) {
+          Class<ProtoBuilderT> protoBuilderClass) {
     Set<Integer> indices = setterMethodMap.keySet();
     boolean contiguous = isContiguous(indices);
     int[] keys = setterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
-    DynamicType.Builder<FieldValueSetter> builder =
+    DynamicType.Builder<FieldValueSetter<ProtoBuilderT, Object>> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY, protoBuilderClass, OneOfType.Value.class);
     builder =
@@ -586,7 +585,8 @@ class ProtoByteBuddyUtils {
             .withParameters(List.class)
             .intercept(new OneOfSetterConstructor());
 
-    List<FieldValueSetter> setters = Lists.newArrayList(setterMethodMap.values());
+    List<FieldValueSetter<ProtoBuilderT, Object>> setters =
+        Lists.newArrayList(setterMethodMap.values());
     try {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
@@ -948,10 +948,10 @@ class ProtoByteBuddyUtils {
     }
   }
 
-  private static <ProtoT> FieldValueGetter createGetter(
+  private static <ProtoT> FieldValueGetter<@NonNull ProtoT, ?> createGetter(
       FieldValueTypeInformation fieldValueTypeInformation,
       TypeConversionsFactory typeConversionsFactory,
-      Class clazz,
+      Class<ProtoT> clazz,
       Multimap<String, Method> methods,
       Field field,
       FieldValueTypeSupplier fieldValueTypeSupplier) {
@@ -965,21 +965,23 @@ class ProtoByteBuddyUtils {
               field.getName() + "_case",
               FieldType.logicalType(oneOfType.getCaseEnumType()));
       // Create a map of case enum value to getter. This must be sorted, so store in a TreeMap.
-      TreeMap<Integer, FieldValueGetter<ProtoT, OneOfType.Value>> oneOfGetters = Maps.newTreeMap();
+      TreeMap<Integer, FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> oneOfGetters =
+          Maps.newTreeMap();
       Map<String, FieldValueTypeInformation> oneOfFieldTypes =
           fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), oneOfType.getOneOfSchema()).stream()
               .collect(Collectors.toMap(FieldValueTypeInformation::getName, f -> f));
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
         int protoFieldIndex = getFieldNumber(oneOfField);
-        FieldValueGetter oneOfFieldGetter =
+        FieldValueGetter<@NonNull ProtoT, ?> oneOfFieldGetter =
             createGetter(
-                oneOfFieldTypes.get(oneOfField.getName()),
+                Verify.verifyNotNull(oneOfFieldTypes.get(oneOfField.getName())),
                 typeConversionsFactory,
                 clazz,
                 methods,
                 oneOfField,
                 fieldValueTypeSupplier);
-        oneOfGetters.put(protoFieldIndex, oneOfFieldGetter);
+        oneOfGetters.put(
+            protoFieldIndex, (FieldValueGetter<@NonNull ProtoT, OneOfType.Value>) oneOfFieldGetter);
       }
       return createOneOfGetter(
           fieldValueTypeInformation, oneOfGetters, clazz, oneOfType, caseMethod);
@@ -988,10 +990,11 @@ class ProtoByteBuddyUtils {
     }
   }
 
-  private static Class getProtoGeneratedBuilder(Class<?> clazz) {
+  private static <ProtoBuilderT> @Nullable Class<ProtoBuilderT> getProtoGeneratedBuilder(
+      Class<?> clazz) {
     String builderClassName = clazz.getName() + "$Builder";
     try {
-      return Class.forName(builderClassName);
+      return (Class<ProtoBuilderT>) Class.forName(builderClassName);
     } catch (ClassNotFoundException e) {
       return null;
     }
@@ -1019,27 +1022,33 @@ class ProtoByteBuddyUtils {
 
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
       SchemaUserTypeCreator getBuilderCreator(
-          Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoClass);
+          TypeDescriptor<?> protoTypeDescriptor,
+          Schema schema,
+          FieldValueTypeSupplier fieldValueTypeSupplier) {
+    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoTypeDescriptor.getRawType());
     if (builderClass == null) {
       return null;
     }
     Multimap<String, Method> methods = ReflectUtils.getMethodsMap(builderClass);
     List<FieldValueSetter<ProtoBuilderT, Object>> setters =
         schema.getFields().stream()
-            .map(f -> getProtoFieldValueSetter(f, methods, builderClass))
+            .map(f -> getProtoFieldValueSetter(protoTypeDescriptor, f, methods, builderClass))
             .collect(Collectors.toList());
-    return createBuilderCreator(protoClass, builderClass, setters, schema);
+    return createBuilderCreator(protoTypeDescriptor.getRawType(), builderClass, setters, schema);
   }
 
   private static <ProtoBuilderT extends MessageLite.Builder>
       FieldValueSetter<ProtoBuilderT, Object> getProtoFieldValueSetter(
-          Field field, Multimap<String, Method> methods, Class<ProtoBuilderT> builderClass) {
+          TypeDescriptor<?> typeDescriptor,
+          Field field,
+          Multimap<String, Method> methods,
+          Class<ProtoBuilderT> builderClass) {
     if (field.getType().isLogicalType(OneOfType.IDENTIFIER)) {
       OneOfType oneOfType = field.getType().getLogicalType(OneOfType.class);
       TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> oneOfSetters = Maps.newTreeMap();
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
-        FieldValueSetter setter = getProtoFieldValueSetter(oneOfField, methods, builderClass);
+        FieldValueSetter<ProtoBuilderT, Object> setter =
+            getProtoFieldValueSetter(typeDescriptor, oneOfField, methods, builderClass);
         oneOfSetters.put(getFieldNumber(oneOfField), setter);
       }
       return createOneOfSetter(field.getName(), oneOfSetters, builderClass);
@@ -1047,24 +1056,25 @@ class ProtoByteBuddyUtils {
       Method method = getProtoSetter(methods, field.getName(), field.getType());
       return JavaBeanUtils.createSetter(
           FieldValueTypeInformation.forSetter(
-              method, protoSetterPrefix(field.getType()), Collections.emptyMap()),
+              typeDescriptor, method, protoSetterPrefix(field.getType())),
           new ProtoTypeConversionsFactory());
     }
   }
 
   static <ProtoBuilderT extends MessageLite.Builder> SchemaUserTypeCreator createBuilderCreator(
       Class<?> protoClass,
-      Class<?> builderClass,
+      Class<ProtoBuilderT> builderClass,
       List<FieldValueSetter<ProtoBuilderT, Object>> setters,
       Schema schema) {
     try {
-      DynamicType.Builder<Supplier> builder =
-          BYTE_BUDDY
-              .with(new InjectPackageStrategy(builderClass))
-              .subclass(Supplier.class)
-              .method(ElementMatchers.named("get"))
-              .intercept(new BuilderSupplier(protoClass));
-      Supplier supplier =
+      DynamicType.Builder<Supplier<ProtoBuilderT>> builder =
+          (DynamicType.Builder)
+              BYTE_BUDDY
+                  .with(new InjectPackageStrategy(builderClass))
+                  .subclass(Supplier.class)
+                  .method(ElementMatchers.named("get"))
+                  .intercept(new BuilderSupplier(protoClass));
+      Supplier<ProtoBuilderT> supplier =
           builder
               .visit(
                   new AsmVisitorWrapper.ForDeclaredMethods()

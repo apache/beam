@@ -17,20 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
@@ -42,15 +38,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.RowMutationInformation;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -65,12 +57,11 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Write API jobs
- * configured via {@link BigQueryStorageWriteApiSchemaTransformConfiguration}.
+ * configured via {@link BigQueryWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -81,7 +72,7 @@ import org.joda.time.Duration;
 })
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
-    extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
   private static final Integer DEFAULT_TRIGGER_FREQUENCY_SECS = 5;
   private static final Duration DEFAULT_TRIGGERING_FREQUENCY =
       Duration.standardSeconds(DEFAULT_TRIGGER_FREQUENCY_SECS);
@@ -89,7 +80,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   private static final String FAILED_ROWS_TAG = "FailedRows";
   private static final String FAILED_ROWS_WITH_ERRORS_TAG = "FailedRowsWithErrors";
   // magic string that tells us to write to dynamic destinations
-  protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
   protected static final String ROW_PROPERTY_MUTATION_INFO = "row_mutation_info";
   protected static final String ROW_PROPERTY_MUTATION_TYPE = "mutation_type";
   protected static final String ROW_PROPERTY_MUTATION_SQN = "change_sequence_number";
@@ -100,14 +90,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
           .build();
 
   @Override
-  protected SchemaTransform from(
-      BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
     return new BigQueryStorageWriteApiSchemaTransform(configuration);
   }
 
   @Override
   public String identifier() {
-    return String.format("beam:schematransform:org.apache.beam:bigquery_storage_write:v2");
+    return "beam:schematransform:org.apache.beam:bigquery_storage_write:v2";
   }
 
   @Override
@@ -130,201 +119,17 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG, "errors");
   }
 
-  /** Configuration for writing to BigQuery with Storage Write API. */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class BigQueryStorageWriteApiSchemaTransformConfiguration {
-
-    static final Map<String, CreateDisposition> CREATE_DISPOSITIONS =
-        ImmutableMap.<String, CreateDisposition>builder()
-            .put(CreateDisposition.CREATE_IF_NEEDED.name(), CreateDisposition.CREATE_IF_NEEDED)
-            .put(CreateDisposition.CREATE_NEVER.name(), CreateDisposition.CREATE_NEVER)
-            .build();
-
-    static final Map<String, WriteDisposition> WRITE_DISPOSITIONS =
-        ImmutableMap.<String, WriteDisposition>builder()
-            .put(WriteDisposition.WRITE_TRUNCATE.name(), WriteDisposition.WRITE_TRUNCATE)
-            .put(WriteDisposition.WRITE_EMPTY.name(), WriteDisposition.WRITE_EMPTY)
-            .put(WriteDisposition.WRITE_APPEND.name(), WriteDisposition.WRITE_APPEND)
-            .build();
-
-    @AutoValue
-    public abstract static class ErrorHandling {
-      @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
-      public abstract String getOutput();
-
-      public static Builder builder() {
-        return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration_ErrorHandling
-            .Builder();
-      }
-
-      @AutoValue.Builder
-      public abstract static class Builder {
-        public abstract Builder setOutput(String output);
-
-        public abstract ErrorHandling build();
-      }
-    }
-
-    public void validate() {
-      String invalidConfigMessage = "Invalid BigQuery Storage Write configuration: ";
-
-      // validate output table spec
-      checkArgument(
-          !Strings.isNullOrEmpty(this.getTable()),
-          invalidConfigMessage + "Table spec for a BigQuery Write must be specified.");
-
-      // if we have an input table spec, validate it
-      if (!this.getTable().equals(DYNAMIC_DESTINATIONS)) {
-        checkNotNull(BigQueryHelpers.parseTableSpec(this.getTable()));
-      }
-
-      // validate create and write dispositions
-      if (!Strings.isNullOrEmpty(this.getCreateDisposition())) {
-        checkNotNull(
-            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()),
-            invalidConfigMessage
-                + "Invalid create disposition (%s) was specified. Available dispositions are: %s",
-            this.getCreateDisposition(),
-            CREATE_DISPOSITIONS.keySet());
-      }
-      if (!Strings.isNullOrEmpty(this.getWriteDisposition())) {
-        checkNotNull(
-            WRITE_DISPOSITIONS.get(this.getWriteDisposition().toUpperCase()),
-            invalidConfigMessage
-                + "Invalid write disposition (%s) was specified. Available dispositions are: %s",
-            this.getWriteDisposition(),
-            WRITE_DISPOSITIONS.keySet());
-      }
-
-      if (this.getErrorHandling() != null) {
-        checkArgument(
-            !Strings.isNullOrEmpty(this.getErrorHandling().getOutput()),
-            invalidConfigMessage + "Output must not be empty if error handling specified.");
-      }
-
-      if (this.getAutoSharding() != null
-          && this.getAutoSharding()
-          && this.getNumStreams() != null) {
-        checkArgument(
-            this.getNumStreams() == 0,
-            invalidConfigMessage
-                + "Cannot set a fixed number of streams when auto-sharding is enabled. Please pick only one of the two options.");
-      }
-    }
-
-    /**
-     * Instantiates a {@link BigQueryStorageWriteApiSchemaTransformConfiguration.Builder} instance.
-     */
-    public static Builder builder() {
-      return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration
-          .Builder();
-    }
-
-    @SchemaFieldDescription(
-        "The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}")
-    public abstract String getTable();
-
-    @SchemaFieldDescription(
-        "Optional field that specifies whether the job is allowed to create new tables. "
-            + "The following values are supported: CREATE_IF_NEEDED (the job may create the table), CREATE_NEVER ("
-            + "the job must fail if the table does not exist already).")
-    @Nullable
-    public abstract String getCreateDisposition();
-
-    @SchemaFieldDescription(
-        "Specifies the action that occurs if the destination table already exists. "
-            + "The following values are supported: "
-            + "WRITE_TRUNCATE (overwrites the table data), "
-            + "WRITE_APPEND (append the data to the table), "
-            + "WRITE_EMPTY (job must fail if the table is not empty).")
-    @Nullable
-    public abstract String getWriteDisposition();
-
-    @SchemaFieldDescription(
-        "Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.")
-    @Nullable
-    public abstract Long getTriggeringFrequencySeconds();
-
-    @SchemaFieldDescription(
-        "This option enables lower latency for insertions to BigQuery but may ocassionally "
-            + "duplicate data elements.")
-    @Nullable
-    public abstract Boolean getUseAtLeastOnceSemantics();
-
-    @SchemaFieldDescription(
-        "This option enables using a dynamically determined number of Storage Write API streams to write to "
-            + "BigQuery. Only applicable to unbounded data.")
-    @Nullable
-    public abstract Boolean getAutoSharding();
-
-    @SchemaFieldDescription(
-        "Specifies the number of write streams that the Storage API sink will use. "
-            + "This parameter is only applicable when writing unbounded data.")
-    @Nullable
-    public abstract Integer getNumStreams();
-
-    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
-    @Nullable
-    public abstract ErrorHandling getErrorHandling();
-
-    @SchemaFieldDescription(
-        "This option enables the use of BigQuery CDC functionality. The expected PCollection"
-            + " should contain Beam Rows with a schema wrapping the record to be inserted and"
-            + " adding the CDC info similar to: {row_mutation_info: {mutation_type:\"...\", "
-            + "change_sequence_number:\"...\"}, record: {...}}")
-    @Nullable
-    public abstract Boolean getUseCdcWrites();
-
-    @SchemaFieldDescription(
-        "If CREATE_IF_NEEDED disposition is set, BigQuery table(s) will be created with this"
-            + " columns as primary key. Required when CDC writes are enabled with CREATE_IF_NEEDED.")
-    @Nullable
-    public abstract List<String> getPrimaryKey();
-
-    /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
-    @AutoValue.Builder
-    public abstract static class Builder {
-
-      public abstract Builder setTable(String table);
-
-      public abstract Builder setCreateDisposition(String createDisposition);
-
-      public abstract Builder setWriteDisposition(String writeDisposition);
-
-      public abstract Builder setTriggeringFrequencySeconds(Long seconds);
-
-      public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
-
-      public abstract Builder setAutoSharding(Boolean autoSharding);
-
-      public abstract Builder setNumStreams(Integer numStreams);
-
-      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
-
-      public abstract Builder setUseCdcWrites(Boolean cdcWrites);
-
-      public abstract Builder setPrimaryKey(List<String> pkColumns);
-
-      /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
-      public abstract BigQueryStorageWriteApiSchemaTransformProvider
-              .BigQueryStorageWriteApiSchemaTransformConfiguration
-          build();
-    }
-  }
-
   /**
    * A {@link SchemaTransform} for BigQuery Storage Write API, configured with {@link
-   * BigQueryStorageWriteApiSchemaTransformConfiguration} and instantiated by {@link
+   * BigQueryWriteConfiguration} and instantiated by {@link
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
-  protected static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
+  public static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
 
     private BigQueryServices testBigQueryServices = null;
-    private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
+    private final BigQueryWriteConfiguration configuration;
 
-    BigQueryStorageWriteApiSchemaTransform(
-        BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+    BigQueryStorageWriteApiSchemaTransform(BigQueryWriteConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }
@@ -420,8 +225,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
-      checkArgument(input.has(INPUT_ROWS_TAG), "Missing expected input tag: %s", INPUT_ROWS_TAG);
-      PCollection<Row> inputRows = input.get(INPUT_ROWS_TAG);
+      PCollection<Row> inputRows = input.getSinglePCollection();
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform(inputRows.getSchema());
 
@@ -540,18 +344,18 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
-            BigQueryStorageWriteApiSchemaTransformConfiguration.CREATE_DISPOSITIONS.get(
-                configuration.getCreateDisposition().toUpperCase());
+            CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
 
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
-            BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
-                configuration.getWriteDisposition().toUpperCase());
+            WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
         write = write.withWriteDisposition(writeDisposition);
       }
-
+      if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
+        write = write.withKmsKey(configuration.getKmsKey());
+      }
       if (this.testBigQueryServices != null) {
         write = write.withTestServices(testBigQueryServices);
       }

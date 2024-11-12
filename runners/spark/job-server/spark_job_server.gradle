@@ -301,3 +301,7 @@ createCrossLanguageValidatesRunnerTask(
     "--endpoint localhost:${jobPort}",
   ],
 )
+
+shadowJar {
+  outputs.upToDateWhen { false }
+}

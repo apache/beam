@@ -409,7 +409,7 @@ class DecoratorsTest(unittest.TestCase):
       return a
 
     with self.assertRaisesRegex(TypeCheckError,
-                                r'requires .*int.* but got .*str'):
+                                r'requires .*int.* but was applied .*str'):
       _ = ['a', 'b', 'c'] | Map(fn)
 
     # Same pipeline doesn't raise without annotations on fn.
@@ -423,7 +423,7 @@ class DecoratorsTest(unittest.TestCase):
     _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
 
     with self.assertRaisesRegex(TypeCheckError,
-                                r'requires .*int.* but got .*str'):
+                                r'requires .*int.* but was applied .*str'):
       _ = ['a', 'b', 'c'] | Map(fn)
 
     @decorators.no_annotations

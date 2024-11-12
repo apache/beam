@@ -24,10 +24,10 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
@@ -42,10 +42,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
 @Internal
 public abstract class FieldValueTypeInformation implements Serializable {
   /** Optionally returns the field index. */
@@ -129,9 +125,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forField(
-      Field field, int index, Map<Type, Type> boundTypes) {
+      @Nullable TypeDescriptor<?> typeDescriptor, Field field, int index) {
     TypeDescriptor<?> type =
-        TypeDescriptor.of(ReflectUtils.resolveType(field.getGenericType(), boundTypes));
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(field.getGenericType()))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(field.getGenericType()));
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(field.getName(), field))
         .setNumber(getNumberOverride(index, field))
@@ -139,9 +138,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setField(field)
-        .setElementType(getIterableComponentType(field, boundTypes))
-        .setMapKeyType(getMapKeyType(field, boundTypes))
-        .setMapValueType(getMapValueType(field, boundTypes))
+        .setElementType(getIterableComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .setDescription(getFieldDescription(field))
         .build();
@@ -189,8 +188,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return fieldDescription.value();
   }
 
+  public static FieldValueTypeInformation forGetter(Method method, int index) {
+    return forGetter(null, method, index);
+  }
+
   public static FieldValueTypeInformation forGetter(
-      Method method, int index, Map<Type, Type> boundTypes) {
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method, int index) {
     String name;
     if (method.getName().startsWith("get")) {
       name = ReflectUtils.stripPrefix(method.getName(), "get");
@@ -201,7 +204,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
 
     TypeDescriptor<?> type =
-        TypeDescriptor.of(ReflectUtils.resolveType(method.getGenericReturnType(), boundTypes));
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(method.getGenericReturnType()))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(method.getGenericReturnType()));
+
     boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(name, method))
@@ -210,9 +217,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setMethod(method)
-        .setElementType(getIterableComponentType(type, boundTypes))
-        .setMapKeyType(getMapKeyType(type, boundTypes))
-        .setMapValueType(getMapValueType(type, boundTypes))
+        .setElementType(getIterableComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .setDescription(getFieldDescription(method))
         .build();
@@ -259,13 +266,21 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return annotation.annotationType().getSimpleName().equals("Nullable");
   }
 
-  public static FieldValueTypeInformation forSetter(
-      Method method, Map<Type, Type> boundParameters) {
-    return forSetter(method, "set", boundParameters);
+  public static FieldValueTypeInformation forSetter(Method method) {
+    return forSetter(null, method);
+  }
+
+  public static FieldValueTypeInformation forSetter(Method method, String setterPrefix) {
+    return forSetter(null, method, setterPrefix);
   }
 
   public static FieldValueTypeInformation forSetter(
-      Method method, String setterPrefix, Map<Type, Type> boundTypes) {
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method) {
+    return forSetter(typeDescriptor, method, "set");
+  }
+
+  public static FieldValueTypeInformation forSetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method, String setterPrefix) {
     String name;
     if (method.getName().startsWith(setterPrefix)) {
       name = ReflectUtils.stripPrefix(method.getName(), setterPrefix);
@@ -274,8 +289,10 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
 
     TypeDescriptor<?> type =
-        TypeDescriptor.of(
-            ReflectUtils.resolveType(method.getGenericParameterTypes()[0], boundTypes));
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(method.getGenericParameterTypes()[0]))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(method.getGenericParameterTypes()[0]));
     boolean nullable = hasSingleNullableParameter(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
@@ -283,9 +300,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setMethod(method)
-        .setElementType(getIterableComponentType(type, boundTypes))
-        .setMapKeyType(getMapKeyType(type, boundTypes))
-        .setMapValueType(getMapValueType(type, boundTypes))
+        .setElementType(getIterableComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .build();
   }
@@ -294,15 +311,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return toBuilder().setName(name).build();
   }
 
-  private static FieldValueTypeInformation getIterableComponentType(
-      Field field, Map<Type, Type> boundTypes) {
-    return getIterableComponentType(TypeDescriptor.of(field.getGenericType()), boundTypes);
-  }
-
-  static @Nullable FieldValueTypeInformation getIterableComponentType(
-      TypeDescriptor<?> valueType, Map<Type, Type> boundTypes) {
+  static @Nullable FieldValueTypeInformation getIterableComponentType(TypeDescriptor<?> valueType) {
     // TODO: Figure out nullable elements.
-    TypeDescriptor<?> componentType = ReflectUtils.getIterableComponentType(valueType, boundTypes);
+    TypeDescriptor<?> componentType = ReflectUtils.getIterableComponentType(valueType);
     if (componentType == null) {
       return null;
     }
@@ -312,43 +323,30 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setNullable(false)
         .setType(componentType)
         .setRawType(componentType.getRawType())
-        .setElementType(getIterableComponentType(componentType, boundTypes))
-        .setMapKeyType(getMapKeyType(componentType, boundTypes))
-        .setMapValueType(getMapValueType(componentType, boundTypes))
+        .setElementType(getIterableComponentType(componentType))
+        .setMapKeyType(getMapKeyType(componentType))
+        .setMapValueType(getMapValueType(componentType))
         .setOneOfTypes(Collections.emptyMap())
         .build();
   }
 
-  // If the Field is a map type, returns the key type, otherwise returns a null reference.
-
+  // If the type is a map type, returns the key type, otherwise returns a null reference.
   private static @Nullable FieldValueTypeInformation getMapKeyType(
-      Field field, Map<Type, Type> boundTypes) {
-    return getMapKeyType(TypeDescriptor.of(field.getGenericType()), boundTypes);
+      TypeDescriptor<?> typeDescriptor) {
+    return getMapType(typeDescriptor, 0);
   }
 
-  private static @Nullable FieldValueTypeInformation getMapKeyType(
-      TypeDescriptor<?> typeDescriptor, Map<Type, Type> boundTypes) {
-    return getMapType(typeDescriptor, 0, boundTypes);
-  }
-
-  // If the Field is a map type, returns the value type, otherwise returns a null reference.
-
+  // If the type is a map type, returns the value type, otherwise returns a null reference.
   private static @Nullable FieldValueTypeInformation getMapValueType(
-      Field field, Map<Type, Type> boundTypes) {
-    return getMapType(TypeDescriptor.of(field.getGenericType()), 1, boundTypes);
-  }
-
-  private static @Nullable FieldValueTypeInformation getMapValueType(
-      TypeDescriptor<?> typeDescriptor, Map<Type, Type> boundTypes) {
-    return getMapType(typeDescriptor, 1, boundTypes);
+      TypeDescriptor<?> typeDescriptor) {
+    return getMapType(typeDescriptor, 1);
   }
 
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
-  @SuppressWarnings("unchecked")
   private static @Nullable FieldValueTypeInformation getMapType(
-      TypeDescriptor<?> valueType, int index, Map<Type, Type> boundTypes) {
-    TypeDescriptor mapType = ReflectUtils.getMapType(valueType, index, boundTypes);
+      TypeDescriptor<?> valueType, int index) {
+    TypeDescriptor<?> mapType = ReflectUtils.getMapType(valueType, index);
     if (mapType == null) {
       return null;
     }
@@ -357,9 +355,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setNullable(false)
         .setType(mapType)
         .setRawType(mapType.getRawType())
-        .setElementType(getIterableComponentType(mapType, boundTypes))
-        .setMapKeyType(getMapKeyType(mapType, boundTypes))
-        .setMapValueType(getMapValueType(mapType, boundTypes))
+        .setElementType(getIterableComponentType(mapType))
+        .setMapKeyType(getMapKeyType(mapType))
+        .setMapValueType(getMapValueType(mapType))
         .setOneOfTypes(Collections.emptyMap())
         .build();
   }

@@ -28,9 +28,8 @@ https://github.com/SeldonIO/seldon-models/blob/master/pytorch/moviesentiment_rob
 
 import argparse
 import logging
-from typing import Iterable
-from typing import Iterator
-from typing import Tuple
+from collections.abc import Iterable
+from collections.abc import Iterator
 
 import numpy as np
 
@@ -47,7 +46,7 @@ from transformers import RobertaTokenizer
 
 
 def tokenize_sentence(text: str,
-                      tokenizer: RobertaTokenizer) -> Tuple[str, torch.Tensor]:
+                      tokenizer: RobertaTokenizer) -> tuple[str, torch.Tensor]:
   tokenized_sentence = tokenizer.encode(text, add_special_tokens=True)
 
   # Workaround to manually remove batch dim until we have the feature to
@@ -63,7 +62,7 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 
 
 class PostProcessor(beam.DoFn):
-  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+  def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     filename, prediction_result = element
     prediction = np.argmax(prediction_result.inference, axis=0)
     yield filename + ';' + str(prediction)

@@ -74,7 +74,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
 
     // Commit files to tables
     PCollection<KV<String, SnapshotInfo>> snapshots =
-        writtenFiles.apply(new AppendFilesToTables(catalogConfig));
+        writtenFiles.apply(new AppendFilesToTables(catalogConfig, filePrefix));
 
     return new IcebergWriteResult(input.getPipeline(), snapshots);
   }

@@ -27,6 +27,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,7 +54,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -63,23 +63,25 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
-@Internal
+@SuppressWarnings({"rawtypes"})
 public class AutoValueUtils {
-  public static TypeDescriptor<?> getBaseAutoValueClass(TypeDescriptor<?> typeDescriptor) {
+  public static @Nullable TypeDescriptor<?> getBaseAutoValueClass(
+      TypeDescriptor<?> typeDescriptor) {
     // AutoValue extensions may be nested
-    while (typeDescriptor != null && typeDescriptor.getRawType().getName().contains("AutoValue_")) {
-      typeDescriptor = TypeDescriptor.of(typeDescriptor.getRawType().getSuperclass());
+    @Nullable TypeDescriptor<?> baseTypeDescriptor = typeDescriptor;
+    while (baseTypeDescriptor != null
+        && baseTypeDescriptor.getRawType().getName().contains("AutoValue_")) {
+      baseTypeDescriptor =
+          Optional.ofNullable(baseTypeDescriptor.getRawType().getSuperclass())
+              .map(TypeDescriptor::of)
+              .orElse(null);
     }
-    return typeDescriptor;
+    return baseTypeDescriptor;
   }
 
   private static TypeDescriptor<?> getAutoValueGenerated(TypeDescriptor<?> typeDescriptor) {
@@ -157,14 +159,18 @@ public class AutoValueUtils {
         getterTypes.stream()
             .collect(
                 Collectors.toMap(
-                    f -> ReflectUtils.stripGetterPrefix(f.getMethod().getName()),
+                    f ->
+                        ReflectUtils.stripGetterPrefix(
+                            Preconditions.checkNotNull(
+                                    f.getMethod(), JavaBeanUtils.GETTER_WITH_NULL_METHOD_ERROR)
+                                .getName()),
                     Function.identity()));
 
     boolean valid = true;
     // Verify that constructor parameters match (name and type) the inferred schema.
     for (Parameter parameter : constructor.getParameters()) {
       FieldValueTypeInformation type = typeMap.get(parameter.getName());
-      if (type == null || !type.getRawType().equals(parameter.getType())) {
+      if (type == null || type.getRawType() != parameter.getType()) {
         valid = false;
         break;
       }
@@ -181,7 +187,7 @@ public class AutoValueUtils {
       }
       name = name.substring(0, name.length() - 1);
       FieldValueTypeInformation type = typeMap.get(name);
-      if (type == null || !type.getRawType().equals(parameter.getType())) {
+      if (type == null || type.getRawType() != parameter.getType()) {
         return false;
       }
     }
@@ -199,11 +205,11 @@ public class AutoValueUtils {
       return null;
     }
 
-    Map<Type, Type> boundTypes = ReflectUtils.getAllBoundTypes(TypeDescriptor.of(builderClass));
-    Map<String, FieldValueTypeInformation> setterTypes = Maps.newHashMap();
+    Map<String, FieldValueTypeInformation> setterTypes = new HashMap<>();
+
     ReflectUtils.getMethods(builderClass).stream()
         .filter(ReflectUtils::isSetter)
-        .map(m -> FieldValueTypeInformation.forSetter(m, boundTypes))
+        .map(m -> FieldValueTypeInformation.forSetter(TypeDescriptor.of(builderClass), m))
         .forEach(fv -> setterTypes.putIfAbsent(fv.getName(), fv));
 
     List<FieldValueTypeInformation> setterMethods =
@@ -211,7 +217,11 @@ public class AutoValueUtils {
     List<FieldValueTypeInformation> schemaTypes =
         fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
     for (FieldValueTypeInformation type : schemaTypes) {
-      String autoValueFieldName = ReflectUtils.stripGetterPrefix(type.getMethod().getName());
+      String autoValueFieldName =
+          ReflectUtils.stripGetterPrefix(
+              Preconditions.checkNotNull(
+                      type.getMethod(), JavaBeanUtils.GETTER_WITH_NULL_METHOD_ERROR)
+                  .getName());
 
       FieldValueTypeInformation setterType = setterTypes.get(autoValueFieldName);
       if (setterType == null) {
@@ -325,7 +335,7 @@ public class AutoValueUtils {
                   Duplication.SINGLE,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getParameterizedType())),
+                      .convert(TypeDescriptor.of(parameter.getType())),
                   MethodInvocation.invoke(new ForLoadedMethod(setterMethod)),
                   Removal.SINGLE);
         }

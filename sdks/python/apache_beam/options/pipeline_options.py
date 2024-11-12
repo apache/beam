@@ -1674,12 +1674,16 @@ class JobServerOptions(PipelineOptions):
         action='append',
         default=[],
         help='JVM properties to pass to a Java job server.')
+    parser.add_argument(
+        '--jar_cache_dir',
+        default=None,
+        help='The location to store jar cache for job server.')
 
 
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.15', '1.16', '1.17', '1.18']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19']
 
   @classmethod
   def _add_argparse_args(cls, parser):

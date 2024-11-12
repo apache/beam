@@ -24,10 +24,9 @@ import argparse
 import io
 import logging
 import os
-from typing import Iterable
-from typing import Iterator
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Optional
-from typing import Tuple
 
 import apache_beam as beam
 import torch
@@ -143,7 +142,7 @@ CLASS_ID_TO_NAME = dict(enumerate(COCO_INSTANCE_CLASSES))
 
 
 def read_image(image_file_name: str,
-               path_to_dir: Optional[str] = None) -> Tuple[str, Image.Image]:
+               path_to_dir: Optional[str] = None) -> tuple[str, Image.Image]:
   if path_to_dir is not None:
     image_file_name = os.path.join(path_to_dir, image_file_name)
   with FileSystems().open(image_file_name, 'r') as file:
@@ -168,15 +167,15 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 class KeyExamplesForEachModelType(beam.DoFn):
   """Duplicate data to run against each model type"""
   def process(
-      self, element: Tuple[torch.Tensor,
-                           str]) -> Iterable[Tuple[str, torch.Tensor]]:
+      self, element: tuple[torch.Tensor,
+                           str]) -> Iterable[tuple[str, torch.Tensor]]:
     yield 'v1', element[0]
     yield 'v2', element[0]
 
 
 class PostProcessor(beam.DoFn):
   def process(
-      self, element: Tuple[str, PredictionResult]) -> Tuple[torch.Tensor, str]:
+      self, element: tuple[str, PredictionResult]) -> tuple[torch.Tensor, str]:
     model, prediction_result = element
     prediction_labels = prediction_result.inference['labels']
     classes = [CLASS_ID_TO_NAME[label.item()] for label in prediction_labels]

@@ -1143,6 +1143,60 @@ def model_multiple_pcollections_flatten(contents, output_path):
     merged | beam.io.WriteToText(output_path)
 
 
+def model_multiple_pcollections_flatten_with(contents, output_path):
+  """Merging a PCollection with FlattenWith."""
+  some_hash_fn = lambda s: ord(s[0])
+  partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
+  import apache_beam as beam
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
+
+    # Partition into deciles
+    partitioned = pipeline | beam.Create(contents) | beam.Partition(
+        partition_fn, 3)
+    pcoll1 = partitioned[0]
+    pcoll2 = partitioned[1]
+    pcoll3 = partitioned[2]
+    SomeTransform = lambda: beam.Map(lambda x: x)
+    SomeOtherTransform = lambda: beam.Map(lambda x: x)
+
+    # Flatten them back into 1
+
+    # A collection of PCollection objects can be represented simply
+    # as a tuple (or list) of PCollections.
+    # (The SDK for Python has no separate type to store multiple
+    # PCollection objects, whether containing the same or different
+    # types.)
+    # [START model_multiple_pcollections_flatten_with]
+    merged = (
+        pcoll1
+        | SomeTransform()
+        | beam.FlattenWith(pcoll2, pcoll3)
+        | SomeOtherTransform())
+    # [END model_multiple_pcollections_flatten_with]
+    merged | beam.io.WriteToText(output_path)
+
+
+def model_multiple_pcollections_flatten_with_transform(contents, output_path):
+  """Merging output of PTransform with FlattenWith."""
+  some_hash_fn = lambda s: ord(s[0])
+  partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
+  import apache_beam as beam
+  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
+
+    pcoll = pipeline | beam.Create(contents)
+    SomeTransform = lambda: beam.Map(lambda x: x)
+    SomeOtherTransform = lambda: beam.Map(lambda x: x)
+
+    # [START model_multiple_pcollections_flatten_with_transform]
+    merged = (
+        pcoll
+        | SomeTransform()
+        | beam.FlattenWith(beam.Create(['x', 'y', 'z']))
+        | SomeOtherTransform())
+    # [END model_multiple_pcollections_flatten_with_transform]
+    merged | beam.io.WriteToText(output_path)
+
+
 def model_multiple_pcollections_partition(contents, output_path):
   """Splitting a PCollection with Partition."""
   some_hash_fn = lambda s: ord(s[0])
