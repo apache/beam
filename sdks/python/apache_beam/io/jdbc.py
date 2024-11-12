@@ -237,7 +237,7 @@ class WriteToJdbc(ExternalTransform):
                             write_statement=statement,
                             read_query=None,
                             fetch_size=None,
-                            disable_autcommit=None,
+                            disable_autocommit=None,
                             output_parallelization=None,
                             autosharding=autosharding,
                             max_connections=max_connections,
