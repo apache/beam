@@ -463,7 +463,8 @@ abstract class ReadFromKafkaDoFn<K, V>
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
           if (!topicPartitionExists(
-              kafkaSourceDescriptor.getTopicPartition(), consumer.partitionsFor(kafkaSourceDescriptor.getTopic()))) {
+              kafkaSourceDescriptor.getTopicPartition(),
+              consumer.partitionsFor(kafkaSourceDescriptor.getTopic()))) {
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
