@@ -401,7 +401,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return metricToMonitoringMetadata(
         metricKey,
         MonitoringInfoConstants.TypeUrns.PER_WORKER_HISTOGRAM_TYPE,
-        MonitoringInfoConstants.Urns.PER_WORKER_LATENCY_METRIC);
+        MonitoringInfoConstants.Urns.USER_PER_WORKER_HISTOGRAM);
   }
 
   /**
@@ -656,7 +656,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           break;
 
         case PER_WORKER_HISTOGRAM_TYPE:
-          updateForPerWorkerHistogramInt64(monitoringInfo); // use type, and not urn info
+          updateForPerWorkerHistogramInt64(monitoringInfo);
           break;
         default:
           LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
@@ -830,6 +830,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       deltaValueCell.incTopBucketCount(
           currValue.getTopBucketCount() - prevValue.getTopBucketCount());
     }
+    // Do the same for perWorkerHistograms
     for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
         curr.perWorkerHistograms.entries()) {
       HistogramData.BucketType bt = cell.getKey().getValue();

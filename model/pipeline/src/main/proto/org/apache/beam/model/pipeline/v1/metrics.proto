@@ -378,25 +378,6 @@ message MonitoringInfoSpecs {
         value: "URN utilized to report user metric."
       }]
     }];
-
-    // Represents per worker metrics 
-    PER_WORKER_LATENCY_METRIC= 23 [(monitoring_info_spec) = {
-      urn: "beam:metrics:per_worker_metric:v1",
-      type: "beam:metrics:per_worker_histogram_int64:v1",
-      required_labels: [
-        "PTRANSFORM"
-      ],
-      annotations: [
-        {
-          key: "description",
-          value: "Histogram counts for request latencies made to IO service APIs to batch read or write elements."
-        },
-        {
-          key: "units",
-          value: "Milliseconds"
-        }
-      ]
-    }];
   }
 }
 
