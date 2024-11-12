@@ -340,11 +340,16 @@ abstract class ReadFromKafkaDoFn<K, V>
   public double getSize(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor, @Restriction OffsetRange offsetRange)
       throws Exception {
+    // If present, estimates the record size to offset gap ratio. Compacted topics may hold less
+    // records than the estimated offset range due to record deletion within a partition.
     final LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize =
         Preconditions.checkStateNotNull(this.avgRecordSize);
+    // The tracker estimates the offset range by subtracting the last claimed position from the
+    // currently observed end offset for the partition belonging to this split.
     double estimatedOffsetRange =
         restrictionTracker(kafkaSourceDescriptor, offsetRange).getProgress().getWorkRemaining();
     // Before processing elements, we don't have a good estimated size of records and offset gap.
+    // Return the estimated offset range without scaling by a size to gap ratio.
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
       return estimatedOffsetRange;
     }
@@ -355,6 +360,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       }
     }
 
+    // When processing elements, a moving average estimates the size of records and offset gap.
+    // Return the estimated offset range scaled by the estimated size to gap ratio.
     return estimatedOffsetRange
         * avgRecordSize
             .get(kafkaSourceDescriptor.getTopicPartition())
