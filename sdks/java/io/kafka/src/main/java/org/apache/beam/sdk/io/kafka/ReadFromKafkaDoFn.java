@@ -21,11 +21,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -560,14 +558,8 @@ abstract class ReadFromKafkaDoFn<K, V>
   private boolean topicPartitionExists(
       TopicPartition topicPartition, List<PartitionInfo> partitionInfos) {
     // Check if the current TopicPartition still exists.
-    Set<TopicPartition> existingTopicPartitions = new HashSet<>();
-    partitionInfos.forEach(
-        partitionInfo -> {
-          existingTopicPartitions.add(
-              new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
-        });
-
-    return existingTopicPartitions.contains(topicPartition);
+    return partitionInfos.stream()
+        .anyMatch(partitionInfo -> partitionInfo.partition() == (topicPartition.partition()));
   }
 
   // see https://github.com/apache/beam/issues/25962
