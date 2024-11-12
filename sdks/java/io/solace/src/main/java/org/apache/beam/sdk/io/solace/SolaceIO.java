@@ -969,7 +969,7 @@ public class SolaceIO {
      * <p>The Solace writer can either use the JCSMP modes in streaming or batched.
      *
      * <p>In streaming mode, the publishing latency will be lower, but the throughput will also be
-     * lower. todo validate the constant sec
+     * lower.
      *
      * <p>With the batched mode, messages are accumulated until a batch size of 50 is reached, or
      * {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS} seconds have elapsed since
@@ -999,7 +999,15 @@ public class SolaceIO {
       return toBuilder().setSessionServiceFactory(factory).build();
     }
 
-    /** todo docs */
+    /**
+     * An optional error handler for handling records that failed to publish to Solace.
+     *
+     * <p>If provided, this error handler will be invoked for each record that could not be
+     * successfully published. The error handler can implement custom logic for dealing with failed
+     * records, such as writing them to a dead-letter queue or logging them.
+     *
+     * <p>If no error handler is provided, failed records will be ignored.
+     */
     public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder().setErrorHandler(errorHandler).build();
     }
