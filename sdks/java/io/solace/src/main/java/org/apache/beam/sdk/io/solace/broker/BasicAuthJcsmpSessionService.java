@@ -124,7 +124,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getInitializeProducer(SubmissionMode submissionMode) {
+  public MessageProducer getInitializedProducer(SubmissionMode submissionMode) {
     if (this.messageProducer == null || this.messageProducer.isClosed()) {
       Callable<MessageProducer> create = () -> createXMLMessageProducer(submissionMode);
       this.messageProducer =

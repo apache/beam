@@ -139,7 +139,7 @@ public abstract class SessionService implements Serializable {
    * this method is used, the producer is created from the session instance, otherwise it returns
    * the producer created initially.
    */
-  public abstract MessageProducer getInitializeProducer(SubmissionMode mode);
+  public abstract MessageProducer getInitializedProducer(SubmissionMode mode);
 
   /**
    * Returns the {@link Queue<PublishResult>} instance associated with this session, with the

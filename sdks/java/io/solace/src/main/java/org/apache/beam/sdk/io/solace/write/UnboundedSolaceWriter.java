@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.solace.write;
 
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
@@ -29,6 +28,7 @@ import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -185,9 +185,7 @@ public abstract class UnboundedSolaceWriter
                   result,
                   null,
                   null,
-                  result.getError() != null
-                      ? checkNotNull(result.getError())
-                      : "SolaceIO.Write: unknown error.");
+                  Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown error."));
           context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
         } catch (IOException e) {
           // ignore, the exception is thrown when the exception argument in the

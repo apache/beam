@@ -91,7 +91,7 @@ public abstract class MockSessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getInitializeProducer(SubmissionMode mode) {
+  public MessageProducer getInitializedProducer(SubmissionMode mode) {
     if (messageProducer == null) {
       messageProducer = mockProducerFn().apply(new PublishResultHandler(publishedResultsReceiver));
     }

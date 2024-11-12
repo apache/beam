@@ -64,7 +64,7 @@ final class SolaceWriteSessionsHandler {
     checkStateNotNull(
         mode,
         "SolaceIO.Write: Submission mode is not set. You need to set it to create write sessions.");
-    sessionService.getInitializeProducer(mode);
+    sessionService.getInitializedProducer(mode);
     return sessionService;
   }
 

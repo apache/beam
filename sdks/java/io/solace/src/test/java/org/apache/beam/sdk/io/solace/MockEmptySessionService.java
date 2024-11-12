@@ -51,7 +51,7 @@ public abstract class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getInitializeProducer(SubmissionMode mode) {
+  public MessageProducer getInitializedProducer(SubmissionMode mode) {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 
