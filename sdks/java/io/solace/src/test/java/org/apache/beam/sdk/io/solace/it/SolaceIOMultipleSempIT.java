@@ -107,6 +107,7 @@ public class SolaceIOMultipleSempIT {
             SolaceIO.read()
                 .from(Queue.fromName(QUEUE_NAME))
                 .withMaxNumConnections(1)
+                .withDeduplicateRecords(true)
                 .withSempClientFactory(
                     BasicAuthMultipleSempClientFactory.builder()
                         .backlogHosts(
@@ -172,7 +173,7 @@ public class SolaceIOMultipleSempIT {
                 .withWriterType(writerType)
                 .withDeliveryMode(DeliveryMode.PERSISTENT)
                 .withNumberOfClientsPerWorker(1)
-                .withMaxNumOfUsedWorkers(1)
+                .withNumShards(1)
                 .withSessionServiceFactory(
                     BasicAuthJcsmpSessionServiceFactory.builder()
                         .host("localhost:" + solaceContainerJcsmpPort)
