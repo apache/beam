@@ -561,7 +561,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
           "--firestoreDb=${firestoreDb}",
   ])
 
-  include '**/*IT.class'
+  include '**/BigQueryManagedIT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
