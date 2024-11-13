@@ -26,6 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -116,6 +117,13 @@ public class BigQueryManagedIT {
     String table =
         String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Map<String, Object> config = ImmutableMap.of("table", table);
+
+    if (writePipeline.getOptions().getRunner().getName().contains("DataflowRunner")) {
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          writePipeline.getOptions().as(ExperimentalOptions.class),
+          GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    }
 
     // streaming write
     PCollectionRowTuple.of("input", getInput(writePipeline, true))
