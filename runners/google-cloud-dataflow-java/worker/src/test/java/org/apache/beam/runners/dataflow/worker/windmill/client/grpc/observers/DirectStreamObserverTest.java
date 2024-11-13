@@ -19,9 +19,11 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -39,6 +41,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.VerifyException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -47,9 +51,122 @@ import org.junit.runners.JUnit4;
 public class DirectStreamObserverTest {
 
   @Test
+  public void testOnNext_onCompleted() throws ExecutionException, InterruptedException {
+    TestStreamObserver delegate = spy(new TestStreamObserver(Integer.MAX_VALUE));
+    DirectStreamObserver<Integer> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1), delegate, Long.MAX_VALUE, Integer.MAX_VALUE);
+    ExecutorService onNextExecutor = Executors.newSingleThreadExecutor();
+    Future<?> onNextFuture =
+        onNextExecutor.submit(
+            () -> {
+              streamObserver.onNext(1);
+              streamObserver.onNext(1);
+              streamObserver.onNext(1);
+            });
+
+    // Wait for all of the onNext's to run.
+    onNextFuture.get();
+
+    verify(delegate, times(3)).onNext(eq(1));
+
+    streamObserver.onCompleted();
+    verify(delegate, times(1)).onCompleted();
+  }
+
+  @Test
+  public void testOnNext_onError() throws ExecutionException, InterruptedException {
+    TestStreamObserver delegate = spy(new TestStreamObserver(Integer.MAX_VALUE));
+    DirectStreamObserver<Integer> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1), delegate, Long.MAX_VALUE, Integer.MAX_VALUE);
+    ExecutorService onNextExecutor = Executors.newSingleThreadExecutor();
+    Future<?> onNextFuture =
+        onNextExecutor.submit(
+            () -> {
+              streamObserver.onNext(1);
+              streamObserver.onNext(1);
+              streamObserver.onNext(1);
+            });
+
+    // Wait for all of the onNext's to run.
+    onNextFuture.get();
+
+    verify(delegate, times(3)).onNext(eq(1));
+
+    RuntimeException error = new RuntimeException();
+    streamObserver.onError(error);
+    verify(delegate, times(1)).onError(same(error));
+  }
+
+  @Test
+  public void testOnCompleted_executedOnce() {
+    TestStreamObserver delegate = spy(new TestStreamObserver(Integer.MAX_VALUE));
+    DirectStreamObserver<Integer> streamObserver =
+        new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, Long.MAX_VALUE, 1);
+
+    streamObserver.onCompleted();
+    streamObserver.onCompleted();
+    streamObserver.onCompleted();
+
+    verify(delegate, times(1)).onCompleted();
+  }
+
+  @Test
+  public void testOnError_executedOnce() {
+    TestStreamObserver delegate = spy(new TestStreamObserver(Integer.MAX_VALUE));
+    DirectStreamObserver<Integer> streamObserver =
+        new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, Long.MAX_VALUE, 1);
+
+    RuntimeException error = new RuntimeException();
+    streamObserver.onError(error);
+    streamObserver.onError(error);
+    streamObserver.onError(error);
+
+    verify(delegate, times(1)).onError(same(error));
+  }
+
+  @Test
+  public void testOnNext_waitForReady() throws InterruptedException, ExecutionException {
+    TestStreamObserver delegate = spy(new TestStreamObserver(Integer.MAX_VALUE));
+    delegate.setIsReady(false);
+    DirectStreamObserver<Integer> streamObserver =
+        new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, Long.MAX_VALUE, 1);
+    ExecutorService onNextExecutor = Executors.newSingleThreadExecutor();
+    CountDownLatch blockLatch = new CountDownLatch(1);
+    Future<@Nullable Object> onNextFuture =
+        onNextExecutor.submit(
+            () -> {
+              // Won't block on the first one.
+              streamObserver.onNext(1);
+              try {
+                // We will check isReady on the next message, will block here.
+                streamObserver.onNext(1);
+                streamObserver.onNext(1);
+                blockLatch.countDown();
+                return null;
+              } catch (Throwable e) {
+                return e;
+              }
+            });
+
+    while (delegate.getNumIsReadyChecks() <= 1) {
+      // Wait for isReady check to block.
+      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+    }
+
+    delegate.setIsReady(true);
+    blockLatch.await();
+    verify(delegate, times(3)).onNext(eq(1));
+    assertNull(onNextFuture.get());
+
+    streamObserver.onCompleted();
+    verify(delegate, times(1)).onCompleted();
+  }
+
+  @Test
   public void testTerminate_waitingForReady() throws ExecutionException, InterruptedException {
-    CountDownLatch sendBlocker = new CountDownLatch(1);
-    TestStreamObserver delegate = spy(new TestStreamObserver(sendBlocker, 2));
+    TestStreamObserver delegate = spy(new TestStreamObserver(2));
     delegate.setIsReady(false);
     DirectStreamObserver<Integer> streamObserver =
         new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, Long.MAX_VALUE, 1);
@@ -82,8 +199,7 @@ public class DirectStreamObserverTest {
 
   @Test
   public void testOnNext_interruption() throws ExecutionException, InterruptedException {
-    CountDownLatch sendBlocker = new CountDownLatch(1);
-    TestStreamObserver delegate = spy(new TestStreamObserver(sendBlocker, 2));
+    TestStreamObserver delegate = spy(new TestStreamObserver(2));
     delegate.setIsReady(false);
     DirectStreamObserver<Integer> streamObserver =
         new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, Long.MAX_VALUE, 1);
@@ -116,8 +232,7 @@ public class DirectStreamObserverTest {
 
   @Test
   public void testOnNext_timeOut() throws ExecutionException, InterruptedException {
-    CountDownLatch sendBlocker = new CountDownLatch(1);
-    TestStreamObserver delegate = spy(new TestStreamObserver(sendBlocker, 2));
+    TestStreamObserver delegate = spy(new TestStreamObserver(2));
     delegate.setIsReady(false);
     DirectStreamObserver<Integer> streamObserver =
         new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, 1, 1);
@@ -152,11 +267,12 @@ public class DirectStreamObserverTest {
     private final CountDownLatch sendBlocker;
     private final int blockAfter;
     private final AtomicInteger seen = new AtomicInteger(0);
+    private final AtomicInteger numIsReadyChecks = new AtomicInteger(0);
     private volatile boolean isReady = false;
 
-    private TestStreamObserver(CountDownLatch sendBlocker, int blockAfter) {
+    private TestStreamObserver(int blockAfter) {
       this.blockAfter = blockAfter;
-      this.sendBlocker = sendBlocker;
+      this.sendBlocker = new CountDownLatch(1);
     }
 
     @Override
@@ -178,7 +294,12 @@ public class DirectStreamObserverTest {
 
     @Override
     public boolean isReady() {
+      numIsReadyChecks.incrementAndGet();
       return isReady;
+    }
+
+    public int getNumIsReadyChecks() {
+      return numIsReadyChecks.get();
     }
 
     private void setIsReady(boolean isReadyOverride) {

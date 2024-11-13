@@ -132,6 +132,10 @@ public abstract class WindmillEndpoints {
             directEndpointAddress.getHostAddress(), (int) endpointProto.getPort()));
   }
 
+  public final boolean isEmpty() {
+    return equals(none());
+  }
+
   /** Version of the endpoints which increases with every modification. */
   public abstract long version();
 

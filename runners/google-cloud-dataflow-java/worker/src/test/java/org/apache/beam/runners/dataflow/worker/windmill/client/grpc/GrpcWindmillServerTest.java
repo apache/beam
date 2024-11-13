@@ -513,7 +513,7 @@ public class GrpcWindmillServerTest {
             done.countDown();
           });
     }
-    while (done.await(5, TimeUnit.SECONDS)) {}
+    done.await();
     stream.halfClose();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
     executor.shutdown();

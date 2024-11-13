@@ -129,7 +129,7 @@ public class GrpcGetDataStreamTest {
             });
 
     // Sleep a bit to allow future to run.
-    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
 
     Windmill.KeyedGetDataResponse response =
         Windmill.KeyedGetDataResponse.newBuilder()

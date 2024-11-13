@@ -39,27 +39,28 @@ import org.slf4j.LoggerFactory;
  * becomes ready.
  */
 @ThreadSafe
-public final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
+final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private static final long OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS = 30;
 
   private final Phaser isReadyNotifier;
-
+  private final long deadlineSeconds;
+  private final int messagesBetweenIsReadyChecks;
   private final Object lock = new Object();
 
   @GuardedBy("lock")
   private final CallStreamObserver<T> outboundObserver;
 
-  private final long deadlineSeconds;
-  private final int messagesBetweenIsReadyChecks;
-
   @GuardedBy("lock")
   private boolean isClosed = false;
 
   @GuardedBy("lock")
+  private boolean isUserClosed = false;
+
+  @GuardedBy("lock")
   private int messagesSinceReady = 0;
 
-  public DirectStreamObserver(
+  DirectStreamObserver(
       Phaser isReadyNotifier,
       CallStreamObserver<T> outboundObserver,
       long deadlineSeconds,
@@ -88,6 +89,9 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
           if (currentPhase < 0) {
             throw new StreamObserverCancelledException("StreamObserver was terminated.");
           }
+
+          // We close under "lock", so this should never happen.
+          assert !isClosed;
 
           // If we awaited previously and timed out, wait for the same phase. Otherwise we're
           // careful to observe the phase before observing isReady.
@@ -131,6 +135,10 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
           if (currentPhase < 0) {
             throw new StreamObserverCancelledException("StreamObserver was terminated.");
           }
+
+          // We close under "lock", so this should never happen.
+          assert !isClosed;
+
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
           return;
@@ -162,8 +170,11 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
   public void onError(Throwable t) {
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      markClosedOrThrow();
-      outboundObserver.onError(t);
+      if (!isClosed) {
+        Preconditions.checkState(!isUserClosed);
+        outboundObserver.onError(t);
+        isClosed = true;
+      }
     }
   }
 
@@ -171,15 +182,11 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
   public void onCompleted() {
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      markClosedOrThrow();
-      outboundObserver.onCompleted();
-    }
-  }
-
-  private void markClosedOrThrow() {
-    synchronized (lock) {
-      Preconditions.checkState(!isClosed);
-      isClosed = true;
+      if (!isClosed) {
+        Preconditions.checkState(!isUserClosed);
+        outboundObserver.onCompleted();
+        isClosed = true;
+      }
     }
   }
 
@@ -188,8 +195,9 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
     // Free the blocked threads in onNext().
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      if (!isClosed) {
+      if (!isUserClosed) {
         onError(terminationException);
+        isUserClosed = true;
       }
     }
   }

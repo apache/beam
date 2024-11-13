@@ -332,7 +332,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   @VisibleForTesting
-  ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
+  final ImmutableSet<AbstractWindmillStream<?, ?>> streamRegistry() {
     return ImmutableSet.copyOf(streamRegistry);
   }
 

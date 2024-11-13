@@ -338,8 +338,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void shutdownInternal();
 
   /** Returns true if the stream was torn down and should not be restarted internally. */
-  private synchronized boolean maybeTeardownStream() {
-    if (isShutdown || (clientClosed && !hasPendingRequests())) {
+  private synchronized boolean maybeTearDownStream() {
+    if (requestObserver.hasReceivedPoisonPill()
+        || isShutdown
+        || (clientClosed && !hasPendingRequests())) {
       streamRegistry.remove(AbstractWindmillStream.this);
       finishLatch.countDown();
       executor.shutdownNow();
@@ -364,7 +366,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     @Override
     public void onError(Throwable t) {
-      if (maybeTeardownStream()) {
+      if (maybeTearDownStream()) {
         return;
       }
 
@@ -392,7 +394,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     @Override
     public void onCompleted() {
-      if (maybeTeardownStream()) {
+      if (maybeTearDownStream()) {
         return;
       }
       recordStreamStatus(OK_STATUS);

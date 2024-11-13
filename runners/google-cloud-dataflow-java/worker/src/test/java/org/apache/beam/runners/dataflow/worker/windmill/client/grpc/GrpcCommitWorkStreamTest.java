@@ -23,8 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -53,12 +51,9 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class GrpcCommitWorkStreamTest {
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcCommitWorkStreamTest.class);
   private static final String FAKE_SERVER_NAME = "Fake server for GrpcCommitWorkStreamTest";
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
@@ -126,6 +121,7 @@ public class GrpcCommitWorkStreamTest {
         spy(new TestCommitWorkStreamRequestObserver());
     CommitWorkStreamTestStub testStub = new CommitWorkStreamTestStub(requestObserver);
     GrpcCommitWorkStream commitWorkStream = createCommitWorkStream(testStub);
+    InOrder requestObserverVerifier = inOrder(requestObserver);
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
         batcher.commitWorkItem(
@@ -140,21 +136,14 @@ public class GrpcCommitWorkStreamTest {
     }
 
     // Verify that we sent the commits above in a request + the initial header.
-    verify(requestObserver, times(2))
-        .onNext(
-            argThat(
-                request -> {
-                  if (request.getHeader().equals(TEST_JOB_HEADER)) {
-                    LOG.info("Header received.");
-                    return true;
-                  } else if (!request.getCommitChunkList().isEmpty()) {
-                    LOG.info("Chunk received.");
-                    return true;
-                  } else {
-                    LOG.error("Incorrect request.");
-                    return false;
-                  }
-                }));
+    requestObserverVerifier
+        .verify(requestObserver)
+        .onNext(argThat(request -> request.getHeader().equals(TEST_JOB_HEADER)));
+    requestObserverVerifier
+        .verify(requestObserver)
+        .onNext(argThat(request -> !request.getCommitChunkList().isEmpty()));
+    requestObserverVerifier.verifyNoMoreInteractions();
+
     // We won't get responses so we will have some pending requests.
     assertTrue(commitWorkStream.hasPendingRequests());
     commitWorkStream.shutdown();

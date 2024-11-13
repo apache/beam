@@ -104,6 +104,10 @@ final class ResettableThrowingStreamObserver<T> {
     }
   }
 
+  synchronized boolean hasReceivedPoisonPill() {
+    return isPoisoned;
+  }
+
   public void onNext(T t) throws StreamClosedException, WindmillStreamShutdownException {
     // Make sure onNext and onError below to be called on the same StreamObserver instance.
     StreamObserver<T> delegate = delegate();
@@ -125,6 +129,8 @@ final class ResettableThrowingStreamObserver<T> {
         // If the delegate above was already terminated via onError or onComplete from another
         // thread.
         logger.warn("StreamObserver was previously cancelled.", e);
+      } catch (RuntimeException ignored) {
+        logger.warn("StreamObserver was unexpectedly cancelled.", e);
       }
     }
   }

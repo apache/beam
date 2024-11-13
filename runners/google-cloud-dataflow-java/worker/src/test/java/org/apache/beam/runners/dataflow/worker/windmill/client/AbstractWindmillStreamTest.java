@@ -108,7 +108,7 @@ public class AbstractWindmillStreamTest {
     testStream.shutdown();
 
     // Sleep a bit to give sendExecutor time to execute the send().
-    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
 
     sendBlocker.countDown();
     assertThat(sendFuture.get()).isInstanceOf(WindmillStreamShutdownException.class);

@@ -145,7 +145,7 @@ public class GrpcGetDataStreamRequestsTest {
                     WindmillStreamShutdownException.class,
                     queuedBatch::waitForSendOrFailNotification));
     // Wait a few seconds for the above future to get scheduled and run.
-    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     queuedBatch.notifyFailed();
     waitFuture.join();
   }

@@ -187,9 +187,14 @@ final class GrpcGetDataStream
     onHeartbeatResponse(chunk.getComputationHeartbeatResponseList());
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
-      AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
-      synchronized (this) {
-        verify(responseStream != null || isShutdown, "No pending response stream");
+      @Nullable AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
+      if (responseStream == null) {
+        synchronized (this) {
+          // shutdown()/shutdownInternal() cleans up pending, else we expect a pending
+          // responseStream for every response.
+          verify(isShutdown, "No pending response stream");
+        }
+        continue;
       }
       responseStream.append(chunk.getSerializedResponse(i).newInput());
       if (chunk.getRemainingBytesForResponse() == 0) {
