@@ -34,14 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * In this example batch pipeline we will invoke a simple Echo C++ library within a DoFn The sample
- * makes use of a ExternalLibraryDoFn class which abstracts the setup and processing of the
- * executable, logs and results. For this example we are using commands passed to the library based
- * on ordinal position but for a production system you should use a mechanism like ProtoBuffers with
- * Base64 encoding to pass the parameters to the library To test this example you will need to build
- * the files Echo.cc and EchoAgain.cc in a linux env matching the runner that you are using (using
- * g++ with static option). Once built copy them to the SourcePath defined in {@link
- * SubProcessPipelineOptions}
+ Please see the Readme.MD file for instructions to execute this pipeline.
  */
 public class ExampleEchoPipeline {
 
