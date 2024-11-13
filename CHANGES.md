@@ -70,6 +70,7 @@
 * [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types ([#32688](https://github.com/apache/beam/pull/32688))
 * BigQuery CDC writes are now available in Python SDK, only supported when using StorageWrite API at least once mode ([#32527](https://github.com/apache/beam/issues/32527))
 * [Managed Iceberg] Allow updating table partition specs during pipeline runtime ([#32879](https://github.com/apache/beam/pull/32879))
+* Added BigQueryIO as a Managed IO ([#31486](https://github.com/apache/beam/pull/31486))
 
 ## New Features / Improvements
 

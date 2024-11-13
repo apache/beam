@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -170,6 +171,12 @@ public class BigQueryManagedIT {
 
   @Test
   public void testStreamingDynamicDestinations() throws IOException, InterruptedException {
+    if (writePipeline.getOptions().getRunner().getName().contains("DataflowRunner")) {
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          writePipeline.getOptions().as(ExperimentalOptions.class),
+          GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    }
     testDynamicDestinations(true);
   }
 
