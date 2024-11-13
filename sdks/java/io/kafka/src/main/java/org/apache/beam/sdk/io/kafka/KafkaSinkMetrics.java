@@ -34,7 +34,8 @@ import org.apache.beam.sdk.util.HistogramData;
 // TODO, refactor out common parts for BQ sink, so it can be reused with other sinks, eg, GCS?
 // @SuppressWarnings("unused")
 public class KafkaSinkMetrics {
-  private static boolean supportKafkaMetrics = false;
+  private static boolean supportKafkaMetrics =
+      true; // where to set to true for UW if experiement is passed
 
   public static final String METRICS_NAMESPACE = "KafkaSink";
 
@@ -50,6 +51,14 @@ public class KafkaSinkMetrics {
   private static final String TOPIC_LABEL = "topic_name";
   private static final String RPC_METHOD = "rpc_method";
 
+  private static MetricName createMetricName(RpcMethod method, String topic) {
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_LATENCY);
+    nameBuilder.addLabel(RPC_METHOD, method.toString());
+    nameBuilder.addLabel(TOPIC_LABEL, topic);
+    return nameBuilder.build(METRICS_NAMESPACE);
+  }
+
   /**
    * Creates an Histogram metric to record RPC latency. Metric will have name.
    *
@@ -60,14 +69,8 @@ public class KafkaSinkMetrics {
    * @return Histogram with exponential buckets with a sqrt(2) growth factor.
    */
   public static Histogram createRPCLatencyHistogram(RpcMethod method, String topic) {
-    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
-        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_LATENCY);
-    nameBuilder.addLabel(RPC_METHOD, method.toString());
-    nameBuilder.addLabel(TOPIC_LABEL, topic);
-
-    MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
+    MetricName metricName = createMetricName(method, topic);
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
-
     return new DelegatingHistogram(metricName, buckets, false, true);
   }
 

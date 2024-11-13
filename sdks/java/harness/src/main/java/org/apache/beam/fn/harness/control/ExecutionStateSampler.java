@@ -47,6 +47,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -234,6 +235,19 @@ public class ExecutionStateSampler {
           .metricsContainerRegistry
           .getUnboundContainer()
           .getHistogram(metricName, bucketType);
+    }
+
+    @Override
+    public Histogram getPerWorkerHistogram(
+        MetricName metricName, HistogramData.BucketType bucketType) {
+      if (tracker.currentState != null) {
+        Preconditions.checkArgumentNotNull(tracker.currentState);
+        return tracker.currentState.metricsContainer.getPerWorkerHistogram(metricName, bucketType);
+      }
+      return tracker
+          .metricsContainerRegistry
+          .getUnboundContainer()
+          .getPerWorkerHistogram(metricName, bucketType);
     }
 
     @Override

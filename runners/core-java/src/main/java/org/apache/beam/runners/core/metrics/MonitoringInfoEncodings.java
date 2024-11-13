@@ -17,8 +17,19 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.dataflow.model.Base2Exponent;
+import com.google.api.services.dataflow.model.BucketOptions;
+import com.google.api.services.dataflow.model.DataflowHistogramValue;
+import com.google.api.services.dataflow.model.Linear;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
@@ -26,16 +37,19 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
+
+// TODO(naireenhussain): Refactor out DataflowHistogramValue to be runner agnostic.
 
 /** A set of functions used to encode and decode common monitoring info types. */
 public class MonitoringInfoEncodings {
   private static final Coder<Long> VARINT_CODER = VarLongCoder.of();
   private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
-  private static final IterableCoder<String> STRING_SET_CODER =
-      IterableCoder.of(StringUtf8Coder.of());
+  private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
+  private static final IterableCoder<String> STRING_SET_CODER = IterableCoder.of(STRING_CODER);
 
   /** Encodes to {@link MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}. */
   public static ByteString encodeInt64Distribution(DistributionData data) {
@@ -49,6 +63,92 @@ public class MonitoringInfoEncodings {
       throw new RuntimeException(e);
     }
     return output.toByteString();
+  }
+
+  /** Encodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  public static ByteString encodeInt64Histogram(HistogramData inputHistogram) {
+    try {
+      int numberOfBuckets = inputHistogram.getBucketType().getNumBuckets();
+
+      DataflowHistogramValue outputHistogram2 = new DataflowHistogramValue();
+
+      if (inputHistogram.getBucketType() instanceof HistogramData.LinearBuckets) {
+        HistogramData.LinearBuckets buckets =
+            (HistogramData.LinearBuckets) inputHistogram.getBucketType();
+        Linear linear = new Linear();
+        linear.setNumberOfBuckets(numberOfBuckets);
+        linear.setWidth(buckets.getWidth());
+        linear.setStart(buckets.getStart());
+        outputHistogram2.setBucketOptions(new BucketOptions().setLinear(linear));
+      } else if (inputHistogram.getBucketType() instanceof HistogramData.ExponentialBuckets) {
+        HistogramData.ExponentialBuckets buckets =
+            (HistogramData.ExponentialBuckets) inputHistogram.getBucketType();
+        Base2Exponent base2Exp = new Base2Exponent();
+        base2Exp.setNumberOfBuckets(numberOfBuckets);
+        base2Exp.setScale(buckets.getScale());
+        outputHistogram2.setBucketOptions(new BucketOptions().setExponential(base2Exp));
+      } else {
+        throw new RuntimeException("Unable to parse histogram, bucket is not recognized");
+      }
+
+      outputHistogram2.setCount(inputHistogram.getTotalCount());
+
+      List<Long> bucketCounts = new ArrayList<>();
+
+      Arrays.stream(inputHistogram.getBucketCount())
+          .forEach(
+              val -> {
+                bucketCounts.add(val);
+              });
+
+      outputHistogram2.setBucketCounts(bucketCounts);
+
+      ObjectMapper objectMapper = new ObjectMapper();
+      String jsonString = objectMapper.writeValueAsString(outputHistogram2);
+
+      return ByteString.copyFromUtf8(jsonString);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** Decodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  public static HistogramData decodeInt64Histogram(ByteString payload) {
+    try {
+      ObjectMapper objectMapper = new ObjectMapper();
+      objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      JsonNode jsonNode = objectMapper.readTree(payload.toStringUtf8()); // parse afterwards
+      DataflowHistogramValue newHist = new DataflowHistogramValue();
+      newHist.setCount(jsonNode.get("count").asLong());
+
+      List<Long> bucketCounts = new ArrayList<>();
+      Iterator<JsonNode> itr = jsonNode.get("bucketCounts").iterator();
+      while (itr.hasNext()) {
+        Long item = itr.next().asLong();
+        bucketCounts.add(item);
+      }
+      newHist.setBucketCounts(bucketCounts);
+
+      if (jsonNode.get("bucketOptions").has("linear")) {
+        Linear linear = new Linear();
+        JsonNode linearNode = jsonNode.get("bucketOptions").get("linear");
+        linear.setNumberOfBuckets(linearNode.get("numberOfBuckets").asInt());
+        linear.setWidth(linearNode.get("width").asDouble());
+        linear.setStart(linearNode.get("start").asDouble());
+        newHist.setBucketOptions(new BucketOptions().setLinear(linear));
+      } else if (jsonNode.get("bucketOptions").has("exponential")) {
+        Base2Exponent base2Exp = new Base2Exponent();
+        JsonNode expNode = jsonNode.get("bucketOptions").get("exponential");
+        base2Exp.setNumberOfBuckets(expNode.get("numberOfBuckets").asInt());
+        base2Exp.setScale(expNode.get("scale").asInt());
+        newHist.setBucketOptions(new BucketOptions().setExponential(base2Exp));
+      } else {
+        throw new RuntimeException("Unable to parse histogram, bucket is not recognized");
+      }
+      return new HistogramData(newHist);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Decodes from {@link MonitoringInfoConstants.TypeUrns#DISTRIBUTION_INT64_TYPE}. */

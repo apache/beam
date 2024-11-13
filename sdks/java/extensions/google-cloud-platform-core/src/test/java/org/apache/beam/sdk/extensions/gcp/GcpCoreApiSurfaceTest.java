@@ -53,6 +53,7 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.services.storage"),
+            classesInPackage("com.google.api.services.dataflow"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("java"),
