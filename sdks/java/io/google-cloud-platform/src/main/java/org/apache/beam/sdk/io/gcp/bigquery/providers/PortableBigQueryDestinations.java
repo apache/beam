@@ -40,6 +40,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
 public class PortableBigQueryDestinations extends DynamicDestinations<Row, String> {
+  public static final String DESTINATION = "destination";
+  public static final String RECORD = "record";
   private @MonotonicNonNull RowStringInterpolator interpolator = null;
   private final @Nullable List<String> primaryKey;
   private final RowFilter rowFilter;
@@ -69,7 +71,7 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
     if (interpolator != null) {
       return interpolator.interpolate(checkArgumentNotNull(element));
     }
-    return checkStateNotNull(checkStateNotNull(element).getValue().getString("destination"));
+    return checkStateNotNull(checkStateNotNull(element).getValue().getString(DESTINATION));
   }
 
   @Override
@@ -94,7 +96,7 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   public SerializableFunction<Row, TableRow> getFilterFormatFunction(boolean fetchNestedRecord) {
     return row -> {
       if (fetchNestedRecord) {
-        row = checkStateNotNull(row.getRow("record"));
+        row = checkStateNotNull(row.getRow(RECORD));
       }
       Row filtered = rowFilter.filter(row);
       return BigQueryUtils.toTableRow(filtered);

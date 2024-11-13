@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.DESTINATION;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.RECORD;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -274,12 +276,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       boolean fetchNestedRecord = false;
       if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
         validateDynamicDestinationsSchema(schema);
-        rowSchema = schema.getField("record").getType().getRowSchema();
+        rowSchema = schema.getField(RECORD).getType().getRowSchema();
         fetchNestedRecord = true;
       }
       if (Boolean.TRUE.equals(configuration.getUseCdcWrites())) {
         validateCdcSchema(schema);
-        rowSchema = schema.getField("record").getType().getRowSchema();
+        rowSchema = schema.getField(RECORD).getType().getRowSchema();
         fetchNestedRecord = true;
         write =
             write
@@ -323,14 +325,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
     void validateDynamicDestinationsSchema(Schema schema) {
       checkArgument(
-          schema.getFieldNames().containsAll(Arrays.asList("destination", "record")),
-          "When writing to dynamic destinations, we expect Row Schema with a "
-              + "\"destination\" string field and a \"record\" Row field.");
+          schema.getFieldNames().containsAll(Arrays.asList(DESTINATION, RECORD)),
+          String.format(
+              "When writing to dynamic destinations, we expect Row Schema with a "
+                  + "\"%s\" string field and a \"%s\" Row field.",
+              DESTINATION, RECORD));
     }
 
     private void validateCdcSchema(Schema schema) {
       checkArgument(
-          schema.getFieldNames().containsAll(Arrays.asList(ROW_PROPERTY_MUTATION_INFO, "record")),
+          schema.getFieldNames().containsAll(Arrays.asList(ROW_PROPERTY_MUTATION_INFO, RECORD)),
           "When writing using CDC functionality, we expect Row Schema with a "
               + "\""
               + ROW_PROPERTY_MUTATION_INFO

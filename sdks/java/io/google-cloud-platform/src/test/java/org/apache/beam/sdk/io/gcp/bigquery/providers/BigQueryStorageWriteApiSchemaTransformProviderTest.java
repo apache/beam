@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.DESTINATION;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.RECORD;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
@@ -197,14 +199,14 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     String baseTableSpec = "project:dataset.dynamic_write_";
 
     Schema schemaWithDestinations =
-        Schema.builder().addStringField("destination").addRowField("record", SCHEMA).build();
+        Schema.builder().addStringField(DESTINATION).addRowField(RECORD, SCHEMA).build();
     List<Row> rowsWithDestinations =
         ROWS.stream()
             .map(
                 row ->
                     Row.withSchema(schemaWithDestinations)
-                        .withFieldValue("destination", baseTableSpec + row.getInt64("number"))
-                        .withFieldValue("record", row)
+                        .withFieldValue(DESTINATION, baseTableSpec + row.getInt64("number"))
+                        .withFieldValue(RECORD, row)
                         .build())
             .collect(Collectors.toList());
 
@@ -256,13 +258,13 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
     Schema.Builder schemaBuilder =
         Schema.builder()
-            .addRowField("record", SCHEMA)
+            .addRowField(RECORD, SCHEMA)
             .addRowField(
                 BigQueryStorageWriteApiSchemaTransformProvider.ROW_PROPERTY_MUTATION_INFO,
                 BigQueryStorageWriteApiSchemaTransformProvider.ROW_SCHEMA_MUTATION_INFO);
 
     if (dynamicDestination) {
-      schemaBuilder = schemaBuilder.addStringField("destination");
+      schemaBuilder = schemaBuilder.addStringField(DESTINATION);
     }
 
     Schema schemaWithCDC = schemaBuilder.build();
@@ -286,10 +288,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
                                       .ROW_PROPERTY_MUTATION_SQN,
                                   "AAA" + idx)
                               .build())
-                      .withFieldValue("record", row);
+                      .withFieldValue(RECORD, row);
               if (dynamicDestination) {
                 rowBuilder =
-                    rowBuilder.withFieldValue("destination", tablePrefix + row.getInt64("number"));
+                    rowBuilder.withFieldValue(DESTINATION, tablePrefix + row.getInt64("number"));
               }
               return rowBuilder.build();
             })
