@@ -118,6 +118,13 @@ public class BigQueryManagedIT {
         String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Map<String, Object> config = ImmutableMap.of("table", table);
 
+    if (writePipeline.getOptions().getRunner().getName().contains("DataflowRunner")) {
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          writePipeline.getOptions().as(ExperimentalOptions.class),
+          GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    }
+
     // streaming write
     PCollectionRowTuple.of("input", getInput(writePipeline, true))
         .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
