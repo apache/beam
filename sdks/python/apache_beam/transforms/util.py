@@ -28,12 +28,10 @@ import re
 import threading
 import time
 import uuid
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -265,7 +263,7 @@ class _CoGBKImpl(PTransform):
 
 
 @ptransform_fn
-@typehints.with_input_types(Tuple[K, V])
+@typehints.with_input_types(tuple[K, V])
 @typehints.with_output_types(K)
 def Keys(pcoll, label='Keys'):  # pylint: disable=invalid-name
   """Produces a PCollection of first elements of 2-tuples in a PCollection."""
@@ -273,7 +271,7 @@ def Keys(pcoll, label='Keys'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-@typehints.with_input_types(Tuple[K, V])
+@typehints.with_input_types(tuple[K, V])
 @typehints.with_output_types(V)
 def Values(pcoll, label='Values'):  # pylint: disable=invalid-name
   """Produces a PCollection of second elements of 2-tuples in a PCollection."""
@@ -281,8 +279,8 @@ def Values(pcoll, label='Values'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-@typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[V, K])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[V, K])
 def KvSwap(pcoll, label='KvSwap'):  # pylint: disable=invalid-name
   """Produces a PCollection reversing 2-tuples in a PCollection."""
   return pcoll | label >> MapTuple(lambda k, v: (v, k))
@@ -784,7 +782,7 @@ class WithSharedKey(DoFn):
 
 
 @typehints.with_input_types(T)
-@typehints.with_output_types(List[T])
+@typehints.with_output_types(list[T])
 class BatchElements(PTransform):
   """A Transform that batches elements for amortized processing.
 
@@ -795,7 +793,7 @@ class BatchElements(PTransform):
 
   where the per element cost is (often significantly) smaller than the fixed
   cost and could be amortized over multiple elements.  It consumes a PCollection
-  of element type T and produces a PCollection of element type List[T].
+  of element type T and produces a PCollection of element type list[T].
 
   This transform attempts to find the best batch size between the minimim
   and maximum parameters by profiling the time taken by (fused) downstream
@@ -924,8 +922,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
-@typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[K, V])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, V])
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
@@ -1017,13 +1015,13 @@ class Reshuffle(PTransform):
     return (
         pcoll | 'AddRandomKeys' >>
         Map(lambda t: (random.randrange(0, self.num_buckets), t)
-            ).with_input_types(T).with_output_types(Tuple[int, T])
+            ).with_input_types(T).with_output_types(tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            Tuple[int, T]).with_output_types(T))
+            tuple[int, T]).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> Tuple[str, None]
+    # type: (PipelineContext) -> tuple[str, None]
     return common_urns.composites.RESHUFFLE.urn, None
 
   @staticmethod
@@ -1072,8 +1070,8 @@ def WithKeys(pcoll, k, *args, **kwargs):
   return pcoll | Map(lambda v: (k, v))
 
 
-@typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[K, Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
@@ -1110,7 +1108,7 @@ class GroupIntoBatches(PTransform):
   def to_runner_api_parameter(
       self,
       unused_context  # type: PipelineContext
-  ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
+  ):  # type: (...) -> tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
     return (
         common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
         self.params.get_payload())
@@ -1122,7 +1120,7 @@ class GroupIntoBatches(PTransform):
   def from_runner_api_parameter(unused_ptransform, proto, unused_context):
     return GroupIntoBatches(*_GroupIntoBatchesParams.parse_payload(proto))
 
-  @typehints.with_input_types(Tuple[K, V])
+  @typehints.with_input_types(tuple[K, V])
   @typehints.with_output_types(
       typehints.Tuple[
           ShardedKeyType[typehints.TypeVariable(K)],  # type: ignore[misc]
@@ -1170,7 +1168,7 @@ class GroupIntoBatches(PTransform):
     def to_runner_api_parameter(
         self,
         unused_context  # type: PipelineContext
-    ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
+    ):  # type: (...) -> tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
       return (
           common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
           self.params.get_payload())
@@ -1417,8 +1415,8 @@ class Reify(object):
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_window_info)
 
-  @typehints.with_input_types(Tuple[K, V])
-  @typehints.with_output_types(Tuple[K, V])
+  @typehints.with_input_types(tuple[K, V])
+  @typehints.with_output_types(tuple[K, V])
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""
@@ -1430,8 +1428,8 @@ class Reify(object):
     def expand(self, pcoll):
       return pcoll | ParDo(self.add_timestamp_info)
 
-  @typehints.with_input_types(Tuple[K, V])
-  @typehints.with_output_types(Tuple[K, V])
+  @typehints.with_input_types(tuple[K, V])
+  @typehints.with_output_types(tuple[K, V])
   class WindowInValue(PTransform):
     """PTransform to convert the Value in a KV pair into a tuple of
     (value, timestamp, window), with the whole element being wrapped inside a
@@ -1490,7 +1488,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(List[str])
+  @typehints.with_output_types(list[str])
   @ptransform_fn
   def all_matches(pcoll, regex):
     """
@@ -1511,7 +1509,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Tuple[str, str])
+  @typehints.with_output_types(tuple[str, str])
   @ptransform_fn
   def matches_kv(pcoll, regex, keyGroup, valueGroup=0):
     """
@@ -1558,7 +1556,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[List[str], List[Tuple[str, str]]])
+  @typehints.with_output_types(Union[list[str], list[tuple[str, str]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """
@@ -1587,7 +1585,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Tuple[str, str])
+  @typehints.with_output_types(tuple[str, str])
   @ptransform_fn
   def find_kv(pcoll, regex, keyGroup, valueGroup=0):
     """
@@ -1644,7 +1642,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(List[str])
+  @typehints.with_output_types(list[str])
   @ptransform_fn
   def split(pcoll, regex, outputEmpty=False):
     """

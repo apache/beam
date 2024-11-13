@@ -15,10 +15,9 @@
 # limitations under the License.
 #
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -44,7 +43,7 @@ __all__ = [
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
-JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
+JoinFn = Callable[[dict[str, Any], dict[str, Any]], beam.Row]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,14 +55,14 @@ def has_valid_redis_address(host: str, port: int) -> bool:
   return False
 
 
-def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
+def cross_join(left: dict[str, Any], right: dict[str, Any]) -> beam.Row:
   """performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
 
     Args:
-      left (Dict[str, Any]): input request dictionary.
-      right (Dict[str, Any]): response dictionary from the API.
+      left (dict[str, Any]): input request dictionary.
+      right (dict[str, Any]): response dictionary from the API.
 
     Returns:
       `beam.Row` containing the merged columns.
