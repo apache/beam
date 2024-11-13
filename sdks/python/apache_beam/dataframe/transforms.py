@@ -17,7 +17,6 @@
 import collections
 import logging
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 from typing import Union
@@ -29,15 +28,12 @@ from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
+from apache_beam.pvalue import PCollection
 from apache_beam.utils import windowed_value
 
 __all__ = [
     'DataframeTransform',
 ]
-
-if TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from apache_beam.pvalue import PCollection
 
 T = TypeVar('T')
 
