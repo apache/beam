@@ -484,7 +484,8 @@ public class AvroUtils {
   public static org.apache.avro.Schema.Field toAvroField(Field field, String namespace) {
     org.apache.avro.Schema fieldSchema =
         getFieldSchema(field.getType(), field.getName(), namespace);
-    return new org.apache.avro.Schema.Field(field.getName(), fieldSchema, field.getDescription());
+    return new org.apache.avro.Schema.Field(
+        field.getName(), fieldSchema, field.getDescription(), (Object) null);
   }
 
   private AvroUtils() {}
