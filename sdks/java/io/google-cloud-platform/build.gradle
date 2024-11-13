@@ -198,6 +198,7 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
+          "--tempLocation=${gcpTempRoot}",
           "--firestoreDb=${firestoreDb}",
           "--firestoreHost=${firestoreHost}",
           "--bigtableChangeStreamInstanceId=${bigtableChangeStreamInstanceId}",
