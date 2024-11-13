@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotNull;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -123,6 +126,42 @@ public class BigQueryFileLoadsSchemaTransformProviderTest {
 
     assertNotNull(fakeDatasetService.getTable(TABLE_REFERENCE));
     assertEquals(ROWS.size(), fakeDatasetService.getAllRows(PROJECT, DATASET, TABLE_ID).size());
+  }
+
+  @Test
+  public void testWriteToPortableDynamicDestinations() throws Exception {
+    String destinationTemplate =
+        String.format("%s:%s.dynamic_write_{name}_{number}", PROJECT, DATASET);
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
+            .setTable(destinationTemplate)
+            .setDrop(Collections.singletonList("number"))
+            .build();
+    BigQueryFileLoadsSchemaTransform write =
+        (BigQueryFileLoadsSchemaTransform)
+            new BigQueryFileLoadsSchemaTransformProvider().from(config);
+    write.setTestBigQueryServices(fakeBigQueryServices);
+
+    PCollection<Row> inputRows = p.apply(Create.of(ROWS)).setRowSchema(SCHEMA);
+    PCollectionRowTuple.of("input", inputRows).apply(write);
+    p.run().waitUntilFinish();
+
+    RowFilter rowFilter = new RowFilter(SCHEMA).drop(Collections.singletonList("number"));
+    assertEquals(
+        rowFilter.filter(ROWS.get(0)),
+        BigQueryUtils.toBeamRow(
+            rowFilter.outputSchema(),
+            fakeDatasetService.getAllRows(PROJECT, DATASET, "dynamic_write_a_1").get(0)));
+    assertEquals(
+        rowFilter.filter(ROWS.get(1)),
+        BigQueryUtils.toBeamRow(
+            rowFilter.outputSchema(),
+            fakeDatasetService.getAllRows(PROJECT, DATASET, "dynamic_write_b_2").get(0)));
+    assertEquals(
+        rowFilter.filter(ROWS.get(2)),
+        BigQueryUtils.toBeamRow(
+            rowFilter.outputSchema(),
+            fakeDatasetService.getAllRows(PROJECT, DATASET, "dynamic_write_c_3").get(0)));
   }
 
   @Test

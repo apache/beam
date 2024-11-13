@@ -18,15 +18,14 @@
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.DESTINATION;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.RECORD;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.services.bigquery.model.TableConstraints;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
@@ -34,9 +33,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryStorageApiInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.RowMutationInformation;
-import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -54,7 +51,6 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
@@ -80,6 +76,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   private static final String FAILED_ROWS_TAG = "FailedRows";
   private static final String FAILED_ROWS_WITH_ERRORS_TAG = "FailedRowsWithErrors";
   // magic string that tells us to write to dynamic destinations
+  protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
   protected static final String ROW_PROPERTY_MUTATION_INFO = "row_mutation_info";
   protected static final String ROW_PROPERTY_MUTATION_TYPE = "mutation_type";
   protected static final String ROW_PROPERTY_MUTATION_SQN = "change_sequence_number";
@@ -176,52 +173,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public void process(ProcessContext c) {}
     }
 
-    private static class RowDynamicDestinations extends DynamicDestinations<Row, String> {
-      final Schema schema;
-      final String fixedDestination;
-      final List<String> primaryKey;
-
-      RowDynamicDestinations(Schema schema) {
-        this.schema = schema;
-        this.fixedDestination = null;
-        this.primaryKey = null;
-      }
-
-      public RowDynamicDestinations(
-          Schema schema, String fixedDestination, List<String> primaryKey) {
-        this.schema = schema;
-        this.fixedDestination = fixedDestination;
-        this.primaryKey = primaryKey;
-      }
-
-      @Override
-      public String getDestination(ValueInSingleWindow<Row> element) {
-        return Optional.ofNullable(fixedDestination)
-            .orElseGet(() -> element.getValue().getString("destination"));
-      }
-
-      @Override
-      public TableDestination getTable(String destination) {
-        return new TableDestination(destination, null);
-      }
-
-      @Override
-      public TableSchema getSchema(String destination) {
-        return BigQueryUtils.toTableSchema(schema);
-      }
-
-      @Override
-      public TableConstraints getTableConstraints(String destination) {
-        return Optional.ofNullable(this.primaryKey)
-            .filter(pk -> !pk.isEmpty())
-            .map(
-                pk ->
-                    new TableConstraints()
-                        .setPrimaryKey(new TableConstraints.PrimaryKey().setColumns(pk)))
-            .orElse(null);
-      }
-    }
-
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
@@ -309,13 +260,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
     }
 
-    void validateDynamicDestinationsExpectedSchema(Schema schema) {
-      checkArgument(
-          schema.getFieldNames().containsAll(Arrays.asList("destination", "record")),
-          "When writing to dynamic destinations, we expect Row Schema with a "
-              + "\"destination\" string field and a \"record\" Row field.");
-    }
-
     BigQueryIO.Write<Row> createStorageWriteApiTransform(Schema schema) {
       Method writeMethod =
           configuration.getUseAtLeastOnceSemantics() != null
@@ -326,21 +270,37 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
               .withMethod(writeMethod)
-              .withFormatFunction(BigQueryUtils.toTableRow())
               .withWriteDisposition(WriteDisposition.WRITE_APPEND);
 
-      // in case CDC writes are configured we validate and include them in the configuration
-      if (Optional.ofNullable(configuration.getUseCdcWrites()).orElse(false)) {
-        write = validateAndIncludeCDCInformation(write, schema);
-      } else if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
-        validateDynamicDestinationsExpectedSchema(schema);
+      Schema rowSchema = schema;
+      boolean fetchNestedRecord = false;
+      if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
+        validateDynamicDestinationsSchema(schema);
+        rowSchema = schema.getField(RECORD).getType().getRowSchema();
+        fetchNestedRecord = true;
+      }
+      if (Boolean.TRUE.equals(configuration.getUseCdcWrites())) {
+        validateCdcSchema(schema);
+        rowSchema = schema.getField(RECORD).getType().getRowSchema();
+        fetchNestedRecord = true;
         write =
             write
-                .to(new RowDynamicDestinations(schema.getField("record").getType().getRowSchema()))
-                .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")));
-      } else {
-        write = write.to(configuration.getTable()).useBeamSchema();
+                .withPrimaryKey(configuration.getPrimaryKey())
+                .withRowMutationInformationFn(
+                    row ->
+                        RowMutationInformation.of(
+                            RowMutationInformation.MutationType.valueOf(
+                                row.getRow(ROW_PROPERTY_MUTATION_INFO)
+                                    .getString(ROW_PROPERTY_MUTATION_TYPE)),
+                            row.getRow(ROW_PROPERTY_MUTATION_INFO)
+                                .getString(ROW_PROPERTY_MUTATION_SQN)));
       }
+      PortableBigQueryDestinations dynamicDestinations =
+          new PortableBigQueryDestinations(rowSchema, configuration);
+      write =
+          write
+              .to(dynamicDestinations)
+              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(fetchNestedRecord));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
@@ -363,19 +323,27 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       return write;
     }
 
-    BigQueryIO.Write<Row> validateAndIncludeCDCInformation(
-        BigQueryIO.Write<Row> write, Schema schema) {
+    void validateDynamicDestinationsSchema(Schema schema) {
       checkArgument(
-          schema.getFieldNames().containsAll(Arrays.asList(ROW_PROPERTY_MUTATION_INFO, "record")),
+          schema.getFieldNames().containsAll(Arrays.asList(DESTINATION, RECORD)),
+          String.format(
+              "When writing to dynamic destinations, we expect Row Schema with a "
+                  + "\"%s\" string field and a \"%s\" Row field.",
+              DESTINATION, RECORD));
+    }
+
+    private void validateCdcSchema(Schema schema) {
+      checkArgument(
+          schema.getFieldNames().containsAll(Arrays.asList(ROW_PROPERTY_MUTATION_INFO, RECORD)),
           "When writing using CDC functionality, we expect Row Schema with a "
               + "\""
               + ROW_PROPERTY_MUTATION_INFO
               + "\" Row field and a \"record\" Row field.");
 
-      Schema rowSchema = schema.getField(ROW_PROPERTY_MUTATION_INFO).getType().getRowSchema();
+      Schema mutationSchema = schema.getField(ROW_PROPERTY_MUTATION_INFO).getType().getRowSchema();
 
       checkArgument(
-          rowSchema.equals(ROW_SCHEMA_MUTATION_INFO),
+          mutationSchema != null && mutationSchema.equals(ROW_SCHEMA_MUTATION_INFO),
           "When writing using CDC functionality, we expect a \""
               + ROW_PROPERTY_MUTATION_INFO
               + "\" field of Row type with schema:\n"
@@ -384,31 +352,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               + "Received \""
               + ROW_PROPERTY_MUTATION_INFO
               + "\" field with schema:\n"
-              + rowSchema.toString());
-
-      String tableDestination = null;
-
-      if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
-        validateDynamicDestinationsExpectedSchema(schema);
-      } else {
-        tableDestination = configuration.getTable();
-      }
-
-      return write
-          .to(
-              new RowDynamicDestinations(
-                  schema.getField("record").getType().getRowSchema(),
-                  tableDestination,
-                  configuration.getPrimaryKey()))
-          .withFormatFunction(row -> BigQueryUtils.toTableRow(row.getRow("record")))
-          .withPrimaryKey(configuration.getPrimaryKey())
-          .withRowMutationInformationFn(
-              row ->
-                  RowMutationInformation.of(
-                      RowMutationInformation.MutationType.valueOf(
-                          row.getRow(ROW_PROPERTY_MUTATION_INFO)
-                              .getString(ROW_PROPERTY_MUTATION_TYPE)),
-                      row.getRow(ROW_PROPERTY_MUTATION_INFO).getString(ROW_PROPERTY_MUTATION_SQN)));
+              + mutationSchema);
     }
   }
 }

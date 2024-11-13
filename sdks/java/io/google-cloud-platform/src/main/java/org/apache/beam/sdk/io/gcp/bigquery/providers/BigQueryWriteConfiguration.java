@@ -18,20 +18,18 @@
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Configuration for writing to BigQuery with SchemaTransforms. Used by {@link
@@ -67,11 +65,6 @@ public abstract class BigQueryWriteConfiguration {
     checkArgument(
         !Strings.isNullOrEmpty(this.getTable()),
         invalidConfigMessage + "Table spec for a BigQuery Write must be specified.");
-
-    // if we have an input table spec, validate it
-    if (!this.getTable().equals(DYNAMIC_DESTINATIONS)) {
-      checkNotNull(BigQueryHelpers.parseTableSpec(this.getTable()));
-    }
 
     // validate create and write dispositions
     String createDisposition = getCreateDisposition();
@@ -186,6 +179,21 @@ public abstract class BigQueryWriteConfiguration {
   @Nullable
   public abstract List<String> getPrimaryKey();
 
+  @SchemaFieldDescription(
+      "A list of field names to keep in the input record. All other fields are dropped before writing. "
+          + "Is mutually exclusive with 'drop' and 'only'.")
+  public abstract @Nullable List<String> getKeep();
+
+  @SchemaFieldDescription(
+      "A list of field names to drop from the input record before writing. "
+          + "Is mutually exclusive with 'keep' and 'only'.")
+  public abstract @Nullable List<String> getDrop();
+
+  @SchemaFieldDescription(
+      "The name of a single record field that should be written. "
+          + "Is mutually exclusive with 'keep' and 'drop'.")
+  public abstract @Nullable String getOnly();
+
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -211,6 +219,12 @@ public abstract class BigQueryWriteConfiguration {
     public abstract Builder setUseCdcWrites(Boolean cdcWrites);
 
     public abstract Builder setPrimaryKey(List<String> pkColumns);
+
+    public abstract Builder setKeep(List<String> keep);
+
+    public abstract Builder setDrop(List<String> drop);
+
+    public abstract Builder setOnly(String only);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -71,6 +72,7 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
@@ -243,7 +245,10 @@ public class JdbcIOTest implements Serializable {
     Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
     PAssert.that(rows).containsInAnyOrder(expectedValues);
 
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(Lineage.getFqName("derby", ImmutableList.of("memory", "testDB", READ_TABLE_NAME))));
   }
 
   @Test
@@ -263,7 +268,10 @@ public class JdbcIOTest implements Serializable {
     Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
     PAssert.that(rows).containsInAnyOrder(expectedValues);
 
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(Lineage.getFqName("derby", ImmutableList.of("memory", "testDB", READ_TABLE_NAME))));
   }
 
   @Test
@@ -531,9 +539,11 @@ public class JdbcIOTest implements Serializable {
       ArrayList<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
       pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName));
 
-      pipeline.run();
-
+      PipelineResult result = pipeline.run();
       assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
+      assertThat(
+          Lineage.query(result.metrics(), Lineage.Type.SINK),
+          hasItem(Lineage.getFqName("derby", ImmutableList.of("memory", "testDB", tableName))));
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
     }
