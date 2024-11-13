@@ -84,7 +84,7 @@ public class SempBasicAuthClientExecutor implements Serializable {
     this.password = password;
     this.requestFactory = httpRequestFactory;
     this.cookieManagerKey = new CookieManagerKey(this.baseUrl, this.username);
-    COOKIE_MANAGER_MAP.putIfAbsent(this.cookieManagerKey, new CookieManager());
+    COOKIE_MANAGER_MAP.computeIfAbsent(this.cookieManagerKey, key -> new CookieManager());
   }
 
   public boolean isQueueNonExclusive(String queueName) throws IOException {
