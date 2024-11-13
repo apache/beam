@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -56,7 +57,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,7 +166,7 @@ final class GrpcGetDataStream
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
-      verify(!hasPendingRequests(), "Pending requests not expected on stream restart.");
+      verify(!hasPendingRequests(), "Pending requests not expected if we've half-closed.");
     } else {
       for (AppendableInputStream responseStream : pending.values()) {
         responseStream.cancel();
@@ -188,7 +188,9 @@ final class GrpcGetDataStream
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
       AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
-      verify(responseStream != null, "No pending response stream");
+      synchronized (this) {
+        verify(responseStream != null || isShutdown, "No pending response stream");
+      }
       responseStream.append(chunk.getSerializedResponse(i).newInput());
       if (chunk.getRemainingBytesForResponse() == 0) {
         responseStream.complete();
@@ -222,12 +224,6 @@ final class GrpcGetDataStream
   @Override
   public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats)
       throws WindmillStreamShutdownException {
-    synchronized (this) {
-      if (isShutdown) {
-        throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
-      }
-    }
-
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     if (sendKeyedGetDataRequests) {
       long builderBytes = 0;
@@ -302,7 +298,7 @@ final class GrpcGetDataStream
   }
 
   @Override
-  protected void shutdownInternal() {
+  protected synchronized void shutdownInternal() {
     // Stream has been explicitly closed. Drain pending input streams and request batches.
     // Future calls to send RPCs will fail.
     pending.values().forEach(AppendableInputStream::cancel);
@@ -341,13 +337,13 @@ final class GrpcGetDataStream
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn)
       throws WindmillStreamShutdownException {
-    while (!isShutdownLocked()) {
+    while (true) {
       request.resetResponseStream();
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
       } catch (AppendableInputStream.InvalidInputStreamStateException | CancellationException e) {
-        handleShutdown(request, e);
+        throwIfShutdown(request, e);
         if (!(e instanceof CancellationException)) {
           throw e;
         }
@@ -355,17 +351,15 @@ final class GrpcGetDataStream
         LOG.error("Parsing GetData response failed: ", e);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        handleShutdown(request, e);
+        throwIfShutdown(request, e);
         throw new RuntimeException(e);
       } finally {
         pending.remove(request.id());
       }
     }
-
-    throw shutdownExceptionFor(request);
   }
 
-  private synchronized void handleShutdown(QueuedRequest request, Throwable cause)
+  private synchronized void throwIfShutdown(QueuedRequest request, Throwable cause)
       throws WindmillStreamShutdownException {
     if (isShutdown) {
       WindmillStreamShutdownException shutdownException = shutdownExceptionFor(request);
@@ -471,14 +465,6 @@ final class GrpcGetDataStream
         LOG.warn("GetData stream broke before call started.");
       }
     }
-  }
-
-  private synchronized void verify(boolean condition, String message) {
-    Verify.verify(condition || isShutdown, message);
-  }
-
-  private synchronized boolean isShutdownLocked() {
-    return isShutdown;
   }
 
   @FunctionalInterface

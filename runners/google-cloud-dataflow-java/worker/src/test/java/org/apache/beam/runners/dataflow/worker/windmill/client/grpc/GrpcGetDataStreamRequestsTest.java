@@ -24,9 +24,11 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -142,7 +144,8 @@ public class GrpcGetDataStreamRequestsTest {
                 assertThrows(
                     WindmillStreamShutdownException.class,
                     queuedBatch::waitForSendOrFailNotification));
-
+    // Wait a few seconds for the above future to get scheduled and run.
+    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
     queuedBatch.notifyFailed();
     waitFuture.join();
   }

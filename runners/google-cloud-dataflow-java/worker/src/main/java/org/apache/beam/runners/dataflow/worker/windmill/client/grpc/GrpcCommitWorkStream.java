@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -161,15 +162,19 @@ final class GrpcCommitWorkStream
   protected void onResponse(StreamingCommitResponse response) {
     commitWorkThrottleTimer.stop();
 
-    CommitCompletionException failures = new CommitCompletionException();
+    CommitCompletionFailureHandler failureHandler = new CommitCompletionFailureHandler();
     for (int i = 0; i < response.getRequestIdCount(); ++i) {
       long requestId = response.getRequestId(i);
       if (requestId == HEARTBEAT_REQUEST_ID) {
         continue;
       }
-      PendingRequest pendingRequest = pending.remove(requestId);
+
+      // From windmill.proto: Indices must line up with the request_id field, but trailing OKs may
+      // be omitted.
       CommitStatus commitStatus =
           i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
+
+      @Nullable PendingRequest pendingRequest = pending.remove(requestId);
       if (pendingRequest == null) {
         synchronized (this) {
           if (!isShutdown) {
@@ -185,12 +190,12 @@ final class GrpcCommitWorkStream
           // other commits from being processed. Aggregate all the failures to throw after
           // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
-          failures.addError(commitStatus, e);
+          failureHandler.addError(commitStatus, e);
         }
       }
     }
 
-    failures.throwIfNonEmpty();
+    failureHandler.throwIfNonEmpty();
   }
 
   @Override
@@ -362,12 +367,17 @@ final class GrpcCommitWorkStream
   }
 
   private static class CommitCompletionException extends RuntimeException {
+    private CommitCompletionException(String message) {
+      super(message);
+    }
+  }
+
+  private static class CommitCompletionFailureHandler {
     private static final int MAX_PRINTABLE_ERRORS = 10;
     private final Map<Pair<CommitStatus, Class<? extends Throwable>>, Integer> errorCounter;
     private final EvictingQueue<Throwable> detailedErrors;
 
-    private CommitCompletionException() {
-      super("Exception while processing commit response.");
+    private CommitCompletionFailureHandler() {
       this.errorCounter = new HashMap<>();
       this.detailedErrors = EvictingQueue.create(MAX_PRINTABLE_ERRORS);
     }
@@ -381,18 +391,12 @@ final class GrpcCommitWorkStream
 
     private void throwIfNonEmpty() {
       if (!errorCounter.isEmpty()) {
-        throw this;
+        String errorMessage =
+            String.format(
+                "Exception while processing commit response. ErrorCounter: %s; Details: %s",
+                errorCounter, detailedErrors);
+        throw new CommitCompletionException(errorMessage);
       }
-    }
-
-    @Override
-    public final String getMessage() {
-      return "CommitCompletionException{"
-          + "errorCounter="
-          + errorCounter
-          + ", detailedErrors="
-          + detailedErrors
-          + '}';
     }
   }
 

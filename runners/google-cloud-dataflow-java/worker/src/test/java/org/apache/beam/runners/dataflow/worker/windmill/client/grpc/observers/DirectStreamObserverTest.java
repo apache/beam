@@ -35,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.VerifyException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
@@ -122,15 +123,16 @@ public class DirectStreamObserverTest {
         new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, 1, 1);
     ExecutorService onNextExecutor = Executors.newSingleThreadExecutor();
     CountDownLatch streamObserverExitLatch = new CountDownLatch(1);
-    Future<StreamObserverCancelledException> onNextFuture =
+    Future<WindmillServerStub.WindmillRpcException> onNextFuture =
         onNextExecutor.submit(
             () -> {
               // Won't block on the first one.
               streamObserver.onNext(1);
               // We will check isReady on the next message, will block here.
-              StreamObserverCancelledException e =
+              WindmillServerStub.WindmillRpcException e =
                   assertThrows(
-                      StreamObserverCancelledException.class, () -> streamObserver.onNext(1));
+                      WindmillServerStub.WindmillRpcException.class,
+                      () -> streamObserver.onNext(1));
               streamObserverExitLatch.countDown();
               return e;
             });

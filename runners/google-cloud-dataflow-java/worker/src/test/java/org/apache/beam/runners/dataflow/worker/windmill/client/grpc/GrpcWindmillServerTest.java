@@ -473,7 +473,6 @@ public class GrpcWindmillServerTest {
                     responseObserver.onNext(responseBuilder.build());
                   } catch (Exception e) {
                     // Stream is already closed.
-                    LOG.warn("trieu: ", e);
                     LOG.warn(Arrays.toString(e.getStackTrace()));
                   }
                   responseBuilder.clear();
@@ -514,9 +513,7 @@ public class GrpcWindmillServerTest {
             done.countDown();
           });
     }
-    while (done.await(5, TimeUnit.SECONDS)) {
-      LOG.info("trieu: {}", done.getCount());
-    }
+    while (done.await(5, TimeUnit.SECONDS)) {}
     stream.halfClose();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
     executor.shutdown();

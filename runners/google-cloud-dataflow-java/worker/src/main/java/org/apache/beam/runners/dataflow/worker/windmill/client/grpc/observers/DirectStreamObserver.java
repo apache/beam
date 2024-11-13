@@ -22,8 +22,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.WindmillRpcException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,16 +85,14 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
           // Phaser is terminated so don't use the outboundObserver. Since onError and onCompleted
           // are synchronized after terminating the phaser if we observe that the phaser is not
           // terminated the onNext calls below are guaranteed to not be called on a closed observer.
-          if (currentPhase < 0) return;
+          if (currentPhase < 0) {
+            throw new StreamObserverCancelledException("StreamObserver was terminated.");
+          }
 
           // If we awaited previously and timed out, wait for the same phase. Otherwise we're
           // careful to observe the phase before observing isReady.
           if (awaitPhase < 0) {
-            awaitPhase = isReadyNotifier.getPhase();
-            // If getPhase() returns a value less than 0, the phaser has been terminated.
-            if (awaitPhase < 0) {
-              return;
-            }
+            awaitPhase = currentPhase;
           }
 
           // We only check isReady periodically to effectively allow for increasing the outbound
@@ -128,7 +128,9 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
           // Phaser is terminated so don't use the outboundObserver. Since onError and onCompleted
           // are synchronized after terminating the phaser if we observe that the phaser is not
           // terminated the onNext calls below are guaranteed to not be called on a closed observer.
-          if (currentPhase < 0) return;
+          if (currentPhase < 0) {
+            throw new StreamObserverCancelledException("StreamObserver was terminated.");
+          }
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
           return;
@@ -138,7 +140,7 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
         if (totalSecondsWaited > deadlineSeconds) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
           LOG.error(errorMessage);
-          throw new StreamObserverCancelledException(errorMessage, e);
+          throw new WindmillRpcException(errorMessage, e);
         }
 
         if (totalSecondsWaited > OUTPUT_CHANNEL_CONSIDERED_STALLED_SECONDS) {
@@ -146,7 +148,6 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
               "Output channel stalled for {}s, outbound thread {}.",
               totalSecondsWaited,
               Thread.currentThread().getName());
-          Thread.dumpStack();
         }
 
         waitSeconds = waitSeconds * 2;
@@ -161,16 +162,24 @@ public final class DirectStreamObserver<T> implements TerminatingStreamObserver<
   public void onError(Throwable t) {
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      isClosed = true;
+      markClosedOrThrow();
       outboundObserver.onError(t);
     }
   }
 
   @Override
   public void onCompleted() {
+    isReadyNotifier.forceTermination();
     synchronized (lock) {
-      isClosed = true;
+      markClosedOrThrow();
       outboundObserver.onCompleted();
+    }
+  }
+
+  private void markClosedOrThrow() {
+    synchronized (lock) {
+      Preconditions.checkState(!isClosed);
+      isClosed = true;
     }
   }
 

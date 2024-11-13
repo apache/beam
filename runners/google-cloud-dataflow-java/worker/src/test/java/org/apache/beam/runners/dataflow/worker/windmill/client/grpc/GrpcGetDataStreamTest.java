@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -28,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
@@ -44,6 +46,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.ServerCallStreamObserver
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -100,6 +103,48 @@ public class GrpcGetDataStreamTest {
                     new ThrottleTimer());
     getDataStream.start();
     return getDataStream;
+  }
+
+  @Test
+  public void testRequestKeyedData() {
+    GetDataStreamTestStub testStub =
+        new GetDataStreamTestStub(new TestGetDataStreamRequestObserver());
+    GrpcGetDataStream getDataStream = createGetDataStream(testStub);
+    // These will block until they are successfully sent.
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData(
+                    "computationId",
+                    Windmill.KeyedGetDataRequest.newBuilder()
+                        .setKey(ByteString.EMPTY)
+                        .setShardingKey(1)
+                        .setCacheToken(1)
+                        .setWorkToken(1)
+                        .build());
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    // Sleep a bit to allow future to run.
+    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
+
+    Windmill.KeyedGetDataResponse response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setShardingKey(1)
+            .setKey(ByteString.EMPTY)
+            .build();
+
+    testStub.injectResponse(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(1)
+            .addSerializedResponse(response.toByteString())
+            .setRemainingBytesForResponse(0)
+            .build());
+
+    assertThat(sendFuture.join()).isEqualTo(response);
   }
 
   @Test
@@ -205,6 +250,10 @@ public class GrpcGetDataStreamTest {
       }
 
       return requestObserver;
+    }
+
+    private void injectResponse(Windmill.StreamingGetDataResponse getDataResponse) {
+      checkNotNull(responseObserver).onNext(getDataResponse);
     }
   }
 }

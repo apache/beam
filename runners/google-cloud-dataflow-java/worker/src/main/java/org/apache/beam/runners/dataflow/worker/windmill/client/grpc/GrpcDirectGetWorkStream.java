@@ -235,9 +235,7 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  protected void shutdownInternal() {
-    workItemAssemblers.clear();
-  }
+  protected void shutdownInternal() {}
 
   @Override
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {

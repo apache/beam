@@ -290,13 +290,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
                 e.getStatus());
           }
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
-            throw new RpcException(e);
+            throw new WindmillRpcException(e);
           }
         } catch (IOException | InterruptedException i) {
           if (i instanceof InterruptedException) {
             Thread.currentThread().interrupt();
           }
-          RpcException rpcException = new RpcException(e);
+          WindmillRpcException rpcException = new WindmillRpcException(e);
           rpcException.addSuppressed(i);
           throw rpcException;
         }
@@ -310,7 +310,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.getWork(request));
     }
 
-    throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("GetWork"));
+    throw new WindmillRpcException(unsupportedUnaryRequestInStreamingEngineException("GetWork"));
   }
 
   @Override
@@ -319,7 +319,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.getData(request));
     }
 
-    throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("GetData"));
+    throw new WindmillRpcException(unsupportedUnaryRequestInStreamingEngineException("GetData"));
   }
 
   @Override
@@ -327,7 +327,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     if (syncApplianceStub != null) {
       return callWithBackoff(() -> syncApplianceStub.commitWork(request));
     }
-    throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("CommitWork"));
+    throw new WindmillRpcException(unsupportedUnaryRequestInStreamingEngineException("CommitWork"));
   }
 
   /**
@@ -382,7 +382,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.getConfig(request));
     }
 
-    throw new RpcException(
+    throw new WindmillRpcException(
         new UnsupportedOperationException("GetConfig not supported in Streaming Engine."));
   }
 
@@ -392,7 +392,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(() -> syncApplianceStub.reportStats(request));
     }
 
-    throw new RpcException(
+    throw new WindmillRpcException(
         new UnsupportedOperationException("ReportStats not supported in Streaming Engine."));
   }
 

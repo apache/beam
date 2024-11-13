@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -33,6 +34,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
@@ -51,9 +53,12 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class GrpcCommitWorkStreamTest {
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcCommitWorkStreamTest.class);
   private static final String FAKE_SERVER_NAME = "Fake server for GrpcCommitWorkStreamTest";
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
@@ -131,13 +136,27 @@ public class GrpcCommitWorkStreamTest {
               commitProcessed.countDown();
             });
       }
+    } catch (StreamObserverCancelledException ignored) {
     }
 
     // Verify that we sent the commits above in a request + the initial header.
-    verify(requestObserver, times(2)).onNext(any(Windmill.StreamingCommitWorkRequest.class));
+    verify(requestObserver, times(2))
+        .onNext(
+            argThat(
+                request -> {
+                  if (request.getHeader().equals(TEST_JOB_HEADER)) {
+                    LOG.info("Header received.");
+                    return true;
+                  } else if (!request.getCommitChunkList().isEmpty()) {
+                    LOG.info("Chunk received.");
+                    return true;
+                  } else {
+                    LOG.error("Incorrect request.");
+                    return false;
+                  }
+                }));
     // We won't get responses so we will have some pending requests.
     assertTrue(commitWorkStream.hasPendingRequests());
-
     commitWorkStream.shutdown();
     commitProcessed.await();
 
@@ -198,7 +217,7 @@ public class GrpcCommitWorkStreamTest {
     // the header, which happens before we shutdown.
     requestObserverVerifier
         .verify(requestObserver)
-        .onNext(any(Windmill.StreamingCommitWorkRequest.class));
+        .onNext(argThat(request -> request.getHeader().equals(TEST_JOB_HEADER)));
     requestObserverVerifier.verify(requestObserver).onError(any());
     requestObserverVerifier.verifyNoMoreInteractions();
   }

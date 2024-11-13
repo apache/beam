@@ -23,6 +23,13 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 @Internal
 public interface TerminatingStreamObserver<T> extends StreamObserver<T> {
 
-  /** Terminates the StreamObserver. */
+  /**
+   * Terminates the StreamObserver.
+   *
+   * @implSpec Different then {@link #onError(Throwable)} and {@link #onCompleted()} which can only
+   *     be called once during the lifetime of each {@link StreamObserver}, terminate()
+   *     implementations are meant to be idempotent and can be called multiple times as well as
+   *     being interleaved with other stream operations.
+   */
   void terminate(Throwable terminationException);
 }

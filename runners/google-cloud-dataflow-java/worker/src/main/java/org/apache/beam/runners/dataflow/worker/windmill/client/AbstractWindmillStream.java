@@ -326,7 +326,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     // Don't lock on "this" before poisoning the request observer since otherwise the observer may
     // be blocking in send().
     requestObserver.poison();
-    isShutdown = true;
     synchronized (this) {
       if (!isShutdown) {
         isShutdown = true;

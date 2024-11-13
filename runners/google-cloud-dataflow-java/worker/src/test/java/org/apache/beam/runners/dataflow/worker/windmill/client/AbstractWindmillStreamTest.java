@@ -28,12 +28,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -104,6 +106,10 @@ public class AbstractWindmillStreamTest {
             () ->
                 assertThrows(WindmillStreamShutdownException.class, () -> testStream.testSend(1)));
     testStream.shutdown();
+
+    // Sleep a bit to give sendExecutor time to execute the send().
+    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
+
     sendBlocker.countDown();
     assertThat(sendFuture.get()).isInstanceOf(WindmillStreamShutdownException.class);
   }
