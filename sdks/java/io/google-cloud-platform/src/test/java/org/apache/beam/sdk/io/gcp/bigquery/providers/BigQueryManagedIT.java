@@ -43,7 +43,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -90,7 +89,6 @@ public class BigQueryManagedIT {
   }
 
   @Test
-  @Ignore
   public void testBatchFileLoadsWriteRead() {
     String table =
         String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
