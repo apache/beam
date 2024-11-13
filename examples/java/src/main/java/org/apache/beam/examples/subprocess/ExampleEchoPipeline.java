@@ -33,9 +33,7 @@ import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- Please see the Readme.MD file for instructions to execute this pipeline.
- */
+/** Please see the Readme.MD file for instructions to execute this pipeline. */
 public class ExampleEchoPipeline {
 
   public static void main(String[] args) throws Exception {
