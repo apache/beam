@@ -586,6 +586,22 @@ class JdbcUtil {
 
     abstract String getDatabase();
 
+    /**
+     * Parse Jdbc Url String and return an {@link JdbcUrl} object, or return null for unsupported
+     * formats.
+     *
+     * <p>Example of supported format:
+     *
+     * <ul>
+     *   <li>"jdbc:postgresql://localhost:5432/postgres"
+     *   <li>"jdbc:mysql://127.0.0.1:3306/db"
+     *   <li>"jdbc:oracle:thin:HR/hr@localhost:5221:orcl"
+     *   <li>"jdbc:derby:memory:testDB;create=true"
+     *   <li>"jdbc:oracle:thin:@//myhost.example.com:1521/my_service"
+     *   <li>"jdbc:mysql:///cloud_sql" (GCP CloudSQL, supported if Connection name setup via
+     *       HikariDataSource)
+     * </ul>
+     */
     static @Nullable JdbcUrl of(String url) {
       if (Strings.isNullOrEmpty(url) || !url.startsWith("jdbc:")) {
         return null;
@@ -704,6 +720,7 @@ class JdbcUtil {
 
       JdbcUrl jdbcUrl = JdbcUrl.of(url);
       if (jdbcUrl == null) {
+        LOG.info("Failed to parse JdbcUrl {}. Lineage will not be reported.", url);
         return null;
       }
 
@@ -756,10 +773,12 @@ class JdbcUtil {
     static @Nullable FQNComponents of(String url) {
       JdbcUrl jdbcUrl = JdbcUrl.of(url);
       if (jdbcUrl == null || jdbcUrl.getHostAndPort() == null) {
+        LOG.info("Failed to parse JdbcUrl {}. Lineage will not be reported.", url);
         return null;
       }
       String hostAndPort = jdbcUrl.getHostAndPort();
       if (hostAndPort == null) {
+        LOG.info("Failed to parse host/port from JdbcUrl {}. Lineage will not be reported.", url);
         return null;
       }
 
