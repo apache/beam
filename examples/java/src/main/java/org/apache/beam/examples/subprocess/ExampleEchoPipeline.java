@@ -58,8 +58,8 @@ public class ExampleEchoPipeline {
 
     // Define the pipeline which is two transforms echoing the inputs out to Logs
     p.apply(Create.of(sampleData))
-            .apply("Echo inputs round 1", ParDo.of(new EchoInputDoFn(configuration, "Echo")))
-            .apply("Echo inputs round 2", ParDo.of(new EchoInputDoFn(configuration, "EchoAgain")));
+          .apply("Echo inputs round 1", ParDo.of(new EchoInputDoFn(configuration, "Echo")))
+          .apply("Echo inputs round 2", ParDo.of(new EchoInputDoFn(configuration, "EchoAgain")));
 
     p.run();
   }
