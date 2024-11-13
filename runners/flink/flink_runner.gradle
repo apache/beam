@@ -266,6 +266,8 @@ def createValidatesRunnerTask(Map m) {
     )
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
+    def flinkConfDir = System.getProperty("user.dir") + "/runners/flink/src/test/validatesRunnerConfig"
+    environment("FLINK_CONF_DIR", flinkConfDir)
     useJUnit {
       if (config.checkpointing) {
         includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
