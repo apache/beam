@@ -253,6 +253,17 @@ public class ReadFromKafkaDoFnTest {
     }
 
     @Override
+    public synchronized List<PartitionInfo> partitionsFor(String partition) {
+      if (this.isRemoved) {
+        return ImmutableList.of();
+      } else {
+        return ImmutableList.of(
+            new PartitionInfo(
+                topicPartition.topic(), topicPartition.partition(), null, null, null));
+      }
+    }
+
+    @Override
     public synchronized void assign(Collection<TopicPartition> partitions) {
       assertTrue(Iterables.getOnlyElement(partitions).equals(this.topicPartition));
     }
