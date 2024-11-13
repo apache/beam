@@ -74,6 +74,42 @@ public class HistogramData implements Serializable {
     this.sumOfSquaredDeviations = 0;
   }
 
+  /**
+   * Create a histogram from DataflowHistogramValue proto.
+   *
+   * @param histogramProto DataflowHistogramValue proto used to populate stats for the histogram.
+   */
+  public HistogramData(
+      com.google.api.services.dataflow.model.DataflowHistogramValue histogramProto) {
+    int numBuckets;
+    if (histogramProto.getBucketOptions().getLinear() != null) {
+      double start = histogramProto.getBucketOptions().getLinear().getStart();
+      double width = histogramProto.getBucketOptions().getLinear().getWidth();
+      numBuckets = histogramProto.getBucketOptions().getLinear().getNumberOfBuckets();
+      this.bucketType = LinearBuckets.of(start, width, numBuckets);
+      this.buckets = new long[bucketType.getNumBuckets()];
+
+      int idx = 0;
+      for (long val : histogramProto.getBucketCounts()) {
+        this.buckets[idx] = val;
+        this.numBoundedBucketRecords += val;
+        idx++;
+      }
+    } else {
+      // Assume it's a exponential histogram if its not linear
+      int scale = histogramProto.getBucketOptions().getExponential().getScale();
+      numBuckets = histogramProto.getBucketOptions().getExponential().getNumberOfBuckets();
+      this.bucketType = ExponentialBuckets.of(scale, numBuckets);
+      this.buckets = new long[bucketType.getNumBuckets()];
+      int idx = 0;
+      for (long val : histogramProto.getBucketCounts()) {
+        this.buckets[idx] = val;
+        this.numBoundedBucketRecords += val;
+        idx++;
+      }
+    }
+  }
+
   public BucketType getBucketType() {
     return this.bucketType;
   }
@@ -268,6 +304,17 @@ public class HistogramData implements Serializable {
     return numBoundedBucketRecords + numTopRecords + numBottomRecords;
   }
 
+  public HistogramData extractResult() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    return other;
+  }
+
+  public HistogramData combine(HistogramData value) {
+    this.update(value);
+    return this;
+  }
+
   public synchronized String getPercentileString(String elemType, String unit) {
     return String.format(
         "Total number of %s: %s, P99: %.0f %s, P90: %.0f %s, P50: %.0f %s",
@@ -291,6 +338,10 @@ public class HistogramData implements Serializable {
 
   public synchronized long getTopBucketCount() {
     return numTopRecords;
+  }
+
+  public synchronized long[] getBucketCount() {
+    return buckets;
   }
 
   public synchronized double getTopBucketMean() {
@@ -571,6 +622,40 @@ public class HistogramData implements Serializable {
     }
 
     // Note: equals() and hashCode() are implemented by the AutoValue.
+  }
+
+  // Used for testing unsupported Bucket formats
+  @AutoValue
+  public abstract static class UnsupportedBuckets implements BucketType {
+
+    public static UnsupportedBuckets of() {
+      return new AutoValue_HistogramData_UnsupportedBuckets(0);
+    }
+
+    @Override
+    public int getBucketIndex(double value) {
+      return 0;
+    }
+
+    @Override
+    public double getBucketSize(int index) {
+      return 0;
+    }
+
+    @Override
+    public double getAccumulatedBucketSize(int index) {
+      return 0;
+    }
+
+    @Override
+    public double getRangeFrom() {
+      return 0;
+    }
+
+    @Override
+    public double getRangeTo() {
+      return 0;
+    }
   }
 
   @Override

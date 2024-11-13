@@ -24,6 +24,7 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Histogram;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
@@ -32,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -158,6 +160,17 @@ public class SimpleMonitoringInfoBuilder {
     this.builder.setType(MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE);
     return this;
   }
+
+  /**
+   * Encodes the value and sets the type to {@link
+   * MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setInt64HistogramValue(HistogramData data) {
+    this.builder.setPayload(encodeInt64Histogram(data));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.PER_WORKER_HISTOGRAM_TYPE);
+    return this;
+  }
+
 
   /** Sets the MonitoringInfo label to the given name and value. */
   public SimpleMonitoringInfoBuilder setLabel(String labelName, String labelValue) {
