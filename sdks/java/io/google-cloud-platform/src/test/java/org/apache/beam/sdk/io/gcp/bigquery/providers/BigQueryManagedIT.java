@@ -36,6 +36,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -98,6 +99,10 @@ public class BigQueryManagedIT {
         String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Map<String, Object> config = ImmutableMap.of("table", table);
 
+    // file loads requires a GCS temp location
+    String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
+    writePipeline.getOptions().setTempLocation(tempLocation);
+
     // batch write
     PCollectionRowTuple.of("input", getInput(writePipeline, false))
         .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
@@ -145,6 +150,12 @@ public class BigQueryManagedIT {
     String destinationTemplate = baseTableName + "_{dest}";
     Map<String, Object> config =
         ImmutableMap.of("table", destinationTemplate, "drop", Collections.singletonList("dest"));
+
+    if (!streaming) {
+      // file loads requires a GCS temp location
+      String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
+      writePipeline.getOptions().setTempLocation(tempLocation);
+    }
 
     // write
     PCollectionRowTuple.of("input", getInput(writePipeline, streaming))
