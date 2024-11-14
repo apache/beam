@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,12 +24,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.CancellableQueue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Decodes {@link BeamFnApi.Elements} partitioning them using the provided {@link DataEndpoint}s and
@@ -82,7 +82,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
-  private AtomicBoolean consumingReceivedData;
+  private final AtomicBoolean consumingReceivedData;
 
   private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
@@ -123,31 +123,38 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
 
   // Copies the elements of list to an array and removes references to elements that
   // have been iterated past.
-  @SuppressWarnings({"initialization", "assignment"})
+  private static class DiscardingIterator<T> implements Iterator<T> {
+    private int index = 0;
+    private final @Nullable Object[] array;
+
+    DiscardingIterator(List<T> list) {
+      this.array = list.toArray();
+    }
+
+    @Override
+    public boolean hasNext() {
+      return index < array.length;
+    }
+
+    @Override
+    public T next() {
+      if (index >= array.length) {
+        throw new NoSuchElementException();
+      }
+      @SuppressWarnings("unchecked")
+      T result = (T) array[index];
+      array[index] = null;
+      ++index;
+      return result;
+    }
+  }
+
   private static <T> Iterator<T> createDiscardingIterator(List<T> list) {
     if (list.isEmpty()) {
       // As optimization, don't create array etc for empty list.
       return list.iterator();
     }
-
-    @Nullable Object[] array = list.toArray();
-    return new Iterator<T>() {
-      int i = 0;
-
-      @Override
-      public boolean hasNext() {
-        return i < array.length;
-      }
-
-      @Override
-      public T next() {
-        @SuppressWarnings("unchecked")
-        T result = (T) Preconditions.checkNotNull(array[i]);
-        array[i] = null;
-        ++i;
-        return result;
-      }
-    };
+    return new DiscardingIterator<>(list);
   }
 
   /**
@@ -164,8 +171,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         consumingReceivedData.set(false);
 
         // We use discarding iterators and don't reference the elements longer than necessary to
-        // avoid
-        // pinning possibly large data pages and making them ineligible for garbage collection.
+        // avoid pinning possibly large data pages and making them ineligible for garbage
+        // collection.
         Iterator<Elements.Data> dataIterator;
         Iterator<Elements.Timers> timersIterator;
         {
