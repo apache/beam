@@ -468,7 +468,7 @@ class _StripErrorMetadata(beam.PTransform):
       else:
         raise ValueError(
             'The input to this transform does not appear to be an error '
-            "output.  Expected a schema'd input with a field named "
+            + "output.  Expected a schema'd input with a field named "
             + ' or '.join(repr(fld) for fld in self._ERROR_FIELD_NAMES)
 
     if fld is None:
