@@ -756,7 +756,7 @@ template; please adjust as you see fit.
 
     Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
     no issues are found. Only PMC member votes will count towards the final vote, but votes from all
-    community members is encouraged and helpful for finding regressions; you can either test your own
+    community members are encouraged and helpful for finding regressions; you can either test your own
     use cases [13] or use cases from the validation sheet [10].
 
     The complete staging area is available for your review, which includes:
@@ -765,7 +765,7 @@ template; please adjust as you see fit.
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
+    * Python artifacts are deployed along with the source release to dist.apache.org [2] and PyPI[8].
     * Go artifacts and documentation are available at pkg.go.dev [9]
     * Validation sheet with a tab for 1.2.3 release to help with validation [10].
     * Docker images published to Docker Hub [11].
