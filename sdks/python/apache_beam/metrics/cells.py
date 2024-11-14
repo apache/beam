@@ -26,11 +26,10 @@ context.
 import logging
 import threading
 import time
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
-from typing import Iterable
 from typing import Optional
-from typing import Set
 from typing import SupportsInt
 
 try:
@@ -543,7 +542,7 @@ class StringSetData(object):
 
   _STRING_SET_SIZE_LIMIT = 1_000_000
 
-  def __init__(self, string_set: Optional[Set] = None, string_size: int = 0):
+  def __init__(self, string_set: Optional[set] = None, string_size: int = 0):
     self.string_set = string_set or set()
     if not string_size:
       string_size = 0

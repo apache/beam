@@ -20,9 +20,7 @@
 import collections
 import time
 from functools import reduce
-from typing import FrozenSet
 from typing import Hashable
-from typing import List
 from typing import Union
 
 from apache_beam.coders import coder_impl
@@ -408,14 +406,13 @@ def get_step_name(monitoring_info_proto):
   return monitoring_info_proto.labels.get(PTRANSFORM_LABEL)
 
 
-def to_key(monitoring_info_proto):
-  # type: (metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]
-
+def to_key(
+    monitoring_info_proto: metrics_pb2.MonitoringInfo) -> frozenset[Hashable]:
   """Returns a key based on the URN and labels.
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = list(monitoring_info_proto.labels.items())  # type: List[Hashable]
+  key_items = list(monitoring_info_proto.labels.items())  # type: list[Hashable]
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
 

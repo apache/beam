@@ -35,10 +35,7 @@ Available classes:
 import threading
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import FrozenSet
 from typing import Optional
-from typing import Type
 from typing import Union
 from typing import cast
 
@@ -167,7 +164,7 @@ class _TypedMetricName(object):
   """Like MetricName, but also stores the cell type of the metric."""
   def __init__(
       self,
-      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
+      cell_type,  # type: Union[type[MetricCell], MetricCellFactory]
       metric_name  # type: Union[str, MetricName]
   ):
     # type: (...) -> None
@@ -201,7 +198,7 @@ class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
   def __init__(
       self,
-      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
+      cell_type,  # type: Union[type[MetricCell], MetricCellFactory]
       metric_name,  # type: Union[str, MetricName]
       default_value=None,
       process_wide=False):
@@ -239,7 +236,7 @@ class MetricsContainer(object):
   def __init__(self, step_name):
     self.step_name = step_name
     self.lock = threading.Lock()
-    self.metrics = {}  # type: Dict[_TypedMetricName, MetricCell]
+    self.metrics = {}  # type: dict[_TypedMetricName, MetricCell]
 
   def get_counter(self, metric_name):
     # type: (MetricName) -> CounterCell
@@ -313,7 +310,7 @@ class MetricsContainer(object):
     ]
 
   def to_runner_api_monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+    # type: (str) -> dict[frozenset, metrics_pb2.MonitoringInfo]
 
     """Returns a list of MonitoringInfos for the metrics in this container."""
     with self.lock:
@@ -354,10 +351,10 @@ class MetricUpdates(object):
   """
   def __init__(
       self,
-      counters=None,  # type: Optional[Dict[MetricKey, int]]
-      distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
-      gauges=None,  # type: Optional[Dict[MetricKey, GaugeData]]
-      string_sets=None,  # type: Optional[Dict[MetricKey, StringSetData]]
+      counters=None,  # type: Optional[dict[MetricKey, int]]
+      distributions=None,  # type: Optional[dict[MetricKey, DistributionData]]
+      gauges=None,  # type: Optional[dict[MetricKey, GaugeData]]
+      string_sets=None,  # type: Optional[dict[MetricKey, StringSetData]]
   ):
     # type: (...) -> None
 

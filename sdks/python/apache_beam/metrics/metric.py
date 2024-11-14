@@ -29,28 +29,20 @@ and displayed as part of their pipeline execution.
 
 import logging
 import re
-from typing import TYPE_CHECKING
-from typing import Dict
-from typing import FrozenSet
-from typing import Iterable
-from typing import List
+from collections.abc import Iterable
 from typing import Optional
-from typing import Set
-from typing import Type
 from typing import Union
 
 from apache_beam.metrics import cells
+from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
+from apache_beam.metrics.metricbase import Metric
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metricbase import StringSet
-
-if TYPE_CHECKING:
-  from apache_beam.metrics.execution import MetricKey
-  from apache_beam.metrics.metricbase import Metric
 
 __all__ = ['Metrics', 'MetricsFilter', 'Lineage']
 
@@ -60,7 +52,7 @@ _LOGGER = logging.getLogger(__name__)
 class Metrics(object):
   """Lets users create/access metric objects during pipeline execution."""
   @staticmethod
-  def get_namespace(namespace: Union[Type, str]) -> str:
+  def get_namespace(namespace: Union[type, str]) -> str:
     if isinstance(namespace, type):
       return '{}.{}'.format(namespace.__module__, namespace.__name__)
     elif isinstance(namespace, str):
@@ -70,7 +62,7 @@ class Metrics(object):
 
   @staticmethod
   def counter(
-      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingCounter':
+      namespace: Union[type, str], name: str) -> 'Metrics.DelegatingCounter':
     """Obtains or creates a Counter metric.
 
     Args:
@@ -85,7 +77,7 @@ class Metrics(object):
 
   @staticmethod
   def distribution(
-      namespace: Union[Type, str],
+      namespace: Union[type, str],
       name: str) -> 'Metrics.DelegatingDistribution':
     """Obtains or creates a Distribution metric.
 
@@ -103,7 +95,7 @@ class Metrics(object):
 
   @staticmethod
   def gauge(
-      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingGauge':
+      namespace: Union[type, str], name: str) -> 'Metrics.DelegatingGauge':
     """Obtains or creates a Gauge metric.
 
     Gauge metrics are restricted to integer-only values.
@@ -120,7 +112,7 @@ class Metrics(object):
 
   @staticmethod
   def string_set(
-      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingStringSet':
+      namespace: Union[type, str], name: str) -> 'Metrics.DelegatingStringSet':
     """Obtains or creates a String set metric.
 
     String set metrics are restricted to string values.
@@ -181,7 +173,7 @@ class MetricResults(object):
       return True
 
   @staticmethod
-  def _is_sub_list(needle: List[str], haystack: List[str]) -> bool:
+  def _is_sub_list(needle: list[str], haystack: list[str]) -> bool:
     """True iff `needle` is a sub-list of `haystack` (i.e. a contiguous slice
     of `haystack` exactly matches `needle`"""
     needle_len = len(needle)
@@ -225,7 +217,7 @@ class MetricResults(object):
   def query(
       self,
       filter: Optional['MetricsFilter'] = None
-  ) -> Dict[str, List['MetricResult']]:
+  ) -> dict[str, list['MetricResult']]:
     """Queries the runner for existing user metrics that match the filter.
 
     It should return a dictionary, with lists of each kind of metric, and
@@ -256,20 +248,20 @@ class MetricsFilter(object):
   Note: This class only supports user defined metrics.
   """
   def __init__(self) -> None:
-    self._names: Set[str] = set()
-    self._namespaces: Set[str] = set()
-    self._steps: Set[str] = set()
+    self._names: set[str] = set()
+    self._namespaces: set[str] = set()
+    self._steps: set[str] = set()
 
   @property
-  def steps(self) -> FrozenSet[str]:
+  def steps(self) -> frozenset[str]:
     return frozenset(self._steps)
 
   @property
-  def names(self) -> FrozenSet[str]:
+  def names(self) -> frozenset[str]:
     return frozenset(self._names)
 
   @property
-  def namespaces(self) -> FrozenSet[str]:
+  def namespaces(self) -> frozenset[str]:
     return frozenset(self._namespaces)
 
   def with_metric(self, metric: 'Metric') -> 'MetricsFilter':
@@ -287,11 +279,11 @@ class MetricsFilter(object):
     self._names.update(names)
     return self
 
-  def with_namespace(self, namespace: Union[Type, str]) -> 'MetricsFilter':
+  def with_namespace(self, namespace: Union[type, str]) -> 'MetricsFilter':
     return self.with_namespaces([namespace])
 
   def with_namespaces(
-      self, namespaces: Iterable[Union[Type, str]]) -> 'MetricsFilter':
+      self, namespaces: Iterable[Union[type, str]]) -> 'MetricsFilter':
     if isinstance(namespaces, str):
       raise ValueError('Namespaces must be an iterable, not a string')
 
@@ -397,7 +389,7 @@ class Lineage:
       self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
 
   @staticmethod
-  def query(results: MetricResults, label: str) -> Set[str]:
+  def query(results: MetricResults, label: str) -> set[str]:
     if not label in Lineage._METRICS:
       raise ValueError("Label {} does not exist for Lineage", label)
     response = results.query(
