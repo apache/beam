@@ -249,7 +249,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptionsArray = ["--runner=TestFlinkRunner",
                                 "--streaming=${config.streaming}",
                                 "--useDataStreamForBatch=${config.useDataStreamForBatch}",
-                                "--parallelism=2",
+                                "--parallelism=1",
     ]
     if (config.checkpointing) {
       pipelineOptionsArray.addAll([
