@@ -134,6 +134,43 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(a=3, b='y', c=.125, range=2),
           ]))
 
+  def test_validate(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(key='good', small=[5], nested=beam.Row(big=100)),
+          beam.Row(key='bad1', small=[500], nested=beam.Row(big=100)),
+          beam.Row(key='bad2', small=[5], nested=beam.Row(big=1)),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: ValidateWithSchema
+          config:
+            schema:
+              type: object
+              properties:
+                small:
+                  type: array
+                  items:
+                    type: integer
+                    maximum: 10
+                nested:
+                  type: object
+                  properties:
+                    big:
+                      type: integer
+                      minimum: 10
+            error_handling:
+              output: bad
+          ''')
+
+      assert_that(
+          result['good'] | beam.Map(lambda x: x.key), equal_to(['good']))
+      assert_that(
+          result['bad'] | beam.Map(lambda x: x.element.key),
+          equal_to(['bad1', 'bad2']),
+          label='Errors')
+
   def test_validate_explicit_types(self):
     with self.assertRaisesRegex(TypeError, r'.*violates schema.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

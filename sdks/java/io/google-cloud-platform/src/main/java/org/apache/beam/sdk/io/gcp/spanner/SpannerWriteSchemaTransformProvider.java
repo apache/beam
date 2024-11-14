@@ -51,9 +51,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -69,43 +67,6 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
  * <p>The transformation uses the {@link SpannerIO} to perform the write operation and provides
  * options to handle failed mutations, either by throwing an error, or passing the failed mutation
  * further in the pipeline for dealing with accordingly.
- *
- * <p>Example usage in a YAML pipeline without error handling:
- *
- * <pre>{@code
- * pipeline:
- *   transforms:
- *     - type: WriteToSpanner
- *       name: WriteShipments
- *       config:
- *         project_id: 'apache-beam-testing'
- *         instance_id: 'shipment-test'
- *         database_id: 'shipment'
- *         table_id: 'shipments'
- *
- * }</pre>
- *
- * <p>Example usage in a YAML pipeline using error handling:
- *
- * <pre>{@code
- * pipeline:
- *   transforms:
- *     - type: WriteToSpanner
- *       name: WriteShipments
- *       config:
- *         project_id: 'apache-beam-testing'
- *         instance_id: 'shipment-test'
- *         database_id: 'shipment'
- *         table_id: 'shipments'
- *         error_handling:
- *           output: 'errors'
- *
- *     - type: WriteToJson
- *       input: WriteSpanner.my_error_output
- *       config:
- *          path: errors.json
- *
- * }</pre>
  */
 @AutoService(SchemaTransformProvider.class)
 public class SpannerWriteSchemaTransformProvider
@@ -113,14 +74,37 @@ public class SpannerWriteSchemaTransformProvider
         SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerWriteSchemaTransformConfiguration>
-      configurationClass() {
+  public String identifier() {
+    return "beam:schematransform:org.apache.beam:spanner_write:v1";
+  }
+
+  @Override
+  public String description() {
+    return "Performs a bulk write to a Google Cloud Spanner table.\n"
+        + "\n"
+        + "Example configuration for performing a write to a single table: ::\n"
+        + "\n"
+        + "    pipeline:\n"
+        + "      transforms:\n"
+        + "        - type: ReadFromSpanner\n"
+        + "          config:\n"
+        + "            project_id: 'my-project-id'\n"
+        + "            instance_id: 'my-instance-id'\n"
+        + "            database_id: 'my-database'\n"
+        + "            table: 'my-table'\n"
+        + "\n"
+        + "Note: See <a href=\""
+        + "https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html\">"
+        + "SpannerIO</a> for more advanced information.";
+  }
+
+  @Override
+  protected Class<SpannerWriteSchemaTransformConfiguration> configurationClass() {
     return SpannerWriteSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      SpannerWriteSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(SpannerWriteSchemaTransformConfiguration configuration) {
     return new SpannerSchemaTransformWrite(configuration);
   }
 
@@ -230,29 +214,18 @@ public class SpannerWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:spanner_write:v1";
-  }
-
-  @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Arrays.asList("post-write", "errors");
   }
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
-
-    @SchemaFieldDescription("Specifies the GCP project.")
-    @Nullable
-    public abstract String getProjectId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
@@ -263,7 +236,11 @@ public class SpannerWriteSchemaTransformProvider
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTableId();
 
-    @SchemaFieldDescription("Specifies how to handle errors.")
+    @SchemaFieldDescription("Specifies the GCP project.")
+    @Nullable
+    public abstract String getProjectId();
+
+    @SchemaFieldDescription("Whether and how to handle write errors.")
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 

@@ -48,7 +48,19 @@ def enrichment_transform(
   """
     The Enrichment transform allows you to dynamically 
     enhance elements in a pipeline by performing key-value 
-    lookups against external services like APIs or databases. 
+    lookups against external services like APIs or databases.
+
+    Example Usage::
+    
+        - type: Enrichment
+            config:
+                enrichment_handler: 'BigTable'
+                handler_config:
+                    project_id: 'apache-beam-testing'
+                    instance_id: 'beam-test'
+                    table_id: 'bigtable-enrichment-test'
+                    row_key: 'product_id'
+              timeout: 30
 
     Args:
         enrichment_handler: Specifies the source from 
@@ -58,46 +70,14 @@ def enrichment_transform(
             "BigTable", "FeastFeatureStore", 
             "VertexAIFeatureStore"].
         handler_config: Specifies the parameters for 
-            the respective enrichment_handler in a dictionary format. 
-            BigQuery = (
-                "BigQuery: "
-                "project, table_name, row_restriction_template, "
-                "fields, column_names, "condition_value_fn, "
-                "query_fn, min_batch_size, max_batch_size"
-            )
+            the respective enrichment_handler in a dictionary format.
+            To see the full set of handler_config parameters, see
+            their corresponding doc pages:
 
-            BigTable = (
-                "BigTable: "
-                "project_id, instance_id, table_id, "
-                "row_key, row_filter, app_profile_id, "
-                "encoding, ow_key_fn, exception_level, include_timestamp"
-            )
-
-            FeastFeatureStore = (
-                "FeastFeatureStore: "
-                "feature_store_yaml_path, feature_names, "
-                "feature_service_name, full_feature_names, "
-                "entity_row_fn, exception_level"
-            )
-
-            VertexAIFeatureStore = (
-                "VertexAIFeatureStore: "
-                "project, location, api_endpoint, feature_store_name, "
-                "feature_view_name, row_key, exception_level"
-            )
-
-    Example Usage:
-    
-        - type: Enrichment
-          config:
-            enrichment_handler: 'BigTable'
-            handler_config:
-                project_id: 'apache-beam-testing'
-                instance_id: 'beam-test'
-                table_id: 'bigtable-enrichment-test'
-                row_key: 'product_id'
-            timeout: 30
-
+            - :class:`~apache_beam.transforms.enrichment_handlers.bigquery.BigQueryEnrichmentHandler` # pylint: disable=line-too-long
+            - :class:`~apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler` # pylint: disable=line-too-long
+            - :class:`~apache_beam.transforms.enrichment_handlers.feast_feature_store.FeastFeatureStoreEnrichmentHandler` # pylint: disable=line-too-long
+            - :class:`~apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler` # pylint: disable=line-too-long
     """
   options.YamlOptions.check_enabled(pcoll.pipeline, 'Enrichment')
 

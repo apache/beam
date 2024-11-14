@@ -63,10 +63,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,8 +83,7 @@ public class PubsubLiteReadSchemaTransformProvider
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteReadSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<PubsubLiteReadSchemaTransformConfiguration> configurationClass() {
     return PubsubLiteReadSchemaTransformConfiguration.class;
   }
 
@@ -192,8 +188,7 @@ public class PubsubLiteReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      PubsubLiteReadSchemaTransformConfiguration configuration) {
+  public SchemaTransform from(PubsubLiteReadSchemaTransformConfiguration configuration) {
     if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
           String.format(
@@ -399,19 +394,17 @@ public class PubsubLiteReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:pubsublite_read:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Arrays.asList("output", "errors");
   }
 

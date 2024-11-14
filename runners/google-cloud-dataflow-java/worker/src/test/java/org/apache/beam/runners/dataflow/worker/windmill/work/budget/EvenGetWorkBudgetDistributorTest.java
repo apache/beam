@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,147 +38,79 @@ public class EvenGetWorkBudgetDistributorTest {
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
-  private static GetWorkBudgetDistributor createBudgetDistributor(GetWorkBudget activeWorkBudget) {
-    return GetWorkBudgetDistributors.distributeEvenly(() -> activeWorkBudget);
-  }
+  private static GetWorkBudgetSpender createGetWorkBudgetOwner() {
+    // Lambdas are final and cannot be spied.
+    return spy(
+        new GetWorkBudgetSpender() {
 
-  private static GetWorkBudgetDistributor createBudgetDistributor(long activeWorkItemsAndBytes) {
-    return createBudgetDistributor(
-        GetWorkBudget.builder()
-            .setItems(activeWorkItemsAndBytes)
-            .setBytes(activeWorkItemsAndBytes)
-            .build());
+          @Override
+          public void setBudget(long items, long bytes) {}
+        });
   }
 
   @Test
   public void testDistributeBudget_doesNothingWhenPassedInStreamsEmpty() {
-    createBudgetDistributor(1L)
+    GetWorkBudgetDistributors.distributeEvenly()
         .distributeBudget(
             ImmutableList.of(), GetWorkBudget.builder().setItems(10L).setBytes(10L).build());
   }
 
   @Test
   public void testDistributeBudget_doesNothingWithNoBudget() {
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(GetWorkBudget.noBudget()));
-    createBudgetDistributor(1L)
+    GetWorkBudgetSpender getWorkBudgetSpender = createGetWorkBudgetOwner();
+    GetWorkBudgetDistributors.distributeEvenly()
         .distributeBudget(ImmutableList.of(getWorkBudgetSpender), GetWorkBudget.noBudget());
     verifyNoInteractions(getWorkBudgetSpender);
   }
 
   @Test
-  public void testDistributeBudget_doesNotAdjustStreamBudgetWhenRemainingBudgetHighNoActiveWork() {
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(
-            createGetWorkBudgetOwnerWithRemainingBudgetOf(
-                GetWorkBudget.builder().setItems(10L).setBytes(10L).build()));
-    createBudgetDistributor(0L)
-        .distributeBudget(
-            ImmutableList.of(getWorkBudgetSpender),
-            GetWorkBudget.builder().setItems(10L).setBytes(10L).build());
-
-    verify(getWorkBudgetSpender, never()).adjustBudget(anyLong(), anyLong());
-  }
-
-  @Test
-  public void
-      testDistributeBudget_doesNotAdjustStreamBudgetWhenRemainingBudgetHighWithActiveWork() {
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(
-            createGetWorkBudgetOwnerWithRemainingBudgetOf(
-                GetWorkBudget.builder().setItems(5L).setBytes(5L).build()));
-    createBudgetDistributor(10L)
-        .distributeBudget(
-            ImmutableList.of(getWorkBudgetSpender),
-            GetWorkBudget.builder().setItems(20L).setBytes(20L).build());
-
-    verify(getWorkBudgetSpender, never()).adjustBudget(anyLong(), anyLong());
-  }
-
-  @Test
-  public void
-      testDistributeBudget_adjustsStreamBudgetWhenRemainingItemBudgetTooLowWithNoActiveWork() {
-    GetWorkBudget streamRemainingBudget =
-        GetWorkBudget.builder().setItems(1L).setBytes(10L).build();
-    GetWorkBudget totalGetWorkBudget = GetWorkBudget.builder().setItems(10L).setBytes(10L).build();
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(streamRemainingBudget));
-    createBudgetDistributor(0L)
-        .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
-
-    verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
-            eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
-            eq(totalGetWorkBudget.bytes() - streamRemainingBudget.bytes()));
-  }
-
-  @Test
-  public void
-      testDistributeBudget_adjustsStreamBudgetWhenRemainingItemBudgetTooLowWithActiveWork() {
-    GetWorkBudget streamRemainingBudget =
-        GetWorkBudget.builder().setItems(1L).setBytes(10L).build();
-    GetWorkBudget totalGetWorkBudget = GetWorkBudget.builder().setItems(10L).setBytes(10L).build();
-    long activeWorkItemsAndBytes = 2L;
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(streamRemainingBudget));
-    createBudgetDistributor(activeWorkItemsAndBytes)
-        .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
-
-    verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
-            eq(
-                totalGetWorkBudget.items()
-                    - streamRemainingBudget.items()
-                    - activeWorkItemsAndBytes),
-            eq(totalGetWorkBudget.bytes() - streamRemainingBudget.bytes()));
-  }
-
-  @Test
-  public void testDistributeBudget_adjustsStreamBudgetWhenRemainingByteBudgetTooLowNoActiveWork() {
-    GetWorkBudget streamRemainingBudget =
-        GetWorkBudget.builder().setItems(10L).setBytes(1L).build();
-    GetWorkBudget totalGetWorkBudget = GetWorkBudget.builder().setItems(10L).setBytes(10L).build();
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(streamRemainingBudget));
-    createBudgetDistributor(0L)
-        .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
-
-    verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
-            eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
-            eq(totalGetWorkBudget.bytes() - streamRemainingBudget.bytes()));
-  }
-
-  @Test
-  public void
-      testDistributeBudget_adjustsStreamBudgetWhenRemainingByteBudgetTooLowWithActiveWork() {
-    GetWorkBudget streamRemainingBudget =
-        GetWorkBudget.builder().setItems(10L).setBytes(1L).build();
-    GetWorkBudget totalGetWorkBudget = GetWorkBudget.builder().setItems(10L).setBytes(10L).build();
-    long activeWorkItemsAndBytes = 2L;
-
-    GetWorkBudgetSpender getWorkBudgetSpender =
-        spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(streamRemainingBudget));
-    createBudgetDistributor(activeWorkItemsAndBytes)
-        .distributeBudget(ImmutableList.of(getWorkBudgetSpender), totalGetWorkBudget);
-
-    verify(getWorkBudgetSpender, times(1))
-        .adjustBudget(
-            eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
-            eq(
-                totalGetWorkBudget.bytes()
-                    - streamRemainingBudget.bytes()
-                    - activeWorkItemsAndBytes));
-  }
-
-  @Test
   public void testDistributeBudget_distributesBudgetEvenlyIfPossible() {
+    int totalStreams = 10;
+    long totalItems = 10L;
+    long totalBytes = 100L;
+    List<GetWorkBudgetSpender> streams = new ArrayList<>();
+    for (int i = 0; i < totalStreams; i++) {
+      streams.add(createGetWorkBudgetOwner());
+    }
+    GetWorkBudgetDistributors.distributeEvenly()
+        .distributeBudget(
+            ImmutableList.copyOf(streams),
+            GetWorkBudget.builder().setItems(totalItems).setBytes(totalBytes).build());
+
+    streams.forEach(
+        stream ->
+            verify(stream, times(1))
+                .setBudget(eq(GetWorkBudget.builder().setItems(1L).setBytes(10L).build())));
+  }
+
+  @Test
+  public void testDistributeBudget_distributesFairlyWhenNotEven() {
+    long totalItems = 10L;
+    long totalBytes = 19L;
+    List<GetWorkBudgetSpender> streams = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      streams.add(createGetWorkBudgetOwner());
+    }
+    GetWorkBudgetDistributors.distributeEvenly()
+        .distributeBudget(
+            ImmutableList.copyOf(streams),
+            GetWorkBudget.builder().setItems(totalItems).setBytes(totalBytes).build());
+
+    streams.forEach(
+        stream ->
+            verify(stream, times(1))
+                .setBudget(eq(GetWorkBudget.builder().setItems(4L).setBytes(7L).build())));
+  }
+
+  @Test
+  public void testDistributeBudget_distributesBudgetEvenly() {
     long totalItemsAndBytes = 10L;
     List<GetWorkBudgetSpender> streams = new ArrayList<>();
     for (int i = 0; i < totalItemsAndBytes; i++) {
-      streams.add(spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(GetWorkBudget.noBudget())));
+      streams.add(createGetWorkBudgetOwner());
     }
-    createBudgetDistributor(0L)
+
+    GetWorkBudgetDistributors.distributeEvenly()
         .distributeBudget(
             ImmutableList.copyOf(streams),
             GetWorkBudget.builder()
@@ -192,42 +122,6 @@ public class EvenGetWorkBudgetDistributorTest {
     streams.forEach(
         stream ->
             verify(stream, times(1))
-                .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
-  }
-
-  @Test
-  public void testDistributeBudget_distributesFairlyWhenNotEven() {
-    long totalItemsAndBytes = 10L;
-    List<GetWorkBudgetSpender> streams = new ArrayList<>();
-    for (int i = 0; i < 3; i++) {
-      streams.add(spy(createGetWorkBudgetOwnerWithRemainingBudgetOf(GetWorkBudget.noBudget())));
-    }
-    createBudgetDistributor(0L)
-        .distributeBudget(
-            ImmutableList.copyOf(streams),
-            GetWorkBudget.builder()
-                .setItems(totalItemsAndBytes)
-                .setBytes(totalItemsAndBytes)
-                .build());
-
-    long itemsAndBytesPerStream = (long) Math.ceil(totalItemsAndBytes / (streams.size() * 1.0));
-    streams.forEach(
-        stream ->
-            verify(stream, times(1))
-                .adjustBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
-  }
-
-  private GetWorkBudgetSpender createGetWorkBudgetOwnerWithRemainingBudgetOf(
-      GetWorkBudget getWorkBudget) {
-    return spy(
-        new GetWorkBudgetSpender() {
-          @Override
-          public void adjustBudget(long itemsDelta, long bytesDelta) {}
-
-          @Override
-          public GetWorkBudget remainingBudget() {
-            return getWorkBudget;
-          }
-        });
+                .setBudget(eq(itemsAndBytesPerStream), eq(itemsAndBytesPerStream)));
   }
 }

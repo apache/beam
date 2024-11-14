@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -26,6 +27,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
@@ -33,7 +35,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -62,7 +66,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 public class BigQueryDirectReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryDirectReadSchemaTransformConfiguration> {
 
-  private static final String OUTPUT_TAG = "OUTPUT_ROWS";
+  public static final String OUTPUT_TAG = "output";
 
   @Override
   protected Class<BigQueryDirectReadSchemaTransformConfiguration> configurationClass() {
@@ -76,7 +80,7 @@ public class BigQueryDirectReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:bigquery_storage_read:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ);
   }
 
   @Override
@@ -139,6 +143,10 @@ public class BigQueryDirectReadSchemaTransformProvider
     @Nullable
     public abstract List<String> getSelectedFields();
 
+    @SchemaFieldDescription("Use this Cloud KMS key to encrypt your data")
+    @Nullable
+    public abstract String getKmsKey();
+
     @Nullable
     /** Builder for the {@link BigQueryDirectReadSchemaTransformConfiguration}. */
     @AutoValue.Builder
@@ -151,6 +159,8 @@ public class BigQueryDirectReadSchemaTransformProvider
 
       public abstract Builder setSelectedFields(List<String> selectedFields);
 
+      public abstract Builder setKmsKey(String kmsKey);
+
       /** Builds a {@link BigQueryDirectReadSchemaTransformConfiguration} instance. */
       public abstract BigQueryDirectReadSchemaTransformConfiguration build();
     }
@@ -161,7 +171,7 @@ public class BigQueryDirectReadSchemaTransformProvider
    * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryDirectReadSchemaTransformProvider}.
    */
-  protected static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
+  public static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
     private BigQueryServices testBigQueryServices = null;
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
@@ -170,6 +180,20 @@ public class BigQueryDirectReadSchemaTransformProvider
       // Validate configuration parameters before PTransform expansion
       configuration.validate();
       this.configuration = configuration;
+    }
+
+    public Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(BigQueryDirectReadSchemaTransformConfiguration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @VisibleForTesting
@@ -210,6 +234,9 @@ public class BigQueryDirectReadSchemaTransformProvider
         }
       } else {
         read = read.fromQuery(configuration.getQuery());
+      }
+      if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
+        read = read.withKmsKey(configuration.getKmsKey());
       }
 
       if (this.testBigQueryServices != null) {

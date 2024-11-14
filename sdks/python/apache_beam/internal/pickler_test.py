@@ -94,6 +94,11 @@ class PicklerTest(unittest.TestCase):
 
     self.assertIsInstance(loads(dumps(rlock_instance)), rlock_type)
 
+  def test_save_paths(self):
+    f = loads(dumps(lambda x: x))
+    co_filename = f.__code__.co_filename
+    self.assertTrue(co_filename.endswith('pickler_test.py'))
+
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
   def test_dump_and_load_mapping_proxy(self):
     self.assertEqual(

@@ -715,7 +715,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cdap_plugin_zendesk                         : "io.cdap.plugin:zendesk-plugins:1.0.0",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
-        commons_codec                               : "commons-codec:commons-codec:1.17.0",
+        commons_codec                               : "commons-codec:commons-codec:1.17.1",
         commons_collections                         : "commons-collections:commons-collections:3.2.2",
         commons_compress                            : "org.apache.commons:commons-compress:1.26.2",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
@@ -909,7 +909,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_solace                       : "org.testcontainers:solace:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
-        vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.2",
+        vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.3",
         vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -2513,6 +2513,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def taskName = "run${config.type}Java${config.runner}"
       def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+      // shared maven local path for maven archetype projects
+      def sharedMavenLocal = project.findProperty('mavenLocalPath') ?: ''
       def argsNeeded = [
         "--ver=${releaseVersion}",
         "--repourl=${releaseRepo}"
@@ -2531,6 +2533,9 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       if (config.pubsubTopic) {
         argsNeeded.add("--pubsubTopic=${config.pubsubTopic}")
+      }
+      if (sharedMavenLocal) {
+        argsNeeded.add("--mavenLocalPath=${sharedMavenLocal}")
       }
       project.evaluationDependsOn(':release')
       project.task(taskName, dependsOn: ':release:classes', type: JavaExec) {
@@ -3147,7 +3152,6 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:3:job-server:shadowJar',
-            ':sdks:python:container:py38:docker',
             ':sdks:python:container:py39:docker',
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',

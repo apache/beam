@@ -26,7 +26,6 @@
 
 import logging
 import sys
-import typing
 
 import apache_beam as beam
 from apache_beam.io.kafka import ReadFromKafka
@@ -97,7 +96,7 @@ def run(
             topic='projects/pubsub-public-data/topics/taxirides-realtime').
         with_output_types(bytes)
         | beam.Map(lambda x: (b'', x)).with_output_types(
-            typing.Tuple[bytes, bytes])  # Kafka write transforms expects KVs.
+            tuple[bytes, bytes])  # Kafka write transforms expects KVs.
         | beam.WindowInto(beam.window.FixedWindows(window_size))
         | WriteToKafka(
             producer_config={'bootstrap.servers': bootstrap_servers},

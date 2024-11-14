@@ -170,3 +170,32 @@ class MyModelHandler():
    def run_inference(self, batch: Sequence[str], model: MyWrapper, inference_args):
       return model.predict(unpickleable_object)
 ```
+
+## RAG and Prompt Engineering in Beam
+
+Beam is also an excellent tool for improving the quality of your LLM prompts using Retrieval Augmented Generation (RAG).
+Retrieval augmented generation is a technique that enhances large language models (LLMs) by connecting them to external knowledge sources.
+This allows the LLM to access and process real-time information, improving the accuracy, relevance, and factuality of its responses.
+
+Beam has several mechanisms to make this process simpler:
+
+1. Beam's [MLTransform](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.embeddings.html) provides an embeddings package to generate the embeddings used for RAG. You can also use RunInference to generate embeddings if you have a model without an embeddings handler.
+2. Beam's [Enrichment transform](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment/) makes it easy to look up embeddings or other information in an external storage system like a [vector database](https://www.pinecone.io/learn/vector-database/).
+
+Collectively, you can use these to perform RAG using the following steps:
+
+**Pipeline 1 - generate knowledge base:**
+
+1. Ingest data from external source using one of [Beam's IO connectors](https://beam.apache.org/documentation/io/connectors/)
+2. Generate embeddings on that data using [MLTransform](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.embeddings.html)
+3. Write those embeddings to a vector DB using a [ParDo](https://beam.apache.org/documentation/programming-guide/#pardo)
+
+**Pipeline 2 - use knowledge base to perform RAG:**
+
+1. Ingest data from external source using one of [Beam's IO connectors](https://beam.apache.org/documentation/io/connectors/)
+2. Generate embeddings on that data using [MLTransform](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.embeddings.html)
+3. Enrich that data with additional embeddings from your vector DB using [Enrichment](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment/)
+4. Use that enriched data to prompt your LLM with [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/)
+5. Write that data to your desired sink using one of [Beam's IO connectors](https://beam.apache.org/documentation/io/connectors/)
+
+To view an example pipeline performing RAG, see https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/rag_usecase/beam_rag_notebook.ipynb

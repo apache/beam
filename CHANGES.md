@@ -25,8 +25,6 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
-* Added support for Flink 1.19
-
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
@@ -62,6 +60,7 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * [Python] Introduce Managed Transforms API ([#31495](https://github.com/apache/beam/pull/31495))
+* Flink 1.19 support added ([#32648](https://github.com/apache/beam/pull/32648))
 
 ## I/Os
 
@@ -70,12 +69,17 @@
 * [Managed Iceberg] Now available in Python SDK ([#31495](https://github.com/apache/beam/pull/31495))
 * [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types ([#32688](https://github.com/apache/beam/pull/32688))
 * BigQuery CDC writes are now available in Python SDK, only supported when using StorageWrite API at least once mode ([#32527](https://github.com/apache/beam/issues/32527))
+* [Managed Iceberg] Allow updating table partition specs during pipeline runtime ([#32879](https://github.com/apache/beam/pull/32879))
+* Added BigQueryIO as a Managed IO ([#31486](https://github.com/apache/beam/pull/31486))
+* Support for writing to [Solace messages queues](https://solace.com/) (`SolaceIO.Write`) added (Java) ([#31905](https://github.com/apache/beam/issues/31905)).
 
 ## New Features / Improvements
 
 * Added support for read with metadata in MqttIO (Java) ([#32195](https://github.com/apache/beam/issues/32195))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for processing events which use a global sequence to "ordered" extension (Java) [#32540](https://github.com/apache/beam/pull/32540)
+* Add new meta-transform FlattenWith and Tee that allow one to introduce branching
+  without breaking the linear/chaining style of pipeline construction.
 
 ## Breaking Changes
 
@@ -83,12 +87,16 @@
 
 ## Deprecations
 
+* Removed support for Flink 1.15 and 1.16
+* Removed support for Python 3.8
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) Fixed tearDown not invoked when DoFn throws on Portable Runners ([#18592](https://github.com/apache/beam/issues/18592), [#31381](https://github.com/apache/beam/issues/31381)).
+* (Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine ([#32892](https://github.com/apache/beam/issues/32892)).
+* Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn ([#31111](https://github.com/apache/beam/issues/31111))
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -97,7 +105,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.60.0] - Unreleased
+# [2.60.0] - 2024-10-17
 
 ## Highlights
 

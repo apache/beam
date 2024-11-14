@@ -507,7 +507,7 @@ with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
     RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
-    for pyver in 3.8 3.9 3.10 3.11; do
+    for pyver in 3.9 3.10 3.11 3.12; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
@@ -554,10 +554,10 @@ to PyPI with an `rc` suffix.
 
 __Attention:__ Verify that:
 - [ ] The File names version include ``rc-#`` suffix
-- [ ] [Download Files](https://pypi.org/project/apache-beam/#files) have:
-      - [ ] All wheels uploaded as artifacts
-      - [ ] Release source's zip published
-      - [ ] Signatures and hashes do not need to be uploaded
+- [Download Files](https://pypi.org/project/apache-beam/#files) have:
+- [ ] All wheels uploaded as artifacts
+- [ ] Release source's zip published
+- [ ] Signatures and hashes do not need to be uploaded
 
 ### Propose pull requests for website updates
 
@@ -1148,7 +1148,7 @@ All wheels should be published, in addition to the zip of the release source.
 ### Merge Website pull requests
 
 Merge all of the website pull requests
-- [listing the release](/get-started/downloads/)
+- [listing the release](https://beam.apache.org/get-started/downloads/)
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
 

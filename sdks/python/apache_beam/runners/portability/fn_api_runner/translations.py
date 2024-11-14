@@ -256,7 +256,7 @@ class Stage(object):
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         local_side_inputs = payload.side_inputs
       else:
-        local_side_inputs = {}  # type: ignore[assignment]
+        local_side_inputs = {}
       for local_id, pipeline_id in transform.inputs.items():
         if pcoll == pipeline_id and local_id not in local_side_inputs:
           return True

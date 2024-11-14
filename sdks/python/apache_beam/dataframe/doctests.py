@@ -45,8 +45,6 @@ import sys
 import traceback
 from io import StringIO
 from typing import Any
-from typing import Dict
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -146,7 +144,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS: Dict[str, List[Any]] = {}
+  _ALL_RESULTS: dict[str, list[Any]] = {}
 
   def __init__(self):
     self._id = id(self)
@@ -729,15 +727,15 @@ def with_run_patched_docstring(target=None):
 
     Args:
       optionflags (int): Passed through to doctests.
-      extraglobs (Dict[str,Any]): Passed through to doctests.
+      extraglobs (dict[str,Any]): Passed through to doctests.
       use_beam (bool): If true, run a Beam pipeline with partitioned input to
         verify the examples, else use PartitioningSession to simulate
         distributed execution.
-      skip (Dict[str,str]): A set of examples to skip entirely.
+      skip (dict[str,str]): A set of examples to skip entirely.
         If a key is '*', an example will be skipped in all test scenarios.
-      wont_implement_ok (Dict[str,str]): A set of examples that are allowed to
+      wont_implement_ok (dict[str,str]): A set of examples that are allowed to
         raise WontImplementError.
-      not_implemented_ok (Dict[str,str]): A set of examples that are allowed to
+      not_implemented_ok (dict[str,str]): A set of examples that are allowed to
         raise NotImplementedError.
 
     Returns:

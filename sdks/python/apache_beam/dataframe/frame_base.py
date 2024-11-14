@@ -17,15 +17,13 @@
 import functools
 import operator
 import re
+from collections.abc import Callable
 from inspect import cleandoc
 from inspect import getfullargspec
 from inspect import isclass
 from inspect import ismodule
 from inspect import unwrap
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -38,7 +36,7 @@ from apache_beam.dataframe import partitionings
 
 class DeferredBase(object):
 
-  _pandas_type_map: Dict[Union[type, None], type] = {}
+  _pandas_type_map: dict[Union[type, None], type] = {}
 
   def __init__(self, expr):
     self._expr = expr
@@ -229,7 +227,7 @@ def _elementwise_function(
 def _proxy_function(
     func: Union[Callable, str],
     name: Optional[str] = None,
-    restrictions: Optional[Dict[str, Union[Any, List[Any]]]] = None,
+    restrictions: Optional[dict[str, Union[Any, list[Any]]]] = None,
     inplace: bool = False,
     base: Optional[type] = None,
     *,

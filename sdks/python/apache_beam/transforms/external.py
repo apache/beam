@@ -738,7 +738,7 @@ class ExternalTransform(ptransform.PTransform):
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
-        namespace=self._external_namespace,
+        namespace=self._external_namespace,  # type: ignore[arg-type]
         transform=transform_proto,
         output_coder_requests=output_coders,
         pipeline_options=pipeline._options.to_runner_api())

@@ -1516,6 +1516,7 @@ public class ProcessBundleHandlerTest {
 
     // Ensure that we unregister during successful processing
     verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
+    verify(beamFnDataClient).poisonInstructionId(eq("instructionId"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
 
