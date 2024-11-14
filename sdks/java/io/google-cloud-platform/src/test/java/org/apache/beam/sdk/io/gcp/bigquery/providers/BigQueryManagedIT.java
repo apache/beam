@@ -152,9 +152,9 @@ public class BigQueryManagedIT {
         ImmutableMap.of("table", destinationTemplate, "drop", Collections.singletonList("dest"));
 
     if (!streaming) {
-        // file loads requires a GCS temp location
-        String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
-        writePipeline.getOptions().setTempLocation(tempLocation);
+      // file loads requires a GCS temp location
+      String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
+      writePipeline.getOptions().setTempLocation(tempLocation);
     }
 
     // write
