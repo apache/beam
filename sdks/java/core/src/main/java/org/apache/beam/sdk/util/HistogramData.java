@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
@@ -24,6 +25,8 @@ import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -79,8 +82,7 @@ public class HistogramData implements Serializable {
    *
    * @param histogramProto DataflowHistogramValue proto used to populate stats for the histogram.
    */
-  public HistogramData(
-      com.google.api.services.dataflow.model.DataflowHistogramValue histogramProto) {
+  public HistogramData(DataflowHistogramValue histogramProto) {
     int numBuckets;
     if (histogramProto.getBucketOptions().getLinear() != null) {
       double start = histogramProto.getBucketOptions().getLinear().getStart();
@@ -613,8 +615,10 @@ public class HistogramData implements Serializable {
     // Note: equals() and hashCode() are implemented by the AutoValue.
   }
 
-  // Used for testing unsupported Bucket formats
+  /** Used for testing unsupported Bucket formats. */
   @AutoValue
+  @Internal
+  @VisibleForTesting
   public abstract static class UnsupportedBuckets implements BucketType {
 
     public static UnsupportedBuckets of() {

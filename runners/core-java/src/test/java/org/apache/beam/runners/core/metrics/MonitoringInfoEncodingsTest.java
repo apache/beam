@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.HistogramParsingException;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
@@ -140,8 +141,8 @@ public class MonitoringInfoEncodingsTest {
 
   @Test
   public void testHistgramInt64EncodingUnsupportedBucket() {
-    thrown.expect(Exception.class);
-    thrown.expectMessage("Unable to parse histogram, bucket is not recognized");
+    thrown.expect(HistogramParsingException.class);
+    thrown.expectMessage("Unable to encode Int64 Histogram, bucket is not recognized");
 
     HistogramData.BucketType buckets = HistogramData.UnsupportedBuckets.of();
 

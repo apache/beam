@@ -202,7 +202,8 @@ public class MonitoringInfoEncodings {
         base2Exp.setScale(buckets.getScale());
         outputHistogram2.setBucketOptions(new BucketOptions().setExponential(base2Exp));
       } else {
-        throw new RuntimeException("Unable to parse histogram, bucket is not recognized");
+        throw new HistogramParsingException(
+            "Unable to encode Int64 Histogram, bucket is not recognized");
       }
 
       outputHistogram2.setCount(inputHistogram.getTotalCount());
@@ -221,8 +222,14 @@ public class MonitoringInfoEncodings {
       String jsonString = objectMapper.writeValueAsString(outputHistogram2);
 
       return ByteString.copyFromUtf8(jsonString);
-    } catch (Exception e) {
+    } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  static class HistogramParsingException extends RuntimeException {
+    public HistogramParsingException(String message) {
+      super(message);
     }
   }
 
@@ -257,7 +264,8 @@ public class MonitoringInfoEncodings {
         base2Exp.setScale(expNode.get("scale").asInt());
         newHist.setBucketOptions(new BucketOptions().setExponential(base2Exp));
       } else {
-        throw new RuntimeException("Unable to parse histogram, bucket is not recognized");
+        throw new HistogramParsingException(
+            "Unable to parse Int64 Histogram, bucket is not recognized");
       }
       return new HistogramData(newHist);
     } catch (IOException e) {
