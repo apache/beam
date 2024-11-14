@@ -18,7 +18,41 @@
 from abc import ABC, abstractmethod
 
 
+class ScopedStateInterface(ABC):
+  @abstractmethod
+  def sampled_seconds(self) -> float:
+    pass
+
+  @abstractmethod
+  def sampled_msecs_int(self) -> int:
+    pass
+
+  @abstractmethod
+  def __enter__(self):
+    pass
+
+  @abstractmethod
+  def __exit__(self, exc_type, exc_value, traceback):
+    pass
+
+
 class StateSamplerInterface(ABC):
   @abstractmethod
-  def update_metric(self, typed_metric_name, value):
-    raise NotImplementedError
+  def start(self) -> None:
+    pass
+
+  @abstractmethod
+  def stop(self) -> None:
+    pass
+
+  @abstractmethod
+  def reset(self) -> None:
+    pass
+
+  @abstractmethod
+  def current_state(self) -> ScopedStateInterface:
+    pass
+
+  @abstractmethod
+  def update_metric(self, typed_metric_name, value) -> None:
+    pass

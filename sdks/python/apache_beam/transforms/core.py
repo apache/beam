@@ -2553,9 +2553,7 @@ class _DeferredStateUpdatingPool:
         stub_state_sampler.get_recorded_calls().items()
       ):
         tracker.update_metric(typed_metric_name, value)
-    if results is None:
-      return
-    return list(results)
+    return results
 
 
 class _SubprocessDoFn(DoFn):
@@ -2596,10 +2594,10 @@ class _SubprocessDoFn(DoFn):
       self._pool = concurrent.futures.ProcessPoolExecutor(1)
       self._pool.submit(self._remote_init, self._serialized_fn).result()
     try:
-      return _DeferredStateUpdatingPool(
-          self._pool,
-          self._timeout if method == self._remote_process else None).submit(
-              method, *args, **kwargs)
+      if (method == self._remote_process):
+        return _DeferredStateUpdatingPool(self._pool, self._timeout).submit(
+            method, *args, **kwargs)
+      return self._pool.submit(method, *args, **kwargs).result(None)
     except (concurrent.futures.process.BrokenProcessPool,
             TimeoutError,
             concurrent.futures._base.TimeoutError):

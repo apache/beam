@@ -18,7 +18,6 @@
 """Unit tests for the PTransform and descendants."""
 
 # pytype: skip-file
-
 import collections
 import operator
 import os
@@ -2769,10 +2768,18 @@ class DeadLettersTest(unittest.TestCase):
         yield element
 
     with TestPipeline() as p:
-      _, _ = (
-          (p | beam.Create([1,2,3])) | beam.ParDo(CounterDoFn())
-          .with_exception_handling(
-            use_subprocess=self.use_subprocess, timeout=1))
+      good, _ = (
+          (p
+          | beam.Create([1,2,3]))
+          | beam.ParDo(CounterDoFn())
+            .with_exception_handling(
+              use_subprocess=self.use_subprocess,
+              timeout=1 if self.use_subprocess else .1
+            )
+      )
+
+      assert_that(good, equal_to([1, 2, 3]), label='CheckGood')
+
     results = p.result
 
     metric_results1 = results.metrics().query(

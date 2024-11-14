@@ -21,7 +21,7 @@ from typing import Optional
 
 from apache_beam.runners import common
 from apache_beam.utils import counters
-from apache_beam.runners.worker.statesampler_interface import StateSamplerInterface
+from apache_beam.runners.worker.statesampler_interface import StateSamplerInterface, ScopedStateInterface
 
 
 class StateSampler(StateSamplerInterface):
@@ -73,7 +73,7 @@ class StateSampler(StateSamplerInterface):
     pass
 
 
-class ScopedState(object):
+class ScopedState(ScopedStateInterface):
   def __init__(
       self,
       sampler: StateSampler,

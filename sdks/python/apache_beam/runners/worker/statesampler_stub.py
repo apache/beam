@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from apache_beam.runners.worker.statesampler_interface import StateSamplerInterface
+from apache_beam.runners.worker.statesampler_interface import StateSamplerInterface, ScopedStateInterface
 
 
 class StubStateSampler(StateSamplerInterface):
@@ -30,3 +30,15 @@ class StubStateSampler(StateSamplerInterface):
 
   def get_recorded_calls(self):
     return self._update_metric_calls
+
+  def start(self) -> None:
+    raise NotImplementedError()
+
+  def stop(self) -> None:
+    raise NotImplementedError()
+
+  def reset(self) -> None:
+    raise NotImplementedError()
+
+  def current_state(self) -> ScopedStateInterface:
+    raise NotImplementedError()
