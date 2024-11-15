@@ -104,10 +104,6 @@ final class ResettableThrowingStreamObserver<T> {
     }
   }
 
-  synchronized boolean hasReceivedPoisonPill() {
-    return isPoisoned;
-  }
-
   public void onNext(T t) throws StreamClosedException, WindmillStreamShutdownException {
     // Make sure onNext and onError below to be called on the same StreamObserver instance.
     StreamObserver<T> delegate = delegate();
@@ -115,22 +111,28 @@ final class ResettableThrowingStreamObserver<T> {
       // Do NOT lock while sending message over the stream as this will block other StreamObserver
       // operations.
       delegate.onNext(t);
-    } catch (StreamObserverCancelledException e) {
+    } catch (StreamObserverCancelledException cancellationException) {
       synchronized (this) {
         if (isPoisoned) {
-          logger.debug("Stream was shutdown during send.", e);
+          logger.debug("Stream was shutdown during send.", cancellationException);
           return;
         }
       }
 
       try {
-        delegate.onError(e);
-      } catch (IllegalStateException ignored) {
+        delegate.onError(cancellationException);
+      } catch (IllegalStateException onErrorException) {
         // If the delegate above was already terminated via onError or onComplete from another
         // thread.
-        logger.warn("StreamObserver was previously cancelled.", e);
-      } catch (RuntimeException ignored) {
-        logger.warn("StreamObserver was unexpectedly cancelled.", e);
+        logger.warn(
+            "StreamObserver was already cancelled {} due to error.",
+            onErrorException,
+            cancellationException);
+      } catch (RuntimeException onErrorException) {
+        logger.warn(
+            "Encountered unexpected error {} when cancelling due to error.",
+            onErrorException,
+            cancellationException);
       }
     }
   }
@@ -156,7 +158,7 @@ final class ResettableThrowingStreamObserver<T> {
    * {@link StreamObserver#onCompleted()}. The stream may perform
    */
   static final class StreamClosedException extends Exception {
-    private StreamClosedException(String s) {
+    StreamClosedException(String s) {
       super(s);
     }
   }

@@ -26,15 +26,4 @@ public final class WindmillStreamShutdownException extends Exception {
   public WindmillStreamShutdownException(String message) {
     super(message);
   }
-
-  /** Returns whether an exception was caused by a {@link WindmillStreamShutdownException}. */
-  public static boolean isCauseOf(Throwable t) {
-    while (t != null) {
-      if (t instanceof WindmillStreamShutdownException) {
-        return true;
-      }
-      t = t.getCause();
-    }
-    return false;
-  }
 }

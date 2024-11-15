@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -167,15 +168,15 @@ public class GrpcCommitWorkStreamTest {
     }
     commitWorkStream.shutdown();
 
-    Set<Windmill.CommitStatus> commitStatuses = new HashSet<>();
+    AtomicReference<Windmill.CommitStatus> commitStatus = new AtomicReference<>();
     try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
       for (int i = 0; i < numCommits; i++) {
         assertTrue(
-            batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), commitStatuses::add));
+            batcher.commitWorkItem(COMPUTATION_ID, workItemCommitRequest(i), commitStatus::set));
       }
     }
 
-    assertThat(commitStatuses).containsExactly(Windmill.CommitStatus.ABORTED);
+    assertThat(commitStatus.get()).isEqualTo(Windmill.CommitStatus.ABORTED);
   }
 
   @Test

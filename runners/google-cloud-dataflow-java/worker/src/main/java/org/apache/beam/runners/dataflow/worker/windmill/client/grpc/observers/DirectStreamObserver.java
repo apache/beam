@@ -52,7 +52,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
   private final CallStreamObserver<T> outboundObserver;
 
   @GuardedBy("lock")
-  private boolean isClosed = false;
+  private boolean isOutboundObserverClosed = false;
 
   @GuardedBy("lock")
   private boolean isUserClosed = false;
@@ -74,8 +74,14 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
     this.messagesBetweenIsReadyChecks = Math.max(1, messagesBetweenIsReadyChecks);
   }
 
+  /**
+   * @throws StreamObserverCancelledException if the StreamObserver was closed via {@link
+   *     #onError(Throwable)}, {@link #onCompleted()}, or {@link #terminate(Throwable)} while
+   *     waiting for {@code outboundObserver#isReady}.
+   * @throws WindmillRpcException if we time out for waiting for {@code outboundObserver#isReady}.
+   */
   @Override
-  public void onNext(T value) throws StreamObserverCancelledException {
+  public void onNext(T value) {
     int awaitPhase = -1;
     long totalSecondsWaited = 0;
     long waitSeconds = 1;
@@ -90,8 +96,9 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
             throw new StreamObserverCancelledException("StreamObserver was terminated.");
           }
 
-          // We close under "lock", so this should never happen.
-          assert !isClosed;
+          // Closing is performed under "lock" after terminating, so if termination was not observed
+          // above, the observer should not be closed.
+          assert !isOutboundObserverClosed;
 
           // If we awaited previously and timed out, wait for the same phase. Otherwise we're
           // careful to observe the phase before observing isReady.
@@ -136,8 +143,9 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
             throw new StreamObserverCancelledException("StreamObserver was terminated.");
           }
 
-          // We close under "lock", so this should never happen.
-          assert !isClosed;
+          // Closing is performed under "lock" after terminating, so if termination was not observed
+          // above, the observer should not be closed.
+          assert !isOutboundObserverClosed;
 
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
@@ -166,26 +174,32 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
     }
   }
 
+  /** @throws IllegalStateException if called multiple times or after {@link #onCompleted()}. */
   @Override
   public void onError(Throwable t) {
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      if (!isClosed) {
-        Preconditions.checkState(!isUserClosed);
+      Preconditions.checkState(!isUserClosed);
+      isUserClosed = true;
+      if (!isOutboundObserverClosed) {
         outboundObserver.onError(t);
-        isClosed = true;
+        isOutboundObserverClosed = true;
       }
     }
   }
 
+  /**
+   * @throws IllegalStateException if called multiple times or after {@link #onError(Throwable)}.
+   */
   @Override
   public void onCompleted() {
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      if (!isClosed) {
-        Preconditions.checkState(!isUserClosed);
+      Preconditions.checkState(!isUserClosed);
+      isUserClosed = true;
+      if (!isOutboundObserverClosed) {
         outboundObserver.onCompleted();
-        isClosed = true;
+        isOutboundObserverClosed = true;
       }
     }
   }
@@ -195,9 +209,9 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
     // Free the blocked threads in onNext().
     isReadyNotifier.forceTermination();
     synchronized (lock) {
-      if (!isUserClosed) {
-        onError(terminationException);
-        isUserClosed = true;
+      if (!isOutboundObserverClosed) {
+        outboundObserver.onError(terminationException);
+        isOutboundObserverClosed = true;
       }
     }
   }

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -35,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -64,9 +64,9 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
@@ -239,7 +239,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     Preconditions.checkNotNull(getWorkerMetadataStream).shutdown();
     workerMetadataConsumer.shutdownNow();
     // Close all the streams blocking until this completes to not leak resources.
-    closeStreamsNotIn(WindmillEndpoints.none()).forEach(CompletableFuture::join);
+    closeStreamsNotIn(WindmillEndpoints.none()).join();
     channelCachingStubFactory.shutdown();
 
     try {
@@ -304,10 +304,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   /** Close the streams that are no longer valid asynchronously. */
   @CanIgnoreReturnValue
-  private ImmutableList<CompletableFuture<Void>> closeStreamsNotIn(
-      WindmillEndpoints newWindmillEndpoints) {
+  private CompletableFuture<Void> closeStreamsNotIn(WindmillEndpoints newWindmillEndpoints) {
     StreamingEngineBackends currentBackends = backends.get();
-    List<CompletableFuture<Void>> closeStreamFutures =
+    Stream<CompletableFuture<Void>> closeStreamFutures =
         currentBackends.windmillStreams().entrySet().stream()
             .filter(
                 connectionAndStream ->
@@ -318,24 +317,21 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                 entry ->
                     CompletableFuture.runAsync(
                         () -> closeStreamSender(entry.getKey(), entry.getValue()),
-                        windmillStreamManager))
-            .collect(Collectors.toList());
+                        windmillStreamManager));
 
     Set<Endpoint> newGlobalDataEndpoints =
         new HashSet<>(newWindmillEndpoints.globalDataEndpoints().values());
-    List<CompletableFuture<Void>> closeGlobalDataStreamFutures =
+    Stream<CompletableFuture<Void>> closeGlobalDataStreamFutures =
         currentBackends.globalDataStreams().values().stream()
             .filter(sender -> !newGlobalDataEndpoints.contains(sender.endpoint()))
             .map(
                 sender ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager))
-            .collect(Collectors.toList());
+                        () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager));
 
-    return ImmutableList.<CompletableFuture<Void>>builder()
-        .addAll(closeStreamFutures)
-        .addAll(closeGlobalDataStreamFutures)
-        .build();
+    return CompletableFuture.allOf(
+        Streams.concat(closeStreamFutures, closeGlobalDataStreamFutures)
+            .toArray(CompletableFuture[]::new));
   }
 
   private void closeStreamSender(Endpoint endpoint, StreamSender sender) {

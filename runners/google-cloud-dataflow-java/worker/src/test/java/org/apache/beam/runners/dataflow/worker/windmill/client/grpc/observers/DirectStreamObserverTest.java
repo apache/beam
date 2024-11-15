@@ -106,10 +106,7 @@ public class DirectStreamObserverTest {
         new DirectStreamObserver<>(new AdvancingPhaser(1), delegate, Long.MAX_VALUE, 1);
 
     streamObserver.onCompleted();
-    streamObserver.onCompleted();
-    streamObserver.onCompleted();
-
-    verify(delegate, times(1)).onCompleted();
+    assertThrows(IllegalStateException.class, streamObserver::onCompleted);
   }
 
   @Test
@@ -120,9 +117,7 @@ public class DirectStreamObserverTest {
 
     RuntimeException error = new RuntimeException();
     streamObserver.onError(error);
-    streamObserver.onError(error);
-    streamObserver.onError(error);
-
+    assertThrows(IllegalStateException.class, () -> streamObserver.onError(error));
     verify(delegate, times(1)).onError(same(error));
   }
 

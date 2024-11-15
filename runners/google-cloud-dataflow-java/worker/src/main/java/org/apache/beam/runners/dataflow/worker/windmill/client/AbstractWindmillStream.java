@@ -28,7 +28,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
-import org.apache.beam.runners.dataflow.worker.windmill.client.ResettableThrowingStreamObserver.StreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
@@ -159,7 +158,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     try {
       requestObserver.onNext(request);
       return true;
-    } catch (StreamClosedException e) {
+    } catch (ResettableThrowingStreamObserver.StreamClosedException e) {
       // Stream was broken, requests may be retried when stream is reopened.
     }
 
@@ -199,6 +198,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       } catch (WindmillStreamShutdownException e) {
         // shutdown() is responsible for cleaning up pending requests.
         logger.debug("Stream was shutdown while creating new stream.", e);
+        break;
       } catch (Exception e) {
         logger.error("Failed to create new stream, retrying: ", e);
         try {
@@ -298,10 +298,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     clientClosed = true;
     try {
       requestObserver.onCompleted();
-    } catch (StreamClosedException e) {
+    } catch (ResettableThrowingStreamObserver.StreamClosedException e) {
       logger.warn("Stream was previously closed.");
     } catch (WindmillStreamShutdownException e) {
       logger.warn("Stream was previously shutdown.");
+    } catch (IllegalStateException e) {
+      logger.warn("Unexpected error when trying to close stream", e);
     }
   }
 
@@ -320,7 +322,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     return backendWorkerToken;
   }
 
-  @SuppressWarnings("GuardedBy")
   @Override
   public final void shutdown() {
     // Don't lock on "this" before poisoning the request observer since otherwise the observer may
@@ -339,9 +340,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   /** Returns true if the stream was torn down and should not be restarted internally. */
   private synchronized boolean maybeTearDownStream() {
-    if (requestObserver.hasReceivedPoisonPill()
-        || isShutdown
-        || (clientClosed && !hasPendingRequests())) {
+    if (isShutdown || (clientClosed && !hasPendingRequests())) {
       streamRegistry.remove(AbstractWindmillStream.this);
       finishLatch.countDown();
       executor.shutdownNow();

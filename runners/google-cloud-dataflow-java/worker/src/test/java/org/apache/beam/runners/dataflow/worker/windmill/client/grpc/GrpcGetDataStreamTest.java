@@ -172,7 +172,6 @@ public class GrpcGetDataStreamTest {
                             }
                           }
                           try {
-
                             getDataStream.requestKeyedData(
                                 "computationId",
                                 Windmill.KeyedGetDataRequest.newBuilder()
