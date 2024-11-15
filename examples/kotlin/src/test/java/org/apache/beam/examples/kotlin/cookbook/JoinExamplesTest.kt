@@ -93,7 +93,6 @@ class JoinExamplesTest {
     }
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testJoin() {
         val input1 = pipeline.apply("CreateEvent", Create.of(EVENT_ARRAY))
         val input2 = pipeline.apply("CreateCC", Create.of(CC_ARRAY))

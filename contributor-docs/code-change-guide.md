@@ -145,7 +145,7 @@ in the Google Cloud documentation.
 
 Depending on the languages involved, your `PATH` file needs to have the following elements configured.
 
-* A Java environment that uses a supported Java version, preferably Java 8.
+* A Java environment that uses a supported Java version, preferably Java 11.
   * This environment is needed for all development, because Beam is a Gradle project that uses JVM.
   * Recommended: To manage Java versions, use [sdkman](https://sdkman.io/install).
 
@@ -623,6 +623,11 @@ Tips for using the Dataflow runner:
 <!-- # Cross-language Guide -->
 
 ## Appendix
+
+### Common Issues
+
+* If you run into some strange errors such as `java.lang.NoClassDefFoundError`, run `./gradlew clean` first
+* To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
 ### Directories of snapshot builds
 

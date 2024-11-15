@@ -24,14 +24,12 @@ import org.apache.beam.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
 import org.apache.beam.examples.cookbook.JoinExamples.ExtractEventDataFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -107,7 +105,6 @@ public class JoinExamplesTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testJoin() throws java.lang.Exception {
     PCollection<TableRow> input1 = p.apply("CreateEvent", Create.of(EVENT_ARRAY));
     PCollection<TableRow> input2 = p.apply("CreateCC", Create.of(CC_ARRAY));

@@ -18,7 +18,7 @@
 from tensorflow_transform import coders as tft_coders
 from tensorflow_transform.tf_metadata import schema_utils
 
-from google.protobuf import text_format  # type: ignore  # typeshed out of date
+from google.protobuf import text_format
 from tensorflow.python.lib.io import file_io
 from tensorflow_metadata.proto.v0 import schema_pb2
 

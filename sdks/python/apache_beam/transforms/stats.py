@@ -919,7 +919,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
 
   # TODO(https://github.com/apache/beam/issues/19737): Signature incompatible
   # with supertype
-  def create_accumulator(self):  # type: ignore[override]
+  def create_accumulator(self):
     # type: () -> _QuantileState
     self._qs = _QuantileState(
         unbuffered_elements=[],

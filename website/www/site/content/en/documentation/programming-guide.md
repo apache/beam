@@ -6209,7 +6209,7 @@ class MyDoFn(beam.DoFn):
     self.gauge = metrics.Metrics.gauge("namespace", "gauge1")
 
   def process(self, element):
-    self.gaguge.set(element)
+    self.gauge.set(element)
     yield element
 {{< /highlight >}}
 

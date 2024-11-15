@@ -78,8 +78,10 @@ for a robust pipeline).
 Note also that the exact format of the error outputs is still being finalized.
 They can be safely printed and written to outputs, but their precise schema
 may change in a future version of Beam and should not yet be depended on.
-Currently it has, at the very least, an `element` field which holds the element
-that caused the error.
+It generally contains the failed record itself as well as information about
+the error that was encountered (e.g. error messages and tracebacks).
+To recover the bad record alone one can process the error output with the
+`StripErrorMetadata` transformation.
 
 Some transforms allow for extra arguments in their error_handling config, e.g.
 for Python functions one can give a `threshold` which limits the relative number
@@ -139,9 +141,16 @@ pipeline:
         error_handling:
           output: my_error_output
 
+    - type: StripErrorMetadata
+      name: FailedRecordsWithoutMetadata
+      # Takes the error information from ComputeRatio and returns just the
+      # failing records themselves for another attempt with a different
+      # transform.
+      input: ComputeRatio.my_error_output
+
     - type: MapToFields
       name: ComputeRatioForBadRecords
-      input: ComputeRatio.my_error_output
+      input: FailedRecordsWithoutMetadata
       config:
         language: python
         fields:
