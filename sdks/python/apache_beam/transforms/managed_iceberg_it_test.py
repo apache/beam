@@ -75,13 +75,13 @@ class ManagedIcebergIT(unittest.TestCase):
     rows = [self._create_row(i) for i in range(100)]
     expected_dicts = [row.as_dict() for row in rows]
 
-    with beam.Pipeline(options=self.args) as write_pipeline:
+    with beam.Pipeline(argv=self.args) as write_pipeline:
       _ = (
           write_pipeline
           | beam.Create(rows)
           | beam.managed.Write(beam.managed.ICEBERG, config=iceberg_config))
 
-    with beam.Pipeline(options=self.args) as read_pipeline:
+    with beam.Pipeline(argv=self.args) as read_pipeline:
       output_dicts = (
           read_pipeline
           | beam.managed.Read(beam.managed.ICEBERG, config=iceberg_config)
