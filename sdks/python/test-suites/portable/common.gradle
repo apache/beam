@@ -278,12 +278,14 @@ project.tasks.register("flinkExamples") {
     def testOpts = [
             "--log-cli-level=INFO",
     ]
+    def flink_conf_dir = "${rootDir}/runners/flink/src/test/resources/"
     def pipelineOpts = [
             "--runner=FlinkRunner",
             "--project=apache-beam-testing",
             "--environment_type=LOOPBACK",
             "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
             "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+            "--flink_conf_dir=${flink_conf_dir}",
             '--sdk_harness_log_level_overrides=' +
                 // suppress info level flink.runtime log flood
                 '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
@@ -339,7 +341,7 @@ project.tasks.register("prismExamples") {
           'setupVirtualenv',
           'installGcpTest',
           ':runners:prism:build',
-  ] 
+  ]
   def prismBin = "${rootDir}/runners/prism/build/tmp/prism"
   doLast {
     def testOpts = [
