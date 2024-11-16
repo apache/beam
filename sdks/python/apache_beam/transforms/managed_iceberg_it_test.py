@@ -27,6 +27,7 @@ import pytest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 @pytest.mark.uses_io_java_expansion_service
@@ -36,6 +37,12 @@ from apache_beam.testing.util import equal_to
     "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
   def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.args = self.test_pipeline.get_full_options_as_args()
+    self.args.extend([
+        '--experiments=enable_managed_transforms',
+        '--dataflow_endpoint=https://dataflow-staging.sandbox.googleapis.com'
+    ])
     self._tempdir = tempfile.mkdtemp()
     if not os.path.exists(self._tempdir):
       os.mkdir(self._tempdir)
@@ -68,13 +75,13 @@ class ManagedIcebergIT(unittest.TestCase):
     rows = [self._create_row(i) for i in range(100)]
     expected_dicts = [row.as_dict() for row in rows]
 
-    with beam.Pipeline() as write_pipeline:
+    with beam.Pipeline(options=self.args) as write_pipeline:
       _ = (
           write_pipeline
           | beam.Create(rows)
           | beam.managed.Write(beam.managed.ICEBERG, config=iceberg_config))
 
-    with beam.Pipeline() as read_pipeline:
+    with beam.Pipeline(options=self.args) as read_pipeline:
       output_dicts = (
           read_pipeline
           | beam.managed.Read(beam.managed.ICEBERG, config=iceberg_config)
