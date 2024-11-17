@@ -213,7 +213,7 @@ class MainTest(unittest.TestCase):
                                            inputs={'elements': elements})
       self.assertRegex(
           str(expand_composite_transform(spec, scope)['output']),
-          r"PCollection.*Composite/LogForTesting.*")
+          r"PCollection.*Composite/log_for_testing/LogForTesting.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:

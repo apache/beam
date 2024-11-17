@@ -51,6 +51,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
@@ -567,13 +568,16 @@ public class FileSystems {
    *
    * <p>Outside of workers where Beam FileSystem API is used (e.g. test methods, user code executed
    * during pipeline submission), consider use {@link #registerFileSystemsOnce} if initialize
-   * FIleSystem of supported schema is the main goal.
+   * FileSystem of supported schema is the main goal.
    */
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options cannot be null");
     long id = options.getOptionsId();
     int nextRevision = options.revision();
+
+    // entry to set other PipelineOption determined flags
+    Metrics.setDefaultPipelineOptions(options);
 
     while (true) {
       KV<Long, Integer> revision = FILESYSTEM_REVISION.get();
