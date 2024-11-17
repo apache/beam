@@ -512,7 +512,6 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       state_value = value.__getstate__()
       if value is not None and state_value is None:
         # https://github.com/apache/beam/issues/33020
-        # it seems that __getstate__ might be defined correctly
         raise TypeError(self._deterministic_encoding_error_msg(value))
       try:
         self.encode_to_stream(state_value, stream, True)
