@@ -34,7 +34,6 @@ Available classes:
 
 # pytype: skip-file
 
-from typing import Dict
 from typing import Optional
 
 __all__ = [
@@ -60,7 +59,7 @@ class MetricName(object):
       namespace: Optional[str],
       name: Optional[str],
       urn: Optional[str] = None,
-      labels: Optional[Dict[str, str]] = None) -> None:
+      labels: Optional[dict[str, str]] = None) -> None:
     """Initializes ``MetricName``.
 
     Note: namespace and name should be set for user metrics,
