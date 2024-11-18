@@ -256,7 +256,7 @@ class NumpyIntAsKeyTest(unittest.TestCase):
                                               for a in np.arange(3)])
 
         # Apply CombinePerkey to sum values for each key.
-        indata | "CombinePerKey" >> beam.CombinePerKey(sum)
+        _ = indata | "CombinePerKey" >> beam.CombinePerKey(sum)
 
 
 if __name__ == '__main__':
