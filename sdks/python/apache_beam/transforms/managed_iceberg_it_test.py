@@ -33,6 +33,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
+  WAREHOUSE = "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java"
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
@@ -55,7 +56,7 @@ class ManagedIcebergIT(unittest.TestCase):
         "catalog_name": "default",
         "catalog_properties": {
             "type": "hadoop",
-            "warehouse": "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java",
+            "warehouse": self.WAREHOUSE,
         }
     }
 
