@@ -71,6 +71,11 @@
   logoUrl: images/logos/powered-by/hop.png
   linkUrl: case-studies/hop/index.html
   linkText: Learn more
+- text: At Yelp, Apache Beam allows teams to create custom streaming pipelines using Python, eliminating the need to switch to Scala or Java.
+  icon: icons/quote-icon.svg
+  logoUrl: /images/logos/powered-by/yelp.png
+  linkUrl: case-studies/yelp_streaming/index.html
+  linkText: Learn more
 - text: Have a story to share? Your logo could be here.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/blank.jpg
