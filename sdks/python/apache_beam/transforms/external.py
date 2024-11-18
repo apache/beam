@@ -923,6 +923,7 @@ class ExternalTransform(ptransform.PTransform):
             for tag,
             pcoll in self._expanded_transform.outputs.items()
         },
+        annotations=self._expanded_transform.annotations,
         environment_id=self._expanded_transform.environment_id)
 
 
