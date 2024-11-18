@@ -411,7 +411,7 @@ class GcsIO(object):
     try:
       self._gcs_object(path)
       return True
-    except NotFound:
+    except (Forbidden, NotFound):
       return False
 
   def checksum(self, path):
