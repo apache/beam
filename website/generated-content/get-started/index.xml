@@ -4554,7 +4554,7 @@ localStorage.setItem("language", "language-py")
 &lt;p>If you already know &lt;a href="https://spark.apache.org/">&lt;em>Apache Spark&lt;/em>&lt;/a>,
 using Beam should be easy.
 The basic concepts are the same, and the APIs are similar as well.&lt;/p>
-&lt;p>Spark stores data &lt;em>Spark DataFrames&lt;/em> for structured data,
+&lt;p>Spark stores data in &lt;em>Spark DataFrames&lt;/em> for structured data,
 and in &lt;em>Resilient Distributed Datasets&lt;/em> (RDD) for unstructured data.
 We are using RDDs for this guide.&lt;/p>
 &lt;p>A Spark RDD represents a collection of elements,
