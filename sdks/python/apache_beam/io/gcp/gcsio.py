@@ -36,6 +36,7 @@ from typing import Optional
 from typing import Union
 
 from google.cloud import storage
+from google.cloud.exceptions import Forbidden
 from google.cloud.exceptions import NotFound
 from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
@@ -172,7 +173,7 @@ class GcsIO(object):
     try:
       return self.client.lookup_bucket(
           bucket_name, retry=self._storage_client_retry, **kwargs)
-    except NotFound:
+    except (Forbidden, NotFound):
       return None
 
   def create_bucket(
