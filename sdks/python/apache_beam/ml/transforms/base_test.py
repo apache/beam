@@ -21,6 +21,8 @@ import shutil
 import tempfile
 import typing
 import unittest
+import time
+import secrets
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
@@ -699,7 +701,7 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
 
   @unittest.skipIf(apiclient is None, 'apache_beam[gcp] is not installed.')
   def test_with_gcs_location_with_none_options(self):
-    path = 'gs://fake_path'
+    path = f"gs://fake_path_{secrets.token_hex(3)}_{int(time.time())}"
     with self.assertRaises(RuntimeError):
       self.attribute_manager.save_attributes(
           ptransform_list=[], artifact_location=path, options=None)
