@@ -500,7 +500,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         self.encode_to_stream(value.value, stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
-    elif hasattr(value, "__getstate__"):
+    elif (hasattr(value, "__getstate__") and
+          # https://github.com/apache/beam/issues/33020
+          type(value).__reduce__ == object.__reduce):
       if not hasattr(value, "__setstate__"):
         raise TypeError(
             "Unable to deterministically encode '%s' of type '%s', "
@@ -510,9 +512,6 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(NESTED_STATE_TYPE)
       self.encode_type(type(value), stream)
       state_value = value.__getstate__()
-      if value is not None and state_value is None:
-        # https://github.com/apache/beam/issues/33020
-        raise TypeError(self._deterministic_encoding_error_msg(value))
       try:
         self.encode_to_stream(state_value, stream, True)
       except Exception as e:
