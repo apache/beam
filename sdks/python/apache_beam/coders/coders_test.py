@@ -244,6 +244,7 @@ class LengthPrefixCoderTest(unittest.TestCase):
     coder = coders.LengthPrefixCoder(coders.BytesCoder())
     assert coder.to_type_hint() is bytes
 
+
 class NumpyIntAsKeyTest(unittest.TestCase):
   def test_numpy_int(self):
     # this type is not supported as the key
@@ -251,7 +252,8 @@ class NumpyIntAsKeyTest(unittest.TestCase):
 
     with self.assertRaises(TypeError):
       with TestPipeline() as p:
-        indata = p | "Create" >> beam.Create([(a, int(a)) for a in np.arange(3)])
+        indata = p | "Create" >> beam.Create([(a, int(a))
+                                              for a in np.arange(3)])
 
         # Apply CombinePerkey to sum values for each key.
         indata | "CombinePerKey" >> beam.CombinePerKey(sum)
