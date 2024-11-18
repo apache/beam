@@ -17,12 +17,12 @@
 # pytype: skip-file
 
 import os
+import secrets
 import shutil
 import tempfile
+import time
 import typing
 import unittest
-import time
-import secrets
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
