@@ -236,6 +236,10 @@ class ValidatesRunnerConfig {
 def sickbayTests = [
         // TODO(https://github.com/apache/beam/issues/21306)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+        // Flink errors are not deterministic. Exception may just be
+        // org.apache.flink.runtime.operators.coordination.TaskNotRunningException: Task is not running, but in state FAILED
+        // instead of the actual cause. Real cause is visible in the logs.
+        'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests'
 ]
 
 def createValidatesRunnerTask(Map m) {
