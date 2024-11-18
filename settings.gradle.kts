@@ -19,7 +19,7 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
   }
 }
 
