@@ -510,6 +510,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(NESTED_STATE_TYPE)
       self.encode_type(type(value), stream)
       state_value = value.__getstate__()
+      if value is not None and state_value is None:
+        # https://github.com/apache/beam/issues/33020
+        raise TypeError(self._deterministic_encoding_error_msg(value))
       try:
         self.encode_to_stream(state_value, stream, True)
       except Exception as e:
