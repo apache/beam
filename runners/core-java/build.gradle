@@ -42,6 +42,7 @@ dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation library.java.google_api_services_dataflow
   implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.joda_time
   implementation library.java.vendored_grpc_1_60_1
@@ -52,5 +53,6 @@ dependencies {
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.slf4j_api
+  testImplementation(library.java.google_api_services_dataflow)
   testRuntimeOnly library.java.slf4j_simple
 }

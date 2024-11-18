@@ -125,14 +125,6 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.15
-include(":runners:flink:1.15")
-include(":runners:flink:1.15:job-server")
-include(":runners:flink:1.15:job-server-container")
-// Flink 1.16
-include(":runners:flink:1.16")
-include(":runners:flink:1.16:job-server")
-include(":runners:flink:1.16:job-server-container")
 // Flink 1.17
 include(":runners:flink:1.17")
 include(":runners:flink:1.17:job-server")
@@ -141,6 +133,10 @@ include(":runners:flink:1.17:job-server-container")
 include(":runners:flink:1.18")
 include(":runners:flink:1.18:job-server")
 include(":runners:flink:1.18:job-server-container")
+// Flink 1.19
+include(":runners:flink:1.19")
+include(":runners:flink:1.19:job-server")
+include(":runners:flink:1.19:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -337,6 +333,8 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
+include("sdks:java:io:kafka:kafka-312")
+findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
 include("sdks:java:io:kafka:kafka-241")
@@ -349,12 +347,6 @@ include("sdks:java:io:kafka:kafka-211")
 findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
 include("sdks:java:io:kafka:kafka-201")
 findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
-include("sdks:java:io:kafka:kafka-111")
-findProject(":sdks:java:io:kafka:kafka-111")?.name = "kafka-111"
-include("sdks:java:io:kafka:kafka-100")
-findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
-include("sdks:java:io:kafka:kafka-01103")
-findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")

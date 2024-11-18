@@ -150,6 +150,17 @@ class CombiningValueStateSpec(StateSpec):
             urn=common_urns.user_state.BAG.urn))
 
 
+class OrderedListStateSpec(StateSpec):
+  """Specification for a user DoFn ordered list state cell."""
+  def to_runner_api(
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
+    return beam_runner_api_pb2.StateSpec(
+        ordered_list_spec=beam_runner_api_pb2.OrderedListStateSpec(
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.ORDERED_LIST.urn))
+
+
 # TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
 Timer = NamedTuple(
     'Timer',
@@ -288,7 +299,7 @@ def validate_stateful_dofn(dofn: 'DoFn') -> None:
           'callback: %s.') % (dofn, timer_spec))
     method_name = timer_spec._attached_callback.__name__
     if (timer_spec._attached_callback != getattr(dofn, method_name,
-                                                 None).__func__):
+                                                 None).__func__):  # type: ignore[union-attr]
       raise ValueError((
           'The on_timer callback for %s is not the specified .%s method '
           'for DoFn %r (perhaps it was overwritten?).') %
@@ -303,7 +314,7 @@ class BaseTimer(object):
     raise NotImplementedError
 
 
-_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))
+_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))  # type: ignore[name-match]
 
 
 class RuntimeTimer(BaseTimer):
@@ -370,6 +381,24 @@ class SetRuntimeState(AccumulatingRuntimeState):
 
 class CombiningValueRuntimeState(AccumulatingRuntimeState):
   """Combining value state interface object passed to user code."""
+
+
+class OrderedListRuntimeState(AccumulatingRuntimeState):
+  """Ordered list state interface object passed to user code."""
+  def read(self) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def add(self, value: Tuple[Timestamp, Any]) -> None:
+    raise NotImplementedError(type(self))
+
+  def read_range(
+      self, min_time_stamp: Timestamp,
+      limit_time_stamp: Timestamp) -> Iterable[Tuple[Timestamp, Any]]:
+    raise NotImplementedError(type(self))
+
+  def clear_range(
+      self, min_time_stamp: Timestamp, limit_time_stamp: Timestamp) -> None:
+    raise NotImplementedError(type(self))
 
 
 class UserStateContext(object):

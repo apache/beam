@@ -30,9 +30,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
     "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}

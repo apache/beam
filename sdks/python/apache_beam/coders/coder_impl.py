@@ -510,6 +510,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(NESTED_STATE_TYPE)
       self.encode_type(type(value), stream)
       state_value = value.__getstate__()
+      if value is not None and state_value is None:
+        # https://github.com/apache/beam/issues/33020
+        raise TypeError(self._deterministic_encoding_error_msg(value))
       try:
         self.encode_to_stream(state_value, stream, True)
       except Exception as e:
@@ -1975,7 +1978,7 @@ class DecimalCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     # type: (decimal.Decimal, create_OutputStream, bool) -> None
-    scale = -value.as_tuple().exponent
+    scale = -value.as_tuple().exponent  # type: ignore[operator]
     int_value = int(value.scaleb(scale))
     out.write_var_int64(scale)
     self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)

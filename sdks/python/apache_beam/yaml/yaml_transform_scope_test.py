@@ -72,10 +72,12 @@ class ScopeTest(unittest.TestCase):
         str(scope.get_pcollection("Create")))
 
     self.assertEqual(
-        "PCollection[Square.None]", str(scope.get_pcollection("Square")))
+        "PCollection[Square/LogForTesting.None]",
+        str(scope.get_pcollection("Square")))
 
     self.assertEqual(
-        "PCollection[Square.None]", str(scope.get_pcollection("LogForTesting")))
+        "PCollection[Square/LogForTesting.None]",
+        str(scope.get_pcollection("LogForTesting")))
 
     self.assertTrue(
         scope.get_pcollection("Square") == scope.get_pcollection(

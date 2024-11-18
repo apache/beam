@@ -306,7 +306,7 @@ class PipelineContext(object):
       #  "Message"; expected "Environment"  [arg-type]
       # Here, Environment is a subclass of Message but mypy still
       # throws an error.
-      cloned_env.CopyFrom(template_env)  # type: ignore[arg-type]
+      cloned_env.CopyFrom(template_env)
       cloned_env.resource_hints.clear()
       cloned_env.resource_hints.update(resource_hints)
 

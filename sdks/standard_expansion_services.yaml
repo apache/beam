@@ -48,7 +48,7 @@
     # Handwritten Kafka wrappers already exist in apache_beam/io/kafka.py
     - 'beam:schematransform:org.apache.beam:kafka_write:v1'
     - 'beam:schematransform:org.apache.beam:kafka_read:v1'
-    # Not ready to generate
+    # Available through apache_beam.transforms.managed.[Read/Write]
     - 'beam:schematransform:org.apache.beam:iceberg_write:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
 

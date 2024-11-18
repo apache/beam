@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM openjdk:8
+FROM eclipse-temurin:11
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libltdl7
@@ -28,4 +28,6 @@ COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 
 WORKDIR /opt/apache/beam
-ENTRYPOINT ["./flink-job-server.sh"]
+
+# Add a conditional check for a mounted volume. This allows passing flink configs.
+ENTRYPOINT ["/bin/sh", "-c", "if [ -d \"/flink-conf\" ]; then /opt/apache/beam/flink-job-server.sh --flink-conf-dir /flink-conf; else /opt/apache/beam/flink-job-server.sh; fi"]

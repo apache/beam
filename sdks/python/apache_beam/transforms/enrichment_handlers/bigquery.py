@@ -14,11 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from collections.abc import Callable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Mapping
 from typing import Optional
 from typing import Union
 
@@ -30,7 +28,7 @@ from apache_beam.pvalue import Row
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 QueryFn = Callable[[beam.Row], str]
-ConditionValueFn = Callable[[beam.Row], List[Any]]
+ConditionValueFn = Callable[[beam.Row], list[Any]]
 
 
 def _validate_bigquery_metadata(
@@ -54,8 +52,8 @@ def _validate_bigquery_metadata(
           "`condition_value_fn`")
 
 
-class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
-                                                        Union[Row, List[Row]]]):
+class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
+                                                        Union[Row, list[Row]]]):
   """Enrichment handler for Google Cloud BigQuery.
 
   Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
@@ -83,8 +81,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       *,
       table_name: str = "",
       row_restriction_template: str = "",
-      fields: Optional[List[str]] = None,
-      column_names: Optional[List[str]] = None,
+      fields: Optional[list[str]] = None,
+      column_names: Optional[list[str]] = None,
       condition_value_fn: Optional[ConditionValueFn] = None,
       query_fn: Optional[QueryFn] = None,
       min_batch_size: int = 1,
@@ -107,10 +105,10 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       row_restriction_template (str): A template string for the `WHERE` clause
         in the BigQuery query with placeholders (`{}`) to dynamically filter
         rows based on input data.
-      fields: (Optional[List[str]]) List of field names present in the input
+      fields: (Optional[list[str]]) List of field names present in the input
         `beam.Row`. These are used to construct the WHERE clause
         (if `condition_value_fn` is not provided).
-      column_names: (Optional[List[str]]) Names of columns to select from the
+      column_names: (Optional[list[str]]) Names of columns to select from the
         BigQuery table. If not provided, all columns (`*`) are selected.
       condition_value_fn: (Optional[Callable[[beam.Row], Any]]) A function
         that takes a `beam.Row` and returns a list of value to populate in the
@@ -171,16 +169,24 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
     except RuntimeError as e:
       raise RuntimeError(f"Could not complete the query request: {query}. {e}")
 
-  def __call__(self, request: Union[beam.Row, List[beam.Row]], *args, **kwargs):
-    if isinstance(request, List):
+  def create_row_key(self, row: beam.Row):
+    if self.condition_value_fn:
+      return tuple(self.condition_value_fn(row))
+    if self.fields:
+      row_dict = row._asdict()
+      return (tuple(row_dict[field] for field in self.fields))
+    raise ValueError("Either fields or condition_value_fn must be specified")
+
+  def __call__(self, request: Union[beam.Row, list[beam.Row]], *args, **kwargs):
+    if isinstance(request, list):
       values = []
       responses = []
-      requests_map: Dict[Any, Any] = {}
+      requests_map: dict[Any, Any] = {}
       batch_size = len(request)
       raw_query = self.query_template
       if batch_size > 1:
         batched_condition_template = ' or '.join(
-            [self.row_restriction_template] * batch_size)
+            [fr'({self.row_restriction_template})'] * batch_size)
         raw_query = self.query_template.replace(
             self.row_restriction_template, batched_condition_template)
       for req in request:
@@ -194,14 +200,15 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
               "Make sure the values passed in `fields` are the "
               "keys in the input `beam.Row`." + str(e))
         values.extend(current_values)
-        requests_map.update((val, req) for val in current_values)
+        requests_map[self.create_row_key(req)] = req
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
       for response in responses_dict:
-        for value in response.values():
-          if value in requests_map:
-            responses.append((requests_map[value], beam.Row(**response)))
+        response_row = beam.Row(**response)
+        response_key = self.create_row_key(response_row)
+        if response_key in requests_map:
+          responses.append((requests_map[response_key], response_row))
       return responses
     else:
       request_dict = request._asdict()
@@ -221,8 +228,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
   def __exit__(self, exc_type, exc_val, exc_tb):
     self.client.close()
 
-  def get_cache_key(self, request: Union[beam.Row, List[beam.Row]]):
-    if isinstance(request, List):
+  def get_cache_key(self, request: Union[beam.Row, list[beam.Row]]):
+    if isinstance(request, list):
       cache_keys = []
       for req in request:
         req_dict = req._asdict()

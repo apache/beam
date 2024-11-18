@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -35,6 +37,7 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -71,7 +74,10 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -106,9 +112,13 @@ public class IcebergIOIT implements Serializable {
           .addBooleanField("bool")
           .addInt32Field("int")
           .addRowField("row", NESTED_ROW_SCHEMA)
-          .addArrayField("arr_long", org.apache.beam.sdk.schemas.Schema.FieldType.INT64)
+          .addArrayField("arr_long", FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
+          .addDateTimeField("datetime_tz")
+          .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+          .addLogicalTypeField("date", SqlTypes.DATE)
+          .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
 
   private static final SimpleFunction<Long, Row> ROW_FUNC =
@@ -138,6 +148,10 @@ public class IcebergIOIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
+              .addValue(new DateTime(num).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
+              .addValue(DateTimeUtil.timestampFromMicros(num))
+              .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
+              .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
         }
       };
@@ -290,13 +304,15 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testWrite() {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA);
-
     // Write with Beam
+    // Expect the sink to create the table
     Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId));
+    assertTrue(table.schema().sameSchema(ICEBERG_SCHEMA));
 
     // Read back and check records are correct
     List<Record> returnedRecords = readRecords(table);
@@ -434,22 +450,23 @@ public class IcebergIOIT implements Serializable {
 
     Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(rowFilter.outputSchema());
 
-    PartitionSpec partitionSpec = null;
+    TableIdentifier tableIdentifier0 = TableIdentifier.parse(tableId + "_0_a");
+    TableIdentifier tableIdentifier1 = TableIdentifier.parse(tableId + "_1_b");
+    TableIdentifier tableIdentifier2 = TableIdentifier.parse(tableId + "_2_c");
+    TableIdentifier tableIdentifier3 = TableIdentifier.parse(tableId + "_3_d");
+    TableIdentifier tableIdentifier4 = TableIdentifier.parse(tableId + "_4_e");
+    // the sink doesn't support creating partitioned tables yet,
+    // so we need to create it manually for this test case
     if (partitioning) {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
-      partitionSpec =
+      PartitionSpec partitionSpec =
           PartitionSpec.builderFor(tableSchema).identity("bool").identity("modulo_5").build();
+      catalog.createTable(tableIdentifier0, tableSchema, partitionSpec);
+      catalog.createTable(tableIdentifier1, tableSchema, partitionSpec);
+      catalog.createTable(tableIdentifier2, tableSchema, partitionSpec);
+      catalog.createTable(tableIdentifier3, tableSchema, partitionSpec);
+      catalog.createTable(tableIdentifier4, tableSchema, partitionSpec);
     }
-    Table table0 =
-        catalog.createTable(TableIdentifier.parse(tableId + "_0_a"), tableSchema, partitionSpec);
-    Table table1 =
-        catalog.createTable(TableIdentifier.parse(tableId + "_1_b"), tableSchema, partitionSpec);
-    Table table2 =
-        catalog.createTable(TableIdentifier.parse(tableId + "_2_c"), tableSchema, partitionSpec);
-    Table table3 =
-        catalog.createTable(TableIdentifier.parse(tableId + "_3_d"), tableSchema, partitionSpec);
-    Table table4 =
-        catalog.createTable(TableIdentifier.parse(tableId + "_4_e"), tableSchema, partitionSpec);
 
     // Write with Beam
     PCollection<Row> input;
@@ -466,6 +483,16 @@ public class IcebergIOIT implements Serializable {
     }
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
     pipeline.run().waitUntilFinish();
+
+    Table table0 = catalog.loadTable(tableIdentifier0);
+    Table table1 = catalog.loadTable(tableIdentifier1);
+    Table table2 = catalog.loadTable(tableIdentifier2);
+    Table table3 = catalog.loadTable(tableIdentifier3);
+    Table table4 = catalog.loadTable(tableIdentifier4);
+
+    for (Table t : Arrays.asList(table0, table1, table2, table3, table4)) {
+      assertTrue(t.schema().sameSchema(tableSchema));
+    }
 
     // Read back and check records are correct
     List<List<Record>> returnedRecords =

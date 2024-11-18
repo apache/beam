@@ -56,7 +56,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
       new PostgreSQLContainer<>(
-              DockerImageName.parse("debezium/example-postgres:latest")
+              DockerImageName.parse("quay.io/debezium/example-postgres:latest")
                   .asCompatibleSubstituteFor("postgres"))
           .withPassword("dbz")
           .withUsername("debezium")

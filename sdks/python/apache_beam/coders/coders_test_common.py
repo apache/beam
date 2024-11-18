@@ -53,7 +53,7 @@ try:
 except ImportError:
   dataclasses = None  # type: ignore
 
-MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
 
 

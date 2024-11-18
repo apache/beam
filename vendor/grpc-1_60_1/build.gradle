@@ -23,7 +23,7 @@ plugins { id 'org.apache.beam.vendor-java' }
 description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.60.1"
 
 group = "org.apache.beam"
-version = "0.2"
+version = "0.3"
 
 vendorJava(
         dependencies: GrpcVendoring_1_60_1.dependencies(),

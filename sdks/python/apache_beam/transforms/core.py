@@ -103,6 +103,7 @@ __all__ = [
     'Windowing',
     'WindowInto',
     'Flatten',
+    'FlattenWith',
     'Create',
     'Impulse',
     'RestrictionProvider',
@@ -1414,7 +1415,7 @@ class PartitionFn(WithTypeHints):
   def default_label(self):
     return self.__class__.__name__
 
-  def partition_for(self, element, num_partitions, *args, **kwargs):
+  def partition_for(self, element, num_partitions, *args, **kwargs):  # type: ignore[empty-body]
     # type: (T, int, *typing.Any, **typing.Any) -> int
 
     """Specify which partition will receive this element.
@@ -1595,7 +1596,7 @@ class ParDo(PTransformWithSideInputs):
       error_handler=None,
       on_failure_callback: typing.Optional[typing.Callable[
           [Exception, typing.Any], None]] = None):
-    """Automatically provides a dead letter output for skipping bad records.
+    """Automatically provides a dead letter output for saving bad inputs.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
 
@@ -1606,17 +1607,18 @@ class ParDo(PTransformWithSideInputs):
 
     For example, one would write::
 
-        good, bad = Map(maybe_error_raising_function).with_exception_handling()
+        good, bad = inputs | Map(maybe_erroring_fn).with_exception_handling()
 
     and `good` will be a PCollection of mapped records and `bad` will contain
-    those that raised exceptions.
+    tuples of the form `(input, error_string`) for each input that raised an
+    exception.
 
 
     Args:
       main_tag: tag to be used for the main (good) output of the DoFn,
           useful to avoid possible conflicts if this DoFn already produces
           multiple outputs.  Optional, defaults to 'good'.
-      dead_letter_tag: tag to be used for the bad records, useful to avoid
+      dead_letter_tag: tag to be used for the bad inputs, useful to avoid
           possible conflicts if this DoFn already produces multiple outputs.
           Optional, defaults to 'bad'.
       exc_class: An exception class, or tuple of exception classes, to catch.
@@ -1635,9 +1637,9 @@ class ParDo(PTransformWithSideInputs):
           than a new process per element, so the overhead should be minimal
           (and can be amortized if there's any per-process or per-bundle
           initialization that needs to be done). Optional, defaults to False.
-      threshold: An upper bound on the ratio of records that can be bad before
+      threshold: An upper bound on the ratio of inputs that can be bad before
           aborting the entire pipeline. Optional, defaults to 1.0 (meaning
-          up to 100% of records can be bad and the pipeline will still succeed).
+          up to 100% of inputs can be bad and the pipeline will still succeed).
       threshold_windowing: Event-time windowing to use for threshold. Optional,
           defaults to the windowing of the input.
       timeout: If the element has not finished processing in timeout seconds,
@@ -3170,33 +3172,48 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
     class PreCombineFn(CombineFn):
+      def __init__(self):
+        # Deepcopy of the combine_fn to avoid sharing state between lifted
+        # stages when using cloudpickle.
+        try:
+          self._combine_fn_copy = copy.deepcopy(combine_fn)
+        except Exception:
+          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+
+        self.setup = self._combine_fn_copy.setup
+        self.create_accumulator = self._combine_fn_copy.create_accumulator
+        self.add_input = self._combine_fn_copy.add_input
+        self.merge_accumulators = self._combine_fn_copy.merge_accumulators
+        self.compact = self._combine_fn_copy.compact
+        self.teardown = self._combine_fn_copy.teardown
+
       @staticmethod
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
 
-      setup = combine_fn.setup
-      create_accumulator = combine_fn.create_accumulator
-      add_input = combine_fn.add_input
-      merge_accumulators = combine_fn.merge_accumulators
-      compact = combine_fn.compact
-      teardown = combine_fn.teardown
-
     class PostCombineFn(CombineFn):
-      @staticmethod
-      def add_input(accumulator, element):
+      def __init__(self):
+        # Deepcopy of the combine_fn to avoid sharing state between lifted
+        # stages when using cloudpickle.
+        try:
+          self._combine_fn_copy = copy.deepcopy(combine_fn)
+        except Exception:
+          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+
+        self.setup = self._combine_fn_copy.setup
+        self.create_accumulator = self._combine_fn_copy.create_accumulator
+        self.merge_accumulators = self._combine_fn_copy.merge_accumulators
+        self.compact = self._combine_fn_copy.compact
+        self.extract_output = self._combine_fn_copy.extract_output
+        self.teardown = self._combine_fn_copy.teardown
+
+      def add_input(self, accumulator, element):
         is_accumulator, value = element
         if is_accumulator:
-          return combine_fn.merge_accumulators([accumulator, value])
+          return self._combine_fn_copy.merge_accumulators([accumulator, value])
         else:
-          return combine_fn.add_input(accumulator, value)
-
-      setup = combine_fn.setup
-      create_accumulator = combine_fn.create_accumulator
-      merge_accumulators = combine_fn.merge_accumulators
-      compact = combine_fn.compact
-      extract_output = combine_fn.extract_output
-      teardown = combine_fn.teardown
+          return self._combine_fn_copy.add_input(accumulator, value)
 
     def StripNonce(nonce_key_value):
       (_, key), value = nonce_key_value
@@ -3434,7 +3451,7 @@ def _dynamic_named_tuple(type_name, field_names):
         type_name, field_names)
     # typing: can't override a method. also, self type is unknown and can't
     # be cast to tuple
-    result.__reduce__ = lambda self: (  # type: ignore[assignment]
+    result.__reduce__ = lambda self: (  # type: ignore[method-assign]
         _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))  # type: ignore[arg-type]
   return result
 
@@ -3863,6 +3880,33 @@ class Flatten(PTransform):
 
 PTransform.register_urn(
     common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter)
+
+
+class FlattenWith(PTransform):
+  """A PTransform that flattens its input with other PCollections.
+
+  This is equivalent to creating a tuple containing both the input and the
+  other PCollection(s), but has the advantage that it can be more easily used
+  inline.
+
+  Root PTransforms can be passed as well as PCollections, in which case their
+  outputs will be flattened.
+  """
+  def __init__(self, *others):
+    self._others = others
+
+  def expand(self, pcoll):
+    pcolls = [pcoll]
+    for other in self._others:
+      if isinstance(other, pvalue.PCollection):
+        pcolls.append(other)
+      elif isinstance(other, PTransform):
+        pcolls.append(pcoll.pipeline | other)
+      else:
+        raise TypeError(
+            'FlattenWith only takes other PCollections and PTransforms, '
+            f'got {other}')
+    return tuple(pcolls) | Flatten()
 
 
 class Create(PTransform):

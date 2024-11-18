@@ -18,12 +18,12 @@ package engine
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"golang.org/x/exp/slog"
 )
 
 // StateData is a "union" between Bag state and MultiMap state to increase common code.

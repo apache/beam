@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,6 +52,7 @@ import java.util.List;
 import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -337,5 +339,21 @@ public class AzureBlobStoreFileSystemTest {
         contains(toFilenames(matchResults.get(2)).toArray()));
 
     blobContainerClient.delete();
+  }
+
+  @Test
+  public void testReportLineageOnBucket() {
+    verifyLineage("azfs://account/container", ImmutableList.of("account", "container"));
+    verifyLineage("azfs://account/container/", ImmutableList.of("account", "container"));
+    verifyLineage(
+        "azfs://account/container/foo/bar.txt",
+        ImmutableList.of("account", "container", "foo/bar.txt"));
+  }
+
+  private void verifyLineage(String uri, List<String> expected) {
+    AzfsResourceId path = AzfsResourceId.fromUri(uri);
+    Lineage mockLineage = mock(Lineage.class);
+    azureBlobStoreFileSystem.reportLineage(path, mockLineage);
+    verify(mockLineage, times(1)).add("abs", expected);
   }
 }

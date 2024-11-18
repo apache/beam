@@ -26,6 +26,7 @@ import base64
 import datetime
 import html
 import logging
+import warnings
 from datetime import timedelta
 from typing import Optional
 
@@ -350,7 +351,12 @@ class PCollectionVisualization(object):
     ]
     # String-ify the dictionaries for display because elements of type dict
     # cannot be ordered.
-    data = data.applymap(lambda x: str(x) if isinstance(x, dict) else x)
+    with warnings.catch_warnings():
+      # TODO(yathu) switch to use DataFrame.map when dropped pandas<2.1 support
+      warnings.filterwarnings(
+          "ignore", message="DataFrame.applymap has been deprecated")
+      data = data.applymap(lambda x: str(x) if isinstance(x, dict) else x)
+
     if updating_pv:
       # Only updates when data is not empty. Otherwise, consider it a bad
       # iteration and noop since there is nothing to be updated.

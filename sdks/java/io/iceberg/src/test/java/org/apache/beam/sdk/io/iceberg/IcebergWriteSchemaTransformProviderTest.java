@@ -95,11 +95,6 @@ public class IcebergWriteSchemaTransformProviderTest {
   public void testSimpleAppend() {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
 
-    TableIdentifier tableId = TableIdentifier.parse(identifier);
-
-    // Create a table and add records to it.
-    Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-
     Map<String, String> properties = new HashMap<>();
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
@@ -129,6 +124,9 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     testPipeline.run().waitUntilFinish();
 
+    TableIdentifier tableId = TableIdentifier.parse(identifier);
+    Table table = warehouse.loadTable(tableId);
+
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
 
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
@@ -137,7 +135,6 @@ public class IcebergWriteSchemaTransformProviderTest {
   @Test
   public void testWriteUsingManagedTransform() {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
-    Table table = warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
 
     String yamlConfig =
         String.format(
@@ -161,6 +158,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     testPipeline.run().waitUntilFinish();
 
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
@@ -261,9 +259,6 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     org.apache.iceberg.Schema icebergSchema =
         IcebergUtils.beamSchemaToIcebergSchema(filter.outputSchema());
-    Table table0 = warehouse.createTable(TableIdentifier.parse(identifier0), icebergSchema);
-    Table table1 = warehouse.createTable(TableIdentifier.parse(identifier1), icebergSchema);
-    Table table2 = warehouse.createTable(TableIdentifier.parse(identifier2), icebergSchema);
 
     TestStream<Row> stream =
         TestStream.create(beamSchema)
@@ -301,6 +296,9 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     testPipeline.run().waitUntilFinish();
 
+    Table table0 = warehouse.loadTable(TableIdentifier.parse(identifier0));
+    Table table1 = warehouse.loadTable(TableIdentifier.parse(identifier1));
+    Table table2 = warehouse.loadTable(TableIdentifier.parse(identifier2));
     List<Record> table0Records = ImmutableList.copyOf(IcebergGenerics.read(table0).build());
     List<Record> table1Records = ImmutableList.copyOf(IcebergGenerics.read(table1).build());
     List<Record> table2Records = ImmutableList.copyOf(IcebergGenerics.read(table2).build());
