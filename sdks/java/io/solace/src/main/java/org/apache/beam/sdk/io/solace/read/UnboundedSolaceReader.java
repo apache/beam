@@ -22,18 +22,28 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
+import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -48,9 +58,10 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final UnboundedSolaceSource<T> currentSource;
   private final WatermarkPolicy<T> watermarkPolicy;
   private final SempClient sempClient;
+  private final UUID readerUuid;
+  private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
-  private @Nullable SessionService sessionService;
   AtomicBoolean active = new AtomicBoolean(true);
 
   /**
@@ -72,31 +83,68 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
    */
   private Long surrogateId = 0L;
 
+  private static final Cache<UUID, SessionService> sessionServiceCache;
+  private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(1);
+
+  static {
+    Duration cacheExpirationTimeout = Duration.ofMinutes(1);
+    sessionServiceCache =
+        CacheBuilder.newBuilder()
+            .expireAfterAccess(cacheExpirationTimeout)
+            .removalListener(
+                (RemovalNotification<UUID, SessionService> notification) -> {
+                  LOG.info(
+                      "SolaceIO.Read: Closing session for the reader with uuid {} as it has been idle for over {}.",
+                      notification.getKey(),
+                      cacheExpirationTimeout);
+                  SessionService sessionService = notification.getValue();
+                  if (sessionService != null) {
+                    sessionService.close();
+                  }
+                })
+            .build();
+
+    startCleanUpThread();
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private static void startCleanUpThread() {
+    cleanUpThread.scheduleAtFixedRate(sessionServiceCache::cleanUp, 1, 1, TimeUnit.MINUTES);
+  }
+
   public UnboundedSolaceReader(UnboundedSolaceSource<T> currentSource) {
     this.currentSource = currentSource;
     this.watermarkPolicy =
         WatermarkPolicy.create(
             currentSource.getTimestampFn(), currentSource.getWatermarkIdleDurationThreshold());
-    this.sessionService = currentSource.getSessionServiceFactory().create();
+    this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
     this.safeToAckMessages = new HashMap<>();
     this.ackedMessageIds = new ConcurrentLinkedQueue<>();
+    this.readerUuid = UUID.randomUUID();
+  }
+
+  private SessionService getSessionService() {
+    try {
+      return sessionServiceCache.get(
+          readerUuid,
+          () -> {
+            LOG.info("SolaceIO.Read: creating a new session for reader with uuid {}.", readerUuid);
+            SessionService sessionService = sessionServiceFactory.create();
+            sessionService.connect();
+            sessionService.getReceiver().start();
+            return sessionService;
+          });
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public boolean start() {
-    populateSession();
-    checkNotNull(sessionService).getReceiver().start();
+    // Create and initialize SessionService with Receiver
+    getSessionService();
     return advance();
-  }
-
-  public void populateSession() {
-    if (sessionService == null) {
-      sessionService = getCurrentSource().getSessionServiceFactory().create();
-    }
-    if (sessionService.isClosed()) {
-      checkNotNull(sessionService).connect();
-    }
   }
 
   @Override
@@ -106,7 +154,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
     BytesXMLMessage receivedXmlMessage;
     try {
-      receivedXmlMessage = checkNotNull(sessionService).getReceiver().receive();
+      receivedXmlMessage = getSessionService().getReceiver().receive();
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Exception when pulling messages from the broker.", e);
       return false;
@@ -126,13 +174,13 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   @Override
   public void close() {
     active.set(false);
-    checkNotNull(sessionService).close();
+    sessionServiceCache.invalidate(readerUuid);
   }
 
   @Override
   public Instant getWatermark() {
     // should be only used by a test receiver
-    if (checkNotNull(sessionService).getReceiver().isEOF()) {
+    if (getSessionService().getReceiver().isEOF()) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
     return watermarkPolicy.getWatermark();
