@@ -502,7 +502,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif (hasattr(value, "__getstate__") and
           # https://github.com/apache/beam/issues/33020
-          type(value).__reduce__ == object.__reduce):
+          type(value).__reduce__ == object.__reduce__):
       if not hasattr(value, "__setstate__"):
         raise TypeError(
             "Unable to deterministically encode '%s' of type '%s', "
