@@ -26,6 +26,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
+from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
 from apache_beam.pvalue import PCollection
@@ -101,15 +102,15 @@ class DataframeTransform(transforms.PTransform):
     from apache_beam.dataframe import convert
 
     # Convert inputs to a flat dict.
-    input_dict = _flatten(input_pcolls)  # type: dict[Any, PCollection]
+    input_dict: dict[Any, PCollection] = _flatten(input_pcolls)
     proxies = _flatten(self._proxy) if self._proxy is not None else {
         tag: None
         for tag in input_dict
     }
-    input_frames = {
+    input_frames: dict[Any, frame_base.DeferredFrame] = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
-    }  # type: dict[Any, DeferredFrame] # noqa: F821
+    }  # noqa: F821
 
     # Apply the function.
     frames_input = _substitute(input_pcolls, input_frames)

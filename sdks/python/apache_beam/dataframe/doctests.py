@@ -144,7 +144,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS = {}  # type: dict[str, list[Any]]
+  _ALL_RESULTS: dict[str, list[Any]] = {}
 
   def __init__(self):
     self._id = id(self)

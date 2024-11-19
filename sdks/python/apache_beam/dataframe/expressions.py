@@ -36,12 +36,12 @@ class Session(object):
   def __init__(self, bindings=None):
     self._bindings = dict(bindings or {})
 
-  def evaluate(self, expr):  # type: (Expression) -> Any
+  def evaluate(self, expr: 'Expression') -> Any:
     if expr not in self._bindings:
       self._bindings[expr] = expr.evaluate_at(self)
     return self._bindings[expr]
 
-  def lookup(self, expr):  #  type: (Expression) -> Any
+  def lookup(self, expr: 'Expression') -> Any:
     return self._bindings[expr]
 
 
