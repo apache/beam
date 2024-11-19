@@ -25,12 +25,17 @@ on:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
         required: true
-        default: '2.XX.0'
+        default: ''
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: true
+        default: ''
+  schedule:
+  - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
+  release: ${{ github.event.inputs.RELEASE || "2.60.0" }}
+  rc: ${{ github.event.inputs.RC || "2" }}
 
 jobs:
 
@@ -40,7 +45,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          ref: "v${{ env.release }}-RC${{ env.rc }}"
           repository: apache/beam
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.0
@@ -64,5 +69,5 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
       - name: Push docker images
-        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
+        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images -Pdocker-tag=${{ env.release }}rc${{ env.rc }} --no-daemon --no-parallel
 
