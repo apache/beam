@@ -19,15 +19,19 @@ package org.apache.beam.it.gcp;
 
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatPipeline;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatResult;
+import static org.apache.beam.sdk.util.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.it.common.PipelineLauncher.LaunchConfig;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
 import org.apache.beam.it.common.PipelineLauncher.Sdk;
 import org.apache.beam.it.common.PipelineOperator.Result;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
@@ -58,6 +62,29 @@ public class WordCountIT extends IOLoadTestBase {
             .setSdk(Sdk.JAVA)
             .setPipeline(wcPipeline)
             .addParameter("runner", "DataflowRunner")
+            .build();
+
+    LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
+    assertThatPipeline(launchInfo).isRunning();
+    Result result =
+        pipelineOperator.waitUntilDone(createConfig(launchInfo, Duration.ofMinutes(20)));
+    assertThatResult(result).isLaunchFinished();
+  }
+
+  @Test
+  public void testWordCountDataflowWithGCSFilesToStage() throws IOException {
+
+    PipelineOptions pipelineOptions = wcPipeline.getOptions();
+    List<String> filesToStage =
+        detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader(), pipelineOptions);
+    filesToStage.add("gs://apache-beam-samples/shakespeare/kinglear.txt");
+
+    LaunchConfig options =
+        LaunchConfig.builder("test-wordcount")
+            .setSdk(Sdk.JAVA)
+            .setPipeline(wcPipeline)
+            .addParameter("runner", "DataflowRunner")
+            .addParameter("filesToStage", String.join(",", filesToStage))
             .build();
 
     LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
