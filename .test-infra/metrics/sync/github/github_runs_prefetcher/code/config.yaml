@@ -43,6 +43,7 @@ categories:
     - "Cancel Stale Dataflow Jobs" 
     - "pr-bot-pr-updates" 
     - "pr-bot-new-prs" 
+    - "Republish Released Docker Images"
   # Tests we want monitored more closely. Only add suites if you are willing to help keep them green :)
   # Usually will be postcommits since PreCommits are more likely to be noticed.
   - name: important_signals
