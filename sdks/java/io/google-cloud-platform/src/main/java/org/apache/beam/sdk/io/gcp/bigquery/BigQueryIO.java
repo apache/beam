@@ -626,9 +626,6 @@ public class BigQueryIO {
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
 
-  private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
-      DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
-
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
    *     #readTableRows()} does exactly the same as {@link #read}, however {@link
@@ -3625,7 +3622,8 @@ public class BigQueryIO {
                 hasSchema,
                 "A schema must be provided if an avroFormatFunction "
                     + "is set but no avroSchemaFactory is defined.");
-            avroSchemaFactory = DEFAULT_AVRO_SCHEMA_FACTORY;
+            avroSchemaFactory =
+                (tableSchema) -> BigQueryUtils.toGenericAvroSchema(tableSchema, true);
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
@@ -3857,7 +3855,8 @@ public class BigQueryIO {
                   (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
                       rowWriterFactory;
           SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
-              Optional.ofNullable(getAvroSchemaFactory()).orElse(DEFAULT_AVRO_SCHEMA_FACTORY);
+              Optional.ofNullable(getAvroSchemaFactory())
+                  .orElse(ts -> BigQueryAvroUtils.toGenericAvroSchema(ts, true));
 
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsGenericRecord<>(
