@@ -45,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
+import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
@@ -69,6 +70,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApp
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commits;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
@@ -235,6 +238,7 @@ public final class StreamingDataflowWorker {
     Consumer<PrintWriter> getDataStatusProvider;
     Supplier<Long> currentActiveCommitBytesProvider;
     if (isDirectPathPipeline(options)) {
+      WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
               createJobHeader(options, clientId),
@@ -261,6 +265,8 @@ public final class StreamingDataflowWorker {
               Preconditions.checkNotNull(dispatcherClient),
               commitWorkStream ->
                   StreamingEngineWorkCommitter.builder()
+                      // Share the commitByteSemaphore across all created workCommitters.
+                      .setCommitByteSemaphore(maxCommitByteSemaphore)
                       .setBackendWorkerToken(commitWorkStream.backendWorkerToken())
                       .setOnCommitComplete(this::onCompleteCommit)
                       .setNumCommitSenders(Math.max(options.getWindmillServiceCommitThreads(), 1))
@@ -276,7 +282,12 @@ public final class StreamingDataflowWorker {
               options, fanOutStreamingEngineWorkerHarness::currentWindmillEndpoints);
       this.streamingWorkerHarness = fanOutStreamingEngineWorkerHarness;
     } else {
-      Windmill.GetWorkRequest request = createGetWorkRequest(clientId, options);
+      Windmill.GetWorkRequest request =
+          Windmill.GetWorkRequest.newBuilder()
+              .setClientId(clientId)
+              .setMaxItems(chooseMaxBundlesOutstanding(options))
+              .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
+              .build();
       GetDataClient getDataClient;
       HeartbeatSender heartbeatSender;
       WorkCommitter workCommitter;
@@ -301,6 +312,7 @@ public final class StreamingDataflowWorker {
                             COMMIT_STREAM_TIMEOUT,
                             windmillServer::commitWorkStream)
                         ::getCloseableStream)
+                .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
                 .setNumCommitSenders(numCommitThreads)
                 .setOnCommitComplete(this::onCompleteCommit)
                 .build();
@@ -830,15 +842,6 @@ public final class StreamingDataflowWorker {
     BigQuerySinkMetrics.setSupportMetricsDeletion(true);
     // Support metrics for BigQuery's Streaming Inserts write method.
     BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
-  }
-
-  private static Windmill.GetWorkRequest createGetWorkRequest(
-      long clientId, DataflowWorkerHarnessOptions options) {
-    return Windmill.GetWorkRequest.newBuilder()
-        .setClientId(clientId)
-        .setMaxItems(chooseMaxBundlesOutstanding(options))
-        .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
-        .build();
   }
 
   @VisibleForTesting
