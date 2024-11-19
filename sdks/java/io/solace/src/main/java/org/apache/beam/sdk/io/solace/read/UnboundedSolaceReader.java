@@ -33,7 +33,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
@@ -62,7 +61,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
-  AtomicBoolean active = new AtomicBoolean(true);
 
   /**
    * List of successfully ACKed message (surrogate) ids which need to be pruned from the above.
@@ -173,7 +171,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public void close() {
-    active.set(false);
     sessionServiceCache.invalidate(readerUuid);
   }
 
@@ -191,7 +188,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     // It's possible for a checkpoint to be taken but never finalized.
     // So we simply copy whatever safeToAckIds we currently have.
     Map<Long, BytesXMLMessage> snapshotSafeToAckMessages = Maps.newHashMap(safeToAckMessages);
-    return new SolaceCheckpointMark(this::markAsAcked, active, snapshotSafeToAckMessages);
+    return new SolaceCheckpointMark(this::markAsAcked, snapshotSafeToAckMessages);
   }
 
   @Override

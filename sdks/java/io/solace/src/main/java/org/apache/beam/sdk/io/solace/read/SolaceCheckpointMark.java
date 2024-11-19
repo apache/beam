@@ -21,7 +21,6 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -29,6 +28,8 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Checkpoint for an unbounded Solace source. Consists of the Solace messages waiting to be
@@ -38,9 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @VisibleForTesting
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
+  private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
   private transient Map<Long, BytesXMLMessage> safeToAck;
   private transient Consumer<Long> confirmAckCallback;
-  private transient AtomicBoolean activeReader;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
@@ -50,30 +51,32 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
    *
    * @param markAsAckedFn {@link Consumer<Long>} a reference to a method in the {@link
    *     UnboundedSolaceReader} that will mark the message as acknowledged.
-   * @param activeReader {@link AtomicBoolean} indicating if the related reader is active. The
-   *     reader creating the messages has to be active to acknowledge the messages.
    * @param safeToAck {@link Map<Long, BytesXMLMessage>} of {@link BytesXMLMessage} to be
    *     acknowledged.
    */
-  SolaceCheckpointMark(
-      Consumer<Long> markAsAckedFn,
-      AtomicBoolean activeReader,
-      Map<Long, BytesXMLMessage> safeToAck) {
+  SolaceCheckpointMark(Consumer<Long> markAsAckedFn, Map<Long, BytesXMLMessage> safeToAck) {
     this.confirmAckCallback = markAsAckedFn;
-    this.activeReader = activeReader;
     this.safeToAck = safeToAck;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    if (activeReader == null || !activeReader.get() || safeToAck == null) {
+    if (safeToAck == null) {
       return;
     }
 
     for (Entry<Long, BytesXMLMessage> entry : safeToAck.entrySet()) {
       BytesXMLMessage msg = entry.getValue();
       if (msg != null) {
-        msg.ackMessage();
+        try {
+          msg.ackMessage();
+        } catch (IllegalStateException e) {
+          LOG.error(
+              "SolaceIO.Read: cannot acknowledge the message with applicationMessageId={}, ackMessageId={} .",
+              msg.getApplicationMessageId(),
+              msg.getAckMessageId(),
+              e);
+        }
         confirmAckCallback.accept(entry.getKey());
       }
     }
@@ -92,12 +95,11 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
     }
     SolaceCheckpointMark that = (SolaceCheckpointMark) o;
     return Objects.equals(safeToAck, that.safeToAck)
-        && Objects.equals(confirmAckCallback, that.confirmAckCallback)
-        && Objects.equals(activeReader, that.activeReader);
+        && Objects.equals(confirmAckCallback, that.confirmAckCallback);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(safeToAck, confirmAckCallback, activeReader);
+    return Objects.hash(safeToAck, confirmAckCallback);
   }
 }
