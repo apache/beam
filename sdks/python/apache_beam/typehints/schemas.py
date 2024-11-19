@@ -513,13 +513,17 @@ class SchemaTranslation(object):
         # generate a NamedTuple type to use.
 
         fields = named_fields_from_schema(schema)
+        descriptions = {
+            field.name: field.description
+            for field in schema.fields
+        }
         result = row_type.RowTypeConstraint.from_fields(
             fields=fields,
             schema_id=schema.id,
             schema_options=schema_options,
             field_options=field_options,
             schema_registry=self.schema_registry,
-        )
+            field_descriptions=descriptions or None)
         return result
       else:
         return row_type.RowTypeConstraint.from_user_type(
