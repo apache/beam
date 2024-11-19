@@ -141,6 +141,8 @@ Additionally, this approach allowed us to enrich business property data with ass
 ## Final words
 This post shows how Yelp's robust data pipeline infrastructure can be leveraged to create sophisticated data pipelines that provide data in formats which are more suited and beneficial for both offline and streaming users. While this doesn't imply that streaming and exposing raw data is never appropriate, however in such situations, it may be more effective to offer multiple streams: one with the raw data and others with processed data that is more befitting for data analysis and consumption
 
+*This blog post was originally published in March 2024 on Yelp's Engineering Blog: [Building Data Abstractions with Streaming at Yelp](https://engineeringblog.yelp.com/2024/03/building-data-abstractions-with-streaming-at-yelp.html).*
+
 <!-- case_study_feedback adds feedback buttons -->
 {{< case_study_feedback "YelpStreaming" >}}
 </div>
