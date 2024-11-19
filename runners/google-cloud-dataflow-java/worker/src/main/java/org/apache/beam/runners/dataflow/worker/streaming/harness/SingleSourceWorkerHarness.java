@@ -33,7 +33,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.RpcException;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.WindmillRpcException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
@@ -199,7 +199,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
           if (workResponse.getWorkCount() > 0) {
             break;
           }
-        } catch (RpcException e) {
+        } catch (WindmillRpcException e) {
           LOG.warn("GetWork failed, retrying:", e);
         }
         sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);

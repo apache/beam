@@ -15,21 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import org.apache.beam.sdk.annotations.Internal;
-
-@Internal
-public final class StreamObserverCancelledException extends RuntimeException {
-  StreamObserverCancelledException(Throwable cause) {
-    super(cause);
-  }
-
-  StreamObserverCancelledException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  StreamObserverCancelledException(String message) {
-    super(message);
-  }
+interface StreamSender {
+  void close();
 }

@@ -15,21 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
+package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import org.apache.beam.sdk.annotations.Internal;
-
-@Internal
-public final class StreamObserverCancelledException extends RuntimeException {
-  StreamObserverCancelledException(Throwable cause) {
-    super(cause);
-  }
-
-  StreamObserverCancelledException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  StreamObserverCancelledException(String message) {
+/**
+ * Thrown when operations are requested on a {@link WindmillStream} has been shutdown. Future
+ * operations on the stream are not allowed and will throw an {@link
+ * WindmillStreamShutdownException}.
+ */
+public final class WindmillStreamShutdownException extends Exception {
+  public WindmillStreamShutdownException(String message) {
     super(message);
   }
 }

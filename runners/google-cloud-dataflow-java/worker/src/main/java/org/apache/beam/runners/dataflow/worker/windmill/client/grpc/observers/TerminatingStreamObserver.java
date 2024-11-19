@@ -17,19 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 
-import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 
 @Internal
-public final class StreamObserverCancelledException extends RuntimeException {
-  StreamObserverCancelledException(Throwable cause) {
-    super(cause);
-  }
+public interface TerminatingStreamObserver<T> extends StreamObserver<T> {
 
-  StreamObserverCancelledException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  StreamObserverCancelledException(String message) {
-    super(message);
-  }
+  /**
+   * Terminates the StreamObserver.
+   *
+   * @implSpec Different then {@link #onError(Throwable)} and {@link #onCompleted()} which can only
+   *     be called once during the lifetime of each {@link StreamObserver}, terminate()
+   *     implementations are meant to be idempotent and can be called multiple times as well as
+   *     being interleaved with other stream operations.
+   */
+  void terminate(Throwable terminationException);
 }

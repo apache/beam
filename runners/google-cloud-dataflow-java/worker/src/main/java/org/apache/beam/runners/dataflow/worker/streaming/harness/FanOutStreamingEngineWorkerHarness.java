@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
-import java.io.Closeable;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -65,6 +66,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
@@ -112,7 +114,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private boolean started;
 
   @GuardedBy("this")
-  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream;
+  private @Nullable GetWorkerMetadataStream getWorkerMetadataStream = null;
 
   private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
@@ -143,7 +145,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
     this.workCommitterFactory = workCommitterFactory;
-    this.getWorkerMetadataStream = null;
   }
 
   /**
@@ -204,9 +205,10 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
     getWorkerMetadataStream =
         streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient.getWindmillMetadataServiceStubBlocking(),
+            dispatcherClient::getWindmillMetadataServiceStubBlocking,
             getWorkerMetadataThrottleTimer,
             this::consumeWorkerMetadata);
+    getWorkerMetadataStream.start();
     started = true;
   }
 
@@ -225,7 +227,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
    */
   private GetDataStream getGlobalDataStream(String globalDataKey) {
     return Optional.ofNullable(backends.get().globalDataStreams().get(globalDataKey))
-        .map(GlobalDataStreamSender::get)
+        .map(GlobalDataStreamSender::stream)
         .orElseThrow(
             () -> new NoSuchElementException("No endpoint for global data tag: " + globalDataKey));
   }
@@ -236,7 +238,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     Preconditions.checkState(started, "FanOutStreamingEngineWorkerHarness never started.");
     Preconditions.checkNotNull(getWorkerMetadataStream).shutdown();
     workerMetadataConsumer.shutdownNow();
-    closeStreamsNotIn(WindmillEndpoints.none());
+    // Close all the streams blocking until this completes to not leak resources.
+    closeStreamsNotIn(WindmillEndpoints.none()).join();
     channelCachingStubFactory.shutdown();
 
     try {
@@ -300,27 +303,38 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   /** Close the streams that are no longer valid asynchronously. */
-  private void closeStreamsNotIn(WindmillEndpoints newWindmillEndpoints) {
+  @CanIgnoreReturnValue
+  private CompletableFuture<Void> closeStreamsNotIn(WindmillEndpoints newWindmillEndpoints) {
     StreamingEngineBackends currentBackends = backends.get();
-    currentBackends.windmillStreams().entrySet().stream()
-        .filter(
-            connectionAndStream ->
-                !newWindmillEndpoints.windmillEndpoints().contains(connectionAndStream.getKey()))
-        .forEach(
-            entry ->
-                windmillStreamManager.execute(
-                    () -> closeStreamSender(entry.getKey(), entry.getValue())));
+    Stream<CompletableFuture<Void>> closeStreamFutures =
+        currentBackends.windmillStreams().entrySet().stream()
+            .filter(
+                connectionAndStream ->
+                    !newWindmillEndpoints
+                        .windmillEndpoints()
+                        .contains(connectionAndStream.getKey()))
+            .map(
+                entry ->
+                    CompletableFuture.runAsync(
+                        () -> closeStreamSender(entry.getKey(), entry.getValue()),
+                        windmillStreamManager));
 
     Set<Endpoint> newGlobalDataEndpoints =
         new HashSet<>(newWindmillEndpoints.globalDataEndpoints().values());
-    currentBackends.globalDataStreams().values().stream()
-        .filter(sender -> !newGlobalDataEndpoints.contains(sender.endpoint()))
-        .forEach(
-            sender ->
-                windmillStreamManager.execute(() -> closeStreamSender(sender.endpoint(), sender)));
+    Stream<CompletableFuture<Void>> closeGlobalDataStreamFutures =
+        currentBackends.globalDataStreams().values().stream()
+            .filter(sender -> !newGlobalDataEndpoints.contains(sender.endpoint()))
+            .map(
+                sender ->
+                    CompletableFuture.runAsync(
+                        () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager));
+
+    return CompletableFuture.allOf(
+        Streams.concat(closeStreamFutures, closeGlobalDataStreamFutures)
+            .toArray(CompletableFuture[]::new));
   }
 
-  private void closeStreamSender(Endpoint endpoint, Closeable sender) {
+  private void closeStreamSender(Endpoint endpoint, StreamSender sender) {
     LOG.debug("Closing streams to endpoint={}, sender={}", endpoint, sender);
     try {
       sender.close();
@@ -346,13 +360,14 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private CompletionStage<Pair<Endpoint, WindmillStreamSender>>
       getOrCreateWindmillStreamSenderFuture(
           Endpoint endpoint, ImmutableMap<Endpoint, WindmillStreamSender> currentStreams) {
-    return MoreFutures.supplyAsync(
-        () ->
-            Pair.of(
-                endpoint,
-                Optional.ofNullable(currentStreams.get(endpoint))
-                    .orElseGet(() -> createAndStartWindmillStreamSender(endpoint))),
-        windmillStreamManager);
+    return Optional.ofNullable(currentStreams.get(endpoint))
+        .map(backend -> CompletableFuture.completedFuture(Pair.of(endpoint, backend)))
+        .orElseGet(
+            () ->
+                MoreFutures.supplyAsync(
+                        () -> Pair.of(endpoint, createAndStartWindmillStreamSender(endpoint)),
+                        windmillStreamManager)
+                    .toCompletableFuture());
   }
 
   /** Add up all the throttle times of all streams including GetWorkerMetadataStream. */
@@ -393,9 +408,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         .orElseGet(
             () ->
                 new GlobalDataStreamSender(
-                    () ->
-                        streamFactory.createGetDataStream(
-                            createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer()),
+                    streamFactory.createGetDataStream(
+                        createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer()),
                     keyedEndpoint.getValue()));
   }
 
@@ -416,7 +430,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                 StreamGetDataClient.create(
                     getDataStream, this::getGlobalDataStream, getDataMetricTracker),
             workCommitterFactory);
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
     return windmillStreamSender;
   }
 

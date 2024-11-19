@@ -40,13 +40,15 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class WindmillEndpoints {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
+  private static final WindmillEndpoints NO_ENDPOINTS =
+      WindmillEndpoints.builder()
+          .setVersion(Long.MAX_VALUE)
+          .setWindmillEndpoints(ImmutableSet.of())
+          .setGlobalDataEndpoints(ImmutableMap.of())
+          .build();
 
   public static WindmillEndpoints none() {
-    return WindmillEndpoints.builder()
-        .setVersion(Long.MAX_VALUE)
-        .setWindmillEndpoints(ImmutableSet.of())
-        .setGlobalDataEndpoints(ImmutableMap.of())
-        .build();
+    return NO_ENDPOINTS;
   }
 
   public static WindmillEndpoints from(
