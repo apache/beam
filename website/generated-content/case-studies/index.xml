@@ -1,4 +1,134 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: High-Performing and Efficient Transactional Data Processing for OCTO Technology’s Clients</title><link>/case-studies/octo/</link><pubDate>Thu, 10 Aug 2023 00:12:00 +0000</pubDate><guid>/case-studies/octo/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Building data abstractions with streaming at Yelp</title><link>/case-studies/yelp_streaming/</link><pubDate>Sun, 10 Nov 2024 00:12:00 +0000</pubDate><guid>/case-studies/yelp_streaming/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- div with class case-study-opinion is displayed at the top left area of the case study page -->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/yelp.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“At Yelp, Apache Beam provides an option for different teams to create custom streaming pipelines using Python, eliminating the need to switch to Scala or Java. This reduces the learning curve for Python developers and minimizes friction, while providing the flexibility to utilize existing Python libraries.”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/yelp/hpandher.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Hakampreet Singh Pandher
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Software Engineer @ Yelp
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;!-- div with class case-study-post is the case study page main content -->
+&lt;div class="case-study-post">
+&lt;h1 id="building-data-abstractions-with-streaming-at-yelp">Building data abstractions with streaming at Yelp&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>Yelp relies heavily on streaming to synchronize enormous volumes of data in real time. This is facilitated by Yelp&amp;rsquo;s underlying &lt;a href="https://engineeringblog.yelp.com/2016/07/billions-of-messages-a-day-yelps-real-time-data-pipeline.html">data pipeline infrastructure&lt;/a>, which manages the real-time flow of millions of messages originating from a plethora of services. This blog post covers how we leverage Yelp’s extensive streaming infrastructure to build robust data abstractions for our offline and streaming data consumers. We will use Yelp’s Business Properties ecosystem (explained in the upcoming sections) as an example.&lt;/p>
+&lt;h2 id="key-terminology">Key terminology&lt;/h2>
+&lt;p>Let’s start by covering certain key terms used throughout the post:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Offline systems&lt;/strong> - data warehousing platforms such as AWS Redshift or &lt;a href="https://engineeringblog.yelp.com/2021/04/powering-messaging-enabledness-with-yelps-data-infrastructure.html">Yelp’s Data Lake&lt;/a>, which are intended for large-scale data analysis&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Online systems&lt;/strong> - systems designed around high-performance SQL and NoSQL database solutions like MySQL or Cassandra DB, specifically built to handle and serve live traffic in real time, typically via REST APIs over HTTP. These databases are optimized for swiftly processing and delivering data as it&amp;rsquo;s generated or requested, making them crucial for applications and services that require immediate access to up-to-date information&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="status-quo">Status Quo&lt;/h2>
+&lt;h3 id="introduction-to-business-properties-ecosystem">Introduction to business properties ecosystem&lt;/h3>
+&lt;p>Generally speaking, ‘Business Property’ can be any piece of data that is associated with a Yelp business. For example, if we&amp;rsquo;re talking about a restaurant, its business properties could include things like what payment methods it accepts, what amenities it provides, and when it is open for business.&lt;/p>
+&lt;p>There are two types of business properties: Business Attributes and Business Features. You may notice that the terms, attributes and features, are synonymous to each other, and that’s by no accident. The primary distinction is that Business Attributes belong to the legacy system, &lt;strong>yelp-main&lt;/strong>, while Business Features are in a dedicated microservice, aligning with Yelp&amp;rsquo;s transition to Service Oriented Architecture.&lt;/p>
+&lt;p>We also gather additional metadata about business properties themselves, such as when they were last modified, how confident we are in their accuracy, and where they originated from. This additional information is referred to as “properties metadata.” We store this metadata in a separate table, which contains data about both Business Features and Business Attributes.&lt;/p>
+&lt;p>Business properties data is accessed via two primary methods: HTTP APIs for real-time online applications and streaming for offline data synchronization. This post mainly focuses on the streaming aspect.&lt;/p>
+&lt;h3 id="existing-business-properties-streaming-architecture">Existing Business Properties&amp;rsquo; streaming architecture&lt;/h3>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/yelp/existing_streaming_architecture.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/yelp/existing_streaming_architecture.png" alt="scheme">
+&lt;/a>
+&lt;/div>
+&lt;ol>
+&lt;li>
+&lt;p>In yelp-main’s MySQL database, data for Business Attributes is scattered across more than a dozen tables. To share this data efficiently, we employ the &lt;a href="https://engineeringblog.yelp.com/2016/08/streaming-mysql-tables-in-real-time-to-kafka.html">MySQL Replication Handler&lt;/a> to push it to &lt;a href="https://kafka.apache.org/intro">Kafka&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Business Features and metadata for business properties are stored in their respective tables in Cassandra db and we use &lt;a href="https://engineeringblog.yelp.com/2019/12/cassandra-source-connector-part-1.html">Cassandra Source Connector&lt;/a> to publish their data into Kafka&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Ultimately, we use &lt;a href="https://engineeringblog.yelp.com/2016/10/redshift-connector.html">Redshift Connector&lt;/a> to synchronize data from all these tables with their corresponding tables in Redshift. This process allows us to maintain an up-to-date dataset in Redshift for analysis and reporting&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h3 id="challenges-with-the-existing-workflow">Challenges with the existing workflow&lt;/h3>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Weak Encapsulation&lt;/strong>: Storing data in offline systems exactly as it is stored in source databases forces our clients to understand the inner workings of the source data, which weakens data encapsulation. Ideally, we wanted to abstract away distinctions like &amp;lsquo;Business Features&amp;rsquo; and &amp;lsquo;Business Attributes&amp;rsquo; and hide implementation details from clients to simplify their interactions. Furthermore, exposing raw data to offline consumers can lead to the disclosure of outdated or incorrect information. Transformation layers via REST APIs prevented online users from facing data discrepancies. However, offline users analyzing raw data still had to grapple with data accuracy issues, such as managing soft-deleted entries.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Discovery and consumption&lt;/strong>: The lack of proper abstractions also made data analysis and consumption challenging as it meant that consumers, whether they are Product Managers, Data Analysts, or batch processing systems, must create multiple workflows to collect data from various sources. Not to mention, dealing with edge cases and transforming data into a consistent schema added significant effort and cost, leading to an increase in the friction for consumption and a reduction in the general utility of the data.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Maintenance challenges&lt;/strong>: It also posed certain maintenance challenges as any alteration in the source schema necessitated corresponding changes in the destination store. Ideally, we would prefer the destination store&amp;rsquo;s schema to be more flexible, dynamic, and less susceptible to changes. This minimizes disruptions for users and mitigates the risk of infrastructure problems due to frequent schema upgrades. It also underscores the fact that a storage schema suitable for one database system might not be ideal for another.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="improved-implementation">Improved Implementation:&lt;/h2>
+&lt;p>We did explore various alternatives, including a non-streaming solution that involved using Apache Spark for routine batch executions to generate data dumps in diverse formats. However, as some of the data consumer use cases required relatively real-time updates, we had to lean towards a streaming approach.&lt;/p>
+&lt;h3 id="building-robust-data-abstractions-for-both-offline-and-streaming-data-consumers">Building robust data abstractions for both offline and streaming data consumers&lt;/h3>
+&lt;p>We tackled the aforementioned challenges by treating both streaming and offline data consumption as just additional channels for accessing and utilizing data, much like online HTTP clients. Similar to how we simplify complexities for online data consumers through REST APIs, we aimed to provide a consistent experience for streamed data by abstracting away internal implementation details. This means that if a client service transitions from consuming data directly through REST APIs to an asynchronous streaming approach, it will encounter similar data abstractions. For example, just as online consumers won&amp;rsquo;t see stale or invalid data, the same principle applies to streamed data consumers.&lt;/p>
+&lt;p>In order to achieve the same, we implemented a unified stream that delivers all relevant business property data in a consistent and user-friendly format. This approach ensures that Business Property consumers are spared from navigating the nuances between Business Attributes and Features or understanding the intricacies of data storage in their respective online source databases.&lt;/p>
+&lt;h3 id="new-consolidated-business-properties-streaming-architecture">New consolidated business properties streaming architecture&lt;/h3>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/yelp/new_streaming_architecture.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/yelp/new_streaming_architecture.png" alt="scheme">
+&lt;/a>
+&lt;/div>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Business Attributes data collection and transformation&lt;/strong>: we utilize &lt;a href="https://beam.apache.org/">Apache Beam&lt;/a> with &lt;a href="https://flink.apache.org/">Apache Flink&lt;/a> as the distributed processing backend for data transformation and formatting Business attribute data. Apache Beam transformation jobs process data originating from various input streams generated by the MySQL replication handler. These streams contain replicated data from their corresponding MySQL tables. The transformation jobs are responsible for standardizing the incoming streaming data, transforming it into a consistent format across all business properties. The transformed data is then published into a single unified stream.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Streaming Business Features&lt;/strong>: in a similar fashion, the output stream for Business Features, sourced from Cassandra using a &lt;a href="https://engineeringblog.yelp.com/2019/12/cassandra-source-connector-part-1.html">source connector&lt;/a>, also has its dedicated Apache Beam transformer job. This job formats the data to match the unified format used for Business Attributes, and the resulting data is published into the same unified output stream&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Enrich data with properties metadata&lt;/strong>: we employed a &lt;a href="https://engineeringblog.yelp.com/2018/12/joinery-a-tale-of-unwindowed-joins.html">Joinery Flink&lt;/a> job - a homegrown solution at Yelp commonly used for joining data across multiple Kafka topics - to amalgamate the business data for both Business Attributes and Features with the corresponding metadata. As a result, the data stream not only contains the business properties data but also the relevant metadata linked to each property.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Final data formatting&lt;/strong>: transformation job to address issues related to data inconsistencies, remove invalid data entries, and add any necessary supplementary fields, before the final business properties with metadata consolidated stream is exposed for consumption&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Offline data storage&lt;/strong>: the processed business properties data, complete with metadata, is made available for offline consumption and ends up in Redshift, through Redshift Connector. Additionally, it is ingested into Yelp&amp;rsquo;s Data Lake using a Data Lake connector, making it available for a broader range of analytics and data processing tasks&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Real-time consumption and Integration&lt;/strong>: the same consolidated data stream can cater to real-time consumption by other services within the organization. We use the same stream to sync business property data with Marketing systems, as they require timely syncs for their campaigns&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>To summarize, with the architecture described above, we have created a unified business properties stream addressing the challenges with the existing workflow mentioned above. This stream is utilized to sync business properties data into offline systems, enabling users to access all business properties through a singular schema, thereby facilitating data discovery, consumption, and overall ease of use.&lt;/p>
+&lt;p>Additionally, this approach allowed us to enrich business property data with associated metadata and resolve data inconsistencies, such as removing duplicate business properties etc. We used the &lt;a href="https://en.wikipedia.org/wiki/Entity%E2%80%93attribute%E2%80%93value_model">entity–attribute–value (EAV) model&lt;/a>, which accommodates the frequent introduction of new business properties without requiring modifications to the destination store schemas, hence reducing some of the maintenance overhead.&lt;/p>
+&lt;h2 id="final-words">Final words&lt;/h2>
+&lt;p>This post shows how Yelp&amp;rsquo;s robust data pipeline infrastructure can be leveraged to create sophisticated data pipelines that provide data in formats which are more suited and beneficial for both offline and streaming users. While this doesn&amp;rsquo;t imply that streaming and exposing raw data is never appropriate, however in such situations, it may be more effective to offer multiple streams: one with the raw data and others with processed data that is more befitting for data analysis and consumption&lt;/p>
+&lt;!-- case_study_feedback adds feedback buttons -->
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'YelpStreaming')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'YelpStreaming')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: High-Performing and Efficient Transactional Data Processing for OCTO Technology’s Clients</title><link>/case-studies/octo/</link><pubDate>Thu, 10 Aug 2023 00:12:00 +0000</pubDate><guid>/case-studies/octo/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -2671,33 +2801,4 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---></description></item><item><title>Case-Studies: Kio</title><link>/case-studies/kio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/kio/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;div class="case-study-post">
-&lt;h1 id="kio-is-a-set-of-kotlin-extensions-for-apache-beam-to-implement-fluent-like-api-for-java-sdk">Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.&lt;/h1>
-&lt;h2 id="word-count-example">Word Count example&lt;/h2>
-&lt;pre tabindex="0">&lt;code>// Create Kio context
-val kio = Kio.fromArguments(args)
-// Configure a pipeline
-kio.read().text(&amp;#34;~/input.txt&amp;#34;)
-.map { it.toLowerCase() }
-.flatMap { it.split(&amp;#34;\\W+&amp;#34;.toRegex()) }
-.filter { it.isNotEmpty() }
-.countByValue()
-.forEach { println(it) }
-// And execute it
-kio.execute().waitUntilDone()
-&lt;/code>&lt;/pre>&lt;h2 id="documentation">Documentation&lt;/h2>
-&lt;p>For more information about Kio, please see the documentation here: &lt;a href="https://code.chermenin.ru/kio">https://code.chermenin.ru/kio&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="clear-nav">&lt;/div></description></item></channel></rss>
+--></description></item></channel></rss>
