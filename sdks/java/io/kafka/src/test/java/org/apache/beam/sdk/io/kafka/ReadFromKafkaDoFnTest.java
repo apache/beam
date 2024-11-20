@@ -419,7 +419,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWhenHasStartOffset() throws Exception {
+  public void testInitialRestrictionWhenHasStartOffset() throws Throwable {
     long expectedStartOffset = 10L;
     consumer.setStartOffsetForTime(15L, Instant.now());
     consumer.setCurrentPos(5L);
@@ -431,7 +431,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWhenHasStopOffset() throws Exception {
+  public void testInitialRestrictionWhenHasStopOffset() throws Throwable {
     long expectedStartOffset = 10L;
     long expectedStopOffset = 20L;
     consumer.setStartOffsetForTime(15L, Instant.now());
@@ -450,7 +450,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWhenHasStartTime() throws Exception {
+  public void testInitialRestrictionWhenHasStartTime() throws Throwable {
     long expectedStartOffset = 10L;
     Instant startReadTime = Instant.now();
     consumer.setStartOffsetForTime(expectedStartOffset, startReadTime);
@@ -463,7 +463,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWhenHasStopTime() throws Exception {
+  public void testInitialRestrictionWhenHasStopTime() throws Throwable {
     long expectedStartOffset = 10L;
     Instant startReadTime = Instant.now();
     long expectedStopOffset = 100L;
@@ -479,7 +479,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWithConsumerPosition() throws Exception {
+  public void testInitialRestrictionWithConsumerPosition() throws Throwable {
     long expectedStartOffset = 5L;
     consumer.setCurrentPos(5L);
     OffsetRange result =
@@ -489,7 +489,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testInitialRestrictionWithException() throws Exception {
+  public void testInitialRestrictionWithException() throws Throwable {
     thrown.expect(KafkaException.class);
     thrown.expectMessage("PositionException");
 
@@ -498,7 +498,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElement() throws Exception {
+  public void testProcessElement() throws Throwable {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setNumOfRecordsPerPoll(3L);
     long startOffset = 5L;
@@ -514,7 +514,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElementWithEarlierOffset() throws Exception {
+  public void testProcessElementWithEarlierOffset() throws Throwable {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumerWithBrokenSeek.setNumOfRecordsPerPoll(6L);
     consumerWithBrokenSeek.setCurrentPos(0L);
@@ -532,7 +532,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testRawSizeMetric() throws Exception {
+  public void testRawSizeMetric() throws Throwable {
     final int numElements = 1000;
     final int recordSize = 8; // The size of key and value is defined in SimpleMockKafkaConsumer.
     MetricsContainerImpl container = new MetricsContainerImpl("any");
@@ -558,7 +558,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElementWithEmptyPoll() throws Exception {
+  public void testProcessElementWithEmptyPoll() throws Throwable {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setNumOfRecordsPerPoll(-1);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
@@ -573,7 +573,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElementWhenTopicPartitionIsRemoved() throws Exception {
+  public void testProcessElementWhenTopicPartitionIsRemoved() throws Throwable {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setRemoved();
     consumer.setNumOfRecordsPerPoll(-1);
@@ -600,7 +600,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElementWhenTopicPartitionIsStopped() throws Exception {
+  public void testProcessElementWhenTopicPartitionIsStopped() throws Throwable {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     ReadFromKafkaDoFn<String, String> instance =
         ReadFromKafkaDoFn.create(
@@ -630,7 +630,7 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElementWithException() throws Exception {
+  public void testProcessElementWithException() throws Throwable {
     thrown.expect(KafkaException.class);
     thrown.expectMessage("SeekException");
 
@@ -646,7 +646,7 @@ public class ReadFromKafkaDoFnTest {
 
   @Test
   public void testProcessElementWithDeserializationExceptionDefaultRecordHandler()
-      throws Exception {
+      throws Throwable {
     thrown.expect(SerializationException.class);
     thrown.expectMessage("Intentional serialization exception");
 
@@ -672,7 +672,7 @@ public class ReadFromKafkaDoFnTest {
 
   @Test
   public void testProcessElementWithDeserializationExceptionRecordingRecordHandler()
-      throws Exception {
+      throws Throwable {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, 1L));
 
