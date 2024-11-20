@@ -77,73 +77,73 @@ public class JdbcReadSchemaTransformProviderTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          JdbcReadSchemaTransformProvider.validateConfig(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setDriverClassName("")
-                  .setJdbcUrl("")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("")
+              .setJdbcUrl("")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          JdbcReadSchemaTransformProvider.validateConfig(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setDriverClassName("ClassName")
-                  .setJdbcUrl("JdbcUrl")
-                  .setLocation("Location")
-                  .setReadQuery("Query")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setReadQuery("Query")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          JdbcReadSchemaTransformProvider.validateConfig(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setDriverClassName("ClassName")
-                  .setJdbcUrl("JdbcUrl")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          JdbcReadSchemaTransformProvider.validateConfig(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setJdbcUrl("JdbcUrl")
-                  .setLocation("Location")
-                  .setJdbcType("invalidType")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setJdbcType("invalidType")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          JdbcReadSchemaTransformProvider.validateConfig(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setJdbcUrl("JdbcUrl")
-                  .setLocation("Location")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          JdbcReadSchemaTransformProvider.validateConfig(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setJdbcUrl("JdbcUrl")
-                  .setLocation("Location")
-                  .setDriverClassName("ClassName")
-                  .setJdbcType((String) JDBC_DRIVER_MAP.keySet().toArray()[0])
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setDriverClassName("ClassName")
+              .setJdbcType((String) JDBC_DRIVER_MAP.keySet().toArray()[0])
+              .build()
+              .validate();
         });
   }
 
   @Test
   public void testValidReadSchemaOptions() {
     for (String jdbcType : JDBC_DRIVER_MAP.keySet()) {
-      JdbcReadSchemaTransformProvider.validateConfig(
-          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-              .setJdbcUrl("JdbcUrl")
-              .setLocation("Location")
-              .setJdbcType(jdbcType)
-              .build());
+      JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+          .setJdbcUrl("JdbcUrl")
+          .setLocation("Location")
+          .setJdbcType(jdbcType)
+          .build()
+          .validate();
     }
   }
 

@@ -158,63 +158,21 @@ public class JdbcWriteSchemaTransformProvider
     return JdbcWriteSchemaTransformConfiguration.class;
   }
 
-  protected static void validateConfig(
-      JdbcWriteSchemaTransformConfiguration config, String jdbcType)
-      throws IllegalArgumentException {
-    if (Strings.isNullOrEmpty(config.getJdbcUrl())) {
-      throw new IllegalArgumentException("JDBC URL cannot be blank");
-    }
-
-    boolean driverClassNamePresent = !Strings.isNullOrEmpty(config.getDriverClassName());
-    boolean driverJarsPresent = !Strings.isNullOrEmpty(config.getDriverJars());
-    boolean jdbcTypePresent = !Strings.isNullOrEmpty(jdbcType);
-    if (!driverClassNamePresent && !driverJarsPresent && !jdbcTypePresent) {
-      throw new IllegalArgumentException(
-          "If JDBC type is not specified, then Driver Class Name and Driver Jars must be specified.");
-    }
-    if (!driverClassNamePresent && !jdbcTypePresent) {
-      throw new IllegalArgumentException(
-          "One of JDBC Driver class name or JDBC type must be specified.");
-    }
-    if (jdbcTypePresent
-        && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
-      throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
-    }
-
-    boolean writeStatementPresent =
-        (config.getWriteStatement() != null && !"".equals(config.getWriteStatement()));
-    boolean locationPresent = (config.getLocation() != null && !"".equals(config.getLocation()));
-
-    if (writeStatementPresent && locationPresent) {
-      throw new IllegalArgumentException(
-          "Write Statement and Table are mutually exclusive configurations");
-    }
-    if (!writeStatementPresent && !locationPresent) {
-      throw new IllegalArgumentException("Either Write Statement or Table must be set.");
-    }
-  }
-
-  protected static void validateConfig(JdbcWriteSchemaTransformConfiguration config)
-      throws IllegalArgumentException {
-    validateConfig(config, config.getJdbcType());
+  protected String jdbcType() {
+    return "";
   }
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcWriteSchemaTransformConfiguration configuration) {
-    validateConfig(configuration);
-    return new JdbcWriteSchemaTransform(configuration);
+    configuration.validate(jdbcType());
+    return new JdbcWriteSchemaTransform(configuration, jdbcType());
   }
 
   protected static class JdbcWriteSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcWriteSchemaTransformConfiguration config;
     private String jdbcType;
-
-    public JdbcWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
-      this.config = config;
-      this.jdbcType = config.getJdbcType();
-    }
 
     public JdbcWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config, String jdbcType) {
       this.config = config;
@@ -225,7 +183,11 @@ public class JdbcWriteSchemaTransformProvider
       String driverClassName = config.getDriverClassName();
 
       if (Strings.isNullOrEmpty(driverClassName)) {
-        driverClassName = JDBC_DRIVER_MAP.get(Objects.requireNonNull(jdbcType).toLowerCase());
+        driverClassName =
+            JDBC_DRIVER_MAP.get(
+                (Objects.requireNonNull(
+                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType()))
+                    .toLowerCase());
       }
 
       JdbcIO.DataSourceConfiguration dsConfig =
@@ -374,6 +336,46 @@ public class JdbcWriteSchemaTransformProvider
     @SchemaFieldDescription("SQL query used to insert records into the JDBC sink.")
     @Nullable
     public abstract String getWriteStatement();
+
+    public void validate() {
+      validate("JDBC");
+    }
+
+    public void validate(String jdbcType) throws IllegalArgumentException {
+      if (Strings.isNullOrEmpty(getJdbcUrl())) {
+        throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+
+      jdbcType = !Strings.isNullOrEmpty(jdbcType) ? jdbcType : getJdbcType();
+
+      boolean driverClassNamePresent = !Strings.isNullOrEmpty(getDriverClassName());
+      boolean driverJarsPresent = !Strings.isNullOrEmpty(getDriverJars());
+      boolean jdbcTypePresent = !Strings.isNullOrEmpty(jdbcType);
+      if (!driverClassNamePresent && !driverJarsPresent && !jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "If JDBC type is not specified, then Driver Class Name and Driver Jars must be specified.");
+      }
+      if (!driverClassNamePresent && !jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "One of JDBC Driver class name or JDBC type must be specified.");
+      }
+      if (jdbcTypePresent
+          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
+        throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
+      }
+
+      boolean writeStatementPresent =
+          (getWriteStatement() != null && !"".equals(getWriteStatement()));
+      boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+
+      if (writeStatementPresent && locationPresent) {
+        throw new IllegalArgumentException(
+            "Write Statement and Table are mutually exclusive configurations");
+      }
+      if (!writeStatementPresent && !locationPresent) {
+        throw new IllegalArgumentException("Either Write Statement or Table must be set.");
+      }
+    }
 
     public static Builder builder() {
       return new AutoValue_JdbcWriteSchemaTransformProvider_JdbcWriteSchemaTransformConfiguration

@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.jdbc.JdbcUtil.POSTGRES;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.io.jdbc.JdbcReadSchemaTransformProvider;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -42,9 +41,7 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      JdbcReadSchemaTransformConfiguration configuration) {
-    validateConfig(configuration, POSTGRES);
-    return new JdbcReadSchemaTransform(configuration, POSTGRES);
+  protected String jdbcType() {
+    return POSTGRES;
   }
 }

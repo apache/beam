@@ -243,33 +243,41 @@
       'ReadFromMySql':
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'WriteToMySql':
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'ReadFromPostgres':
         connection_init_sql: ''
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'WriteToPostgres':
         connection_init_sql: ''
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'ReadFromOracle':
         connection_init_sql: ''
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'WriteToOracle':
         connection_init_sql: ''
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'ReadFromSqlServer':
         connection_init_sql: ''
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
       'WriteToSqlServer':
         connection_init_sql: ''
         driver_class_name: ''
         driver_jars: ''
+        jdbc_type: ''
     underlying_provider:
       type: beamJar
       transforms:
