@@ -273,6 +273,87 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
+tasks.register('googleCloudPlatformRunnerV2DistrolessIntegrationTest', Test.class) {
+  group = "verification"
+  dependsOn 'buildAndPushDistrolessContainerImage'
+  def javaVer = project.findProperty('testJavaVersion')
+  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+  def tag = project.findProperty('dockerTag')
+  def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
+  def pipelineOptions = [
+          "--runner=TestDataflowRunner",
+          "--project=${gcpProject}",
+          "--region=${gcpRegion}",
+          "--tempRoot=${dataflowValidatesTempRoot}",
+          "--sdkContainerImage=${imageURL}",
+          "--experiments=use_unified_worker,use_runner_v2",
+          "--firestoreDb=${firestoreDb}",
+  ]
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/SpannerWriteIT.class'
+  exclude '**/*KmsKeyIT.class'
+  exclude '**/FhirIOReadIT.class'
+  exclude '**/DicomIOReadIT.class'
+  exclude '**/FhirIOWriteIT.class'
+  exclude '**/FhirIOLROIT.class'
+  exclude '**/FhirIOSearchIT.class'
+  exclude '**/FhirIOPatientEverythingIT.class'
+  // failing due to pane index not incrementing after Reshuffle:
+  // https://github.com/apache/beam/issues/28219
+  exclude '**/FileLoadsStreamingIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
+  useJUnit {
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
+  }
+}
+
+tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
+  def allowed = ["java17", "java21"]
+  doLast {
+    def javaVer = project.findProperty('testJavaVersion')
+    if (!allowed.contains(javaVer)) {
+      throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
+    }
+    if (!project.hasProperty('dockerTag')) {
+      throw new GradleException("dockerTag is missing but required")
+    }
+    def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+    def tag = project.findProperty('dockerTag')
+    def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
+    exec {
+      executable 'docker'
+      workingDir rootDir
+      args = [
+              'buildx',
+              'build',
+              '-t',
+              imageURL,
+              '-f',
+              'sdks/java/container/Dockerfile-distroless',
+              "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
+              "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
+              '.'
+      ]
+    }
+    exec {
+      executable 'docker'
+      args = ['push', imageURL]
+    }
+  }
+}
+
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
