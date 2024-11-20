@@ -118,7 +118,7 @@ public class JdbcReadSchemaTransformProvider
   }
 
   protected String inheritedDescription(
-      String prettyName, String transformName, String prefix, int port) {
+      String prettyName, String transformName, String databaseSchema, int defaultJdbcPort) {
     return String.format(
         "\n"
             + "This is a special case of ReadFromJdbc that includes the "
@@ -144,7 +144,14 @@ public class JdbcReadSchemaTransformProvider
             + "It might be necessary to use a custom JDBC driver that is not packaged with this "
             + "transform. If that is the case, see ReadFromJdbc which "
             + "allows for more custom configuration.",
-        prettyName, transformName, transformName, prefix, port, transformName, prefix, port);
+        prettyName,
+        transformName,
+        transformName,
+        databaseSchema,
+        defaultJdbcPort,
+        transformName,
+        databaseSchema,
+        defaultJdbcPort);
   }
 
   @Override
@@ -153,60 +160,21 @@ public class JdbcReadSchemaTransformProvider
     return JdbcReadSchemaTransformConfiguration.class;
   }
 
-  protected static void validateConfig(JdbcReadSchemaTransformConfiguration config, String jdbcType)
-      throws IllegalArgumentException {
-    if (Strings.isNullOrEmpty(config.getJdbcUrl())) {
-      throw new IllegalArgumentException("JDBC URL cannot be blank");
-    }
-
-    boolean driverClassNamePresent = !Strings.isNullOrEmpty(config.getDriverClassName());
-    boolean driverJarsPresent = !Strings.isNullOrEmpty(config.getDriverJars());
-    boolean jdbcTypePresent = !Strings.isNullOrEmpty(jdbcType);
-    if (!driverClassNamePresent && !driverJarsPresent && !jdbcTypePresent) {
-      throw new IllegalArgumentException(
-          "If JDBC type is not specified, then Driver Class Name and Driver Jars must be specified.");
-    }
-    if (!driverClassNamePresent && !jdbcTypePresent) {
-      throw new IllegalArgumentException(
-          "One of JDBC Driver class name or JDBC type must be specified.");
-    }
-    if (jdbcTypePresent
-        && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
-      throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
-    }
-
-    boolean readQueryPresent = (config.getReadQuery() != null && !"".equals(config.getReadQuery()));
-    boolean locationPresent = (config.getLocation() != null && !"".equals(config.getLocation()));
-
-    if (readQueryPresent && locationPresent) {
-      throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
-    }
-    if (!readQueryPresent && !locationPresent) {
-      throw new IllegalArgumentException("Either Query or Table must be specified.");
-    }
-  }
-
-  protected static void validateConfig(JdbcReadSchemaTransformConfiguration config)
-      throws IllegalArgumentException {
-    validateConfig(config, config.getJdbcType());
+  protected String jdbcType() {
+    return "";
   }
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcReadSchemaTransformConfiguration configuration) {
-    validateConfig(configuration);
-    return new JdbcReadSchemaTransform(configuration);
+    configuration.validate(jdbcType());
+    return new JdbcReadSchemaTransform(configuration, jdbcType());
   }
 
   protected static class JdbcReadSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcReadSchemaTransformConfiguration config;
-    private String jdbcType;
-
-    public JdbcReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
-      this.config = config;
-      this.jdbcType = config.getJdbcType();
-    }
+    private final String jdbcType;
 
     public JdbcReadSchemaTransform(JdbcReadSchemaTransformConfiguration config, String jdbcType) {
       this.config = config;
@@ -217,7 +185,11 @@ public class JdbcReadSchemaTransformProvider
       String driverClassName = config.getDriverClassName();
 
       if (Strings.isNullOrEmpty(driverClassName)) {
-        driverClassName = JDBC_DRIVER_MAP.get(Objects.requireNonNull(jdbcType).toLowerCase());
+        driverClassName =
+            JDBC_DRIVER_MAP.get(
+                (Objects.requireNonNull(
+                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType()))
+                    .toLowerCase());
       }
 
       JdbcIO.DataSourceConfiguration dsConfig =
@@ -342,6 +314,44 @@ public class JdbcReadSchemaTransformProvider
     @SchemaFieldDescription("Username for the JDBC source.")
     @Nullable
     public abstract String getUsername();
+
+    public void validate() {
+      validate("");
+    }
+
+    public void validate(String jdbcType) throws IllegalArgumentException {
+      if (Strings.isNullOrEmpty(getJdbcUrl())) {
+        throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+
+      jdbcType = !Strings.isNullOrEmpty(jdbcType) ? jdbcType : getJdbcType();
+
+      boolean driverClassNamePresent = !Strings.isNullOrEmpty(getDriverClassName());
+      boolean driverJarsPresent = !Strings.isNullOrEmpty(getDriverJars());
+      boolean jdbcTypePresent = !Strings.isNullOrEmpty(jdbcType);
+      if (!driverClassNamePresent && !driverJarsPresent && !jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "If JDBC type is not specified, then Driver Class Name and Driver Jars must be specified.");
+      }
+      if (!driverClassNamePresent && !jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "One of JDBC Driver class name or JDBC type must be specified.");
+      }
+      if (jdbcTypePresent
+          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
+        throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
+      }
+
+      boolean readQueryPresent = (getReadQuery() != null && !"".equals(getReadQuery()));
+      boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+
+      if (readQueryPresent && locationPresent) {
+        throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
+      }
+      if (!readQueryPresent && !locationPresent) {
+        throw new IllegalArgumentException("Either Query or Table must be specified.");
+      }
+    }
 
     public static Builder builder() {
       return new AutoValue_JdbcReadSchemaTransformProvider_JdbcReadSchemaTransformConfiguration

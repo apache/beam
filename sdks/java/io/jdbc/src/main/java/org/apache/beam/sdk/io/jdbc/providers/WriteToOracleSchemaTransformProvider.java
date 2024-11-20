@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.jdbc.JdbcUtil.ORACLE;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.io.jdbc.JdbcWriteSchemaTransformProvider;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -42,9 +41,7 @@ public class WriteToOracleSchemaTransformProvider extends JdbcWriteSchemaTransfo
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      JdbcWriteSchemaTransformConfiguration configuration) {
-    validateConfig(configuration, ORACLE);
-    return new JdbcWriteSchemaTransform(configuration, ORACLE);
+  protected String jdbcType() {
+    return ORACLE;
   }
 }
