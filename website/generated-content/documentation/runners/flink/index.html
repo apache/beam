@@ -80,7 +80,7 @@ WordCount example:</p><div class='language-java snippet'><div class="notebook-sk
 <code>flinkMaster</code>. Otherwise an embedded Flink cluster will be started for the job.</p><p class=language-py>To run a pipeline on Flink, set the runner to <code>FlinkRunner</code>
 and <code>flink_master</code> to the master URL of a Flink cluster.
 In addition, optionally set <code>environment_type</code> set to <code>LOOPBACK</code>. For example,
-after starting up a <a href=https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html>local flink cluster</a>,
+after starting up a <a href=https://ci.apache.org/projects/flink/flink-docs-release-1.18/getting-started/tutorials/local_setup.html>local flink cluster</a>,
 one could run:</p><div class='language-py snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre tabindex=0 class=chroma><code class=language-py data-lang=py><span class=line><span class=cl><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=k>as</span> <span class=nn>beam</span>
 </span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>apache_beam.options.pipeline_options</span> <span class=kn>import</span> <span class=n>PipelineOptions</span>
 </span></span><span class=line><span class=cl>
@@ -99,8 +99,8 @@ It creates a Flink job from your pipeline and executes it.
 You might encounter an error message like <code>Caused by: java.io.IOException: Insufficient number of network buffers:...</code>.
 This can be resolved by providing a Flink configuration file to override the default settings.
 You can find an example configuration file <a href=https://github.com/apache/beam/blob/master/runners/flink/src/test/resources/flink-conf.yaml>here</a>.
-To start the Job Service endpoint with your custom configuration, mount a local directory containing your Flink configuration to the <code>/flink-conf</code> path in the Docker container:
-<code>docker run --net=host -v &lt;your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.18_job_server:latest</code></p><p class=language-portable>(2) Submit the Python pipeline to the above endpoint by using the <code>PortableRunner</code>, <code>job_endpoint</code> set to <code>localhost:8099</code> (this is the default address of the JobService).
+To start the Job Service endpoint with your custom configuration, mount a local directory containing your Flink configuration to the <code>/flink-conf</code> path in the Docker container and pass this as <code>--flink-conf-dir</code>:
+<code>docker run --net=host -v &lt;your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.18_job_server:latest --flink-conf-dir /flink-conf</code></p><p class=language-portable>(2) Submit the Python pipeline to the above endpoint by using the <code>PortableRunner</code>, <code>job_endpoint</code> set to <code>localhost:8099</code> (this is the default address of the JobService).
 Optionally set <code>environment_type</code> set to <code>LOOPBACK</code>. For example:</p><div class='language-portable snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre tabindex=0><code class=language-portable data-lang=portable>import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -110,7 +110,7 @@ options = PipelineOptions([
     &#34;--environment_type=LOOPBACK&#34;
 ])
 with beam.Pipeline(options) as p:
-    ...</code></pre></div></div><p class=language-portable>To run on a separate <a href=https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html>Flink cluster</a>:</p><p class=language-portable>(1) Start a Flink cluster which exposes the Rest interface (e.g. <code>localhost:8081</code> by default).</p><p class=language-portable>(2) Start JobService with Flink Rest endpoint: <code>docker run --net=host apache/beam_flink1.18_job_server:latest --flink-master=localhost:8081</code>.</p><p class=language-portable>(3) Submit the pipeline as above.</p><div class='language-portable snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre tabindex=0><code class=language-portable data-lang=portable>import apache_beam as beam
+    ...</code></pre></div></div><p class=language-portable>To run on a separate <a href=https://ci.apache.org/projects/flink/flink-docs-release-1.18/getting-started/tutorials/local_setup.html>Flink cluster</a>:</p><p class=language-portable>(1) Start a Flink cluster which exposes the Rest interface (e.g. <code>localhost:8081</code> by default).</p><p class=language-portable>(2) Start JobService with Flink Rest endpoint: <code>docker run --net=host apache/beam_flink1.18_job_server:latest --flink-master=localhost:8081</code>.</p><p class=language-portable>(3) Submit the pipeline as above.</p><div class='language-portable snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre tabindex=0><code class=language-portable data-lang=portable>import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
