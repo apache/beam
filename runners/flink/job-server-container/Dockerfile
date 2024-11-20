@@ -28,6 +28,4 @@ COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 
 WORKDIR /opt/apache/beam
-
-# Add a conditional check for a mounted volume. This allows passing flink configs.
-ENTRYPOINT ["/bin/sh", "-c", "if [ -d \"/flink-conf\" ]; then /opt/apache/beam/flink-job-server.sh --flink-conf-dir /flink-conf; else /opt/apache/beam/flink-job-server.sh; fi"]
+ENTRYPOINT ["./flink-job-server.sh"]
