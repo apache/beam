@@ -25,6 +25,8 @@ ARG BEAM_BASE
 ARG DISTROLESS_BASE
 FROM ${BEAM_BASE} AS base
 ARG TARGETARCH
+ENV LANG C.UTF-8
+
 LABEL Author="Apache Beam <dev@beam.apache.org>"
 
 RUN if [ -z "${TARGETARCH}" ]; then echo "fatal: TARGETARCH not set; run as docker buildx build or use --build-arg=TARGETARCH=amd64|arm64" >&2; exit 1; fi
@@ -32,5 +34,9 @@ RUN if [ -z "${TARGETARCH}" ]; then echo "fatal: TARGETARCH not set; run as dock
 FROM ${DISTROLESS_BASE}:latest-${TARGETARCH} AS distroless
 
 COPY --from=base /opt /opt
+
+# Along with the LANG environment variable above, prevents internally discovered failing bugs related to Dataflow Flex
+# template character encodings.
+COPY --from=base /usr/lib/locale /usr/lib/locale
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
