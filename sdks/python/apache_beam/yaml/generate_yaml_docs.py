@@ -189,11 +189,11 @@ def io_grouping_key(transform_name):
     return 0, transform_name
 
 
-SKIP = [
-    'Combine',
-    'Filter',
-    'MapToFields',
-]
+# Deprecated providers
+SKIP = {
+    'ReadFromPubSubLite',
+    'WriteToPubSubLite',
+}
 
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
@@ -236,7 +236,8 @@ def main():
   options = parser.parse_args()
   include = re.compile(options.include).match
   exclude = (
-      re.compile(options.exclude).match if options.exclude else lambda _: False)
+      re.compile(options.exclude).match
+      if options.exclude else lambda x: x in SKIP)
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
