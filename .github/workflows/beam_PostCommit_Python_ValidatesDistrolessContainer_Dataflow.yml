@@ -20,7 +20,7 @@ on:
     - cron: '15 5/6 * * *'
   pull_request_target:
     paths:
-      - 'release/trigger_all_tests.json',
+      - 'release/trigger_all_tests.json'
       # Since distroless is based on original sdk container images, we want to also trigger distroless checks here.
       - '.github/trigger_files/beam_PostCommit_Python_ValidatesContainer_Dataflow.json'
       - '.github/trigger_files/beam_PostCommit_Python_ValidatesDistrolessContainer_Dataflow.json'
