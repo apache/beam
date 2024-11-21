@@ -23,8 +23,7 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayDeque;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.UUID;
@@ -43,7 +42,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -63,23 +61,16 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private @Nullable T solaceMappedRecord;
 
   /**
-   * List of successfully ACKed message (surrogate) ids which need to be pruned from the above.
-   * CAUTION: Accessed by both reader and checkpointing threads.
+   * Queue to place advanced messages before {@link #getCheckpointMark()} is called. CAUTION:
+   * Accessed by both reader and checkpointing threads.
    */
-  private final Queue<Long> ackedMessageIds;
+  private final Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
 
   /**
-   * Map to place advanced messages before {@link #getCheckpointMark()} is called. This is a
-   * non-concurrent object, should only be accessed by the reader thread.
+   * Queue for messages that were ingested in the {@link #advance()} method, but not sent yet to a
+   * {@link SolaceCheckpointMark}.
    */
-  private final Map<Long, BytesXMLMessage> safeToAckMessages;
-
-  /**
-   * Surrogate id used as a key in Collections storing messages that are waiting to be acknowledged
-   * ({@link UnboundedSolaceReader#safeToAckMessages}) and already acknowledged ({@link
-   * UnboundedSolaceReader#ackedMessageIds}).
-   */
-  private Long surrogateId = 0L;
+  private final Queue<BytesXMLMessage> receivedMessages = new ArrayDeque<>();
 
   private static final Cache<UUID, SessionService> sessionServiceCache;
   private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(1);
@@ -117,8 +108,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
             currentSource.getTimestampFn(), currentSource.getWatermarkIdleDurationThreshold());
     this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
-    this.safeToAckMessages = new HashMap<>();
-    this.ackedMessageIds = new ConcurrentLinkedQueue<>();
     this.readerUuid = UUID.randomUUID();
   }
 
@@ -147,8 +136,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public boolean advance() {
-    // Retire state associated with ACKed messages.
-    retire();
+    finalizeReadyMessages();
 
     BytesXMLMessage receivedXmlMessage;
     try {
@@ -163,15 +151,32 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
     solaceOriginalRecord = receivedXmlMessage;
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
-    safeToAckMessages.put(surrogateId, receivedXmlMessage);
-    surrogateId++;
+    receivedMessages.add(receivedXmlMessage);
 
     return true;
   }
 
   @Override
   public void close() {
+    finalizeReadyMessages();
     sessionServiceCache.invalidate(readerUuid);
+  }
+
+  public void finalizeReadyMessages() {
+    BytesXMLMessage msg;
+    while ((msg = safeToAckMessages.poll()) != null) {
+      try {
+        msg.ackMessage();
+      } catch (IllegalStateException e) {
+        LOG.error(
+            "SolaceIO.Read: failed to acknowledge the message with applicationMessageId={}, ackMessageId={}. Returning the message to queue to retry.",
+            msg.getApplicationMessageId(),
+            msg.getAckMessageId(),
+            e);
+        safeToAckMessages.add(msg); // In case the error was transient, might succeed later
+        break; // Commit is only best effort
+      }
+    }
   }
 
   @Override
@@ -185,10 +190,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    // It's possible for a checkpoint to be taken but never finalized.
-    // So we simply copy whatever safeToAckIds we currently have.
-    Map<Long, BytesXMLMessage> snapshotSafeToAckMessages = Maps.newHashMap(safeToAckMessages);
-    return new SolaceCheckpointMark(this::markAsAcked, snapshotSafeToAckMessages);
+    safeToAckMessages.addAll(receivedMessages);
+    receivedMessages.clear();
+    return new SolaceCheckpointMark(safeToAckMessages);
   }
 
   @Override
@@ -236,23 +240,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Could not query backlog bytes. Returning BACKLOG_UNKNOWN", e);
       return BACKLOG_UNKNOWN;
-    }
-  }
-
-  public void markAsAcked(Long messageSurrogateId) {
-    ackedMessageIds.add(messageSurrogateId);
-  }
-
-  /**
-   * Messages which have been ACKed (via the checkpoint finalize) can be safely removed from the
-   * list of messages to acknowledge.
-   */
-  private void retire() {
-    while (!ackedMessageIds.isEmpty()) {
-      Long ackMessageId = ackedMessageIds.poll();
-      if (ackMessageId != null) {
-        safeToAckMessages.remove(ackMessageId);
-      }
     }
   }
 }
