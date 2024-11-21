@@ -38,8 +38,16 @@ import yaml
 
 import apache_beam as beam
 import apache_beam.io as beam_io
+from apache_beam.io import ReadFromAvro
 from apache_beam.io import ReadFromBigQuery
+from apache_beam.io import ReadFromCsv
+from apache_beam.io import ReadFromJson
+from apache_beam.io import ReadFromParquet
+from apache_beam.io import WriteToAvro
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import WriteToCsv
+from apache_beam.io import WriteToJson
+from apache_beam.io import WriteToParquet
 from apache_beam.io import avroio
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
@@ -49,30 +57,55 @@ from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
 
 
-def read_from_text(path: str):
+def read_from_text(
+    path: str,
+    delimiter: str = None,
+):
   # TODO(yaml): Consider passing the filename and offset, possibly even
   # by default.
 
-  """Reads lines from a text files.
+  """Reads lines from text files into Beam rows.
 
-  The resulting PCollection consists of rows with a single string filed named
-  "line."
+  The resulting collection consists of Beam rows, each with a single string
+  field named "line."
+
+  For example, each Beam row will look like: ::
+
+      line: "a single line of text from source"
+
+  Parses a text file as newline-delimited elements, by default assuming
+  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
+  or specified delimiter.
 
   Args:
-    path (str): The file path to read from.  The path can contain glob
+    delimiter (str): Delimiter to split records.
+    path (str): The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob
       characters such as ``*`` and ``?``.
   """
-  return beam_io.ReadFromText(path) | beam.Map(lambda s: beam.Row(line=s))
+  return beam_io.ReadFromText(
+      path=path, delimiter=delimiter) | beam.Map(lambda s: beam.Row(line=s))
 
 
 @beam.ptransform_fn
 def write_to_text(pcoll, path: str):
-  """Writes a PCollection to a (set of) text files(s).
+  """Writes Beam rows to a (set of) text files(s).
 
-  The input must be a PCollection whose schema has exactly one field.
+  The input must be a beam Row whose schema has exactly one field.
+
+  For example: ::
+
+      key: "text to write"
+
+  where `key` can be any name. The idea is that the previous transform should be
+  outputting a collection of Beam rows that have only one field which is the
+  text to be written.
+
+  See MapToFields for guidance on how to drop and map rows to this format.
 
   Args:
-      path (str): The file path to write to. The files written will
+      path (str): The file path to write to as a local file path or a
+        GCS ``gs://`` path. The files written will
         begin with this prefix, followed by a shard identifier.
   """
   try:
@@ -90,6 +123,134 @@ def write_to_text(pcoll, path: str):
   sole_field_name, = field_names
   return pcoll | beam.Map(
       lambda x: str(getattr(x, sole_field_name))) | beam.io.WriteToText(path)
+
+
+def read_from_csv(
+    path: str, comment: str = None, delimiter: str = None, **kwargs):
+  """Reads comma-separated values (csv) files into Beam rows.
+
+  For more information about possible arguments, see
+  <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+
+  Args:
+      delimiter (str): Character or regex pattern to treat as the delimiter,
+        default ',' (comma).
+      comment (str): Character indicating that the remainder of line should
+        not be parsed. If found at the beginning of a line, the line will be
+        ignored altogether. This parameter must be a single character.
+      path (str): The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob
+        characters such as ``*`` and ``?``.
+  """
+  return ReadFromCsv(path=path, comment=comment, sep=delimiter, **kwargs)
+
+
+def write_to_csv(path: str, delimiter: str = None, **kwargs):
+  """Writes Beam rows to a (set of) comma-separated values (csv) files.
+
+  For more information about possible arguments, see
+  <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
+
+  Args:
+      delimiter (str): Character or regex pattern to treat as the delimiter.
+      path (str): The file path to write to as a local file path or a
+        GCS ``gs://`` path. The files written will
+        begin with this prefix, followed by a shard identifier.
+  """
+  return WriteToCsv(path=path, sep=delimiter, **kwargs)
+
+
+def read_from_json(path: str, **kwargs):
+  """Reads json values from files into Beam rows.
+
+    For more information about possible arguments, see
+    <https://pandas.pydata.org/docs/reference/api/pandas.read_json.html>
+
+    Args:
+        path (str): The file path to read from as a local file path or a
+          GCS ``gs://`` path. The path can contain glob
+          characters such as ``*`` and ``?``.
+      """
+  return ReadFromJson(path=path, **kwargs)
+
+
+def write_to_json(path: str, **kwargs):
+  """Writes Beam rows as json values to files.
+
+      For more information about possible arguments, see
+      <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_json.html>
+
+      Args:
+          path (str): The file path to write to as a local file path or a
+            GCS ``gs://`` path. The files written will
+            begin with this prefix, followed by a shard identifier.
+        """
+  return WriteToJson(path=path, **kwargs)
+
+
+def read_from_parquet(path: str, **kwargs):
+  """Read a set of Parquet files defined by a given file pattern.
+
+        For more information about possible arguments, see
+        <https://beam.apache.org/releases/pydoc/BEAM_VERSION/apache_beam.io.parquetio.html#apache_beam.io.parquetio.ReadFromParquet>
+
+        Args:
+            path (str): The file path to read from as a local file path or a
+              GCS ``gs://`` path.
+          """
+  return ReadFromParquet(file_pattern=path, as_rows=True, **kwargs)
+
+
+def write_to_parquet(path: str, **kwargs):
+  """Writes parquet files from a collection of Beam rows.
+
+      For more information about possible arguments, see
+        <https://beam.apache.org/releases/pydoc/BEAM_VERSION/apache_beam.io.parquetio.html#apache_beam.io.parquetio.WriteToParquet>
+
+      Args:
+        path (str): The file path to write to as a local file path or a
+          GCS ``gs://`` path. The files written will begin
+          with this prefix, followed by a shard identifier, and
+          end in a common extension.
+      """
+  return WriteToParquet(file_path_prefix=path, **kwargs)
+
+
+def read_from_avro(path: str, **kwargs):
+  """Reads records from avro files into Beam rows.
+
+    Records that are of simple types will be
+    mapped to beam Rows with a single `record` field containing the records
+    value. Records that are of Avro type ``RECORD`` will be mapped to Beam rows
+    that comply with the schema contained in the Avro file that contains those
+    records.
+
+    For more information about possible arguments, see
+        <https://beam.apache.org/releases/pydoc/BEAM_VERSION/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro>
+
+    Args:
+      path (str): The file path to read from as a local file path or a
+        GCS ``gs://`` path.
+    """
+  return ReadFromAvro(file_pattern=path, as_rows=True, **kwargs)
+
+
+def write_to_avro(path: str, **kwargs):
+  """Writes avro records into files from a collection of Beam rows.
+
+      The avro schema will be automatically generated and used to write the
+      output records.
+
+      For more information about possible arguments, see
+          <https://beam.apache.org/releases/pydoc/BEAM_VERSION/apache_beam.io.avroio.html#apache_beam.io.avroio.WriteToAvro>
+
+      Args:
+        path (str): The file path to write to as a local file path or a
+          GCS ``gs://`` path. The files written will begin
+          with this prefix, followed by a shard identifier, and
+          end in a common extension.
+      """
+  return WriteToAvro(file_path_prefix=path, **kwargs)
 
 
 def read_from_bigquery(

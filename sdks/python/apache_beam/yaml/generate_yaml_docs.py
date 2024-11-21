@@ -86,10 +86,16 @@ def _fake_value(name, beam_type):
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
+EXCLUDE_ARGS = ['args', 'kwargs']
+
+
 def _fake_row(schema):
   if schema is None:
     return '...'
-  return {f.name: _fake_value(f.name, f.type) for f in schema.fields}
+  return {
+      f.name: _fake_value(f.name, f.type)
+      for f in schema.fields if f.name not in EXCLUDE_ARGS
+  }
 
 
 def pretty_example(provider, t, base_t=None):
@@ -161,13 +167,14 @@ def config_docs(schema):
 
   def lines():
     for f in schema.fields:
-      f = normalize_error_handling(f)
-      yield ''.join([
-          f'**{f.name}** `{pretty_type(f.type)}`',
-          maybe_optional(f.type),
-          indent(': ' + f.description if f.description else '', 2),
-          maybe_row_parameters(f.type),
-      ])
+      if f.name not in EXCLUDE_ARGS:
+        f = normalize_error_handling(f)
+        yield ''.join([
+            f'**{f.name}** `{pretty_type(f.type)}`',
+            maybe_optional(f.type),
+            indent(': ' + f.description if f.description else '', 2),
+            maybe_row_parameters(f.type),
+        ])
 
   return '\n\n'.join('*' + indent(line, 2) for line in lines()).strip()
 
@@ -193,14 +200,19 @@ def io_grouping_key(transform_name):
 # Exclude providers
 SKIP = {}
 
+def normalize_beam_version(desc):
+  return desc.replace(
+      'BEAM_VERSION', 'current' if '.dev' in beam_version else beam_version)
+
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
   return '\n'.join([
       f'## {transform_base}',
       '',
-      longest(
-          lambda t: longest(lambda p: p.description(t), providers[t]),
-          transforms).replace('::\n', '\n\n    :::yaml\n'),
+      normalize_beam_version(
+          longest(
+              lambda t: longest(lambda p: p.description(t), providers[t]),
+              transforms).replace('::\n', '\n\n    :::yaml\n')),
       '',
       extra_docs,
       '',
