@@ -68,6 +68,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +126,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      ThrottlingGetDataMetricTracker getDataMetricTracker) {
+      ThrottlingGetDataMetricTracker getDataMetricTracker,
+      ExecutorService workerMetadataConsumer) {
     this.jobHeader = jobHeader;
     this.getDataMetricTracker = getDataMetricTracker;
     this.started = false;
@@ -138,9 +140,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.windmillStreamManager =
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setNameFormat(STREAM_MANAGER_THREAD_NAME).build());
-    this.workerMetadataConsumer =
-        Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build());
+    this.workerMetadataConsumer = workerMetadataConsumer;
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.activeMetadataVersion = Long.MIN_VALUE;
@@ -171,7 +171,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         getWorkBudgetDistributor,
         dispatcherClient,
         workCommitterFactory,
-        getDataMetricTracker);
+        getDataMetricTracker,
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME)
+                .build()));
   }
 
   @VisibleForTesting
@@ -195,7 +199,10 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             getWorkBudgetDistributor,
             dispatcherClient,
             workCommitterFactory,
-            getDataMetricTracker);
+            getDataMetricTracker,
+            // Run the workerMetadataConsumer on the direct calling thread to make testing more
+            // deterministic.
+            MoreExecutors.newDirectExecutorService());
     fanOutStreamingEngineWorkProvider.start();
     return fanOutStreamingEngineWorkProvider;
   }
