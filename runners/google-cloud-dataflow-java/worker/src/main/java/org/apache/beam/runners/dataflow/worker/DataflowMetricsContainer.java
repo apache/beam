@@ -76,6 +76,11 @@ public class DataflowMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+    return getCurrentContainer().getHistogram(metricName, bucketType);
+  }
+
+  @Override
   public StringSet getStringSet(MetricName metricName) {
     return getCurrentContainer().getStringSet(metricName);
   }
@@ -83,11 +88,5 @@ public class DataflowMetricsContainer implements MetricsContainer {
   @Override
   public BoundedTrie getBoundedTrie(MetricName metricName) {
     return getCurrentContainer().getBoundedTrie(metricName);
-  }
-
-  @Override
-  public Histogram getPerWorkerHistogram(
-      MetricName metricName, HistogramData.BucketType bucketType) {
-    return getCurrentContainer().getPerWorkerHistogram(metricName, bucketType);
   }
 }

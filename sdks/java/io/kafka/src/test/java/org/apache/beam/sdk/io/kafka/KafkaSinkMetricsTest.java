@@ -38,7 +38,10 @@ public class KafkaSinkMetricsTest {
         KafkaSinkMetrics.createRPCLatencyHistogram(KafkaSinkMetrics.RpcMethod.POLL, "topic1");
 
     MetricName histogramName =
-        MetricName.named("KafkaSink", "RpcLatency*rpc_method:POLL;topic_name:topic1;");
+        MetricName.named(
+            "KafkaSink",
+            "RpcLatency*rpc_method:POLL;topic_name:topic1;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     assertThat(histogram.getName(), equalTo(histogramName));
   }
 
