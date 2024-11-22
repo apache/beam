@@ -273,7 +273,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
-tasks.register('googleCloudPlatformRunnerV2DistrolessIntegrationTest', Test.class) {
+tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   group = "verification"
   dependsOn 'buildAndPushDistrolessContainerImage'
   def javaVer = project.findProperty('testJavaVersion')
@@ -292,34 +292,16 @@ tasks.register('googleCloudPlatformRunnerV2DistrolessIntegrationTest', Test.clas
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/SpannerWriteIT.class'
-  exclude '**/*KmsKeyIT.class'
-  exclude '**/FhirIOReadIT.class'
-  exclude '**/DicomIOReadIT.class'
-  exclude '**/FhirIOWriteIT.class'
-  exclude '**/FhirIOLROIT.class'
-  exclude '**/FhirIOSearchIT.class'
-  exclude '**/FhirIOPatientEverythingIT.class'
-  // failing due to pane index not incrementing after Reshuffle:
-  // https://github.com/apache/beam/issues/28219
-  exclude '**/FileLoadsStreamingIT.class'
 
   maxParallelForks 4
-  classpath = configurations.googleCloudPlatformIntegrationTest
-  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit {
-    filter {
-      // Only needs to run on direct runner
-      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
-      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
-      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
-      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
-    }
-  }
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
 }
 
 tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
+  // Only Java 17 and 21 are supported.
+  // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
   def allowed = ["java17", "java21"]
   doLast {
     def javaVer = project.findProperty('testJavaVersion')
