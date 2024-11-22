@@ -39,9 +39,8 @@ class ManagedIcebergIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.args.extend([
-      '--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest',
-      '--experiments=enable_managed_transforms',
-      '--dataflow_endpoint=https://dataflow-staging.sandbox.googleapis.com',
+        '--experiments=enable_managed_transforms',
+        '--dataflow_endpoint=https://dataflow-staging.sandbox.googleapis.com',
     ])
 
   def _create_row(self, num: int):
@@ -57,8 +56,8 @@ class ManagedIcebergIT(unittest.TestCase):
         "table": "test_iceberg_write_read.test_" + str(int(time.time())),
         "catalog_name": "default",
         "catalog_properties": {
-          "type": "hadoop",
-          "warehouse": self.WAREHOUSE,
+            "type": "hadoop",
+            "warehouse": self.WAREHOUSE,
         }
     }
 
