@@ -43,11 +43,7 @@ except ImportError:
   globals()['cython'] = fake_cython
 
 __all__ = [
-    'MetricAggregator',
-    'MetricCell',
-    'MetricCellFactory',
-    'DistributionResult',
-    'GaugeResult'
+    'MetricCell', 'MetricCellFactory', 'DistributionResult', 'GaugeResult'
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,11 +106,11 @@ class CounterCell(MetricCell):
   """
   def __init__(self, *args):
     super().__init__(*args)
-    self.value = CounterAggregator.identity_element()
+    self.value = 0
 
   def reset(self):
     # type: () -> None
-    self.value = CounterAggregator.identity_element()
+    self.value = 0
 
   def combine(self, other):
     # type: (CounterCell) -> CounterCell
@@ -175,11 +171,11 @@ class DistributionCell(MetricCell):
   """
   def __init__(self, *args):
     super().__init__(*args)
-    self.data = DistributionAggregator.identity_element()
+    self.data = DistributionData.identity_element()
 
   def reset(self):
     # type: () -> None
-    self.data = DistributionAggregator.identity_element()
+    self.data = DistributionData.identity_element()
 
   def combine(self, other):
     # type: (DistributionCell) -> DistributionCell
@@ -234,10 +230,10 @@ class GaugeCell(MetricCell):
   """
   def __init__(self, *args):
     super().__init__(*args)
-    self.data = GaugeAggregator.identity_element()
+    self.data = GaugeData.identity_element()
 
   def reset(self):
-    self.data = GaugeAggregator.identity_element()
+    self.data = GaugeData.identity_element()
 
   def combine(self, other):
     # type: (GaugeCell) -> GaugeCell
@@ -284,7 +280,7 @@ class StringSetCell(MetricCell):
   """
   def __init__(self, *args):
     super().__init__(*args)
-    self.data = StringSetAggregator.identity_element()
+    self.data = StringSetData.identity_element()
 
   def add(self, value):
     self.update(value)
@@ -308,9 +304,8 @@ class StringSetCell(MetricCell):
 
   def combine(self, other):
     # type: (StringSetCell) -> StringSetCell
-    combined = StringSetAggregator().combine(self.data, other.data)
     result = StringSetCell()
-    result.data = combined
+    result.data = self.data.combine(other.data)
     return result
 
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
@@ -324,7 +319,7 @@ class StringSetCell(MetricCell):
 
   def reset(self):
     # type: () -> None
-    self.data = StringSetAggregator.identity_element()
+    self.data = StringSetData.identity_element()
 
 
 class DistributionResult(object):
@@ -449,6 +444,10 @@ class GaugeData(object):
     # type: () -> GaugeData
     return GaugeData(self.value, timestamp=self.timestamp)
 
+  def get_result(self):
+    # type: () -> GaugeResult
+    return GaugeResult(self.get_cumulative())
+
   def combine(self, other):
     # type: (Optional[GaugeData]) -> GaugeData
     if other is None:
@@ -463,6 +462,11 @@ class GaugeData(object):
   def singleton(value, timestamp=None):
     # type: (Optional[int], Optional[int]) -> GaugeData
     return GaugeData(value, timestamp=timestamp)
+
+  @staticmethod
+  def identity_element():
+    # type: () -> GaugeData
+    return GaugeData(0, timestamp=0)
 
 
 class DistributionData(object):
@@ -510,6 +514,9 @@ class DistributionData(object):
     # type: () -> DistributionData
     return DistributionData(self.sum, self.count, self.min, self.max)
 
+  def get_result(self):
+    return DistributionResult(self.get_cumulative())
+
   def combine(self, other):
     # type: (Optional[DistributionData]) -> DistributionData
     if other is None:
@@ -525,6 +532,11 @@ class DistributionData(object):
   def singleton(value):
     # type: (int) -> DistributionData
     return DistributionData(value, 1, value, value)
+
+  @staticmethod
+  def identity_element():
+    # type: () -> DistributionData
+    return DistributionData(0, 0, 2**63 - 1, -2**63)
 
 
 class StringSetData(object):
@@ -568,6 +580,9 @@ class StringSetData(object):
   def get_cumulative(self) -> "StringSetData":
     return StringSetData(set(self.string_set), self.string_size)
 
+  def get_result(self) -> set[str]:
+    return set(self.string_set)
+
   def add(self, *strings):
     """
     Add strings into this StringSetData and return the result StringSetData.
@@ -584,6 +599,11 @@ class StringSetData(object):
     """
     if other is None:
       return self
+
+    if not other.string_set:
+      return self
+    elif not self.string_set:
+      return other
 
     combined = set(self.string_set)
     string_size = self.add_until_capacity(
@@ -614,113 +634,9 @@ class StringSetData(object):
     return current_size
 
   @staticmethod
-  def singleton(value):
-    # type: (int) -> DistributionData
-    return DistributionData(value, 1, value, value)
+  def singleton(value: str) -> "StringSetData":
+    return StringSetData({value})
 
-
-class MetricAggregator(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Base interface for aggregating metric data during pipeline execution."""
-  def identity_element(self):
-    # type: () -> Any
-
-    """Returns the identical element of an Aggregation.
-
-    For the identity element, it must hold that
-     Aggregator.combine(any_element, identity_element) == any_element.
-    """
-    raise NotImplementedError
-
-  def combine(self, x, y):
-    # type: (Any, Any) -> Any
-    raise NotImplementedError
-
-  def result(self, x):
-    # type: (Any) -> Any
-    raise NotImplementedError
-
-
-class CounterAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Counter metric data during pipeline execution.
-
-  Values aggregated should be ``int`` objects.
-  """
   @staticmethod
-  def identity_element():
-    # type: () -> int
-    return 0
-
-  def combine(self, x, y):
-    # type: (SupportsInt, SupportsInt) -> int
-    return int(x) + int(y)
-
-  def result(self, x):
-    # type: (SupportsInt) -> int
-    return int(x)
-
-
-class DistributionAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Distribution metric data during pipeline execution.
-
-  Values aggregated should be ``DistributionData`` objects.
-  """
-  @staticmethod
-  def identity_element():
-    # type: () -> DistributionData
-    return DistributionData(0, 0, 2**63 - 1, -2**63)
-
-  def combine(self, x, y):
-    # type: (DistributionData, DistributionData) -> DistributionData
-    return x.combine(y)
-
-  def result(self, x):
-    # type: (DistributionData) -> DistributionResult
-    return DistributionResult(x.get_cumulative())
-
-
-class GaugeAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Gauge metric data during pipeline execution.
-
-  Values aggregated should be ``GaugeData`` objects.
-  """
-  @staticmethod
-  def identity_element():
-    # type: () -> GaugeData
-    return GaugeData(0, timestamp=0)
-
-  def combine(self, x, y):
-    # type: (GaugeData, GaugeData) -> GaugeData
-    result = x.combine(y)
-    return result
-
-  def result(self, x):
-    # type: (GaugeData) -> GaugeResult
-    return GaugeResult(x.get_cumulative())
-
-
-class StringSetAggregator(MetricAggregator):
-  @staticmethod
-  def identity_element():
-    # type: () -> StringSetData
+  def identity_element() -> "StringSetData":
     return StringSetData()
-
-  def combine(self, x, y):
-    # type: (StringSetData, StringSetData) -> StringSetData
-    if len(x.string_set) == 0:
-      return y
-    elif len(y.string_set) == 0:
-      return x
-    else:
-      return x.combine(y)
-
-  def result(self, x):
-    # type: (StringSetData) -> set
-    return set(x.string_set)

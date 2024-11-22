@@ -28,7 +28,6 @@ For internal use only. No backwards compatibility guarantees.
 from typing import TYPE_CHECKING
 from typing import Optional
 
-from apache_beam.metrics.cells import MetricAggregator
 from apache_beam.metrics.cells import MetricCell
 from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.utils.histogram import Histogram
@@ -50,10 +49,10 @@ class HistogramCell(MetricCell):
   """
   def __init__(self, bucket_type):
     self._bucket_type = bucket_type
-    self.data = HistogramAggregator(bucket_type).identity_element()
+    self.data = HistogramData.identity_element(bucket_type)
 
   def reset(self):
-    self.data = HistogramAggregator(self._bucket_type).identity_element()
+    self.data = HistogramData.identity_element(self._bucket_type)
 
   def combine(self, other: 'HistogramCell') -> 'HistogramCell':
     result = HistogramCell(self._bucket_type)
@@ -148,22 +147,6 @@ class HistogramData(object):
 
     return HistogramData(self.histogram.combine(other.histogram))
 
-
-class HistogramAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Histogram metric data during pipeline execution.
-
-  Values aggregated should be ``HistogramData`` objects.
-  """
-  def __init__(self, bucket_type: 'BucketType') -> None:
-    self._bucket_type = bucket_type
-
-  def identity_element(self) -> HistogramData:
-    return HistogramData(Histogram(self._bucket_type))
-
-  def combine(self, x: HistogramData, y: HistogramData) -> HistogramData:
-    return x.combine(y)
-
-  def result(self, x: HistogramData) -> HistogramResult:
-    return HistogramResult(x.get_cumulative())
+  @staticmethod
+  def identity_element(bucket_type) -> HistogramData:
+    return HistogramData(Histogram(bucket_type))
