@@ -131,7 +131,7 @@ function create_cluster() {
 
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
-  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
+  gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
   --metadata "${metadata}", \
   --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
 }
