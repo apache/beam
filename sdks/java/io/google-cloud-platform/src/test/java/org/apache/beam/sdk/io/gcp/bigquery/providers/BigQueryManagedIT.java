@@ -17,15 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,6 +40,8 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -58,17 +67,14 @@ public class BigQueryManagedIT {
   private static final Schema SCHEMA =
       Schema.of(
           Schema.Field.of("str", Schema.FieldType.STRING),
-          Schema.Field.of("number", Schema.FieldType.INT64));
+          Schema.Field.of("number", Schema.FieldType.INT64),
+          Schema.Field.of("dest", Schema.FieldType.INT64));
+
+  private static final SerializableFunction<Long, Row> ROW_FUNC =
+      l -> Row.withSchema(SCHEMA).addValue(Long.toString(l)).addValue(l).addValue(l % 3).build();
 
   private static final List<Row> ROWS =
-      LongStream.range(0, 20)
-          .mapToObj(
-              i ->
-                  Row.withSchema(SCHEMA)
-                      .withFieldValue("str", Long.toString(i))
-                      .withFieldValue("number", i)
-                      .build())
-          .collect(Collectors.toList());
+      LongStream.range(0, 20).mapToObj(ROW_FUNC::apply).collect(Collectors.toList());
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryManagedIT");
 
@@ -117,6 +123,13 @@ public class BigQueryManagedIT {
         String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Map<String, Object> config = ImmutableMap.of("table", table);
 
+    if (writePipeline.getOptions().getRunner().getName().contains("DataflowRunner")) {
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          writePipeline.getOptions().as(ExperimentalOptions.class),
+          GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    }
+
     // streaming write
     PCollectionRowTuple.of("input", getInput(writePipeline, true))
         .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
@@ -131,6 +144,65 @@ public class BigQueryManagedIT {
     readPipeline.run().waitUntilFinish();
   }
 
+  public void testDynamicDestinations(boolean streaming) throws IOException, InterruptedException {
+    String baseTableName =
+        String.format("%s:%s.dynamic_" + System.nanoTime(), PROJECT, BIG_QUERY_DATASET_ID);
+    String destinationTemplate = baseTableName + "_{dest}";
+    Map<String, Object> config =
+        ImmutableMap.of("table", destinationTemplate, "drop", Collections.singletonList("dest"));
+
+    if (!streaming) {
+      // file loads requires a GCS temp location
+      String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
+      writePipeline.getOptions().setTempLocation(tempLocation);
+    }
+
+    // write
+    PCollectionRowTuple.of("input", getInput(writePipeline, streaming))
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
+    writePipeline.run().waitUntilFinish();
+
+    List<String> destinations =
+        Arrays.asList(baseTableName + "_0", baseTableName + "_1", baseTableName + "_2");
+
+    // read and validate each table destination
+    RowFilter rowFilter = new RowFilter(SCHEMA).drop(Collections.singletonList("dest"));
+    for (int i = 0; i < destinations.size(); i++) {
+      long mod = i;
+      String dest = destinations.get(i);
+      List<Row> writtenRows =
+          BQ_CLIENT
+              .queryUnflattened(String.format("SELECT * FROM [%s]", dest), PROJECT, true, false)
+              .stream()
+              .map(tableRow -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tableRow))
+              .collect(Collectors.toList());
+
+      List<Row> expectedRecords =
+          ROWS.stream()
+              .filter(row -> row.getInt64("dest") == mod)
+              .map(rowFilter::filter)
+              .collect(Collectors.toList());
+
+      assertThat(writtenRows, containsInAnyOrder(expectedRecords.toArray()));
+    }
+  }
+
+  @Test
+  public void testStreamingDynamicDestinations() throws IOException, InterruptedException {
+    if (writePipeline.getOptions().getRunner().getName().contains("DataflowRunner")) {
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          writePipeline.getOptions().as(ExperimentalOptions.class),
+          GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    }
+    testDynamicDestinations(true);
+  }
+
+  @Test
+  public void testBatchDynamicDestinations() throws IOException, InterruptedException {
+    testDynamicDestinations(false);
+  }
+
   public PCollection<Row> getInput(Pipeline p, boolean isStreaming) {
     if (isStreaming) {
       return p.apply(
@@ -138,14 +210,7 @@ public class BigQueryManagedIT {
                   .startAt(new Instant(0))
                   .stopAt(new Instant(19))
                   .withInterval(Duration.millis(1)))
-          .apply(
-              MapElements.into(TypeDescriptors.rows())
-                  .via(
-                      i ->
-                          Row.withSchema(SCHEMA)
-                              .withFieldValue("str", Long.toString(i.getMillis()))
-                              .withFieldValue("number", i.getMillis())
-                              .build()))
+          .apply(MapElements.into(TypeDescriptors.rows()).via(i -> ROW_FUNC.apply(i.getMillis())))
           .setRowSchema(SCHEMA);
     }
     return p.apply(Create.of(ROWS)).setRowSchema(SCHEMA);

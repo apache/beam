@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -89,16 +90,19 @@ public class BigQueryFileLoadsSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rowPCollection = input.getSinglePCollection();
-      BigQueryIO.Write<Row> write = toWrite(input.getPipeline().getOptions());
+      BigQueryIO.Write<Row> write =
+          toWrite(rowPCollection.getSchema(), input.getPipeline().getOptions());
       rowPCollection.apply(write);
 
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
-    BigQueryIO.Write<Row> toWrite(PipelineOptions options) {
+    BigQueryIO.Write<Row> toWrite(Schema schema, PipelineOptions options) {
+      PortableBigQueryDestinations dynamicDestinations =
+          new PortableBigQueryDestinations(schema, configuration);
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
-              .to(configuration.getTable())
+              .to(dynamicDestinations)
               .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
               .withFormatFunction(BigQueryUtils.toTableRow())
               // TODO(https://github.com/apache/beam/issues/33074) BatchLoad's
@@ -106,7 +110,7 @@ public class BigQueryFileLoadsSchemaTransformProvider
               .withCustomGcsTempLocation(
                   ValueProvider.StaticValueProvider.of(options.getTempLocation()))
               .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-              .useBeamSchema();
+              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =

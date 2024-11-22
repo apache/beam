@@ -30,7 +30,7 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
-from apache_beam.yaml.yaml_mapping import ErrorHandlingConfig
+from apache_beam.yaml.yaml_errors import ErrorHandlingConfig
 
 
 def _singular(name):
