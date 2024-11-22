@@ -217,7 +217,46 @@ class DistributionCell(MetricCell):
         ptransform=transform_id)
 
 
-class GaugeCell(MetricCell):
+class AbstractMetricCell(MetricCell):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value and delta for a metric with a data class.
+
+  This class is thread safe.
+  """
+  def __init__(self, data_class):
+    super().__init__()
+    self.data_class = data_class
+    self.data = self.data_class.identity_element()
+
+  def reset(self):
+    self.data = self.data_class.identity_element()
+
+  def combine(self, other: 'AbstractMetricCell') -> 'AbstractMetricCell':
+    result = type(self)()
+    result.data = self.data.combine(other.data)
+    return result
+
+  def set(self, value):
+    with self._lock:
+      self._update_locked(value)
+
+  def update(self, value):
+    with self._lock:
+      self._update_locked(value)
+
+  def _update_locked(self, value):
+    raise NotImplementedError(type(self))
+
+  def get_cumulative(self):
+    with self._lock:
+      return self.data.get_cumulative()
+
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
+    raise NotImplementedError(type(self))
+
+
+class GaugeCell(AbstractMetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value and delta for a gauge metric.
@@ -228,35 +267,14 @@ class GaugeCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, *args):
-    super().__init__(*args)
-    self.data = GaugeData.identity_element()
+  def __init__(self):
+    super().__init__(GaugeData)
 
-  def reset(self):
-    self.data = GaugeData.identity_element()
-
-  def combine(self, other):
-    # type: (GaugeCell) -> GaugeCell
-    result = GaugeCell()
-    result.data = self.data.combine(other.data)
-    return result
-
-  def set(self, value):
-    self.update(value)
-
-  def update(self, value):
-    # type: (SupportsInt) -> None
-    value = int(value)
-    with self._lock:
-      # Set the value directly without checking timestamp, because
-      # this value is naturally the latest value.
-      self.data.value = value
-      self.data.timestamp = time.time()
-
-  def get_cumulative(self):
-    # type: () -> GaugeData
-    with self._lock:
-      return self.data.get_cumulative()
+  def _update_locked(self, value):
+    # Set the value directly without checking timestamp, because
+    # this value is naturally the latest value.
+    self.data.value = int(value)
+    self.data.timestamp = time.time()
 
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
@@ -267,7 +285,7 @@ class GaugeCell(MetricCell):
         ptransform=transform_id)
 
 
-class StringSetCell(MetricCell):
+class StringSetCell(AbstractMetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value for a StringSet metric.
@@ -278,48 +296,22 @@ class StringSetCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, *args):
-    super().__init__(*args)
-    self.data = StringSetData.identity_element()
+  def __init__(self):
+    super().__init__(StringSetData)
 
   def add(self, value):
     self.update(value)
 
-  def update(self, value):
-    # type: (str) -> None
-    if cython.compiled:
-      # We will hold the GIL throughout the entire _update.
-      self._update(value)
-    else:
-      with self._lock:
-        self._update(value)
-
-  def _update(self, value):
+  def _update_locked(self, value):
     self.data.add(value)
-
-  def get_cumulative(self):
-    # type: () -> StringSetData
-    with self._lock:
-      return self.data.get_cumulative()
-
-  def combine(self, other):
-    # type: (StringSetCell) -> StringSetCell
-    result = StringSetCell()
-    result.data = self.data.combine(other.data)
-    return result
 
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
-
     return monitoring_infos.user_set_string(
         name.namespace,
         name.name,
         self.get_cumulative(),
         ptransform=transform_id)
-
-  def reset(self):
-    # type: () -> None
-    self.data = StringSetData.identity_element()
 
 
 class DistributionResult(object):
