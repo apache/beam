@@ -273,6 +273,69 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
+tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
+  group = "verification"
+  dependsOn 'buildAndPushDistrolessContainerImage'
+  def javaVer = project.findProperty('testJavaVersion')
+  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+  def tag = project.findProperty('dockerTag')
+  def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
+  def pipelineOptions = [
+          "--runner=TestDataflowRunner",
+          "--project=${gcpProject}",
+          "--region=${gcpRegion}",
+          "--tempRoot=${dataflowValidatesTempRoot}",
+          "--sdkContainerImage=${imageURL}",
+          "--experiments=use_unified_worker,use_runner_v2",
+          "--firestoreDb=${firestoreDb}",
+  ]
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
+  // Only Java 17 and 21 are supported.
+  // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
+  def allowed = ["java17", "java21"]
+  doLast {
+    def javaVer = project.findProperty('testJavaVersion')
+    if (!allowed.contains(javaVer)) {
+      throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
+    }
+    if (!project.hasProperty('dockerTag')) {
+      throw new GradleException("dockerTag is missing but required")
+    }
+    def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+    def tag = project.findProperty('dockerTag')
+    def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
+    exec {
+      executable 'docker'
+      workingDir rootDir
+      args = [
+              'buildx',
+              'build',
+              '-t',
+              imageURL,
+              '-f',
+              'sdks/java/container/Dockerfile-distroless',
+              "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
+              "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
+              '.'
+      ]
+    }
+    exec {
+      executable 'docker'
+      args = ['push', imageURL]
+    }
+  }
+}
+
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
