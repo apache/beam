@@ -131,7 +131,8 @@ Config = typing.NamedTuple(
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
      ('max_connections', typing.Optional[np.int16]),
-     ('driver_jars', typing.Optional[str])],
+     ('driver_jars', typing.Optional[str]),
+     ('write_batch_size', typing.Optional[np.int16])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
@@ -187,6 +188,7 @@ class WriteToJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
+      write_batch_size=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -218,6 +220,8 @@ class WriteToJdbc(ExternalTransform):
                       package (e.g. "org.postgresql:postgresql:42.3.1").
                       By default, this argument includes a Postgres SQL JDBC
                       driver.
+    :param write_batch_size: sets the maximum size in number of SQL statement for the batch.
+                             default is {@link JdbcIO.DEFAULT_BATCH_SIZE}
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
@@ -235,6 +239,7 @@ class WriteToJdbc(ExternalTransform):
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=statement,
+                            write_batch_size=write_batch_size,
                             read_query=None,
                             fetch_size=None,
                             disable_autocommit=None,
@@ -352,6 +357,7 @@ class ReadFromJdbc(ExternalTransform):
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=None,
+                            write_batch_size=None,
                             read_query=query,
                             fetch_size=fetch_size,
                             disable_autocommit=disable_autocommit,
