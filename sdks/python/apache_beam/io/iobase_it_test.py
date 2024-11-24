@@ -25,7 +25,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.io.textio import WriteToText
 from apache_beam.transforms.window import FixedWindows
-from apache_beam.options.pipeline_options import PipelineOptions
+
 """End-to-End tests for iobase
 
 Usage:
