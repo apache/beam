@@ -86,7 +86,7 @@ jobs:
        github.event.pull_request.draft == false) ||
       github.event.comment.body == 'Run Flink Container PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 10
+    timeout-minutes: 45
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
