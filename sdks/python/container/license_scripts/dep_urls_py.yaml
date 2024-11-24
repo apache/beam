@@ -141,6 +141,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/jamescasbon/PyVCF/master/LICENSE"
   singledispatch:
     license: "file:///tmp/license_scripts/manual_licenses/singledispatch/LICENSE"
+  scikit-learn:
+    license: "https://raw.githubusercontent.com/scikit-learn/scikit-learn/master/COPYING"
   scipy:
     license: "https://raw.githubusercontent.com/scipy/scipy/master/LICENSE.txt"
   soupsieve:

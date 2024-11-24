@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """This module has all statistic related transforms.
 
 This ApproximateUnique class will be deprecated [1]. PLease look into using
@@ -921,7 +919,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
 
   # TODO(https://github.com/apache/beam/issues/19737): Signature incompatible
   # with supertype
-  def create_accumulator(self):  # type: ignore[override]
+  def create_accumulator(self):
     # type: () -> _QuantileState
     self._qs = _QuantileState(
         unbuffered_elements=[],

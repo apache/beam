@@ -22,10 +22,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
+import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,24 +50,41 @@ import org.junit.runners.JUnit4;
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class BoundedQueueExecutorTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final int DEFAULT_MAX_THREADS = 2;
   private static final int DEFAULT_THREAD_EXPIRATION_SEC = 60;
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private BoundedQueueExecutor executor;
 
+  private static ExecutableWork createWork(Consumer<Work> executeWorkFn) {
+    return ExecutableWork.create(
+        Work.create(
+            Windmill.WorkItem.newBuilder()
+                .setKey(ByteString.EMPTY)
+                .setShardingKey(1)
+                .setWorkToken(33)
+                .setCacheToken(1)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
+            Work.createProcessingContext(
+                "computationId",
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
+            Instant::now,
+            Collections.emptyList()),
+        executeWorkFn);
+  }
+
   private Runnable createSleepProcessWorkFn(CountDownLatch start, CountDownLatch stop) {
-    Runnable runnable =
-        () -> {
-          start.countDown();
-          try {
-            stop.await();
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        };
-    return runnable;
+    return () -> {
+      start.countDown();
+      try {
+        stop.await();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
   }
 
   @Before
@@ -203,14 +231,14 @@ public class BoundedQueueExecutorTest {
     executor.execute(m3, 1);
     assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
 
-    assertEquals(0l, executor.allThreadsActiveTime());
+    assertEquals(0L, executor.allThreadsActiveTime());
     stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
       Thread.sleep(200);
     }
     // Max pool size was reached so the allThreadsActiveTime() was updated.
-    assertThat(executor.allThreadsActiveTime(), greaterThan(0l));
+    assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
 
     executor.shutdown();
   }
@@ -241,7 +269,7 @@ public class BoundedQueueExecutorTest {
     executor.execute(m3, 1);
     assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
 
-    assertEquals(0l, executor.allThreadsActiveTime());
+    assertEquals(0L, executor.allThreadsActiveTime());
     // Increase the max thread count
     executor.setMaximumPoolSize(5, 105);
     stop.countDown();
@@ -251,13 +279,13 @@ public class BoundedQueueExecutorTest {
     }
     // Max pool size was updated during execution but allThreadsActiveTime() was still recorded
     // for the thread which reached the old max pool size.
-    assertThat(executor.allThreadsActiveTime(), greaterThan(0l));
+    assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
 
     executor.shutdown();
   }
 
   @Test
-  public void testRenderSummaryHtml() throws Exception {
+  public void testRenderSummaryHtml() {
     String expectedSummaryHtml =
         "Worker Threads: 0/2<br>/n"
             + "Active Threads: 0<br>/n"

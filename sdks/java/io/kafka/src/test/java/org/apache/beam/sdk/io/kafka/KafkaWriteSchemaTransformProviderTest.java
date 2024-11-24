@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -225,10 +224,8 @@ public class KafkaWriteSchemaTransformProviderTest {
       Managed.write(Managed.KAFKA)
           .withConfig(YamlUtils.yamlStringToMap(config))
           .expand(
-              PCollectionRowTuple.of(
-                  "input",
-                  Pipeline.create()
-                      .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build()))));
+              Pipeline.create()
+                  .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
     }
   }
 

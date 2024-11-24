@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_XVR_Direct"]
         job_phrase: ["Run XVR_Direct PostCommit"]
-        python_version: ['3.8','3.11']
+        python_version: ['3.9','3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -75,12 +75,12 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.8
-            3.11
+            3.9
+            ${{ matrix.python_version }}
       - name: run PostCommit XVR Direct script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
-        if: ${{ matrix.python_version != '3.8' }}
+        if: ${{ matrix.python_version != '3.9' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner
@@ -90,7 +90,7 @@ jobs:
       - name: run PostCommit XVR Direct script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
-        if: ${{ matrix.python_version == '3.8' }}
+        if: ${{ matrix.python_version == '3.9' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner

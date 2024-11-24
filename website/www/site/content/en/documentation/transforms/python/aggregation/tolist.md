@@ -1,5 +1,5 @@
 ---
-title: "BatchElements"
+title: "ToList"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# BatchElements
+# ToList
 
 {{< localstorage language language-py >}}
 
@@ -26,3 +26,9 @@ limitations under the License.
 {{< playground height="700px" >}}
 {{< playground_snippet language="py" path="SDK_PYTHON_ToList" show="tolist" >}}
 {{< /playground >}}
+
+## Related transforms
+
+N/A
+
+{{< button-pydoc path="apache_beam.transforms.combiners" class="ToList" >}}

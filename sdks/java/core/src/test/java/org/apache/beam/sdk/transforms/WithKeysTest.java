@@ -22,7 +22,16 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -30,6 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -174,5 +184,62 @@ public class WithKeysTest {
     thrown.expectMessage("Unable to return a default Coder for ApplyKeysWithWithKeys");
 
     p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKeySchemaCoderSet() throws NoSuchSchemaException {
+    PCollection<KV<Pojo, String>> pCollection =
+        p.apply(Create.of(Lists.newArrayList("1", "2", "3")).withType(TypeDescriptors.strings()))
+            .apply(
+                WithKeys.<Pojo, String>of(v -> new Pojo(1, v))
+                    .withKeyType(TypeDescriptor.of(Pojo.class)));
+
+    TypeDescriptor<Pojo> keyType = TypeDescriptor.of(Pojo.class);
+    SchemaRegistry schemaRegistry = SchemaRegistry.createDefault();
+    SchemaCoder<Pojo> schemaCoder =
+        SchemaCoder.of(
+            schemaRegistry.getSchema(keyType),
+            keyType,
+            schemaRegistry.getToRowFunction(keyType),
+            schemaRegistry.getFromRowFunction(keyType));
+    Coder<KV<Pojo, String>> expectedCoder = KvCoder.of(schemaCoder, StringUtf8Coder.of());
+    assertEquals(expectedCoder, pCollection.getCoder());
+
+    p.run();
+  }
+
+  @DefaultSchema(JavaBeanSchema.class)
+  private static class Pojo {
+    private final long num;
+    private final String str;
+
+    @SchemaCreate
+    public Pojo(long num, String str) {
+      this.num = num;
+      this.str = str;
+    }
+
+    public long getNum() {
+      return this.num;
+    }
+
+    public String getStr() {
+      return this.str;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof Pojo)) {
+        return false;
+      }
+      Pojo pojo = (Pojo) o;
+      return num == pojo.num && Objects.equals(str, pojo.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(num, str);
+    }
   }
 }

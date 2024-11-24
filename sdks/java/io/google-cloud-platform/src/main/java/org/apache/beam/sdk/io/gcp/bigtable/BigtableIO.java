@@ -39,16 +39,21 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.BiConsumer;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -82,6 +87,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -1118,6 +1124,20 @@ public class BigtableIO {
           .build();
     }
 
+    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    @Deprecated
+    public Write withThrottlingTargetMs(int throttlingTargetMs) {
+      LOG.warn("withThrottlingTargetMs has been removed and does not have effect.");
+      return this;
+    }
+
+    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    @Deprecated
+    public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
+      LOG.warn("withThrottlingReportTargetMs has been removed and does not have an effect.");
+      return this;
+    }
+
     public Write withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
@@ -1282,11 +1302,14 @@ public class BigtableIO {
     private final BigtableServiceFactory.ConfigId id;
     private final Coder<KV<ByteString, Iterable<Mutation>>> inputCoder;
     private final BadRecordRouter badRecordRouter;
-
-    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
+    private transient ConcurrentLinkedQueue<KV<BigtableWriteException, BoundedWindow>> badRecords =
+        null;
+    private transient boolean reportedLineage;
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
+
+    private transient Queue<CompletableFuture<?>> outstandingWrites;
 
     BigtableWriterFn(
         BigtableServiceFactory factory,
@@ -1309,25 +1332,48 @@ public class BigtableIO {
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
 
-      if (bigtableWriter == null) {
+      // Ideally this would be in @Setup, but we need access to PipelineOptions and there is no easy
+      // way to plumb it to @Setup.
+      if (serviceEntry == null) {
         serviceEntry =
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+      }
+
+      if (bigtableWriter == null) {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
-      badRecords = new HashSet<>();
+      badRecords = new ConcurrentLinkedQueue<>();
+      outstandingWrites = new ArrayDeque<>();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      drainCompletedElementFutures();
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
-      bigtableWriter.writeRecord(record).whenComplete(handleMutationException(record, window));
+      CompletableFuture<Void> f =
+          bigtableWriter
+              .writeRecord(record)
+              // transform the next CompletionStage to have its own status
+              // this allows us to capture any unexpected errors in the handler
+              .handle(handleMutationException(record, window));
+      outstandingWrites.add(f);
       ++recordsWritten;
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
     }
 
-    private BiConsumer<MutateRowResponse, Throwable> handleMutationException(
+    private void drainCompletedElementFutures() throws ExecutionException, InterruptedException {
+      // burn down the completed futures to avoid unbounded memory growth
+      for (Future<?> f = outstandingWrites.peek();
+          f != null && f.isDone();
+          f = outstandingWrites.peek()) {
+        // Also ensure that errors in the handler get bubbled up
+        outstandingWrites.remove().get();
+      }
+    }
+
+    private BiFunction<MutateRowResponse, Throwable, Void> handleMutationException(
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
@@ -1337,6 +1383,7 @@ public class BigtableIO {
             failures.add(new BigtableWriteException(record, exception));
           }
         }
+        return null;
       };
     }
 
@@ -1344,7 +1391,7 @@ public class BigtableIO {
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       try {
         bigtableWriter.writeSingleRecord(record);
-      } catch (ApiException e) {
+      } catch (Throwable e) {
         if (isDataException(e)) {
           // if we get another NotFoundException, we know this is the bad record.
           badRecords.add(KV.of(new BigtableWriteException(record, e), window));
@@ -1370,52 +1417,60 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      try {
-
-        if (bigtableWriter != null) {
-          try {
-            bigtableWriter.close();
-          } catch (IOException e) {
-            // If the writer fails due to a batching exception, but no failures were detected
-            // it means that error handling was enabled, and that errors were detected and routed
-            // to the error queue. Bigtable will successfully write other failures in the batch,
-            // so this exception should be ignored
-            if (!(e.getCause() instanceof BatchingException)) {
-              throw e;
-            }
-          }
-          bigtableWriter = null;
-        }
-
-        for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
-          try {
-            badRecordRouter.route(
-                c,
-                badRecord.getKey().getRecord(),
-                inputCoder,
-                (Exception) badRecord.getKey().getCause(),
-                "Failed to write malformed mutation to Bigtable",
-                badRecord.getValue());
-          } catch (Exception e) {
-            failures.add(badRecord.getKey());
+      if (bigtableWriter != null) {
+        try {
+          bigtableWriter.close();
+        } catch (IOException e) {
+          // If the writer fails due to a batching exception, but no failures were detected
+          // it means that error handling was enabled, and that errors were detected and routed
+          // to the error queue. Bigtable will successfully write other failures in the batch,
+          // so this exception should be ignored
+          if (!(e.getCause() instanceof BatchingException)) {
+            throw e;
           }
         }
 
-        checkForFailures();
-
-        LOG.debug("Wrote {} records", recordsWritten);
-
-        for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
-          c.output(
-              BigtableWriteResult.create(entry.getValue()),
-              entry.getKey().maxTimestamp(),
-              entry.getKey());
+        // Sanity check: ensure that all element futures are resolved. This should be already be the
+        // case once bigtableWriter.close() finishes.
+        try {
+          CompletableFuture.allOf(outstandingWrites.toArray(new CompletableFuture<?>[0]))
+              .get(1, TimeUnit.MINUTES);
+        } catch (TimeoutException e) {
+          throw new IllegalStateException(
+              "Unexpected timeout waiting for element future to resolve after the writer was closed",
+              e);
         }
-      } finally {
-        if (serviceEntry != null) {
-          serviceEntry.close();
-          serviceEntry = null;
+
+        if (!reportedLineage) {
+          bigtableWriter.reportLineage();
+          reportedLineage = true;
         }
+        bigtableWriter = null;
+      }
+
+      for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
+        try {
+          badRecordRouter.route(
+              c,
+              badRecord.getKey().getRecord(),
+              inputCoder,
+              (Exception) badRecord.getKey().getCause(),
+              "Failed to write malformed mutation to Bigtable",
+              badRecord.getValue());
+        } catch (Exception e) {
+          failures.add(badRecord.getKey());
+        }
+      }
+
+      checkForFailures();
+
+      LOG.debug("Wrote {} records", recordsWritten);
+
+      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+        c.output(
+            BigtableWriteResult.create(entry.getValue()),
+            entry.getKey().maxTimestamp(),
+            entry.getKey());
       }
     }
 
@@ -1516,6 +1571,7 @@ public class BigtableIO {
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
+    private transient boolean reportedLineage;
 
     private final BigtableServiceFactory.ConfigId configId;
 
@@ -1893,6 +1949,13 @@ public class BigtableIO {
     public ValueProvider<String> getTableId() {
       return readOptions.getTableId();
     }
+
+    void reportLineageOnce(BigtableService.Reader reader) {
+      if (!reportedLineage) {
+        reader.reportLineage();
+        reportedLineage = true;
+      }
+    }
   }
 
   private static class BigtableReader extends BoundedReader<Row> {
@@ -1923,6 +1986,7 @@ public class BigtableIO {
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
+        source.reportLineageOnce(reader);
       }
       return hasRecord;
     }
@@ -1954,12 +2018,12 @@ public class BigtableIO {
     public void close() throws IOException {
       LOG.info("Closing reader after reading {} records.", recordsReturned);
       if (reader != null) {
+        reader.close();
         reader = null;
       }
-      if (serviceEntry != null) {
-        serviceEntry.close();
-        serviceEntry = null;
-      }
+      // Skipping closing the service entry on each bundle.
+      // In the future we'll close the Bigtable client in
+      // teardown.
     }
 
     @Override
@@ -2014,7 +2078,7 @@ public class BigtableIO {
       super(
           String.format(
               "Error mutating row %s with mutations %s",
-              record.getKey().toStringUtf8(), record.getValue()),
+              record.getKey().toStringUtf8(), StringUtils.leftTruncate(record.getValue(), 100)),
           cause);
       this.record = record;
     }
@@ -2057,6 +2121,7 @@ public class BigtableIO {
       return new AutoValue_BigtableIO_ReadChangeStream.Builder()
           .setBigtableConfig(config)
           .setMetadataTableBigtableConfig(metadataTableconfig)
+          .setValidateConfig(true)
           .build();
     }
 
@@ -2079,6 +2144,8 @@ public class BigtableIO {
     abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
 
     abstract @Nullable Duration getBacklogReplicationAdjustment();
+
+    abstract @Nullable Boolean getValidateConfig();
 
     abstract ReadChangeStream.Builder toBuilder();
 
@@ -2284,25 +2351,80 @@ public class BigtableIO {
       return toBuilder().setBacklogReplicationAdjustment(adjustment).build();
     }
 
+    /**
+     * Disables validation that the table being read and the metadata table exists, and that the app
+     * profile used is single cluster and single row transaction enabled. Set this option if the
+     * caller does not have additional Bigtable permissions to validate the configurations.
+     * <b>NOTE</b> this also disabled creating or updating the metadata table because that also
+     * requires additional permissions, essentially setting {@link #withCreateOrUpdateMetadataTable}
+     * to false.
+     */
+    public ReadChangeStream withoutValidation() {
+      BigtableConfig config = getBigtableConfig();
+      BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setBigtableConfig(config.withValidate(false))
+          .setMetadataTableBigtableConfig(metadataTableConfig.withValidate(false))
+          .setValidateConfig(false)
+          .build();
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (getBigtableConfig().getValidate()) {
+        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
+            BigtableChangeStreamAccessor.getOrCreate(getBigtableConfig())) {
+          checkArgument(
+              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
+              "Change Stream table %s does not exist",
+              getTableId());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+
+    // Validate the app profile is single cluster and allows single row transactions.
+    private void validateAppProfile(
+        MetadataTableAdminDao metadataTableAdminDao, String appProfileId) {
+      checkArgument(metadataTableAdminDao != null);
+      checkArgument(
+          metadataTableAdminDao.isAppProfileSingleClusterAndTransactional(appProfileId),
+          "App profile id '"
+              + appProfileId
+              + "' provided to access metadata table needs to use single-cluster routing policy"
+              + " and allow single-row transactions.");
+    }
+
+    // Update metadata table schema if allowed and required.
+    private void createOrUpdateMetadataTable(
+        MetadataTableAdminDao metadataTableAdminDao, String metadataTableId) {
+      boolean shouldCreateOrUpdateMetadataTable = true;
+      if (getCreateOrUpdateMetadataTable() != null) {
+        shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
+      }
+      // Only try to create or update metadata table if option is set to true. Otherwise, just
+      // check if the table exists.
+      if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
+        LOG.info("Created metadata table: " + metadataTableId);
+      }
+    }
+
     @Override
     public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
+      BigtableConfig bigtableConfig = getBigtableConfig();
       checkArgument(
-          getBigtableConfig() != null,
+          bigtableConfig != null,
           "BigtableIO ReadChangeStream is missing required configurations fields.");
-      checkArgument(
-          getBigtableConfig().getProjectId() != null, "Missing required projectId field.");
-      checkArgument(
-          getBigtableConfig().getInstanceId() != null, "Missing required instanceId field.");
+      bigtableConfig.validate();
       checkArgument(getTableId() != null, "Missing required tableId field.");
 
-      BigtableConfig bigtableConfig = getBigtableConfig();
-      if (getBigtableConfig().getAppProfileId() == null
-          || getBigtableConfig().getAppProfileId().get().isEmpty()) {
+      if (bigtableConfig.getAppProfileId() == null
+          || bigtableConfig.getAppProfileId().get().isEmpty()) {
         bigtableConfig = bigtableConfig.withAppProfileId(StaticValueProvider.of("default"));
       }
 
       BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
-      String metadataTableId = getMetadataTableId();
       if (metadataTableConfig.getProjectId() == null
           || metadataTableConfig.getProjectId().get().isEmpty()) {
         metadataTableConfig = metadataTableConfig.withProjectId(bigtableConfig.getProjectId());
@@ -2311,6 +2433,7 @@ public class BigtableIO {
           || metadataTableConfig.getInstanceId().get().isEmpty()) {
         metadataTableConfig = metadataTableConfig.withInstanceId(bigtableConfig.getInstanceId());
       }
+      String metadataTableId = getMetadataTableId();
       if (metadataTableId == null || metadataTableId.isEmpty()) {
         metadataTableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
       }
@@ -2333,10 +2456,6 @@ public class BigtableIO {
         existingPipelineOptions = ExistingPipelineOptions.FAIL_IF_EXISTS;
       }
 
-      boolean shouldCreateOrUpdateMetadataTable = true;
-      if (getCreateOrUpdateMetadataTable() != null) {
-        shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
-      }
       Duration backlogReplicationAdjustment = getBacklogReplicationAdjustment();
       if (backlogReplicationAdjustment == null) {
         backlogReplicationAdjustment = DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT;
@@ -2348,31 +2467,25 @@ public class BigtableIO {
           new DaoFactory(
               bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
 
+      // Validate the configuration is correct before creating the pipeline, if required.
       try {
         MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
-        checkArgument(metadataTableAdminDao != null);
-        checkArgument(
-            metadataTableAdminDao.isAppProfileSingleClusterAndTransactional(
-                metadataTableConfig.getAppProfileId().get()),
-            "App profile id '"
-                + metadataTableConfig.getAppProfileId().get()
-                + "' provided to access metadata table needs to use single-cluster routing policy"
-                + " and allow single-row transactions.");
-
-        // Only try to create or update metadata table if option is set to true. Otherwise, just
-        // check if the table exists.
-        if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
-          LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
+        boolean validateConfig = true;
+        if (getValidateConfig() != null) {
+          validateConfig = getValidateConfig();
         }
-        checkArgument(
-            metadataTableAdminDao.doesMetadataTableExist(),
-            "Metadata table does not exist: " + metadataTableAdminDao.getTableId());
-
-        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
-            BigtableChangeStreamAccessor.getOrCreate(bigtableConfig)) {
+        // Validate app profile and create metadata table if validate is required.
+        if (validateConfig) {
+          createOrUpdateMetadataTable(metadataTableAdminDao, metadataTableId);
+          validateAppProfile(metadataTableAdminDao, metadataTableConfig.getAppProfileId().get());
+        }
+        // Validate metadata table if validate is required. We validate metadata table after
+        // createOrUpdateMetadataTable because if the metadata doesn't exist, we have to run
+        // createOrUpdateMetadataTable to create the metadata table.
+        if (metadataTableConfig.getValidate()) {
           checkArgument(
-              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
-              "Change Stream table does not exist");
+              metadataTableAdminDao.doesMetadataTableExist(),
+              "Metadata table does not exist: " + metadataTableAdminDao.getTableId());
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -2428,6 +2541,8 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setCreateOrUpdateMetadataTable(boolean shouldCreate);
 
       abstract ReadChangeStream.Builder setBacklogReplicationAdjustment(Duration adjustment);
+
+      abstract ReadChangeStream.Builder setValidateConfig(boolean validateConfig);
 
       abstract ReadChangeStream build();
     }

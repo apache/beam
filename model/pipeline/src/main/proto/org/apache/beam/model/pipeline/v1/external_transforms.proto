@@ -59,6 +59,24 @@ message ExpansionMethods {
   }
 }
 
+// Defines the URNs for managed transforms.
+message ManagedTransforms {
+  enum Urns {
+    ICEBERG_READ = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:iceberg_read:v1"];
+    ICEBERG_WRITE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:iceberg_write:v1"];
+    KAFKA_READ = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:kafka_read:v1"];
+    KAFKA_WRITE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:kafka_write:v1"];
+    BIGQUERY_READ = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"];
+    BIGQUERY_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:bigquery_write:v1"];
+  }
+}
+
 // A configuration payload for an external transform.
 // Used to define a Java transform that can be directly instantiated by a Java
 // expansion service.
@@ -109,6 +127,19 @@ message BuilderMethod {
   // A payload which can be decoded using beam:coder:row:v1 and the builder
   // method schema.
   bytes payload = 3;
+}
+
+message Annotations {
+  enum Enum {
+    // The annotation key for the encoded configuration Row used to build a transform
+    CONFIG_ROW_KEY = 0 [(org.apache.beam.model.pipeline.v1.beam_constant) = "config_row"];
+    // The annotation key for the configuration Schema used to decode the configuration Row
+    CONFIG_ROW_SCHEMA_KEY = 1 [(org.apache.beam.model.pipeline.v1.beam_constant) = "config_row_schema"];
+    // If ths transform is a SchemaTransform, this is the annotation key for the SchemaTransform's URN
+    SCHEMATRANSFORM_URN_KEY = 2 [(org.apache.beam.model.pipeline.v1.beam_constant) = "schematransform_urn"];
+    // If the transform is a ManagedSchemaTransform, this is the annotation key for the underlying SchemaTransform's URN
+    MANAGED_UNDERLYING_TRANSFORM_URN_KEY = 3 [(org.apache.beam.model.pipeline.v1.beam_constant) = "managed_underlying_transform_urn"];
+  }
 }
 
 // Payload for a Schema-aware PTransform.

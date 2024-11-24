@@ -26,4 +26,9 @@ public class BeamUrns {
   public static String getUrn(ProtocolMessageEnum value) {
     return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
   }
+
+  /** Returns the constant value of a given enum annotated with [(beam_constant)]. */
+  public static String getConstant(ProtocolMessageEnum value) {
+    return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamConstant);
+  }
 }

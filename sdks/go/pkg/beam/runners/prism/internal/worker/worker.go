@@ -22,12 +22,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -38,7 +38,6 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
-	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -139,7 +138,15 @@ func (wk *W) Stop() {
 	wk.stopped.Store(true)
 	close(wk.InstReqs)
 	close(wk.DataReqs)
-	wk.server.Stop()
+
+	// Give the SDK side 5 seconds to gracefully stop, before
+	// hard stopping all RPCs.
+	tim := time.AfterFunc(5*time.Second, func() {
+		wk.server.Stop()
+	})
+	wk.server.GracefulStop()
+	tim.Stop()
+
 	wk.lis.Close()
 	slog.Debug("stopped", "worker", wk)
 }
@@ -194,30 +201,46 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			case codes.Canceled:
 				return nil
 			default:
-				slog.Error("logging.Recv", err, "worker", wk)
+				slog.Error("logging.Recv", slog.Any("error", err), slog.Any("worker", wk))
 				return err
 			}
 		}
 		for _, l := range in.GetLogEntries() {
-			if l.Severity >= minsev {
-				// TODO: Connect to the associated Job for this worker instead of
-				// logging locally for SDK side logging.
-				file := l.GetLogLocation()
-				i := strings.LastIndex(file, ":")
-				line, _ := strconv.Atoi(file[i+1:])
-				if i > 0 {
-					file = file[:i]
-				}
-
-				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), l.GetMessage(),
-					slog.Any(slog.SourceKey, &slog.Source{
-						File: file,
-						Line: line,
-					}),
-					slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
-					slog.Any("worker", wk),
-				)
+			// TODO base this on a per pipeline logging setting.
+			if l.Severity < minsev {
+				continue
 			}
+
+			// Ideally we'd be writing these to per-pipeline files, but for now re-log them on the Prism process.
+			// We indicate they're from the SDK, and which worker, keeping the same log severity.
+			// SDK specific and worker specific fields are in separate groups for legibility.
+
+			attrs := []any{
+				slog.String("transformID", l.GetTransformId()), // TODO: pull the unique name from the pipeline graph.
+				slog.String("location", l.GetLogLocation()),
+				slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
+				slog.String(slog.MessageKey, l.GetMessage()),
+			}
+			if fs := l.GetCustomData().GetFields(); len(fs) > 0 {
+				var grp []any
+				for n, v := range l.GetCustomData().GetFields() {
+					var attr slog.Attr
+					switch v.Kind.(type) {
+					case *structpb.Value_BoolValue:
+						attr = slog.Bool(n, v.GetBoolValue())
+					case *structpb.Value_NumberValue:
+						attr = slog.Float64(n, v.GetNumberValue())
+					case *structpb.Value_StringValue:
+						attr = slog.String(n, v.GetStringValue())
+					default:
+						attr = slog.Any(n, v.AsInterface())
+					}
+					grp = append(grp, attr)
+				}
+				attrs = append(attrs, slog.Group("customData", grp...))
+			}
+
+			slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "log from SDK worker", slog.Any("worker", wk), slog.Group("sdk", attrs...))
 		}
 	}
 }
@@ -289,7 +312,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
 				b.Respond(resp)
 			} else {
-				slog.Debug("ctrl.Recv: %v", resp)
+				slog.Debug("ctrl.Recv", slog.Any("response", resp))
 			}
 			wk.mu.Unlock()
 		}
@@ -346,7 +369,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 				case codes.Canceled:
 					return
 				default:
-					slog.Error("data.Recv failed", err, "worker", wk)
+					slog.Error("data.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
 					panic(err)
 				}
 			}
@@ -354,7 +377,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, d := range resp.GetData() {
 				cr, ok := wk.activeInstructions[d.GetInstructionId()]
 				if !ok {
-					slog.Info("data.Recv for unknown bundle", "response", resp)
+					slog.Info("data.Recv data for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -373,7 +396,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, t := range resp.GetTimers() {
 				cr, ok := wk.activeInstructions[t.GetInstructionId()]
 				if !ok {
-					slog.Info("data.Recv for unknown bundle", "response", resp)
+					slog.Info("data.Recv timers for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -425,7 +448,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case codes.Canceled:
 					return
 				default:
-					slog.Error("state.Recv failed", err, "worker", wk)
+					slog.Error("state.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
 					panic(err)
 				}
 			}
@@ -443,7 +466,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				// TODO: move data handling to be pcollection based.
 
 				key := req.GetStateKey()
-				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
+				slog.Debug("StateRequest_Get", "request", prototext.Format(req), "bundle", b)
 				var data [][]byte
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_IterableSideInput_:
@@ -467,6 +490,21 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					slog.Debug(fmt.Sprintf("side input[%v][%v] I Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
 
 					data = winMap[w]
+
+				case *fnpb.StateKey_MultimapKeysSideInput_:
+					mmkey := key.GetMultimapKeysSideInput()
+					wKey := mmkey.GetWindow()
+					var w typex.Window = window.GlobalWindow{}
+					if len(wKey) > 0 {
+						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
+						if err != nil {
+							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
+						}
+					}
+					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
+					for k := range winMap[w] {
+						data = append(data, []byte(k))
+					}
 
 				case *fnpb.StateKey_MultimapSideInput_:
 					mmkey := key.GetMultimapSideInput()
@@ -560,7 +598,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 	}()
 	for resp := range responses {
 		if err := state.Send(resp); err != nil {
-			slog.Error("state.Send error", err)
+			slog.Error("state.Send", slog.Any("error", err))
 		}
 	}
 	return nil

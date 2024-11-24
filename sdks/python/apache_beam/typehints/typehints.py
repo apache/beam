@@ -1257,7 +1257,7 @@ WindowedValue = WindowedTypeConstraint
 # There is a circular dependency between defining this mapping
 # and using it in normalize().  Initialize it here and populate
 # it below.
-_KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
+_KNOWN_PRIMITIVE_TYPES: typing.Dict[type, typing.Any] = {}
 
 
 def normalize(x, none_as_type=False):
@@ -1308,6 +1308,12 @@ def is_consistent_with(sub, base):
     # Common special case.
     return True
   if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
+    return True
+  # Per PEP484, ints are considered floats and complexes and
+  # floats are considered complexes.
+  if sub is int and base in (float, complex):
+    return True
+  if sub is float and base is complex:
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)

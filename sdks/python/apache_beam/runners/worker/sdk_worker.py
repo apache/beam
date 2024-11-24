@@ -745,10 +745,12 @@ class SdkWorker(object):
           instruction_id=instruction_id, error=traceback.format_exc())
     if processor:
       monitoring_infos = processor.monitoring_infos()
+      consuming_received_data = processor.consuming_received_data
     else:
       # Return an empty response if we aren't running. This can happen
       # if the ProcessBundleRequest has not started or already finished.
       monitoring_infos = []
+      consuming_received_data = False
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
@@ -756,7 +758,8 @@ class SdkWorker(object):
             monitoring_data={
                 SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
-            }))
+            },
+            consuming_received_data=consuming_received_data))
 
   def finalize_bundle(
       self,
@@ -1332,8 +1335,8 @@ class GlobalCachingStateHandler(CachingStateHandler):
         return self._context.user_state_cache_token
       else:
         return self._context.bundle_cache_token
-    elif state_key.WhichOneof('type').endswith('_side_input'):
-      side_input = getattr(state_key, state_key.WhichOneof('type'))
+    elif state_key.WhichOneof('type').endswith('_side_input'):  # type: ignore[union-attr]
+      side_input = getattr(state_key, state_key.WhichOneof('type'))  # type: ignore[arg-type]
       return self._context.side_input_cache_tokens.get(
           (side_input.transform_id, side_input.side_input_id),
           self._context.bundle_cache_token)

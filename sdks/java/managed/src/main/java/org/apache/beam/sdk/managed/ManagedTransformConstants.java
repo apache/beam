@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -38,38 +41,36 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * every single parameter through the Managed interface.
  */
 public class ManagedTransformConstants {
-  public static final String ICEBERG_READ = "beam:schematransform:org.apache.beam:iceberg_read:v1";
-  public static final String ICEBERG_WRITE =
-      "beam:schematransform:org.apache.beam:iceberg_write:v1";
-  public static final String KAFKA_READ = "beam:schematransform:org.apache.beam:kafka_read:v1";
-  public static final String KAFKA_WRITE = "beam:schematransform:org.apache.beam:kafka_write:v1";
+  // Standard input PCollection tag
+  public static final String INPUT = "input";
 
   private static final Map<String, String> KAFKA_READ_MAPPINGS =
-      ImmutableMap.<String, String>builder()
-          .put("topic", "topic")
-          .put("bootstrap_servers", "bootstrapServers")
-          .put("consumer_config_updates", "consumerConfigUpdates")
-          .put("confluent_schema_registry_url", "confluentSchemaRegistryUrl")
-          .put("confluent_schema_registry_subject", "confluentSchemaRegistrySubject")
-          .put("data_format", "format")
-          .put("schema", "schema")
-          .put("file_descriptor_path", "fileDescriptorPath")
-          .put("message_name", "messageName")
-          .build();
+      ImmutableMap.<String, String>builder().put("data_format", "format").build();
 
   private static final Map<String, String> KAFKA_WRITE_MAPPINGS =
+      ImmutableMap.<String, String>builder().put("data_format", "format").build();
+
+  private static final Map<String, String> BIGQUERY_READ_MAPPINGS =
       ImmutableMap.<String, String>builder()
-          .put("topic", "topic")
-          .put("bootstrap_servers", "bootstrapServers")
-          .put("producer_config_updates", "producerConfigUpdates")
-          .put("data_format", "format")
-          .put("file_descriptor_path", "fileDescriptorPath")
-          .put("message_name", "messageName")
+          .put("table", "table_spec")
+          .put("fields", "selected_fields")
+          .build();
+
+  private static final Map<String, String> BIGQUERY_WRITE_MAPPINGS =
+      ImmutableMap.<String, String>builder()
+          .put("at_least_once", "use_at_least_once_semantics")
+          .put("triggering_frequency", "triggering_frequency_seconds")
           .build();
 
   public static final Map<String, Map<String, String>> MAPPINGS =
       ImmutableMap.<String, Map<String, String>>builder()
-          .put(KAFKA_READ, KAFKA_READ_MAPPINGS)
-          .put(KAFKA_WRITE, KAFKA_WRITE_MAPPINGS)
+          .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ), KAFKA_READ_MAPPINGS)
+          .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE), KAFKA_WRITE_MAPPINGS)
+          .put(
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ),
+              BIGQUERY_READ_MAPPINGS)
+          .put(
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE),
+              BIGQUERY_WRITE_MAPPINGS)
           .build();
 }

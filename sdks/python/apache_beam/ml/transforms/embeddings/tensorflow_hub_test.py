@@ -20,10 +20,13 @@ import tempfile
 import unittest
 import uuid
 
+import numpy as np
+
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
 
 hub_url = 'https://tfhub.dev/google/nnlm-en-dim128/2'
+hub_img_url = 'https://www.kaggle.com/models/google/resnet-v2/TensorFlow2/101-feature-vector/2'  # pylint: disable=line-too-long
 test_query_column = 'test_query'
 test_query = 'This is a test query'
 
@@ -32,6 +35,7 @@ try:
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubTextEmbeddings
 except ImportError:
   TensorflowHubTextEmbeddings = None  # type: ignore
+  tf = None
 
 # pylint: disable=ungrouped-imports
 try:
@@ -39,6 +43,14 @@ try:
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
+  from PIL import Image
+except ImportError:
+  TensorflowHubImageEmbeddings = None  # type: ignore
+  Image = None
 
 
 @unittest.skipIf(
@@ -155,6 +167,54 @@ class TFHubEmbeddingsTest(unittest.TestCase):
             pipeline
             | "CreateData" >> beam.Create([{
                 test_query_column: 1
+            }])
+            | "MLTransform" >> MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    embedding_config))
+
+
+@unittest.skipIf(
+    TensorflowHubImageEmbeddings is None, 'Tensorflow is not installed.')
+class TFHubImageEmbeddingsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
+
+  def generateRandomImage(self, size: int):
+    imarray = np.random.rand(size, size, 3) * 255
+    return imarray / 255.0
+
+  @unittest.skipIf(Image is None, 'Pillow is not installed.')
+  def test_sentence_transformer_image_embeddings(self):
+    embedding_config = TensorflowHubImageEmbeddings(
+        hub_url=hub_img_url, columns=[test_query_column])
+    img = self.generateRandomImage(224)
+    with beam.Pipeline() as pipeline:
+      result_pcoll = (
+          pipeline
+          | "CreateData" >> beam.Create([{
+              test_query_column: img
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+
+      def assert_element(element):
+        assert len(element[test_query_column]) == 2048
+
+      _ = (result_pcoll | beam.Map(assert_element))
+
+  def test_with_str_data_types(self):
+    embedding_config = TensorflowHubImageEmbeddings(
+        hub_url=hub_img_url, columns=[test_query_column])
+    with self.assertRaises(TypeError):
+      with beam.Pipeline() as pipeline:
+        _ = (
+            pipeline
+            | "CreateData" >> beam.Create([{
+                test_query_column: "img.jpg"
             }])
             | "MLTransform" >> MLTransform(
                 write_artifact_location=self.artifact_location).with_transform(

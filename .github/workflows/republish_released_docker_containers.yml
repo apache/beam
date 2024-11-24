@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Workflow that enables republishing released docker images to avoid vulnerabilities
+
+name: Republish Released Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release (e.g. 2.XX.0)
+        required: true
+        default: ''
+      RC:
+        description: Integer RC version for the release (e.g. 3 for RC3)
+        required: true
+        default: ''
+  schedule:
+  - cron: "0 6 * * 1"
+env:
+  docker_registry: gcr.io
+  release: ${{ github.event.inputs.RELEASE || "2.60.0" }}
+  rc: ${{ github.event.inputs.RC || "2" }}
+
+jobs:
+
+  build:
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: "v${{ env.release }}-RC${{ env.rc }}"
+          repository: apache/beam
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.0
+      - name: Install Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Install Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml || true
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.docker_registry }}
+      - name: Push docker images
+        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images -Pdocker-tag=${{ env.release }}rc${{ env.rc }} --no-daemon --no-parallel
+

@@ -22,10 +22,12 @@ import static org.junit.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -37,10 +39,10 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Unit tests for {@link RowCoder}. */
@@ -63,7 +65,7 @@ public class RowCoderTest {
             .build();
 
     DateTime dateTime =
-        new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+        new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
     Row row =
         Row.withSchema(schema)
             .addValues(
@@ -220,12 +222,14 @@ public class RowCoderTest {
     }
 
     @Override
-    public Value toBaseType(String input) {
+    @NonNull
+    public Value toBaseType(@NonNull String input) {
       return enumeration.valueOf(input);
     }
 
     @Override
-    public String toInputType(Value base) {
+    @NonNull
+    public String toInputType(@NonNull Value base) {
       return enumeration.toString(base);
     }
   }
@@ -285,17 +289,14 @@ public class RowCoderTest {
   }
 
   @Test
-  @Ignore
-  public void testConsistentWithEqualsMapWithBytesKeyField() throws Exception {
+  public void testEqualsMapWithBytesKeyFieldWorksOnReferenceEquality() throws Exception {
     FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
     Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
     RowCoder coder = RowCoder.of(schema);
 
-    Map<byte[], Integer> map1 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
-    Row row1 = Row.withSchema(schema).addValue(map1).build();
-
-    Map<byte[], Integer> map2 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
-    Row row2 = Row.withSchema(schema).addValue(map2).build();
+    Map<byte[], Integer> map = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    Row row1 = Row.withSchema(schema).addValue(map).build();
+    Row row2 = Row.withSchema(schema).addValue(map).build();
 
     Assume.assumeTrue(coder.consistentWithEquals());
 
@@ -401,6 +402,129 @@ public class RowCoderTest {
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     RowCoder.of(schema1).encode(row, os);
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
+  }
+
+  @Test
+  public void testEncodingPositionReorderFieldsWithNulls() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("f_int32", FieldType.INT32)
+            .addNullableField("f_string", FieldType.STRING)
+            .build();
+    Schema schema2 =
+        Schema.builder()
+            .addNullableField("f_string", FieldType.STRING)
+            .addNullableField("f_int32", FieldType.INT32)
+            .build();
+    schema2.setEncodingPositions(ImmutableMap.of("f_int32", 0, "f_string", 1));
+    Row schema1row =
+        Row.withSchema(schema1)
+            .withFieldValue("f_int32", null)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    Row schema2row =
+        Row.withSchema(schema2)
+            .withFieldValue("f_int32", null)
+            .withFieldValue("f_string", "hello world!")
+            .build();
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(schema1row, os);
+    Row schema1to2decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(schema2row, schema1to2decoded);
+
+    os.reset();
+    RowCoder.of(schema2).encode(schema2row, os);
+    Row schema2to1decoded = RowCoder.of(schema1).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(schema1row, schema2to1decoded);
+  }
+
+  @Test
+  public void testEncodingPositionReorderViaStaticOverride() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("failsafeTableRowPayload", FieldType.STRING)
+            .addByteArrayField("payload")
+            .addNullableField("timestamp", FieldType.INT32)
+            .addNullableField("unknownFieldsPayload", FieldType.STRING)
+            .build();
+    UUID uuid = UUID.randomUUID();
+    schema1.setUUID(uuid);
+
+    Row row =
+        Row.withSchema(schema1)
+            .addValues("", "hello world!".getBytes(StandardCharsets.UTF_8), 1, "")
+            .build();
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    // Pretend that we are restarting and want to recover from persisted state with a compatible
+    // schema using the
+    // overridden encoding positions.
+    RowCoder.clearGeneratedRowCoders();
+    RowCoder.overrideEncodingPositions(
+        uuid,
+        ImmutableMap.of(
+            "failsafeTableRowPayload", 0, "payload", 1, "timestamp", 2, "unknownFieldsPayload", 3));
+
+    Schema schema2 =
+        Schema.builder()
+            .addByteArrayField("payload")
+            .addNullableField("timestamp", FieldType.INT32)
+            .addNullableField("unknownFieldsPayload", FieldType.STRING)
+            .addNullableField("failsafeTableRowPayload", FieldType.STRING)
+            .build();
+    schema2.setUUID(uuid);
+
+    Row expected =
+        Row.withSchema(schema2)
+            .addValues("hello world!".getBytes(StandardCharsets.UTF_8), 1, "", "")
+            .build();
+    Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
+    assertEquals(expected, decoded);
+  }
+
+  @Test
+  public void testEncodingPositionReorderViaStaticOverrideWithNulls() throws Exception {
+    Schema schema1 =
+        Schema.builder()
+            .addNullableField("failsafeTableRowPayload", FieldType.BYTES)
+            .addByteArrayField("payload")
+            .addNullableField("timestamp", FieldType.INT32)
+            .addNullableField("unknownFieldsPayload", FieldType.BYTES)
+            .build();
+    UUID uuid = UUID.randomUUID();
+    schema1.setUUID(uuid);
+
+    Row row =
+        Row.withSchema(schema1)
+            .addValues(null, "hello world!".getBytes(StandardCharsets.UTF_8), 1, null)
+            .build();
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    RowCoder.of(schema1).encode(row, os);
+    // Pretend that we are restarting and want to recover from persisted state with a compatible
+    // schema using the overridden encoding positions.
+    RowCoder.clearGeneratedRowCoders();
+    RowCoder.overrideEncodingPositions(
+        uuid,
+        ImmutableMap.of(
+            "failsafeTableRowPayload", 0, "payload", 1, "timestamp", 2, "unknownFieldsPayload", 3));
+
+    Schema schema2 =
+        Schema.builder()
+            .addByteArrayField("payload")
+            .addNullableField("timestamp", FieldType.INT32)
+            .addNullableField("unknownFieldsPayload", FieldType.BYTES)
+            .addNullableField("failsafeTableRowPayload", FieldType.BYTES)
+            .build();
+    schema2.setUUID(uuid);
+
+    Row expected =
+        Row.withSchema(schema2)
+            .addValues("hello world!".getBytes(StandardCharsets.UTF_8), 1, null, null)
+            .build();
     Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
     assertEquals(expected, decoded);
   }

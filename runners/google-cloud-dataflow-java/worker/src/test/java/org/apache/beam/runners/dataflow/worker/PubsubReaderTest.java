@@ -51,7 +51,7 @@ public class PubsubReaderTest {
   }
 
   private void testReadWith(String parseFn) throws Exception {
-    when(mockContext.getWork())
+    when(mockContext.getWorkItem())
         .thenReturn(
             Windmill.WorkItem.newBuilder()
                 .setKey(ByteString.copyFromUtf8("key"))

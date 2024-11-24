@@ -130,8 +130,8 @@ public class TypedSchemaTransformProviderTest {
 
     Row inputConfig =
         Row.withSchema(provider.configurationSchema())
-            .withFieldValue("stringField", "field1")
-            .withFieldValue("integerField", Integer.valueOf(13))
+            .withFieldValue("string_field", "field1")
+            .withFieldValue("integer_field", Integer.valueOf(13))
             .build();
 
     Configuration outputConfig = ((FakeSchemaTransform) provider.from(inputConfig)).config;
@@ -150,8 +150,8 @@ public class TypedSchemaTransformProviderTest {
     SchemaTransformProvider provider = new FakeTypedSchemaIOProvider();
     Row inputConfig =
         Row.withSchema(provider.configurationSchema())
-            .withFieldValue("stringField", "field1")
-            .withFieldValue("integerField", Integer.valueOf(13))
+            .withFieldValue("string_field", "field1")
+            .withFieldValue("integer_field", Integer.valueOf(13))
             .build();
 
     assertEquals(Arrays.asList("field1", "13"), provider.dependencies(inputConfig, null).get());

@@ -40,6 +40,7 @@ from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import external
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
@@ -51,6 +52,7 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
 from apache_beam.utils.subprocess_server import JavaJarServer
+from apache_beam.utils.subprocess_server import SubprocessServer
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -355,6 +357,35 @@ class ExternalTransformTest(unittest.TestCase):
     pipeline.run().wait_until_finish()
 
     self.assertTrue(pipeline.contains_external_transforms)
+
+  def test_sanitize_java_traceback(self):
+    error_string = '''
+java.lang.RuntimeException: ACTUAL \n MULTILINE \n ERROR
+\tat org.apache.beam.sdk.expansion.service.ExpansionService$TransformProviderForBuilder.getTransform(ExpansionService.java:308)
+\tat org.apache.beam.sdk.expansion.service.TransformProvider.apply(TransformProvider.java:121)
+\tat org.apache.beam.sdk.expansion.service.ExpansionService.expand(ExpansionService.java:627)
+\tat org.apache.beam.sdk.expansion.service.ExpansionService.expand(ExpansionService.java:729)
+\tat org.apache.beam.model.expansion.v1.ExpansionServiceGrpc$MethodHandlers.invoke(ExpansionServiceGrpc.java:306)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.ServerCalls$UnaryServerCallHandler$UnaryServerCallListener.onHalfClose(ServerCalls.java:182)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.ServerCallImpl$ServerStreamListenerImpl.halfClosed(ServerCallImpl.java:351)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.ServerImpl$JumpToApplicationThreadServerStreamListener$1HalfClosed.runInContext(ServerImpl.java:861)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.ContextRunnable.run(ContextRunnable.java:37)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.SerializingExecutor.run(SerializingExecutor.java:133)
+\tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+\tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+\tat java.lang.Thread.run(Thread.java:748)
+Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'. Known dialects: [zetasql, calcite]
+\tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:73)
+\tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:63)
+\tat org.apache.beam.sdk.expansion.service.ExpansionService$TransformProviderForBuilder.getTransform(ExpansionService.java:303)
+\t... 12 more
+    '''.strip()
+
+    core_msg = 'java.lang.RuntimeException: ACTUAL \n MULTILINE \n ERROR'
+
+    self.assertEqual(
+        f"{error_string}\n\n{core_msg}",
+        external._sanitize_java_traceback(error_string))
 
 
 class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
@@ -688,6 +719,9 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
 
 class JavaJarExpansionServiceTest(unittest.TestCase):
+  def setUp(self):
+    SubprocessServer._cache._live_owners = set()
+
   def test_classpath(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       try:

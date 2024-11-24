@@ -17,7 +17,6 @@ package cmd
 
 import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -53,6 +52,6 @@ func infoFn(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cmd.Print(proto.MarshalTextString(info.GetInfo()))
+	cmd.Print(info.GetInfo().String())
 	return nil
 }

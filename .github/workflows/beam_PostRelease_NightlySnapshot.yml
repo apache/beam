@@ -45,20 +45,23 @@ permissions:
   statuses: read
 
 env:
-    GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+    DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
     GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   beam_PostRelease_NightlySnapshot:
     name: beam_PostRelease_NightlySnapshot
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     steps:
       - uses: actions/checkout@v4
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
+      - name: Setup temp local maven
+        id: setup_local_maven
+        run: echo "NEW_TEMP_DIR=$(mktemp -d)" >> $GITHUB_OUTPUT
       - name: run PostRelease validation script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -66,3 +69,7 @@ jobs:
           arguments: |
             -Pver='${{ github.event.inputs.RELEASE }}' \
             -Prepourl='${{ github.event.inputs.SNAPSHOT_URL }}' \
+            -PmavenLocalPath='${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'
+      - name: Clean up local maven
+        if: steps.setup_local_maven.outcome == 'success'
+        run: rm -rf '${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'

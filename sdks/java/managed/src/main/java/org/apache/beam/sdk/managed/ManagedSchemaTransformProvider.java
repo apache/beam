@@ -63,28 +63,19 @@ public class ManagedSchemaTransformProvider
     return "beam:transform:managed:v1";
   }
 
-  private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
+  // Use 'getAllProviders()' instead of this cache.
+  private final Map<String, SchemaTransformProvider> schemaTransformProvidersCache =
+      new HashMap<>();
+  private boolean providersCached = false;
 
-  public ManagedSchemaTransformProvider() {}
+  private @Nullable Collection<String> supportedIdentifiers;
+
+  public ManagedSchemaTransformProvider() {
+    this(null);
+  }
 
   ManagedSchemaTransformProvider(@Nullable Collection<String> supportedIdentifiers) {
-    try {
-      for (SchemaTransformProvider schemaTransformProvider :
-          ServiceLoader.load(SchemaTransformProvider.class)) {
-        if (schemaTransformProviders.containsKey(schemaTransformProvider.identifier())) {
-          throw new IllegalArgumentException(
-              "Found multiple SchemaTransformProvider implementations with the same identifier "
-                  + schemaTransformProvider.identifier());
-        }
-        if (supportedIdentifiers == null
-            || supportedIdentifiers.contains(schemaTransformProvider.identifier())) {
-          schemaTransformProviders.put(
-              schemaTransformProvider.identifier(), schemaTransformProvider);
-        }
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage());
-    }
+    this.supportedIdentifiers = supportedIdentifiers;
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -126,7 +117,7 @@ public class ManagedSchemaTransformProvider
           "Please specify a config or a config URL, but not both.");
     }
 
-    public @Nullable String resolveUnderlyingConfig() {
+    private Map<String, Object> resolveUnderlyingConfig() {
       String yamlTransformConfig = getConfig();
       // If YAML string is empty, then attempt to read from YAML file
       if (Strings.isNullOrEmpty(yamlTransformConfig)) {
@@ -140,7 +131,8 @@ public class ManagedSchemaTransformProvider
           throw new RuntimeException(e);
         }
       }
-      return yamlTransformConfig;
+
+      return YamlUtils.yamlStringToMap(yamlTransformConfig);
     }
   }
 
@@ -149,7 +141,7 @@ public class ManagedSchemaTransformProvider
     managedConfig.validate();
     SchemaTransformProvider schemaTransformProvider =
         Preconditions.checkNotNull(
-            schemaTransformProviders.get(managedConfig.getTransformIdentifier()),
+            getAllProviders().get(managedConfig.getTransformIdentifier()),
             "Could not find a transform with the identifier "
                 + "%s. This could be either due to the dependency with the "
                 + "transform not being available in the classpath or due to "
@@ -161,34 +153,34 @@ public class ManagedSchemaTransformProvider
 
   static class ManagedSchemaTransform extends SchemaTransform {
     private final ManagedConfig managedConfig;
-    private final Row underlyingTransformConfig;
+    private final Row underlyingRowConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
         ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
       // parse config before expansion to check if it matches underlying transform's config schema
       Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
-      Row underlyingTransformConfig;
+      Row underlyingRowConfig;
       try {
-        underlyingTransformConfig = getRowConfig(managedConfig, transformConfigSchema);
+        underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
       } catch (Exception e) {
         throw new IllegalArgumentException(
             "Encountered an error when retrieving a Row configuration", e);
       }
 
-      this.managedConfig = managedConfig;
-      this.underlyingTransformConfig = underlyingTransformConfig;
+      this.underlyingRowConfig = underlyingRowConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
+      this.managedConfig = managedConfig;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       LOG.debug(
-          "Building transform \"{}\" with Row configuration: {}",
+          "Building transform \"{}\" with configuration: {}",
           underlyingTransformProvider.identifier(),
-          underlyingTransformConfig);
+          underlyingRowConfig);
 
-      return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
+      return input.apply(underlyingTransformProvider.from(underlyingRowConfig));
     }
 
     public ManagedConfig getManagedConfig() {
@@ -210,16 +202,14 @@ public class ManagedSchemaTransformProvider
     }
   }
 
+  // May return an empty row (perhaps the underlying transform doesn't have any required
+  // parameters)
   @VisibleForTesting
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
-    // May return an empty row (perhaps the underlying transform doesn't have any required
-    // parameters)
-    String yamlConfig = config.resolveUnderlyingConfig();
-    Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
-
-    // The config Row object will be used to build the underlying SchemaTransform.
-    // If a mapping for the SchemaTransform exists, we use it to update parameter names and align
-    // with the underlying config schema
+    Map<String, Object> configMap = config.resolveUnderlyingConfig();
+    // Build a config Row that will be used to build the underlying SchemaTransform.
+    // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
+    // with the underlying SchemaTransform config schema
     Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
     if (mapping != null && configMap != null) {
       Map<String, Object> remappedConfig = new HashMap<>();
@@ -236,18 +226,35 @@ public class ManagedSchemaTransformProvider
     return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
-  Map<String, SchemaTransformProvider> getAllProviders() {
-    return schemaTransformProviders;
-  }
-
-  // TODO: set global snake_case naming convention and remove these special cases
-  @Override
-  public SchemaTransform from(Row rowConfig) {
-    return super.from(rowConfig.toCamelCase());
-  }
-
-  @Override
-  public Schema configurationSchema() {
-    return super.configurationSchema().toSnakeCase();
+  // We load providers separately, after construction, to prevent the
+  // 'ManagedSchemaTransformProvider' from being initialized in a recursive loop
+  // when being loaded using 'AutoValue'.
+  synchronized Map<String, SchemaTransformProvider> getAllProviders() {
+    if (this.providersCached) {
+      return schemaTransformProvidersCache;
+    }
+    try {
+      for (SchemaTransformProvider schemaTransformProvider :
+          ServiceLoader.load(SchemaTransformProvider.class)) {
+        if (schemaTransformProvidersCache.containsKey(schemaTransformProvider.identifier())) {
+          throw new IllegalArgumentException(
+              "Found multiple SchemaTransformProvider implementations with the same identifier "
+                  + schemaTransformProvider.identifier());
+        }
+        if (supportedIdentifiers == null
+            || supportedIdentifiers.contains(schemaTransformProvider.identifier())) {
+          if (schemaTransformProvider.identifier().equals("beam:transform:managed:v1")) {
+            // Prevent recursively adding the 'ManagedSchemaTransformProvider'.
+            continue;
+          }
+          schemaTransformProvidersCache.put(
+              schemaTransformProvider.identifier(), schemaTransformProvider);
+        }
+      }
+      this.providersCached = true;
+      return schemaTransformProvidersCache;
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage());
+    }
   }
 }

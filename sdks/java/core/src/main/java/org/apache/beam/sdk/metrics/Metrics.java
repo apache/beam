@@ -18,6 +18,13 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The <code>Metrics</code> is a utility class for producing various kinds of metrics for reporting
@@ -50,8 +57,58 @@ import java.io.Serializable;
  * example off how to query metrics.
  */
 public class Metrics {
+  private static final Logger LOG = LoggerFactory.getLogger(Metrics.class);
 
   private Metrics() {}
+
+  static class MetricsFlag {
+    private static final AtomicReference<@Nullable MetricsFlag> INSTANCE = new AtomicReference<>();
+    final boolean counterDisabled;
+    final boolean stringSetDisabled;
+
+    private MetricsFlag(boolean counterDisabled, boolean stringSetDisabled) {
+      this.counterDisabled = counterDisabled;
+      this.stringSetDisabled = stringSetDisabled;
+    }
+
+    static boolean counterDisabled() {
+      MetricsFlag flag = INSTANCE.get();
+      return flag != null && flag.counterDisabled;
+    }
+
+    static boolean stringSetDisabled() {
+      MetricsFlag flag = INSTANCE.get();
+      return flag != null && flag.stringSetDisabled;
+    }
+  }
+
+  /**
+   * Initialize metrics flags if not already done so.
+   *
+   * <p>Should be called by worker at worker harness initialization. Should not be called by user
+   * code (and it does not have an effect as the initialization completed before).
+   */
+  @Internal
+  public static void setDefaultPipelineOptions(PipelineOptions options) {
+    MetricsFlag flag = MetricsFlag.INSTANCE.get();
+    if (flag == null) {
+      ExperimentalOptions exp = options.as(ExperimentalOptions.class);
+      boolean counterDisabled = ExperimentalOptions.hasExperiment(exp, "disableCounterMetrics");
+      if (counterDisabled) {
+        LOG.info("Counter metrics are disabled.");
+      }
+      boolean stringSetDisabled = ExperimentalOptions.hasExperiment(exp, "disableStringSetMetrics");
+      if (stringSetDisabled) {
+        LOG.info("StringSet metrics are disabled");
+      }
+      MetricsFlag.INSTANCE.compareAndSet(null, new MetricsFlag(counterDisabled, stringSetDisabled));
+    }
+  }
+
+  @Internal
+  static void resetDefaultPipelineOptions() {
+    MetricsFlag.INSTANCE.set(null);
+  }
 
   /**
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
@@ -92,6 +149,23 @@ public class Metrics {
   public static Gauge gauge(Class<?> namespace, String name) {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
+
+  /** Create a metric that accumulates and reports set of unique string values. */
+  public static StringSet stringSet(String namespace, String name) {
+    return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /** Create a metric that accumulates and reports set of unique string values. */
+  public static StringSet stringSet(Class<?> namespace, String name) {
+    return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /*
+   * A dedicated namespace for client throttling time. User DoFn can increment this metrics and then
+   * runner will put back pressure on scaling decision, if supported.
+   */
+  public static final String THROTTLE_TIME_NAMESPACE = "beam-throttling-metrics";
+  public static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
 
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
@@ -138,6 +212,39 @@ public class Metrics {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
         container.getGauge(name).set(value);
+      }
+    }
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+  }
+
+  /** Implementation of {@link StringSet} that delegates to the instance for the current context. */
+  private static class DelegatingStringSet implements Metric, StringSet, Serializable {
+    private final MetricName name;
+
+    private DelegatingStringSet(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public void add(String value) {
+      if (MetricsFlag.stringSetDisabled()) {
+        return;
+      }
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getStringSet(name).add(value);
+      }
+    }
+
+    @Override
+    public void add(String... value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getStringSet(name).add(value);
       }
     }
 

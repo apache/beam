@@ -30,10 +30,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
     "2102": "2.10.2",
     "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
@@ -47,6 +47,8 @@ configurations.testRuntimeClasspath {
 
   // Force use the old version of JAMM that cassandra relies on
   resolutionStrategy.force 'com.github.jbellis:jamm:0.3.0'
+  // Pin snakeyaml version due to cassandra-all does not support 2.x
+  resolutionStrategy.force 'org.yaml:snakeyaml:1.33'
 }
 
 dependencies {
@@ -62,8 +64,8 @@ dependencies {
   provided library.java.hadoop_mapreduce_client_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   testImplementation project(":sdks:java:io:jdbc")
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation library.java.testcontainers_elasticsearch

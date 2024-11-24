@@ -17,16 +17,24 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -47,16 +55,18 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * specifies arguments using like so:
  *
  * <pre>{@code
- * PCollectionRowTuple output = PCollectionRowTuple.empty(pipeline).apply(
+ * PCollection<Row> rows = pipeline.apply(
  *       Managed.read(ICEBERG)
  *           .withConfig(ImmutableMap.<String, Object>.builder()
  *               .put("foo", "abc")
  *               .put("bar", 123)
- *               .build()));
+ *               .build()))
+ *       .getOutput();
  * }</pre>
  *
  * <p>Instead of specifying configuration arguments directly in the code, one can provide the
- * location to a YAML file that contains this information. Say we have the following YAML file:
+ * location to a YAML file that contains this information. Say we have the following {@code
+ * config.yaml} file:
  *
  * <pre>{@code
  * foo: "abc"
@@ -66,11 +76,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>The file's path can be passed in to the Managed API like so:
  *
  * <pre>{@code
- * PCollectionRowTuple input = PCollectionRowTuple.of("input", pipeline.apply(Create.of(...)))
+ * PCollection<Row> inputRows = pipeline.apply(Create.of(...));
  *
- * PCollectionRowTuple output = input.apply(
- *     Managed.write(ICEBERG)
- *         .withConfigUrl(<config path>));
+ * inputRows.apply(Managed.write(ICEBERG).withConfigUrl("path/to/config.yaml"));
  * }</pre>
  */
 public class Managed {
@@ -78,17 +86,20 @@ public class Managed {
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
   public static final String KAFKA = "kafka";
+  public static final String BIGQUERY = "bigquery";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
           .build();
 
   /**
@@ -96,7 +107,9 @@ public class Managed {
    * supported managed sources are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
+   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables
+   *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics
+   *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables
    * </ul>
    */
   public static ManagedTransform read(String source) {
@@ -116,7 +129,9 @@ public class Managed {
    * managed sinks are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
+   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg tables
+   *   <li>{@link Managed#KAFKA} : Write to Apache Kafka topics
+   *   <li>{@link Managed#BIGQUERY} : Write to GCP BigQuery tables
    * </ul>
    */
   public static ManagedTransform write(String sink) {
@@ -132,8 +147,7 @@ public class Managed {
   }
 
   @AutoValue
-  public abstract static class ManagedTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  public abstract static class ManagedTransform extends PTransform<PInput, PCollectionRowTuple> {
     abstract String getIdentifier();
 
     abstract @Nullable Map<String, Object> getConfig();
@@ -183,7 +197,9 @@ public class Managed {
     }
 
     @Override
-    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+    public PCollectionRowTuple expand(PInput input) {
+      PCollectionRowTuple inputTuple = resolveInput(input);
+
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
               .setTransformIdentifier(getIdentifier())
@@ -194,7 +210,28 @@ public class Managed {
       SchemaTransform underlyingTransform =
           new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
-      return input.apply(underlyingTransform);
+      return inputTuple.apply(underlyingTransform);
+    }
+
+    @VisibleForTesting
+    static PCollectionRowTuple resolveInput(PInput input) {
+      if (input instanceof PBegin) {
+        return PCollectionRowTuple.empty(input.getPipeline());
+      } else if (input instanceof PCollection) {
+        PCollection<?> inputCollection = (PCollection<?>) input;
+        Preconditions.checkArgument(
+            inputCollection.getCoder() instanceof RowCoder,
+            "Input PCollection must contain Row elements with a set Schema "
+                + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
+            inputCollection.getName(),
+            inputCollection.getCoder());
+        return PCollectionRowTuple.of(
+            ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
+      } else if (input instanceof PCollectionRowTuple) {
+        return (PCollectionRowTuple) input;
+      }
+
+      throw new IllegalArgumentException("Unsupported input type: " + input.getClass());
     }
   }
 }

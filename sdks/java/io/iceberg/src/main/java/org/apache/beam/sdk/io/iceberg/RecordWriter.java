@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.SchemaAndRowConversions.rowToRecord;
-
 import java.io.IOException;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
@@ -34,23 +31,41 @@ import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class RecordWriter {
-
+  private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
+  private final Counter activeIcebergWriters =
+      Metrics.counter(RecordWriter.class, "activeIcebergWriters");
+  private final Counter dataFilesWritten = Metrics.counter(RecordWriter.class, "dataFilesWritten");
   private final DataWriter<Record> icebergDataWriter;
-
   private final Table table;
   private final String absoluteFilename;
+  private final FileFormat fileFormat;
 
-  RecordWriter(Catalog catalog, IcebergDestination destination, String filename)
+  RecordWriter(
+      Catalog catalog, IcebergDestination destination, String filename, PartitionKey partitionKey)
       throws IOException {
     this(
-        catalog.loadTable(destination.getTableIdentifier()), destination.getFileFormat(), filename);
+        catalog.loadTable(destination.getTableIdentifier()),
+        destination.getFileFormat(),
+        filename,
+        partitionKey);
   }
 
-  RecordWriter(Table table, FileFormat fileFormat, String filename) throws IOException {
+  RecordWriter(Table table, FileFormat fileFormat, String filename, PartitionKey partitionKey)
+      throws IOException {
     this.table = table;
-    this.absoluteFilename = table.location() + "/" + filename;
+    this.fileFormat = fileFormat;
+    if (table.spec().isUnpartitioned()) {
+      absoluteFilename =
+          fileFormat.addExtension(table.locationProvider().newDataLocation(filename));
+    } else {
+      absoluteFilename =
+          fileFormat.addExtension(
+              table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
+    }
     OutputFile outputFile = table.io().newOutputFile(absoluteFilename);
 
     switch (fileFormat) {
@@ -60,6 +75,7 @@ class RecordWriter {
                 .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
                 .schema(table.schema())
                 .withSpec(table.spec())
+                .withPartition(partitionKey)
                 .overwrite()
                 .build();
         break;
@@ -69,6 +85,7 @@ class RecordWriter {
                 .createWriterFunc(GenericParquetWriter::buildWriter)
                 .schema(table.schema())
                 .withSpec(table.spec())
+                .withPartition(partitionKey)
                 .overwrite()
                 .build();
         break;
@@ -77,34 +94,50 @@ class RecordWriter {
       default:
         throw new RuntimeException("Unknown File Format: " + fileFormat);
     }
+    activeIcebergWriters.inc();
+    LOG.info(
+        "Opened {} writer for table '{}', partition {}. Writing to path: {}",
+        fileFormat,
+        table.name(),
+        partitionKey,
+        absoluteFilename);
   }
 
-  public void write(Row row) {
-    Record record = rowToRecord(table.schema(), row);
+  public void write(Record record) {
     icebergDataWriter.write(record);
   }
 
   public void close() throws IOException {
-    icebergDataWriter.close();
-  }
-
-  public Table getTable() {
-    return table;
+    try {
+      icebergDataWriter.close();
+    } catch (IOException e) {
+      throw new IOException(
+          String.format(
+              "Failed to close %s writer for table %s, path: %s",
+              fileFormat, table.name(), absoluteFilename),
+          e);
+    }
+    activeIcebergWriters.dec();
+    DataFile dataFile = icebergDataWriter.toDataFile();
+    LOG.info(
+        "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",
+        fileFormat,
+        table.name(),
+        dataFile.recordCount(),
+        dataFile.fileSizeInBytes(),
+        absoluteFilename);
+    dataFilesWritten.inc();
   }
 
   public long bytesWritten() {
     return icebergDataWriter.length();
   }
 
-  public ManifestFile getManifestFile() throws IOException {
-    String manifestFilename = FileFormat.AVRO.addExtension(absoluteFilename + ".manifest");
-    OutputFile outputFile = table.io().newOutputFile(manifestFilename);
-    ManifestWriter<DataFile> manifestWriter;
-    try (ManifestWriter<DataFile> openWriter = ManifestFiles.write(getTable().spec(), outputFile)) {
-      openWriter.add(icebergDataWriter.toDataFile());
-      manifestWriter = openWriter;
-    }
+  public DataFile getDataFile() {
+    return icebergDataWriter.toDataFile();
+  }
 
-    return manifestWriter.toManifestFile();
+  public String path() {
+    return absoluteFilename;
   }
 }

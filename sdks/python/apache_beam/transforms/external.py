@@ -23,6 +23,7 @@ import copy
 import functools
 import glob
 import logging
+import re
 import subprocess
 import threading
 import uuid
@@ -652,8 +653,8 @@ class ExternalTransform(ptransform.PTransform):
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
-    self._inputs = {}  # type: Dict[str, pvalue.PCollection]
-    self._outputs = {}  # type: Dict[str, pvalue.PCollection]
+    self._inputs: Dict[str, pvalue.PCollection] = {}
+    self._outputs: Dict[str, pvalue.PCollection] = {}
 
   def with_output_types(self, *args, **kwargs):
     return WithTypeHints.with_output_types(self, *args, **kwargs)
@@ -690,13 +691,11 @@ class ExternalTransform(ptransform.PTransform):
       cls._external_namespace.value = prev
 
   @classmethod
-  def _fresh_namespace(cls):
-    # type: () -> str
+  def _fresh_namespace(cls) -> str:
     ExternalTransform._namespace_counter += 1
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
-  def expand(self, pvalueish):
-    # type: (pvalue.PCollection) -> pvalue.PCollection
+  def expand(self, pvalueish: pvalue.PCollection) -> pvalue.PCollection:
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}
     elif isinstance(pvalueish, (list, tuple)):
@@ -739,7 +738,7 @@ class ExternalTransform(ptransform.PTransform):
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
-        namespace=self._external_namespace,
+        namespace=self._external_namespace,  # type: ignore[arg-type]
         transform=transform_proto,
         output_coder_requests=output_coders,
         pipeline_options=pipeline._options.to_runner_api())
@@ -750,7 +749,7 @@ class ExternalTransform(ptransform.PTransform):
     with ExternalTransform.service(expansion_service) as service:
       response = service.Expand(request)
       if response.error:
-        raise RuntimeError(response.error)
+        raise RuntimeError(_sanitize_java_traceback(response.error))
       self._expanded_components = response.components
       if any(e.dependencies
              for env in self._expanded_components.environments.values()
@@ -922,6 +921,7 @@ class ExternalTransform(ptransform.PTransform):
             for tag,
             pcoll in self._expanded_transform.outputs.items()
         },
+        annotations=self._expanded_transform.annotations,
         environment_id=self._expanded_transform.environment_id)
 
 
@@ -1140,6 +1140,35 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     raise ValueError(
         'Cannot start an expansion service since neither Java nor '
         'Docker executables are available in the system.')
+
+
+def _sanitize_java_traceback(s):
+  """Attempts to highlight the root cause in the error string.
+
+  Java tracebacks read bottom to top, while Python tracebacks read top to
+  bottom, resulting in the actual error message getting sandwiched between two
+  walls of text.  This may result in the error being duplicated (as we don't
+  want to remove relevant information) but should be clearer in most cases.
+
+  Best-effort but non-destructive.
+  """
+  # We delete non-java-traceback lines.
+  traceback_lines = [
+      r'\tat \S+\(\S+\.java:\d+\)',
+      r'\t\.\.\. \d+ more',
+      # A bit more restrictive to avoid accidentally capturing non-java lines.
+      r'Caused by: [a-z]+(\.\S+)?\.[A-Z][A-Za-z0-9_$]+(Error|Exception):[^\n]*'
+  ]
+  without_java_traceback = s + '\n'
+  for p in traceback_lines:
+    without_java_traceback = re.sub(
+        fr'\n{p}$', '', without_java_traceback, flags=re.M)
+  # If what's left is substantially smaller, duplicate it at the end for better
+  # visibility.
+  if len(without_java_traceback) < len(s) / 2:
+    return s + '\n\n' + without_java_traceback.strip()
+  else:
+    return s
 
 
 def memoize(func):

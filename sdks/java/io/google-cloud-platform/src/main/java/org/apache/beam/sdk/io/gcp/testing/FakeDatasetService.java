@@ -76,6 +76,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -648,7 +649,9 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             }
             TableRow tableRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(protoDescriptor, bytes), false);
+                    DynamicMessage.parseFrom(protoDescriptor, bytes),
+                    false,
+                    Predicates.alwaysTrue());
             if (shouldFailRow.apply(tableRow)) {
               rowIndexToErrorMessage.put(i, "Failing row " + tableRow.toPrettyString());
             }
@@ -661,7 +664,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             }
             fieldDescriptor = protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN);
             if (fieldDescriptor != null) {
-              changeSequenceNum = (long) msg.getField(fieldDescriptor);
+              String changeSequenceNumHex = (String) msg.getField(fieldDescriptor);
+              changeSequenceNum = Long.parseUnsignedLong(changeSequenceNumHex, 16);
             }
             Stream.Entry.UpdateType insertType = Stream.Entry.UpdateType.INSERT;
             if (insertTypeStr != null) {

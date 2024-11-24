@@ -173,31 +173,57 @@ def _is_connected(edge_list, expected_node_count):
 def _SqlJoinTransform(
     pcolls,
     sql_transform_constructor,
-    type: Union[str, Dict[str, List]],
+    *,
     equalities: Union[str, List[Dict[str, str]]],
+    type: Union[str, Dict[str, List]] = 'inner',
     fields: Optional[Dict[str, Any]] = None):
   """Joins two or more inputs using a specified condition.
+
+  For example::
+
+      type: Join
+      input:
+        input1: SomeTransform
+        input2: AnotherTransform
+        input3: YetAnotherTransform
+      config:
+        type: inner
+        equalities:
+          - input1: colA
+            input2: colB
+          - input2: colX
+            input3: colY
+        fields:
+          input1: [colA, colB, colC]
+          input2: {new_name: colB}
+
+  would perform an inner join on the three inputs satisfying the constraints
+  that `input1.colA = input2.colB` and `input2.colX = input3.colY`
+  emitting rows with `colA`, `colB` and `colC` from `input1`, the values of
+  `input2.colB` as a field called `new_name`, and all the fields from `input3`.
 
   Args:
     type: The type of join. Could be a string value in
         ["inner", "left", "right", "outer"] that specifies the type of join to
         be performed. For scenarios with multiple inputs to join where different
         join types are desired, specify the inputs to be outer joined. For
-        example, {outer: [input1, input2]} means that input1 & input2 will be
-        outer joined using the conditions specified, while other inputs will be
-        inner joined.
+        example, ``{outer: [input1, input2]}`` means that `input1` and `input2`
+        will be outer joined using the conditions specified, while other inputs
+        will be inner joined.
     equalities: The condition to join on. A list of sets of columns that should
-        be equal to fulfill the join condition. For the simple scenario to join
-        on the same column across all inputs and the column name is the same,
-        specify the column name as a str.
+        be equal to fulfill the join condition. For the simple scenario of
+        joining on the same column across all inputs where the column name is
+        the same, one can specify the column name as the equality rather than
+        having to list it for every input.
     fields: The fields to be outputted. A mapping with the input alias as the
-        key and the fields in the input to be outputted. The value in the map
+        key and the list of fields in the input to be outputted.
+        The value in the map
         can either be a dictionary with the new field name as the key and the
         original field name as the value (e.g new_field_name: field_name), or a
         list of the fields to be outputted with their original names
-        (e.g [col1, col2, col3]), or an '*' indicating all fields in the input
-        will be outputted. If not specified, all fields from all inputs will be
-        outputted.
+        (e.g ``[col1, col2, col3]``), or an '*' indicating all fields in the
+        input will be outputted. If not specified, all fields from all inputs
+        will be outputted.
   """
 
   _validate_input(pcolls)

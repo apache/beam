@@ -29,7 +29,7 @@
 --influx_measurement=torch_inference_imagenet_resnet152_tesla_t4
 --pretrained_model_name=resnet152
 --device=GPU
---experiments=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
+--experiments=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx
 --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest
 --input_file=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
 --model_state_dict_path=gs://apache-beam-ml/models/torchvision.models.resnet152.pth

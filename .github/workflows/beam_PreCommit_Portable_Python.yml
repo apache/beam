@@ -72,7 +72,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -86,7 +86,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Portable_Python']
         job_phrase: ['Run Portable_Python PreCommit']
-        python_version: ['3.8', '3.11']
+        python_version: ['3.9', '3.12']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -106,7 +106,7 @@ jobs:
           java-version: default
           python-version: |
             ${{ matrix.python_version }}
-            3.8
+            3.9
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |

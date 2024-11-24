@@ -16,7 +16,7 @@
 # under the License.
 
 # This workflow will update python dependencies as part of the release process
-# And commit the changes into the branch release, creating a PR into the branch 
+# And commit the changes into the branch release, creating a PR into the branch
 
 name: Update Python Depedencies
 
@@ -32,9 +32,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 jobs:
   set-properties:
@@ -43,7 +41,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4        
+        uses: actions/checkout@v4
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -58,12 +56,14 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.8
             3.9
             3.10
             3.11
+            3.12
           java-version: default
           go-version: default
+          disable-cache: true
+          
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -88,8 +88,8 @@ jobs:
           fi
           branchName=weekly_update_python_dependencies_$(date +%s)
           git checkout -b $branchName
-          git add -A 
-          git diff-index --quiet HEAD || gitdiff=$? || echo $? 
+          git add -A
+          git diff-index --quiet HEAD || gitdiff=$? || echo $?
           if [[ $gitDiff != 0 ]]; then
             echo "Changes are ready to commit"
             git commit -m "Update Python Dependencies" --quiet

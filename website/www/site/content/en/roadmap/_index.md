@@ -32,8 +32,8 @@ Below are some highlights for the project as a whole.
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
 on _any runner_. This is a cross-cutting effort across Java, Python, and Go,
 and every Beam runner. Portability is currently supported on the
-[Flink](/documentation/runners/flink/)
-and [Spark](/documentation/runners/spark/) runners.
+[Flink](/documentation/runners/flink/), [Spark](/documentation/runners/spark/)
+and [Prism](/documentation/runners/prism/) runners.
 
 See the details on the [Portability Roadmap](/roadmap/portability/)
 

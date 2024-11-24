@@ -41,6 +41,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseForma
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -48,6 +49,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @SuppressWarnings({
@@ -87,8 +90,14 @@ public class Schema implements Serializable {
       return Arrays.toString(array);
     }
   }
+
   // A mapping between field names an indices.
-  private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  private final BiMap<String, Integer> fieldIndices;
+
+  // Encoding positions can be used to maintain encoded byte compatibility between schemas with
+  // different field ordering or with added/removed fields. Such positions affect the encoding
+  // and decoding of Rows performed by RowCoderGenerator. They are stored within Schemas to
+  // facilitate plumbing to coders, display data etc but do not affect schema equality / uuid etc.
   private Map<String, Integer> encodingPositions = Maps.newHashMap();
   private boolean encodingPositionsOverridden = false;
 
@@ -310,17 +319,20 @@ public class Schema implements Serializable {
   }
 
   public Schema(List<Field> fields, Options options) {
-    this.fields = fields;
+    this.fields = ImmutableList.copyOf(fields);
     int index = 0;
-    for (Field field : fields) {
+    BiMap<String, Integer> fieldIndicesMutable = HashBiMap.create();
+    for (Field field : this.fields) {
       Preconditions.checkArgument(
-          fieldIndices.get(field.getName()) == null,
+          fieldIndicesMutable.get(field.getName()) == null,
           "Duplicate field " + field.getName() + " added to schema");
       encodingPositions.put(field.getName(), index);
-      fieldIndices.put(field.getName(), index++);
+      fieldIndicesMutable.put(field.getName(), index++);
     }
-    this.hashCode = Objects.hash(fieldIndices, fields);
+    this.fieldIndices = ImmutableBiMap.copyOf(fieldIndicesMutable);
     this.options = options;
+    this.hashCode = Objects.hash(this.fieldIndices, this.fields, this.options);
+    this.uuid = UUID.randomUUID();
   }
 
   public static Schema of(Field... fields) {
@@ -332,29 +344,24 @@ public class Schema implements Serializable {
    * fields.
    */
   public Schema sorted() {
-    // Create a new schema and copy over the appropriate Schema object attributes:
-    // {fields, uuid, options}
-    // Note: encoding positions are not copied over because generally they should align with the
-    // ordering of field indices. Otherwise, problems may occur when encoding/decoding Rows of
-    // this schema.
-    Schema sortedSchema =
-        this.fields.stream()
-            .sorted(Comparator.comparing(Field::getName))
-            .map(
-                field -> {
-                  FieldType innerType = field.getType();
-                  if (innerType.getRowSchema() != null) {
-                    Schema innerSortedSchema = innerType.getRowSchema().sorted();
-                    innerType = innerType.toBuilder().setRowSchema(innerSortedSchema).build();
-                    return field.toBuilder().setType(innerType).build();
-                  }
-                  return field;
-                })
-            .collect(Schema.toSchema())
-            .withOptions(getOptions());
-    sortedSchema.setUUID(getUUID());
-
-    return sortedSchema;
+    // Create a new schema and copy over the appropriate Schema object attributes: {fields, options}
+    // Note: uuid is not copied as the Schema field ordering is changed. encoding positions are not
+    // copied over because generally they should align with the ordering of field indices.
+    // Otherwise, problems may occur when encoding/decoding Rows of this schema.
+    return this.fields.stream()
+        .sorted(Comparator.comparing(Field::getName))
+        .map(
+            field -> {
+              FieldType innerType = field.getType();
+              if (innerType.getRowSchema() != null) {
+                Schema innerSortedSchema = innerType.getRowSchema().sorted();
+                innerType = innerType.toBuilder().setRowSchema(innerSortedSchema).build();
+                return field.toBuilder().setType(innerType).build();
+              }
+              return field;
+            })
+        .collect(Schema.toSchema())
+        .withOptions(getOptions());
   }
 
   /** Returns a copy of the Schema with the options set. */
@@ -403,11 +410,14 @@ public class Schema implements Serializable {
       return false;
     }
     Schema other = (Schema) o;
-    // If both schemas have a UUID set, we can simply compare the UUIDs.
-    if (uuid != null && other.uuid != null) {
-      if (Objects.equals(uuid, other.uuid)) {
-        return true;
-      }
+    // If both schemas have a UUID set, we can short-circuit deep comparison if the
+    // UUIDs are equal.
+    if (uuid != null && other.uuid != null && Objects.equals(uuid, other.uuid)) {
+      return true;
+    }
+    // Utilize hash-code pre-calculation for cheap negative comparison.
+    if (this.hashCode != other.hashCode) {
+      return false;
     }
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields())
@@ -681,6 +691,9 @@ public class Schema implements Serializable {
   @AutoValue
   @Immutable
   public abstract static class FieldType implements Serializable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FieldType.class);
+
     // Returns the type of this field.
     public abstract TypeName getTypeName();
 
@@ -816,6 +829,14 @@ public class Schema implements Serializable {
 
     /** Create a map type for the given key and value types. */
     public static FieldType map(FieldType keyType, FieldType valueType) {
+      if (FieldType.BYTES.equals(keyType)) {
+        LOG.warn(
+            "Using byte arrays as keys in a Map may lead to unexpected behavior and may not work as"
+                + " intended. Since arrays do not override equals() or hashCode, comparisons will"
+                + " be done on reference equality only. ByteBuffers, when used as keys, present"
+                + " similar challenges because Row stores ByteBuffer as a byte array. Consider"
+                + " using a different type of key for more consistent and predictable behavior.");
+      }
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
           .setMapValueType(valueType)
@@ -1424,7 +1445,7 @@ public class Schema implements Serializable {
   }
 
   /** Return the list of all field names. */
-  public List<String> getFieldNames() {
+  public List<@NonNull String> getFieldNames() {
     return getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());
   }
 

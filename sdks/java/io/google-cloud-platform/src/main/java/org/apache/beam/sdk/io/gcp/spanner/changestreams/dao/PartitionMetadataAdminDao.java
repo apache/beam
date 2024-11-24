@@ -23,7 +23,8 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -84,7 +85,7 @@ public class PartitionMetadataAdminDao {
   private final DatabaseAdminClient databaseAdminClient;
   private final String instanceId;
   private final String databaseId;
-  private final String tableName;
+  private final PartitionMetadataTableNames names;
   private final Dialect dialect;
 
   /**
@@ -94,18 +95,18 @@ public class PartitionMetadataAdminDao {
    *     table
    * @param instanceId the instance where the metadata table will reside
    * @param databaseId the database where the metadata table will reside
-   * @param tableName the name of the metadata table
+   * @param names the names of the metadata table ddl objects
    */
   PartitionMetadataAdminDao(
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
       String databaseId,
-      String tableName,
+      PartitionMetadataTableNames names,
       Dialect dialect) {
     this.databaseAdminClient = databaseAdminClient;
     this.instanceId = instanceId;
     this.databaseId = databaseId;
-    this.tableName = tableName;
+    this.names = names;
     this.dialect = dialect;
   }
 
@@ -117,12 +118,12 @@ public class PartitionMetadataAdminDao {
    * PartitionMetadataAdminDao#TTL_AFTER_PARTITION_FINISHED_DAYS} days.
    */
   public void createPartitionMetadataTable() {
-    String metadataCreateStmt = "";
+    List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
       // Literals need be added around literals to preserve casing.
-      metadataCreateStmt =
-          "CREATE TABLE \""
-              + tableName
+      ddl.add(
+          "CREATE TABLE IF NOT EXISTS \""
+              + names.getTableName()
               + "\"(\""
               + COLUMN_PARTITION_TOKEN
               + "\" text NOT NULL,\""
@@ -146,17 +147,39 @@ public class PartitionMetadataAdminDao {
               + "\" SPANNER.COMMIT_TIMESTAMP,\""
               + COLUMN_FINISHED_AT
               + "\" SPANNER.COMMIT_TIMESTAMP,"
-              + " PRIMARY KEY (\"PartitionToken\")"
+              + " PRIMARY KEY (\""
+              + COLUMN_PARTITION_TOKEN
+              + "\")"
               + ")"
               + " TTL INTERVAL '"
               + TTL_AFTER_PARTITION_FINISHED_DAYS
               + " days' ON \""
               + COLUMN_FINISHED_AT
-              + "\"";
+              + "\"");
+      ddl.add(
+          "CREATE INDEX IF NOT EXISTS \""
+              + names.getWatermarkIndexName()
+              + "\" on \""
+              + names.getTableName()
+              + "\" (\""
+              + COLUMN_WATERMARK
+              + "\") INCLUDE (\""
+              + COLUMN_STATE
+              + "\")");
+      ddl.add(
+          "CREATE INDEX IF NOT EXISTS \""
+              + names.getCreatedAtIndexName()
+              + "\" ON \""
+              + names.getTableName()
+              + "\" (\""
+              + COLUMN_CREATED_AT
+              + "\",\""
+              + COLUMN_START_TIMESTAMP
+              + "\")");
     } else {
-      metadataCreateStmt =
-          "CREATE TABLE "
-              + tableName
+      ddl.add(
+          "CREATE TABLE IF NOT EXISTS "
+              + names.getTableName()
               + " ("
               + COLUMN_PARTITION_TOKEN
               + " STRING(MAX) NOT NULL,"
@@ -180,16 +203,37 @@ public class PartitionMetadataAdminDao {
               + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
               + COLUMN_FINISHED_AT
               + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-              + ") PRIMARY KEY (PartitionToken),"
+              + ") PRIMARY KEY ("
+              + COLUMN_PARTITION_TOKEN
+              + "),"
               + " ROW DELETION POLICY (OLDER_THAN("
               + COLUMN_FINISHED_AT
               + ", INTERVAL "
               + TTL_AFTER_PARTITION_FINISHED_DAYS
-              + " DAY))";
+              + " DAY))");
+      ddl.add(
+          "CREATE INDEX IF NOT EXISTS "
+              + names.getWatermarkIndexName()
+              + " on "
+              + names.getTableName()
+              + " ("
+              + COLUMN_WATERMARK
+              + ") STORING ("
+              + COLUMN_STATE
+              + ")");
+      ddl.add(
+          "CREATE INDEX IF NOT EXISTS "
+              + names.getCreatedAtIndexName()
+              + " ON "
+              + names.getTableName()
+              + " ("
+              + COLUMN_CREATED_AT
+              + ","
+              + COLUMN_START_TIMESTAMP
+              + ")");
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
-        databaseAdminClient.updateDatabaseDdl(
-            instanceId, databaseId, Collections.singletonList(metadataCreateStmt), null);
+        databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddl, null);
     try {
       // Initiate the request which returns an OperationFuture.
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
@@ -211,16 +255,17 @@ public class PartitionMetadataAdminDao {
    * Drops the metadata table. This operation should complete in {@link
    * PartitionMetadataAdminDao#TIMEOUT_MINUTES} minutes.
    */
-  public void deletePartitionMetadataTable() {
-    String metadataDropStmt;
+  public void deletePartitionMetadataTable(List<String> indexes) {
+    List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
-      metadataDropStmt = "DROP TABLE \"" + tableName + "\"";
+      indexes.forEach(index -> ddl.add("DROP INDEX \"" + index + "\""));
+      ddl.add("DROP TABLE \"" + names.getTableName() + "\"");
     } else {
-      metadataDropStmt = "DROP TABLE " + tableName;
+      indexes.forEach(index -> ddl.add("DROP INDEX " + index));
+      ddl.add("DROP TABLE " + names.getTableName());
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
-        databaseAdminClient.updateDatabaseDdl(
-            instanceId, databaseId, Collections.singletonList(metadataDropStmt), null);
+        databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddl, null);
     try {
       // Initiate the request which returns an OperationFuture.
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);

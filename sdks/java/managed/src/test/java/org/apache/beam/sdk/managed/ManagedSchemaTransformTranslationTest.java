@@ -17,11 +17,16 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.CONFIG_ROW_KEY;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.CONFIG_ROW_SCHEMA_KEY;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.SCHEMATRANSFORM_URN_KEY;
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedConfig;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedSchemaTransform;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformTranslation.ManagedSchemaTransformTranslator;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.MANAGED_TRANSFORM_URN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -33,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
@@ -41,13 +47,15 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
 public class ManagedSchemaTransformTranslationTest {
@@ -84,7 +92,7 @@ public class ManagedSchemaTransformTranslationTest {
 
   @Test
   public void testReCreateTransformFromRowWithConfig() {
-    String yamlString = "extraString: abc\n" + "extraInteger: 123";
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
 
     ManagedConfig originalConfig =
         ManagedConfig.builder()
@@ -123,8 +131,8 @@ public class ManagedSchemaTransformTranslationTest {
             .setRowSchema(inputSchema);
     Map<String, Object> underlyingConfig =
         ImmutableMap.<String, Object>builder()
-            .put("extraString", "abc")
-            .put("extraInteger", 123)
+            .put("extra_string", "abc")
+            .put("extra_integer", 123)
             .build();
     String yamlStringConfig = YamlUtils.yamlStringFromMap(underlyingConfig);
     Managed.ManagedTransform transform =
@@ -134,7 +142,7 @@ public class ManagedSchemaTransformTranslationTest {
             .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withConfig(underlyingConfig);
-    PCollectionRowTuple.of("input", input).apply(transform).get("output");
+    input.apply(transform);
 
     // Then translate the pipeline to a proto and extract the ManagedSchemaTransform's proto
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
@@ -154,9 +162,45 @@ public class ManagedSchemaTransformTranslationTest {
                 })
             .collect(Collectors.toList());
     assertEquals(1, managedTransformProto.size());
-    RunnerApi.FunctionSpec spec = managedTransformProto.get(0).getSpec();
+    RunnerApi.PTransform convertedTransform = managedTransformProto.get(0);
 
-    // Check that the proto contains correct values
+    // Check the transform proto contains the correct annotations.
+    // These annotations can be accessed and used by the runner to make decisions
+    Row managedConfigRow =
+        Row.withSchema(PROVIDER.configurationSchema())
+            .withFieldValue("transform_identifier", TestSchemaTransformProvider.IDENTIFIER)
+            .withFieldValue("config", yamlStringConfig)
+            .build();
+    assertEquals(
+        ImmutableSet.of(
+            BeamUrns.getConstant(SCHEMATRANSFORM_URN_KEY),
+            BeamUrns.getConstant(MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
+            BeamUrns.getConstant(CONFIG_ROW_KEY),
+            BeamUrns.getConstant(CONFIG_ROW_SCHEMA_KEY)),
+        convertedTransform.getAnnotationsMap().keySet());
+    assertEquals(
+        ByteString.copyFromUtf8(MANAGED_TRANSFORM_URN),
+        convertedTransform.getAnnotationsMap().get(BeamUrns.getConstant(SCHEMATRANSFORM_URN_KEY)));
+    assertEquals(
+        ByteString.copyFromUtf8(TestSchemaTransformProvider.IDENTIFIER),
+        convertedTransform
+            .getAnnotationsMap()
+            .get(BeamUrns.getConstant(MANAGED_UNDERLYING_TRANSFORM_URN_KEY)));
+    Schema annotationSchema =
+        SchemaTranslation.schemaFromProto(
+            SchemaApi.Schema.parseFrom(
+                convertedTransform
+                    .getAnnotationsMap()
+                    .get(BeamUrns.getConstant(CONFIG_ROW_SCHEMA_KEY))));
+    assertEquals(PROVIDER.configurationSchema(), annotationSchema);
+    assertEquals(
+        managedConfigRow,
+        CoderUtils.decodeFromByteString(
+            RowCoder.of(annotationSchema),
+            convertedTransform.getAnnotationsMap().get(BeamUrns.getConstant(CONFIG_ROW_KEY))));
+
+    // Check that the spec proto contains correct values
+    RunnerApi.FunctionSpec spec = convertedTransform.getSpec();
     SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
     assertEquals(PROVIDER.identifier(), payload.getIdentifier());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());

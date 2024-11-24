@@ -42,6 +42,7 @@ import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -214,6 +215,14 @@ public class ExecutionStateSampler {
         return tracker.currentState.metricsContainer.getGauge(metricName);
       }
       return tracker.metricsContainerRegistry.getUnboundContainer().getGauge(metricName);
+    }
+
+    @Override
+    public StringSet getStringSet(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getStringSet(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getStringSet(metricName);
     }
 
     @Override

@@ -31,12 +31,22 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
+/**
+ * Class for reading and writing from Apache Pulsar. Support is currently incomplete, and there may
+ * be bugs; see https://github.com/apache/beam/issues/31078 for more info, and comment in that issue
+ * if you run into issues with this IO.
+ */
 @SuppressWarnings({"rawtypes", "nullness"})
 public class PulsarIO {
 
   /** Static class, prevent instantiation. */
   private PulsarIO() {}
 
+  /**
+   * Read from Apache Pulsar. Support is currently incomplete, and there may be bugs; see
+   * https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you run
+   * into issues with this IO.
+   */
   public static Read read() {
     return new AutoValue_PulsarIO_Read.Builder()
         .setPulsarClient(PulsarIOUtils.PULSAR_CLIENT_SERIALIZABLE_FUNCTION)
@@ -144,6 +154,11 @@ public class PulsarIO {
     }
   }
 
+  /**
+   * Write to Apache Pulsar. Support is currently incomplete, and there may be bugs; see
+   * https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you run
+   * into issues with this IO.
+   */
   public static Write write() {
     return new AutoValue_PulsarIO_Write.Builder().build();
   }

@@ -30,6 +30,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
 from typing import Iterable
 from typing import List
 from typing import Tuple
@@ -44,6 +45,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
+from apache_beam.pvalue import PCollection
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -92,6 +94,7 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'ToString',
+    'Tee',
     'Values',
     'WithKeys',
     'GroupIntoBatches'
@@ -801,6 +804,20 @@ class BatchElements(PTransform):
   Elements are batched per-window and batches emitted in the window
   corresponding to its contents. Each batch is emitted with a timestamp at
   the end of their window.
+
+  When the max_batch_duration_secs arg is provided, a stateful implementation
+  of BatchElements is used to batch elements across bundles. This is most
+  impactful in streaming applications where many bundles only contain one
+  element. Larger max_batch_duration_secs values `might` reduce the throughput
+  of the transform, while smaller values might improve the throughput but
+  make it more likely that batches are smaller than the target batch size.
+
+  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
+  increase as needed to get the desired tradeoff between target batch size
+  and latency or throughput.
+
+  For more information on tuning parameters to this transform, see
+  https://beam.apache.org/documentation/patterns/batch-elements
 
   Args:
     min_batch_size: (optional) the smallest size of a batch
@@ -1649,6 +1666,37 @@ class Regex(object):
       yield r
 
     return pcoll | FlatMap(_process)
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class Tee(PTransform):
+  """A PTransform that returns its input, but also applies its input elsewhere.
+
+ Similar to the shell {@code tee} command. This can be useful to write out or
+ otherwise process an intermediate transform without breaking the linear flow
+ of a chain of transforms, e.g.::
+
+     (input
+         | SomePTransform()
+         | ...
+         | Tee(SomeSideTransform())
+         | ...)
+  """
+  def __init__(
+      self,
+      *consumers: Union[PTransform[PCollection[T], Any],
+                        Callable[[PCollection[T]], Any]]):
+    self._consumers = consumers
+
+  def expand(self, input):
+    for consumer in self._consumers:
+      print("apply", consumer)
+      if callable(consumer):
+        _ = input | ptransform_fn(consumer)()
+      else:
+        _ = input | consumer
+    return input
 
 
 @typehints.with_input_types(T)

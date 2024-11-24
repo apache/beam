@@ -180,7 +180,7 @@ public class StorageApiSinkSchemaUpdateIT {
 
     @StateId(ROW_COUNTER)
     @SuppressWarnings("unused")
-    private final StateSpec<@org.jetbrains.annotations.NotNull ValueState<Integer>> counter;
+    private final StateSpec<ValueState<Integer>> counter;
 
     public UpdateSchemaDoFn(
         String projectId, String datasetId, String tableId, TableSchema newSchema) {

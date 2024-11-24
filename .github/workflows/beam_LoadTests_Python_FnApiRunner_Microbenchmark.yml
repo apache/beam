@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -87,5 +87,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.microbenchmarks_test \
             -Prunner=DirectRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_FnApiRunner_Microbenchmark_test_arguments_1 }}'

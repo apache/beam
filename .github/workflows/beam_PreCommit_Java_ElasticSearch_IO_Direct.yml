@@ -58,7 +58,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -98,7 +98,6 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: |
-            :sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build \
             :sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build \
             :sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build \
             :sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build \

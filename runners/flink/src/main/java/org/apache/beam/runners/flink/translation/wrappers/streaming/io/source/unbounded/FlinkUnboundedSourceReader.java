@@ -157,7 +157,7 @@ public class FlinkUnboundedSourceReader<T>
     maybeEmitWatermark();
     maybeCreateReaderForNewSplits();
 
-    ReaderAndOutput reader = nextReaderWithData();
+    ReaderAndOutput reader = nextReaderWithData(output);
     if (reader != null) {
       emitRecord(reader, output);
       return InputStatus.MORE_AVAILABLE;
@@ -300,12 +300,14 @@ public class FlinkUnboundedSourceReader<T>
     }
   }
 
-  private @Nullable ReaderAndOutput nextReaderWithData() throws IOException {
+  private @Nullable ReaderAndOutput nextReaderWithData(
+      ReaderOutput<WindowedValue<ValueWithRecordId<T>>> output) throws IOException {
+
     int numReaders = readers.size();
     for (int i = 0; i < numReaders; i++) {
       ReaderAndOutput readerAndOutput = readers.get(currentReaderIndex);
       currentReaderIndex = (currentReaderIndex + 1) % numReaders;
-      if (readerAndOutput.startOrAdvance()) {
+      if (readerAndOutput.startOrAdvance(output)) {
         return readerAndOutput;
       }
     }

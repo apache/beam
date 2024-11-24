@@ -248,7 +248,7 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
     InstructionRequestHandler controlClient =
-        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
+        clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(10));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
@@ -264,10 +264,12 @@ public class RemoteExecutionTest implements Serializable {
     try {
       sdkHarnessExecutorFuture.get();
     } catch (ExecutionException e) {
-      if (e.getCause() instanceof RuntimeException
-          && e.getCause().getCause() instanceof InterruptedException) {
-        // expected
-      } else {
+      Throwable ex = e.getCause();
+      while (ex instanceof RuntimeException) {
+        ex = ex.getCause();
+      }
+      // InterruptedException at call tree is expected
+      if (!(ex instanceof InterruptedException)) {
         throw e;
       }
     }

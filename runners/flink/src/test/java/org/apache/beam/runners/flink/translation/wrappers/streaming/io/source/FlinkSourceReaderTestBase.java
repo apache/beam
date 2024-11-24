@@ -191,7 +191,7 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
     final int numRecordsPerSplit = 10;
     List<FlinkSourceSplit<KV<Integer, Integer>>> splits =
         createSplits(numSplits, numRecordsPerSplit, 0);
-    SourceTestCompat.TestMetricGroup testMetricGroup = new SourceTestCompat.TestMetricGroup();
+    SourceTestMetrics.TestMetricGroup testMetricGroup = new SourceTestMetrics.TestMetricGroup();
     try (SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> reader =
         createReader(null, -1L, null, testMetricGroup)) {
       pollAndValidate(reader, splits, false);
@@ -203,7 +203,7 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
   public void testMetricsContainer() throws Exception {
     ManuallyTriggeredScheduledExecutorService executor =
         new ManuallyTriggeredScheduledExecutorService();
-    SourceTestCompat.TestMetricGroup testMetricGroup = new SourceTestCompat.TestMetricGroup();
+    SourceTestMetrics.TestMetricGroup testMetricGroup = new SourceTestMetrics.TestMetricGroup();
     try (SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> reader =
         createReader(executor, 0L, null, testMetricGroup)) {
       reader.start();
@@ -231,24 +231,24 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
       ScheduledExecutorService executor,
       long idleTimeoutMs,
       @Nullable Function<OutputT, Long> timestampExtractor,
-      SourceTestCompat.TestMetricGroup testMetricGroup);
+      SourceTestMetrics.TestMetricGroup testMetricGroup);
 
   protected abstract Source<KV<Integer, Integer>> createBeamSource(
       int splitIndex, int numRecordsPerSplit);
 
   // ------------------- protected helper methods ----------------------
   protected SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> createReader() {
-    return createReader(null, -1L, null, new SourceTestCompat.TestMetricGroup());
+    return createReader(null, -1L, null, new SourceTestMetrics.TestMetricGroup());
   }
 
   protected SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> createReader(
       Function<OutputT, Long> timestampExtractor) {
-    return createReader(null, -1L, timestampExtractor, new SourceTestCompat.TestMetricGroup());
+    return createReader(null, -1L, timestampExtractor, new SourceTestMetrics.TestMetricGroup());
   }
 
   protected SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> createReader(
       ScheduledExecutorService executor, long idleTimeoutMs) {
-    return createReader(executor, idleTimeoutMs, null, new SourceTestCompat.TestMetricGroup());
+    return createReader(executor, idleTimeoutMs, null, new SourceTestMetrics.TestMetricGroup());
   }
 
   protected SourceReader<OutputT, FlinkSourceSplit<KV<Integer, Integer>>> createReader(
@@ -256,7 +256,7 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
       long idleTimeoutMs,
       Function<OutputT, Long> timestampExtractor) {
     return createReader(
-        executor, idleTimeoutMs, timestampExtractor, new SourceTestCompat.TestMetricGroup());
+        executor, idleTimeoutMs, timestampExtractor, new SourceTestMetrics.TestMetricGroup());
   }
 
   protected void pollAndValidate(
@@ -315,14 +315,14 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
   }
 
   protected static SourceReaderContext createSourceReaderContext(
-      SourceTestCompat.TestMetricGroup metricGroup) {
+      SourceTestMetrics.TestMetricGroup metricGroup) {
     SourceReaderContext mockContext = Mockito.mock(SourceReaderContext.class);
     when(mockContext.metricGroup()).thenReturn(metricGroup);
     return mockContext;
   }
 
   // -------------------- protected helper class for fetch result validation ---------------------
-  protected class RecordsValidatingOutput implements SourceTestCompat.ReaderOutputCompat<OutputT> {
+  protected class RecordsValidatingOutput implements SourceTestMetrics.ReaderOutputCompat<OutputT> {
     private final List<Source<KV<Integer, Integer>>> sources;
     private final Map<String, TestSourceOutput> sourceOutputs;
     private int numCollectedRecords = 0;
@@ -390,7 +390,7 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
     }
   }
 
-  protected class TestSourceOutput implements SourceTestCompat.SourceOutputCompat<OutputT> {
+  protected class TestSourceOutput implements SourceTestMetrics.SourceOutputCompat<OutputT> {
     private final ReaderOutput<OutputT> output;
     private @Nullable Watermark watermark;
     private boolean isIdle;

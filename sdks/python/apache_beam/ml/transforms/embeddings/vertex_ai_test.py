@@ -27,8 +27,11 @@ from apache_beam.ml.transforms.base import MLTransform
 
 try:
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIImageEmbeddings
+  from vertexai.vision_models import Image
 except ImportError:
   VertexAITextEmbeddings = None  # type: ignore
+  VertexAIImageEmbeddings = None  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
@@ -243,6 +246,44 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
           expected_task_type[i])
       self.assertEqual(
           ptransform_list[i]._model_handler._underlying.model_name, model_name)
+
+
+@unittest.skipIf(
+    VertexAIImageEmbeddings is None, 'Vertex AI Python SDK is not installed.')
+class VertexAIImageEmbeddingsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_image_test')
+    self.gcs_artifact_location = os.path.join(
+        'gs://temp-storage-for-perf-tests/vertex_ai_image', uuid.uuid4().hex)
+    self.model_name = "multimodalembedding"
+    self.image_path = "gs://apache-beam-ml/testing/inputs/vertex_images/sunflowers/1008566138_6927679c8a.jpg"  # pylint: disable=line-too-long
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
+
+  def test_vertex_ai_image_embedding(self):
+    embedding_config = VertexAIImageEmbeddings(
+        model_name=self.model_name, columns=[test_query_column], dimension=128)
+    with beam.Pipeline() as pipeline:
+      transformed_pcoll = (
+          pipeline | "CreateData" >> beam.Create([{
+              test_query_column: Image(gcs_uri=self.image_path)
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+
+      def assert_element(element):
+        assert len(element[test_query_column]) == 128
+
+      _ = (transformed_pcoll | beam.Map(assert_element))
+
+  def test_improper_dimension(self):
+    with self.assertRaises(ValueError):
+      _ = VertexAIImageEmbeddings(
+          model_name=self.model_name,
+          columns=[test_query_column],
+          dimension=127)
 
 
 if __name__ == '__main__':

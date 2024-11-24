@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -73,13 +73,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           disable-cache: true
-      - name: Authenticate on GCP
-        id: auth
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
       - name: Install gcloud bigtable cli
         run: gcloud components install cbt
       - name: run cleanup GCP resources

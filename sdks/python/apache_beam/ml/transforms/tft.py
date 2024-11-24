@@ -34,12 +34,9 @@ pipeline, after all transformations are set up and the pipeline is run.
 # pytype: skip-file
 
 import logging
+from collections.abc import Iterable
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -52,18 +49,22 @@ __all__ = [
     'ComputeAndApplyVocabulary',
     'ScaleToZScore',
     'ScaleTo01',
+    'ScaleToGaussian',
     'ApplyBuckets',
+    'ApplyBucketsWithInterpolation',
     'Bucketize',
     'TFIDF',
     'TFTOperation',
     'ScaleByMinMax',
     'NGrams',
     'BagOfWords',
+    'HashStrings',
+    'DeduplicateTensorPerRow',
 ]
 
 # Register the expected input types for each operation
 # this will be used to determine schema for the tft.AnalyzeDataset
-_EXPECTED_TYPES: Dict[str, Union[int, str, float]] = {}
+_EXPECTED_TYPES: dict[str, Union[int, str, float]] = {}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ def register_input_dtype(type):
 # Add support for outputting artifacts to a text file in human readable form.
 class TFTOperation(BaseOperation[common_types.TensorType,
                                  common_types.TensorType]):
-  def __init__(self, columns: List[str]) -> None:
+  def __init__(self, columns: list[str]) -> None:
     """
     Base Operation class for TFT data processing transformations.
     Processing logic for the transformation is defined in the
@@ -146,7 +147,7 @@ class TFTOperation(BaseOperation[common_types.TensorType,
 class ComputeAndApplyVocabulary(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       split_string_by_delimiter: Optional[str] = None,
       *,
       default_value: Any = -1,
@@ -189,7 +190,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
 
     if self.split_string_by_delimiter:
       data = self._split_string_with_delimiter(
@@ -214,7 +215,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
 class ScaleToZScore(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       *,
       elementwise: bool = False,
       name: Optional[str] = None):
@@ -243,7 +244,7 @@ class ScaleToZScore(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
     output_dict = {
         output_column_name: tft.scale_to_z_score(
             x=data, elementwise=self.elementwise, name=self.name)
@@ -255,7 +256,7 @@ class ScaleToZScore(TFTOperation):
 class ScaleTo01(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       elementwise: bool = False,
       name: Optional[str] = None):
     """
@@ -283,7 +284,7 @@ class ScaleTo01(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
     output = tft.scale_to_0_1(
         x=data, elementwise=self.elementwise, name=self.name)
 
@@ -295,7 +296,7 @@ class ScaleTo01(TFTOperation):
 class ScaleToGaussian(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       elementwise: bool = False,
       name: Optional[str] = None):
     """
@@ -320,7 +321,7 @@ class ScaleToGaussian(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
     output_dict = {
         output_column_name: tft.scale_to_gaussian(
             x=data, elementwise=self.elementwise, name=self.name)
@@ -332,20 +333,59 @@ class ScaleToGaussian(TFTOperation):
 class ApplyBuckets(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       bucket_boundaries: Iterable[Union[int, float]],
       name: Optional[str] = None):
     """
     This functions is used to map the element to a positive index i for
-    which bucket_boundaries[i-1] <= element < bucket_boundaries[i],
-    if it exists. If input < bucket_boundaries[0], then element is
-    mapped to 0. If element >= bucket_boundaries[-1], then element is
+    which `bucket_boundaries[i-1] <= element < bucket_boundaries[i]`,
+    if it exists. If `input < bucket_boundaries[0]`, then element is
+    mapped to 0. If `element >= bucket_boundaries[-1]`, then element is
     mapped to len(bucket_boundaries). NaNs are mapped to
     len(bucket_boundaries).
 
     Args:
       columns: A list of column names to apply the transformation on.
-      bucket_boundaries: A rank 2 Tensor or list representing the bucket
+      bucket_boundaries: An iterable of ints or floats representing the bucket
+        boundaries. Must be sorted in ascending order.
+      name: (Optional) A string that specifies the name of the operation.
+    """
+    super().__init__(columns)
+    self.bucket_boundaries = [bucket_boundaries]
+    self.name = name
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> dict[str, common_types.TensorType]:
+    output = {
+        output_column_name: tft.apply_buckets(
+            x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
+    }
+    return output
+
+
+@register_input_dtype(float)
+class ApplyBucketsWithInterpolation(TFTOperation):
+  def __init__(
+      self,
+      columns: list[str],
+      bucket_boundaries: Iterable[Union[int, float]],
+      name: Optional[str] = None):
+    """Interpolates values within the provided buckets and then normalizes to
+    [0, 1].
+    
+    Input values are bucketized based on the provided boundaries such that the
+    input is mapped to a positive index i for which `bucket_boundaries[i-1] <=
+    element < bucket_boundaries[i]`, if it exists. The values are then
+    normalized to the range [0,1] within the bucket, with NaN values being
+    mapped to 0.5.
+
+    For more information, see:
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/apply_buckets_with_interpolation
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      bucket_boundaries: An iterable of ints or floats representing the bucket
         boundaries sorted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
@@ -355,9 +395,9 @@ class ApplyBuckets(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
     output = {
-        output_column_name: tft.apply_buckets(
+        output_column_name: tft.apply_buckets_with_interpolation(
             x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
     }
     return output
@@ -367,7 +407,7 @@ class ApplyBuckets(TFTOperation):
 class Bucketize(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       num_buckets: int,
       *,
       epsilon: Optional[float] = None,
@@ -400,7 +440,7 @@ class Bucketize(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
     output = {
         output_column_name: tft.bucketize(
             x=data,
@@ -416,7 +456,7 @@ class Bucketize(TFTOperation):
 class TFIDF(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       vocab_size: Optional[int] = None,
       smooth: bool = True,
       name: Optional[str] = None,
@@ -425,8 +465,8 @@ class TFIDF(TFTOperation):
     This function applies a tf-idf transformation on the given columns
     of incoming data.
 
-    TFIDF outputs two artifacts for each column: the vocabu index and
-    the tfidf weight. The vocabu index is a mapping from the original
+    TFIDF outputs two artifacts for each column: the vocabulary index and
+    the tfidf weight. The vocabulary index is a mapping from the original
     vocabulary to the new vocabulary. The tfidf weight is a mapping
     from the original vocabulary to the tfidf score.
 
@@ -487,7 +527,7 @@ class TFIDF(TFTOperation):
 class ScaleByMinMax(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       min_value: float = 0.0,
       max_value: float = 1.0,
       name: Optional[str] = None):
@@ -523,10 +563,10 @@ class ScaleByMinMax(TFTOperation):
 class NGrams(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       split_string_by_delimiter: Optional[str] = None,
       *,
-      ngram_range: Tuple[int, int] = (1, 1),
+      ngram_range: tuple[int, int] = (1, 1),
       ngrams_separator: Optional[str] = None,
       name: Optional[str] = None):
     """
@@ -556,7 +596,7 @@ class NGrams(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_column_name: str) -> Dict[str, common_types.TensorType]:
+      output_column_name: str) -> dict[str, common_types.TensorType]:
     if self.split_string_by_delimiter:
       data = self._split_string_with_delimiter(
           data, self.split_string_by_delimiter)
@@ -568,10 +608,10 @@ class NGrams(TFTOperation):
 class BagOfWords(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       split_string_by_delimiter: Optional[str] = None,
       *,
-      ngram_range: Tuple[int, int] = (1, 1),
+      ngram_range: tuple[int, int] = (1, 1),
       ngrams_separator: Optional[str] = None,
       compute_word_count: bool = False,
       key_vocab_filename: Optional[str] = None,
@@ -597,7 +637,7 @@ class BagOfWords(TFTOperation):
       compute_word_count: A boolean that specifies whether to compute
         the unique word count over the entire dataset. Defaults to False.
       key_vocab_filename: The file name for the key vocabulary file when
-        compute_word_count is True. If empty, a file name 
+        compute_word_count is True. If empty, a file name
         will be chosen based on the current scope. If provided, the vocab
         file will be suffixed with the column name.
       name: A name for the operation (optional).
@@ -643,9 +683,9 @@ def count_unique_words(
 class HashStrings(TFTOperation):
   def __init__(
       self,
-      columns: List[str],
+      columns: list[str],
       hash_buckets: int,
-      key: Optional[Tuple[int, int]] = None,
+      key: Optional[tuple[int, int]] = None,
       name: Optional[str] = None):
     '''Hashes strings into the provided number of buckets.
     
@@ -672,7 +712,7 @@ class HashStrings(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_col_name: str) -> Dict[str, common_types.TensorType]:
+      output_col_name: str) -> dict[str, common_types.TensorType]:
     output_dict = {
         output_col_name: tft.hash_strings(
             strings=data,
@@ -685,7 +725,7 @@ class HashStrings(TFTOperation):
 
 @register_input_dtype(str)
 class DeduplicateTensorPerRow(TFTOperation):
-  def __init__(self, columns: List[str], name: Optional[str] = None):
+  def __init__(self, columns: list[str], name: Optional[str] = None):
     """ Deduplicates each row (0th dimension) of the provided tensor.
 
     Args:
@@ -697,7 +737,7 @@ class DeduplicateTensorPerRow(TFTOperation):
 
   def apply_transform(
       self, data: common_types.TensorType,
-      output_col_name: str) -> Dict[str, common_types.TensorType]:
+      output_col_name: str) -> dict[str, common_types.TensorType]:
     output_dict = {
         output_col_name: tft.deduplicate_tensor_per_row(
             input_tensor=data, name=self.name)

@@ -95,7 +95,7 @@ tasks.register("generateYamlDocs") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  def extraPackages = "pyyaml markdown docstring_parser pandas pygments"
+  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2"
 
   doLast {
     exec {
@@ -161,12 +161,11 @@ platform_identifiers_map.each { platform, idsuffix ->
           try {
             exec {
              environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
-             environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
              executable 'sh'
              args '-c', ". ${envdir}/bin/activate && " +
                  // note: sync cibuildwheel version with GitHub Action
                  // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
-                 "pip install cibuildwheel==2.9.0 && " +
+                 "pip install cibuildwheel==2.17.0 setuptools && " +
                  "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
                  "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
            }

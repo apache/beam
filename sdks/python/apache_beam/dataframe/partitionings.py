@@ -15,9 +15,8 @@
 # limitations under the License.
 
 import random
+from collections.abc import Iterable
 from typing import Any
-from typing import Iterable
-from typing import Tuple
 from typing import TypeVar
 
 import numpy as np
@@ -32,9 +31,7 @@ class Partitioning(object):
   def __repr__(self):
     return self.__class__.__name__
 
-  def is_subpartitioning_of(self, other):
-    # type: (Partitioning) -> bool
-
+  def is_subpartitioning_of(self, other: 'Partitioning') -> bool:
     """Returns whether self is a sub-partition of other.
 
     Specifically, returns whether something partitioned by self is necissarily
@@ -48,9 +45,8 @@ class Partitioning(object):
   def __le__(self, other):
     return not self.is_subpartitioning_of(other)
 
-  def partition_fn(self, df, num_partitions):
-    # type: (Frame, int) -> Iterable[Tuple[Any, Frame]]
-
+  def partition_fn(self, df: Frame,
+                   num_partitions: int) -> Iterable[tuple[Any, Frame]]:
     """A callable that actually performs the partitioning of a Frame df.
 
     This will be invoked via a FlatMap in conjunction with a GroupKey to

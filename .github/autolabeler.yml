@@ -67,7 +67,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "mqtt":  ["sdks/java/io/mqtt/**/*"]
 "parquet":  ["sdks/java/io/parquet/**/*"]
 "rabbitmq":  ["sdks/java/io/rabbitmq/**/*"]
-"redis":  ["sdks/java/io/redis/**/*"]
+"redis":  ["sdks/java/io/redis/**/*"] 
 "solr":  ["sdks/java/io/solr/**/*"]
 "spanner": ["sdks/go/pkg/beam/io/spannerio/**/*", "sdks/python/apache_beam/io/gcp/spanner.py", "sdks/python/apache_beam/io/gcp/experimental/spannerio.py", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner/**/*"]
 "bigtable": ["sdks/go/pkg/beam/io/bigtableio/**/*", "sdks/go/pkg/beam/io/xlang/bigtableio/**/*", "sdks/python/apache_beam/io/gcp/bigtableio.py", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable/**/*"]
@@ -76,9 +76,9 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "thrift": ["sdks/java/io/thrift/**/*"]
 "tika":  ["sdks/java/io/tika/**/*"]
 "xml":  ["sdks/java/io/xml/**/*"]
-
+ 
 # Runners
-"runners": ["runners/**/*", "sdks/go/pkg/beam/runners/**/*", "sdks/python/runners/**/*", "sdks/typescript/src/apache_beam/runners/**/*"]
+"runners": ["runners/**/*", "sdks/go/pkg/beam/runners/**/*", "sdks/python/apache_beam/runners/**/*", "sdks/typescript/src/apache_beam/runners/**/*"]
 "core": ["runners/core-construction-java/**/*", "runners/core-java/**/*"]
 "dataflow": ["runners/google-cloud-dataflow-java/**/*", "sdks/go/pkg/beam/runners/dataflow/**/*", "sdks/python/runners/dataflow/**/*"]
 "direct": ["runners/direct-java/**/*", "sdks/go/pkg/beam/runners/direct/**/*", "sdks/python/runners/direct/**/*"]
@@ -88,6 +88,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "jet": ["runners/jet/**/*"]
 "local": ["runners/local-java/**/*"]
 "portability": ["runners/portability/**/*"]
+"prism": ["runners/prism/**/*", "sdks/go/pkg/beam/runners/prism/**/*", "sdks/go/cmd/prism/**/*", "sdks/python/apache_beam/runners/portability/prism_runner.py","sdks/python/apache_beam/runners/portability/prism_runner_test.py"]
 "samza": ["runners/samza/**/*"]
 "spark": ["runners/spark/**/*", "sdks/go/pkg/beam/runners/spark/**/*"]
 "twister2": ["runners/twister2/**/*"]

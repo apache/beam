@@ -347,7 +347,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       // Because superclass cannot have preconditions around these variables, cannot use
       // @RequiresNonNull
       Preconditions.checkStateNotNull(responseStream);
-      BigQueryServerStream<ReadRowsResponse> responseStream = this.responseStream;
+      final BigQueryServerStream<ReadRowsResponse> responseStream = this.responseStream;
       totalSplitCalls.inc();
       LOG.debug(
           "Received BigQuery Storage API split request for stream {} at fraction {}.",
@@ -433,9 +433,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
         // Cancels the parent stream before replacing it with the primary stream.
         responseStream.cancel();
-        source = source.fromExisting(splitResponse.getPrimaryStream());
-        responseStream = newResponseStream;
-        responseIterator = newResponseIterator;
+        this.source = source.fromExisting(splitResponse.getPrimaryStream());
+        this.responseStream = newResponseStream;
+        this.responseIterator = newResponseIterator;
         reader.resetBuffer();
       }
 

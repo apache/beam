@@ -63,6 +63,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -71,6 +72,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,14 +80,18 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.channels.CountingSeekableByteChannel;
+import org.apache.beam.sdk.extensions.gcp.util.channels.CountingWritableByteChannel;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -100,6 +106,22 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GcsUtil {
+
+  @AutoValue
+  public abstract static class GcsCountersOptions {
+    public abstract @Nullable String getReadCounterPrefix();
+
+    public abstract @Nullable String getWriteCounterPrefix();
+
+    public boolean hasAnyPrefix() {
+      return getWriteCounterPrefix() != null || getReadCounterPrefix() != null;
+    }
+
+    public static GcsCountersOptions create(
+        @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
+      return new AutoValue_GcsUtil_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
+    }
+  }
 
   /**
    * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using any transport
@@ -123,7 +145,15 @@ public class GcsUtil {
           gcsOptions.getExecutorService(),
           hasExperiment(options, "use_grpc_for_gcs"),
           gcsOptions.getGcpCredential(),
-          gcsOptions.getGcsUploadBufferSizeBytes());
+          gcsOptions.getGcsUploadBufferSizeBytes(),
+          gcsOptions.getGcsRewriteDataOpBatchLimit(),
+          GcsCountersOptions.create(
+              gcsOptions.getEnableBucketReadMetricCounter()
+                  ? gcsOptions.getGcsReadCounterPrefix()
+                  : null,
+              gcsOptions.getEnableBucketWriteMetricCounter()
+                  ? gcsOptions.getGcsWriteCounterPrefix()
+                  : null));
     }
 
     /** Returns an instance of {@link GcsUtil} based on the given parameters. */
@@ -133,14 +163,17 @@ public class GcsUtil {
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         Credentials credentials,
-        @Nullable Integer uploadBufferSizeBytes) {
+        @Nullable Integer uploadBufferSizeBytes,
+        GcsCountersOptions gcsCountersOptions) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
           executorService,
           hasExperiment(options, "use_grpc_for_gcs"),
           credentials,
-          uploadBufferSizeBytes);
+          uploadBufferSizeBytes,
+          null,
+          gcsCountersOptions);
     }
   }
 
@@ -154,6 +187,8 @@ public class GcsUtil {
 
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
+  /** Default maximum number of requests permitted in a GCS batch request where data is copied. */
+  private static final int MAX_REQUESTS_PER_COPY_BATCH = 10;
   /** Maximum number of concurrent batches of requests executing on GCS. */
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
@@ -179,10 +214,14 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
-  private Credentials credentials;
+  private final Credentials credentials;
 
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
+
+  private final int rewriteDataOpBatchLimit;
+
+  private final GcsCountersOptions gcsCountersOptions;
 
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
@@ -208,7 +247,9 @@ public class GcsUtil {
       ExecutorService executorService,
       Boolean shouldUseGrpc,
       Credentials credentials,
-      @Nullable Integer uploadBufferSizeBytes) {
+      @Nullable Integer uploadBufferSizeBytes,
+      @Nullable Integer rewriteDataOpBatchLimit,
+      GcsCountersOptions gcsCountersOptions) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
@@ -249,6 +290,9 @@ public class GcsUtil {
             }
           };
         };
+    this.rewriteDataOpBatchLimit =
+        rewriteDataOpBatchLimit == null ? MAX_REQUESTS_PER_COPY_BATCH : rewriteDataOpBatchLimit;
+    this.gcsCountersOptions = gcsCountersOptions;
   }
 
   // Use this only for testing purposes.
@@ -453,6 +497,64 @@ public class GcsUtil {
   }
 
   /**
+   * Create an integer consumer that updates the counter identified by a prefix and a bucket name.
+   */
+  private static Consumer<Integer> createCounterConsumer(String counterNamePrefix, String bucket) {
+    return Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))::inc;
+  }
+
+  private WritableByteChannel wrapInCounting(
+      WritableByteChannel writableByteChannel, String bucket) {
+    if (writableByteChannel instanceof CountingWritableByteChannel) {
+      return writableByteChannel;
+    }
+    return Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
+        .<WritableByteChannel>map(
+            prefix -> {
+              LOG.debug(
+                  "wrapping writable byte channel using counter name prefix {} and bucket {}",
+                  prefix,
+                  bucket);
+              return new CountingWritableByteChannel(
+                  writableByteChannel, createCounterConsumer(prefix, bucket));
+            })
+        .orElse(writableByteChannel);
+  }
+
+  private SeekableByteChannel wrapInCounting(
+      SeekableByteChannel seekableByteChannel, String bucket) {
+    if (seekableByteChannel instanceof CountingSeekableByteChannel
+        || !gcsCountersOptions.hasAnyPrefix()) {
+      return seekableByteChannel;
+    }
+
+    return new CountingSeekableByteChannel(
+        seekableByteChannel,
+        Optional.ofNullable(gcsCountersOptions.getReadCounterPrefix())
+            .map(
+                prefix -> {
+                  LOG.debug(
+                      "wrapping seekable byte channel with \"bytes read\" counter name prefix {}"
+                          + " and bucket {}",
+                      prefix,
+                      bucket);
+                  return createCounterConsumer(prefix, bucket);
+                })
+            .orElse(null),
+        Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
+            .map(
+                prefix -> {
+                  LOG.debug(
+                      "wrapping seekable byte channel with \"bytes written\" counter name prefix {}"
+                          + " and bucket {}",
+                      prefix,
+                      bucket);
+                  return createCounterConsumer(prefix, bucket);
+                })
+            .orElse(null));
+  }
+
+  /**
    * Opens an object in GCS.
    *
    * <p>Returns a SeekableByteChannel that provides access to data in the bucket.
@@ -461,7 +563,10 @@ public class GcsUtil {
    * @return a SeekableByteChannel that can read the object data
    */
   public SeekableByteChannel open(GcsPath path) throws IOException {
-    return googleCloudStorage.open(new StorageResourceId(path.getBucket(), path.getObject()));
+    String bucket = path.getBucket();
+    SeekableByteChannel channel =
+        googleCloudStorage.open(new StorageResourceId(path.getBucket(), path.getObject()));
+    return wrapInCounting(channel, bucket);
   }
 
   /**
@@ -495,7 +600,7 @@ public class GcsUtil {
           googleCloudStorage.open(
               new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
       serviceCallMetric.call("ok");
-      return channel;
+      return wrapInCounting(channel, path.getBucket());
     } catch (IOException e) {
       if (e.getCause() instanceof GoogleJsonResponseException) {
         serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
@@ -608,7 +713,7 @@ public class GcsUtil {
     try {
       WritableByteChannel channel = gcpStorage.create(resourceId, createBuilder.build());
       serviceCallMetric.call("ok");
-      return channel;
+      return wrapInCounting(channel, path.getBucket());
     } catch (IOException e) {
       if (e.getCause() instanceof GoogleJsonResponseException) {
         serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
@@ -650,6 +755,17 @@ public class GcsUtil {
    */
   public void createBucket(String projectId, Bucket bucket) throws IOException {
     createBucket(projectId, bucket, createBackOff(), Sleeper.DEFAULT);
+  }
+
+  /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
+  @Nullable
+  public Bucket getBucket(GcsPath path) throws IOException {
+    return getBucket(path, createBackOff(), Sleeper.DEFAULT);
+  }
+
+  /** Remove an empty {@link Bucket} in Cloud Storage or propagates an exception. */
+  public void removeBucket(Bucket bucket) throws IOException {
+    removeBucket(bucket, createBackOff(), Sleeper.DEFAULT);
   }
 
   /**
@@ -753,6 +869,40 @@ public class GcsUtil {
     }
   }
 
+  @VisibleForTesting
+  void removeBucket(Bucket bucket, BackOff backoff, Sleeper sleeper) throws IOException {
+    Storage.Buckets.Delete getBucket = storageClient.buckets().delete(bucket.getName());
+
+    try {
+      ResilientOperation.retry(
+          getBucket::execute,
+          backoff,
+          new RetryDeterminer<IOException>() {
+            @Override
+            public boolean shouldRetry(IOException e) {
+              if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+                return false;
+              }
+              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+            }
+          },
+          IOException.class,
+          sleeper);
+    } catch (GoogleJsonResponseException e) {
+      if (errorExtractor.accessDenied(e)) {
+        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+      }
+      if (errorExtractor.itemNotFound(e)) {
+        throw new FileNotFoundException(e.getMessage());
+      }
+      throw e;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException(
+          String.format("Error while attempting to remove bucket gs://%s", bucket.getName()), e);
+    }
+  }
+
   private static void executeBatches(List<BatchInterface> batches) throws IOException {
     ExecutorService executor =
         MoreExecutors.listeningDecorator(
@@ -769,17 +919,27 @@ public class GcsUtil {
     }
 
     try {
-      MoreFutures.get(MoreFutures.allAsList(futures));
+      try {
+        MoreFutures.get(MoreFutures.allAsList(futures));
+      } catch (ExecutionException e) {
+        if (e.getCause() instanceof FileNotFoundException) {
+          throw (FileNotFoundException) e.getCause();
+        }
+        throw new IOException("Error executing batch GCS request", e);
+      } finally {
+        // Give the other batches a chance to complete in error cases.
+        executor.shutdown();
+        if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+          LOG.warn("Taking over 5 minutes to flush gcs op batches after error");
+          executor.shutdownNow();
+          if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+            LOG.warn("Took over 10 minutes to flush gcs op batches after error and interruption.");
+          }
+        }
+      }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while executing batch GCS request", e);
-    } catch (ExecutionException e) {
-      if (e.getCause() instanceof FileNotFoundException) {
-        throw (FileNotFoundException) e.getCause();
-      }
-      throw new IOException("Error executing batch GCS request", e);
-    } finally {
-      executor.shutdown();
     }
   }
 
@@ -820,14 +980,14 @@ public class GcsUtil {
     private final boolean ignoreMissingSource;
     private boolean readyToEnqueue;
     private boolean performDelete;
-    private GoogleJsonError lastError;
+    private @Nullable GoogleJsonError lastError;
     @VisibleForTesting Storage.Objects.Rewrite rewriteRequest;
 
     public boolean getReadyToEnqueue() {
       return readyToEnqueue;
     }
 
-    public GoogleJsonError getLastError() {
+    public @Nullable GoogleJsonError getLastError() {
       return lastError;
     }
 
@@ -839,6 +999,10 @@ public class GcsUtil {
       return to;
     }
 
+    public boolean isMetadataOperation() {
+      return performDelete || from.getBucket().equals(to.getBucket());
+    }
+
     public void enqueue(BatchInterface batch) throws IOException {
       if (!readyToEnqueue) {
         throw new IOException(
@@ -846,38 +1010,38 @@ public class GcsUtil {
                 "Invalid state for Rewrite, from=%s, to=%s, readyToEnqueue=%s",
                 from, to, readyToEnqueue));
       }
-      if (performDelete) {
-        Storage.Objects.Delete deleteRequest =
-            storageClient.objects().delete(from.getBucket(), from.getObject());
-        batch.queue(
-            deleteRequest,
-            new JsonBatchCallback<Void>() {
-              @Override
-              public void onSuccess(Void obj, HttpHeaders responseHeaders) {
-                LOG.debug("Successfully deleted {} after moving to {}", from, to);
+      if (!performDelete) {
+        batch.queue(rewriteRequest, this);
+        return;
+      }
+      Storage.Objects.Delete deleteRequest =
+          storageClient.objects().delete(from.getBucket(), from.getObject());
+      batch.queue(
+          deleteRequest,
+          new JsonBatchCallback<Void>() {
+            @Override
+            public void onSuccess(Void obj, HttpHeaders responseHeaders) {
+              LOG.debug("Successfully deleted {} after moving to {}", from, to);
+              readyToEnqueue = false;
+              lastError = null;
+            }
+
+            @Override
+            public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
+                throws IOException {
+              if (e.getCode() == 404) {
+                LOG.info(
+                    "Ignoring failed deletion of moved file {} which already does not exist: {}",
+                    from,
+                    e);
                 readyToEnqueue = false;
                 lastError = null;
+              } else {
+                readyToEnqueue = true;
+                lastError = e;
               }
-
-              @Override
-              public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
-                  throws IOException {
-                if (e.getCode() == 404) {
-                  LOG.info(
-                      "Ignoring failed deletion of moved file {} which already does not exist: {}",
-                      from,
-                      e);
-                  readyToEnqueue = false;
-                  lastError = null;
-                } else {
-                  readyToEnqueue = true;
-                  lastError = e;
-                }
-              }
-            });
-      } else {
-        batch.queue(rewriteRequest, this);
-      }
+            }
+          });
     }
 
     public RewriteOp(GcsPath from, GcsPath to, boolean deleteSource, boolean ignoreMissingSource)
@@ -1010,6 +1174,7 @@ public class GcsUtil {
       if (batches.isEmpty()) {
         break;
       }
+      Preconditions.checkState(!rewrites.isEmpty());
       RewriteOp sampleErrorOp =
           rewrites.stream().filter(op -> op.getLastError() != null).findFirst().orElse(null);
       if (sampleErrorOp != null) {
@@ -1072,23 +1237,38 @@ public class GcsUtil {
 
   List<BatchInterface> makeRewriteBatches(LinkedList<RewriteOp> rewrites) throws IOException {
     List<BatchInterface> batches = new ArrayList<>();
-    BatchInterface batch = batchRequestSupplier.get();
+    @Nullable BatchInterface opBatch = null;
+    boolean useSeparateRewriteDataBatch = this.rewriteDataOpBatchLimit != MAX_REQUESTS_PER_BATCH;
     Iterator<RewriteOp> it = rewrites.iterator();
+    List<RewriteOp> deferredRewriteDataOps = new ArrayList<>();
     while (it.hasNext()) {
       RewriteOp rewrite = it.next();
       if (!rewrite.getReadyToEnqueue()) {
         it.remove();
         continue;
       }
-      rewrite.enqueue(batch);
-
-      if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
-        batches.add(batch);
-        batch = batchRequestSupplier.get();
+      if (useSeparateRewriteDataBatch && !rewrite.isMetadataOperation()) {
+        deferredRewriteDataOps.add(rewrite);
+      } else {
+        if (opBatch != null && opBatch.size() >= MAX_REQUESTS_PER_BATCH) {
+          opBatch = null;
+        }
+        if (opBatch == null) {
+          opBatch = batchRequestSupplier.get();
+          batches.add(opBatch);
+        }
+        rewrite.enqueue(opBatch);
       }
     }
-    if (batch.size() > 0) {
-      batches.add(batch);
+    for (RewriteOp rewrite : deferredRewriteDataOps) {
+      if (opBatch != null && opBatch.size() >= this.rewriteDataOpBatchLimit) {
+        opBatch = null;
+      }
+      if (opBatch == null) {
+        opBatch = batchRequestSupplier.get();
+        batches.add(opBatch);
+      }
+      rewrite.enqueue(opBatch);
     }
     return batches;
   }

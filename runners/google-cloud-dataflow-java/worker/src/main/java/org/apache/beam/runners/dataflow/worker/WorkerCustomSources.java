@@ -445,7 +445,7 @@ public class WorkerCustomSources {
 
         UnboundedSource<T, UnboundedSource.CheckpointMark> splitSource = parseSource(splitIndex);
 
-        UnboundedSource.CheckpointMark checkpoint = null;
+        UnboundedSource.@Nullable CheckpointMark checkpoint = null;
         if (splitSource.getCheckpointMarkCoder() != null) {
           checkpoint = context.getReaderCheckpoint(splitSource.getCheckpointMarkCoder());
         }

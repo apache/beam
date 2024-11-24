@@ -61,9 +61,10 @@ _LOGGER = logging.getLogger(__name__)
 
 class Metrics(object):
   @staticmethod
-  def counter(urn, labels=None, process_wide=False):
-    # type: (str, Optional[Dict[str, str]], bool) -> UserMetrics.DelegatingCounter
-
+  def counter(
+      urn: str,
+      labels: Optional[Dict[str, str]] = None,
+      process_wide: bool = False) -> UserMetrics.DelegatingCounter:
     """Obtains or creates a Counter metric.
 
     Args:
@@ -82,9 +83,11 @@ class Metrics(object):
         process_wide=process_wide)
 
   @staticmethod
-  def histogram(namespace, name, bucket_type, logger=None):
-    # type: (Union[Type, str], str, BucketType, Optional[MetricLogger]) -> Metrics.DelegatingHistogram
-
+  def histogram(
+      namespace: Union[Type, str],
+      name: str,
+      bucket_type: 'BucketType',
+      logger: Optional['MetricLogger'] = None) -> 'Metrics.DelegatingHistogram':
     """Obtains or creates a Histogram metric.
 
     Args:
@@ -103,16 +106,18 @@ class Metrics(object):
 
   class DelegatingHistogram(Histogram):
     """Metrics Histogram that Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name, bucket_type, logger):
-      # type: (MetricName, BucketType, Optional[MetricLogger]) -> None
+    def __init__(
+        self,
+        metric_name: MetricName,
+        bucket_type: 'BucketType',
+        logger: Optional['MetricLogger']) -> None:
       super().__init__(metric_name)
       self.metric_name = metric_name
       self.cell_type = HistogramCellFactory(bucket_type)
       self.logger = logger
       self.updater = MetricUpdater(self.cell_type, self.metric_name)
 
-    def update(self, value):
-      # type: (object) -> None
+    def update(self, value: object) -> None:
       self.updater(value)
       if self.logger:
         self.logger.update(self.cell_type, self.metric_name, value)
@@ -120,27 +125,30 @@ class Metrics(object):
 
 class MetricLogger(object):
   """Simple object to locally aggregate and log metrics."""
-  def __init__(self):
-    # type: () -> None
-    self._metric = {}  # type: Dict[MetricName, MetricCell]
+  def __init__(self) -> None:
+    self._metric: Dict[MetricName, 'MetricCell'] = {}
     self._lock = threading.Lock()
     self._last_logging_millis = int(time.time() * 1000)
     self.minimum_logging_frequency_msec = 180000
 
-  def update(self, cell_type, metric_name, value):
-    # type: (Union[Type[MetricCell], MetricCellFactory], MetricName, object) -> None
+  def update(
+      self,
+      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      metric_name: MetricName,
+      value: object) -> None:
     cell = self._get_metric_cell(cell_type, metric_name)
     cell.update(value)
 
-  def _get_metric_cell(self, cell_type, metric_name):
-    # type: (Union[Type[MetricCell], MetricCellFactory], MetricName) -> MetricCell
+  def _get_metric_cell(
+      self,
+      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      metric_name: MetricName) -> 'MetricCell':
     with self._lock:
       if metric_name not in self._metric:
         self._metric[metric_name] = cell_type()
     return self._metric[metric_name]
 
-  def log_metrics(self, reset_after_logging=False):
-    # type: (bool) -> None
+  def log_metrics(self, reset_after_logging: bool = False) -> None:
     if self._lock.acquire(False):
       try:
         current_millis = int(time.time() * 1000)
@@ -172,14 +180,14 @@ class ServiceCallMetric(object):
 
   TODO(ajamato): Add Request latency metric.
   """
-  def __init__(self, request_count_urn, base_labels=None):
-    # type: (str, Optional[Dict[str, str]]) -> None
+  def __init__(
+      self,
+      request_count_urn: str,
+      base_labels: Optional[Dict[str, str]] = None) -> None:
     self.base_labels = base_labels if base_labels else {}
     self.request_count_urn = request_count_urn
 
-  def call(self, status):
-    # type: (Union[int, str, HttpError]) -> None
-
+  def call(self, status: Union[int, str, 'HttpError']) -> None:
     """Record the status of the call into appropriate metrics."""
     canonical_status = self.convert_to_canonical_status_string(status)
     additional_labels = {monitoring_infos.STATUS_LABEL: canonical_status}
@@ -191,9 +199,8 @@ class ServiceCallMetric(object):
         urn=self.request_count_urn, labels=labels, process_wide=True)
     request_counter.inc()
 
-  def convert_to_canonical_status_string(self, status):
-    # type: (Union[int, str, HttpError]) -> str
-
+  def convert_to_canonical_status_string(
+      self, status: Union[int, str, 'HttpError']) -> str:
     """Converts a status to a canonical GCP status cdoe string."""
     http_status_code = None
     if isinstance(status, int):
@@ -222,9 +229,8 @@ class ServiceCallMetric(object):
     return str(http_status_code)
 
   @staticmethod
-  def bigtable_error_code_to_grpc_status_string(grpc_status_code):
-    # type: (Optional[int]) -> str
-
+  def bigtable_error_code_to_grpc_status_string(
+      grpc_status_code: Optional[int]) -> str:
     """
     Converts the bigtable error code to a canonical GCP status code string.
 

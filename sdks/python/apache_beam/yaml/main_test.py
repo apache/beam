@@ -70,6 +70,36 @@ class MainTest(unittest.TestCase):
       with open(glob.glob(out_path + '*')[0], 'rt') as fin:
         self.assertEqual(fin.read().strip(), 'my_line')
 
+  def test_jinja_variable_flags(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      out_path = os.path.join(tmpdir, 'out.txt')
+      main.run([
+          '--yaml_pipeline',
+          TEST_PIPELINE.replace('PATH', out_path).replace('ELEMENT', '{{var}}'),
+          '--jinja_variable_flags=var',
+          '--var=my_line'
+      ])
+      with open(glob.glob(out_path + '*')[0], 'rt') as fin:
+        self.assertEqual(fin.read().strip(), 'my_line')
+
+  def test_preparse_jinja_flags(self):
+    argv = [
+        '--jinja_variables={"from_vars": 1, "from_both": 2}',
+        '--jinja_variable_flags=from_both,from_flag,from_missing_flag',
+        '--from_both=30',
+        '--from_flag=40',
+        '--another_arg=foo',
+        'pos_arg',
+    ]
+    self.assertCountEqual(
+        main._preparse_jinja_flags(argv),
+        [
+            '--jinja_variables='
+            '{"from_vars": 1, "from_both": "30", "from_flag": "40"}',
+            '--another_arg=foo',
+            'pos_arg',
+        ])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

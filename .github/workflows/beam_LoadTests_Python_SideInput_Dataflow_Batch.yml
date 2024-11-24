@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -101,7 +101,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-sideinput-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 2 (1gb-1kb-10workers-1window-99key-percent-dict)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -110,7 +110,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-sideinput-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 3 (10gb-1kb-10workers-1window-first-iterable)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -119,7 +119,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-sideinput-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 4 (10gb-1kb-10workers-1window-iterable)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -128,7 +128,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_4 }} --job_name=load-tests-python-dataflow-batch-sideinput-4-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 5 (1gb-1kb-10workers-1window-first-list)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -137,7 +137,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_5 }} --job_name=load-tests-python-dataflow-batch-sideinput-5-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 6 (1gb-1kb-10workers-1window-list)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -146,7 +146,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_6 }} --job_name=load-tests-python-dataflow-batch-sideinput-6-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 7 (1gb-1kb-10workers-1000window-1key-percent-dict)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -155,7 +155,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_7 }} --job_name=load-tests-python-dataflow-batch-sideinput-7-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 8 (1gb-1kb-10workers-1000window-99key-percent-dict)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -164,7 +164,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_8 }} --job_name=load-tests-python-dataflow-batch-sideinput-8-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 9 (10gb-1kb-10workers-1000window-first-iterable)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -173,7 +173,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_9 }} --job_name=load-tests-python-dataflow-batch-sideinput-9-${{ steps.datetime.outputs.datetime }}' \
       - name: run SideInput Dataflow Batch Python Load Test 10 (10gb-1kb-10workers-1000window-iterable)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -182,5 +182,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.sideinput_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_SideInput_Dataflow_Batch_test_arguments_10 }} --job_name=load-tests-python-dataflow-batch-sideinput-10-${{ steps.datetime.outputs.datetime }}'

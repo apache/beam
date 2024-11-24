@@ -82,7 +82,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.8', '3.9', '3.10', '3.11']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.9', '3.10', '3.11', '3.12']
 
 
 class Environment(object):
@@ -489,6 +489,10 @@ class DataflowApplicationClient(object):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self._enable_caching = self.google_cloud_options.enable_artifact_caching
+    self._enable_bucket_read_metric_counter = \
+      self.google_cloud_options.enable_bucket_read_metric_counter
+    self._enable_bucket_write_metric_counter =\
+      self.google_cloud_options.enable_bucket_write_metric_counter
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
     self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
@@ -729,6 +733,12 @@ class DataflowApplicationClient(object):
     # By default Dataflow pipelines use containers hosted in Dataflow GCR
     # instead of Docker Hub.
     image_suffix = beam_container_image_url.rsplit('/', 1)[1]
+
+    # trim "RCX" as release candidate tag exists on Docker Hub but not GCR
+    check_rc = image_suffix.lower().split('rc')
+    if len(check_rc) == 2:
+      image_suffix = image_suffix[:-2 - len(check_rc[1])]
+
     return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
 
   @staticmethod

@@ -34,6 +34,6 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 # Unreleased sdks use container image tag specified below.
 # Update this tag whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_DEV_SDK_CONTAINER_TAG = 'beam-master-20240510'
+BEAM_DEV_SDK_CONTAINER_TAG = 'beam-master-20241118'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'

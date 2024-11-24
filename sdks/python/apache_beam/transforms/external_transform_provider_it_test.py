@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import importlib
+import inspect
 import logging
 import os
 import secrets
@@ -37,9 +38,7 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_transform_provider import ExternalTransform
 from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
-from apache_beam.transforms.external_transform_provider import camel_case_to_snake_case
 from apache_beam.transforms.external_transform_provider import infer_name_from_identifier
-from apache_beam.transforms.external_transform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
 from apache_beam.transforms.xlang.io import GenerateSequence
 
@@ -53,26 +52,6 @@ class NameAndTypeUtilsTest(unittest.TestCase):
                   ("appended_underscore_", "AppendedUnderscore")]
     for case in test_cases:
       self.assertEqual(case[1], snake_case_to_upper_camel_case(case[0]))
-
-  def test_snake_case_to_lower_camel_case(self):
-    test_cases = [("", ""), ("test", "test"), ("test_name", "testName"),
-                  ("test_double_underscore", "testDoubleUnderscore"),
-                  ("TEST_CAPITALIZED", "testCapitalized"),
-                  ("_prepended_underscore", "prependedUnderscore"),
-                  ("appended_underscore_", "appendedUnderscore")]
-    for case in test_cases:
-      self.assertEqual(case[1], snake_case_to_lower_camel_case(case[0]))
-
-  def test_camel_case_to_snake_case(self):
-    test_cases = [("", ""), ("Test", "test"), ("TestName", "test_name"),
-                  ("TestDoubleUnderscore",
-                   "test_double_underscore"), ("MyToLoFo", "my_to_lo_fo"),
-                  ("BEGINNINGAllCaps",
-                   "beginning_all_caps"), ("AllCapsENDING", "all_caps_ending"),
-                  ("AllCapsMIDDLEWord", "all_caps_middle_word"),
-                  ("lowerCamelCase", "lower_camel_case")]
-    for case in test_cases:
-      self.assertEqual(case[1], camel_case_to_snake_case(case[0]))
 
   def test_infer_name_from_identifier(self):
     standard_test_cases = [
@@ -114,7 +93,7 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ExternalTransformProviderIT(unittest.TestCase):
-  def test_generate_sequence_config_schema_and_description(self):
+  def test_generate_sequence_signature_and_doc(self):
     provider = ExternalTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
@@ -124,14 +103,14 @@ class ExternalTransformProviderIT(unittest.TestCase):
     ) in provider.get_available())
 
     GenerateSequence = provider.get('GenerateSequence')
-    config_schema = GenerateSequence.configuration_schema
+    signature = inspect.signature(GenerateSequence)
     for param in ['start', 'end', 'rate']:
-      self.assertTrue(param in config_schema)
+      self.assertTrue(param in signature.parameters.keys())
 
-    description_substring = (
+    doc_substring = (
         "Outputs a PCollection of Beam Rows, each "
         "containing a single INT64")
-    self.assertTrue(description_substring in GenerateSequence.description)
+    self.assertTrue(doc_substring in inspect.getdoc(GenerateSequence))
 
   def test_run_generate_sequence(self):
     provider = ExternalTransformProvider(
@@ -214,7 +193,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     expected_type_names = [('List[str]', True), ('numpy.int16', False),
                            ('str', False), ('Dict[str, numpy.float64]', False),
                            ('Dict[str, List[numpy.int64]]', True),
-                           ('Dict[int, Union[str, NoneType]]', False)]
+                           ('Dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
       self.assertEqual(

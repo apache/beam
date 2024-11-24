@@ -17,52 +17,57 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 class OneTableDynamicDestinations implements DynamicDestinations, Externalizable {
-
-  private static final Schema EMPTY_SCHEMA = Schema.builder().build();
-  private static final Row EMPTY_ROW = Row.nullRow(EMPTY_SCHEMA);
-
   // TableId represented as String for serializability
   private transient @MonotonicNonNull String tableIdString;
 
   private transient @MonotonicNonNull TableIdentifier tableId;
+  private transient @MonotonicNonNull Schema rowSchema;
 
   @VisibleForTesting
   TableIdentifier getTableIdentifier() {
     if (tableId == null) {
-      tableId = TableIdentifier.parse(Preconditions.checkNotNull(tableIdString));
+      tableId = TableIdentifier.parse(checkStateNotNull(tableIdString));
     }
     return tableId;
   }
 
-  OneTableDynamicDestinations(TableIdentifier tableId) {
+  OneTableDynamicDestinations(TableIdentifier tableId, Schema rowSchema) {
     this.tableIdString = tableId.toString();
+    this.rowSchema = rowSchema;
   }
 
   @Override
-  public Schema getMetadataSchema() {
-    return EMPTY_SCHEMA;
+  public Schema getDataSchema() {
+    return checkStateNotNull(rowSchema);
   }
 
   @Override
-  public Row assignDestinationMetadata(Row data) {
-    return EMPTY_ROW;
+  public Row getData(Row element) {
+    return element;
   }
 
   @Override
-  public IcebergDestination instantiateDestination(Row dest) {
+  public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+    return checkStateNotNull(tableIdString);
+  }
+
+  @Override
+  public IcebergDestination instantiateDestination(String unused) {
     return IcebergDestination.builder()
         .setTableIdentifier(getTableIdentifier())
         .setTableCreateConfig(null)
@@ -75,7 +80,7 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    out.writeUTF(Preconditions.checkNotNull(tableIdString));
+    out.writeUTF(checkStateNotNull(tableIdString));
   }
 
   @Override

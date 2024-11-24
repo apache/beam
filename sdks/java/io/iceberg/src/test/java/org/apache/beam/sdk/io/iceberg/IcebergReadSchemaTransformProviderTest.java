@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,17 +53,15 @@ public class IcebergReadSchemaTransformProviderTest {
 
   @Test
   public void testBuildTransformWithRow() {
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", "test_type")
-            .withFieldValue("catalog_implementation", "testImplementation")
-            .withFieldValue("warehouse_location", "test_location")
-            .build();
+    Map<String, String> properties = new HashMap<>();
+    properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    properties.put("warehouse", "test_location");
+
     Row transformConfigRow =
         Row.withSchema(new IcebergReadSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
+            .withFieldValue("catalog_name", "test-name")
+            .withFieldValue("catalog_properties", properties)
             .build();
 
     new IcebergReadSchemaTransformProvider().from(transformConfigRow);
@@ -74,7 +73,7 @@ public class IcebergReadSchemaTransformProviderTest {
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     simpleTable
         .newFastAppend()
@@ -95,20 +94,18 @@ public class IcebergReadSchemaTransformProviderTest {
                 TestFixtures.FILE2SNAPSHOT1,
                 TestFixtures.FILE3SNAPSHOT1)
             .flatMap(List::stream)
-            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
-    IcebergSchemaTransformCatalogConfig catalogConfig =
-        IcebergSchemaTransformCatalogConfig.builder()
-            .setCatalogName("hadoop")
-            .setCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
-            .build();
+    Map<String, String> properties = new HashMap<>();
+    properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    properties.put("warehouse", warehouse.location);
 
-    IcebergReadSchemaTransformProvider.Config readConfig =
-        IcebergReadSchemaTransformProvider.Config.builder()
+    SchemaTransformConfiguration readConfig =
+        SchemaTransformConfiguration.builder()
             .setTable(identifier)
-            .setCatalogConfig(catalogConfig)
+            .setCatalogName("name")
+            .setCatalogProperties(properties)
             .build();
 
     PCollection<Row> output =
@@ -132,7 +129,7 @@ public class IcebergReadSchemaTransformProviderTest {
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     simpleTable
         .newFastAppend()
@@ -153,23 +150,23 @@ public class IcebergReadSchemaTransformProviderTest {
                 TestFixtures.FILE2SNAPSHOT1,
                 TestFixtures.FILE3SNAPSHOT1)
             .flatMap(List::stream)
-            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
     String yamlConfig =
         String.format(
             "table: %s\n"
-                + "catalog_config: \n"
-                + "  catalog_name: hadoop\n"
-                + "  catalog_type: %s\n"
-                + "  warehouse_location: %s",
+                + "catalog_name: test-name\n"
+                + "catalog_properties: \n"
+                + "  type: %s\n"
+                + "  warehouse: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
 
     PCollection<Row> output =
-        PCollectionRowTuple.empty(testPipeline)
+        testPipeline
             .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))
-            .get(OUTPUT_TAG);
+            .getSinglePCollection();
 
     PAssert.that(output)
         .satisfies(

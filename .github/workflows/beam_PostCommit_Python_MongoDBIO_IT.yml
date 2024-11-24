@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -74,13 +74,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
-          python-version: 3.11
+          python-version: 3.12
       - name: Run mongodbioIT script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:direct:py311:mongodbioIT
+          gradle-command: :sdks:python:test-suites:direct:py312:mongodbioIT
           arguments: |
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

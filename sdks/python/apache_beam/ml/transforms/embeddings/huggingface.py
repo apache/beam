@@ -18,13 +18,11 @@ __all__ = ["SentenceTransformerEmbeddings", "InferenceAPIEmbeddings"]
 
 import logging
 import os
+from collections.abc import Callable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 
 import requests
 
@@ -32,6 +30,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
+from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
 try:
@@ -79,7 +78,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
       self,
       batch: Sequence[str],
       model: SentenceTransformer,
-      inference_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[dict[str, Any]] = None,
   ):
     inference_args = inference_args or {}
     return model.encode(batch, **inference_args)
@@ -112,8 +111,9 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: List[str],
+      columns: list[str],
       max_seq_length: Optional[int] = None,
+      image_model: bool = False,
       **kwargs):
     """
     Embedding config for sentence-transformers. This config can be used with
@@ -122,9 +122,13 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
 
     Args:
       model_name: Name of the model to use. The model should be hosted on
-        HuggingFace Hub or compatible with sentence_transformers.
+        HuggingFace Hub or compatible with sentence_transformers. For image
+        embedding models, see
+        https://www.sbert.net/docs/sentence_transformer/pretrained_models.html#image-text-models # pylint: disable=line-too-long
+        for a list of available sentence_transformers models.
       columns: List of columns to be embedded.
       max_seq_length: Max sequence length to use for the model if applicable.
+      image_model: Whether the model is generating image embeddings.
       min_batch_size: The minimum batch size to be used for inference.
       max_batch_size: The maximum batch size to be used for inference.
       large_model: Whether to share the model across processes.
@@ -132,6 +136,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
     super().__init__(columns, **kwargs)
     self.model_name = model_name
     self.max_seq_length = max_seq_length
+    self.image_model = image_model
 
   def get_model_handler(self):
     return _SentenceTransformerModelHandler(
@@ -144,8 +149,14 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
         large_model=self.large_model)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    # wrap the model handler in a _TextEmbeddingHandler since
-    # the SentenceTransformerEmbeddings works on text input data.
+    # wrap the model handler in an appropriate embedding handler to provide
+    # some type checking.
+    if self.image_model:
+      return (
+          RunInference(
+              model_handler=_ImageEmbeddingHandler(self),
+              inference_args=self.inference_args,
+          ))
     return (
         RunInference(
             model_handler=_TextEmbeddingHandler(self),
@@ -203,7 +214,7 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       hf_token: Optional[str],
-      columns: List[str],
+      columns: list[str],
       model_name: Optional[str] = None, # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
       api_url: Optional[str] = None,
       **kwargs,

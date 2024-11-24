@@ -46,9 +46,15 @@ import dill
 
 settings = {'dill_byref': None}
 
-if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
-  # Let's make dill 0.3.1.1 support Python 3.11.
+patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
 
+
+def get_normalized_path(path):
+  """Returns a normalized path. This function is intended to be overridden."""
+  return path
+
+
+if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
   # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
   # Copyright (c) 2008-2015 California Institute of Technology.
@@ -66,6 +72,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
 
   @dill.register(CodeType)
   def save_code(pickler, obj):
+    co_filename = get_normalized_path(obj.co_filename)
     if hasattr(obj, "co_endlinetable"):  # python 3.11a (20 args)
       args = (
           obj.co_argcount,
@@ -78,7 +85,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_qualname,
           obj.co_firstlineno,
@@ -100,7 +107,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_qualname,
           obj.co_firstlineno,
@@ -120,7 +127,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_firstlineno,
           obj.co_linetable,
@@ -138,7 +145,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_firstlineno,
           obj.co_lnotab,
@@ -309,8 +316,7 @@ if 'save_module' in dir(dill.dill):
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
-  known_module_dicts = {
-  }  # type: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]]
+  known_module_dicts: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]] = {}
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):
@@ -370,9 +376,7 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-def dumps(o, enable_trace=True, use_zlib=False):
-  # type: (...) -> bytes
-
+def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     try:

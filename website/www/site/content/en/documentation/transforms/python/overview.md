@@ -50,7 +50,7 @@ limitations under the License.
   <tr><th>Transform</th><th>Description</th></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/approximatequantiles">ApproximateQuantiles</a></td><td>Given a distribution, find the approximate N-tiles.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/approximateunique">ApproximateUnique</a></td><td>Given a pcollection, return the estimated number of unique elements.</td></tr>
-  <tr><td><a href="/documentation/transforms/python/aggregation/batchelements">BatchElements</a></td><td>Given a pcollection, return the estimated number of unique elements.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/batchelements">BatchElements</a></td><td>Transform that batches elements for amortized processing.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey</a></td><td>Transforms to combine elements for each key.</td></tr>

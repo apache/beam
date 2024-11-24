@@ -24,12 +24,17 @@ import importlib
 import json
 import logging
 from typing import Any
+from typing import Callable
 from typing import Dict
+from typing import Iterator
+from typing import List
 from typing import Tuple
+from typing import Union
 
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.coders import Coder
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -40,6 +45,7 @@ from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.typehints.schemas import named_fields_from_element_type
+from apache_beam.utils.windowed_value import WindowedValue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,14 +60,13 @@ _INTERACTIVE_LOG_STYLE = """
 
 
 def to_element_list(
-    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]] # noqa: F821
-    coder,  # type: Coder # noqa: F821
-    include_window_info,  # type: bool
-    n=None,  # type: int
-    include_time_events=False, # type: bool
-):
-  # type: (...) -> List[WindowedValue] # noqa: F821
-
+    reader: Iterator[Union[beam_runner_api_pb2.TestStreamPayload.Event,
+                           WindowedValueHolder]],
+    coder: Coder,
+    include_window_info: bool,
+    n: int = None,
+    include_time_events: bool = False,
+) -> List[WindowedValue]:
   """Returns an iterator that properly decodes the elements from the reader.
   """
 
@@ -83,6 +88,8 @@ def to_element_list(
       elif isinstance(e, WindowedValueHolder):
         yield (
             e.windowed_value if include_window_info else e.windowed_value.value)
+      elif isinstance(e, WindowedValue):
+        yield (e if include_window_info else e.value)
       else:
         yield e
 
@@ -99,9 +106,10 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any) -> DataFrame # noqa: F821
-
+def elements_to_df(
+    elements: List[WindowedValue],
+    include_window_info: bool = False,
+    element_type: Any = None) -> 'DataFrame':  # noqa: F821
   """Parses the given elements into a Dataframe.
 
   If the elements are a list of WindowedValues, then it will break out the
@@ -140,9 +148,7 @@ def elements_to_df(elements, include_window_info=False, element_type=None):
   return final_df
 
 
-def register_ipython_log_handler():
-  # type: () -> None
-
+def register_ipython_log_handler() -> None:
   """Adds the IPython handler to a dummy parent logger (named
   'apache_beam.runners.interactive') of all interactive modules' loggers so that
   if is_in_notebook, logging displays the logs as HTML in frontends.
@@ -197,9 +203,7 @@ class IPythonLogHandler(logging.Handler):
       pass  # NOOP when dependencies are not available.
 
 
-def obfuscate(*inputs):
-  # type: (*Any) -> str
-
+def obfuscate(*inputs: Any) -> str:
   """Obfuscates any inputs into a hexadecimal string."""
   str_inputs = [str(input) for input in inputs]
   merged_inputs = '_'.join(str_inputs)
@@ -220,8 +224,7 @@ class ProgressIndicator(object):
   spinner_removal_template = """
             $("#{id}").remove();"""
 
-  def __init__(self, enter_text, exit_text):
-    # type: (str, str) -> None
+  def __init__(self, enter_text: str, exit_text: str) -> None:
 
     self._id = 'progress_indicator_{}'.format(obfuscate(id(self)))
     self._enter_text = enter_text
@@ -264,9 +267,7 @@ class ProgressIndicator(object):
           'or notebook environment: %s' % e)
 
 
-def progress_indicated(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any] # noqa: F821
-
+def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
   @functools.wraps(func)
@@ -277,9 +278,7 @@ def progress_indicated(func):
   return run_within_progress_indicator
 
 
-def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., str] # noqa: F821
-
+def as_json(func: Callable[..., Any]) -> Callable[..., str]:
   """A decorator convert python objects returned by callables to json
   string.
 
@@ -437,9 +436,7 @@ def create_var_in_main(name: str,
   return name, value
 
 
-def assert_bucket_exists(bucket_name):
-  # type: (str) -> None
-
+def assert_bucket_exists(bucket_name: str) -> None:
   """Asserts whether the specified GCS bucket with the name
   bucket_name exists.
 

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+
 import com.google.api.core.ApiFunction;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
@@ -132,7 +134,8 @@ final class FirestoreTestingHelper implements TestRule {
     firestoreOptions =
         FirestoreOptions.newBuilder()
             .setCredentials(gcpOptions.getGcpCredential())
-            .setProjectId(gcpOptions.getProject())
+            .setProjectId(
+                firstNonNull(firestoreBeamOptions.getFirestoreProject(), gcpOptions.getProject()))
             .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
             .setHost(firestoreBeamOptions.getFirestoreHost())
             .build();

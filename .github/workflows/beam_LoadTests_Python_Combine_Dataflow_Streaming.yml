@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -92,7 +92,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Streaming_test_arguments_1 }} --job_name=load-tests-python-dataflow-streaming-combine-1-${{env.NOW_UTC}}' \
       - name: run 2GB Fanout 4 test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -101,7 +101,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Streaming_test_arguments_2 }} --job_name=load-tests-python-dataflow-streaming-combine-4-${{env.NOW_UTC}}' \
       - name: run 2GB Fanout 8 test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -110,5 +110,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Streaming_test_arguments_3 }} --job_name=load-tests-python-dataflow-streaming-combine-5-${{env.NOW_UTC}}'

@@ -24,14 +24,16 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/metricsx"
@@ -39,7 +41,6 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
@@ -435,5 +436,6 @@ func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) er
 	endpoint := fmt.Sprintf("localhost:%d", port)
 
 	slog.Info("Serving WebUI", slog.String("endpoint", "http://"+endpoint))
-	return http.ListenAndServe(endpoint, mux)
+	go http.ListenAndServe(endpoint, mux)
+	return nil
 }

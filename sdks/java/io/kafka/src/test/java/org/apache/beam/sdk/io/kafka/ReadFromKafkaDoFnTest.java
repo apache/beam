@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_R
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -39,6 +41,9 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,11 +62,11 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.MockConsumer;
@@ -105,6 +110,12 @@ public class ReadFromKafkaDoFnTest {
   private final ReadFromKafkaDoFn<String, String> exceptionDofnInstance =
       ReadFromKafkaDoFn.create(makeReadSourceDescriptor(exceptionConsumer), RECORDS);
 
+  private final SimpleMockKafkaConsumerWithBrokenSeek consumerWithBrokenSeek =
+      new SimpleMockKafkaConsumerWithBrokenSeek(OffsetResetStrategy.NONE, topicPartition);
+
+  private final ReadFromKafkaDoFn<String, String> dofnInstanceWithBrokenSeek =
+      ReadFromKafkaDoFn.create(makeReadSourceDescriptor(consumerWithBrokenSeek), RECORDS);
+
   private ReadSourceDescriptors<String, String> makeReadSourceDescriptor(
       Consumer<byte[], byte[]> kafkaMockConsumer) {
     return ReadSourceDescriptors.<String, String>read()
@@ -138,6 +149,11 @@ public class ReadFromKafkaDoFnTest {
   public static class FailingDeserializer implements Deserializer<String> {
 
     public FailingDeserializer() {}
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      // intentionally left blank for compatibility with older kafka versions
+    }
 
     @Override
     public String deserialize(String topic, byte[] data) {
@@ -189,6 +205,8 @@ public class ReadFromKafkaDoFnTest {
         OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
       super(offsetResetStrategy);
       this.topicPartition = topicPartition;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void reset() {
@@ -198,6 +216,8 @@ public class ReadFromKafkaDoFnTest {
       this.startOffsetForTime = KV.of(0L, Instant.now());
       this.stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
       this.numOfRecordsPerPoll = 0L;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void setRemoved() {
@@ -233,6 +253,17 @@ public class ReadFromKafkaDoFnTest {
     }
 
     @Override
+    public synchronized List<PartitionInfo> partitionsFor(String partition) {
+      if (this.isRemoved) {
+        return ImmutableList.of();
+      } else {
+        return ImmutableList.of(
+            new PartitionInfo(
+                topicPartition.topic(), topicPartition.partition(), null, null, null));
+      }
+    }
+
+    @Override
     public synchronized void assign(Collection<TopicPartition> partitions) {
       assertTrue(Iterables.getOnlyElement(partitions).equals(this.topicPartition));
     }
@@ -257,8 +288,8 @@ public class ReadFromKafkaDoFnTest {
                 topicPartition.topic(),
                 topicPartition.partition(),
                 startOffset + i,
-                key.getBytes(Charsets.UTF_8),
-                value.getBytes(Charsets.UTF_8)));
+                key.getBytes(StandardCharsets.UTF_8),
+                value.getBytes(StandardCharsets.UTF_8)));
       }
       if (records.isEmpty()) {
         return ConsumerRecords.empty();
@@ -288,6 +319,17 @@ public class ReadFromKafkaDoFnTest {
       assertTrue(partition.equals(this.topicPartition));
       return this.currentPos;
     }
+  }
+
+  private static class SimpleMockKafkaConsumerWithBrokenSeek extends SimpleMockKafkaConsumer {
+
+    public SimpleMockKafkaConsumerWithBrokenSeek(
+        OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
+      super(offsetResetStrategy, topicPartition);
+    }
+
+    @Override
+    public synchronized void seek(TopicPartition partition, long offset) {}
   }
 
   private static class MockMultiOutputReceiver implements MultiOutputReceiver {
@@ -372,6 +414,7 @@ public class ReadFromKafkaDoFnTest {
   public void setUp() throws Exception {
     dofnInstance.setup();
     exceptionDofnInstance.setup();
+    dofnInstanceWithBrokenSeek.setup();
     consumer.reset();
   }
 
@@ -471,6 +514,24 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
+  public void testProcessElementWithEarlierOffset() throws Exception {
+    MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
+    consumerWithBrokenSeek.setNumOfRecordsPerPoll(6L);
+    consumerWithBrokenSeek.setCurrentPos(0L);
+    long startOffset = 3L;
+    OffsetRangeTracker tracker =
+        new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
+    KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
+    ProcessContinuation result =
+        dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver);
+    assertEquals(ProcessContinuation.stop(), result);
+    assertEquals(
+        createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
+        receiver.getGoodRecords());
+  }
+
+  @Test
   public void testRawSizeMetric() throws Exception {
     final int numElements = 1000;
     final int recordSize = 8; // The size of key and value is defined in SimpleMockKafkaConsumer.
@@ -515,7 +576,7 @@ public class ReadFromKafkaDoFnTest {
   public void testProcessElementWhenTopicPartitionIsRemoved() throws Exception {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setRemoved();
-    consumer.setNumOfRecordsPerPoll(10);
+    consumer.setNumOfRecordsPerPoll(-1);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
@@ -524,6 +585,18 @@ public class ReadFromKafkaDoFnTest {
             null,
             receiver);
     assertEquals(ProcessContinuation.stop(), result);
+  }
+
+  @Test
+  public void testSDFCommitOffsetEnabled() {
+    OffSetsVisitor visitor = testCommittingOffsets(true);
+    Assert.assertEquals(true, visitor.foundOffsetTransform);
+  }
+
+  @Test
+  public void testSDFCommitOffsetNotEnabled() {
+    OffSetsVisitor visitor = testCommittingOffsets(false);
+    Assert.assertNotEquals(true, visitor.foundOffsetTransform);
   }
 
   @Test
@@ -684,6 +757,49 @@ public class ReadFromKafkaDoFnTest {
         PCollection<?> pc = (PCollection<?>) value;
         if (pc.isBounded() == IsBounded.UNBOUNDED) {
           unboundedPCollections.add(pc);
+        }
+      }
+    }
+  }
+
+  private OffSetsVisitor testCommittingOffsets(boolean enableOffsets) {
+
+    // Force Kafka read to use SDF implementation
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    ExperimentalOptions.addExperiment(
+        pipelineOptions.as(ExperimentalOptions.class), "use_sdf_read");
+
+    Pipeline p = Pipeline.create(pipelineOptions);
+    KafkaIO.Read<String, String> read =
+        KafkaIO.<String, String>read()
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(StringDeserializer.class)
+            .withConsumerConfigUpdates(
+                new ImmutableMap.Builder<String, Object>()
+                    .put(ConsumerConfig.GROUP_ID_CONFIG, "group_id_1")
+                    .build())
+            .withBootstrapServers("bootstrap_server")
+            .withTopic("test-topic");
+
+    if (enableOffsets) {
+      read = read.commitOffsetsInFinalize();
+    }
+
+    p.apply(read.withoutMetadata());
+    OffSetsVisitor visitor = new OffSetsVisitor();
+    p.traverseTopologically(visitor);
+    return visitor;
+  }
+
+  static class OffSetsVisitor extends PipelineVisitor.Defaults {
+    boolean foundOffsetTransform = false;
+
+    @Override
+    public void visitValue(PValue value, Node producer) {
+      if (value instanceof PCollection) {
+        PCollection<?> pc = (PCollection<?>) value;
+        if (pc.getName().contains("KafkaCommitOffset")) {
+          foundOffsetTransform = true;
         }
       }
     }

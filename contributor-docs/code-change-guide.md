@@ -145,7 +145,7 @@ in the Google Cloud documentation.
 
 Depending on the languages involved, your `PATH` file needs to have the following elements configured.
 
-* A Java environment that uses a supported Java version, preferably Java 8.
+* A Java environment that uses a supported Java version, preferably Java 11.
   * This environment is needed for all development, because Beam is a Gradle project that uses JVM.
   * Recommended: To manage Java versions, use [sdkman](https://sdkman.io/install).
 
@@ -286,13 +286,26 @@ Integration tests differ from standard pipelines in the following ways:
 * They have a default timeout of 15 minutes.
 * The pipeline options are set in the system property `beamTestPipelineOptions`.
 
-To configure the test, you need to set the property `-DbeamTestPipelineOptions=[...]`. This property sets the runner that the test uses.
-
-The following example demonstrates how to run an integration test by using the command line. This example includes the options required to run the pipeline on the Dataflow runner.
+To configure the test pipeline, you need to set the property `-DbeamTestPipelineOptions=[...]`. This property sets the pipeline option that the test uses, for example,
 
 ```
 -DbeamTestPipelineOptions='["--runner=TestDataflowRunner","--project=mygcpproject","--region=us-central1","--stagingLocation=gs://mygcsbucket/path"]'
 ```
+
+For some projects, `beamTestPipelineOptions` is explicitly configured in `build.gradle`.
+Checkout the sources of the corresponding build file for setting. For example,
+in `sdks/java/io/google-cloud-platform/build.gradle`, it sets `beamTestPipelineOptions`
+from project properties 'gcpProject', 'gcpTempRoot', etc, and when not assigned,
+it defaults to `apache-beam-testing` GCP project. To run the test in your own project,
+assign these project properties with command line:
+
+```
+./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpProject=<mygcpproject> -PgcpTempRoot=<gs://mygcsbucket/path>
+```
+
+Some other projects (e.g. `sdks/java/io/jdbc`, `sdks/java/io/kafka`) does not
+assemble (overwrite) `beamTestPipelineOptions` in `build.gradle`, then just set
+it explicitly with `-DbeamTestPipelineOptions='[...]'`, as aforementioned.
 
 #### Write integration tests
 
@@ -423,6 +436,17 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
   --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
   ```
 
+#### Snapshot Version Containers
+
+By default, a Snapshot version for an SDK under development will use the containers published to the [apache-beam-testing project's container registry](https://us.gcr.io/apache-beam-testing/github-actions). For example, the most recent snapshot container for Java 17 can be found [here](https://us.gcr.io/apache-beam-testing/github-actions/beam_java17_sdk).
+
+When a version is entering the [release candidate stage](https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md), one final SNAPSHOT version will be published.
+This SNAPSHOT version will use the final containers published on [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam).
+
+**NOTE:** During the release process, there may be some downtime where a container is not available for use for a SNAPSHOT version. To avoid this, it is recommended to either switch to the latest SNAPSHOT version available or to use [custom containers](https://beam.apache.org/documentation/runtime/environments/#custom-containers). You should also only rely on snapshot versions for important workloads if absolutely necessary.
+
+Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
+
 ## Python guide
 
 The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
@@ -505,7 +529,7 @@ To run an integration test on the Dataflow Runner, follow these steps:
 
   ```
   cd sdks/python
-  pip install build && python -m build –sdist
+  pip install build && python -m build --sdist
   ```
   The tarball file is generated in the `sdks/python/sdist/` directory.
 
@@ -570,7 +594,7 @@ You can use the [official Beam SDK container image](https://gcr.io/apache-beam-t
 
 To run your pipeline with modified beam code, follow these steps:
 
-1. Build the Beam SDK tarball. Under `sdks/python`, run `python -m build –sdist`. For more details,
+1. Build the Beam SDK tarball. Under `sdks/python`, run `python -m build --sdist`. For more details,
   see [Run an integration test](#run-an-integration-test) on this page.
 
 2. Install the Apache Beam Python SDK in your Python virtual environment with the necessary
@@ -599,6 +623,11 @@ Tips for using the Dataflow runner:
 <!-- # Cross-language Guide -->
 
 ## Appendix
+
+### Common Issues
+
+* If you run into some strange errors such as `java.lang.NoClassDefFoundError`, run `./gradlew clean` first
+* To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
 ### Directories of snapshot builds
 

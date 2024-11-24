@@ -229,12 +229,14 @@ def option_from_runner_api(
 
 
 def schema_field(
-    name: str, field_type: Union[schema_pb2.FieldType,
-                                 type]) -> schema_pb2.Field:
+    name: str,
+    field_type: Union[schema_pb2.FieldType, type],
+    description: Optional[str] = None) -> schema_pb2.Field:
   return schema_pb2.Field(
       name=name,
       type=field_type if isinstance(field_type, schema_pb2.FieldType) else
-      typing_to_runner_api(field_type))
+      typing_to_runner_api(field_type),
+      description=description)
 
 
 class SchemaTranslation(object):
@@ -272,6 +274,7 @@ class SchemaTranslation(object):
                         self.option_to_runner_api(option_tuple)
                         for option_tuple in type_.field_options(field_name)
                     ],
+                    description=type_._field_descriptions.get(field_name, None),
                 ) for (field_name, field_type) in type_._fields
             ],
             id=schema_id,
@@ -510,13 +513,17 @@ class SchemaTranslation(object):
         # generate a NamedTuple type to use.
 
         fields = named_fields_from_schema(schema)
+        descriptions = {
+            field.name: field.description
+            for field in schema.fields
+        }
         result = row_type.RowTypeConstraint.from_fields(
             fields=fields,
             schema_id=schema.id,
             schema_options=schema_options,
             field_options=field_options,
             schema_registry=self.schema_registry,
-        )
+            field_descriptions=descriptions or None)
         return result
       else:
         return row_type.RowTypeConstraint.from_user_type(

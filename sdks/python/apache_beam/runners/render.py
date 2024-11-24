@@ -64,7 +64,7 @@ import time
 import urllib.parse
 
 from google.protobuf import json_format
-from google.protobuf import text_format  # type: ignore
+from google.protobuf import text_format
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2

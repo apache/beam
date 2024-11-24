@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
@@ -31,7 +32,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.channelz.v1.*;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.protobuf.services.ChannelzService;
@@ -47,16 +47,16 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
   private static final int MAX_TOP_CHANNELS_TO_RETURN = 500;
 
   private final ChannelzService channelzService;
-  private final WindmillServerStub windmillServerStub;
+  private final Supplier<ImmutableSet<HostAndPort>> currentWindmillEndpoints;
   private final boolean showOnlyWindmillServiceChannels;
 
   public ChannelzServlet(
       String path,
       DataflowStreamingPipelineOptions options,
-      WindmillServerStub windmillServerStub) {
+      Supplier<ImmutableSet<HostAndPort>> currentWindmillEndpoints) {
     super(path);
     channelzService = ChannelzService.newInstance(MAX_TOP_CHANNELS_TO_RETURN);
-    this.windmillServerStub = windmillServerStub;
+    this.currentWindmillEndpoints = currentWindmillEndpoints;
     showOnlyWindmillServiceChannels = options.getChannelzShowOnlyWindmillServiceChannels();
   }
 
@@ -79,14 +79,6 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
     writer.println("<h1>Channelz</h1>");
     appendTopChannels(writer);
     writer.println("</html>");
-  }
-
-  // channelz proto says there won't be cycles in the ref graph.
-  // we track visited ids to be defensive and prevent any accidental cycles.
-  private static class VisitedSets {
-
-    Set<Long> channels = new HashSet<>();
-    Set<Long> subchannels = new HashSet<>();
   }
 
   private void appendTopChannels(PrintWriter writer) {
@@ -127,8 +119,7 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
   }
 
   private List<Channel> filterWindmillChannels(List<Channel> channels) {
-    ImmutableSet<HostAndPort> windmillServiceEndpoints =
-        windmillServerStub.getWindmillServiceEndpoints();
+    ImmutableSet<HostAndPort> windmillServiceEndpoints = currentWindmillEndpoints.get();
     Set<String> windmillServiceHosts =
         windmillServiceEndpoints.stream().map(HostAndPort::getHost).collect(Collectors.toSet());
     List<Channel> windmillChannels = new ArrayList<>();
@@ -290,5 +281,13 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
         future.set(response);
       }
     };
+  }
+
+  // channelz proto says there won't be cycles in the ref graph.
+  // we track visited ids to be defensive and prevent any accidental cycles.
+  private static class VisitedSets {
+
+    Set<Long> channels = new HashSet<>();
+    Set<Long> subchannels = new HashSet<>();
   }
 }

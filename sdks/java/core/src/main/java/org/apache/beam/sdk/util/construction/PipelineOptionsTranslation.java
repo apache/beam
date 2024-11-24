@@ -43,6 +43,9 @@ public class PipelineOptionsTranslation {
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
+  public static final String PIPELINE_OPTIONS_URN_PREFIX = "beam:option:";
+  public static final String PIPELINE_OPTIONS_URN_SUFFIX = ":v1";
+
   /** Converts the provided {@link PipelineOptions} to a {@link Struct}. */
   public static Struct toProto(PipelineOptions options) {
     Struct.Builder builder = Struct.newBuilder();
@@ -65,9 +68,9 @@ public class PipelineOptionsTranslation {
       while (optionsEntries.hasNext()) {
         Map.Entry<String, JsonNode> entry = optionsEntries.next();
         optionsUsingUrns.put(
-            "beam:option:"
+            PIPELINE_OPTIONS_URN_PREFIX
                 + CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, entry.getKey())
-                + ":v1",
+                + PIPELINE_OPTIONS_URN_SUFFIX,
             entry.getValue());
       }
 
@@ -92,7 +95,9 @@ public class PipelineOptionsTranslation {
         mapWithoutUrns.put(
             CaseFormat.LOWER_UNDERSCORE.to(
                 CaseFormat.LOWER_CAMEL,
-                optionKey.substring("beam:option:".length(), optionKey.length() - ":v1".length())),
+                optionKey.substring(
+                    PIPELINE_OPTIONS_URN_PREFIX.length(),
+                    optionKey.length() - PIPELINE_OPTIONS_URN_SUFFIX.length())),
             optionValue);
       }
       return MAPPER.readValue(

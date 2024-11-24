@@ -49,6 +49,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
@@ -59,7 +60,7 @@ import org.mockito.MockitoAnnotations;
 public class FlinkMetricContainerTest {
 
   @Mock private RuntimeContext runtimeContext;
-  @Mock private MetricGroupWrapper metricGroup;
+  @Mock private OperatorMetricGroup metricGroup;
 
   FlinkMetricContainer container;
 

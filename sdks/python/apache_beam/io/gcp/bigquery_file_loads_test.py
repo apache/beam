@@ -42,6 +42,7 @@ from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
@@ -508,6 +509,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
              | "GetJobs" >> beam.Map(lambda x: x[1])
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobProjectIds')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   def test_load_job_id_use_for_copy_job(self):
     destination = 'project1:dataset1.table1'
@@ -560,6 +564,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               job_reference
           ]),
           label='CheckCopyJobProjectIds')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   @mock.patch('time.sleep')
   def test_wait_for_load_job_completion(self, sleep_mock):
@@ -717,6 +724,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
           equal_to([6]),
           label='CheckCopyJobCount')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   @parameterized.expand([
       param(write_disposition=BigQueryDisposition.WRITE_TRUNCATE),

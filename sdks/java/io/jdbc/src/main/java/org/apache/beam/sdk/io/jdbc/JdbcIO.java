@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -93,6 +95,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -137,6 +140,14 @@ import org.slf4j.LoggerFactory;
  *   })
  * );
  * }</pre>
+ *
+ * <p>Note you should check with your database provider for the JDBC Driver and Connection Url that
+ * used to create the DataSourceConfiguration. For example, if you use Cloud SQL with postgres, the
+ * JDBC connection Url has this pattern with SocketFactory:
+ * "jdbc:postgresql://google/mydb?cloudSqlInstance=project:region:myinstance&
+ * socketFactory=com.google.cloud.sql.postgres.SocketFactory". Check <a
+ * href="https://github.com/GoogleCloudPlatform/cloud-sql-jdbc-socket-factory/blob/main/docs/jdbc.md">
+ * here</a> for more details.
  *
  * <p>Query parameters can be configured using a user-provided {@link StatementPreparator}. For
  * example:
@@ -201,8 +212,10 @@ import org.slf4j.LoggerFactory;
  * <h4>Parallel reading from a JDBC datasource</h4>
  *
  * <p>Beam supports partitioned reading of all data from a table. Automatic partitioning is
- * supported for a few data types: {@link Long}, {@link org.joda.time.DateTime}, {@link String}. To
- * enable this, use {@link JdbcIO#readWithPartitions(TypeDescriptor)}.
+ * supported for a few data types: {@link Long}, {@link org.joda.time.DateTime}. To enable this, use
+ * {@link JdbcIO#readWithPartitions(TypeDescriptor)}. For other types, use {@link
+ * ReadWithPartitions#readWithPartitions(JdbcReadWithPartitionsHelper)} with custom {@link
+ * JdbcReadWithPartitionsHelper}.
  *
  * <p>The partitioning scheme depends on these parameters, which can be user-provided, or
  * automatically inferred by Beam (for the supported types):
@@ -323,6 +336,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_Read.Builder<T>()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
         .build();
   }
 
@@ -331,6 +345,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
         .setStatementPreparator(ignored -> {})
         .build();
   }
@@ -346,6 +361,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>()
         .setFetchSize(DEFAULT_FETCH_SIZE)
         .setOutputParallelization(true)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
         .build();
   }
 
@@ -353,6 +369,7 @@ public class JdbcIO {
    * Like {@link #readAll}, but executes multiple instances of the query on the same table
    * (subquery) using ranges.
    *
+   * @param partitioningColumnType Type descriptor for the partition column.
    * @param <T> Type of the data to be read.
    */
   public static <T, PartitionColumnT> ReadWithPartitions<T, PartitionColumnT> readWithPartitions(
@@ -361,6 +378,25 @@ public class JdbcIO {
         .setPartitionColumnType(partitioningColumnType)
         .setNumPartitions(DEFAULT_NUM_PARTITIONS)
         .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
+        .setUseBeamSchema(false)
+        .build();
+  }
+
+  /**
+   * Like {@link #readAll}, but executes multiple instances of the query on the same table
+   * (subquery) using ranges.
+   *
+   * @param partitionsHelper Custom helper for defining partitions.
+   * @param <T> Type of the data to be read.
+   */
+  public static <T, PartitionColumnT> ReadWithPartitions<T, PartitionColumnT> readWithPartitions(
+      JdbcReadWithPartitionsHelper<PartitionColumnT> partitionsHelper) {
+    return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T, PartitionColumnT>()
+        .setPartitionsHelper(partitionsHelper)
+        .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .setFetchSize(DEFAULT_FETCH_SIZE)
+        .setDisableAutoCommit(DEFAULT_DISABLE_AUTO_COMMIT)
         .setUseBeamSchema(false)
         .build();
   }
@@ -372,6 +408,7 @@ public class JdbcIO {
   private static final long DEFAULT_BATCH_SIZE = 1000L;
   private static final long DEFAULT_MAX_BATCH_BUFFERING_DURATION = 200L;
   private static final int DEFAULT_FETCH_SIZE = 50_000;
+  private static final boolean DEFAULT_DISABLE_AUTO_COMMIT = true;
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
@@ -705,6 +742,9 @@ public class JdbcIO {
     @Pure
     abstract boolean getOutputParallelization();
 
+    @Pure
+    abstract boolean getDisableAutoCommit();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -719,6 +759,8 @@ public class JdbcIO {
       abstract Builder setFetchSize(int fetchSize);
 
       abstract Builder setOutputParallelization(boolean outputParallelization);
+
+      abstract Builder setDisableAutoCommit(boolean disableAutoCommit);
 
       abstract ReadRows build();
     }
@@ -771,6 +813,15 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
+    /**
+     * Whether to disable auto commit on read. Defaults to true if not provided. The need for this
+     * config varies depending on the database platform. Informix requires this to be set to false
+     * while Postgres requires this to be set to true.
+     */
+    public ReadRows withDisableAutoCommit(boolean disableAutoCommit) {
+      return toBuilder().setDisableAutoCommit(disableAutoCommit).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       ValueProvider<String> query = checkStateNotNull(getQuery(), "withQuery() is required");
@@ -788,6 +839,7 @@ public class JdbcIO {
                   .withCoder(RowCoder.of(schema))
                   .withRowMapper(SchemaUtil.BeamRowMapper.of(schema))
                   .withFetchSize(getFetchSize())
+                  .withDisableAutoCommit(getDisableAutoCommit())
                   .withOutputParallelization(getOutputParallelization())
                   .withStatementPreparator(checkStateNotNull(getStatementPreparator())));
       rows.setRowSchema(schema);
@@ -845,6 +897,9 @@ public class JdbcIO {
     abstract boolean getOutputParallelization();
 
     @Pure
+    abstract boolean getDisableAutoCommit();
+
+    @Pure
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -863,6 +918,8 @@ public class JdbcIO {
       abstract Builder<T> setFetchSize(int fetchSize);
 
       abstract Builder<T> setOutputParallelization(boolean outputParallelization);
+
+      abstract Builder<T> setDisableAutoCommit(boolean disableAutoCommit);
 
       abstract Read<T> build();
     }
@@ -930,6 +987,15 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
+    /**
+     * Whether to disable auto commit on read. Defaults to true if not provided. The need for this
+     * config varies depending on the database platform. Informix requires this to be set to false
+     * while Postgres requires this to be set to true.
+     */
+    public Read<T> withDisableAutoCommit(boolean disableAutoCommit) {
+      return toBuilder().setDisableAutoCommit(disableAutoCommit).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       ValueProvider<String> query = checkArgumentNotNull(getQuery(), "withQuery() is required");
@@ -946,6 +1012,7 @@ public class JdbcIO {
               .withRowMapper(rowMapper)
               .withFetchSize(getFetchSize())
               .withOutputParallelization(getOutputParallelization())
+              .withDisableAutoCommit(getDisableAutoCommit())
               .withParameterSetter(
                   (element, preparedStatement) -> {
                     if (getStatementPreparator() != null) {
@@ -1001,6 +1068,8 @@ public class JdbcIO {
 
     abstract boolean getOutputParallelization();
 
+    abstract boolean getDisableAutoCommit();
+
     abstract Builder<ParameterT, OutputT> toBuilder();
 
     @AutoValue.Builder
@@ -1020,6 +1089,8 @@ public class JdbcIO {
       abstract Builder<ParameterT, OutputT> setFetchSize(int fetchSize);
 
       abstract Builder<ParameterT, OutputT> setOutputParallelization(boolean outputParallelization);
+
+      abstract Builder<ParameterT, OutputT> setDisableAutoCommit(boolean disableAutoCommit);
 
       abstract ReadAll<ParameterT, OutputT> build();
     }
@@ -1099,6 +1170,15 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
+    /**
+     * Whether to disable auto commit on read. Defaults to true if not provided. The need for this
+     * config varies depending on the database platform. Informix requires this to be set to false
+     * while Postgres requires this to be set to true.
+     */
+    public ReadAll<ParameterT, OutputT> withDisableAutoCommit(boolean disableAutoCommit) {
+      return toBuilder().setDisableAutoCommit(disableAutoCommit).build();
+    }
+
     private @Nullable Coder<OutputT> inferCoder(
         CoderRegistry registry, SchemaRegistry schemaRegistry) {
       if (getCoder() != null) {
@@ -1145,7 +1225,8 @@ public class JdbcIO {
                           checkStateNotNull(getQuery()),
                           checkStateNotNull(getParameterSetter()),
                           checkStateNotNull(getRowMapper()),
-                          getFetchSize())))
+                          getFetchSize(),
+                          getDisableAutoCommit())))
               .setCoder(coder);
 
       if (getOutputParallelization()) {
@@ -1221,7 +1302,13 @@ public class JdbcIO {
     abstract @Nullable String getTable();
 
     @Pure
-    abstract TypeDescriptor<PartitionColumnT> getPartitionColumnType();
+    abstract @Nullable TypeDescriptor<PartitionColumnT> getPartitionColumnType();
+
+    @Pure
+    abstract @Nullable JdbcReadWithPartitionsHelper<PartitionColumnT> getPartitionsHelper();
+
+    @Pure
+    abstract boolean getDisableAutoCommit();
 
     @Pure
     abstract Builder<T, PartitionColumnT> toBuilder();
@@ -1252,6 +1339,11 @@ public class JdbcIO {
 
       abstract Builder<T, PartitionColumnT> setPartitionColumnType(
           TypeDescriptor<PartitionColumnT> partitionColumnType);
+
+      abstract Builder<T, PartitionColumnT> setPartitionsHelper(
+          JdbcReadWithPartitionsHelper<PartitionColumnT> partitionsHelper);
+
+      abstract Builder<T, PartitionColumnT> setDisableAutoCommit(boolean disableAutoCommit);
 
       abstract ReadWithPartitions<T, PartitionColumnT> build();
     }
@@ -1303,6 +1395,16 @@ public class JdbcIO {
       return toBuilder().setFetchSize(fetchSize).build();
     }
 
+    /**
+     * Whether to disable auto commit on read. Defaults to true if not provided. The need for this
+     * config varies depending on the database platform. Informix requires this to be set to false
+     * while Postgres requires this to be set to true.
+     */
+    public ReadWithPartitions<T, PartitionColumnT> withDisableAutoCommit(
+        boolean disableAutoCommit) {
+      return toBuilder().setDisableAutoCommit(disableAutoCommit).build();
+    }
+
     /** Data output type is {@link Row}, and schema is auto-inferred from the database. */
     public ReadWithPartitions<T, PartitionColumnT> withRowOutput() {
       return toBuilder().setUseBeamSchema(true).build();
@@ -1352,10 +1454,19 @@ public class JdbcIO {
             ((Comparable<PartitionColumnT>) getLowerBound()).compareTo(getUpperBound()) < EQUAL,
             "The lower bound of partitioning column is larger or equal than the upper bound");
       }
-      checkNotNull(
-          JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType()),
-          "readWithPartitions only supports the following types: %s",
-          JdbcUtil.PRESET_HELPERS.keySet());
+
+      JdbcReadWithPartitionsHelper<PartitionColumnT> partitionsHelper = getPartitionsHelper();
+      if (partitionsHelper == null) {
+        partitionsHelper =
+            JdbcUtil.getPartitionsHelper(
+                checkStateNotNull(
+                    getPartitionColumnType(),
+                    "Provide partitionColumnType or partitionsHelper for JdbcIO.readWithPartitions()"));
+        checkNotNull(
+            partitionsHelper,
+            "readWithPartitions only supports the following types: %s",
+            JdbcUtil.PRESET_HELPERS.keySet());
+      }
 
       PCollection<KV<Long, KV<PartitionColumnT, PartitionColumnT>>> params;
 
@@ -1375,11 +1486,9 @@ public class JdbcIO {
                     JdbcIO.<KV<Long, KV<PartitionColumnT, PartitionColumnT>>>read()
                         .withQuery(query)
                         .withDataSourceProviderFn(dataSourceProviderFn)
-                        .withRowMapper(
-                            checkStateNotNull(
-                                JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-                                    getPartitionColumnType())))
-                        .withFetchSize(getFetchSize()))
+                        .withRowMapper(checkStateNotNull(partitionsHelper))
+                        .withFetchSize(getFetchSize())
+                        .withDisableAutoCommit(getDisableAutoCommit()))
                 .apply(
                     MapElements.via(
                         new SimpleFunction<
@@ -1433,7 +1542,9 @@ public class JdbcIO {
 
       PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
           params
-              .apply("Partitioning", ParDo.of(new PartitioningFn<>(getPartitionColumnType())))
+              .apply(
+                  "Partitioning",
+                  ParDo.of(new PartitioningFn<>(checkStateNotNull(partitionsHelper))))
               .apply("Reshuffle partitions", Reshuffle.viaRandomKey());
 
       JdbcIO.ReadAll<KV<PartitionColumnT, PartitionColumnT>, T> readAll =
@@ -1444,12 +1555,9 @@ public class JdbcIO {
                       "select * from %1$s where %2$s >= ? and %2$s < ?", table, partitionColumn))
               .withRowMapper(rowMapper)
               .withFetchSize(getFetchSize())
-              .withParameterSetter(
-                  checkStateNotNull(
-                          JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-                              getPartitionColumnType()))
-                      ::setParameters)
-              .withOutputParallelization(false);
+              .withParameterSetter(checkStateNotNull(partitionsHelper))
+              .withOutputParallelization(false)
+              .withDisableAutoCommit(getDisableAutoCommit());
 
       if (getUseBeamSchema()) {
         checkStateNotNull(schema);
@@ -1499,21 +1607,25 @@ public class JdbcIO {
     private final PreparedStatementSetter<ParameterT> parameterSetter;
     private final RowMapper<OutputT> rowMapper;
     private final int fetchSize;
+    private final boolean disableAutoCommit;
 
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
+    private @Nullable String reportedLineage;
 
     private ReadFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn,
         ValueProvider<String> query,
         PreparedStatementSetter<ParameterT> parameterSetter,
         RowMapper<OutputT> rowMapper,
-        int fetchSize) {
+        int fetchSize,
+        boolean disableAutoCommit) {
       this.dataSourceProviderFn = dataSourceProviderFn;
       this.query = query;
       this.parameterSetter = parameterSetter;
       this.rowMapper = rowMapper;
       this.fetchSize = fetchSize;
+      this.disableAutoCommit = disableAutoCommit;
     }
 
     @Setup
@@ -1522,10 +1634,26 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
-      if (this.connection == null) {
-        this.connection = checkStateNotNull(this.dataSource).getConnection();
+      Connection connection = this.connection;
+      if (connection == null) {
+        DataSource validSource = checkStateNotNull(this.dataSource);
+        connection = checkStateNotNull(validSource).getConnection();
+        this.connection = connection;
+
+        // report Lineage if not haven't done so
+        String table = JdbcUtil.extractTableFromReadQuery(query.get());
+        if (!table.equals(reportedLineage)) {
+          JdbcUtil.FQNComponents fqn = JdbcUtil.FQNComponents.of(validSource);
+          if (fqn == null) {
+            fqn = JdbcUtil.FQNComponents.of(connection);
+          }
+          if (fqn != null) {
+            fqn.reportLineage(Lineage.getSources(), table);
+            reportedLineage = table;
+          }
+        }
       }
-      return this.connection;
+      return connection;
     }
 
     @ProcessElement
@@ -1539,8 +1667,12 @@ public class JdbcIO {
       Connection connection = getConnection();
       // PostgreSQL requires autocommit to be disabled to enable cursor streaming
       // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
-      LOG.info("Autocommit has been disabled");
-      connection.setAutoCommit(false);
+      // This option is configurable as Informix will error
+      // if calling setAutoCommit on a non-logged database
+      if (disableAutoCommit) {
+        LOG.info("Autocommit has been disabled");
+        connection.setAutoCommit(false);
+      }
       try (PreparedStatement statement =
           connection.prepareStatement(
               query.get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -2533,6 +2665,7 @@ public class JdbcIO {
     private @Nullable DataSource dataSource;
     private @Nullable Connection connection;
     private @Nullable PreparedStatement preparedStatement;
+    private @Nullable String reportedLineage;
     private static @Nullable FluentBackoff retryBackOff;
 
     public WriteFn(WriteFnSpec<T, V> spec) {
@@ -2565,11 +2698,28 @@ public class JdbcIO {
     private Connection getConnection() throws SQLException {
       Connection connection = this.connection;
       if (connection == null) {
-        connection = checkStateNotNull(dataSource).getConnection();
+        DataSource validSource = checkStateNotNull(dataSource);
+        connection = validSource.getConnection();
         connection.setAutoCommit(false);
         preparedStatement =
             connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
         this.connection = connection;
+
+        // report Lineage if haven't done so
+        String table = spec.getTable();
+        if (Strings.isNullOrEmpty(table) && spec.getStatement() != null) {
+          table = JdbcUtil.extractTableFromWriteQuery(spec.getStatement().get());
+        }
+        if (!Objects.equals(table, reportedLineage)) {
+          JdbcUtil.FQNComponents fqn = JdbcUtil.FQNComponents.of(validSource);
+          if (fqn == null) {
+            fqn = JdbcUtil.FQNComponents.of(connection);
+          }
+          if (fqn != null) {
+            fqn.reportLineage(Lineage.getSinks(), table);
+            reportedLineage = table;
+          }
+        }
       }
       return connection;
     }

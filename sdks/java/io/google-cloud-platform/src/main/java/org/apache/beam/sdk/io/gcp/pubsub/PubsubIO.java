@@ -49,6 +49,8 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -84,6 +86,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -512,6 +515,10 @@ public class PubsubIO {
       }
     }
 
+    public List<String> dataCatalogSegments() {
+      return ImmutableList.of(project, topic);
+    }
+
     @Override
     public String toString() {
       return asPath();
@@ -669,6 +676,17 @@ public class PubsubIO {
   public static <T> Read<T> readMessagesWithCoderAndParseFn(
       Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
     return Read.newBuilder(parseFn).setCoder(coder).build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream,
+   * mapping each {@link PubsubMessage}, with attributes, into type T using the supplied parse
+   * function and coder. Similar to {@link #readMessagesWithCoderAndParseFn(Coder, SimpleFunction)},
+   * but with the with addition of making the message attributes available to the ParseFn.
+   */
+  public static <T> Read<T> readMessagesWithAttributesWithCoderAndParseFn(
+      Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    return Read.newBuilder(parseFn).setCoder(coder).setNeedsAttributes(true).build();
   }
 
   /**
@@ -843,6 +861,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
@@ -854,6 +874,7 @@ public class PubsubIO {
       builder.setNeedsOrderingKey(false);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setValidate(false);
       return builder;
     }
 
@@ -900,6 +921,8 @@ public class PubsubIO {
 
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setValidate(boolean validation);
 
       abstract Read<T> build();
     }
@@ -1080,6 +1103,11 @@ public class PubsubIO {
           .build();
     }
 
+    /** Enable validation of the PubSub Read. */
+    public Read<T> withValidation() {
+      return toBuilder().setValidate(true).build();
+    }
+
     @VisibleForTesting
     /**
      * Set's the internal Clock.
@@ -1131,18 +1159,62 @@ public class PubsubIO {
               getNeedsOrderingKey());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
+      return expandReadContinued(preParse, topicPath, subscriptionPath);
+    }
+
+    /**
+     * Runner agnostic part of the Expansion.
+     *
+     * <p>Common logics (MapElements, SDK metrics, DLQ, etc) live here as PubsubUnboundedSource is
+     * overridden on Dataflow runner.
+     */
+    private PCollection<T> expandReadContinued(
+        PCollection<PubsubMessage> preParse,
+        @Nullable ValueProvider<TopicPath> topicPath,
+        @Nullable ValueProvider<SubscriptionPath> subscriptionPath) {
+
       TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
+      SerializableFunction<PubsubMessage, T> parseFnWrapped =
+          new SerializableFunction<PubsubMessage, T>() {
+            // flag that reported metrics
+            private final SerializableFunction<PubsubMessage, T> underlying =
+                Objects.requireNonNull(getParseFn());
+            private transient boolean reportedMetrics = false;
+
+            // public
+            @Override
+            public T apply(PubsubMessage input) {
+              if (!reportedMetrics) {
+                // report Lineage once
+                if (topicPath != null) {
+                  TopicPath topic = topicPath.get();
+                  if (topic != null) {
+                    Lineage.getSources().add("pubsub", "topic", topic.getDataCatalogSegments());
+                  }
+                }
+                if (subscriptionPath != null) {
+                  SubscriptionPath sub = subscriptionPath.get();
+                  if (sub != null) {
+                    Lineage.getSources()
+                        .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                  }
+                }
+                reportedMetrics = true;
+              }
+              return underlying.apply(input);
+            }
+          };
       PCollection<T> read;
       if (getDeadLetterTopicProvider() == null
           && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
-        read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
+        read = preParse.apply(MapElements.into(typeDescriptor).via(parseFnWrapped));
       } else {
         // parse PubSub messages, separating out exceptions
         Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
             preParse.apply(
                 "PubsubIO.Read/Map/Parse-Incoming-Messages",
                 MapElements.into(typeDescriptor)
-                    .via(getParseFn())
+                    .via(parseFnWrapped)
                     .exceptionsVia(new WithFailures.ThrowableHandler<PubsubMessage>() {}));
 
         // Emit parsed records
@@ -1157,7 +1229,7 @@ public class PubsubIO {
                       "Map Failures To BadRecords",
                       ParDo.of(new ParseReadFailuresToBadRecords(preParse.getCoder())));
           getBadRecordErrorHandler()
-              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(input.getPipeline())));
+              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(preParse.getPipeline())));
         } else {
           // Write out failures to the provided dead-letter topic.
           result
@@ -1198,8 +1270,36 @@ public class PubsubIO {
                       .withClientFactory(getPubsubClientFactory()));
         }
       }
-
       return read.setCoder(getCoder());
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     @Override
@@ -1281,6 +1381,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(
@@ -1290,6 +1392,7 @@ public class PubsubIO {
       builder.setFormatFn(formatFn);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setValidate(false);
       return builder;
     }
 
@@ -1326,6 +1429,8 @@ public class PubsubIO {
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      abstract Builder<T> setValidate(boolean validation);
+
       abstract Write<T> build();
     }
 
@@ -1336,16 +1441,26 @@ public class PubsubIO {
      * {@code topic} string.
      */
     public Write<T> to(String topic) {
+      ValueProvider<String> topicProvider = StaticValueProvider.of(topic);
+      validateTopic(topicProvider);
       return to(StaticValueProvider.of(topic));
     }
 
     /** Like {@code topic()} but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> topic) {
+      validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .setTopicFunction(null)
           .setDynamicDestinations(false)
           .build();
+    }
+
+    /** Handles validation of {@code topic}. */
+    private static void validateTopic(ValueProvider<String> topic) {
+      if (topic.isAccessible()) {
+        PubsubTopic.fromPath(topic.get());
+      }
     }
 
     /**
@@ -1437,6 +1552,11 @@ public class PubsubIO {
           .build();
     }
 
+    /** Enable validation of the PubSub Write. */
+    public Write<T> withValidation() {
+      return toBuilder().setValidate(true).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null && !getDynamicDestinations()) {
@@ -1477,7 +1597,7 @@ public class PubsubIO {
                   .get(BAD_RECORD_TAG)
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
       PCollection<PubsubMessage> pubsubMessages =
-          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(new PubsubMessageWithTopicCoder());
+          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(PubsubMessageWithTopicCoder.of());
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(
@@ -1504,6 +1624,35 @@ public class PubsubIO {
                   getPubsubRootUrl()));
       }
       throw new RuntimeException(); // cases are exhaustive.
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     @Override

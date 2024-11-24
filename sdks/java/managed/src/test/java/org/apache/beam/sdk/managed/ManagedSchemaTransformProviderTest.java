@@ -51,7 +51,7 @@ public class ManagedSchemaTransformProviderTest {
 
   @Test
   public void testGetConfigRowFromYamlString() {
-    String yamlString = "extraString: abc\n" + "extraInteger: 123";
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
     ManagedConfig config =
         ManagedConfig.builder()
             .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
@@ -60,8 +60,8 @@ public class ManagedSchemaTransformProviderTest {
 
     Row expectedRow =
         Row.withSchema(TestSchemaTransformProvider.SCHEMA)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
+            .withFieldValue("extra_string", "abc")
+            .withFieldValue("extra_integer", 123)
             .build();
 
     Row returnedRow =
@@ -84,19 +84,18 @@ public class ManagedSchemaTransformProviderTest {
     Schema configSchema = new TestSchemaTransformProvider().configurationSchema();
     Row expectedRow =
         Row.withSchema(configSchema)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
+            .withFieldValue("extra_string", "abc")
+            .withFieldValue("extra_integer", 123)
             .build();
     Row configRow =
-        ManagedSchemaTransformProvider.getRowConfig(
-            config, new TestSchemaTransformProvider().configurationSchema());
+        ManagedSchemaTransformProvider.getRowConfig(config, TestSchemaTransformProvider.SCHEMA);
 
     assertEquals(expectedRow, configRow);
   }
 
   @Test
   public void testBuildWithYamlString() {
-    String yamlString = "extraString: abc\n" + "extraInteger: 123";
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
 
     ManagedConfig config =
         ManagedConfig.builder()

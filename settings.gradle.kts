@@ -24,8 +24,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.17.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
+  id("com.gradle.develocity") version "3.17.6"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
 
@@ -35,16 +35,12 @@ val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it)
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
-gradleEnterprise {
+develocity {
   server = "https://ge.apache.org"
-  allowUntrustedServer = false
 
   buildScan {
-    capture { isTaskInputFiles = true }
-    isUploadInBackground = !isCi
-    publishAlways()
-    this as BuildScanExtensionWithHiddenFeatures
-    publishIfAuthenticated()
+    uploadInBackground = !isCi
+    publishing.onlyIf { it.isAuthenticated }
     obfuscation {
       ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
@@ -63,7 +59,7 @@ buildCache {
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
     isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
   }
 }
 
@@ -129,18 +125,6 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.14
-include(":runners:flink:1.14")
-include(":runners:flink:1.14:job-server")
-include(":runners:flink:1.14:job-server-container")
-// Flink 1.15
-include(":runners:flink:1.15")
-include(":runners:flink:1.15:job-server")
-include(":runners:flink:1.15:job-server-container")
-// Flink 1.16
-include(":runners:flink:1.16")
-include(":runners:flink:1.16:job-server")
-include(":runners:flink:1.16:job-server-container")
 // Flink 1.17
 include(":runners:flink:1.17")
 include(":runners:flink:1.17:job-server")
@@ -149,6 +133,10 @@ include(":runners:flink:1.17:job-server-container")
 include(":runners:flink:1.18")
 include(":runners:flink:1.18:job-server")
 include(":runners:flink:1.18:job-server-container")
+// Flink 1.19
+include(":runners:flink:1.19")
+include(":runners:flink:1.19:job-server")
+include(":runners:flink:1.19:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -161,6 +149,7 @@ include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
+include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -227,9 +216,6 @@ include(":sdks:java:io:contextualtextio")
 include(":sdks:java:io:debezium")
 include(":sdks:java:io:debezium:expansion-service")
 include(":sdks:java:io:elasticsearch")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-2")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
@@ -305,21 +291,25 @@ include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
+include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:direct")
 include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
+include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:xlang")
 include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
+include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:tox:pycommon")
 include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
+include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
@@ -334,8 +324,6 @@ include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
 include("beam-test-infra-mock-apis")
 project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
-include("beam-test-infra-pipelines")
-project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
@@ -345,6 +333,8 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
+include("sdks:java:io:kafka:kafka-312")
+findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
 include("sdks:java:io:kafka:kafka-241")
@@ -357,13 +347,15 @@ include("sdks:java:io:kafka:kafka-211")
 findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
 include("sdks:java:io:kafka:kafka-201")
 findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
-include("sdks:java:io:kafka:kafka-111")
-findProject(":sdks:java:io:kafka:kafka-111")?.name = "kafka-111"
-include("sdks:java:io:kafka:kafka-100")
-findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
-include("sdks:java:io:kafka:kafka-01103")
-findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")
 findProject(":sdks:java:io:iceberg")?.name = "iceberg"
+include("sdks:java:io:solace")
+findProject(":sdks:java:io:solace")?.name = "solace"
+include("sdks:java:extensions:combiners")
+findProject(":sdks:java:extensions:combiners")?.name = "combiners"
+include("sdks:java:io:iceberg:hive")
+findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:exec")
+findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"

@@ -34,8 +34,10 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -121,17 +123,18 @@ public class KafkaReadSchemaTransformProviderTest {
 
     assertEquals(
         Sets.newHashSet(
-            "bootstrapServers",
+            "bootstrap_servers",
             "topic",
             "schema",
-            "autoOffsetResetConfig",
-            "consumerConfigUpdates",
+            "auto_offset_reset_config",
+            "consumer_config_updates",
             "format",
-            "confluentSchemaRegistrySubject",
-            "confluentSchemaRegistryUrl",
-            "errorHandling",
-            "fileDescriptorPath",
-            "messageName"),
+            "confluent_schema_registry_subject",
+            "confluent_schema_registry_url",
+            "error_handling",
+            "file_descriptor_path",
+            "message_name",
+            "max_read_time_seconds"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -232,22 +235,23 @@ public class KafkaReadSchemaTransformProviderTest {
             .collect(Collectors.toList());
     KafkaReadSchemaTransformProvider kafkaProvider =
         (KafkaReadSchemaTransformProvider) providers.get(0);
+    SchemaTransform transform =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("PROTO")
+                .setMessageName("MyOtherMessage")
+                .setFileDescriptorPath(
+                    Objects.requireNonNull(
+                            getClass()
+                                .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                        .getPath())
+                .build());
 
     assertThrows(
         NullPointerException.class,
-        () ->
-            kafkaProvider.from(
-                KafkaReadSchemaTransformConfiguration.builder()
-                    .setTopic("anytopic")
-                    .setBootstrapServers("anybootstrap")
-                    .setFormat("PROTO")
-                    .setMessageName("MyOtherMessage")
-                    .setFileDescriptorPath(
-                        Objects.requireNonNull(
-                                getClass()
-                                    .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
-                            .getPath())
-                    .build()));
+        () -> transform.expand(PCollectionRowTuple.empty(Pipeline.create())));
   }
 
   @Test
@@ -281,17 +285,18 @@ public class KafkaReadSchemaTransformProviderTest {
             .collect(Collectors.toList());
     KafkaReadSchemaTransformProvider kafkaProvider =
         (KafkaReadSchemaTransformProvider) providers.get(0);
+    SchemaTransform transform =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("PROTO")
+                .setMessageName("MyMessage")
+                .build());
 
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            kafkaProvider.from(
-                KafkaReadSchemaTransformConfiguration.builder()
-                    .setTopic("anytopic")
-                    .setBootstrapServers("anybootstrap")
-                    .setFormat("PROTO")
-                    .setMessageName("MyMessage")
-                    .build()));
+        () -> transform.expand(PCollectionRowTuple.empty(Pipeline.create())));
   }
 
   @Test
@@ -319,7 +324,7 @@ public class KafkaReadSchemaTransformProviderTest {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand
       Managed.read(Managed.KAFKA)
           .withConfig(YamlUtils.yamlStringToMap(config))
-          .expand(PCollectionRowTuple.empty(Pipeline.create()));
+          .expand(PBegin.in(Pipeline.create()));
     }
   }
 

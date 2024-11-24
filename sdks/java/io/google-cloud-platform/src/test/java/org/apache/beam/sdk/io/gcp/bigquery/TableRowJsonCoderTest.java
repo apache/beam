@@ -26,6 +26,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,6 +66,13 @@ public class TableRowJsonCoderTest {
     for (TableRow value : TEST_VALUES) {
       CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  @Test
+  public void testLargeRow() throws Exception {
+    String val = StringUtils.repeat("BEAM", 10 * 1024 * 1024); // 40 MB
+    TableRow testValue = new TableRowBuilder().set("a", val).set("b", "1").build();
+    CoderProperties.coderDecodeEncodeEqual(TEST_CODER, testValue);
   }
 
   /**

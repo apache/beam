@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript yaml >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.8, 3.9, 3.10, and 3.11.
+The Python SDK supports Python 3.8, 3.9, 3.10, 3.11, and 3.12.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -666,8 +666,8 @@ in the Python SDK, please read and work through
 ### 4.1. Applying transforms {#applying-transforms}
 
 To invoke a transform, you must **apply** it to the input `PCollection`. Each
-transform in the Beam SDKs has a generic `apply` method
-<span class="language-py">(or pipe operator `|`)</span>.
+transform in the Beam SDKs has a generic `apply` method<span class="language-py">
+(or pipe operator `|`)</span>.
 Invoking multiple Beam transforms is similar to *method chaining*, but with one
 slight difference: You apply the transform to the input `PCollection`, passing
 the transform itself as an argument, and the operation returns the output
@@ -1043,6 +1043,7 @@ define your pipeline's exact data processing tasks.
 > **Note:** When you create your `DoFn`, be mindful of the [Requirements
 > for writing user code for Beam transforms](#requirements-for-writing-user-code-for-beam-transforms)
 > and ensure that your code follows them.
+> You should avoid time-consuming operations such as reading large files in `DoFn.Setup`.
 
 {{< paragraph class="language-java">}}
 A `DoFn` processes one element at a time from the input `PCollection`. When you
@@ -2023,7 +2024,7 @@ playerAccuracies := ... // PCollection<string,int>
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-py">[`Flatten`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten)</span>
 <span class="language-go">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go)</span>
 <span class="language-typescript">`Flatten`</span>
 is a Beam transform for `PCollection` objects that store the same data type.
@@ -2044,11 +2045,47 @@ PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight java >}}
+PCollection<String> merged = pc1
+    .apply(...)
+    // Merges the elements of pc2 in at this point...
+    .apply(FlattenWith.of(pc2))
+    .apply(...)
+    // and the elements of pc3 at this point.
+    .apply(FlattenWith.of(pc3))
+    .apply(...);
+{{< /highlight >}}
+
 
 {{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlattenWith)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+`FlattenWith` can take root `PCollection`-producing transforms
+(such as `Create` and `Read`) as well as already constructed PCollections,
+and will apply them and flatten their outputs into the resulting output
+PCollection.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transform >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -6095,6 +6132,18 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, ...) {
 }
 {{< /highlight >}}
 
+{{< highlight py>}}
+from apache_beam import metrics
+
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.counter = metrics.Metrics.counter("namespace", "counter1")
+
+  def process(self, element):
+    self.counter.inc()
+    yield element
+{{< /highlight >}}
+
 **Distribution**: A metric that reports information about the distribution of reported values.
 
 {{< highlight java >}}
@@ -6117,6 +6166,16 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
 	distribution.Update(ctx, v)
 	...
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.distribution = metrics.Metrics.distribution("namespace", "distribution1")
+
+  def process(self, element):
+    self.distribution.update(element)
+    yield element
 {{< /highlight >}}
 
 **Gauge**: A metric that reports the latest value out of reported values. Since metrics are
@@ -6144,6 +6203,16 @@ func (fn *MyDoFn) ProcessElement(ctx context.Context, v int64, ...) {
 }
 {{< /highlight >}}
 
+{{< highlight py >}}
+class MyDoFn(beam.DoFn):
+  def __init__(self):
+    self.gauge = metrics.Metrics.gauge("namespace", "gauge1")
+
+  def process(self, element):
+    self.gauge.set(element)
+    yield element
+{{< /highlight >}}
+
 ### 10.3. Querying metrics {#querying-metrics}
 {{< paragraph class="language-java language-python">}}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
@@ -6156,6 +6225,17 @@ matching a given filter.
 accessing metrics. The main method available in `metrics.Results` allows querying for all metrics
 matching a given filter.  It takes in a predicate with a `SingleResult` parameter type, which can
 be used for custom filters.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py">}}
+`PipelineResult` has a `metrics` method that returns a `MetricResults` object. The `MetricResults` object  lets you
+access metrics. The main method available in the `MetricResults` object, `query`, lets you
+query all metrics that match a given filter. The `query` method takes in a `MetricsFilter` object that you can
+use to filter by several different criteria. Querying a `MetricResults` object returns
+a dictionary of lists of `MetricResult` objects, with the dictionary organizing them by type,
+for example, `Counter`, `Distribution`, and `Gauge`. The `MetricResult` object contains a `result` function
+that gets the value of the metric and contains a `key` property. The `key` property contains information about
+the namespace and the name of the metric.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -6183,6 +6263,20 @@ public interface MetricResult<T> {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_query >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class PipelineResult:
+  def metrics(self) -> MetricResults:
+  """Returns a the metric results from the pipeline."""
+
+class MetricResults:
+  def query(self, filter: MetricsFilter) -> Dict[str, List[MetricResult]]:
+    """Filters the results against the specified filter."""
+
+class MetricResult:
+  def result(self):
+    """Returns the value of the metric."""
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
@@ -6225,6 +6319,28 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/10metrics.go" metrics_pipeline >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class MyMetricsDoFn(beam.DoFn):
+  def __init__(self):
+    self.counter = metrics.Metrics.counter("namespace", "counter1")
+
+  def process(self, element):
+    counter.inc()
+    yield element
+
+pipeline = beam.Pipeline()
+
+pipeline | beam.ParDo(MyMetricsDoFn())
+
+result = pipeline.run().wait_until_finish()
+
+metrics = result.metrics().query(
+    metrics.MetricsFilter.with_namespace("namespace").with_name("counter1"))
+
+for metric in metrics["counters"]:
+  print(metric)
 {{< /highlight >}}
 
 ### 10.5. Export metrics {#export-metrics}
@@ -7887,7 +8003,7 @@ Depending on the SDK language of the pipeline, you can use a high-level SDK-wrap
 
 #### 13.2.1. Using cross-language transforms in a Java pipeline
 
-Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, the Java SDK has the `DataframeTransform` class, which uses the Python SDK's `DataframeTransform`, and it has the `RunInference` class, which uses the Python SDK's `RunInference`, and so on. When an SDK-specific wrapper transform is not available for a target Python transform, you can use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from SDKs other than Python (including Java SDK itself), you can also use the lowest-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+Users have three options to use cross-language transforms in a Java pipeline. At the highest level of abstraction, some popular Python transforms are accessible through dedicated Java wrapper transforms. For example, the Java SDK has the `DataframeTransform` class, which uses the Python SDK's `DataframeTransform`, and it has the `RunInference` class, which uses the Python SDK's `RunInference`, and so on. When an SDK-specific wrapper transform is not available for a target Python transform, you can use the lower-level [PythonExternalTransform](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) class instead by specifying the fully qualified name of the Python transform. If you want to try external transforms from SDKs other than Python (including Java SDK itself), you can also use the lowest-level [External](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/util/construction/External.java) class.
 
 **Using an SDK wrapper**
 
@@ -7919,7 +8035,7 @@ input.apply(
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
     Make sure the transform you are trying to use is available and can be used by the expansion service.
-3. Include [External.of(...)](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/test/java/org/apache/beam/runners/core/construction/ValidateRunnerXlangTest.java).
+3. Include [External.of(...)](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/util/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/util/construction/ValidateRunnerXlangTest.java).
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
 
 #### 13.2.2. Using cross-language transforms in a Python pipeline

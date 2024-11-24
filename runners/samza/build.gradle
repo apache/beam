@@ -111,6 +111,8 @@ def sickbayTests = [
         'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException',
         // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+        // https://github.com/apache/beam/issues/31725
+        'org.apache.beam.sdk.io.TextIOWriteTest.testWriteUnboundedWithCustomBatchParameters',
 ]
 tasks.register("validatesRunner", Test) {
   group = "Verification"

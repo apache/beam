@@ -17,15 +17,13 @@
 import functools
 import operator
 import re
+from collections.abc import Callable
 from inspect import cleandoc
 from inspect import getfullargspec
 from inspect import isclass
 from inspect import ismodule
 from inspect import unwrap
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -38,7 +36,7 @@ from apache_beam.dataframe import partitionings
 
 class DeferredBase(object):
 
-  _pandas_type_map = {}  # type: Dict[Union[type, None], type]
+  _pandas_type_map: dict[Union[type, None], type] = {}
 
   def __init__(self, expr):
     self._expr = expr
@@ -197,8 +195,8 @@ def _proxy_method(
     inplace=False,
     base=None,
     *,
-    requires_partition_by,  # type: partitionings.Partitioning
-    preserves_partition_by,  # type: partitionings.Partitioning
+    requires_partition_by: partitionings.Partitioning,
+    preserves_partition_by: partitionings.Partitioning,
 ):
   if name is None:
     name, func = name_and_func(func)
@@ -227,14 +225,14 @@ def _elementwise_function(
 
 
 def _proxy_function(
-    func,  # type: Union[Callable, str]
-    name=None,  # type: Optional[str]
-    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
-    inplace=False,  # type: bool
-    base=None,  # type: Optional[type]
+    func: Union[Callable, str],
+    name: Optional[str] = None,
+    restrictions: Optional[dict[str, Union[Any, list[Any]]]] = None,
+    inplace: bool = False,
+    base: Optional[type] = None,
     *,
-    requires_partition_by,  # type: partitionings.Partitioning
-    preserves_partition_by,  # type: partitionings.Partitioning
+    requires_partition_by: partitionings.Partitioning,
+    preserves_partition_by: partitionings.Partitioning,
 ):
 
   if name is None:
@@ -605,6 +603,21 @@ def with_docs_from(base_type, name=None, removed_method=False):
             (".. doctest::\n"
              "    :skipif: True"),
             re.sub(r"^", "    ", content, flags=re.MULTILINE),
+        ])
+      elif "Examples" in content and ">>>" in content:
+        # some new examples don't have the correct heading
+        # this catches those examples
+        split_content = content.split("Examples")
+        content = '\n\n'.join([
+            split_content[0],
+            "Examples\n",
+            # Indent the code snippet under a doctest heading,
+            # add skipif option. This makes sure our doctest
+            # framework doesn't run these pandas tests.
+            (".. doctest::\n"
+             "    :skipif: True"),
+            re.sub(r"^", "    ", content, flags=re.MULTILINE),
+            split_content[1]
         ])
       else:
         content = content.replace('DataFrame', 'DeferredDataFrame').replace(

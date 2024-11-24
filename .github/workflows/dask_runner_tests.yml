@@ -26,6 +26,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/python/apache_beam/runners/dask/**']
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -43,7 +44,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Build source
         working-directory: ./sdks/python
         run: pip install -U build && python -m build --sdist
@@ -64,7 +65,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
         ]
@@ -79,7 +79,7 @@ jobs:
         run: pip install tox
       - name: Install SDK with dask
         working-directory: ./sdks/python
-        run: pip install setuptools --upgrade && pip install -e .[gcp,dask,test]
+        run: pip install setuptools --upgrade && pip install -e .[dask,test,dataframes]
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python

@@ -145,7 +145,7 @@ public class SpannerIOST extends IOStressTestBase {
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"numRecords\":10000000,\"rowsPerSecond\":25000,\"minutes\":30,\"valueSizeBytes\":1000,\"pipelineTimeout\":300,\"runner\":\"DataflowRunner\"}",
+                  "{\"numRecords\":20000000,\"rowsPerSecond\":50000,\"minutes\":60,\"valueSizeBytes\":1000,\"pipelineTimeout\":180,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);

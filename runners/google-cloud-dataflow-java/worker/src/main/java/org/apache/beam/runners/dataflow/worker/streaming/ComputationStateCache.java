@@ -147,8 +147,10 @@ public final class ComputationStateCache implements StatusDataProvider {
         | ComputationStateNotFoundException e) {
       if (e.getCause() instanceof ComputationStateNotFoundException
           || e instanceof ComputationStateNotFoundException) {
-        LOG.error(
-            "Trying to fetch unknown computation={}, known computations are {}.",
+        LOG.warn(
+            "Computation {} is currently unknown, "
+                + "known computations are {}. "
+                + "This is transient and will get retried.",
             computationId,
             ImmutableSet.copyOf(computationCache.asMap().keySet()));
       } else {
@@ -193,6 +195,7 @@ public final class ComputationStateCache implements StatusDataProvider {
   /**
    * Close all {@link ComputationState}(s) present in the cache, then invalidate the entire cache.
    */
+  @VisibleForTesting
   public void closeAndInvalidateAll() {
     computationCache.asMap().values().forEach(ComputationState::close);
     computationCache.invalidateAll();

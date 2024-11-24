@@ -41,10 +41,9 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:java-fn-execution")
   implementation project(path: ":sdks:java:harness")
+  runtimeOnly library.java.jamm
+  implementation library.java.snake_yaml
   permitUnusedDeclared project(path: ":model:fn-execution")
-  implementation library.java.jackson_annotations
-  implementation library.java.jackson_databind
-  implementation library.java.jackson_dataformat_yaml
   implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.slf4j_api
@@ -57,4 +56,8 @@ task runExpansionService (type: JavaExec) {
   mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
+}
+
+compileJava {
+  outputs.upToDateWhen { false }
 }

@@ -66,6 +66,8 @@ dependencies {
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
+  runtimeOnly project(":sdks:java:io:iceberg")
+  implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
@@ -100,6 +102,8 @@ dependencies {
   implementation "org.apache.httpcomponents:httpcore:4.4.13"
   implementation "com.fasterxml.jackson.core:jackson-annotations:2.14.1"
   implementation "com.fasterxml.jackson.core:jackson-core:2.14.1"
+  runtimeOnly library.java.hadoop_client
+  runtimeOnly library.java.bigdataoss_gcs_connector
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:ml")
@@ -176,5 +180,5 @@ task wordCount(type:JavaExec) {
   mainClass = "org.apache.beam.examples.WordCount"
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
-  args = ["--output=/tmp/ouput.txt"]
+  args = ["--output=/tmp/output.txt"]
 }

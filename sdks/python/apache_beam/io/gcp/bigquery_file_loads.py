@@ -40,6 +40,7 @@ from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
@@ -564,6 +565,11 @@ class TriggerCopyJobs(beam.DoFn):
       write_disposition = self.write_disposition
       wait_for_job = True
       self._observed_tables.add(copy_to_reference.tableId)
+      Lineage.sinks().add(
+          'bigquery',
+          copy_to_reference.projectId,
+          copy_to_reference.datasetId,
+          copy_to_reference.tableId)
     else:
       wait_for_job = False
       write_disposition = 'WRITE_APPEND'
@@ -735,6 +741,12 @@ class TriggerLoadJobs(beam.DoFn):
       yield pvalue.TaggedOutput(
           TriggerLoadJobs.TEMP_TABLES,
           bigquery_tools.get_hashable_destination(table_reference))
+    else:
+      Lineage.sinks().add(
+          'bigquery',
+          table_reference.projectId,
+          table_reference.datasetId,
+          table_reference.tableId)
 
     _LOGGER.info(
         'Triggering job %s to load data to BigQuery table %s.'

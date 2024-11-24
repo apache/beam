@@ -77,6 +77,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.Writer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -131,8 +132,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.state.MapState;
-import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -840,6 +839,19 @@ public class DataflowRunnerTest implements Serializable {
             .startsWith("gs://valid-bucket/temp/staging/dataflow_graph"));
   }
 
+  @Test
+  public void testUploadGraphV2IsNoOp() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(Arrays.asList("upload_graph", "use_runner_v2"));
+    Pipeline p = buildDataflowPipeline(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    assertValidJob(jobCaptor.getValue());
+    assertNull(jobCaptor.getValue().getStepsLocation());
+  }
+
   /** Test for automatically using upload_graph when the job graph is too large (>10MB). */
   @Test
   public void testUploadGraphWithAutoUpload() throws IOException {
@@ -1145,6 +1157,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testReplaceGcsFilesWithLocalFilesEmptyList() {
+    List<String> filesToStage = Collections.emptyList();
+    List<String> processedFiles = DataflowRunner.replaceGcsFilesWithLocalFiles(filesToStage);
+    assertTrue(processedFiles.isEmpty());
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testReplaceGcsFilesWithLocalFilesIOError() {
+    List<String> filesToStage = Collections.singletonList("gs://non-existent-bucket/file.jar");
+    DataflowRunner.replaceGcsFilesWithLocalFiles(filesToStage);
+  }
+
+  @Test
   public void testNonExistentProfileLocation() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setSaveProfilesToGcs(NON_EXISTENT_BUCKET);
@@ -1244,8 +1269,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverrides() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.8_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.8_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest";
     options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline =
@@ -1286,8 +1311,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverridesByDefault() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.8_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.8_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:latest";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline =
         RunnerApi.Pipeline.newBuilder()
@@ -1878,63 +1903,6 @@ public class DataflowRunnerTest implements Serializable {
         assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
       }
     }
-  }
-
-  private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {
-    Pipeline p = Pipeline.create(options);
-    p.apply(Create.of(KV.of(13, 42)))
-        .apply(
-            ParDo.of(
-                new DoFn<KV<Integer, Integer>, Void>() {
-
-                  @StateId("fizzle")
-                  private final StateSpec<MapState<Void, Void>> voidState = StateSpecs.map();
-
-                  @ProcessElement
-                  public void process() {}
-                }));
-
-    thrown.expectMessage("MapState");
-    thrown.expect(UnsupportedOperationException.class);
-    p.run();
-  }
-
-  @Test
-  public void testMapStateUnsupportedStreamingEngine() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(
-        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-    options.as(DataflowPipelineOptions.class).setStreaming(true);
-
-    verifyMapStateUnsupported(options);
-  }
-
-  private void verifySetStateUnsupported(PipelineOptions options) throws Exception {
-    Pipeline p = Pipeline.create(options);
-    p.apply(Create.of(KV.of(13, 42)))
-        .apply(
-            ParDo.of(
-                new DoFn<KV<Integer, Integer>, Void>() {
-
-                  @StateId("fizzle")
-                  private final StateSpec<SetState<Void>> voidState = StateSpecs.set();
-
-                  @ProcessElement
-                  public void process() {}
-                }));
-
-    thrown.expectMessage("SetState");
-    thrown.expect(UnsupportedOperationException.class);
-    p.run();
-  }
-
-  @Test
-  public void testSetStateUnsupportedStreamingEngine() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(
-        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-    options.as(DataflowPipelineOptions.class).setStreaming(true);
-    verifySetStateUnsupported(options);
   }
 
   /** Records all the composite transforms visited within the Pipeline. */

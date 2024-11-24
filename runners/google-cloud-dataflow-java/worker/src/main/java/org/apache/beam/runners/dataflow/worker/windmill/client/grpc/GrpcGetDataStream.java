@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ve
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -30,10 +31,11 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -48,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDat
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -58,12 +61,17 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class GrpcGetDataStream
+@ThreadSafe
+final class GrpcGetDataStream
     extends AbstractWindmillStream<StreamingGetDataRequest, StreamingGetDataResponse>
     implements GetDataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetDataStream.class);
+  private static final StreamingGetDataRequest HEALTH_CHECK_REQUEST =
+      StreamingGetDataRequest.newBuilder().build();
 
+  /** @implNote {@link QueuedBatch} objects in the queue are is guarded by {@code this} */
   private final Deque<QueuedBatch> batches;
+
   private final Map<Long, AppendableInputStream> pending;
   private final AtomicLong idGenerator;
   private final ThrottleTimer getDataThrottleTimer;
@@ -75,6 +83,7 @@ public final class GrpcGetDataStream
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -88,7 +97,14 @@ public final class GrpcGetDataStream
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
-        startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        LOG,
+        "GetDataStream",
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        backendWorkerToken);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
@@ -99,7 +115,8 @@ public final class GrpcGetDataStream
     this.processHeartbeatResponses = processHeartbeatResponses;
   }
 
-  public static GrpcGetDataStream create(
+  static GrpcGetDataStream create(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -112,31 +129,44 @@ public final class GrpcGetDataStream
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
-    GrpcGetDataStream getDataStream =
-        new GrpcGetDataStream(
-            startGetDataRpcFn,
-            backoff,
-            streamObserverFactory,
-            streamRegistry,
-            logEveryNStreamFailures,
-            getDataThrottleTimer,
-            jobHeader,
-            idGenerator,
-            streamingRpcBatchLimit,
-            sendKeyedGetDataRequests,
-            processHeartbeatResponses);
-    getDataStream.startStream();
-    return getDataStream;
+    return new GrpcGetDataStream(
+        backendWorkerToken,
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        getDataThrottleTimer,
+        jobHeader,
+        idGenerator,
+        streamingRpcBatchLimit,
+        sendKeyedGetDataRequests,
+        processHeartbeatResponses);
+  }
+
+  private static WindmillStreamShutdownException shutdownExceptionFor(QueuedBatch batch) {
+    return new WindmillStreamShutdownException(
+        "Stream was closed when attempting to send " + batch.requestsCount() + " requests.");
+  }
+
+  private static WindmillStreamShutdownException shutdownExceptionFor(QueuedRequest request) {
+    return new WindmillStreamShutdownException(
+        "Cannot send request=[" + request + "] on closed stream.");
+  }
+
+  private void sendIgnoringClosed(StreamingGetDataRequest getDataRequest)
+      throws WindmillStreamShutdownException {
+    trySend(getDataRequest);
   }
 
   @Override
-  protected synchronized void onNewStream() {
-    send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
-    if (clientClosed.get()) {
+  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
+    trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
+    if (clientClosed) {
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
-      verify(!hasPendingRequests());
+      verify(!hasPendingRequests(), "Pending requests not expected if we've half-closed.");
     } else {
       for (AppendableInputStream responseStream : pending.values()) {
         responseStream.cancel();
@@ -150,7 +180,6 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  @SuppressWarnings("dereference.of.nullable")
   protected void onResponse(StreamingGetDataResponse chunk) {
     checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
     checkArgument(chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
@@ -158,8 +187,15 @@ public final class GrpcGetDataStream
     onHeartbeatResponse(chunk.getComputationHeartbeatResponseList());
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
-      AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
-      verify(responseStream != null, "No pending response stream");
+      @Nullable AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
+      if (responseStream == null) {
+        synchronized (this) {
+          // shutdown()/shutdownInternal() cleans up pending, else we expect a pending
+          // responseStream for every response.
+          verify(isShutdown, "No pending response stream");
+        }
+        continue;
+      }
       responseStream.append(chunk.getSerializedResponse(i).newInput());
       if (chunk.getRemainingBytesForResponse() == 0) {
         responseStream.complete();
@@ -177,30 +213,33 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public KeyedGetDataResponse requestKeyedData(String computation, KeyedGetDataRequest request) {
+  public KeyedGetDataResponse requestKeyedData(String computation, KeyedGetDataRequest request)
+      throws WindmillStreamShutdownException {
     return issueRequest(
         QueuedRequest.forComputation(uniqueId(), computation, request),
         KeyedGetDataResponse::parseFrom);
   }
 
   @Override
-  public GlobalData requestGlobalData(GlobalDataRequest request) {
+  public GlobalData requestGlobalData(GlobalDataRequest request)
+      throws WindmillStreamShutdownException {
     return issueRequest(QueuedRequest.global(uniqueId(), request), GlobalData::parseFrom);
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats)
+      throws WindmillStreamShutdownException {
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     if (sendKeyedGetDataRequests) {
       long builderBytes = 0;
-      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         for (HeartbeatRequest request : entry.getValue()) {
           // Calculate the bytes with some overhead for proto encoding.
           long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
           if (builderBytes > 0
               && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
                   || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
-            send(builder.build());
+            sendIgnoringClosed(builder.build());
             builderBytes = 0;
             builder.clear();
           }
@@ -219,12 +258,12 @@ public final class GrpcGetDataStream
       }
 
       if (builderBytes > 0) {
-        send(builder.build());
+        sendIgnoringClosed(builder.build());
       }
     } else {
       // No translation necessary, but we must still respect `RPC_STREAM_CHUNK_SIZE`.
       long builderBytes = 0;
-      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         ComputationHeartbeatRequest.Builder computationHeartbeatBuilder =
             ComputationHeartbeatRequest.newBuilder().setComputationId(entry.getKey());
         for (HeartbeatRequest request : entry.getValue()) {
@@ -234,7 +273,7 @@ public final class GrpcGetDataStream
             if (computationHeartbeatBuilder.getHeartbeatRequestsCount() > 0) {
               builder.addComputationHeartbeatRequest(computationHeartbeatBuilder.build());
             }
-            send(builder.build());
+            sendIgnoringClosed(builder.build());
             builderBytes = 0;
             builder.clear();
             computationHeartbeatBuilder.clear().setComputationId(entry.getKey());
@@ -246,7 +285,7 @@ public final class GrpcGetDataStream
       }
 
       if (builderBytes > 0) {
-        send(builder.build());
+        sendIgnoringClosed(builder.build());
       }
     }
   }
@@ -257,10 +296,24 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void sendHealthCheck() {
+  public void sendHealthCheck() throws WindmillStreamShutdownException {
     if (hasPendingRequests()) {
-      send(StreamingGetDataRequest.newBuilder().build());
+      trySend(HEALTH_CHECK_REQUEST);
     }
+  }
+
+  @Override
+  protected synchronized void shutdownInternal() {
+    // Stream has been explicitly closed. Drain pending input streams and request batches.
+    // Future calls to send RPCs will fail.
+    pending.values().forEach(AppendableInputStream::cancel);
+    pending.clear();
+    batches.forEach(
+        batch -> {
+          batch.markFinalized();
+          batch.notifyFailed();
+        });
+    batches.clear();
   }
 
   @Override
@@ -287,20 +340,23 @@ public final class GrpcGetDataStream
     writer.append("]");
   }
 
-  private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
+  private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn)
+      throws WindmillStreamShutdownException {
     while (true) {
       request.resetResponseStream();
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
-      } catch (CancellationException e) {
-        // Retry issuing the request since the response stream was cancelled.
-        continue;
+      } catch (AppendableInputStream.InvalidInputStreamStateException | CancellationException e) {
+        throwIfShutdown(request, e);
+        if (!(e instanceof CancellationException)) {
+          throw e;
+        }
       } catch (IOException e) {
         LOG.error("Parsing GetData response failed: ", e);
-        continue;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        throwIfShutdown(request, e);
         throw new RuntimeException(e);
       } finally {
         pending.remove(request.id());
@@ -308,18 +364,32 @@ public final class GrpcGetDataStream
     }
   }
 
-  private void queueRequestAndWait(QueuedRequest request) throws InterruptedException {
+  private synchronized void throwIfShutdown(QueuedRequest request, Throwable cause)
+      throws WindmillStreamShutdownException {
+    if (isShutdown) {
+      WindmillStreamShutdownException shutdownException = shutdownExceptionFor(request);
+      shutdownException.addSuppressed(cause);
+      throw shutdownException;
+    }
+  }
+
+  private void queueRequestAndWait(QueuedRequest request)
+      throws InterruptedException, WindmillStreamShutdownException {
     QueuedBatch batch;
     boolean responsibleForSend = false;
-    CountDownLatch waitForSendLatch = null;
-    synchronized (batches) {
+    @Nullable QueuedBatch prevBatch = null;
+    synchronized (this) {
+      if (isShutdown) {
+        throw shutdownExceptionFor(request);
+      }
+
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
           || batch.isFinalized()
-          || batch.requests().size() >= streamingRpcBatchLimit
+          || batch.requestsCount() >= streamingRpcBatchLimit
           || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         if (batch != null) {
-          waitForSendLatch = batch.getLatch();
+          prevBatch = batch;
         }
         batch = new QueuedBatch();
         batches.addLast(batch);
@@ -328,62 +398,78 @@ public final class GrpcGetDataStream
       batch.addRequest(request);
     }
     if (responsibleForSend) {
-      if (waitForSendLatch == null) {
+      if (prevBatch == null) {
         // If there was not a previous batch wait a little while to improve
         // batching.
-        Thread.sleep(1);
+        sleeper.sleep(1);
       } else {
-        waitForSendLatch.await();
+        prevBatch.waitForSendOrFailNotification();
       }
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
-      synchronized (batches) {
-        verify(batch == batches.peekFirst());
+      synchronized (this) {
+        if (isShutdown) {
+          throw shutdownExceptionFor(batch);
+        }
+
+        verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
         batch.markFinalized();
       }
-      sendBatch(batch.requests());
-      synchronized (batches) {
-        verify(batch == batches.pollFirst());
+      trySendBatch(batch);
+    } else {
+      // Wait for this batch to be sent before parsing the response.
+      batch.waitForSendOrFailNotification();
+    }
+  }
+
+  void trySendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
+    try {
+      sendBatch(batch);
+      synchronized (this) {
+        if (isShutdown) {
+          throw shutdownExceptionFor(batch);
+        }
+
+        verify(
+            batch == batches.pollFirst(),
+            "Sent GetDataStream request batch removed before send() was complete.");
       }
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
-      batch.countDown();
-    } else {
-      // Wait for this batch to be sent before parsing the response.
-      batch.await();
+      batch.notifySent();
+    } catch (Exception e) {
+      // Free waiters if the send() failed.
+      batch.notifyFailed();
+      // Propagate the exception to the calling thread.
+      throw e;
     }
   }
 
-  @SuppressWarnings("NullableProblems")
-  private void sendBatch(List<QueuedRequest> requests) {
-    StreamingGetDataRequest batchedRequest = flushToBatch(requests);
+  private void sendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
+    if (batch.isEmpty()) {
+      return;
+    }
+
+    // Synchronization of pending inserts is necessary with send to ensure duplicates are not
+    // sent on stream reconnect.
     synchronized (this) {
-      // Synchronization of pending inserts is necessary with send to ensure duplicates are not
-      // sent on stream reconnect.
-      for (QueuedRequest request : requests) {
+      if (isShutdown) {
+        throw shutdownExceptionFor(batch);
+      }
+
+      for (QueuedRequest request : batch.requestsReadOnly()) {
         // Map#put returns null if there was no previous mapping for the key, meaning we have not
         // seen it before.
-        verify(pending.put(request.id(), request.getResponseStream()) == null);
+        verify(
+            pending.put(request.id(), request.getResponseStream()) == null,
+            "Request already sent.");
       }
-      try {
-        send(batchedRequest);
-      } catch (IllegalStateException e) {
-        // The stream broke before this call went through; onNewStream will retry the fetch.
-        LOG.warn("GetData stream broke before call started.", e);
-      }
-    }
-  }
 
-  @SuppressWarnings("argument")
-  private StreamingGetDataRequest flushToBatch(List<QueuedRequest> requests) {
-    // Put all global data requests first because there is only a single repeated field for
-    // request ids and the initial ids correspond to global data requests if they are present.
-    requests.sort(QueuedRequest.globalRequestsFirst());
-    StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
-    for (QueuedRequest request : requests) {
-      request.addToStreamingGetDataRequest(builder);
+      if (!trySend(batch.asGetDataRequest())) {
+        // The stream broke before this call went through; onNewStream will retry the fetch.
+        LOG.warn("GetData stream broke before call started.");
+      }
     }
-    return builder.build();
   }
 
   @FunctionalInterface

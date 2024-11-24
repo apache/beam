@@ -26,7 +26,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 try:
   import google.auth as gauth
 except ImportError:
-  gauth = None
+  gauth = None  # type: ignore
 
 
 class MockLoggingHandler(logging.Handler):

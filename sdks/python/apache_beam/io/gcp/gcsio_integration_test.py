@@ -32,9 +32,12 @@ import logging
 import unittest
 import uuid
 
+import mock
 import pytest
+from parameterized import parameterized_class
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
@@ -42,8 +45,16 @@ try:
 except ImportError:
   gcsio = None  # type: ignore
 
+try:
+  from google.api_core.exceptions import NotFound
+except ImportError:
+  NotFound = None
+
 
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
+@parameterized_class(
+    ('no_gcsio_throttling_counter', 'enable_gcsio_blob_generation'),
+    [(False, False), (False, True), (True, False), (True, True)])
 class GcsIOIntegrationTest(unittest.TestCase):
 
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
@@ -60,7 +71,6 @@ class GcsIOIntegrationTest(unittest.TestCase):
     self.gcs_tempdir = (
         self.test_pipeline.get_option('temp_location') + '/gcs_it-' +
         str(uuid.uuid4()))
-    self.gcsio = gcsio.GcsIO()
 
   def tearDown(self):
     FileSystems.delete([self.gcs_tempdir + '/'])
@@ -85,14 +95,47 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_copy(self):
+    self.gcsio = gcsio.GcsIO(
+        pipeline_options={
+            "no_gcsio_throttling_counter": self.no_gcsio_throttling_counter,
+            "enable_gcsio_blob_generation": self.enable_gcsio_blob_generation
+        })
     src = self.INPUT_FILE
     dest = self.gcs_tempdir + '/test_copy'
 
     self.gcsio.copy(src, dest)
     self._verify_copy(src, dest)
 
+    unknown_src = self.test_pipeline.get_option('temp_location') + \
+        '/gcs_it-' + str(uuid.uuid4())
+    with self.assertRaises(NotFound):
+      self.gcsio.copy(unknown_src, dest)
+
+  @pytest.mark.it_postcommit
+  def test_copy_and_delete(self):
+    self.gcsio = gcsio.GcsIO(
+        pipeline_options={
+            "no_gcsio_throttling_counter": self.no_gcsio_throttling_counter,
+            "enable_gcsio_blob_generation": self.enable_gcsio_blob_generation
+        })
+    src = self.INPUT_FILE
+    dest = self.gcs_tempdir + '/test_copy'
+
+    self.gcsio.copy(src, dest)
+    self._verify_copy(src, dest)
+
+    self.gcsio.delete(dest)
+
+    # no exception if we delete an nonexistent file.
+    self.gcsio.delete(dest)
+
   @pytest.mark.it_postcommit
   def test_batch_copy_and_delete(self):
+    self.gcsio = gcsio.GcsIO(
+        pipeline_options={
+            "no_gcsio_throttling_counter": self.no_gcsio_throttling_counter,
+            "enable_gcsio_blob_generation": self.enable_gcsio_blob_generation
+        })
     num_copies = 10
     srcs = [self.INPUT_FILE] * num_copies
     dests = [
@@ -140,6 +183,51 @@ class GcsIOIntegrationTest(unittest.TestCase):
     for dest, result in list(zip(dests, redelete_results)):
       self.assertFalse(
           result[1], 're-delete should not throw error: %s' % result[1])
+
+  @pytest.mark.it_postcommit
+  @mock.patch('apache_beam.io.gcp.gcsio.default_gcs_bucket_name')
+  @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
+  def test_create_default_bucket(self, mock_default_gcs_bucket_name):
+    self.gcsio = gcsio.GcsIO()
+    google_cloud_options = self.test_pipeline.options.view_as(
+        GoogleCloudOptions)
+    # overwrite kms option here, because get_or_create_default_gcs_bucket()
+    # requires this option unset.
+    google_cloud_options.dataflow_kms_key = None
+
+    import random
+    from hashlib import md5
+    # Add a random number to avoid collision if multiple test instances
+    # are run at the same time. To avoid too many dangling buckets if bucket
+    # removal fails, we limit the max number of possible bucket names in this
+    # test to 1000.
+    overridden_bucket_name = 'gcsio-it-%d-%s-%s' % (
+        random.randint(0, 999),
+        google_cloud_options.region,
+        md5(google_cloud_options.project.encode('utf8')).hexdigest())
+
+    mock_default_gcs_bucket_name.return_value = overridden_bucket_name
+
+    # remove the existing bucket with the same name as the default bucket
+    existing_bucket = self.gcsio.get_bucket(overridden_bucket_name)
+    if existing_bucket:
+      try:
+        existing_bucket.delete()
+      except NotFound:
+        # Bucket existence check from get_bucket may be inaccurate due to gcs
+        # cache or delay
+        pass
+
+    bucket = gcsio.get_or_create_default_gcs_bucket(google_cloud_options)
+    self.assertIsNotNone(bucket)
+    self.assertEqual(bucket.name, overridden_bucket_name)
+
+    # verify soft delete policy is disabled by default in the default bucket
+    # after creation
+    self.assertEqual(bucket.soft_delete_policy.retention_duration_seconds, 0)
+    bucket.delete()
+
+    self.assertIsNone(self.gcsio.get_bucket(overridden_bucket_name))
 
 
 if __name__ == '__main__':

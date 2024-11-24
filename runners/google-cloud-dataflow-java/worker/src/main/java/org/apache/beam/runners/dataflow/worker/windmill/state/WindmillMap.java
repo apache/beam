@@ -21,10 +21,7 @@ import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillSta
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Function;
@@ -40,6 +37,8 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -51,7 +50,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K, V> {
+public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   private final StateNamespace namespace;
   private final StateTag<MapState<K, V>> address;
   private final ByteString stateKeyPrefix;
@@ -138,12 +137,7 @@ public class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       ByteString keyBytes = keyStream.toByteString();
       // Leaving data blank means that we delete the tag.
-      commitBuilder
-          .addValueUpdatesBuilder()
-          .setTag(keyBytes)
-          .setStateFamily(stateFamily)
-          .getValueBuilder()
-          .setTimestamp(Long.MAX_VALUE);
+      commitBuilder.addValueUpdatesBuilder().setTag(keyBytes).setStateFamily(stateFamily);
 
       V cachedValue = cachedValues.remove(key);
       if (cachedValue != null) {
@@ -327,7 +321,7 @@ public class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K
     @Override
     public Iterable<Map.Entry<K, V>> read() {
       if (complete) {
-        return Iterables.unmodifiableIterable(cachedValues.entrySet());
+        return ImmutableMap.copyOf(cachedValues).entrySet();
       }
       Future<Iterable<Map.Entry<ByteString, V>>> persistedData = getFuture();
       try (Closeable scope = scopedReadState()) {
@@ -352,20 +346,22 @@ public class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K
                 cachedValues.putIfAbsent(e.getKey(), e.getValue());
               });
           complete = true;
-          return Iterables.unmodifiableIterable(cachedValues.entrySet());
+          return ImmutableMap.copyOf(cachedValues).entrySet();
         } else {
+          ImmutableMap<K, V> cachedCopy = ImmutableMap.copyOf(cachedValues);
+          ImmutableSet<K> removalCopy = ImmutableSet.copyOf(localRemovals);
           // This means that the result might be too large to cache, so don't add it to the
           // local cache. Instead merge the iterables, giving priority to any local additions
-          // (represented in cachedValued and localRemovals) that may not have been committed
+          // (represented in cachedCopy and removalCopy) that may not have been committed
           // yet.
           return Iterables.unmodifiableIterable(
               Iterables.concat(
-                  cachedValues.entrySet(),
+                  cachedCopy.entrySet(),
                   Iterables.filter(
                       transformedData,
                       e ->
-                          !cachedValues.containsKey(e.getKey())
-                              && !localRemovals.contains(e.getKey()))));
+                          !cachedCopy.containsKey(e.getKey())
+                              && !removalCopy.contains(e.getKey()))));
         }
 
       } catch (InterruptedException | ExecutionException | IOException e) {
@@ -428,7 +424,6 @@ public class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K
           negativeCache.add(key);
           return defaultValue;
         }
-        // TODO: Don't do this if it was already in cache.
         cachedValues.put(key, persistedValue);
         return persistedValue;
       } catch (InterruptedException | ExecutionException | IOException e) {

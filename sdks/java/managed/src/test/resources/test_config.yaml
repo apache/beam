@@ -17,5 +17,5 @@
 # under the License.
 #
 
-extraString: "abc"
-extraInteger: 123
+extra_string: "abc"
+extra_integer: 123

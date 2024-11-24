@@ -139,9 +139,9 @@ if (project.hasProperty("dataflow-runner")) {
       {{< /highlight >}}
    4. At the end of the build script, add the following task:
       {{< highlight >}}
-task("execute", JavaExec::class) {
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set(System.getProperty("mainClass"))
+tasks.register<JavaExec>("execute") {
+  mainClass.set(System.getProperty("mainClass"))
+  classpath = sourceSets.main.get().runtimeClasspath
 }
       {{< /highlight >}}
 4. Build your project:

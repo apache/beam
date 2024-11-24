@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -63,7 +63,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_Python_ValidatesRunner_Samza"]
         job_phrase: ["Run Python Samza ValidatesRunner"]
-        python_version: ['3.8', '3.11']
+        python_version: ['3.9', '3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -74,8 +74,9 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        # TODO(https://github.com/apache/beam/issues/32208) move to Java11 after bump to Samza 1.8
         with:
-          java-version: default
+          java-version: 8
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean

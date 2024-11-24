@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   HF_INFERENCE_TOKEN: ${{ secrets.HF_INFERENCE_TOKEN }}
@@ -81,7 +81,7 @@ jobs:
       - name: Run postCommitPyDep
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py38:postCommitPyDep
+          gradle-command: :sdks:python:test-suites:tox:py39:postCommitPyDep
           arguments: -PuseWheelDistribution
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4

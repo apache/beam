@@ -22,7 +22,10 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.hamcrest.number.IsCloseTo.closeTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -34,13 +37,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Random;
-import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
@@ -189,8 +196,7 @@ public class JdbcUtilTest {
   @Test
   public void testDatetimePartitioningWithSingleKey() {
     JdbcReadWithPartitionsHelper<DateTime> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-            TypeDescriptor.of(DateTime.class));
+        JdbcUtil.getPartitionsHelper(TypeDescriptor.of(DateTime.class));
     DateTime onlyPoint = DateTime.now();
     List<KV<DateTime, DateTime>> expectedRanges =
         Lists.newArrayList(KV.of(onlyPoint, onlyPoint.plusMillis(1)));
@@ -207,8 +213,7 @@ public class JdbcUtilTest {
   @Test
   public void testDatetimePartitioningWithMultiKey() {
     JdbcReadWithPartitionsHelper<DateTime> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-            TypeDescriptor.of(DateTime.class));
+        JdbcUtil.getPartitionsHelper(TypeDescriptor.of(DateTime.class));
     DateTime lastPoint = DateTime.now();
     // At least 10ms in the past, or more.
     DateTime firstPoint = lastPoint.minusMillis(10 + new Random().nextInt(Integer.MAX_VALUE));
@@ -222,7 +227,7 @@ public class JdbcUtilTest {
   @Test
   public void testLongPartitioningWithSingleKey() {
     JdbcReadWithPartitionsHelper<Long> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.longs());
+        JdbcUtil.getPartitionsHelper(TypeDescriptors.longs());
     List<KV<Long, Long>> expectedRanges = Lists.newArrayList(KV.of(12L, 13L));
     List<KV<Long, Long>> ranges = Lists.newArrayList(helper.calculateRanges(12L, 12L, 10L));
     // It is not possible to generate any more than one range, because the lower and upper range are
@@ -236,7 +241,7 @@ public class JdbcUtilTest {
   @Test
   public void testLongPartitioningNotEnoughRanges() {
     JdbcReadWithPartitionsHelper<Long> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.longs());
+        JdbcUtil.getPartitionsHelper(TypeDescriptors.longs());
     // The minimum stride is one, which is what causes this sort of partitioning.
     List<KV<Long, Long>> expectedRanges =
         Lists.newArrayList(KV.of(12L, 14L), KV.of(14L, 16L), KV.of(16L, 18L), KV.of(18L, 21L));
@@ -266,5 +271,98 @@ public class JdbcUtilTest {
     assertEquals(
         expectedContent2,
         new String(Files.readAllBytes(Paths.get(urls[1].getFile())), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  public void testJdbcUrl() {
+    ImmutableMap<String, ImmutableList<String>> testCases =
+        ImmutableMap.<String, ImmutableList<String>>builder()
+            .put(
+                "jdbc:postgresql://localhost:5432/postgres",
+                ImmutableList.of("postgresql", "localhost:5432", "postgres"))
+            .put(
+                "jdbc:mysql://127.0.0.1:3306/db", ImmutableList.of("mysql", "127.0.0.1:3306", "db"))
+            .put(
+                "jdbc:oracle:thin:HR/hr@localhost:5221:orcl",
+                ImmutableList.of("oracle", "localhost:5221", "orcl"))
+            .put(
+                "jdbc:derby:memory:testDB;create=true",
+                ImmutableList.of("derby", "memory", "testDB"))
+            .put(
+                "jdbc:oracle:thin:@//myhost.example.com:1521/my_service",
+                ImmutableList.of("oracle", "myhost.example.com:1521", "my_service"))
+            .put("jdbc:mysql:///cloud_sql", ImmutableList.of("mysql", "", "cloud_sql"))
+            .put("invalid", ImmutableList.of())
+            .build();
+    for (Entry<String, ImmutableList<String>> entry : testCases.entrySet()) {
+      JdbcUtil.JdbcUrl jdbcUrl = JdbcUtil.JdbcUrl.of(entry.getKey());
+
+      System.out.println(entry.getKey());
+      if (entry.getValue().equals(ImmutableList.of())) {
+        assertNull(jdbcUrl);
+      } else {
+        assertEquals(entry.getValue().get(0), jdbcUrl.getScheme());
+        assertEquals(
+            entry.getValue().get(1),
+            jdbcUrl.getHostAndPort() == null ? "" : jdbcUrl.getHostAndPort());
+        assertEquals(entry.getValue().get(2), jdbcUrl.getDatabase());
+      }
+    }
+  }
+
+  @Test
+  public void testFqnFromHikariDataSourcePostgreSql() {
+    HikariConfig config = new HikariConfig();
+    config.setJdbcUrl("jdbc:postgresql:///postgres");
+    config.setUsername("postgres");
+    config.addDataSourceProperty(
+        "cloudSqlInstance", "example.com:project:some-region:instance-name");
+    // instead of `new HikariDataSource(config)`, initialize an empty source to avoid creation
+    // of actual connection pool
+    DataSource dataSource = new HikariDataSource();
+    config.validate();
+    config.copyStateTo((HikariConfig) dataSource);
+    JdbcUtil.FQNComponents components = JdbcUtil.FQNComponents.of(dataSource);
+    assertEquals("cloudsql_postgresql", components.getScheme());
+    assertEquals(
+        ImmutableList.of("example.com:project", "some-region", "instance-name", "postgres"),
+        components.getSegments());
+  }
+
+  @Test
+  public void testFqnFromHikariDataSourceMySql() {
+    HikariConfig config = new HikariConfig();
+    config.setJdbcUrl("jdbc:mysql:///db");
+    config.setUsername("root");
+    config.addDataSourceProperty("cloudSqlInstance", "some-project:US:instance-name");
+    // instead of `new HikariDataSource(config)`, initialize an empty source to avoid creation
+    // of actual connection pool
+    DataSource dataSource = new HikariDataSource();
+    config.validate();
+    config.copyStateTo((HikariConfig) dataSource);
+    JdbcUtil.FQNComponents components = JdbcUtil.FQNComponents.of(dataSource);
+    assertEquals("cloudsql_mysql", components.getScheme());
+    assertEquals(
+        ImmutableList.of("some-project", "US", "instance-name", "db"), components.getSegments());
+  }
+
+  @Test
+  public void testExtractTableFromQuery() {
+    ImmutableList<KV<String, @Nullable String>> readCases =
+        ImmutableList.of(
+            KV.of("select * from table_1", "table_1"),
+            KV.of("SELECT a, b FROM [table-2]", "table-2"),
+            KV.of("drop table not-select", ""));
+    for (KV<String, @Nullable String> testCase : readCases) {
+      assertEquals(testCase.getValue(), JdbcUtil.extractTableFromReadQuery(testCase.getKey()));
+    }
+    ImmutableList<KV<String, @Nullable String>> writeCases =
+        ImmutableList.of(
+            KV.of("insert into table_1 values ...", "table_1"),
+            KV.of("INSERT INTO [table-2] values ...", "table-2"),
+            KV.of("drop table not-select", ""));
+    for (KV<String, @Nullable String> testCase : writeCases) {
+      assertEquals(testCase.getValue(), JdbcUtil.extractTableFromWriteQuery(testCase.getKey()));
+    }
   }
 }

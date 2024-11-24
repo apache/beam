@@ -18,9 +18,9 @@
 package org.apache.beam.it.testcontainers;
 
 import java.util.concurrent.Callable;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.common.TestProperties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;

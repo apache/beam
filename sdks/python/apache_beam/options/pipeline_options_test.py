@@ -31,6 +31,7 @@ from parameterized import parameterized
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
@@ -43,6 +44,12 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 _LOGGER = logging.getLogger(__name__)
+
+try:
+  import apache_beam.io.gcp.gcsio  # pylint: disable=unused-import
+  has_gcsio = True
+except ImportError:
+  has_gcsio = False
 
 
 # Mock runners to use for validations.
@@ -639,6 +646,11 @@ class PipelineOptionsTest(unittest.TestCase):
     mapping = options.view_as(GoogleCloudOptions).transform_name_mapping
     self.assertEqual(mapping['from'], 'to')
 
+  def test_jar_cache_dir(self):
+    options = PipelineOptions(['--jar_cache_dir=/path/to/jar_cache_dir'])
+    jar_cache_dir = options.view_as(JobServerOptions).jar_cache_dir
+    self.assertEqual(jar_cache_dir, '/path/to/jar_cache_dir')
+
   def test_dataflow_service_options(self):
     options = PipelineOptions([
         '--dataflow_service_option',
@@ -711,6 +723,16 @@ class PipelineOptionsTest(unittest.TestCase):
         "the dest and the flag name to the map "
         "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
 
+  def _check_errors(self, options, validator, expected):
+    if has_gcsio:
+      with mock.patch('apache_beam.io.gcp.gcsio.GcsIO.is_soft_delete_enabled',
+                      return_value=False):
+        errors = options._handle_temp_and_staging_locations(validator)
+        self.assertEqual(errors, expected)
+    else:
+      errors = options._handle_temp_and_staging_locations(validator)
+      self.assertEqual(errors, expected)
+
   def test_validation_good_stg_good_temp(self):
     runner = MockRunners.DataflowRunner()
     options = GoogleCloudOptions([
@@ -719,8 +741,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=gs://beam/tmp'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -734,8 +755,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=gs://beam/tmp'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/tmp")
     self.assertEqual(
@@ -749,8 +769,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://beam/stg")
     self.assertEqual(
@@ -764,8 +783,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(errors, [])
+    self._check_errors(options, validator, [])
     self.assertEqual(
         options.get_all_options()['staging_location'], "gs://default/bucket")
     self.assertEqual(
@@ -779,16 +797,15 @@ class PipelineOptionsTest(unittest.TestCase):
         '--temp_location=badGSpath'
     ])
     validator = PipelineOptionsValidator(options, runner)
-    errors = options._handle_temp_and_staging_locations(validator)
-    self.assertEqual(len(errors), 2, errors)
-    self.assertIn(
-        'Invalid GCS path (badGSpath), given for the option: temp_location.',
-        errors,
-        errors)
-    self.assertIn(
-        'Invalid GCS path (badGSpath), given for the option: staging_location.',
-        errors,
-        errors)
+    self._check_errors(
+        options,
+        validator,
+        [
+          'Invalid GCS path (badGSpath), given for the option: ' \
+            'temp_location.',
+          'Invalid GCS path (badGSpath), given for the option: ' \
+            'staging_location.'
+        ])
 
 
 if __name__ == '__main__':

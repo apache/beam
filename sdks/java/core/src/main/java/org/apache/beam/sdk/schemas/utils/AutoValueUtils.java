@@ -27,6 +27,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,27 +63,31 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public class AutoValueUtils {
-  public static Class getBaseAutoValueClass(Class<?> clazz) {
+  public static @Nullable TypeDescriptor<?> getBaseAutoValueClass(
+      TypeDescriptor<?> typeDescriptor) {
     // AutoValue extensions may be nested
-    while (clazz != null && clazz.getName().contains("AutoValue_")) {
-      clazz = clazz.getSuperclass();
+    @Nullable TypeDescriptor<?> baseTypeDescriptor = typeDescriptor;
+    while (baseTypeDescriptor != null
+        && baseTypeDescriptor.getRawType().getName().contains("AutoValue_")) {
+      baseTypeDescriptor =
+          Optional.ofNullable(baseTypeDescriptor.getRawType().getSuperclass())
+              .map(TypeDescriptor::of)
+              .orElse(null);
     }
-    return clazz;
+    return baseTypeDescriptor;
   }
 
-  private static Class getAutoValueGenerated(Class<?> clazz) {
-    String generatedClassName = getAutoValueGeneratedName(clazz.getName());
+  private static TypeDescriptor<?> getAutoValueGenerated(TypeDescriptor<?> typeDescriptor) {
+    String generatedClassName = getAutoValueGeneratedName(typeDescriptor.getRawType().getName());
     try {
-      return Class.forName(generatedClassName);
+      return TypeDescriptor.of(Class.forName(generatedClassName));
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("AutoValue generated class not found: " + generatedClassName);
     }
@@ -121,11 +126,14 @@ public class AutoValueUtils {
    * Try to find an accessible constructor for creating an AutoValue class. Otherwise return null.
    */
   public static @Nullable SchemaUserTypeCreator getConstructorCreator(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<?> generatedClass = getAutoValueGenerated(clazz);
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    TypeDescriptor<?> generatedTypeDescriptor = getAutoValueGenerated(typeDescriptor);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(typeDescriptor, schema);
     Optional<Constructor<?>> constructor =
-        Arrays.stream(generatedClass.getDeclaredConstructors())
+        Arrays.stream(generatedTypeDescriptor.getRawType().getDeclaredConstructors())
             .filter(c -> !Modifier.isPrivate(c.getModifiers()))
             .filter(c -> matchConstructor(c, schemaTypes))
             .findAny();
@@ -133,7 +141,7 @@ public class AutoValueUtils {
         .map(
             c ->
                 JavaBeanUtils.getConstructorCreator(
-                    generatedClass,
+                    generatedTypeDescriptor,
                     c,
                     schema,
                     fieldValueTypeSupplier,
@@ -151,7 +159,11 @@ public class AutoValueUtils {
         getterTypes.stream()
             .collect(
                 Collectors.toMap(
-                    f -> ReflectUtils.stripGetterPrefix(f.getMethod().getName()),
+                    f ->
+                        ReflectUtils.stripGetterPrefix(
+                            Preconditions.checkNotNull(
+                                    f.getMethod(), JavaBeanUtils.GETTER_WITH_NULL_METHOD_ERROR)
+                                .getName()),
                     Function.identity()));
 
     boolean valid = true;
@@ -193,17 +205,23 @@ public class AutoValueUtils {
       return null;
     }
 
-    Map<String, FieldValueTypeInformation> setterTypes =
-        ReflectUtils.getMethods(builderClass).stream()
-            .filter(ReflectUtils::isSetter)
-            .map(FieldValueTypeInformation::forSetter)
-            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+    Map<String, FieldValueTypeInformation> setterTypes = new HashMap<>();
+
+    ReflectUtils.getMethods(builderClass).stream()
+        .filter(ReflectUtils::isSetter)
+        .map(m -> FieldValueTypeInformation.forSetter(TypeDescriptor.of(builderClass), m))
+        .forEach(fv -> setterTypes.putIfAbsent(fv.getName(), fv));
 
     List<FieldValueTypeInformation> setterMethods =
         Lists.newArrayList(); // The builder methods to call in order.
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
     for (FieldValueTypeInformation type : schemaTypes) {
-      String autoValueFieldName = ReflectUtils.stripGetterPrefix(type.getMethod().getName());
+      String autoValueFieldName =
+          ReflectUtils.stripGetterPrefix(
+              Preconditions.checkNotNull(
+                      type.getMethod(), JavaBeanUtils.GETTER_WITH_NULL_METHOD_ERROR)
+                  .getName());
 
       FieldValueTypeInformation setterType = setterTypes.get(autoValueFieldName);
       if (setterType == null) {

@@ -42,6 +42,12 @@ SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla p
 RETRY_NUM = 9
 THREADS = 16
 
+# workaround of a breaking change introduced in tenacity 8.5+ 
+# See https://github.com/jd/tenacity/issues/486
+def resolve_retry_number(retried_fn):
+    return retried_fn.retry.statistics.get("attempt_number") or \
+        retried_fn.statistics.get("attempt_number")
+
 @retry(reraise=True,
        wait=wait_fixed(5),
        stop=stop_after_attempt(RETRY_NUM))
@@ -72,7 +78,7 @@ def pull_from_url(file_name, url, dep, no_list):
                 url=url, file_name=file_name, dep=dep))
     except URLError as e:
         traceback.print_exc()
-        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+        if resolve_retry_number(pull_from_url) < RETRY_NUM:
             logging.error('Invalid url for {dep}: {url}. Retrying...'.format(
                 url=url, dep=dep))
             raise
@@ -85,7 +91,7 @@ def pull_from_url(file_name, url, dep, no_list):
             return
     except HTTPError as e:
         traceback.print_exc()
-        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+        if resolve_retry_number(pull_from_url) < RETRY_NUM:
             logging.info(
                 'Received {code} from {url} for {dep}. Retrying...'.format(
                     code=e.code, url=url, dep=dep))
@@ -99,7 +105,7 @@ def pull_from_url(file_name, url, dep, no_list):
             return
     except Exception as e:
         traceback.print_exc()
-        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+        if resolve_retry_number(pull_from_url) < RETRY_NUM:
             logging.error(
                 'Error occurred when pull {file_name} from {url} for {dep}. Retrying...'
                 .format(url=url, file_name=file_name, dep=dep))

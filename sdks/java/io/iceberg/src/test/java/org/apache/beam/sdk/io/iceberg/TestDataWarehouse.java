@@ -44,6 +44,7 @@ import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.FileAppender;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
@@ -140,7 +141,16 @@ public class TestDataWarehouse extends ExternalResource {
   }
 
   public Table createTable(TableIdentifier tableId, Schema schema) {
+    return createTable(tableId, schema, null);
+  }
+
+  public Table createTable(
+      TableIdentifier tableId, Schema schema, @Nullable PartitionSpec partitionSpec) {
     someTableHasBeenCreated = true;
-    return catalog.createTable(tableId, schema);
+    return catalog.createTable(tableId, schema, partitionSpec);
+  }
+
+  public Table loadTable(TableIdentifier tableId) {
+    return catalog.loadTable(tableId);
   }
 }

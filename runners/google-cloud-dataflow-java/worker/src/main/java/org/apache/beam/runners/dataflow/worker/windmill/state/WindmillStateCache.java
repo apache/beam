@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
+import com.google.auto.value.AutoBuilder;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -29,9 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
-import org.apache.beam.runners.dataflow.worker.Weighers;
-import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
+import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
@@ -76,26 +75,33 @@ public class WindmillStateCache implements StatusDataProvider {
   // entries inaccessible. They will be evicted through normal cache operation.
   private final ConcurrentMap<WindmillComputationKey, ForKey> keyIndex;
   private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
+  private final boolean supportMapViaMultimap;
 
-  private WindmillStateCache(
-      long workerCacheMb,
-      ConcurrentMap<WindmillComputationKey, ForKey> keyIndex,
-      Cache<StateId, StateCacheEntry> stateCache) {
-    this.workerCacheBytes = workerCacheMb * MEGABYTES;
-    this.stateCache = stateCache;
-    this.keyIndex = keyIndex;
-  }
-
-  public static WindmillStateCache ofSizeMbs(long workerCacheMb) {
-    return new WindmillStateCache(
-        workerCacheMb,
-        new MapMaker().weakValues().concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL).makeMap(),
+  WindmillStateCache(long sizeMb, boolean supportMapViaMultimap) {
+    this.workerCacheBytes = sizeMb * MEGABYTES;
+    this.stateCache =
         CacheBuilder.newBuilder()
-            .maximumWeight(workerCacheMb * MEGABYTES)
+            .maximumWeight(workerCacheBytes)
             .recordStats()
             .weigher(Weighers.weightedKeysAndValues())
             .concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL)
-            .build());
+            .build();
+    this.keyIndex =
+        new MapMaker().weakValues().concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL).makeMap();
+    this.supportMapViaMultimap = supportMapViaMultimap;
+  }
+
+  @AutoBuilder(ofClass = WindmillStateCache.class)
+  public interface Builder {
+    Builder setSizeMb(long sizeMb);
+
+    Builder setSupportMapViaMultimap(boolean supportMapViaMultimap);
+
+    WindmillStateCache build();
+  }
+
+  public static Builder builder() {
+    return new AutoBuilder_WindmillStateCache_Builder().setSupportMapViaMultimap(false);
   }
 
   private EntryStats calculateEntryStats() {
@@ -397,6 +403,10 @@ public class WindmillStateCache implements StatusDataProvider {
 
     public String getStateFamily() {
       return stateFamily;
+    }
+
+    public boolean supportMapStateViaMultimapState() {
+      return supportMapViaMultimap;
     }
 
     public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> address) {

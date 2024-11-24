@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -42,6 +43,8 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
     abstract ProtoRows getProtoRows();
 
     abstract List<Instant> getTimestamps();
+
+    abstract List<@Nullable TableRow> getFailsafeTableRows();
   }
 
   interface ConvertUnknownFields {
@@ -96,11 +99,18 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
         }
 
         List<Instant> timestamps = Lists.newArrayList();
+        List<@Nullable TableRow> failsafeRows = Lists.newArrayList();
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
           StorageApiWritePayload payload = underlyingIterator.next();
           ByteString byteString = ByteString.copyFrom(payload.getPayload());
+          @Nullable TableRow failsafeTableRow = null;
+          try {
+            failsafeTableRow = payload.getFailsafeTableRow();
+          } catch (IOException e) {
+            // Do nothing, table row will be generated later from row bytes
+          }
           if (autoUpdateSchema) {
             try {
               @Nullable TableRow unknownFields = payload.getUnknownFields();
@@ -116,7 +126,10 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
                   // This generally implies that ignoreUnknownValues=false and there were still
                   // unknown values here.
                   // Reconstitute the TableRow and send it to the failed-rows consumer.
-                  TableRow tableRow = protoToTableRow.apply(byteString);
+                  TableRow tableRow =
+                      failsafeTableRow != null
+                          ? failsafeTableRow
+                          : protoToTableRow.apply(byteString);
                   // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we
                   // only execute this
                   // codepath when ignoreUnknownFields==true, so we should never hit this codepath.
@@ -142,12 +155,13 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
             timestamp = elementsTimestamp;
           }
           timestamps.add(timestamp);
+          failsafeRows.add(failsafeTableRow);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {
             break;
           }
         }
-        return new AutoValue_SplittingIterable_Value(inserts.build(), timestamps);
+        return new AutoValue_SplittingIterable_Value(inserts.build(), timestamps, failsafeRows);
       }
     };
   }

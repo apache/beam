@@ -16,9 +16,8 @@
 #
 
 """This module defines the basic MapToFields operation."""
-import functools
-import inspect
 import itertools
+import re
 from collections import abc
 from typing import Any
 from typing import Callable
@@ -26,7 +25,6 @@ from typing import Collection
 from typing import Dict
 from typing import List
 from typing import Mapping
-from typing import NamedTuple
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -39,12 +37,18 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
-from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.schemas import named_fields_from_element_type
+from apache_beam.typehints.schemas import schema_from_element_type
+from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_errors import exception_handling_args
+from apache_beam.yaml.yaml_errors import map_errors_to_standard_format
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 # Import js2py package if it exists
@@ -55,6 +59,12 @@ except ImportError:
   js2py = None
   JsObjectWrapper = object
 
+_str_expression_fields = {
+    'AssignTimestamps': 'timestamp',
+    'Filter': 'keep',
+    'Partition': 'by',
+}
+
 
 def normalize_mapping(spec):
   """
@@ -64,7 +74,85 @@ def normalize_mapping(spec):
     config = spec.get('config')
     if isinstance(config.get('drop'), str):
       config['drop'] = [config['drop']]
+    for field, value in list(config.get('fields', {}).items()):
+      if isinstance(value, (str, int, float)):
+        config['fields'][field] = {'expression': str(value)}
+
+  elif spec['type'] in _str_expression_fields:
+    param = _str_expression_fields[spec['type']]
+    config = spec.get('config', {})
+    if isinstance(config.get(param), (str, int, float)):
+      config[param] = {'expression': str(config.get(param))}
+
   return spec
+
+
+def is_literal(expr: str) -> bool:
+  # Some languages have limited integer literal ranges.
+  if re.fullmatch(r'-?\d+?', expr) and -1 << 31 < int(expr) < 1 << 31:
+    return True
+  elif re.fullmatch(r'-?\d+\.\d*', expr):
+    return True
+  elif re.fullmatch(r'"[^\\"]*"', expr):
+    return True
+  else:
+    return False
+
+
+def validate_generic_expression(
+    expr_dict: dict,
+    input_fields: Collection[str],
+    allow_cmp: bool,
+    error_field: str) -> None:
+  if not isinstance(expr_dict, dict):
+    raise ValueError(
+        f"Ambiguous expression type (perhaps missing quoting?): {expr_dict}")
+  if len(expr_dict) != 1 or 'expression' not in expr_dict:
+    raise ValueError(
+        "Missing language specification. "
+        "Must specify a language when using a map with custom logic for %s" %
+        error_field)
+  expr = str(expr_dict['expression'])
+
+  def is_atomic(expr: str):
+    return is_literal(expr) or expr in input_fields
+
+  if is_atomic(expr):
+    return
+
+  if allow_cmp:
+    maybe_cmp = re.fullmatch('(.*)([<>=!]+)(.*)', expr)
+    if maybe_cmp:
+      left, cmp, right = maybe_cmp.groups()
+      if (is_atomic(left.strip()) and is_atomic(right.strip()) and
+          cmp in {'==', '<=', '>=', '<', '>', '!='}):
+        return
+
+  raise ValueError(
+      "Missing language specification, unknown input fields, "
+      f"or invalid generic expression: {expr}. "
+      "See https://beam.apache.org/documentation/sdks/yaml-udf/#generic")
+
+
+def validate_generic_expressions(base_type, config, input_pcolls) -> None:
+  if not input_pcolls:
+    return
+  try:
+    input_fields = [
+        name for (name, _) in named_fields_from_element_type(
+            next(iter(input_pcolls)).element_type)
+    ]
+  except (TypeError, ValueError):
+    input_fields = []
+
+  if base_type == 'MapToFields':
+    for field, value in list(config.get('fields', {}).items()):
+      validate_generic_expression(value, input_fields, True, field)
+
+  elif base_type in _str_expression_fields:
+    param = _str_expression_fields[base_type]
+    validate_generic_expression(
+        config.get(param), input_fields, base_type == 'Filter', param)
 
 
 def _check_mapping_arguments(
@@ -276,17 +364,21 @@ def _as_callable_for_pcoll(
   if isinstance(fn_spec, str) and fn_spec in input_schema:
     return lambda row: getattr(row, fn_spec)
   else:
-    return _as_callable(list(input_schema.keys()), fn_spec, msg, language)
+    return _as_callable(
+        list(input_schema.keys()), fn_spec, msg, language, input_schema)
 
 
-def _as_callable(original_fields, expr, transform_name, language):
+def _as_callable(original_fields, expr, transform_name, language, input_schema):
+  if isinstance(expr, str):
+    expr = {'expression': expr}
+
+  # Extract original type from upstream pcoll when doing simple mappings
+  original_type = input_schema.get(expr.get('expression'), None)
   if expr in original_fields:
-    return expr
+    language = "python"
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
-  if isinstance(expr, str):
-    expr = {'expression': expr}
   if not isinstance(expr, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
@@ -295,7 +387,7 @@ def _as_callable(original_fields, expr, transform_name, language):
 
   if language == "javascript":
     func = _expand_javascript_mapping_func(original_fields, **expr)
-  elif language == "python":
+  elif language in ("python", "generic", None):
     func = _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
@@ -317,67 +409,106 @@ def _as_callable(original_fields, expr, transform_name, language):
 
     return checking_func
 
+  elif original_type:
+    return beam.typehints.with_output_types(
+        convert_to_beam_type(original_type))(
+            func)
+
   else:
     return func
 
 
-class ErrorHandlingConfig(NamedTuple):
-  output: str
-  # TODO: Other parameters are valid here too, but not common to Java.
+class _StripErrorMetadata(beam.PTransform):
+  """Strips error metadata from outputs returned via error handling.
 
+  Generally the error outputs for transformations return information about
+  the error encountered (e.g. error messages and tracebacks) in addition to the
+  failing element itself.  This transformation attempts to remove that metadata
+  and returns the bad element alone which can be useful for re-processing.
 
-def exception_handling_args(error_handling_spec):
-  if error_handling_spec:
-    return {
-        'dead_letter_tag' if k == 'output' else k: v
-        for (k, v) in error_handling_spec.items()
-    }
-  else:
-    return None
+  For example, in the following pipeline snippet::
 
+    - name: MyMappingTransform
+      type: MapToFields
+      input: SomeInput
+      config:
+        language: python
+        fields:
+          ...
+        error_handling:
+          output: errors
 
-def _map_errors_to_standard_format(input_type):
-  # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
+    - name: RecoverOriginalElements
+      type: StripErrorMetadata
+      input: MyMappingTransform.errors
 
-  return beam.Map(
-      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))
-  ).with_output_types(
-      RowTypeConstraint.from_fields([("element", input_type), ("msg", str),
-                                     ("stack", str)]))
+  the output of `RecoverOriginalElements` will contain exactly those elements
+  from SomeInput that failed to processes (whereas `MyMappingTransform.errors`
+  would contain those elements paired with error information).
 
+  Note that this relies on the preceding transform actually returning the
+  failing input in a schema'd way.  Most built-in transformation follow the
+  correct conventions.
+  """
 
-def maybe_with_exception_handling(inner_expand):
+  _ERROR_FIELD_NAMES = ('failed_row', 'element', 'record')
+
   def expand(self, pcoll):
-    wrapped_pcoll = beam.core._MaybePValueWithErrors(
-        pcoll, self._exception_handling_args)
-    return inner_expand(self, wrapped_pcoll).as_result(
-        _map_errors_to_standard_format(pcoll.element_type))
+    try:
+      existing_fields = {
+          fld.name: fld.type
+          for fld in schema_from_element_type(pcoll.element_type).fields
+      }
+    except TypeError:
+      fld = None
+    else:
+      for fld in self._ERROR_FIELD_NAMES:
+        if fld in existing_fields:
+          break
+      else:
+        raise ValueError(
+            f"No field name matches one of {self._ERROR_FIELD_NAMES}")
 
-  return expand
+    if fld is None:
+      # This handles with_exception_handling() that returns bare tuples.
+      return pcoll | beam.Map(lambda x: x[0])
+    else:
+      return pcoll | beam.Map(lambda x: getattr(x, fld)).with_output_types(
+          typing_from_runner_api(existing_fields[fld]))
 
 
-def maybe_with_exception_handling_transform_fn(transform_fn):
-  @functools.wraps(transform_fn)
-  def expand(pcoll, error_handling=None, **kwargs):
-    wrapped_pcoll = beam.core._MaybePValueWithErrors(
-        pcoll, exception_handling_args(error_handling))
-    return transform_fn(wrapped_pcoll, **kwargs).as_result(
-        _map_errors_to_standard_format(pcoll.element_type))
+class _Validate(beam.PTransform):
+  """Validates each element of a PCollection against a json schema.
 
-  original_signature = inspect.signature(transform_fn)
-  new_parameters = list(original_signature.parameters.values())
-  error_handling_param = inspect.Parameter(
-      'error_handling',
-      inspect.Parameter.KEYWORD_ONLY,
-      default=None,
-      annotation=ErrorHandlingConfig)
-  if new_parameters[-1].kind == inspect.Parameter.VAR_KEYWORD:
-    new_parameters.insert(-1, error_handling_param)
-  else:
-    new_parameters.append(error_handling_param)
-  expand.__signature__ = original_signature.replace(parameters=new_parameters)
+  Args:
+      schema: A json schema against which to validate each element.
+      error_handling: Whether and how to handle errors during iteration.
+          If this is not set, invalid elements will fail the pipeline, otherwise
+          invalid elements will be passed to the specified error output along
+          with information about how the schema was invalidated.
+  """
+  def __init__(
+      self,
+      schema: Dict[str, Any],
+      error_handling: Optional[Mapping[str, Any]] = None):
+    self._schema = schema
+    self._exception_handling_args = exception_handling_args(error_handling)
 
-  return expand
+  @maybe_with_exception_handling
+  def expand(self, pcoll):
+    validator = json_utils.row_validator(
+        schema_from_element_type(pcoll.element_type), self._schema)
+
+    def invoke_validator(x):
+      validator(x)
+      return x
+
+    return pcoll | beam.Map(invoke_validator)
+
+  def with_exception_handling(self, **kwargs):
+    # It's possible there's an error in iteration...
+    self._exception_handling_args = kwargs
+    return self
 
 
 class _Explode(beam.PTransform):
@@ -484,7 +615,7 @@ def _PyJsFilter(
   See more complete documentation on
   [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
   """  # pylint: disable=line-too-long
-  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
+  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
   return pcoll | beam.Filter(keep_fn)
 
 
@@ -516,17 +647,6 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
             f'Redefinition of field "{name}". '
             'Cannot append a field that already exists in original input.')
 
-  if language == 'generic':
-    for expr in fields.values():
-      if not isinstance(expr, str):
-        raise ValueError(
-            "Missing language specification. "
-            "Must specify a language when using a map with custom logic.")
-    missing = set(fields.values()) - set(input_schema.keys())
-    if missing:
-      raise ValueError(
-          f"Missing language specification or unknown input fields: {missing}")
-
   if append:
     return input_schema, {
         **{name: f'`{name}`' if language in ['sql', 'calcite'] else name
@@ -554,7 +674,8 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
 
   return pcoll | beam.Select(
       **{
-          name: _as_callable(original_fields, expr, name, language)
+          name: _as_callable(
+              original_fields, expr, name, language, input_schema)
           for (name, expr) in fields.items()
       })
 
@@ -659,9 +780,8 @@ def _Partition(
   splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
   result = {out: getattr(splits, out) for out in output_set}
   if error_output:
-    result[
-        error_output] = result[error_output] | _map_errors_to_standard_format(
-            pcoll.element_type)
+    result[error_output] = result[error_output] | map_errors_to_standard_format(
+        pcoll.element_type)
   return result
 
 
@@ -705,12 +825,15 @@ def create_mapping_providers():
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
+          'Filter-generic': _PyJsFilter,
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
           'Partition-python': _Partition,
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
+          'StripErrorMetadata': _StripErrorMetadata,
+          'ValidateWithSchema': _Validate,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,

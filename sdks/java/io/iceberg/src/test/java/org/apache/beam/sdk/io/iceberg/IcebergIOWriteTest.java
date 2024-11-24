@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.SchemaAndRowConversions.rowToRecord;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
@@ -25,9 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -47,6 +53,8 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -72,25 +80,28 @@ public class IcebergIOWriteTest implements Serializable {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
-    // Create a table and add records to it.
-    Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     IcebergCatalogConfig catalog =
         IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
             .build();
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");
 
+    Table table = warehouse.loadTable(tableId);
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
 
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
@@ -104,39 +115,40 @@ public class IcebergIOWriteTest implements Serializable {
     final TableIdentifier table2Id = TableIdentifier.of("default", "table2-" + salt);
     final TableIdentifier table3Id = TableIdentifier.of("default", "table3-" + salt);
 
-    // Create a table and add records to it.
-    Table table1 = warehouse.createTable(table1Id, TestFixtures.SCHEMA);
-    Table table2 = warehouse.createTable(table2Id, TestFixtures.SCHEMA);
-    Table table3 = warehouse.createTable(table3Id, TestFixtures.SCHEMA);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     IcebergCatalogConfig catalog =
         IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
             .build();
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
-          private final Schema schema = Schema.builder().addInt64Field("tableNumber").build();
-
           @Override
-          public Schema getMetadataSchema() {
-            return schema;
+          public Schema getDataSchema() {
+            return IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
           }
 
           @Override
-          public Row assignDestinationMetadata(Row data) {
-            long rowId = data.getInt64("id");
-            return Row.withSchema(schema).addValues((rowId / 3) + 1).build();
+          public Row getData(Row element) {
+            return element;
           }
 
           @Override
-          public IcebergDestination instantiateDestination(Row dest) {
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            long tableNumber = element.getValue().getInt64("id") / 3 + 1;
+            return String.format("default.table%s-%s", tableNumber, salt);
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String dest) {
             return IcebergDestination.builder()
-                .setTableIdentifier(
-                    TableIdentifier.of(
-                        "default", "table" + dest.getInt64("tableNumber") + "-" + salt))
+                .setTableIdentifier(TableIdentifier.parse(dest))
                 .setFileFormat(FileFormat.PARQUET)
                 .build();
           }
@@ -151,12 +163,16 @@ public class IcebergIOWriteTest implements Serializable {
                         TestFixtures.FILE1SNAPSHOT1,
                         TestFixtures.FILE1SNAPSHOT2,
                         TestFixtures.FILE1SNAPSHOT3))))
-        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");
+
+    Table table1 = warehouse.loadTable(table1Id);
+    Table table2 = warehouse.loadTable(table2Id);
+    Table table3 = warehouse.loadTable(table3Id);
 
     List<Record> writtenRecords1 = ImmutableList.copyOf(IcebergGenerics.read(table1).build());
     List<Record> writtenRecords2 = ImmutableList.copyOf(IcebergGenerics.read(table2).build());
@@ -199,34 +215,40 @@ public class IcebergIOWriteTest implements Serializable {
       elementsPerTable.computeIfAbsent(tableId, ignored -> Lists.newArrayList()).add(element);
     }
 
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
     IcebergCatalogConfig catalog =
         IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
             .build();
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
-          private final Schema schema = Schema.builder().addInt64Field("tableNumber").build();
-
           @Override
-          public Schema getMetadataSchema() {
-            return schema;
+          public Schema getDataSchema() {
+            return IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
           }
 
           @Override
-          public Row assignDestinationMetadata(Row data) {
-            long rowId = data.getInt64("id");
-            return Row.withSchema(schema).addValues(rowId % numDestinations).build();
+          public Row getData(Row element) {
+            return element;
           }
 
           @Override
-          public IcebergDestination instantiateDestination(Row dest) {
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            long tableNumber = element.getValue().getInt64("id") % numDestinations;
+            return String.format("default.table%s-%s", tableNumber, salt);
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String dest) {
             return IcebergDestination.builder()
-                .setTableIdentifier(
-                    TableIdentifier.of(
-                        "default", "table" + dest.getInt64("tableNumber") + "-" + salt))
+                .setTableIdentifier(TableIdentifier.parse(dest))
                 .setFileFormat(FileFormat.PARQUET)
                 .build();
           }
@@ -234,7 +256,7 @@ public class IcebergIOWriteTest implements Serializable {
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(elements)))
-        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
 
     LOG.info("Executing pipeline");
@@ -261,9 +283,9 @@ public class IcebergIOWriteTest implements Serializable {
     // Create a table and add records to it.
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     Record record =
-        rowToRecord(
+        beamRowToIcebergRecord(
             table.schema(),
-            Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+            Row.withSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .addValues(42L, "bizzle")
                 .build());
 
@@ -287,5 +309,59 @@ public class IcebergIOWriteTest implements Serializable {
     AppendFiles secondUpdate = table.newAppend();
     secondUpdate.appendFile(dataFile);
     secondUpdate.commit();
+  }
+
+  @Test
+  public void testStreamingWrite() {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "streaming_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    List<Row> inputRows = TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1);
+    TestStream<Row> stream =
+        TestStream.create(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            // the first two rows are written within the same triggering interval,
+            // so they should both be in the first snapshot
+            .addElements(inputRows.get(0))
+            .advanceProcessingTime(Duration.standardSeconds(1))
+            .addElements(inputRows.get(1))
+            .advanceProcessingTime(Duration.standardSeconds(5))
+            // the third row is written in a new triggering interval,
+            // so we create a new snapshot for it.
+            .addElements(inputRows.get(2))
+            .advanceProcessingTime(Duration.standardSeconds(5))
+            .advanceWatermarkToInfinity();
+
+    PCollection<KV<String, SnapshotInfo>> output =
+        testPipeline
+            .apply("Stream Records", stream)
+            .apply(
+                "Append To Table",
+                IcebergIO.writeRows(catalog)
+                    .to(tableId)
+                    .withTriggeringFrequency(Duration.standardSeconds(3)))
+            .getSnapshots();
+    // verify that 2 snapshots are created (one per triggering interval)
+    PCollection<Long> snapshots = output.apply(Count.globally());
+    PAssert.that(snapshots).containsInAnyOrder(2L);
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
 }

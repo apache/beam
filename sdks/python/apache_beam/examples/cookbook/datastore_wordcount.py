@@ -59,7 +59,7 @@ import argparse
 import logging
 import re
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 from typing import Optional
 from typing import Text
 import uuid
@@ -87,9 +87,7 @@ class WordExtractingDoFn(beam.DoFn):
     self.word_counter = Metrics.counter('main', 'total_words')
     self.word_lengths_dist = Metrics.distribution('main', 'word_len_dist')
 
-  def process(self, element):
-    # type: (Entity) -> Optional[Iterable[Text]]
-
+  def process(self, element: Entity) -> Optional[Iterable[Text]]:
     """Extract words from the 'content' property of Cloud Datastore entities.
 
     The element is a line of text.  If the line is blank, note that, too.

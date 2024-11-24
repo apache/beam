@@ -364,6 +364,36 @@ class ApplyBucketsTest(unittest.TestCase):
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
 
+class ApplyBucketsWithInterpolationTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  @parameterized.expand([
+      ([-1, 9, 10, 11], [10], [0., 0., 1., 1.]),
+      ([15, 20, 25], [10, 20], [.5, 1, 1]),
+  ])
+  def test_apply_buckets(self, test_inputs, bucket_boundaries, expected_values):
+    with beam.Pipeline() as p:
+      data = [{'x': [i]} for i in test_inputs]
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.ApplyBucketsWithInterpolation(
+                      columns=['x'], bucket_boundaries=bucket_boundaries)))
+      expected_output = []
+      for x in expected_values:
+        expected_output.append(np.array(x))
+
+      actual_output = (result | beam.Map(lambda x: x.x))
+      assert_that(
+          actual_output, equal_to(expected_output, equals_fn=np.allclose))
+
+
 class ComputeAndApplyVocabTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
@@ -932,7 +962,7 @@ class BagOfWordsTest(unittest.TestCase):
     self.assertEqual(expected_data, actual_data)
 
 
-class HashWordsTest(unittest.TestCase):
+class HashStringsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 

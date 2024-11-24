@@ -1,0 +1,83 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Playground PreCommit
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    paths:
+      - .github/workflows/playground_backend_precommit.yml
+      - playground/backend/**
+  issue_comment:
+    types: [created]
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+jobs:
+  beam_Playground_PreCommit:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
+      github.event.comment.body == 'Run Playground PreCommit'
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: [beam_Playground_PreCommit]
+        job_phrase: [Run Playground PreCommit]
+    env:
+      DATASTORE_EMULATOR_VERSION: '423.0.0'
+      PYTHON_VERSION: '3.9'
+      JAVA_VERSION: '11'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: '${{ env.JAVA_VERSION }}'
+          python-version: '${{ env.PYTHON_VERSION }}'
+
+      - name: Add GOPATH/bin to PATH
+        run: echo "PATH=$PATH:$(go env GOPATH)/bin" >> $GITHUB_ENV
+
+      - name: Install sbt for running SCIO tests
+        run: |
+          sudo apt-get update --yes
+          sudo apt-get install apt-transport-https curl gnupg -yqq
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo -H gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+          sudo chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
+          sudo apt-get update --yes
+          sudo apt-get install sbt --yes
+          sudo wget https://codeload.github.com/spotify/scio.g8/zip/7c1ba7c1651dfd70976028842e721da4107c0d6d -O scio.g8.zip && unzip scio.g8.zip && sudo mv scio.g8-7c1ba7c1651dfd70976028842e721da4107c0d6d /opt/scio.g8
+      - name: Set up Cloud SDK and its components
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: 'beta,cloud-datastore-emulator'
+          version: '${{ env.DATASTORE_EMULATOR_VERSION }}'
+      - name: Run PreCommit
+        run: ./gradlew playground:backend:precommit

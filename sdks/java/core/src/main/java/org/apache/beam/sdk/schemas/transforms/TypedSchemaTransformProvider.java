@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
@@ -26,9 +28,14 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
+import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -38,8 +45,12 @@ import org.apache.beam.sdk.values.Row;
  * <p>ConfigT should be available in the SchemaRegistry.
  *
  * <p>{@link #configurationSchema()} produces a configuration {@link Schema} that is inferred from
- * {@code ConfigT} using the SchemaRegistry. A Beam {@link Row} can still be used produce a {@link
- * SchemaTransform} using {@link #from(Row)}, as long as the Row fits the configuration Schema.
+ * {@code ConfigT} using the SchemaRegistry. A Beam {@link Row} can still be used to produce a
+ * {@link SchemaTransform} using {@link #from(Row)}, as long as the Row fits the configuration
+ * Schema.
+ *
+ * <p>NOTE: The inferred field names in the configuration {@link Schema} and {@link Row} follow the
+ * {@code snake_case} naming convention.
  *
  * <p><b>Internal only:</b> This interface is actively being worked on and it will likely change as
  * we provide implementations for more standard Beam transforms. We provide no backwards
@@ -78,10 +89,11 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   }
 
   @Override
-  public Schema configurationSchema() {
+  public final Schema configurationSchema() {
     try {
       // Sort the fields by name to ensure a consistent schema is produced
-      return SchemaRegistry.createDefault().getSchema(configurationClass()).sorted();
+      // We also establish a `snake_case` convention for all SchemaTransform configurations
+      return SchemaRegistry.createDefault().getSchema(configurationClass()).sorted().toSnakeCase();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(
           "Unable to find schema for "
@@ -90,9 +102,12 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
     }
   }
 
-  /** Produces a {@link SchemaTransform} from a Row configuration. */
+  /**
+   * Produces a {@link SchemaTransform} from a Row configuration. Row fields are expected to have
+   * `snake_case` naming convention.
+   */
   @Override
-  public SchemaTransform from(Row configuration) {
+  public final SchemaTransform from(Row configuration) {
     return from(configFromRow(configuration));
   }
 
@@ -103,9 +118,22 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
 
   private ConfigT configFromRow(Row configuration) {
     try {
-      return SchemaRegistry.createDefault()
-          .getFromRowFunction(configurationClass())
-          .apply(configuration);
+      SchemaRegistry registry = SchemaRegistry.createDefault();
+      SerializableFunction<Row, ConfigT> rowToConfigT =
+          registry.getFromRowFunction(configurationClass());
+
+      // Configuration objects handled by the AutoValueSchema provider will expect Row fields with
+      // camelCase naming convention
+      SchemaProvider schemaProvider = registry.getSchemaProvider(configurationClass());
+      if (schemaProvider.getClass().equals(DefaultSchemaProvider.class)
+          && checkNotNull(
+                  ((DefaultSchemaProvider) schemaProvider)
+                      .getUnderlyingSchemaProvider(configurationClass()))
+              .getClass()
+              .equals(AutoValueSchema.class)) {
+        configuration = configuration.toCamelCase();
+      }
+      return rowToConfigT.apply(configuration);
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(
           "Unable to find schema for " + identifier() + "SchemaTransformProvider's config");

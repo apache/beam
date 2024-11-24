@@ -29,10 +29,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
 ext.summary = "Integration with Iceberg data warehouses."
 
 def hadoopVersions = [
-        "285": "2.8.5",
-        "292": "2.9.2",
-        "2102": "2.10.2",
-        "324": "3.2.4",
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
@@ -44,7 +44,7 @@ def orc_version = "1.9.2"
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":sdks:java:managed")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
@@ -55,10 +55,11 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
 
+    testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
-    testImplementation "com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.16"
-    testImplementation "com.google.cloud.bigdataoss:util-hadoop:hadoop2-2.2.16"
+    testImplementation library.java.bigdataoss_gcs_connector
+    testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -66,6 +67,7 @@ dependencies {
     testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
     }
@@ -95,7 +97,7 @@ hadoopVersions.each { kv ->
     }
 }
 
-task integrationTest(type: Test, dependsOn: processTestResources) {
+task integrationTest(type: Test) {
     group = "Verification"
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
@@ -108,6 +110,32 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+tasks.register('catalogTests') {
+    dependsOn integrationTest
+    dependsOn ":sdks:java:io:iceberg:hive:integrationTest"
+}
+
+task loadTest(type: Test) {
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/temp-lt'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--project=${gcpProject}",
+            "--tempLocation=${gcpTempLocation}",
+            "--testSize=large",
+            "--runner=DataflowRunner",
+            "--region=us-central1"
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*LT.class'
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath

@@ -24,7 +24,6 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1.CloudHealthcare;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.PatientEverything;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
@@ -735,8 +734,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
                 CloudHealthcareScopes.CLOUD_PLATFORM, StorageScopes.CLOUD_PLATFORM_READ_ONLY));
 
     client =
-        new CloudHealthcare.Builder(
-                new NetHttpTransport(), new JacksonFactory(), requestInitializer)
+        new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
             .setApplicationName("apache-beam-hl7v2-io")
             .build();
     httpClient =

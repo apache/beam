@@ -30,15 +30,15 @@ dependencies {
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.slf4j_api
-  implementation group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.11'
+  implementation group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.20.0'
   implementation group: 'com.opencsv', name: 'opencsv', version: '5.0'
   implementation 'net.snowflake:snowflake-ingest-sdk:0.9.9'
   implementation "org.bouncycastle:bcprov-jdk15on:1.70"
   implementation library.java.joda_time
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   testImplementation 'com.google.cloud:google-cloud-storage:1.102.0'
   testImplementation library.java.avro
   testImplementation library.java.junit

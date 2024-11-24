@@ -213,7 +213,7 @@ class MainTest(unittest.TestCase):
                                            inputs={'elements': elements})
       self.assertRegex(
           str(expand_composite_transform(spec, scope)['output']),
-          r"PCollection.*Composite/LogForTesting.*")
+          r"PCollection.*Composite/log_for_testing/LogForTesting.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:
@@ -901,7 +901,8 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    with self.assertRaisesRegex(ValueError, r"Unconsumed error.*"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Unconsumed error.*MyTransform.errors"):
       ensure_errors_consumed(spec)
 
   def test_ensure_errors_consumed_in_transform(self):

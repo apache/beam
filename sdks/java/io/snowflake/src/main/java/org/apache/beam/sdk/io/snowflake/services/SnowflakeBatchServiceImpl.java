@@ -82,7 +82,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
 
     String copyQuery =
         String.format(
-            "COPY INTO '%s' FROM %s STORAGE_INTEGRATION=%s FILE_FORMAT=(TYPE=CSV COMPRESSION=GZIP FIELD_OPTIONALLY_ENCLOSED_BY='%s');",
+            "COPY INTO '%s' FROM %s STORAGE_INTEGRATION=%s FILE_FORMAT=(TYPE=CSV COMPRESSION=GZIP FIELD_OPTIONALLY_ENCLOSED_BY='%s' ESCAPE='\\\\');",
             getProperBucketDir(stagingBucketDir),
             source,
             storageIntegrationName,
@@ -138,7 +138,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
     if (!storageIntegrationName.isEmpty()) {
       query =
           String.format(
-              "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP) STORAGE_INTEGRATION=%s;",
+              "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' ESCAPE='\\\\' COMPRESSION=GZIP) STORAGE_INTEGRATION=%s;",
               getTablePath(database, schema, table),
               getProperBucketDir(source),
               files,
@@ -147,7 +147,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
     } else {
       query =
           String.format(
-              "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP);",
+              "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' ESCAPE='\\\\' COMPRESSION=GZIP);",
               table, source, files, getASCIICharRepresentation(config.getQuotationMark()));
     }
 

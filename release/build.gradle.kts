@@ -29,8 +29,8 @@ val library = project.extensions.extraProperties["library"] as Map<String, Map<S
 
 dependencies {
   implementation(library.getValue("groovy").getValue("groovy_all"))
-  implementation("commons-cli:commons-cli:1.6.0")
-  permitUnusedDeclared("commons-cli:commons-cli:1.6.0") // BEAM-11761
+  implementation("commons-cli:commons-cli:1.9.0")
+  permitUnusedDeclared("commons-cli:commons-cli:1.9.0") // BEAM-11761
 }
 
 task("runJavaExamplesValidationTask") {
@@ -39,7 +39,7 @@ task("runJavaExamplesValidationTask") {
   dependsOn(":runners:direct-java:runQuickstartJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
   dependsOn(":runners:spark:3:runQuickstartJavaSpark")
-  dependsOn(":runners:flink:1.17:runQuickstartJavaFlinkLocal")
+  dependsOn(":runners:flink:1.19:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
   dependsOn(":runners:twister2:runQuickstartJavaTwister2")

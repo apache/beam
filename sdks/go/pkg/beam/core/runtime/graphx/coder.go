@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -615,8 +615,8 @@ func (b *CoderMarshaller) internRowCoder(schema *pipepb.Schema) string {
 }
 
 func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
-	key := proto.MarshalTextString(coder)
-	if id, exists := b.coder2id[key]; exists {
+	key := coder.String()
+	if id, exists := b.coder2id[(key)]; exists {
 		return id
 	}
 
@@ -626,7 +626,7 @@ func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
 	} else {
 		id = fmt.Sprintf("c%v@%v", len(b.coder2id), b.Namespace)
 	}
-	b.coder2id[key] = id
+	b.coder2id[string(key)] = id
 	b.coders[id] = coder
 	return id
 }

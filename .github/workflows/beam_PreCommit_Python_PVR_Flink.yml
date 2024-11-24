@@ -74,7 +74,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -87,8 +87,8 @@ jobs:
         job_phrase: ["Run Python_PVR_Flink PreCommit"]
     timeout-minutes: 120
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Python_PVR_Flink PreCommit'
@@ -104,15 +104,15 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: run Python PVR Flink PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         with:
-          gradle-command: :sdks:python:test-suites:portable:py311:flinkValidatesRunner
+          gradle-command: :sdks:python:test-suites:portable:py312:flinkValidatesRunner
           arguments: |
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

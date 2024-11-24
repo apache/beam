@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;

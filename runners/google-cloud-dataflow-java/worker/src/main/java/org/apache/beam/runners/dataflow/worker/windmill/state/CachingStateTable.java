@@ -24,17 +24,9 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.CombiningState;
-import org.apache.beam.sdk.state.MapState;
-import org.apache.beam.sdk.state.MultimapState;
-import org.apache.beam.sdk.state.OrderedListState;
-import org.apache.beam.sdk.state.SetState;
-import org.apache.beam.sdk.state.State;
-import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -50,6 +42,7 @@ final class CachingStateTable extends StateTable {
   private final Supplier<Closeable> scopedReadStateSupplier;
   private final @Nullable StateTable derivedStateTable;
   private final boolean isNewKey;
+  private final boolean mapStateViaMultimapState;
 
   private CachingStateTable(Builder builder) {
     this.stateFamily = builder.stateFamily;
@@ -59,6 +52,7 @@ final class CachingStateTable extends StateTable {
     this.isNewKey = builder.isNewKey;
     this.scopedReadStateSupplier = builder.scopedReadStateSupplier;
     this.derivedStateTable = builder.derivedStateTable;
+    this.mapStateViaMultimapState = builder.mapStateViaMultimapState;
 
     if (this.isSystemTable) {
       Preconditions.checkState(derivedStateTable == null);
@@ -103,30 +97,39 @@ final class CachingStateTable extends StateTable {
 
       @Override
       public <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder) {
+        StateTag<MapState<T, Boolean>> internalMapAddress = StateTags.convertToMapTagInternal(spec);
         WindmillSet<T> result =
-            new WindmillSet<>(namespace, spec, stateFamily, elemCoder, cache, isNewKey);
+            new WindmillSet<>(bindMap(internalMapAddress, elemCoder, BooleanCoder.of()));
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
       }
 
       @Override
-      public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+      public <KeyT, ValueT> AbstractWindmillMap<KeyT, ValueT> bindMap(
           StateTag<MapState<KeyT, ValueT>> spec, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder) {
-        WindmillMap<KeyT, ValueT> result =
-            cache
-                .get(namespace, spec)
-                .map(mapState -> (WindmillMap<KeyT, ValueT>) mapState)
-                .orElseGet(
-                    () ->
-                        new WindmillMap<>(
-                            namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey));
-
+        AbstractWindmillMap<KeyT, ValueT> result;
+        if (mapStateViaMultimapState) {
+          StateTag<MultimapState<KeyT, ValueT>> internalMultimapAddress =
+              StateTags.convertToMultiMapTagInternal(spec);
+          result =
+              new WindmillMapViaMultimap<>(
+                  bindMultimap(internalMultimapAddress, keyCoder, valueCoder));
+        } else {
+          result =
+              cache
+                  .get(namespace, spec)
+                  .map(mapState -> (AbstractWindmillMap<KeyT, ValueT>) mapState)
+                  .orElseGet(
+                      () ->
+                          new WindmillMap<>(
+                              namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey));
+        }
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
       }
 
       @Override
-      public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+      public <KeyT, ValueT> WindmillMultimap<KeyT, ValueT> bindMultimap(
           StateTag<MultimapState<KeyT, ValueT>> spec,
           Coder<KeyT> keyCoder,
           Coder<ValueT> valueCoder) {
@@ -246,6 +249,7 @@ final class CachingStateTable extends StateTable {
     private final boolean isNewKey;
     private boolean isSystemTable;
     private @Nullable StateTable derivedStateTable;
+    private boolean mapStateViaMultimapState = false;
 
     private Builder(
         String stateFamily,
@@ -265,6 +269,11 @@ final class CachingStateTable extends StateTable {
     Builder withDerivedState(StateTable derivedStateTable) {
       this.isSystemTable = false;
       this.derivedStateTable = derivedStateTable;
+      return this;
+    }
+
+    Builder withMapStateViaMultimapState() {
+      this.mapStateViaMultimapState = true;
       return this;
     }
 

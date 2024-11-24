@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -95,7 +95,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_1 }} --job_name=load-tests-python-dataflow-streaming-pardo-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Streaming Python Load Test 2 (200 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -104,7 +104,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_2 }} --job_name=load-tests-python-dataflow-streaming-pardo-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Streaming Python Load Test 3 (10 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -113,7 +113,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_3 }} --job_name=load-tests-python-dataflow-streaming-pardo-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Streaming Python Load Test 4 (100 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -122,5 +122,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_4 }} --job_name=load-tests-python-dataflow-streaming-pardo-4-${{ steps.datetime.outputs.datetime }}'
