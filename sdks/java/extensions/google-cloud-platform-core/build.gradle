@@ -59,9 +59,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
   provided library.java.bigdataoss_gcs_connector
-  provided library.java.hadoop_common
   testRuntimeOnly library.java.bigdataoss_gcs_connector
-  testImplementation library.java.hadoop_common
 }
 
 // Note that no runner is specified here, so tests running under this task should not be running

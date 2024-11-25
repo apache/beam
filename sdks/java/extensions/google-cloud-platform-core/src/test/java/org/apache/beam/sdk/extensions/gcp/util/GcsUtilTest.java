@@ -112,7 +112,6 @@ import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
@@ -176,32 +175,6 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = Mockito.mock(GcsUtil.class);
     pipelineOptions.setGcsUtil(gcsUtil);
     assertSame(gcsUtil, pipelineOptions.getGcsUtil());
-  }
-
-  @Test
-  public void testCreationWithDefaultGoogleCloudStorageReadOptions() throws Exception {
-    Configuration.addDefaultResource("test-hadoop-conf.xml");
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-
-    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
-    GoogleCloudStorage googleCloudStorageMock = Mockito.spy(GoogleCloudStorage.class);
-    Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
-        .thenReturn(Mockito.mock(SeekableByteChannel.class));
-    gcsUtil.setCloudStorageImpl(googleCloudStorageMock);
-
-    GoogleCloudStorageReadOptions expectedOptions =
-        GoogleCloudStorageReadOptions.builder()
-            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.AUTO)
-            .setSupportGzipEncoding(true)
-            .setFastFailOnNotFound(false)
-            .build();
-
-    assertEquals(expectedOptions, pipelineOptions.getGoogleCloudStorageReadOptions());
-
-    // Assert read options are passed to GCS calls
-    pipelineOptions.getGcsUtil().open(GcsPath.fromUri("gs://bucket/path"));
-    Mockito.verify(googleCloudStorageMock, Mockito.times(1))
-        .open(StorageResourceId.fromStringPath("gs://bucket/path"), expectedOptions);
   }
 
   @Test

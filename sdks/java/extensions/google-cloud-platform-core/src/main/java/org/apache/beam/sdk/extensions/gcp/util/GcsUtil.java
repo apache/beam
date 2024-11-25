@@ -39,7 +39,6 @@ import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
@@ -97,7 +96,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -129,51 +127,7 @@ public class GcsUtil {
       implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
     @Override
     public GoogleCloudStorageReadOptions create(PipelineOptions options) {
-      try {
-        // Check if gcs-connector-hadoop is loaded into classpath
-        Class.forName("com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration");
-        Configuration config = new Configuration();
-        return GoogleCloudStorageReadOptions.builder()
-            .setFastFailOnNotFound(
-                GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE
-                    .get(config, config::getBoolean))
-            .setSupportGzipEncoding(
-                GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_SUPPORT_GZIP_ENCODING_ENABLE
-                    .get(config, config::getBoolean))
-            .setInplaceSeekLimit(
-                GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT.get(
-                    config, config::getLong))
-            .setFadvise(
-                GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_FADVISE.get(
-                    config, config::getEnum))
-            .setMinRangeRequestSize(
-                GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE.get(
-                    config, config::getInt))
-            .setGrpcChecksumsEnabled(
-                GoogleHadoopFileSystemConfiguration.GCS_GRPC_CHECKSUMS_ENABLE.get(
-                    config, config::getBoolean))
-            .setGrpcReadTimeoutMillis(
-                GoogleHadoopFileSystemConfiguration.GCS_GRPC_READ_TIMEOUT_MS.get(
-                    config, config::getLong))
-            .setGrpcReadMessageTimeoutMillis(
-                GoogleHadoopFileSystemConfiguration.GCS_GRPC_READ_MESSAGE_TIMEOUT_MS.get(
-                    config, config::getLong))
-            .setGrpcReadMetadataTimeoutMillis(
-                GoogleHadoopFileSystemConfiguration.GCS_GRPC_READ_METADATA_TIMEOUT_MS.get(
-                    config, config::getLong))
-            .setGrpcReadZeroCopyEnabled(
-                GoogleHadoopFileSystemConfiguration.GCS_GRPC_READ_ZEROCOPY_ENABLE.get(
-                    config, config::getBoolean))
-            .setTraceLogEnabled(
-                GoogleHadoopFileSystemConfiguration.GCS_TRACE_LOG_ENABLE.get(
-                    config, config::getBoolean))
-            .setTraceLogTimeThreshold(
-                GoogleHadoopFileSystemConfiguration.GCS_TRACE_LOG_TIME_THRESHOLD_MS.get(
-                    config, config::getLong))
-            .build();
-      } catch (ClassNotFoundException e) {
-        return GoogleCloudStorageReadOptions.DEFAULT;
-      }
+      return GoogleCloudStorageReadOptions.DEFAULT;
     }
   }
 
