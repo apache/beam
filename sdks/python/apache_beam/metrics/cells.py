@@ -27,11 +27,9 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any
 from typing import Iterable
 from typing import Optional
 from typing import Set
-from typing import SupportsInt
 
 try:
   import cython
@@ -233,7 +231,7 @@ class AbstractMetricCell(MetricCell):
     self.data = self.data_class.identity_element()
 
   def combine(self, other: 'AbstractMetricCell') -> 'AbstractMetricCell':
-    result = type(self)()
+    result = type(self)()  # type: ignore[call-arg]
     result.data = self.data.combine(other.data)
     return result
 
@@ -506,7 +504,7 @@ class DistributionData(object):
     # type: () -> DistributionData
     return DistributionData(self.sum, self.count, self.min, self.max)
 
-  def get_result(self):
+  def get_result(self) -> DistributionResult:
     return DistributionResult(self.get_cumulative())
 
   def combine(self, other):

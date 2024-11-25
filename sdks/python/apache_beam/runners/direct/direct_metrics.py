@@ -24,6 +24,8 @@ state consistent.
 
 import threading
 from collections import defaultdict
+from typing import Any
+from typing import SupportsInt
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeData
@@ -97,7 +99,7 @@ class DirectMetrics(MetricResults):
     self._distributions = defaultdict(
         lambda: DirectMetric(GenericAggregator(DistributionData)))
     self._gauges = defaultdict(
-        lambda: DirectMetric(GenericAggregator(GuageData)))
+        lambda: DirectMetric(GenericAggregator(GaugeData)))
     self._string_sets = defaultdict(
         lambda: DirectMetric(GenericAggregator(StringSetData)))
 

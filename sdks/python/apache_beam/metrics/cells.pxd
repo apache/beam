@@ -43,7 +43,7 @@ cdef class DistributionCell(MetricCell):
 
 cdef class AbstractMetricCell(MetricCell):
   cdef readonly object data_class
-  cdef readonly object data
+  cdef public object data
   cdef bint _update_locked(self, value) except -1
 
 

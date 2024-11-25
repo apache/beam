@@ -148,5 +148,5 @@ class HistogramData(object):
     return HistogramData(self.histogram.combine(other.histogram))
 
   @staticmethod
-  def identity_element(bucket_type) -> HistogramData:
+  def identity_element(bucket_type) -> 'HistogramData':
     return HistogramData(Histogram(bucket_type))
