@@ -101,6 +101,8 @@ jobs:
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
+          test-type: precommit
+          test-language: go,python,java
           argument-file-paths: |
             ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/go_Combine_Flink_Batch_small.txt
             ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/python_Combine_Flink_Batch_small.txt
