@@ -39,7 +39,7 @@ limitations under the License.
         </div>
         <div class="case-study-quote-author-info">
             <div class="case-study-quote-author-name">
-              [Jana Polianskaja](https://www.linkedin.com/in/jana-polianskaja/)
+              Jana Polianskaja
             </div>
             <div class="case-study-quote-author-position">
               Data Engineer @ Accenture Baltics
