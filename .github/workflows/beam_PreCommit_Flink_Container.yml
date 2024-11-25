@@ -117,7 +117,7 @@ jobs:
               --environment_type=DOCKER \
               --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest \
               --parallelism=1 \
-              --input_options=\"{\"num_records\":200,\"key_size\":1,\"value_size\":9}\"
+              --input_options=''{\"num_records\":200,\"key_size\":1,\"value_size\":9}'' \
               --fanout=1 \
               --top_count=10 \
               --iterations=1"'
@@ -136,7 +136,7 @@ jobs:
               --environment_type=DOCKER \
               --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest \
               --parallelism=1 \
-              --input_options=\"{\"num_records\":200,\"key_size\":1,\"value_size\":9,\"algorithm\":\"lcg\"}\" \
+              --input_options=''{\"num_records\":200,\"key_size\":1,\"value_size\":9,\"algorithm\":\"lcg\"}'' \
               --fanout=1 \
               --top_count=10 \
               --iterations=1"'
@@ -154,7 +154,7 @@ jobs:
               --environment_type=DOCKER \
               --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest \
               --parallelism=1 \
-              --sourceOptions={\"numRecords\":200,\"keySizeBytes\":1,\"valueSizeBytes\":9} \
+              --sourceOptions=''{\"numRecords\":200,\"keySizeBytes\":1,\"valueSizeBytes\":9}'' \
               --fanout=1 \
               --iterations=1 \
               --topCount=10"'
