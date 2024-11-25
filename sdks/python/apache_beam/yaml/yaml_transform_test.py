@@ -261,7 +261,7 @@ class YamlTransformE2ETest(unittest.TestCase):
 
   def test_circular_reference_validation(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
+        pickle_library='cloudpickle')) as p:
       # pylint: disable=expression-not-assigned
       with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
         p | YamlTransform(
@@ -280,15 +280,15 @@ class YamlTransformE2ETest(unittest.TestCase):
                     input: Create
                 output: PyMap
                 ''',
-              providers=TEST_PROVIDERS)
+            providers=TEST_PROVIDERS)
 
   def test_circular_reference_multi_inputs_validation(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-                pickle_library='cloudpickle')) as p:
+        pickle_library='cloudpickle')) as p:
       # pylint: disable=expression-not-assigned
       with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
         p | YamlTransform(
-    '''
+            '''
                   type: composite
                   transforms:
                     - type: Create
@@ -301,7 +301,8 @@ class YamlTransformE2ETest(unittest.TestCase):
                         fn: "lambda row: row.element * row.element"
                       input: [Create, PyMap]
                   output: PyMap
-                ''', providers=TEST_PROVIDERS)
+                ''',
+            providers=TEST_PROVIDERS)
 
   def test_name_is_not_ambiguous(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

@@ -976,8 +976,8 @@ def preprocess(spec, verbose=False, known_transforms=None):
       for input_value in input_values:
         if isinstance(input_value, str) and input_value.lower() == name.lower():
           raise ValueError(
-            f"Circular reference detected: Transform {name} "
-            f"references itself as input in {identify_object(transform)}")
+              f"Circular reference detected: Transform {name} "
+              f"references itself as input in {identify_object(transform)}")
 
     return spec
 
