@@ -549,7 +549,6 @@ public class JdbcIOTest implements Serializable {
     }
   }
 
-
   @Test
   public void testWriteWithBatchSize() throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
