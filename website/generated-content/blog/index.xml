@@ -1,4 +1,58 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 17 Oct 2024 15:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.60.0</title><link>/blog/beam-2.60.0/</link><pubDate>Thu, 17 Oct 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.60.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 25 Nov 2024 15:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.61.0</title><link>/blog/beam-2.61.0/</link><pubDate>Mon, 25 Nov 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.61.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.61.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2610-2024-11-25">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.61.0, check out the &lt;a href="https://github.com/apache/beam/milestone/25">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>[Python] Introduce Managed Transforms API (&lt;a href="https://github.com/apache/beam/pull/31495">#31495&lt;/a>)&lt;/li>
+&lt;li>Flink 1.19 support added (&lt;a href="https://github.com/apache/beam/pull/32648">#32648&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>[Managed Iceberg] Support creating tables if needed (&lt;a href="https://github.com/apache/beam/pull/32686">#32686&lt;/a>)&lt;/li>
+&lt;li>[Managed Iceberg] Now available in Python SDK (&lt;a href="https://github.com/apache/beam/pull/31495">#31495&lt;/a>)&lt;/li>
+&lt;li>[Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types (&lt;a href="https://github.com/apache/beam/pull/32688">#32688&lt;/a>)&lt;/li>
+&lt;li>BigQuery CDC writes are now available in Python SDK, only supported when using StorageWrite API at least once mode (&lt;a href="https://github.com/apache/beam/issues/32527">#32527&lt;/a>)&lt;/li>
+&lt;li>[Managed Iceberg] Allow updating table partition specs during pipeline runtime (&lt;a href="https://github.com/apache/beam/pull/32879">#32879&lt;/a>)&lt;/li>
+&lt;li>Added BigQueryIO as a Managed IO (&lt;a href="https://github.com/apache/beam/pull/31486">#31486&lt;/a>)&lt;/li>
+&lt;li>Support for writing to &lt;a href="https://solace.com/">Solace messages queues&lt;/a> (&lt;code>SolaceIO.Write&lt;/code>) added (Java) (&lt;a href="https://github.com/apache/beam/issues/31905">#31905&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added support for read with metadata in MqttIO (Java) (&lt;a href="https://github.com/apache/beam/issues/32195">#32195&lt;/a>)&lt;/li>
+&lt;li>Added support for processing events which use a global sequence to &amp;ldquo;ordered&amp;rdquo; extension (Java) &lt;a href="https://github.com/apache/beam/pull/32540">#32540&lt;/a>&lt;/li>
+&lt;li>Add new meta-transform FlattenWith and Tee that allow one to introduce branching
+without breaking the linear/chaining style of pipeline construction.&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Removed support for Flink 1.15 and 1.16&lt;/li>
+&lt;li>Removed support for Python 3.8&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>(Java) Fixed tearDown not invoked when DoFn throws on Portable Runners (&lt;a href="https://github.com/apache/beam/issues/18592">#18592&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/31381">#31381&lt;/a>).&lt;/li>
+&lt;li>(Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine (&lt;a href="https://github.com/apache/beam/issues/32892">#32892&lt;/a>).&lt;/li>
+&lt;li>Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn (&lt;a href="https://github.com/apache/beam/issues/31111">#31111&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;p>N/A&lt;/p>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.60.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud, Ahmet Altay, Arun Pandian, Ayush Pandey, Chamikara Jayalath, Chris Ashcraft, Christoph Grotz, DKPHUONG, Damon, Danny Mccormick, Dmitry Ulyumdzhiev, Ferran Fernández Garrido, Hai Joey Tran, Hyeonho Kim, Idan Attias, Israel Herraiz, Jack McCluskey, Jan Lukavský, Jeff Kinard, Jeremy Edwards, Joey Tran, Kenneth Knowles, Maciej Szwaja, Manit Gupta, Mattie Fu, Michel Davit, Minbo Bae, Mohamed Awnallah, Naireen Hussain, Rebecca Szper, Reeba Qureshi, Reuven Lax, Robert Bradshaw, Robert Burke, S. Veyrié, Sam Whittle, Sergei Lilichenko, Shunping Huang, Steven van Rossum, Tan Le, Thiago Nunes, Vitaly Terentyev, Vlado Djerek, Yi Hu, claudevdm, fozzie15, johnjcasey, kushmiD, liferoad, martin trieu, pablo rodriguez defino, razvanculea, s21lee, tvalentyn, twosom&lt;/p></description></item><item><title>Blog: Apache Beam 2.60.0</title><link>/blog/beam-2.60.0/</link><pubDate>Thu, 17 Oct 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.60.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7200,163 +7254,4 @@ WinsonT,
 Yichi Zhang,
 Yifan Mai,
 Yilei &amp;ldquo;Dolee&amp;rdquo; Yang,
-zhoufek&lt;/p></description></item><item><title>Blog: Go SDK Exits Experimental in Apache Beam 2.33.0</title><link>/blog/go-sdk-release/</link><pubDate>Thu, 04 Nov 2021 00:00:01 -0800</pubDate><guid>/blog/go-sdk-release/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Apache Beam’s latest release, version &lt;a href="/get-started/downloads/">2.33.0&lt;/a>, is the first official release of the long experimental Go SDK.
-Built with the &lt;a href="https://golang.org/">Go Programming Language&lt;/a>, the Go SDK joins the Java and Python SDKs as the third implementation of the Beam programming model.&lt;/p>
-&lt;h2 id="using-the-new-go-sdk">Using the new Go SDK.&lt;/h2>
-&lt;p>New users of the Go SDK can start using it in their Go programs by importing the main beam package:&lt;/p>
-&lt;pre tabindex="0">&lt;code>import &amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam&amp;#34;
-&lt;/code>&lt;/pre>&lt;p>The next run of &lt;code>go mod tidy&lt;/code> will fetch the latest stable version of the module.
-Alternatively executing &lt;code>go get github.com/apache/beam/sdks/v2/go/pkg/beam&lt;/code> will download it to the local module cache immeadiately, and add it to your &lt;code>go.mod&lt;/code> file.&lt;/p>
-&lt;p>Existing users of the experimental Go SDK need to update to new &lt;code>v2&lt;/code> import paths to start using the latest versions of the SDK.
-This can be done by adding &lt;code>v2&lt;/code> to the import paths, changing &lt;code>github.com/apache/beam/sdks/go/&lt;/code>&amp;hellip; to &lt;code>github.com/apache/beam/sdks/v2/go/&lt;/code>&amp;hellip; where applicable, and then running &lt;code>go mod tidy&lt;/code>.&lt;/p>
-&lt;p>Further documentation on using the SDK is available in the &lt;a href="/documentation/programming-guide/">Beam Programming Guide&lt;/a>, and in the package &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go Doc&lt;/a>.&lt;/p>
-&lt;h2 id="feature-support">Feature Support&lt;/h2>
-&lt;p>At time of writing, the Go SDK is currently &amp;ldquo;Batteries Not Included&amp;rdquo;.
-This means that there are gaps or edge cases in supported IOs and transforms.
-That said, the core of the SDK enables a great deal of the Beam Model for
-custom user use, supporting the following features:&lt;/p>
-&lt;ul>
-&lt;li>PTransforms
-&lt;ul>
-&lt;li>Impulse&lt;/li>
-&lt;li>Create&lt;/li>
-&lt;li>ParDo with user DoFns
-&lt;ul>
-&lt;li>Iterable side inputs&lt;/li>
-&lt;li>Multiple output emitters&lt;/li>
-&lt;li>Receive and return key-value pairs&lt;/li>
-&lt;li>SplittableDoFns&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>GroupByKey and CoGroupByKey&lt;/li>
-&lt;li>Combine and CombinePerKey with user CombineFns&lt;/li>
-&lt;li>Flatten&lt;/li>
-&lt;li>Partition&lt;/li>
-&lt;li>Composite transforms&lt;/li>
-&lt;li>Cross language transforms&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Event time windowing
-&lt;ul>
-&lt;li>Global, Interval, Sliding, and Session windows&lt;/li>
-&lt;li>Aggregating over windowed PCollections with GroupByKeys or Combines&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Coders
-&lt;ul>
-&lt;li>Primitive Go types (ints, string, []bytes, and more)&lt;/li>
-&lt;li>Beam Schemas for Go struct types (including struct, slice, and map fields)&lt;/li>
-&lt;li>Registering custom coders&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Metrics
-&lt;ul>
-&lt;li>PCollection metrics (element counts, size estimates)&lt;/li>
-&lt;li>Custom user metrics&lt;/li>
-&lt;li>Post job user metrics querying (coming in 2.34.0)&lt;/li>
-&lt;li>DoFn profiling metrics (coming in 2.35.0)&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Built-in transforms
-&lt;ul>
-&lt;li>Sum, count, min, max, top, filter&lt;/li>
-&lt;li>Scalable TextIO reading&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;p>Upcoming feature roadmap, and known issues are discussed below.
-In particular, we plan to support a much richer set of IO connectors via Beam&amp;rsquo;s cross-language capabilities.&lt;/p>
-&lt;h2 id="releases">Releases&lt;/h2>
-&lt;p>With this release, the Go SDK now uses &lt;a href="https://golang.org/ref/mod">Go Modules&lt;/a> for dependency management.
-This makes it so users, SDK authors, and the testing infrastructure can all rely on the same versions of dependencies, making builds reproducible.
-This also makes &lt;a href="/blog/validate-beam-release/#configuring-a-go-build-to-validate-a-beam-release-candidate">validating Go SDK Release Candidates simple&lt;/a>.&lt;/p>
-&lt;p>Versioned SDK worker containers are now built and &lt;a href="https://hub.docker.com/r/apache/beam_go_sdk/tags?page=1&amp;amp;ordering=last_updated">published&lt;/a>, with the SDK using matching tagged versions.
-User jobs no longer need to specify a container to use, except when using custom containers.&lt;/p>
-&lt;h2 id="compatibility">Compatibility&lt;/h2>
-&lt;p>The Go SDK will largely follow suit with the Go notion of compatibility.
-Some concessions are made to keep all SDKs together on the same release cycle.&lt;/p>
-&lt;h3 id="language-compatibility">Language Compatibility&lt;/h3>
-&lt;p>The SDK will be tested at a minimum &lt;a href="https://golang.org/doc/devel/release">Go Programming Language version of 1.16&lt;/a>, and use available language features and standard library packages accordingly.
-To maintain a broad compatibility, the Go SDK will not require the latest major version of Go.
-We expect to follow the 2nd newest supported release of the language, with a possible exception when Go 1.18 is released, in order to begin experimenting with &lt;a href="https://go.dev/blog/generics-proposal">Go Generics&lt;/a> in the SDK.
-Release notes will call out when the minimum version of the language changes.&lt;/p>
-&lt;h3 id="package-compatibility">Package Compatibility&lt;/h3>
-&lt;p>The primary user packages will avoid changing in backwards incompatible ways for core features.
-This is to be inline with Go&amp;rsquo;s notion of the &lt;a href="https://research.swtch.com/vgo-import">&lt;code>import compatibility rule&lt;/code>&lt;/a>.&lt;/p>
-&lt;blockquote>
-&lt;p>If an old package and a new package have the same import path,
-the new package must be backwards compatible with the old package.&lt;/p>
-&lt;/blockquote>
-&lt;p>Exceptions to this policy are around newer, experimental, or in development features and are subject to change.
-Such features will have a doc comment noting the experimental status.
-Major changes will be mentioned in the release notes.
-For example, using &lt;code>beam.WindowInto&lt;/code> with Triggers is currently experimental and may have the API changed in a future release.&lt;/p>
-&lt;p>Primary user packages include:&lt;/p>
-&lt;ul>
-&lt;li>The main beam package &lt;code>github.com/apache/beam/sdks/v2/go/pkg/beam&lt;/code>&lt;/li>
-&lt;li>Sub packages under &lt;code>.../transforms&lt;/code>, &lt;code>.../io&lt;/code>, &lt;code>.../runners&lt;/code>, and &lt;code>.../testing&lt;/code>.&lt;/li>
-&lt;/ul>
-&lt;p>Generally, packages in the module other than the primary user packages are for framework use and are at risk of changing.&lt;/p>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;h4 id="batteries-not-included">Batteries not included.&lt;/h4>
-&lt;ul>
-&lt;li>Current native transforms are undertested&lt;/li>
-&lt;li>IOs may not be written to scale&lt;/li>
-&lt;li>Go Direct Runner is incomplete and is not portable, prefer using the Python Portable runner, or Flink
-&lt;ul>
-&lt;li>Doesn&amp;rsquo;t support side input windowing. &lt;a href="https://issues.apache.org/jira/browse/BEAM-13075">BEAM-13075&lt;/a>&lt;/li>
-&lt;li>Doesn&amp;rsquo;t serialize data, making it unlikely to catch coder issues &lt;a href="https://issues.apache.org/jira/browse/BEAM-6372">BEAM-6372&lt;/a>&lt;/li>
-&lt;li>Can use other general improvements, and become portable &lt;a href="https://issues.apache.org/jira/browse/BEAM-11076">BEAM-11076&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Current Trigger API is under iteration and subject to change &lt;a href="https://issues.apache.org/jira/browse/BEAM-3304">BEAM-3304&lt;/a>
-&lt;ul>
-&lt;li>API has a possible breaking change between 2.33.0 and 2.34.0, and may change again&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Support of the SDK on services, like Google Cloud Dataflow, remains at the service owner&amp;rsquo;s discretion&lt;/li>
-&lt;li>Need something?
-&lt;ul>
-&lt;li>File a ticket in the &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go">Beam JIRA&lt;/a> and,&lt;/li>
-&lt;li>Email the &lt;a href="mailto:dev@beam.apache.org?subject=%5BGo%20SDK%20Feature%5D">dev@beam.apache.org&lt;/a> list!&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h4 id="fixed-in-2340">Fixed in 2.34.0&lt;/h4>
-&lt;ul>
-&lt;li>&lt;code>top.SmallestPerKey&lt;/code> was broken &lt;a href="https://issues.apache.org/jira/browse/BEAM-12946">BEAM-12946&lt;/a>&lt;/li>
-&lt;li>&lt;code>beam.TryCrossLanguage&lt;/code> API didn&amp;rsquo;t match non-Try version &lt;a href="https://issues.apache.org/jira/browse/BEAM-9918">BEAM-9918&lt;/a>
-&lt;ul>
-&lt;li>This is a breaking change if one was calling &lt;code>beam.TryCrossLanguage&lt;/code>&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h4 id="fixed-in-2350">Fixed in 2.35.0&lt;/h4>
-&lt;ul>
-&lt;li>Non-global window side inputs don&amp;rsquo;t match (correctness bug) &lt;a href="https://issues.apache.org/jira/browse/BEAM-11087">BEAM-11087&lt;/a>
-&lt;ul>
-&lt;li>Until 2.35.0 it&amp;rsquo;s not recommended to use side inputs that are not using the global window.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>DoFns using side inputs accumulate memory over bundles, causing out of memory issues &lt;a href="https://issues.apache.org/jira/browse/BEAM-13130">BEAM-13130&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="roadmap">Roadmap&lt;/h2>
-&lt;p>The &lt;a href="/roadmap/go-sdk/">SDK roadmap&lt;/a> has been updated.
-Ongoing focus is to bolster streaming focused features, improve existing connectors, and make connectors easier to implement.&lt;/p>
-&lt;p>In the nearer term this comes in the form of improvements to side inputs, and providing wrappers and improving ease-of-use for cross language transforms from Java.&lt;/p>
-&lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>We hope you find the SDK useful, and it&amp;rsquo;s still early days.
-If you make something with the Go SDK, consider &lt;a href="/community/contact-us/">sharing it with us&lt;/a>.
-And remember, &lt;a href="/contribute/">contributions&lt;/a> are always welcome.&lt;/p></description></item></channel></rss>
+zhoufek&lt;/p></description></item></channel></rss>

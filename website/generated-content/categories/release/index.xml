@@ -1,4 +1,58 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 17 Oct 2024 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.60.0</title><link>/blog/beam-2.60.0/</link><pubDate>Thu, 17 Oct 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.60.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 25 Nov 2024 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.61.0</title><link>/blog/beam-2.61.0/</link><pubDate>Mon, 25 Nov 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.61.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.61.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2610-2024-11-25">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.61.0, check out the &lt;a href="https://github.com/apache/beam/milestone/25">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>[Python] Introduce Managed Transforms API (&lt;a href="https://github.com/apache/beam/pull/31495">#31495&lt;/a>)&lt;/li>
+&lt;li>Flink 1.19 support added (&lt;a href="https://github.com/apache/beam/pull/32648">#32648&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>[Managed Iceberg] Support creating tables if needed (&lt;a href="https://github.com/apache/beam/pull/32686">#32686&lt;/a>)&lt;/li>
+&lt;li>[Managed Iceberg] Now available in Python SDK (&lt;a href="https://github.com/apache/beam/pull/31495">#31495&lt;/a>)&lt;/li>
+&lt;li>[Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types (&lt;a href="https://github.com/apache/beam/pull/32688">#32688&lt;/a>)&lt;/li>
+&lt;li>BigQuery CDC writes are now available in Python SDK, only supported when using StorageWrite API at least once mode (&lt;a href="https://github.com/apache/beam/issues/32527">#32527&lt;/a>)&lt;/li>
+&lt;li>[Managed Iceberg] Allow updating table partition specs during pipeline runtime (&lt;a href="https://github.com/apache/beam/pull/32879">#32879&lt;/a>)&lt;/li>
+&lt;li>Added BigQueryIO as a Managed IO (&lt;a href="https://github.com/apache/beam/pull/31486">#31486&lt;/a>)&lt;/li>
+&lt;li>Support for writing to &lt;a href="https://solace.com/">Solace messages queues&lt;/a> (&lt;code>SolaceIO.Write&lt;/code>) added (Java) (&lt;a href="https://github.com/apache/beam/issues/31905">#31905&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added support for read with metadata in MqttIO (Java) (&lt;a href="https://github.com/apache/beam/issues/32195">#32195&lt;/a>)&lt;/li>
+&lt;li>Added support for processing events which use a global sequence to &amp;ldquo;ordered&amp;rdquo; extension (Java) &lt;a href="https://github.com/apache/beam/pull/32540">#32540&lt;/a>&lt;/li>
+&lt;li>Add new meta-transform FlattenWith and Tee that allow one to introduce branching
+without breaking the linear/chaining style of pipeline construction.&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Removed support for Flink 1.15 and 1.16&lt;/li>
+&lt;li>Removed support for Python 3.8&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>(Java) Fixed tearDown not invoked when DoFn throws on Portable Runners (&lt;a href="https://github.com/apache/beam/issues/18592">#18592&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/31381">#31381&lt;/a>).&lt;/li>
+&lt;li>(Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine (&lt;a href="https://github.com/apache/beam/issues/32892">#32892&lt;/a>).&lt;/li>
+&lt;li>Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn (&lt;a href="https://github.com/apache/beam/issues/31111">#31111&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;p>N/A&lt;/p>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.60.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud, Ahmet Altay, Arun Pandian, Ayush Pandey, Chamikara Jayalath, Chris Ashcraft, Christoph Grotz, DKPHUONG, Damon, Danny Mccormick, Dmitry Ulyumdzhiev, Ferran Fernández Garrido, Hai Joey Tran, Hyeonho Kim, Idan Attias, Israel Herraiz, Jack McCluskey, Jan Lukavský, Jeff Kinard, Jeremy Edwards, Joey Tran, Kenneth Knowles, Maciej Szwaja, Manit Gupta, Mattie Fu, Michel Davit, Minbo Bae, Mohamed Awnallah, Naireen Hussain, Rebecca Szper, Reeba Qureshi, Reuven Lax, Robert Bradshaw, Robert Burke, S. Veyrié, Sam Whittle, Sergei Lilichenko, Shunping Huang, Steven van Rossum, Tan Le, Thiago Nunes, Vitaly Terentyev, Vlado Djerek, Yi Hu, claudevdm, fozzie15, johnjcasey, kushmiD, liferoad, martin trieu, pablo rodriguez defino, razvanculea, s21lee, tvalentyn, twosom&lt;/p></description></item><item><title>Blog: Apache Beam 2.60.0</title><link>/blog/beam-2.60.0/</link><pubDate>Thu, 17 Oct 2024 15:00:00 -0500</pubDate><guid>/blog/beam-2.60.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4991,59 +5045,4 @@ Pablo Estrada, Pranay Nanda, Reuven Lax, Richard Moorhead, Robbe Sneyders,
 Robert Bradshaw, Robert Burke, Roman van der Krogt, rosetn, Rui Wang, Ryan Yuan,
 Sam Whittle, sudhan499, Sylwester Kardziejonek, Ted, Thomas Weise, Tim Robertson,
 ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, Yifan Zou,
-yoshiki.obata, Yueyang Qiu&lt;/p></description></item><item><title>Blog: Apache Beam 2.12.0</title><link>/blog/beam-2.12.0/</link><pubDate>Thu, 25 Apr 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.12.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.12.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2120-2019-04-25">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.12.0, check out the
-&lt;a href="https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344944">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Add support for a BigQuery custom sink for Python SDK.&lt;/li>
-&lt;li>Add support to specify a query in CassandraIO for Java SDK.&lt;/li>
-&lt;li>Add experimental support for cross-language transforms,
-please see &lt;a href="https://issues.apache.org/jira/browse/BEAM-6730">BEAM-6730&lt;/a>&lt;/li>
-&lt;li>Add support in the Flink Runner for exactly-once Writes with KafkaIO&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Enable Bundle Finalization in Python SDK for portable runners.&lt;/li>
-&lt;li>Add support to the Java SDK harness to merge windows.&lt;/li>
-&lt;li>Add Kafka Sink EOS support on Flink runner.&lt;/li>
-&lt;li>Added a dead letter queue to Python streaming BigQuery sink.&lt;/li>
-&lt;li>Add Experimental Python 3.6 and 3.7 workloads enabled.
-Beam 2.12 supports starting Dataflow pipelines under Python 3.6, 3.7, however 3.5 remains the only recommended minor version for Dataflow runner. In addition to announced 2.11 limitations, Beam typehint annotations are currently not supported on Python &amp;gt;= 3.6.&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed
-to the 2.12.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed El.Hussaini, Ahmet Altay, Alan Myrvold, Alex Amato, Alexander Savchenko,
-Alexey Romanenko, Andrew Brampton, Andrew Pilloud, Ankit Jhalaria,
-Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Chamikara Jayalath,
-Charles Chen, Colm O hEigeartaigh, Craig Chambers, Dan Duong, Daniel Mescheder,
-Daniel Oliveira, David Moravek, David Rieber, David Yan, Eric Roshan-Eisner,
-Etienne Chauchot, Gleb Kanterov, Heejong Lee, Ho Tien Vu, Ismaël Mejía,
-Jan Lukavský, Jean-Baptiste Onofré, Jeff Klukas, Juta, Kasia Kucharczyk,
-Kengo Seki, Kenneth Jung, Kenneth Knowles, kevin, Kyle Weaver, Kyle Winkelman,
-Łukasz Gajowy, Mark Liu, Mathieu Blanchard, Max Charas, Maximilian Michels,
-Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Kaplinskiy,
-Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Radoslaw Stankiewicz,
-Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang,
-Ruoyun Huang, Ryan Williams, Slava Chernyak, Shahar Frank, Sunil Pedapudi,
-Thomas Weise, Tim Robertson, Tanay Tummalapalli, Udi Meiri,
-Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, Yueyang Qiu&lt;/p></description></item></channel></rss>
+yoshiki.obata, Yueyang Qiu&lt;/p></description></item></channel></rss>

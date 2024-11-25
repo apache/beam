@@ -49,7 +49,7 @@ for your operating system.</li><li>Optional: If you want to convert your Maven p
 <a href=https://gradle.org/install/>Gradle</a>.</li></ol><h2 id=get-the-example-code>Get the example code</h2><ol><li><p>Generate a Maven example project that builds against the latest Beam release:<div class='shell-unix snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre tabindex=0><code class=language-unix data-lang=unix>mvn archetype:generate \
     -DarchetypeGroupId=org.apache.beam \
     -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-    -DarchetypeVersion=2.60.0 \
+    -DarchetypeVersion=2.61.0 \
     -DgroupId=org.example \
     -DartifactId=word-count-beam \
     -Dversion=&#34;0.1&#34; \
@@ -58,7 +58,7 @@ for your operating system.</li><li>Optional: If you want to convert your Maven p
    </code></pre></div></div><div class='shell-powerShell snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre tabindex=0 class=chroma><code class=language-powerShell data-lang=powerShell><span class=line><span class=cl><span class=n>mvn</span> <span class=n>archetype</span><span class=err>:</span><span class=n>generate</span> <span class=p>`</span>
 </span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>archetypeGroupId</span><span class=p>=</span><span class=n>org</span><span class=p>.</span><span class=py>apache</span><span class=p>.</span><span class=py>beam</span> <span class=p>`</span>
 </span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>archetypeArtifactId</span><span class=p>=</span><span class=nb>beam-sdks</span><span class=n>-java-maven-archetypes-examples</span> <span class=p>`</span>
-</span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>archetypeVersion</span><span class=p>=</span><span class=mf>2.60</span><span class=p>.</span><span class=py>0</span> <span class=p>`</span>
+</span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>archetypeVersion</span><span class=p>=</span><span class=mf>2.61</span><span class=p>.</span><span class=py>0</span> <span class=p>`</span>
 </span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>groupId</span><span class=p>=</span><span class=n>org</span><span class=p>.</span><span class=py>example</span> <span class=p>`</span>
 </span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>artifactId</span><span class=p>=</span><span class=nb>word-count</span><span class=n>-beam</span> <span class=p>`</span>
 </span></span><span class=line><span class=cl>  <span class=n>-D</span> <span class=n>version</span><span class=p>=</span><span class=s2>&#34;0.1&#34;</span> <span class=p>`</span>
@@ -84,7 +84,7 @@ also be prompted to choose a DSL (Groovy or Kotlin). For this tutorial, enter
 }
       </code></pre></div></div></li><li>At the end of the build script, add the following conditional dependency:<div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre tabindex=0><code>if (project.hasProperty(&#34;dataflow-runner&#34;)) {
     dependencies {
-        runtimeOnly(&#34;org.apache.beam:beam-runners-google-cloud-dataflow-java:2.60.0&#34;)
+        runtimeOnly(&#34;org.apache.beam:beam-runners-google-cloud-dataflow-java:2.61.0&#34;)
     }
 }
       </code></pre></div></div></li><li>At the end of the build script, add the following task:<div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre tabindex=0><code>tasks.register&lt;JavaExec&gt;(&#34;execute&#34;) {
