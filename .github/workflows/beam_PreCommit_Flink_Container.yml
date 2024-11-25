@@ -112,8 +112,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=combine \
             -Prunner=PortableRunner \
-            -PloadTest.args="
-              --runner=FlinkRunner \
+            '-PloadTest.args="--runner=FlinkRunner \
               --job_endpoint=localhost:8099 \
               --environment_type=DOCKER \
               --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest \
@@ -121,7 +120,7 @@ jobs:
               --input_options=\"{\"num_records\":200,\"key_size\":1,\"value_size\":9}\"
               --fanout=1 \
               --top_count=10 \
-              --iterations=1"
+              --iterations=1"'
 
       # Run a Python Combine load test to verify the Flink container
       - name: Run Flink Container Test with Python Combine
@@ -132,8 +131,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            -PloadTest.args="
-              --runner=PortableRunner \
+            '-PloadTest.args="--runner=PortableRunner \
               --job_endpoint=localhost:8099 \
               --environment_type=DOCKER \
               --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest \
@@ -141,7 +139,7 @@ jobs:
               --input_options=\"{\"num_records\":200,\"key_size\":1,\"value_size\":9,\"algorithm\":\"lcg\"}\" \
               --fanout=1 \
               --top_count=10 \
-              --iterations=1"
+              --iterations=1"'
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
@@ -152,15 +150,14 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CombineLoadTest \
             -Prunner=:runners:flink:1.17 \
-            -PloadTest.args="
-              --runner=FlinkRunner \
+            '-PloadTest.args="--runner=FlinkRunner \
               --environment_type=DOCKER \
               --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest \
               --parallelism=1 \
               --sourceOptions={\"numRecords\":200,\"keySizeBytes\":1,\"valueSizeBytes\":9} \
               --fanout=1 \
               --iterations=1 \
-              --topCount=10"
+              --topCount=10"'
 
       - name: Teardown Flink
         if: always()
