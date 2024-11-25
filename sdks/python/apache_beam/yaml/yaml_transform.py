@@ -960,24 +960,24 @@ def preprocess(spec, verbose=False, known_transforms=None):
       return spec
 
     for transform in spec['transforms']:
-        name = transform.get('name')
-        inputs = transform.get('input')
-        if name is None or inputs is None:
-          continue
+      name = transform.get('name')
+      inputs = transform.get('input')
+      if name is None or inputs is None:
+        continue
 
-        input_values = []
-        if isinstance(inputs, str):
-          input_values = [inputs]
-        elif isinstance(inputs, list):
-          input_values = inputs
-        elif isinstance(inputs, dict):
-          input_values = list(inputs.values())
+      input_values = []
+      if isinstance(inputs, str):
+        input_values = [inputs]
+      elif isinstance(inputs, list):
+        input_values = inputs
+      elif isinstance(inputs, dict):
+        input_values = list(inputs.values())
 
-        for input_value in input_values:
-            if isinstance(input_value, str) and input_value.lower() == name.lower():
-                raise ValueError(
-                    f"Circular reference detected: Transform {name} references itself as input"
-                    f" in {identify_object(transform)}")
+      for input_value in input_values:
+        if isinstance(input_value, str) and input_value.lower() == name.lower():
+          raise ValueError(
+            f"Circular reference detected: Transform {name} "
+            f"references itself as input in {identify_object(transform)}")
 
     return spec
 
