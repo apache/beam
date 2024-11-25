@@ -29,7 +29,7 @@ import org.apache.beam.sdk.util.SerializableSupplier;
  * Example class showing how the {@link BasicAuthSempClient} can be extended or have functionalities
  * overridden. In this case, the modified method is {@link
  * BasicAuthSempClient#getBacklogBytes(String)}, which queries multiple SEMP endpoints to collect
- * acurrate backlog metrics. For usage, see {@link SolaceIOMultipleSempIT}.
+ * accurate backlog metrics. For usage, see {@link SolaceIOMultipleSempIT}.
  */
 public class BasicAuthMultipleSempClient extends BasicAuthSempClient {
   private final List<SempBasicAuthClientExecutor> sempBacklogBasicAuthClientExecutors;
