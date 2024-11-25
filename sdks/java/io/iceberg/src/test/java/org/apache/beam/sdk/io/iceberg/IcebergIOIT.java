@@ -92,10 +92,14 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Integration tests for {@link IcebergIO} source and sink. */
 @RunWith(JUnit4.class)
 public class IcebergIOIT implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergIOIT.class);
+
   private static final org.apache.beam.sdk.schemas.Schema DOUBLY_NESTED_ROW_SCHEMA =
       org.apache.beam.sdk.schemas.Schema.builder()
           .addStringField("doubly_nested_str")
@@ -203,18 +207,23 @@ public class IcebergIOIT implements Serializable {
   }
 
   @AfterClass
-  public static void afterClass() throws IOException {
-    GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
-    GcsPath path = GcsPath.fromUri(warehouseLocation);
+  public static void afterClass() {
+    try {
+      GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
+      GcsPath path = GcsPath.fromUri(warehouseLocation);
 
-    Objects objects =
-        gcsUtil.listObjects(path.getBucket(), "IcebergIOIT/" + path.getFileName().toString(), null);
-    List<String> filesToDelete =
-        objects.getItems().stream()
-            .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
-            .collect(Collectors.toList());
+      Objects objects =
+          gcsUtil.listObjects(
+              path.getBucket(), "IcebergIOIT/" + path.getFileName().toString(), null);
+      List<String> filesToDelete =
+          objects.getItems().stream()
+              .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
+              .collect(Collectors.toList());
 
-    gcsUtil.remove(filesToDelete);
+      gcsUtil.remove(filesToDelete);
+    } catch (IOException e) {
+      LOG.warn("Failed to clean up files.", e);
+    }
   }
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */
