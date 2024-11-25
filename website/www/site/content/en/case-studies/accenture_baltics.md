@@ -65,12 +65,10 @@ The team responsible for transforming, curating, and preparing data, including t
 As an example, a streaming pipeline ingests transaction data from Pub/Sub, performs basic ETL and data cleaning, and outputs the results to BigQuery. A separate batch Dataflow pipeline evaluates a binary classification model, reading input and writing results to Google Cloud Storage. The following diagram (Figure 1) shows a workflow that uses Pub/Sub to feed Dataflow pipelines across three Google Cloud projects. It also shows how Dataflow, Composer, Cloud Storage, BigQuery, and Grafana integrate into the architecture.
 
 <div class="post-scheme">
-    <figure>
-        <a href="/images/case-study/accenture/dataflow_pipelines.png" target="_blank" title="Click to enlarge">
-            <img src="/images/case-study/accenture/dataflow_pipelines.png" alt="Diagram of Accenture Baltics' Dataflow pipeline architecture">
-        </a>
-        <figcaption>Figure 1. This diagram illustrates how Pub/Sub feeds streaming Dataflow pipelines across three Google Cloud projects (Prod, Dev, and Test), and how Dataflow, Composer, Cloud Storage, BigQuery, and Grafana are integrated into the overall architecture.</figcaption>
-    </figure>
+    <a href="/images/case-study/accenture/dataflow_pipelines.png" target="_blank" title="Click to enlarge">
+        <img src="/images/case-study/accenture/dataflow_pipelines.png" alt="Diagram of Accenture Baltics' Dataflow pipeline architecture">
+    </a>
+    <p>Figure 1. This diagram illustrates how Pub/Sub feeds streaming Dataflow pipelines across three Google Cloud projects (Prod, Dev, and Test), and how Dataflow, Composer, Cloud Storage, BigQuery, and Grafana are integrated into the overall architecture.</p>
 </div>
 
 ## Use Cases
@@ -86,12 +84,10 @@ Apache Beam is an invaluable tool for our use cases, particularly in the followi
 We also utilize Grafana (Figure 2) with custom notification emails and tickets for comprehensive monitoring of our Beam pipelines. Notifications are generated from Google’s Cloud Logging and Cloud Monitoring services to ensure we stay informed about the performance and health of our pipelines. The seamless integration of Airflow with Dataflow and Beam further enhances our workflow, allowing us to effortlessly use operators such as `DataflowCreatePythonJobOperator` and `BeamRunPythonPipelineOperator` in [Airflow 2](https://airflow.apache.org/docs/apache-airflow-providers-google/stable/_api/airflow/providers/google/cloud/operators/dataflow/index.html).
 
 <div class="post-scheme">
-    <figure>
     <a href="/images/case-study/accenture/dataflow_grafana.jpg" target="_blank" title="Click to enlarge">
         <img src="/images/case-study/accenture/dataflow_grafana.jpg" alt="scheme">
     </a>
-    <figcaption>Figure 2. Accenture Baltics uses a customized Grafana dashboard to track the data freshness metric of streaming Dataflow jobs.</figcaption>
-    </figure>
+    <p>Figure 2. Accenture Baltics uses a customized Grafana dashboard to track the data freshness metric of streaming Dataflow jobs.</p>
 </div>
 
 ## Results
