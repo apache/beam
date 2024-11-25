@@ -58,8 +58,6 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
-  provided library.java.bigdataoss_gcs_connector
-  testRuntimeOnly library.java.bigdataoss_gcs_connector
 }
 
 // Note that no runner is specified here, so tests running under this task should not be running
