@@ -18,8 +18,23 @@ name: PreCommit Flink Container
 on:
   pull_request_target:
     paths:
+      - 'model/**'
+      - 'sdks/python/**'
+      - 'release/**'
+      - 'sdks/java/io/kafka/**'
+      - 'runners/core-construction-java/**'
+      - 'runners/core-java/**'
+      - 'runners/extensions-java/**'
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'runners/reference/**'
       - '.github/trigger_files/beam_PreCommit_Flink_Container.json'
       - 'release/trigger_all_tests.json'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all`
@@ -66,9 +81,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' && 
-       github.base_ref == 'master' && 
-       github.event.pull_request.draft == false) ||
+      github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Flink Container PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 45
@@ -85,9 +98,9 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Start Flink with parallelism 1
+      - name: Start Flink with 2 workers
         env:
-          FLINK_NUM_WORKERS: 1
+          FLINK_NUM_WORKERS: 2
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       # Run a simple Go Combine load test to verify the Flink container
@@ -109,7 +122,7 @@ jobs:
               --fanout=1 \
               --top_count=10 \
               --iterations=1"
-      
+
       # Run a Python Combine load test to verify the Flink container
       - name: Run Flink Container Test with Python Combine
         timeout-minutes: 10
