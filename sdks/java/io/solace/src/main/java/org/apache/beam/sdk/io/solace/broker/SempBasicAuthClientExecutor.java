@@ -56,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * response is 401 Unauthorized, the client will execute an additional request with Basic Auth
  * header to refresh the token.
  */
-public class SempBasicAuthClientExecutor {
+public class SempBasicAuthClientExecutor implements Serializable {
   // Every request will be repeated 2 times in case of abnormal connection failures.
   private static final int REQUEST_NUM_RETRIES = 2;
   private static final Map<CookieManagerKey, CookieManager> COOKIE_MANAGER_MAP =
