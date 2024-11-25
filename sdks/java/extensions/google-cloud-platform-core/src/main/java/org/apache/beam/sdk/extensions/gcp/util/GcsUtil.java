@@ -229,7 +229,6 @@ public class GcsUtil {
 
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
-  private GoogleCloudStorageReadOptions googleCloudStorageReadOptions;
 
   private final int rewriteDataOpBatchLimit;
 
@@ -270,11 +269,10 @@ public class GcsUtil {
     this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
-    this.googleCloudStorageReadOptions = gcsReadOptions;
     googleCloudStorageOptions =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
-            .setReadChannelOptions(this.googleCloudStorageReadOptions)
+            .setReadChannelOptions(gcsReadOptions)
             .setGrpcEnabled(shouldUseGrpc)
             .build();
     googleCloudStorage =
@@ -582,7 +580,7 @@ public class GcsUtil {
     SeekableByteChannel channel =
         googleCloudStorage.open(
             new StorageResourceId(path.getBucket(), path.getObject()),
-            this.googleCloudStorageReadOptions);
+            this.googleCloudStorageOptions.getReadChannelOptions());
     return wrapInCounting(channel, bucket);
   }
 
