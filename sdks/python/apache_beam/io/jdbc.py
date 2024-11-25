@@ -220,7 +220,8 @@ class WriteToJdbc(ExternalTransform):
                       package (e.g. "org.postgresql:postgresql:42.3.1").
                       By default, this argument includes a Postgres SQL JDBC
                       driver.
-    :param write_batch_size: sets the maximum size in number of SQL statement for the batch.
+    :param write_batch_size: sets the maximum size in number of SQL statement
+                             for the batch.
                              default is {@link JdbcIO.DEFAULT_BATCH_SIZE}
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
