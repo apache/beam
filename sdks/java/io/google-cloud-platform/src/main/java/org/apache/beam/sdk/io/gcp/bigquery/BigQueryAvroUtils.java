@@ -34,6 +34,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -50,13 +51,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/**
- * A set of utilities for working with Avro files.
- *
- * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
- * 1.8.1</a> specification.
- */
+/** A set of utilities for working with Avro files. */
 class BigQueryAvroUtils {
+
+  private static final String VERSION_AVRO =
+      Optional.ofNullable(Schema.class.getPackage())
+          .map(Package::getImplementationVersion)
+          .orElse("");
 
   // org.apache.avro.LogicalType
   static class DateTimeLogicalType extends LogicalType {
@@ -74,6 +75,8 @@ class BigQueryAvroUtils {
    *     export</a>
    * @see <a href=https://cloud.google.com/bigquery/docs/reference/storage#avro_schema_details>BQ
    *     avro storage</a>
+   * @see <a href=https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro>BQ avro
+   *     load</a>
    */
   static Schema getPrimitiveType(TableFieldSchema schema, Boolean useAvroLogicalTypes) {
     String bqType = schema.getType();
@@ -116,6 +119,9 @@ class BigQueryAvroUtils {
         }
       case "DATETIME":
         if (useAvroLogicalTypes) {
+          // BQ export uses a custom logical type
+          // TODO for load/storage use
+          // LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType())
           return DATETIME_LOGICAL_TYPE.addToSchema(SchemaBuilder.builder().stringType());
         } else {
           return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
@@ -158,6 +164,11 @@ class BigQueryAvroUtils {
 
   @VisibleForTesting
   static String formatTimestamp(Long timestampMicro) {
+    String dateTime = formatDatetime(timestampMicro);
+    return dateTime + " UTC";
+  }
+
+  private static String formatDatetime(Long timestampMicro) {
     // timestampMicro is in "microseconds since epoch" format,
     // e.g., 1452062291123456L means "2016-01-06 06:38:11.123456 UTC".
     // Separate into seconds and microseconds.
@@ -168,11 +179,13 @@ class BigQueryAvroUtils {
       timestampSec -= 1;
     }
     String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(timestampSec * 1000);
-
     if (micros == 0) {
-      return String.format("%s UTC", dayAndTime);
+      return dayAndTime;
+    } else if (micros % 1000 == 0) {
+      return String.format("%s.%03d", dayAndTime, micros / 1000);
+    } else {
+      return String.format("%s.%06d", dayAndTime, micros);
     }
-    return String.format("%s.%06d UTC", dayAndTime, micros);
   }
 
   /**
@@ -305,38 +318,68 @@ class BigQueryAvroUtils {
     LogicalType logicalType = schema.getLogicalType();
     switch (type) {
       case BOOLEAN:
-        // SQL types BOOL, BOOLEAN
+        // SQL type BOOL (BOOLEAN)
         return v;
       case INT:
         if (logicalType instanceof LogicalTypes.Date) {
-          // SQL types DATE
+          // SQL type DATE
+          // ideally LocalDate but TableRowJsonCoder encodes as String
           return formatDate((Integer) v);
+        } else if (logicalType instanceof LogicalTypes.TimeMillis) {
+          // Write only: SQL type TIME
+          // ideally LocalTime but TableRowJsonCoder encodes as String
+          return formatTime(((Integer) v) * 1000L);
         } else {
-          throw new UnsupportedOperationException(
-              String.format("Unexpected Avro field schema type %s for field named %s", type, name));
+          // Write only: SQL type INT64 (INT, SMALLINT, INTEGER, BIGINT, TINYINT, BYTEINT)
+          // ideally Integer but keep consistency with BQ JSON export that uses String
+          return ((Integer) v).toString();
         }
       case LONG:
         if (logicalType instanceof LogicalTypes.TimeMicros) {
-          // SQL types TIME
+          // SQL type TIME
+          // ideally LocalTime but TableRowJsonCoder encodes as String
           return formatTime((Long) v);
+        } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
+          // Write only: SQL type TIMESTAMP
+          // ideally Instant but TableRowJsonCoder encodes as String
+          return formatTimestamp((Long) v * 1000L);
         } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
-          // SQL types TIMESTAMP
+          // SQL type TIMESTAMP
+          // ideally Instant but TableRowJsonCoder encodes as String
           return formatTimestamp((Long) v);
+        } else if (!(VERSION_AVRO.startsWith("1.8") || VERSION_AVRO.startsWith("1.9"))
+            && logicalType instanceof LogicalTypes.LocalTimestampMillis) {
+          // Write only: SQL type DATETIME
+          // ideally LocalDateTime but TableRowJsonCoder encodes as String
+          return formatDatetime(((Long) v) * 1000);
+        } else if (!(VERSION_AVRO.startsWith("1.8") || VERSION_AVRO.startsWith("1.9"))
+            && logicalType instanceof LogicalTypes.LocalTimestampMicros) {
+          // Write only: SQL type DATETIME
+          // ideally LocalDateTime but TableRowJsonCoder encodes as String
+          return formatDatetime((Long) v);
         } else {
-          // SQL types INT64 (INT, SMALLINT, INTEGER, BIGINT, TINYINT, BYTEINT)
+          // SQL type INT64 (INT, SMALLINT, INTEGER, BIGINT, TINYINT, BYTEINT)
+          // ideally Long if in [2^53+1, 2^53-1] but keep consistency with BQ JSON export that uses
+          // String
           return ((Long) v).toString();
         }
+      case FLOAT:
+        // Write only: SQL type FLOAT64
+        // ideally Float but TableRowJsonCoder decodes as Double
+        return Double.valueOf(v.toString());
       case DOUBLE:
-        // SQL types FLOAT64
+        // SQL type FLOAT64
         return v;
       case BYTES:
         if (logicalType instanceof LogicalTypes.Decimal) {
           // SQL tpe NUMERIC, BIGNUMERIC
+          // ideally BigDecimal but TableRowJsonCoder encodes as String
           return new Conversions.DecimalConversion()
               .fromBytes((ByteBuffer) v, schema, logicalType)
               .toString();
         } else {
-          // SQL types BYTES
+          // SQL type BYTES
+          // ideally byte[] but TableRowJsonCoder encodes as String
           return BaseEncoding.base64().encode(((ByteBuffer) v).array());
         }
       case STRING:
