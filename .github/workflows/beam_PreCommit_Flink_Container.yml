@@ -128,7 +128,7 @@ jobs:
         timeout-minutes: 10
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test:load:run
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
