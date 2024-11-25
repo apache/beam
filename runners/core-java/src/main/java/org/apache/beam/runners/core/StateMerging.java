@@ -25,10 +25,12 @@ import java.util.Map;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.TimestampedValue;
 
 /** Helpers for merging state. */
 @SuppressWarnings({
@@ -102,6 +104,44 @@ public class StateMerging {
     }
     // Clear sources except for result.
     for (BagState<T> source : sources) {
+      if (!source.equals(result)) {
+        source.clear();
+      }
+    }
+  }
+
+  public static <K, T, W extends BoundedWindow> void mergeOrderedLists(
+      MergingStateAccessor<K, W> context, StateTag<OrderedListState<T>> address) {
+    mergeOrderedLists(context.accessInEachMergingWindow(address).values(), context.access(address));
+  }
+
+  public static <T, W extends BoundedWindow> void mergeOrderedLists(
+      Collection<OrderedListState<T>> sources, OrderedListState<T> result) {
+    if (sources.isEmpty()) {
+      // Nothing to merge.
+      return;
+    }
+    // Prefetch everything except what's already in result.
+    final List<ReadableState<Iterable<TimestampedValue<T>>>> futures =
+        new ArrayList<>(sources.size());
+    for (OrderedListState<T> source : sources) {
+      if (!source.equals(result)) {
+        prefetchRead(source);
+        futures.add(source);
+      }
+    }
+    if (futures.isEmpty()) {
+      // Result already holds all the values.
+      return;
+    }
+    // Transfer from sources to result.
+    for (ReadableState<Iterable<TimestampedValue<T>>> future : futures) {
+      for (TimestampedValue<T> timestampedValue : future.read()) {
+        result.add(timestampedValue);
+      }
+    }
+    // Clear sources except for result.
+    for (OrderedListState<T> source : sources) {
       if (!source.equals(result)) {
         source.clear();
       }
