@@ -100,7 +100,7 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Start Flink with parallelism 1
         env:
-          FLINK_NUM_WORKERS: 1
+          FLINK_NUM_WORKERS: 2
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       # Run a simple Go Combine load test to verify the Flink container
