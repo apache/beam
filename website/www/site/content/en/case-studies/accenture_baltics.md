@@ -9,7 +9,7 @@ cardDescription: "Accenture Baltics uses Apache Beam on Google Cloud to build a 
 authorName: "Jana Polianskaja"
 authorPosition: "Data Engineer @ Accenture Baltics"
 authorImg: /images/case-study/accenture/Jana_Polianskaja_sm.jpg
-publishDate: 2024-11-25T00:12:00+00:00
+publishDate: 2024-11-26T00:12:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
