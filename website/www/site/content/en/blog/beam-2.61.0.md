@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.61.0"
-date:   2024-11-TODO 15:00:00 -0500
+date:   2024-11-25 15:00:00 -0500
 categories:
   - blog
   - release
@@ -21,8 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.61.0 release of Beam.
 This release includes both improvements and new functionality.
-TODO - update link
-See the [download page](/get-started/downloads/#2600-2024-10-17) for this release.
+See the [download page](/get-started/downloads/#2610-2024-11-25) for this release.
 
 <!--more-->
 
