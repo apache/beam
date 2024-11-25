@@ -66,7 +66,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
-  private final Supplier<Long> throttleTimeSupplier;
+  private final ThrottledTimeTracker throttleTimeTracker;
 
   SingleSourceWorkerHarness(
       WorkCommitter workCommitter,
@@ -76,7 +76,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher,
       GetWorkSender getWorkSender,
-      Supplier<Long> throttleTimeSupplier) {
+      ThrottledTimeTracker throttleTimeTracker) {
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
     this.heartbeatSender = heartbeatSender;
@@ -92,7 +92,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                 .build());
     this.isRunning = new AtomicBoolean(false);
     this.getWorkSender = getWorkSender;
-    this.throttleTimeSupplier = throttleTimeSupplier;
+    this.throttleTimeTracker = throttleTimeTracker;
   }
 
   public static SingleSourceWorkerHarness.Builder builder() {
@@ -149,7 +149,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
 
   @Override
   public long getAndResetThrottleTime() {
-    return throttleTimeSupplier.get();
+    return throttleTimeTracker.getAndResetThrottleTime();
   }
 
   private void streamingEngineDispatchLoop(
@@ -262,7 +262,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
 
     Builder setGetWorkSender(GetWorkSender getWorkSender);
 
-    Builder setThrottleTimeSupplier(Supplier<Long> throttleTimeSupplier);
+    Builder setThrottleTimeTracker(ThrottledTimeTracker throttleTimeTracker);
 
     SingleSourceWorkerHarness build();
   }

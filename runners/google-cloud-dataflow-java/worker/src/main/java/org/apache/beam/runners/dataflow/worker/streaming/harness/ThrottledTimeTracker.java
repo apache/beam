@@ -19,10 +19,14 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Provides an interface to start streaming worker processing. */
+/**
+ * Tracks time spent in a throttled state due to {@code Status.RESOURCE_EXHAUSTED} errors returned
+ * from gRPC calls.
+ */
 @Internal
-public interface StreamingWorkerHarness extends ThrottledTimeTracker {
-  void start();
+@FunctionalInterface
+public interface ThrottledTimeTracker {
 
-  void shutdown();
+  /** Returns the combined total of all throttle times and resets those times to 0. */
+  long getAndResetThrottleTime();
 }

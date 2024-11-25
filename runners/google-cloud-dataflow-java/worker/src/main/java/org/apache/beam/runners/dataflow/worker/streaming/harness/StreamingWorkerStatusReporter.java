@@ -79,7 +79,7 @@ public final class StreamingWorkerStatusReporter {
   private final int initialMaxThreadCount;
   private final int initialMaxBundlesOutstanding;
   private final WorkUnitClient dataflowServiceClient;
-  private final Supplier<Long> windmillQuotaThrottleTime;
+  private final ThrottledTimeTracker windmillQuotaThrottleTime;
   private final Supplier<Collection<StageInfo>> allStageInfo;
   private final FailureTracker failureTracker;
   private final StreamingCounters streamingCounters;
@@ -101,7 +101,7 @@ public final class StreamingWorkerStatusReporter {
   StreamingWorkerStatusReporter(
       boolean publishCounters,
       WorkUnitClient dataflowServiceClient,
-      Supplier<Long> windmillQuotaThrottleTime,
+      ThrottledTimeTracker windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
       FailureTracker failureTracker,
       StreamingCounters streamingCounters,
@@ -253,7 +253,9 @@ public final class StreamingWorkerStatusReporter {
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
     // Throttle time is tracked by the windmillServer but is reported to DFE here.
-    streamingCounters.windmillQuotaThrottling().addValue(windmillQuotaThrottleTime.get());
+    streamingCounters
+        .windmillQuotaThrottling()
+        .addValue(windmillQuotaThrottleTime.getAndResetThrottleTime());
     if (memoryMonitor.isThrashing()) {
       streamingCounters.memoryThrashing().addValue(1);
     }
@@ -460,7 +462,7 @@ public final class StreamingWorkerStatusReporter {
 
     Builder setDataflowServiceClient(WorkUnitClient dataflowServiceClient);
 
-    Builder setWindmillQuotaThrottleTime(Supplier<Long> windmillQuotaThrottleTime);
+    Builder setWindmillQuotaThrottleTime(ThrottledTimeTracker windmillQuotaThrottleTime);
 
     Builder setAllStageInfo(Supplier<Collection<StageInfo>> allStageInfo);
 
