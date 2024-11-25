@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import static org.apache.beam.gradle.BeamModulePlugin.getSupportedJavaVersion
+
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
@@ -341,7 +343,7 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
-  def javaVer = "java8"
+  def javaVer = getSupportedJavaVersion()
   if(project.hasProperty('testJavaVersion')) {
     javaVer = "java${project.getProperty('testJavaVersion')}"
   }
