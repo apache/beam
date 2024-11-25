@@ -98,7 +98,7 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Start Flink with parallelism 1
+      - name: Start Flink with 2 workers
         env:
           FLINK_NUM_WORKERS: 2
         run: |
