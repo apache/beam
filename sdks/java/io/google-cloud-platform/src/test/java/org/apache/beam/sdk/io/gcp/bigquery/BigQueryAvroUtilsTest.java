@@ -33,13 +33,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
-
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.util.Utf8;
@@ -318,6 +321,40 @@ public class BigQueryAvroUtilsTest {
     }
 
     {
+      // enum
+      Schema enumSchema = SchemaBuilder.enumeration("color").symbols("red", "green", "blue");
+      GenericData.EnumSymbol symbol = new GenericData.EnumSymbol(enumSchema, "RED");
+      GenericRecord record =
+          new GenericRecordBuilder(avroSchema(f -> f.type(enumSchema).noDefault()))
+              .set("value", symbol)
+              .build();
+      TableRow expected = new TableRow().set("value", "RED");
+      TableRow row = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
+
+      assertEquals(expected, row);
+      assertEquals(expected, row.clone());
+    }
+
+    {
+      // fixed
+      UUID uuid = UUID.randomUUID();
+      ByteBuffer bb = ByteBuffer.allocate(16);
+      bb.putLong(uuid.getMostSignificantBits());
+      bb.putLong(uuid.getLeastSignificantBits());
+      bb.rewind();
+      byte[] bytes = bb.array();
+      GenericRecord record =
+          new GenericRecordBuilder(avroSchema(f -> f.type().fixed("uuid").size(16).noDefault()))
+              .set("value", bb)
+              .build();
+      TableRow expected = new TableRow().set("value", BaseEncoding.base64().encode(bytes));
+      TableRow row = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
+
+      assertEquals(expected, row);
+      assertEquals(expected, row.clone());
+    }
+
+    {
       // null
       GenericRecord record =
           new GenericRecordBuilder(avroSchema(f -> f.type().optional().booleanType())).build();
@@ -336,6 +373,28 @@ public class BigQueryAvroUtilsTest {
               .set("value", Lists.newArrayList(true, false))
               .build();
       TableRow expected = new TableRow().set("value", Lists.newArrayList(true, false));
+      TableRow row = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
+
+      assertEquals(expected, row);
+      assertEquals(expected, row.clone());
+    }
+
+    {
+      // map
+      Map<String, Integer> map = new HashMap<>();
+      map.put("left", 1);
+      map.put("right", -1);
+      GenericRecord record =
+          new GenericRecordBuilder(avroSchema(f -> f.type().map().values().intType().noDefault()))
+              .set("value", map)
+              .build();
+      TableRow expected =
+          new TableRow()
+              .set(
+                  "value",
+                  Lists.newArrayList(
+                      new TableRow().set("key", "left").set("value", "1"),
+                      new TableRow().set("key", "right").set("value", "-1")));
       TableRow row = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
 
       assertEquals(expected, row);

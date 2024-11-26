@@ -34,6 +34,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.Conversions;
@@ -288,8 +289,7 @@ class BigQueryAvroUtils {
       case UNION:
         return convertNullableField(name, schema, v);
       case MAP:
-        throw new UnsupportedOperationException(
-            String.format("Unexpected Avro field schema type %s for field named %s", type, name));
+        return convertMapField(name, schema, v);
       default:
         return convertRequiredField(name, schema, v);
     }
@@ -306,6 +306,26 @@ class BigQueryAvroUtils {
     ArrayList<Object> values = new ArrayList<>();
     for (Object element : elements) {
       values.add(convertRequiredField(name, elementType, element));
+    }
+    return values;
+  }
+
+  private static List<TableRow> convertMapField(String name, Schema map, Object v) {
+    // Avro maps are represented as key/value RECORD.
+    if (v == null) {
+      // Handle the case of an empty map.
+      return new ArrayList<>();
+    }
+
+    Schema type = map.getValueType();
+    Map<String, Object> elements = (Map<String, Object>) v;
+    ArrayList<TableRow> values = new ArrayList<>();
+    for (Map.Entry<String, Object> element : elements.entrySet()) {
+      TableRow row =
+          new TableRow()
+              .set("key", element.getKey())
+              .set("value", convertRequiredField(name, type, element.getValue()));
+      values.add(row);
     }
     return values;
   }
@@ -387,7 +407,15 @@ class BigQueryAvroUtils {
         // SQL types STRING, DATETIME, GEOGRAPHY, JSON
         // when not using logical type DATE, TIME too
         return v.toString();
+      case ENUM:
+        // SQL types STRING
+        return v.toString();
+      case FIXED:
+        // SQL type BYTES
+        // ideally byte[] but TableRowJsonCoder encodes as String
+        return BaseEncoding.base64().encode(((ByteBuffer) v).array());
       case RECORD:
+        // SQL types RECORD
         return convertGenericRecordToTableRow((GenericRecord) v);
       default:
         throw new UnsupportedOperationException(
