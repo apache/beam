@@ -56,8 +56,10 @@ import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.storage.StorageLevel;
+import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
+import org.apache.spark.streaming.dstream.DStream;
 import scala.Tuple2;
 
 /** A set of utilities to help translating Beam transformations into Spark transformations. */
@@ -286,6 +288,23 @@ public final class TranslationUtils {
               doFn.getClass().getName(),
               DoFn.class.getSimpleName(),
               SparkRunner.class.getSimpleName()));
+    }
+  }
+
+  /**
+   * Checkpoints the given DStream if checkpointing is enabled in the pipeline options.
+   *
+   * @param dStream The DStream to be checkpointed
+   * @param options The SerializablePipelineOptions containing configuration settings including
+   *     batch duration
+   */
+  public static void checkpointIfNeeded(
+      final DStream<?> dStream, final SerializablePipelineOptions options) {
+
+    final Long checkpointDurationMillis = getBatchDuration(options);
+
+    if (checkpointDurationMillis > 0) {
+      dStream.checkpoint(new Duration(checkpointDurationMillis));
     }
   }
 

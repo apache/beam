@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
+import static org.apache.beam.runners.spark.translation.TranslationUtils.checkpointIfNeeded;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.getBatchDuration;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,7 +38,6 @@ import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.ReifyTimestampsAndWindowsFunction;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
@@ -62,7 +64,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Fluent
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.dstream.DStream;
@@ -77,8 +78,6 @@ import scala.collection.Iterator;
 import scala.collection.JavaConversions;
 import scala.collection.Seq;
 import scala.runtime.AbstractFunction1;
-
-import static org.apache.beam.runners.spark.translation.TranslationUtils.getBatchDuration;
 
 /**
  * An implementation of {@link GroupAlsoByWindow} logic for grouping by windows and controlling
@@ -445,19 +444,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final WindowingStrategy<?, W> windowingStrategy) {
     return TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
   }
-
-  private static void checkpointIfNeeded(
-      final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
-      final SerializablePipelineOptions options) {
-
-    final Long checkpointDurationMillis = getBatchDuration(options);
-
-    if (checkpointDurationMillis > 0) {
-      firedStream.checkpoint(new Duration(checkpointDurationMillis));
-    }
-  }
-
-
 
   private static <K, InputT> JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> stripStateValues(
       final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
