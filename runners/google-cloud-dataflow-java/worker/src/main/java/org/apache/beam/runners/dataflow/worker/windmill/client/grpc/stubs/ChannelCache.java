@@ -87,7 +87,9 @@ public final class ChannelCache implements StatusDataProvider {
           shutdownChannel(notification.getValue());
           onChannelShutdown.run();
         },
-        // Run the removal on the calling thread for better determinism in tests.
+        // Run the removal synchronously on the calling thread to prevent waiting on asynchronous
+        // tasks to run and make unit tests deterministic. In testing, we verify that things are
+        // removed from the cache.
         MoreExecutors.directExecutor());
   }
 

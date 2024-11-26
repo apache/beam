@@ -200,8 +200,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             dispatcherClient,
             workCommitterFactory,
             getDataMetricTracker,
-            // Run the workerMetadataConsumer on the direct calling thread to make testing more
-            // deterministic.
+            // Run the workerMetadataConsumer on the direct calling thread to remove waiting and
+            // make unit tests more deterministic as we do not have to worry about network IO being
+            // blocked by the consumeWorkerMetadata() task. Test suites run in different
+            // environments and non-determinism has lead to past flakiness. See
+            // https://github.com/apache/beam/issues/28957.
             MoreExecutors.newDirectExecutorService());
     fanOutStreamingEngineWorkProvider.start();
     return fanOutStreamingEngineWorkProvider;
