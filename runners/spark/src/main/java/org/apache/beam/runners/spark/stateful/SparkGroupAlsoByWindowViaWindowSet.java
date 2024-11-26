@@ -60,7 +60,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.streaming.Duration;
@@ -99,27 +98,6 @@ import scala.runtime.AbstractFunction1;
 public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
-
-  /** State and Timers wrapper. */
-  public static class StateAndTimers implements Serializable {
-    // Serializable state for internals (namespace to state tag to coded value).
-    private final Table<String, String, byte[]> state;
-    private final Collection<byte[]> serTimers;
-
-    private StateAndTimers(
-        final Table<String, String, byte[]> state, final Collection<byte[]> timers) {
-      this.state = state;
-      this.serTimers = timers;
-    }
-
-    Table<String, String, byte[]> getState() {
-      return state;
-    }
-
-    Collection<byte[]> getTimers() {
-      return serTimers;
-    }
-  }
 
   private static class OutputWindowedValueHolder<K, V>
       implements OutputWindowedValue<KV<K, Iterable<V>>> {
@@ -348,7 +326,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
             // empty outputs are filtered later using DStream filtering
             final StateAndTimers updated =
-                new StateAndTimers(
+                StateAndTimers.of(
                     stateInternals.getState(),
                     SparkTimerInternals.serializeTimers(
                         timerInternals.getTimers(), timerDataCoder));
