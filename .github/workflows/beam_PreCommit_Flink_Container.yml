@@ -98,6 +98,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -107,6 +111,8 @@ jobs:
             ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/go_Combine_Flink_Batch_small.txt
             ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/python_Combine_Flink_Batch_small.txt
             ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/java_Combine_Flink_Batch_small.txt
+      - name: get current time
+        run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: Start Flink with 2 workers
         env:
           FLINK_NUM_WORKERS: 2
