@@ -149,7 +149,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CombineLoadTest \
             -Prunner=:runners:flink:1.17 \
-            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_3 }} --job_name=flink-tests-java11-${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_3 }} --jobName=flink-tests-java11-${{env.NOW_UTC}}'
 
       - name: Teardown Flink
         if: always()
