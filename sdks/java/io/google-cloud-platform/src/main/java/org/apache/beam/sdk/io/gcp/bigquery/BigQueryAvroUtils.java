@@ -168,7 +168,8 @@ class BigQueryAvroUtils {
     return dateTime + " UTC";
   }
 
-  private static String formatDatetime(Long timestampMicro) {
+  @VisibleForTesting
+  static String formatDatetime(Long timestampMicro) {
     // timestampMicro is in "microseconds since epoch" format,
     // e.g., 1452062291123456L means "2016-01-06 06:38:11.123456 UTC".
     // Separate into seconds and microseconds.
