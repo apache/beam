@@ -20,6 +20,6 @@
 --topCount=10
 --parallelism=2
 --jobEndpoint=localhost:8099
---environmentType=DOCKER
---environmentConfig=gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest
+--defaultEnvironmentType=DOCKER
+--defaultEnvironmentConfig=gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest
 --runner=PortableRunner
