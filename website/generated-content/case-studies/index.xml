@@ -1,4 +1,85 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Building data abstractions with streaming at Yelp</title><link>/case-studies/yelp_streaming/</link><pubDate>Sun, 10 Nov 2024 00:12:00 +0000</pubDate><guid>/case-studies/yelp_streaming/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Accenture Baltics' Journey with Apache Beam to Streamlined Data Workflows for a Sustainable Energy Leader</title><link>/case-studies/accenture_baltics/</link><pubDate>Mon, 25 Nov 2024 00:12:00 +0000</pubDate><guid>/case-studies/accenture_baltics/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- div with class case-study-opinion is displayed at the top left area of the case study page -->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/accenture.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“Apache Beam empowers team members who don’t have data engineering backgrounds to directly access and analyze BigQuery data by using SQL. The data scientists, the finance department, and production optimization teams all benefit from improved data accessibility, which gives them immediate access to critical information for faster analysis and decision-making.”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/accenture/Jana_Polianskaja_sm.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Jana Polianskaja
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Data Engineer @ Accenture Baltics
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;!-- div with class case-study-post is the case study page main content -->
+&lt;div class="case-study-post">
+&lt;h1 id="accenture-baltics-journey-with-apache-beam-to-streamlined-data-workflows-for-a-sustainable-energy-leader">Accenture Baltics&amp;rsquo; Journey with Apache Beam to Streamlined Data Workflows for a Sustainable Energy Leader&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>Accenture Baltics, a branch of the global professional services company Accenture, leverages its expertise across various industries to provide consulting, technology, and outsourcing solutions to clients worldwide. A specific project at Accenture Baltics highlights the effective implementation of Apache Beam to support a client who is a global leader in sustainable energy and uses Google Cloud.&lt;/p>
+&lt;h2 id="journey-to-apache-beam">Journey to Apache Beam&lt;/h2>
+&lt;p>The team responsible for transforming, curating, and preparing data, including transactional, analytics, and sensor data, for data scientists and other teams has been using Dataflow with Apache Beam for about five years. Dataflow with Beam is a natural choice for both streaming and batch data processing. For our workloads, we typically use the following configurations: worker machine types are &lt;code>n1-standard-2&lt;/code> or &lt;code>n1-standard-4&lt;/code>, and the maximum number of workers varies up to five, using the Dataflow runner.&lt;/p>
+&lt;p>As an example, a streaming pipeline ingests transaction data from Pub/Sub, performs basic ETL and data cleaning, and outputs the results to BigQuery. A separate batch Dataflow pipeline evaluates a binary classification model, reading input and writing results to Google Cloud Storage. The following diagram shows a workflow that uses Pub/Sub to feed Dataflow pipelines across three Google Cloud projects. It also shows how Dataflow, Composer, Cloud Storage, BigQuery, and Grafana integrate into the architecture.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/accenture/dataflow_pipelines.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/accenture/dataflow_pipelines.png" alt="Diagram of Accenture Baltics' Dataflow pipeline architecture">
+&lt;/a>
+&lt;/div>
+&lt;h2 id="use-cases">Use Cases&lt;/h2>
+&lt;p>Apache Beam is an invaluable tool for our use cases, particularly in the following areas:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Democratizing data access:&lt;/strong> Beam empowers team members without data engineering backgrounds to directly access and analyze BigQuery data using their SQL skills. The data scientists, the finance department, and production optimization teams all benefit from improved data accessibility, gaining immediate access to critical information for faster analysis and decision-making.&lt;/li>
+&lt;li>&lt;strong>Real-time data processing:&lt;/strong> Beam excels at ingesting and processing data in real time from sources like Pub/Sub.&lt;/li>
+&lt;li>&lt;strong>ETL (extract, transform, load):&lt;/strong> Beam effectively manages the full spectrum of data transformation and cleaning tasks, even when dealing with complex data structures.&lt;/li>
+&lt;li>&lt;strong>Data routing and partitioning:&lt;/strong> Beam enables sophisticated data routing and partitioning strategies. For example, it can automatically route failed transactions to a separate BigQuery table for further analysis.&lt;/li>
+&lt;li>&lt;strong>Data deduplication and error handling:&lt;/strong> Beam has been instrumental in tackling challenging tasks like deduplicating Pub/Sub messages and implementing robust error handling, such as for JSON parsing, that are crucial for maintaining data integrity and pipeline reliability.&lt;/li>
+&lt;/ul>
+&lt;p>We also utilize Grafana (shown in below) with custom notification emails and tickets for comprehensive monitoring of our Beam pipelines. Notifications are generated from Google’s Cloud Logging and Cloud Monitoring services to ensure we stay informed about the performance and health of our pipelines. The seamless integration of Airflow with Dataflow and Beam further enhances our workflow, allowing us to effortlessly use operators such as &lt;code>DataflowCreatePythonJobOperator&lt;/code> and &lt;code>BeamRunPythonPipelineOperator&lt;/code> in &lt;a href="https://airflow.apache.org/docs/apache-airflow-providers-google/stable/_api/airflow/providers/google/cloud/operators/dataflow/index.html">Airflow 2&lt;/a>.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/accenture/dataflow_grafana.jpg" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/accenture/dataflow_grafana.jpg" alt="scheme">
+&lt;/a>
+&lt;/div>
+&lt;h2 id="results">Results&lt;/h2>
+&lt;p>Our data processing infrastructure uses 12 distinct pipelines to manage and transform data across various projects within the organization. These pipelines are divided into two primary categories:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Streaming pipelines:&lt;/strong> These pipelines are designed to handle real-time or near real-time data streams. In our current setup, these pipelines process an average of 10,000 messages per second from Pub/Sub and about 200,000 rows per hour to BigQuery, ensuring that time-sensitive data is ingested and processed with minimal latency.&lt;/li>
+&lt;li>&lt;strong>Batch pipelines:&lt;/strong> These pipelines are optimized for processing large volumes of data in scheduled batches. Our current batch pipelines handle approximately two gigabytes of data per month, transforming and loading this data into our data warehouse for further analysis and reporting.&lt;/li>
+&lt;/ul>
+&lt;p>Apache Beam has proven to be a highly effective solution for orchestrating and managing the complex data pipelines required by the client. By leveraging the capabilities of Dataflow, a fully managed service for executing Beam pipelines, we have successfully addressed and fulfilled the client&amp;rsquo;s specific data processing needs. This powerful combination has enabled us to achieve scalability, reliability, and efficiency in handling large volumes of data, ensuring timely and accurate delivery of insights to the client.&lt;/p>
+&lt;p>&lt;em>Check out &lt;a href="https://medium.com/@jana_om">my Medium blog&lt;/a>! I usually post about using Beam/Dataflow as an ETL tool with Python and how it works with other data engineering tools. My focus is on building projects that are easy to understand and learn from, especially if you want to get some hands-on experience with Beam.&lt;/em>&lt;/p>
+&lt;!-- case_study_feedback adds feedback buttons -->
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'AccentureBalticsStreaming')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'AccentureBalticsStreaming')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Building data abstractions with streaming at Yelp</title><link>/case-studies/yelp_streaming/</link><pubDate>Sun, 10 Nov 2024 00:12:00 +0000</pubDate><guid>/case-studies/yelp_streaming/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -2781,17 +2862,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 --></description></item><item><title>Case-Studies: Industrial Technology Research Institute</title><link>/case-studies/industrialtechnologyresearchinstitute/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/industrialtechnologyresearchinstitute/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---></description></item><item><title>Case-Studies: Ineat</title><link>/case-studies/ineat/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ineat/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
