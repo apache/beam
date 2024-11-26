@@ -87,20 +87,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
       - name: Setup docker
         run: |
-          mkdir $HOME/.docker
-          cat > $HOME/.docker/config.json << EOF
-          {
-            "auths": {},
-            "aliases": {
-              "builder": "buildx"
-            },
-            "credHelpers": {
-              "us-docker-pkg.dev": "gcloud",
-              "us-gcr.io": "gcloud",
-              "gcr.io": "gcloud"
-            }
-          }
-          EOF
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
