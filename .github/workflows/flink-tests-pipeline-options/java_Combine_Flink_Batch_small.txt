@@ -22,4 +22,4 @@
 --jobEndpoint=localhost:8099
 --defaultEnvironmentType=DOCKER
 --defaultEnvironmentConfig=gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest
---runner=PortableRunner
+--runner=FlinkRunner
