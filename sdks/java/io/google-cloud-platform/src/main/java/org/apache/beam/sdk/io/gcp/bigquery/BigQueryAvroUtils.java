@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -529,5 +530,141 @@ class BigQueryAvroUtils {
         fieldSchema,
         bigQueryField.getDescription(),
         (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
+  }
+
+  static TableSchema toTableSchema(Schema schema) {
+    return toTableSchema(schema, true);
+  }
+
+  static TableSchema toTableSchema(Schema schema, Boolean useAvroLogicalTypes) {
+    verify(
+        schema.getType() == Type.RECORD,
+        "Expected Avro schema type RECORD, not %s",
+        schema.getType());
+
+    List<TableFieldSchema> fields =
+        schema.getFields().stream()
+            .map(f -> toTableFieldSchema(f, useAvroLogicalTypes))
+            .collect(Collectors.toList());
+    return new TableSchema().setFields(fields);
+  }
+
+  private static TableFieldSchema toTableFieldSchema(
+      Schema.Field avrofield, Boolean useAvroLogicalTypes) {
+    Schema fieldSchema = avrofield.schema();
+    TableFieldSchema field;
+    switch (fieldSchema.getType()) {
+      case UNION:
+        List<Schema> types = fieldSchema.getTypes();
+        verify(
+            types.size() == 2 && types.get(0).getType() == Type.NULL,
+            "Avro union field %s should be of null and another type, not %s",
+            avrofield.name(),
+            fieldSchema);
+        field = typedTableFieldSchema(types.get(1), useAvroLogicalTypes).setMode("NULLABLE");
+        break;
+      case ARRAY:
+        field =
+            typedTableFieldSchema(fieldSchema.getElementType(), useAvroLogicalTypes)
+                .setMode("REPEATED");
+        break;
+      case MAP:
+        TableFieldSchema key =
+            new TableFieldSchema().setType("STRING").setName("key").setMode("REQUIRED");
+        TableFieldSchema value =
+            typedTableFieldSchema(fieldSchema.getValueType(), useAvroLogicalTypes)
+                .setName("value")
+                .setMode("REQUIRED");
+        List<TableFieldSchema> mapTableSchema = new ArrayList<>();
+        mapTableSchema.add(key);
+        mapTableSchema.add(value);
+        field =
+            new TableFieldSchema().setType("RECORD").setFields(mapTableSchema).setMode("REPEATED");
+        break;
+      default:
+        field = typedTableFieldSchema(fieldSchema, useAvroLogicalTypes).setMode("REQUIRED");
+    }
+
+    return field.setName(avrofield.name()).setDescription(avrofield.doc());
+  }
+
+  private static TableFieldSchema typedTableFieldSchema(Schema type, Boolean useAvroLogicalTypes) {
+    TableFieldSchema fieldSchema = new TableFieldSchema();
+    LogicalType logicalType = useAvroLogicalTypes ? type.getLogicalType() : null;
+    String sqlType = useAvroLogicalTypes ? type.getProp("sqlType") : null;
+    switch (type.getType()) {
+      case INT:
+        if (logicalType instanceof LogicalTypes.Date) {
+          return fieldSchema.setType("DATE");
+        } else if (logicalType instanceof LogicalTypes.TimeMillis) {
+          return fieldSchema.setType("TIME");
+        } else {
+          return fieldSchema.setType("INTEGER");
+        }
+      case LONG:
+        if (logicalType instanceof LogicalTypes.TimeMicros) {
+          return fieldSchema.setType("TIME");
+        } else if (!(VERSION_AVRO.startsWith("1.8") || VERSION_AVRO.startsWith("1.9"))
+            && (logicalType instanceof LogicalTypes.LocalTimestampMillis
+                || logicalType instanceof LogicalTypes.LocalTimestampMicros)) {
+          return fieldSchema.setType("DATETIME");
+        } else if (logicalType instanceof LogicalTypes.TimestampMillis
+            || logicalType instanceof LogicalTypes.TimestampMicros) {
+          return fieldSchema.setType("TIMESTAMP");
+        } else {
+          return fieldSchema.setType("INTEGER");
+        }
+      case FLOAT:
+      case DOUBLE:
+        return fieldSchema.setType("FLOAT");
+      case BOOLEAN:
+        return fieldSchema.setType("BOOLEAN");
+      case STRING:
+        if ("GEOGRAPHY".equals(sqlType)) {
+          return fieldSchema.setType("GEOGRAPHY");
+        } else if ("JSON".equals(sqlType)) {
+          return fieldSchema.setType("JSON");
+        } else {
+          return fieldSchema.setType("STRING");
+        }
+      case BYTES:
+        if (logicalType instanceof LogicalTypes.Decimal) {
+          LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType;
+          int precision = decimal.getPrecision();
+          int scale = decimal.getScale();
+          if (scale <= 9 && precision - scale <= 29) {
+            fieldSchema.setType("NUMERIC");
+            if (!(precision == 38 && scale == 9)) {
+              fieldSchema.setPrecision((long) precision);
+              if (scale != 0) {
+                fieldSchema.setScale((long) scale);
+              }
+            }
+          } else {
+            fieldSchema.setType("BIGNUMERIC");
+            if (!(precision == 77 && scale == 38)) {
+              fieldSchema.setPrecision((long) precision);
+              if (scale != 0) {
+                fieldSchema.setScale((long) scale);
+              }
+            }
+          }
+          return fieldSchema;
+        } else {
+          return fieldSchema.setType("BYTES");
+        }
+      case ENUM:
+        return fieldSchema.setType("STRING");
+      case FIXED:
+        return fieldSchema.setType("BYTES");
+      case RECORD:
+        List<TableFieldSchema> recordFields =
+            type.getFields().stream()
+                .map(f -> toTableFieldSchema(f, useAvroLogicalTypes))
+                .collect(Collectors.toList());
+        return new TableFieldSchema().setType("RECORD").setFields(recordFields);
+      default:
+        throw new IllegalArgumentException("Unknown Avro type: " + type.getType());
+    }
   }
 }

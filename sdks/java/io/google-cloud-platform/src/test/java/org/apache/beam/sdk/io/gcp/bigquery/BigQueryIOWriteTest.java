@@ -4158,15 +4158,17 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStorageApi);
     assumeTrue(useStorageApiApproximate);
 
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("key1").setType("STRING"),
-                    new TableFieldSchema().setName("key2").setType("STRING"),
-                    new TableFieldSchema().setName("value").setType("STRING"),
-                    new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("STRING")));
+    org.apache.avro.Schema avroSchema =
+        SchemaBuilder.record("TestRecord")
+            .fields()
+            .optionalString("key1")
+            .optionalString("key2")
+            .optionalString("value")
+            .optionalString("updateType")
+            .requiredString("sqn")
+            .endRecord();
+
+    TableSchema tableSchema = BigQueryAvroUtils.toTableSchema(avroSchema);
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -4178,16 +4180,6 @@ public class BigQueryIOWriteTest implements Serializable {
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
     fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
-
-    org.apache.avro.Schema avroSchema =
-        SchemaBuilder.record("TestRecord")
-            .fields()
-            .optionalString("key1")
-            .optionalString("key2")
-            .optionalString("value")
-            .optionalString("updateType")
-            .requiredString("sqn")
-            .endRecord();
 
     List<GenericRecord> items =
         Lists.newArrayList(
@@ -4298,15 +4290,16 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStorageApi);
     assumeTrue(useStorageApiApproximate);
 
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("key1").setType("STRING"),
-                    new TableFieldSchema().setName("key2").setType("STRING"),
-                    new TableFieldSchema().setName("value").setType("STRING"),
-                    new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("STRING")));
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableStringField("key1")
+            .addNullableStringField("key2")
+            .addNullableStringField("value")
+            .addNullableStringField("updateType")
+            .addNullableStringField("sqn")
+            .build();
+
+    TableSchema tableSchema = BigQueryUtils.toTableSchema(beamSchema);
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -4318,15 +4311,6 @@ public class BigQueryIOWriteTest implements Serializable {
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
     fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
-
-    Schema beamSchema =
-        Schema.builder()
-            .addNullableStringField("key1")
-            .addNullableStringField("key2")
-            .addNullableStringField("value")
-            .addNullableStringField("updateType")
-            .addNullableStringField("sqn")
-            .build();
 
     List<Row> items =
         Lists.newArrayList(
