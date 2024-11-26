@@ -221,7 +221,7 @@ public class IcebergIOIT implements Serializable {
               .collect(Collectors.toList());
 
       gcsUtil.remove(filesToDelete);
-    } catch (IOException e) {
+    } catch (Exception e) {
       LOG.warn("Failed to clean up files.", e);
     }
   }
