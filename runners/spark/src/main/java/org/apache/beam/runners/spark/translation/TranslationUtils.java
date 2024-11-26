@@ -26,6 +26,8 @@ import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -255,6 +257,35 @@ public final class TranslationUtils {
         sideInputs.put(view.getTagInternal(), KV.of(windowingStrategy, helper));
       }
       return sideInputs;
+    }
+  }
+
+  /**
+   * Retrieves the batch duration in milliseconds from Spark pipeline options.
+   *
+   * @param options The serializable pipeline options containing Spark-specific settings
+   * @return The checkpoint duration in milliseconds as specified in SparkPipelineOptions
+   */
+  public static Long getBatchDuration(final SerializablePipelineOptions options) {
+    return options.get().as(SparkPipelineOptions.class).getCheckpointDurationMillis();
+  }
+
+  /**
+   * Reject timers {@link DoFn}.
+   *
+   * @param doFn the {@link DoFn} to possibly reject.
+   */
+  public static void rejectTimers(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    if (signature.timerDeclarations().size() > 0
+        || signature.timerFamilyDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
+              DoFn.TimerId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              SparkRunner.class.getSimpleName()));
     }
   }
 

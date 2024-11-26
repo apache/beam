@@ -78,6 +78,8 @@ import scala.collection.JavaConversions;
 import scala.collection.Seq;
 import scala.runtime.AbstractFunction1;
 
+import static org.apache.beam.runners.spark.translation.TranslationUtils.getBatchDuration;
+
 /**
  * An implementation of {@link GroupAlsoByWindow} logic for grouping by windows and controlling
  * trigger firings and pane accumulation.
@@ -455,9 +457,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     }
   }
 
-  private static Long getBatchDuration(final SerializablePipelineOptions options) {
-    return options.get().as(SparkPipelineOptions.class).getCheckpointDurationMillis();
-  }
+
 
   private static <K, InputT> JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> stripStateValues(
       final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
