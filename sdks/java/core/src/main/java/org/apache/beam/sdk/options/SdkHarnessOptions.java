@@ -388,6 +388,7 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
     return configuredLoggers;
   }
 
+  @Hidden
   @Description(
       "Timeout used for cache of bundle processors. Defaults to a minute for batch and an hour for streaming.")
   @Default.InstanceFactory(BundleProcessorCacheTimeoutFactory.class)
