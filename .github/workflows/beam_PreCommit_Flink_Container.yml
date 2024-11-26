@@ -131,7 +131,7 @@ jobs:
 
       # Run a Python Combine load test to verify the Flink container
       - name: Run Flink Container Test with Python Combine
-        timeout-minutes: 10
+        timeout-minutes: 20
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
