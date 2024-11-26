@@ -37,6 +37,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.RpcEx
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -66,7 +67,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
-  private final ThrottledTimeTracker throttleTimeTracker;
+  private final ThrottledTimeTracker throttledTimeTracker;
 
   SingleSourceWorkerHarness(
       WorkCommitter workCommitter,
@@ -76,7 +77,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher,
       GetWorkSender getWorkSender,
-      ThrottledTimeTracker throttleTimeTracker) {
+      ThrottledTimeTracker throttledTimeTracker) {
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
     this.heartbeatSender = heartbeatSender;
@@ -92,7 +93,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                 .build());
     this.isRunning = new AtomicBoolean(false);
     this.getWorkSender = getWorkSender;
-    this.throttleTimeTracker = throttleTimeTracker;
+    this.throttledTimeTracker = throttledTimeTracker;
   }
 
   public static SingleSourceWorkerHarness.Builder builder() {
@@ -149,7 +150,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
 
   @Override
   public long getAndResetThrottleTime() {
-    return throttleTimeTracker.getAndResetThrottleTime();
+    return throttledTimeTracker.getAndResetThrottleTime();
   }
 
   private void streamingEngineDispatchLoop(
@@ -262,7 +263,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
 
     Builder setGetWorkSender(GetWorkSender getWorkSender);
 
-    Builder setThrottleTimeTracker(ThrottledTimeTracker throttleTimeTracker);
+    Builder setThrottledTimeTracker(ThrottledTimeTracker throttledTimeTracker);
 
     SingleSourceWorkerHarness build();
   }

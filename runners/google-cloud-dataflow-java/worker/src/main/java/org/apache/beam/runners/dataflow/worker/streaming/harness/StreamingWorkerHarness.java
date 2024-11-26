@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** Provides an interface to start streaming worker processing. */

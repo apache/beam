@@ -52,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -462,7 +463,7 @@ public final class StreamingWorkerStatusReporter {
 
     Builder setDataflowServiceClient(WorkUnitClient dataflowServiceClient);
 
-    Builder setWindmillQuotaThrottleTime(ThrottledTimeTracker windmillQuotaThrottleTime);
+    Builder setWindmillQuotaThrottleTime(ThrottledTimeTracker windmillQuotaThrottledTimeTracker);
 
     Builder setAllStageInfo(Supplier<Collection<StageInfo>> allStageInfo);
 

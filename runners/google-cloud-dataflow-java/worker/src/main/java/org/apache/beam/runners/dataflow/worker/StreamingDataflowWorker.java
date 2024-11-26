@@ -61,7 +61,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusReporter;
-import org.apache.beam.runners.dataflow.worker.streaming.harness.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
@@ -92,6 +91,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributors;
@@ -348,7 +348,7 @@ public final class StreamingDataflowWorker {
               .setComputationStateFetcher(this.computationStateCache::get)
               .setWaitForResources(() -> memoryMonitor.waitForResources("GetWork"))
               .setHeartbeatSender(heartbeatSender)
-              .setThrottleTimeTracker(windmillServer::getAndResetThrottleTime)
+              .setThrottledTimeTracker(windmillServer::getAndResetThrottleTime)
               .setGetWorkSender(getWorkSender)
               .build();
     }
