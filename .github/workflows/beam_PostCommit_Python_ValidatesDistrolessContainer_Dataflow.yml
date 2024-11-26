@@ -85,6 +85,9 @@ jobs:
             11
             8
           python-version: ${{ matrix.python_version }}
+      - name: GCloud Artifact Registry credential setup
+        run: |
+          gcloud auth configure-docker us-docker.pkg.dev
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
