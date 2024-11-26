@@ -81,7 +81,7 @@ public abstract class StateInternalsTest {
   private static final StateTag<SetState<String>> STRING_SET_ADDR =
       StateTags.set("stringSet", StringUtf8Coder.of());
   private static final StateTag<OrderedListState<String>> STRING_ORDERED_LIST_ADDR =
-      StateTags.orderedList("stringSet", StringUtf8Coder.of());
+      StateTags.orderedList("stringOrderedList", StringUtf8Coder.of());
   private static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
       StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
   private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
