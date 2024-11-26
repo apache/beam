@@ -85,9 +85,22 @@ jobs:
             11
             8
           python-version: ${{ matrix.python_version }}
-      - name: GCloud Artifact Registry credential setup
+      - name: Setup docker
         run: |
-          gcloud auth configure-docker us-docker.pkg.dev
+          mkdir $HOME/.docker
+          cat > $HOME/.docker/config.json << EOF
+          {
+            "auths": {},
+            "aliases": {
+              "builder": "buildx"
+            },
+            "credHelpers": {
+              "us-docker-pkg.dev": "gcloud",
+              "us-gcr.io": "gcloud",
+              "gcr.io": "gcloud"
+            }
+          }
+          EOF
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
