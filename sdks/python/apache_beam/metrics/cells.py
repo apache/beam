@@ -32,6 +32,8 @@ from typing import Iterable
 from typing import Optional
 from typing import Set
 
+from apache_beam.portability.api import metrics_pb2
+
 try:
   import cython
 except ImportError:
@@ -669,6 +671,29 @@ class _BoundedTrieNode(object):
     self._children: Optional[dict[str, '_BoundedTrieNode']] = {}
     self._truncated = False
 
+  def to_proto(self) -> metrics_pb2.BoundedTrieNode:
+    return metrics_pb2.BoundedTrieNode(
+        truncated=self._truncated,
+        children={
+            name: child.to_proto()
+            for name, child in self._children.items()
+        } if self._children else None)
+
+  @staticmethod
+  def from_proto(proto: metrics_pb2.BoundedTrieNode) -> '_BoundedTrieNode':
+    node = _BoundedTrieNode()
+    if proto.truncated:
+      node._truncated = True
+      node._children = None
+    else:
+      node._children = {
+          name: _BoundedTrieNode.from_proto(child)
+          for name,
+          child in proto.children.items()
+      }
+      node._size = min(1, sum(child._size for child in node._children.values()))
+    return node
+
   def size(self):
     return self._size
 
@@ -763,6 +788,19 @@ class BoundedTrieData(object):
     self._singleton = singleton
     self._root = root
     self._bound = bound
+
+  def to_proto(self) -> metrics_pb2.BoundedTrie:
+    return metrics_pb2.BoundedTrie(
+        bound=self._bound,
+        singleton=self._singlton if self._singleton else None,
+        root=self._root.to_proto() if self._root else None)
+
+  @staticmethod
+  def from_proto(proto: metrics_pb2.BoundedTrie) -> 'BoundedTrieData':
+    return BoundedTrieData(
+        bound=proto.bound,
+        singleton=tuple(proto.singleton) if proto.singleton else None,
+        root=_BoundedTrieNode.from_proto(proto.root) if proto.root else None)
 
   def as_trie(self):
     if self._root is not None:
