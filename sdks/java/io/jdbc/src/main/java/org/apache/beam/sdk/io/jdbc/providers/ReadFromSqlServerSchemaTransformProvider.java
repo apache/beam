@@ -36,8 +36,7 @@ public class ReadFromSqlServerSchemaTransformProvider extends JdbcReadSchemaTran
 
   @Override
   public String description() {
-    return baseDescription("Sql Server (Microsoft SQL)")
-        + inheritedDescription("SQL Server", "ReadFromSqlServer", "sqlserver", 1433);
+    return inheritedDescription("SQL Server", "ReadFromSqlServer", "sqlserver", 1433);
   }
 
   @Override

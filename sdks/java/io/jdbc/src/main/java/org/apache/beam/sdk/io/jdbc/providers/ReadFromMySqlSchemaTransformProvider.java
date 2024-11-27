@@ -36,7 +36,7 @@ public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransfor
 
   @Override
   public String description() {
-    return baseDescription("MySQL") + inheritedDescription("MySQL", "ReadFromMySql", "mysql", 3306);
+    return inheritedDescription("MySQL", "ReadFromMySql", "mysql", 3306);
   }
 
   @Override

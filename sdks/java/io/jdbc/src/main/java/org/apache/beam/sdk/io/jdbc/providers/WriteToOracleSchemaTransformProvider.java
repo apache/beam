@@ -36,8 +36,7 @@ public class WriteToOracleSchemaTransformProvider extends JdbcWriteSchemaTransfo
 
   @Override
   public String description() {
-    return baseDescription("Oracle")
-        + inheritedDescription("Oracle", "WriteToOracle", "oracle", 1521);
+    return inheritedDescription("Oracle", "WriteToOracle", "oracle", 1521);
   }
 
   @Override

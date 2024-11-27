@@ -36,8 +36,7 @@ public class WriteToSqlServerSchemaTransformProvider extends JdbcWriteSchemaTran
 
   @Override
   public String description() {
-    return baseDescription("Sql Server (Microsoft SQL)")
-        + inheritedDescription("SQL Server", "WriteToSqlServer", "sqlserver", 1433);
+    return inheritedDescription("SQL Server", "WriteToSqlServer", "sqlserver", 1433);
   }
 
   @Override

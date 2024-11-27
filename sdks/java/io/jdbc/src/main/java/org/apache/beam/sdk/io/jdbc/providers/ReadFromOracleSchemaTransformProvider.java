@@ -36,8 +36,7 @@ public class ReadFromOracleSchemaTransformProvider extends JdbcReadSchemaTransfo
 
   @Override
   public String description() {
-    return baseDescription("Oracle")
-        + inheritedDescription("Oracle", "ReadFromOracle", "oracle", 1521);
+    return inheritedDescription("Oracle", "ReadFromOracle", "oracle", 1521);
   }
 
   @Override
