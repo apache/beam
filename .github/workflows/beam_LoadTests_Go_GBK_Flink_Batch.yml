@@ -97,12 +97,12 @@ jobs:
             --job_name=load-tests-go-flink-batch-gbk-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5
         env:
-          FLINK_NUM_WORKERS: 15
+          FLINK_NUM_WORKERS: 2
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run GBK Flink Batch Go Load Test 1 (10 b records)
-        timeout-minutes: 120
+        timeout-minutes: 30
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
