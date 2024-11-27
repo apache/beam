@@ -16,10 +16,10 @@
 
 --influx_namespace=flink
 --influx_measurement=go_batch_gbk_1
---input_options=''{\"num_records\":20,\"key_size\":1,\"value_size\":9}''
+--input_options=''{\"num_records\":200000000,\"key_size\":1,\"value_size\":9}''
 --iterations=1
 --fanout=1
---parallelism=5
+--parallelism=10
 --endpoint=localhost:8099
 --environment_type=DOCKER
 --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
