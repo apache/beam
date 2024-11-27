@@ -492,10 +492,11 @@ if __name__ == '__main__':
               'pillow',
               # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
               # Once TF version is unpinned, also don't restrict Python version.
-              'tensorflow<2.16.0;python_version<"3.12"',
+              # 'tensorflow<2.16.0;python_version<"3.12"',
+              # limit this to 2.12.x to make tests stable
+              'tensorflow>=2.12rc1,<2.13',
               'tensorflow-hub',
-              # https://github.com/tensorflow/transform/issues/313
-              'tensorflow-transform;python_version<"3.11"',
+              'tensorflow-transform',
               'tf2onnx',
               'torch',
               'transformers',
