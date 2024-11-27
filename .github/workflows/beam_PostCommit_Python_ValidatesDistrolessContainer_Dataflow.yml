@@ -85,6 +85,12 @@ jobs:
             11
             8
           python-version: ${{ matrix.python_version }}
+      - name: Setup docker
+        run: |
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
+          gcloud auth configure-docker us.gcr.io --quiet
+          gcloud auth configure-docker gcr.io --quiet
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
