@@ -21,7 +21,6 @@ import secrets
 import shutil
 import tempfile
 import time
-import typing
 import unittest
 from collections.abc import Sequence
 from typing import Any
@@ -140,8 +139,8 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': int, 'y': float
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
       param(
@@ -153,8 +152,8 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': np.int32, 'y': np.float32
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
       param(
@@ -165,8 +164,8 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': list[int], 'y': list[float]
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
       param(
@@ -174,12 +173,12 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
           }],
           input_types={
-              'x': typing.Sequence[int],
-              'y': typing.Sequence[float],
+              'x': Sequence[int],
+              'y': Sequence[float],
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
   ])
