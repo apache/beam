@@ -315,10 +315,6 @@ public class JdbcWriteSchemaTransformProvider
     @Nullable
     public abstract Long getBatchSize();
 
-    public void validate() throws IllegalArgumentException {
-      if (Strings.isNullOrEmpty(getJdbcUrl())) {
-        throw new IllegalArgumentException("JDBC URL cannot be blank");
-      }
     @SchemaFieldDescription(
         "Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.")
     @Nullable
