@@ -40,6 +40,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Answers;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -166,7 +167,9 @@ public final class KafkaResourceManagerTest {
     KafkaResourceManager tm = new KafkaResourceManager(kafkaClient, container, builder);
 
     tm.cleanupAll();
-    verify(kafkaClient).deleteTopics(argThat(list -> list.size() == numTopics));
+    verify(kafkaClient)
+        .deleteTopics(
+            argThat((ArgumentMatcher<Collection<String>>) list -> list.size() == numTopics));
   }
 
   @Test
