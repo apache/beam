@@ -27,6 +27,7 @@ from typing import Union
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
+from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
@@ -166,6 +167,14 @@ def extract_string_set_value(monitoring_info_proto):
 
   coder = coders.IterableCoder(coders.StrUtf8Coder())
   return set(coder.decode(monitoring_info_proto.payload))
+
+
+def extract_bounded_trie_value(monitoring_info_proto):
+  if not is_bounded_trie(monitoring_info_proto):
+    raise ValueError('Unsupported type %s' % monitoring_info_proto.type)
+
+  return BoundedTrieData.from_proto(
+      metrics_pb2.BoundedTrie.FromString(monitoring_info_proto.payload))
 
 
 def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
@@ -382,6 +391,11 @@ def is_string_set(monitoring_info_proto):
   return monitoring_info_proto.type in STRING_SET_TYPES
 
 
+def is_bounded_trie(monitoring_info_proto):
+  """Returns true if the monitoring info is a StringSet metric."""
+  return monitoring_info_proto.type in BOUNDED_TRIE_TYPES
+
+
 def is_user_monitoring_info(monitoring_info_proto):
   """Returns true if the monitoring info is a user metric."""
   return monitoring_info_proto.urn in USER_METRIC_URNS
@@ -389,7 +403,7 @@ def is_user_monitoring_info(monitoring_info_proto):
 
 def extract_metric_result_map_value(
     monitoring_info_proto
-) -> Union[None, int, DistributionResult, GaugeResult, set]:
+) -> Union[None, int, DistributionResult, GaugeResult, set, BoundedTrieData]:
   """Returns the relevant GaugeResult, DistributionResult or int value for
   counter metric, set for StringSet metric.
 
@@ -407,6 +421,8 @@ def extract_metric_result_map_value(
     return GaugeResult(GaugeData(value, timestamp))
   if is_string_set(monitoring_info_proto):
     return extract_string_set_value(monitoring_info_proto)
+  if is_bounded_trie(monitoring_info_proto):
+    return extract_bounded_trie_value(monitoring_info_proto)
   return None
 
 
