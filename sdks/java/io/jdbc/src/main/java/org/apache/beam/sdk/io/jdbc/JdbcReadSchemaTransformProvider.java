@@ -57,7 +57,7 @@ public class JdbcReadSchemaTransformProvider
 
   @Override
   public String description() {
-    return baseDescription("JDBC")
+    return "Read from a JDBC source using a SQL query or by directly accessing a single table.\n"
         + "\n"
         + "This transform can be used to read from a JDBC source using either a given JDBC driver jar "
         + "and class name, or by using one of the default packaged drivers given a `jdbc_type`.\n"
@@ -111,16 +111,11 @@ public class JdbcReadSchemaTransformProvider
         + "All properties should be semi-colon-delimited (e.g. \"key1=value1;key2=value2;\")\n";
   }
 
-  protected String baseDescription(String jdbcType) {
-    return String.format(
-        "Read from a %s source using a SQL query or by directly accessing " + "a single table.\n",
-        jdbcType);
-  }
-
   protected String inheritedDescription(
       String prettyName, String transformName, String databaseSchema, int defaultJdbcPort) {
     return String.format(
-        "\n"
+        "Read from a %s source using a SQL query or by directly accessing a single table.\n"
+            + "\n"
             + "This is a special case of ReadFromJdbc that includes the "
             + "necessary %s Driver and classes.\n"
             + "\n"
@@ -144,6 +139,7 @@ public class JdbcReadSchemaTransformProvider
             + "It might be necessary to use a custom JDBC driver that is not packaged with this "
             + "transform. If that is the case, see ReadFromJdbc which "
             + "allows for more custom configuration.",
+        prettyName,
         prettyName,
         transformName,
         transformName,

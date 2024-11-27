@@ -62,7 +62,7 @@ public class JdbcWriteSchemaTransformProvider
 
   @Override
   public String description() {
-    return baseDescription("JDBC")
+    return "Write to a JDBC sink using a SQL query or by directly accessing a single table.\n"
         + "\n"
         + "This transform can be used to write to a JDBC sink using either a given JDBC driver jar "
         + "and class name, or by using one of the default packaged drivers given a `jdbc_type`.\n"
@@ -116,16 +116,11 @@ public class JdbcWriteSchemaTransformProvider
         + "All properties should be semi-colon-delimited (e.g. \"key1=value1;key2=value2;\")\n";
   }
 
-  protected String baseDescription(String jdbcType) {
-    return String.format(
-        "Write to a %s sink using a SQL query or by directly accessing " + "a single table.\n",
-        jdbcType);
-  }
-
   protected String inheritedDescription(
       String prettyName, String transformName, String prefix, int port) {
     return String.format(
-        "\n"
+        "Write to a %s sink using a SQL query or by directly accessing a single table.\n"
+            + "\n"
             + "This is a special case of WriteToJdbc that includes the "
             + "necessary %s Driver and classes.\n"
             + "\n"
@@ -149,7 +144,15 @@ public class JdbcWriteSchemaTransformProvider
             + "It might be necessary to use a custom JDBC driver that is not packaged with this "
             + "transform. If that is the case, see WriteToJdbc which "
             + "allows for more custom configuration.",
-        prettyName, transformName, transformName, prefix, port, transformName, prefix, port);
+        prettyName,
+        prettyName,
+        transformName,
+        transformName,
+        prefix,
+        port,
+        transformName,
+        prefix,
+        port);
   }
 
   @Override

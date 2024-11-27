@@ -36,7 +36,7 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
 
   @Override
   public String description() {
-    return baseDescription("MySQL") + inheritedDescription("MySQL", "WriteToMySql", "mysql", 3306);
+    return inheritedDescription("MySQL", "WriteToMySql", "mysql", 3306);
   }
 
   @Override

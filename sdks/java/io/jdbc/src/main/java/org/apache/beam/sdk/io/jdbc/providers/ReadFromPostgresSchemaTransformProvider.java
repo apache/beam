@@ -36,8 +36,7 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
 
   @Override
   public String description() {
-    return baseDescription("PostgreSQL")
-        + inheritedDescription("Postgres", "ReadFromPostgres", "postgresql", 5432);
+    return inheritedDescription("Postgres", "ReadFromPostgres", "postgresql", 5432);
   }
 
   @Override

@@ -36,8 +36,7 @@ public class WriteToPostgresSchemaTransformProvider extends JdbcWriteSchemaTrans
 
   @Override
   public String description() {
-    return baseDescription("PostgreSQL")
-        + inheritedDescription("Postgres", "WriteToPostgres", "postgresql", 5432);
+    return inheritedDescription("Postgres", "WriteToPostgres", "postgresql", 5432);
   }
 
   @Override
