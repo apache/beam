@@ -93,7 +93,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_2GB_Fanout_8.txt
       - name: Start Flink with parallelism 16
         env:
-          FLINK_NUM_WORKERS: 16
+          FLINK_NUM_WORKERS: 25
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       - name: get current time
