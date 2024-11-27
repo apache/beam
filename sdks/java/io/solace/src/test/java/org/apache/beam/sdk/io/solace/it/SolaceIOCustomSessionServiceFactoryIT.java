@@ -28,6 +28,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.apache.beam.sdk.io.solace.SolaceIO.WriterType;
 import org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionServiceFactory;
 import org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
@@ -52,20 +53,16 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runners.MethodSorters;
 
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class SolaceIOIT {
-  private static final String NAMESPACE = SolaceIOIT.class.getName();
+public class SolaceIOCustomSessionServiceFactoryIT {
+  private static final String NAMESPACE = SolaceIOCustomSessionServiceFactoryIT.class.getName();
   private static final String READ_COUNT = "read_count";
-  private static final String WRITE_COUNT = "write_count";
-  private static SolaceContainerManager solaceContainerManager;
-  private static final String queueName = "test_queue";
-  private static final TestPipelineOptions pipelineOptions;
+  private static final String QUEUE_NAME = "test_queue";
   private static final long PUBLISH_MESSAGE_COUNT = 20;
+  private static final TestPipelineOptions pipelineOptions;
+  private static SolaceContainerManager solaceContainerManager;
 
   static {
     pipelineOptions = PipelineOptionsFactory.create().as(TestPipelineOptions.class);
@@ -81,7 +78,7 @@ public class SolaceIOIT {
   public static void setup() throws IOException {
     solaceContainerManager = new SolaceContainerManager();
     solaceContainerManager.start();
-    solaceContainerManager.createQueueWithSubscriptionTopic(queueName);
+    solaceContainerManager.createQueueWithSubscriptionTopic(QUEUE_NAME);
   }
 
   @AfterClass
@@ -91,22 +88,19 @@ public class SolaceIOIT {
     }
   }
 
-  // The order of the following tests matter. The first test publishes some messages in a Solace
-  // queue, and those messages are read by the second test. If another writer tests is run before
-  // the read test, that will alter the count for the read test and will make it fail.
+  /**
+   * This test verifies ability to create a custom {@link
+   * org.apache.beam.sdk.io.solace.broker.SessionServiceFactory} and presents an example of doing
+   * that with the custom {@link FixedCredentialsBasicAuthJcsmpSessionServiceFactory}.
+   */
   @Test
-  public void test01WriteStreaming() {
-    testWriteConnector(SolaceIO.WriterType.STREAMING);
-  }
-
-  @Test
-  public void test02Read() {
-    pipeline
+  public void test01writeAndReadWithCustomSessionServiceFactory() {
+    Pipeline writerPipeline = createWriterPipeline(WriterType.BATCHED);
+    writerPipeline
         .apply(
             "Read from Solace",
             SolaceIO.read()
-                .from(Queue.fromName(queueName))
-                .withDeduplicateRecords(true)
+                .from(Queue.fromName(QUEUE_NAME))
                 .withMaxNumConnections(1)
                 .withDeduplicateRecords(true)
                 .withSempClientFactory(
@@ -117,15 +111,11 @@ public class SolaceIOIT {
                         .vpnName(SolaceContainerManager.VPN_NAME)
                         .build())
                 .withSessionServiceFactory(
-                    BasicAuthJcsmpSessionServiceFactory.builder()
-                        .host("localhost:" + solaceContainerManager.jcsmpPortMapped)
-                        .username(SolaceContainerManager.USERNAME)
-                        .password(SolaceContainerManager.PASSWORD)
-                        .vpnName(SolaceContainerManager.VPN_NAME)
-                        .build()))
+                    new FixedCredentialsBasicAuthJcsmpSessionServiceFactory(
+                        "localhost:" + solaceContainerManager.jcsmpPortMapped)))
         .apply("Count", ParDo.of(new CountingFn<>(NAMESPACE, READ_COUNT)));
 
-    PipelineResult pipelineResult = pipeline.run();
+    PipelineResult pipelineResult = writerPipeline.run();
     // We need enough time for Beam to pull all messages from the queue, but we need a timeout too,
     // as the Read connector will keep attempting to read forever.
     pipelineResult.waitUntilFinish(Duration.standardSeconds(15));
@@ -135,22 +125,7 @@ public class SolaceIOIT {
     assertEquals(PUBLISH_MESSAGE_COUNT, actualRecordsCount);
   }
 
-  @Test
-  public void test03WriteBatched() {
-    testWriteConnector(SolaceIO.WriterType.BATCHED);
-  }
-
-  private void testWriteConnector(SolaceIO.WriterType writerType) {
-    Pipeline p = createWriterPipeline(writerType);
-
-    PipelineResult pipelineResult = p.run();
-    pipelineResult.waitUntilFinish();
-    MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
-    long actualRecordsCount = metricsReader.getCounterMetric(WRITE_COUNT);
-    assertEquals(PUBLISH_MESSAGE_COUNT, actualRecordsCount);
-  }
-
-  private Pipeline createWriterPipeline(SolaceIO.WriterType writerType) {
+  private Pipeline createWriterPipeline(WriterType writerType) {
     TestStream.Builder<KV<String, String>> kvBuilder =
         TestStream.create(KvCoder.of(AvroCoder.of(String.class), AvroCoder.of(String.class)))
             .advanceWatermarkTo(Instant.EPOCH);
@@ -196,10 +171,7 @@ public class SolaceIOIT {
         .getSuccessfulPublish()
         .apply(
             String.format("Get ids %s", writerType),
-            MapElements.into(strings()).via(Solace.PublishResult::getMessageId))
-        .apply(
-            String.format("Count %s", writerType),
-            ParDo.of(new CountingFn<>(NAMESPACE, WRITE_COUNT)));
+            MapElements.into(strings()).via(Solace.PublishResult::getMessageId));
 
     return pipeline;
   }

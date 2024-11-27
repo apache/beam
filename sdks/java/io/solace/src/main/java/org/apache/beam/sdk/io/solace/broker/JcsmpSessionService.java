@@ -43,45 +43,16 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 /**
  * A class that manages a connection to a Solace broker using basic authentication.
  *
- * <p>This class provides a way to connect to a Solace broker and receive messages from a queue. The
- * connection is established using basic authentication.
+ * <p>This class provides a way to connect to a Solace broker and receive messages from a queue.
  */
 @AutoValue
-public abstract class BasicAuthJcsmpSessionService extends SessionService {
+public abstract class JcsmpSessionService extends SessionService {
 
-  /** The name of the queue to receive messages from. */
-  public abstract @Nullable String queueName();
+  /** JCSMP properties used to establish the connection. */
+  abstract JCSMPProperties jcsmpProperties();
 
-  /** The host name or IP address of the Solace broker. Format: Host[:Port] */
-  public abstract String host();
-
-  /** The username to use for authentication. */
-  public abstract String username();
-
-  /** The password to use for authentication. */
-  public abstract String password();
-
-  /** The name of the VPN to connect to. */
-  public abstract String vpnName();
-
-  public static Builder builder() {
-    return new AutoValue_BasicAuthJcsmpSessionService.Builder().vpnName(DEFAULT_VPN_NAME);
-  }
-
-  @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder queueName(@Nullable String queueName);
-
-    public abstract Builder host(String host);
-
-    public abstract Builder username(String username);
-
-    public abstract Builder password(String password);
-
-    public abstract Builder vpnName(String vpnName);
-
-    public abstract BasicAuthJcsmpSessionService build();
-  }
+  /** The Queue to receive messages from. */
+  abstract @Nullable Queue queue();
 
   @Nullable private transient JCSMPSession jcsmpSession;
   @Nullable private transient MessageReceiver messageReceiver;
@@ -90,9 +61,19 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
       new ConcurrentLinkedQueue<>();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
+  public static JcsmpSessionService create(JCSMPProperties jcsmpProperties, @Nullable Queue queue) {
+    return new AutoValue_JcsmpSessionService(jcsmpProperties, queue);
+  }
+
+  @Override
+  public JCSMPProperties getSessionProperties() {
+    return jcsmpProperties();
+  }
+
   @Override
   public void connect() {
-    retryCallableManager.retryCallable(this::connectSession, ImmutableSet.of(JCSMPException.class));
+    retryCallableManager.retryCallable(
+        this::connectReadSession, ImmutableSet.of(JCSMPException.class));
   }
 
   @Override
@@ -158,10 +139,11 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
+    if (isClosed()) {
+      connectReadSession();
+    }
 
-    Queue queue =
-        JCSMPFactory.onlyInstance()
-            .createQueue(checkStateNotNull(queueName(), "SolaceIO.Read: Queue is not set."));
+    Queue queue = checkStateNotNull(queue(), "SolaceIO.Read: Queue is not set.");
 
     ConsumerFlowProperties flowProperties = new ConsumerFlowProperties();
     flowProperties.setEndpoint(queue);
@@ -190,9 +172,9 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
     return jcsmpSession.createFlow(null, flowProperties, endpointProperties);
   }
 
-  private int connectSession() throws JCSMPException {
+  private int connectReadSession() throws JCSMPException {
     if (jcsmpSession == null) {
-      jcsmpSession = createSessionObject();
+      jcsmpSession = createReadSessionObject();
     }
     jcsmpSession.connect();
     return 0;
@@ -206,25 +188,12 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
     return 0;
   }
 
-  private JCSMPSession createSessionObject() throws InvalidPropertiesException {
-    JCSMPProperties properties = initializeSessionProperties(new JCSMPProperties());
-    return JCSMPFactory.onlyInstance().createSession(properties);
+  private JCSMPSession createReadSessionObject() throws InvalidPropertiesException {
+    return JCSMPFactory.onlyInstance().createSession(jcsmpProperties());
   }
 
   private JCSMPSession createWriteSessionObject(SubmissionMode mode)
       throws InvalidPropertiesException {
     return JCSMPFactory.onlyInstance().createSession(initializeWriteSessionProperties(mode));
-  }
-
-  @Override
-  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProps) {
-    baseProps.setProperty(JCSMPProperties.VPN_NAME, vpnName());
-
-    baseProps.setProperty(
-        JCSMPProperties.AUTHENTICATION_SCHEME, JCSMPProperties.AUTHENTICATION_SCHEME_BASIC);
-    baseProps.setProperty(JCSMPProperties.USERNAME, username());
-    baseProps.setProperty(JCSMPProperties.PASSWORD, password());
-    baseProps.setProperty(JCSMPProperties.HOST, host());
-    return baseProps;
   }
 }
