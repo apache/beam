@@ -70,6 +70,7 @@
 
 ## Breaking Changes
 
+* Upgraded ZetaSQL to 2024.11.1 ([#32902](https://github.com/apache/beam/pull/32902)). Java11+ is now needed if Beam's ZetaSQL component is used.
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
@@ -88,12 +89,10 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.61.0] - Unreleased
+# [2.61.0] - 2024-11-25
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * [Python] Introduce Managed Transforms API ([#31495](https://github.com/apache/beam/pull/31495))
 * Flink 1.19 support added ([#32648](https://github.com/apache/beam/pull/32648))
 
@@ -111,35 +110,21 @@
 ## New Features / Improvements
 
 * Added support for read with metadata in MqttIO (Java) ([#32195](https://github.com/apache/beam/issues/32195))
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for processing events which use a global sequence to "ordered" extension (Java) [#32540](https://github.com/apache/beam/pull/32540)
 * Add new meta-transform FlattenWith and Tee that allow one to introduce branching
   without breaking the linear/chaining style of pipeline construction.
-
-## Breaking Changes
-
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
 * Removed support for Flink 1.15 and 1.16
 * Removed support for Python 3.8
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) Fixed tearDown not invoked when DoFn throws on Portable Runners ([#18592](https://github.com/apache/beam/issues/18592), [#31381](https://github.com/apache/beam/issues/31381)).
 * (Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine ([#32892](https://github.com/apache/beam/issues/32892)).
 * Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn ([#31111](https://github.com/apache/beam/issues/31111))
 * (Python) Fixed BigQuery Enrichment bug that can lead to multiple conditions returning duplicate rows, batching returning incorrect results and conditions not scoped by row during batching ([#32780](https://github.com/apache/beam/pull/32780)).
-
-## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.60.0] - 2024-10-17
 
