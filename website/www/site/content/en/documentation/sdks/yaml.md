@@ -662,6 +662,9 @@ providers:
        MyCustomTransform: "urn:registered:in:expansion:service"
 ```
 
+A full example of how to build a java provider can be found
+[here](https://github.com/Polber/beam-yaml-xlang).
+
 Arbitrary Python transforms can be provided as well, using the syntax
 
 ```
