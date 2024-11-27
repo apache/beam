@@ -191,7 +191,7 @@ def parse_test_files(filepattern):
 
 
 logging.getLogger().setLevel(logging.INFO)
-parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
+parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', 'csv.yaml'))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -149,7 +149,7 @@ def read_from_csv(
   return ReadFromCsv(path=path, comment=comment, sep=delimiter, **kwargs)
 
 
-def write_to_csv(path: str, delimiter: Optional[str] = None, **kwargs):
+def write_to_csv(path: str, delimiter: Optional[str] = ",", **kwargs):
   """Writes Beam rows to a (set of) comma-separated values (csv) files.
 
   For more information about possible arguments, see
