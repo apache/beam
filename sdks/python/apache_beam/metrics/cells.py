@@ -691,11 +691,17 @@ class _BoundedTrieNode(object):
           for name,
           child in proto.children.items()
       }
-      node._size = min(1, sum(child._size for child in node._children.values()))
+      node._size = max(1, sum(child._size for child in node._children.values()))
     return node
 
   def size(self):
     return self._size
+
+  def contains(self, segments):
+    if self._truncated or not segments:
+      return True
+    head, *tail = segments
+    return head in self._children and self._children[head].contains(tail)
 
   def add(self, segments) -> int:
     if self._truncated or not segments:
@@ -784,15 +790,31 @@ class BoundedTrieData(object):
   _DEFAULT_BOUND = 100
 
   def __init__(self, *, root=None, singleton=None, bound=_DEFAULT_BOUND):
-    assert singleton is None or root is None
     self._singleton = singleton
     self._root = root
     self._bound = bound
+    assert singleton is None or root is None
+
+  def size(self):
+    if self._singleton is not None:
+      return 1
+    elif self._root is not None:
+      return self._root.size()
+    else:
+      return 0
+
+  def contains(self, value):
+    if self._singleton is not None:
+      return tuple(value) == self._singleton
+    elif self._root is not None:
+      return self._root.contains(value)
+    else:
+      return False
 
   def to_proto(self) -> metrics_pb2.BoundedTrie:
     return metrics_pb2.BoundedTrie(
         bound=self._bound,
-        singleton=self._singlton if self._singleton else None,
+        singleton=self._singleton if self._singleton else None,
         root=self._root.to_proto() if self._root else None)
 
   @staticmethod
@@ -844,6 +866,7 @@ class BoundedTrieData(object):
     else:
       if self._root is None:
         self._root = self.as_trie()
+        self._singleton = None
       self._root.add(segments)
       if self._root._size > self._bound:
         self._root.trim()
