@@ -59,7 +59,7 @@ from apache_beam.yaml import yaml_provider
 
 def read_from_text(
     path: str,
-    delimiter: str = None,
+    delimiter: Optional[str] = None,
 ):
   # TODO(yaml): Consider passing the filename and offset, possibly even
   # by default.
@@ -84,7 +84,8 @@ def read_from_text(
       characters such as ``*`` and ``?``.
   """
   return beam_io.ReadFromText(
-      path=path, delimiter=delimiter) | beam.Map(lambda s: beam.Row(line=s))
+      file_pattern=path,
+      delimiter=delimiter) | beam.Map(lambda s: beam.Row(line=s))
 
 
 @beam.ptransform_fn
@@ -126,7 +127,10 @@ def write_to_text(pcoll, path: str):
 
 
 def read_from_csv(
-    path: str, comment: str = None, delimiter: str = None, **kwargs):
+    path: str,
+    comment: Optional[str] = None,
+    delimiter: Optional[str] = None,
+    **kwargs):
   """Reads comma-separated values (csv) files into Beam rows.
 
   For more information about possible arguments, see
@@ -145,7 +149,7 @@ def read_from_csv(
   return ReadFromCsv(path=path, comment=comment, sep=delimiter, **kwargs)
 
 
-def write_to_csv(path: str, delimiter: str = None, **kwargs):
+def write_to_csv(path: str, delimiter: Optional[str] = None, **kwargs):
   """Writes Beam rows to a (set of) comma-separated values (csv) files.
 
   For more information about possible arguments, see
