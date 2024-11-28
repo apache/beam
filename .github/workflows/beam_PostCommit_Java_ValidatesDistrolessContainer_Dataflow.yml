@@ -88,10 +88,17 @@ jobs:
           gcloud auth configure-docker us.gcr.io --quiet
           gcloud auth configure-docker gcr.io --quiet
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-      - name: run validatesDistrolessContainer script
+      - name: run validatesDistrolessContainer script (Java 17)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
+          arguments: -PtestJavaVersion=java17
+          max-workers: 12
+      - name: run validatesDistrolessContainer script (Java 21)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
+          arguments: -PtestJavaVersion=java21
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
