@@ -19,7 +19,7 @@
 --metrics_table=python_flink_streaming_combine_5
 --influx_measurement=python_streaming_combine_5
 --input_options=''{\\"num_records\\":2500000,\\"key_size\\":10,\\"value_size\\":90,\\"algorithm\\":\\"lcg\\"}''
---parallelism=25
+--parallelism=16
 --job_endpoint=localhost:8099
 --environment_type=DOCKER
 --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest

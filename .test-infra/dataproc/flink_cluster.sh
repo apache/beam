@@ -129,13 +129,24 @@ function create_cluster() {
   local image_version=$DATAPROC_VERSION
   echo "Starting dataproc cluster. Dataproc version: $image_version"
 
+  local worker_machine_type="n1-standard-2" # Default worker type
+  if [[ -n "${HIGH_MEM:=}" ]]; then
+      worker_machine_type="n1-highmem-2" # Or another suitable high-mem type
+  fi
+
+  local master_machine_type="n1-standard-2" # Default master type
+  if [[ -n "${HIGH_MEM:=}" ]]; then
+      master_machine_type="n1-highmem-2" # Or another suitable high-mem type
+  fi
+
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
   # TODO(11/22/2024) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
   # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit for this project
+  # remove zone to use AutoZone
   gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
-  --master-machine-type=n1-standard-2 --worker-machine-type=n1-standard-2 --metadata "${metadata}", \
-  --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
+  --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
+  --image-version=$image_version --optional-components=FLINK,DOCKER  --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster

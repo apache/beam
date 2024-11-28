@@ -93,12 +93,12 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_2GB_Fanout_8.txt
       - name: Start Flink with parallelism 16
         env:
-          FLINK_NUM_WORKERS: 25
+          FLINK_NUM_WORKERS: 16
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
-      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"  
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Load test 2GB Fanout 4
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
