@@ -94,6 +94,7 @@ jobs:
       - name: Start Flink with parallelism 16
         env:
           FLINK_NUM_WORKERS: 16
+          HIGH_MEM_MACHINE: n2-highmem-2
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       - name: get current time

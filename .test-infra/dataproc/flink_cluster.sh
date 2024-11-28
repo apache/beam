@@ -130,13 +130,11 @@ function create_cluster() {
   echo "Starting dataproc cluster. Dataproc version: $image_version"
 
   local worker_machine_type="n1-standard-2" # Default worker type
-  if [[ -n "${HIGH_MEM:=}" ]]; then
-      worker_machine_type="n1-highmem-2" # Or another suitable high-mem type
-  fi
-
   local master_machine_type="n1-standard-2" # Default master type
-  if [[ -n "${HIGH_MEM:=}" ]]; then
-      master_machine_type="n1-highmem-2" # Or another suitable high-mem type
+
+  if [[ -n "${HIGH_MEM_MACHINE:=}" ]]; then
+      worker_machine_type="${HIGH_MEM_MACHINE}"
+      master_machine_type="${HIGH_MEM_MACHINE}"
   fi
 
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
