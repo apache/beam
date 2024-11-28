@@ -135,15 +135,20 @@ function create_cluster() {
   if [[ -n "${HIGH_MEM_MACHINE:=}" ]]; then
       worker_machine_type="${HIGH_MEM_MACHINE}"
       master_machine_type="${HIGH_MEM_MACHINE}"
-  fi
 
-  # Docker init action restarts yarn so we need to start yarn session after this restart happens.
-  # This is why flink init action is invoked last.
-  # TODO(11/22/2024) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
-  # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit for this project
-  gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
-  --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
-  --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  --quiet
+    gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
+    --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
+    --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  \
+    --properties="flink:taskmanager.heap.size=8g" --quiet
+  else
+    # Docker init action restarts yarn so we need to start yarn session after this restart happens.
+    # This is why flink init action is invoked last.
+    # TODO(11/22/2024) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
+    # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit for this project
+    gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
+    --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
+    --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  --quiet
+  fi
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
