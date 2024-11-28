@@ -92,13 +92,13 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
-          arguments: -PtestJavaVersion=java17
+          arguments: '-PtestJavaVersion=java17 -PdockerTag=$(date +%s)'
           max-workers: 12
       - name: run validatesDistrolessContainer script (Java 21)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
-          arguments: -PtestJavaVersion=java21
+          arguments: '-PtestJavaVersion=java21 -PdockerTag=$(date +%s)'
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
