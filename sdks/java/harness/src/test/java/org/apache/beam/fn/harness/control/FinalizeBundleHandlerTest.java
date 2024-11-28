@@ -59,7 +59,7 @@ public class FinalizeBundleHandlerTest {
         CallbackRegistration.create(
             Instant.now().plus(Duration.standardHours(1)), () -> wasCalled2.set(true)));
 
-    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newScheduledThreadPool(0));
     handler.registerCallbacks("test", callbacks);
     assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test")).build());
     assertTrue(wasCalled1.get());
@@ -68,7 +68,7 @@ public class FinalizeBundleHandlerTest {
 
   @Test
   public void testFinalizationIgnoresMissingBundleIds() throws Exception {
-    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newScheduledThreadPool(0));
     assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test")).build());
   }
 
@@ -92,7 +92,7 @@ public class FinalizeBundleHandlerTest {
               throw new Exception("testException2");
             }));
 
-    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newScheduledThreadPool(0));
     handler.registerCallbacks("test", callbacks);
 
     try {

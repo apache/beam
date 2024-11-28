@@ -22,17 +22,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.PriorityQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleResponse;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -64,62 +61,20 @@ public class FinalizeBundleHandler {
   }
 
   private final ConcurrentMap<String, Collection<CallbackRegistration>> bundleFinalizationCallbacks;
-  private final PriorityQueue<TimestampedValue<String>> cleanUpQueue;
+  private final ScheduledExecutorService scheduledExecutorService;
 
-  @SuppressWarnings("unused")
-  private final Future<Void> cleanUpResult;
-
-  public FinalizeBundleHandler(ExecutorService executorService) {
+  public FinalizeBundleHandler(ScheduledExecutorService scheduledExecutorService) {
     this.bundleFinalizationCallbacks = new ConcurrentHashMap<>();
-    this.cleanUpQueue =
-        new PriorityQueue<>(11, Comparator.comparing(TimestampedValue::getTimestamp));
-    // Wait until we have at least one element. We are notified on each element
-    // being added.
-    // Wait until the current time has past the expiry time for the head of the
-    // queue.
-    // We are notified on each element being added.
-    // Wait until we have at least one element. We are notified on each element
-    // being added.
-    // Wait until the current time has past the expiry time for the head of the
-    // queue.
-    // We are notified on each element being added.
-    cleanUpResult =
-        executorService.submit(
-            (Callable<Void>)
-                () -> {
-                  while (true) {
-                    synchronized (cleanUpQueue) {
-                      TimestampedValue<String> expiryTime = cleanUpQueue.peek();
-
-                      // Wait until we have at least one element. We are notified on each element
-                      // being added.
-                      while (expiryTime == null) {
-                        cleanUpQueue.wait();
-                        expiryTime = cleanUpQueue.peek();
-                      }
-
-                      // Wait until the current time has past the expiry time for the head of the
-                      // queue.
-                      // We are notified on each element being added.
-                      Instant now = Instant.now();
-                      while (expiryTime.getTimestamp().isAfter(now)) {
-                        Duration timeDifference = new Duration(now, expiryTime.getTimestamp());
-                        cleanUpQueue.wait(timeDifference.getMillis());
-                        expiryTime = cleanUpQueue.peek();
-                        now = Instant.now();
-                      }
-
-                      bundleFinalizationCallbacks.remove(cleanUpQueue.poll().getValue());
-                    }
-                  }
-                });
+    this.scheduledExecutorService = scheduledExecutorService;
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void registerCallbacks(String bundleId, Collection<CallbackRegistration> callbacks) {
     if (callbacks.isEmpty()) {
       return;
     }
 
+    @Nullable
     Collection<CallbackRegistration> priorCallbacks =
         bundleFinalizationCallbacks.putIfAbsent(bundleId, callbacks);
     checkState(
@@ -127,14 +82,15 @@ public class FinalizeBundleHandler {
         "Expected to not have any past callbacks for bundle %s but found %s.",
         bundleId,
         priorCallbacks);
-    long expiryTimeMillis = Long.MIN_VALUE;
+    long expiryDelayMillis = Long.MIN_VALUE;
     for (CallbackRegistration callback : callbacks) {
-      expiryTimeMillis = Math.max(expiryTimeMillis, callback.getExpiryTime().getMillis());
+      expiryDelayMillis =
+          Math.max(expiryDelayMillis, new Duration(null, callback.getExpiryTime()).getMillis());
     }
-    synchronized (cleanUpQueue) {
-      cleanUpQueue.offer(TimestampedValue.of(bundleId, new Instant(expiryTimeMillis)));
-      cleanUpQueue.notify();
-    }
+    scheduledExecutorService.schedule(
+        () -> bundleFinalizationCallbacks.remove(bundleId),
+        expiryDelayMillis,
+        TimeUnit.MILLISECONDS);
   }
 
   public BeamFnApi.InstructionResponse.Builder finalizeBundle(BeamFnApi.InstructionRequest request)
