@@ -225,6 +225,7 @@
         driver_jars: 'driver_jars'
         connection_properties: 'connection_properties'
         connection_init_sql: 'connection_init_sql'
+        batch_size: 'batch_size'
       'ReadFromMySql': 'ReadFromJdbc'
       'WriteToMySql': 'WriteToJdbc'
       'ReadFromPostgres': 'ReadFromJdbc'

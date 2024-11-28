@@ -132,7 +132,7 @@ Config = typing.NamedTuple(
      ('partitions', typing.Optional[np.int16]),
      ('max_connections', typing.Optional[np.int16]),
      ('driver_jars', typing.Optional[str]),
-     ('write_batch_size', typing.Optional[np.int16])],
+     ('write_batch_size', typing.Optional[np.int64])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
