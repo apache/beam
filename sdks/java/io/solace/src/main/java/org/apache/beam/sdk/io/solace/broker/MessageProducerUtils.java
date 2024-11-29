@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 @Internal
 public class MessageProducerUtils {
   // This is the batch limit supported by the send multiple JCSMP API method.
-  static final int SOLACE_BATCH_LIMIT = 50;
+  public static final int SOLACE_BATCH_LIMIT = 50;
 
   /**
    * Create a {@link BytesXMLMessage} to be published in Solace.
