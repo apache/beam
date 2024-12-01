@@ -104,7 +104,7 @@ jobs:
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
-      - name: run Load test 2GB Fanout 4
+      - name: run Load test small Fanout 1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -113,7 +113,7 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Flink_Streaming_test_arguments_1 }} --job_name=load-tests-python-flink-streaming-combine-4-${{env.NOW_UTC}}' \
-      - name: run Load test 2GB Fanout 8
+      - name: run Load test small Fanout 2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
