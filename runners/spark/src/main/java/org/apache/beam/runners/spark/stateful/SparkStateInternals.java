@@ -63,7 +63,7 @@ import org.joda.time.Instant;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class SparkStateInternals<K> implements StateInternals {
+public class SparkStateInternals<K> implements StateInternals {
 
   private final K key;
   // Serializable state for internals (namespace to state tag to coded value).
@@ -79,11 +79,11 @@ class SparkStateInternals<K> implements StateInternals {
     this.stateTable = stateTable;
   }
 
-  static <K> SparkStateInternals<K> forKey(K key) {
+  public static <K> SparkStateInternals<K> forKey(K key) {
     return new SparkStateInternals<>(key);
   }
 
-  static <K> SparkStateInternals<K> forKeyAndState(
+  public static <K> SparkStateInternals<K> forKeyAndState(
       K key, Table<String, String, byte[]> stateTable) {
     return new SparkStateInternals<>(key, stateTable);
   }
