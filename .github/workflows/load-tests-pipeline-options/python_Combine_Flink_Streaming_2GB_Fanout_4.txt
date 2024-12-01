@@ -23,8 +23,8 @@
 --job_endpoint=localhost:8099
 --environment_type=DOCKER
 --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest
---fanout=4
---top_count=1
+--fanout=1
+--top_count=20
 --streaming
 --use_stateful_load_generator
 --runner=PortableRunner
