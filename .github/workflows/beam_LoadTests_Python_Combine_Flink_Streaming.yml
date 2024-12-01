@@ -65,7 +65,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python Combine Flink Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 720
+    timeout-minutes: 80
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
