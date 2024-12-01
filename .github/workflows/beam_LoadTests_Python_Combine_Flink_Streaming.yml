@@ -95,7 +95,7 @@ jobs:
         env:
           FLINK_NUM_WORKERS: 16
           HIGH_MEM_MACHINE: n1-highmem-16
-          HIGH_MEM_FLINK_PROPS: flink:taskmanager.memory.process.size=8g,flink:taskmanager.memory.managed.size=2g,flink:taskmanager.memory.task.off-heap.sizef=2g,flink:taskmanager.memory.framework.off-heap.size=1g,flink:taskmanager.memory.process.off-heap.size=1g,flink:taskmanager.memory.network.min=512m,flink:taskmanager.memory.network.max=1g,flink:taskmanager.jvm-metaspace.size=256m,flink:taskmanager.memory.flink.size=7g,flink:jobmanager.memory.flink.size=4g,flink:jobmanager.memory.jvm-overhead.max=2g,flink:jobmanager.memory.process.size=6g
+          HIGH_MEM_FLINK_PROPS: flink:taskmanager.memory.process.size=8g,flink:taskmanager.memory.managed.size=2g,flink:taskmanager.memory.task.off-heap.sizef=3g,flink:taskmanager.memory.framework.off-heap.size=3g,flink:taskmanager.memory.process.off-heap.size=1g,flink:taskmanager.memory.network.min=512m,flink:taskmanager.memory.network.max=1g,flink:taskmanager.jvm-metaspace.size=256m,flink:taskmanager.memory.flink.size=7g,flink:jobmanager.memory.flink.size=4g,flink:jobmanager.memory.jvm-overhead.max=2g,flink:jobmanager.memory.process.size=6g
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       - name: get current time
