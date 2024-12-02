@@ -111,6 +111,7 @@ when running on 3.8. (&lt;a href="https://github.com/apache/beam/issues/31192">#
 &lt;li>(Java) Fixed custom delimiter issues in TextIO (&lt;a href="https://github.com/apache/beam/issues/32249">#32249&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/32251">#32251&lt;/a>).&lt;/li>
 &lt;li>(Java, Python, Go) Fixed PeriodicSequence backlog bytes reporting, which was preventing Dataflow Runner autoscaling from functioning properly (&lt;a href="https://github.com/apache/beam/issues/32506">#32506&lt;/a>).&lt;/li>
 &lt;li>(Java) Fix improper decoding of rows with schemas containing nullable fields when encoded with a schema with equal encoding positions but modified field order. (&lt;a href="https://github.com/apache/beam/issues/32388">#32388&lt;/a>).&lt;/li>
+&lt;li>(Java) Skip close on bundles in BigtableIO.Read (&lt;a href="https://github.com/apache/beam/pull/32661">#32661&lt;/a>, &lt;a href="https://github.com/apache/beam/pull/32759">#32759&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
