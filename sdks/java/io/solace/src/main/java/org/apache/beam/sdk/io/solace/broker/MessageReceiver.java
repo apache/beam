@@ -36,6 +36,13 @@ public interface MessageReceiver {
   void start();
 
   /**
+   * Returns {@literal true} if the message receiver is closed, {@literal false} otherwise.
+   *
+   * <p>A message receiver is closed when it is no longer able to receive messages.
+   */
+  boolean isClosed();
+
+  /**
    * Receives a message from the broker.
    *
    * <p>This method will block until a message is received.

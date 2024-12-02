@@ -121,6 +121,13 @@ public abstract class SessionService implements Serializable {
   public abstract void close();
 
   /**
+   * Checks whether the connection to the service is currently closed. This method is called when an
+   * `UnboundedSolaceReader` is starting to read messages - a session will be created if this
+   * returns true.
+   */
+  public abstract boolean isClosed();
+
+  /**
    * Returns a MessageReceiver object for receiving messages from Solace. If it is the first time
    * this method is used, the receiver is created from the session instance, otherwise it returns
    * the receiver created initially.

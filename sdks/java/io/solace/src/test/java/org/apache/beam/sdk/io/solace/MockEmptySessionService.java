@@ -41,6 +41,11 @@ public abstract class MockEmptySessionService extends SessionService {
   }
 
   @Override
+  public boolean isClosed() {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
   public MessageReceiver getReceiver() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
