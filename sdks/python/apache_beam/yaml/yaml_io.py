@@ -66,21 +66,21 @@ def read_from_text(
 
   """Reads lines from text files into Beam rows.
 
-  The resulting collection consists of Beam rows, each with a single string
-  field named "line."
+    The resulting collection consists of Beam rows, each with a single string
+    field named "line."
 
-  For example, each Beam row will look like: ::
+    For example, each Beam row will look like: ::
 
-      line: "a single line of text from source"
+        line: "a single line of text from source"
 
-  Parses a text file as newline-delimited elements, by default assuming
-  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
-  or specified delimiter.
+    Parses a text file as newline-delimited elements, by default assuming
+    ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``
+    or specified delimiter.
 
   Args:
     delimiter (str): Delimiter to split records.
     path (str): The file path to read from as a local file path or a
-        GCS ``gs://`` path. The path can contain glob
+      GCS ``gs://`` path. The path can contain glob
       characters such as ``*`` and ``?``.
   """
   return beam_io.ReadFromText(
@@ -146,7 +146,7 @@ def read_from_csv(
         GCS ``gs://`` path. The path can contain glob
         characters such as ``*`` and ``?``.
   """
-  return ReadFromCsv(path=path, comment=comment, sep=delimiter, **kwargs)
+  return ReadFromCsv(path=path, comment=comment, delimiter=delimiter, **kwargs)
 
 
 def write_to_csv(path: str, delimiter: Optional[str] = ",", **kwargs):
@@ -192,7 +192,7 @@ def write_to_json(path: str, **kwargs):
   return WriteToJson(path=path, **kwargs)
 
 
-def read_from_parquet(path: str, **kwargs):
+def read_from_parquet(path: str, as_rows: bool = True, **kwargs):
   """Read a set of Parquet files defined by a given file pattern.
 
         For more information about possible arguments, see
@@ -202,7 +202,7 @@ def read_from_parquet(path: str, **kwargs):
             path (str): The file path to read from as a local file path or a
               GCS ``gs://`` path.
           """
-  return ReadFromParquet(file_pattern=path, as_rows=True, **kwargs)
+  return ReadFromParquet(file_pattern=path, as_rows=as_rows, **kwargs)
 
 
 def write_to_parquet(path: str, **kwargs):
@@ -220,7 +220,7 @@ def write_to_parquet(path: str, **kwargs):
   return WriteToParquet(file_path_prefix=path, **kwargs)
 
 
-def read_from_avro(path: str, **kwargs):
+def read_from_avro(path: str, as_rows: bool = True, **kwargs):
   """Reads records from avro files into Beam rows.
 
     Records that are of simple types will be
@@ -236,7 +236,7 @@ def read_from_avro(path: str, **kwargs):
       path (str): The file path to read from as a local file path or a
         GCS ``gs://`` path.
     """
-  return ReadFromAvro(file_pattern=path, as_rows=True, **kwargs)
+  return ReadFromAvro(file_pattern=path, as_rows=as_rows, **kwargs)
 
 
 def write_to_avro(path: str, **kwargs):
