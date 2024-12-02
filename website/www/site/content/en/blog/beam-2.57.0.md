@@ -79,6 +79,10 @@ For more information on changes in 2.57.0, check out the [detailed release notes
 ## Known Issues
 
 * Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue ([#32169](https://github.com/apache/beam/issues/32169)). The issue will be fixed in 2.59.0 ([#32135](https://github.com/apache/beam/pull/32135)). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.
+* BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
+  * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
+  * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
+  * Fixed in 2.61.0.
 
 For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 

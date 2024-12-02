@@ -114,13 +114,16 @@ async function assignToNewReviewers(
   reviewersToExclude.push(pull.user.login);
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(labelObjects, reviewersToExclude);
+  const fallbackReviewers =
+    reviewerConfig.getFallbackReviewers();
   for (const labelObject of labelObjects) {
     const label = labelObject.name;
     let availableReviewers = reviewersForLabels[label];
     if (availableReviewers && availableReviewers.length > 0) {
       let reviewersState = await stateClient.getReviewersForLabelState(label);
       let chosenReviewer = await reviewersState.assignNextCommitter(
-        availableReviewers
+        availableReviewers,
+        fallbackReviewers
       );
       reviewerStateToUpdate[label] = reviewersState;
       prState.reviewersAssignedForLabels[label] = chosenReviewer;

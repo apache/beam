@@ -213,7 +213,7 @@ class MainTest(unittest.TestCase):
                                            inputs={'elements': elements})
       self.assertRegex(
           str(expand_composite_transform(spec, scope)['output']),
-          r"PCollection.*Composite/LogForTesting.*")
+          r"PCollection.*Composite/log_for_testing/LogForTesting.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:
@@ -324,6 +324,23 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     self.assertEqual(
         chain_as_composite(spec)['transforms'][0]['input'], {"input": "input"})
+
+  def test_chain_as_composite_with_transform_input(self):
+    spec = '''
+        type: chain
+        transforms:
+        - type: Create
+          config:
+            elements: [0,1,2]
+        - type: LogForTesting
+          input: Create
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(
+        ValueError,
+        r"Transform .* is part of a chain. "
+        r"Cannot define explicit inputs on chain pipeline"):
+      chain_as_composite(spec)
 
   def test_normalize_source_sink(self):
     spec = '''

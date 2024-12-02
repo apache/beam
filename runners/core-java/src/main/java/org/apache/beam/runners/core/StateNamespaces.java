@@ -90,8 +90,8 @@ public class StateNamespaces {
   /** {@link StateNamespace} that is scoped to a specific window. */
   public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
-    private Coder<W> windowCoder;
-    private W window;
+    private final Coder<W> windowCoder;
+    private final W window;
 
     private WindowNamespace(Coder<W> windowCoder, W window) {
       this.windowCoder = windowCoder;

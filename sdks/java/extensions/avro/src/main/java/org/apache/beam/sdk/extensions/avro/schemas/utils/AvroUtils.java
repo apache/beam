@@ -141,7 +141,10 @@ import org.joda.time.ReadableInstant;
  *
  * is used.
  */
-@SuppressWarnings({"rawtypes"})
+@SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes"
+})
 public class AvroUtils {
   private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
   private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
@@ -484,7 +487,8 @@ public class AvroUtils {
   public static org.apache.avro.Schema.Field toAvroField(Field field, String namespace) {
     org.apache.avro.Schema fieldSchema =
         getFieldSchema(field.getType(), field.getName(), namespace);
-    return new org.apache.avro.Schema.Field(field.getName(), fieldSchema, field.getDescription());
+    return new org.apache.avro.Schema.Field(
+        field.getName(), fieldSchema, field.getDescription(), (Object) null);
   }
 
   private AvroUtils() {}

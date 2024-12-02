@@ -17,14 +17,10 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpRequestFactory;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.solace.data.Semp.Queue;
 import org.apache.beam.sdk.util.SerializableSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +36,6 @@ import org.slf4j.LoggerFactory;
 @Internal
 public class BasicAuthSempClient implements SempClient {
   private static final Logger LOG = LoggerFactory.getLogger(BasicAuthSempClient.class);
-  private final ObjectMapper objectMapper =
-      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   private final SempBasicAuthClientExecutor sempBasicAuthClientExecutor;
 
@@ -58,13 +52,12 @@ public class BasicAuthSempClient implements SempClient {
 
   @Override
   public boolean isQueueNonExclusive(String queueName) throws IOException {
-    LOG.info("SolaceIO.Read: SempOperations: query SEMP if queue {} is nonExclusive", queueName);
-    BrokerResponse response = sempBasicAuthClientExecutor.getQueueResponse(queueName);
-    if (response.content == null) {
-      throw new IOException("SolaceIO: response from SEMP is empty!");
-    }
-    Queue q = mapJsonToClass(response.content, Queue.class);
-    return q.data().accessType().equals("non-exclusive");
+    boolean queueNonExclusive = sempBasicAuthClientExecutor.isQueueNonExclusive(queueName);
+    LOG.info(
+        "SolaceIO.Read: SempOperations: queried SEMP if queue {} is non-exclusive: {}",
+        queueName,
+        queueNonExclusive);
+    return queueNonExclusive;
   }
 
   @Override
@@ -77,12 +70,7 @@ public class BasicAuthSempClient implements SempClient {
 
   @Override
   public long getBacklogBytes(String queueName) throws IOException {
-    BrokerResponse response = sempBasicAuthClientExecutor.getQueueResponse(queueName);
-    if (response.content == null) {
-      throw new IOException("SolaceIO: response from SEMP is empty!");
-    }
-    Queue q = mapJsonToClass(response.content, Queue.class);
-    return q.data().msgSpoolUsage();
+    return sempBasicAuthClientExecutor.getBacklogBytes(queueName);
   }
 
   private void createQueue(String queueName) throws IOException {
@@ -93,10 +81,5 @@ public class BasicAuthSempClient implements SempClient {
   private void createSubscription(String queueName, String topicName) throws IOException {
     LOG.info("SolaceIO.Read: Creating new subscription {} for topic {}.", queueName, topicName);
     sempBasicAuthClientExecutor.createSubscriptionResponse(queueName, topicName);
-  }
-
-  private <T> T mapJsonToClass(String content, Class<T> mapSuccessToClass)
-      throws JsonProcessingException {
-    return objectMapper.readValue(content, mapSuccessToClass);
   }
 }

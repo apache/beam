@@ -48,3 +48,7 @@ dependencies {
     testImplementation library.java.mockito_core
     testImplementation project(path: ":runners:java-fn-execution")
 }
+
+shadowJar {
+  outputs.upToDateWhen { false }
+}

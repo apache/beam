@@ -39,14 +39,15 @@ import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class StreamingWorkerStatusReporterTest {
-  private final long DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME = 1000;
-  private final long DEFAULT_HARNESS_REPORTING_PERIOD = 10000;
-  private final long DEFAULT_PER_WORKER_METRICS_PERIOD = 30000;
+  private static final long DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME = 1000;
+  private static final long DEFAULT_HARNESS_REPORTING_PERIOD = 10000;
+  private static final long DEFAULT_PER_WORKER_METRICS_PERIOD = 30000;
 
   private BoundedQueueExecutor mockExecutor;
   private WorkUnitClient mockWorkUnitClient;
   private FailureTracker mockFailureTracker;
   private MemoryMonitor mockMemoryMonitor;
+  private StreamingWorkerStatusReporter reporter;
 
   @Before
   public void setUp() {
@@ -54,23 +55,11 @@ public class StreamingWorkerStatusReporterTest {
     this.mockWorkUnitClient = mock(WorkUnitClient.class);
     this.mockFailureTracker = mock(FailureTracker.class);
     this.mockMemoryMonitor = mock(MemoryMonitor.class);
+    this.reporter = buildWorkerStatusReporterForTest();
   }
 
   @Test
   public void testOverrideMaximumThreadCount() throws Exception {
-    StreamingWorkerStatusReporter reporter =
-        StreamingWorkerStatusReporter.forTesting(
-            true,
-            mockWorkUnitClient,
-            () -> DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME,
-            () -> Collections.emptyList(),
-            mockFailureTracker,
-            StreamingCounters.create(),
-            mockMemoryMonitor,
-            mockExecutor,
-            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
-            DEFAULT_HARNESS_REPORTING_PERIOD,
-            DEFAULT_PER_WORKER_METRICS_PERIOD);
     StreamingScalingReportResponse streamingScalingReportResponse =
         new StreamingScalingReportResponse().setMaximumThreadCount(10);
     WorkerMessageResponse workerMessageResponse =
@@ -84,23 +73,25 @@ public class StreamingWorkerStatusReporterTest {
 
   @Test
   public void testHandleEmptyWorkerMessageResponse() throws Exception {
-    StreamingWorkerStatusReporter reporter =
-        StreamingWorkerStatusReporter.forTesting(
-            true,
-            mockWorkUnitClient,
-            () -> DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME,
-            () -> Collections.emptyList(),
-            mockFailureTracker,
-            StreamingCounters.create(),
-            mockMemoryMonitor,
-            mockExecutor,
-            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
-            DEFAULT_HARNESS_REPORTING_PERIOD,
-            DEFAULT_PER_WORKER_METRICS_PERIOD);
-    WorkerMessageResponse workerMessageResponse = new WorkerMessageResponse();
     when(mockWorkUnitClient.reportWorkerMessage(any()))
-        .thenReturn(Collections.singletonList(workerMessageResponse));
+        .thenReturn(Collections.singletonList(new WorkerMessageResponse()));
     reporter.reportPeriodicWorkerMessage();
     verify(mockExecutor, Mockito.times(0)).setMaximumPoolSize(anyInt(), anyInt());
+  }
+
+  private StreamingWorkerStatusReporter buildWorkerStatusReporterForTest() {
+    return StreamingWorkerStatusReporter.builder()
+        .setPublishCounters(true)
+        .setDataflowServiceClient(mockWorkUnitClient)
+        .setWindmillQuotaThrottleTime(() -> DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME)
+        .setAllStageInfo(Collections::emptyList)
+        .setFailureTracker(mockFailureTracker)
+        .setStreamingCounters(StreamingCounters.create())
+        .setMemoryMonitor(mockMemoryMonitor)
+        .setWorkExecutor(mockExecutor)
+        .setExecutorFactory((threadName) -> Executors.newSingleThreadScheduledExecutor())
+        .setWindmillHarnessUpdateReportingPeriodMillis(DEFAULT_HARNESS_REPORTING_PERIOD)
+        .setPerWorkerMetricsUpdateReportingPeriodMillis(DEFAULT_PER_WORKER_METRICS_PERIOD)
+        .build();
   }
 }

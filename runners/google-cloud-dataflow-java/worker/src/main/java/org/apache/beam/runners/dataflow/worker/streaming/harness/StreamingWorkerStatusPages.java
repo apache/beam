@@ -258,7 +258,7 @@ public final class StreamingWorkerStatusPages {
 
     Builder setDebugCapture(DebugCapture.Manager debugCapture);
 
-    Builder setChannelzServlet(ChannelzServlet channelzServlet);
+    Builder setChannelzServlet(@Nullable ChannelzServlet channelzServlet);
 
     Builder setStateCache(WindmillStateCache stateCache);
 

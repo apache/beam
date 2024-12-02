@@ -67,48 +67,36 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * <p>The transformation uses the {@link SpannerIO} to perform the write operation and provides
  * options to handle failed mutations, either by throwing an error, or passing the failed mutation
  * further in the pipeline for dealing with accordingly.
- *
- * <p>Example usage in a YAML pipeline without error handling:
- *
- * <pre>{@code
- * pipeline:
- *   transforms:
- *     - type: WriteToSpanner
- *       name: WriteShipments
- *       config:
- *         project_id: 'apache-beam-testing'
- *         instance_id: 'shipment-test'
- *         database_id: 'shipment'
- *         table_id: 'shipments'
- *
- * }</pre>
- *
- * <p>Example usage in a YAML pipeline using error handling:
- *
- * <pre>{@code
- * pipeline:
- *   transforms:
- *     - type: WriteToSpanner
- *       name: WriteShipments
- *       config:
- *         project_id: 'apache-beam-testing'
- *         instance_id: 'shipment-test'
- *         database_id: 'shipment'
- *         table_id: 'shipments'
- *         error_handling:
- *           output: 'errors'
- *
- *     - type: WriteToJson
- *       input: WriteSpanner.my_error_output
- *       config:
- *          path: errors.json
- *
- * }</pre>
  */
 @AutoService(SchemaTransformProvider.class)
 public class SpannerWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration> {
+
+  @Override
+  public String identifier() {
+    return "beam:schematransform:org.apache.beam:spanner_write:v1";
+  }
+
+  @Override
+  public String description() {
+    return "Performs a bulk write to a Google Cloud Spanner table.\n"
+        + "\n"
+        + "Example configuration for performing a write to a single table: ::\n"
+        + "\n"
+        + "    pipeline:\n"
+        + "      transforms:\n"
+        + "        - type: ReadFromSpanner\n"
+        + "          config:\n"
+        + "            project_id: 'my-project-id'\n"
+        + "            instance_id: 'my-instance-id'\n"
+        + "            database_id: 'my-database'\n"
+        + "            table: 'my-table'\n"
+        + "\n"
+        + "Note: See <a href=\""
+        + "https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html\">"
+        + "SpannerIO</a> for more advanced information.";
+  }
 
   @Override
   protected Class<SpannerWriteSchemaTransformConfiguration> configurationClass() {
@@ -226,11 +214,6 @@ public class SpannerWriteSchemaTransformProvider
   }
 
   @Override
-  public String identifier() {
-    return "beam:schematransform:org.apache.beam:spanner_write:v1";
-  }
-
-  @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
@@ -244,10 +227,6 @@ public class SpannerWriteSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
 
-    @SchemaFieldDescription("Specifies the GCP project.")
-    @Nullable
-    public abstract String getProjectId();
-
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
 
@@ -257,7 +236,11 @@ public class SpannerWriteSchemaTransformProvider
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTableId();
 
-    @SchemaFieldDescription("Specifies how to handle errors.")
+    @SchemaFieldDescription("Specifies the GCP project.")
+    @Nullable
+    public abstract String getProjectId();
+
+    @SchemaFieldDescription("Whether and how to handle write errors.")
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
