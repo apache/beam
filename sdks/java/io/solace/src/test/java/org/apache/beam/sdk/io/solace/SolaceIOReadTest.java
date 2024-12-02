@@ -447,29 +447,25 @@ public class SolaceIOReadTest {
     // start the reader and move to the first record
     assertTrue(reader.start());
 
-    // consume 3 messages (NB: #start() already consumed the first message)
+    // consume 3 messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
       assertTrue(String.format("Failed at %d-th message", i), reader.advance());
     }
 
-    // #advance() was called, but the messages were not ready to be acknowledged.
-    assertEquals(0, countAckMessages.get());
-
-    // mark all consumed messages as ready to be acknowledged
+    // create checkpoint but don't finalize yet
     CheckpointMark checkpointMark = reader.getCheckpointMark();
 
-    // consume 1 more message. This will call #ackMsg() on messages that were ready to be acked.
+    // consume 2 more messages
     reader.advance();
-    assertEquals(4, countAckMessages.get());
+    reader.advance();
 
-    // consume 1 more message. No change in the acknowledged messages.
-    reader.advance();
-    assertEquals(4, countAckMessages.get());
+    // check if messages are still not acknowledged
+    assertEquals(0, countAckMessages.get());
 
     // acknowledge from the first checkpoint
     checkpointMark.finalizeCheckpoint();
-    // No change in the acknowledged messages, because they were acknowledged in the #advance()
-    // method.
+
+    // only messages from the first checkpoint are acknowledged
     assertEquals(4, countAckMessages.get());
   }
 
