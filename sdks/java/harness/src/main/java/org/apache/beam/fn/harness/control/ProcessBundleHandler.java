@@ -83,6 +83,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -188,7 +189,8 @@ public class ProcessBundleHandler {
         executionStateSampler,
         REGISTERED_RUNNER_FACTORIES,
         processWideCache,
-        new BundleProcessorCache(),
+        new BundleProcessorCache(
+            options.as(SdkHarnessOptions.class).getBundleProcessorCacheTimeout()),
         dataSampler);
   }
 
@@ -927,25 +929,25 @@ public class ProcessBundleHandler {
       return super.hashCode();
     }
 
-    BundleProcessorCache() {
-      this.cachedBundleProcessors =
+    BundleProcessorCache(Duration timeout) {
+      CacheBuilder<String, ConcurrentLinkedQueue<ProcessBundleHandler.BundleProcessor>> builder =
           CacheBuilder.newBuilder()
-              .expireAfterAccess(Duration.ofMinutes(1L))
               .removalListener(
-                  removalNotification -> {
-                    ((ConcurrentLinkedQueue<BundleProcessor>) removalNotification.getValue())
-                        .forEach(
-                            bundleProcessor -> {
-                              bundleProcessor.shutdown();
-                            });
-                  })
-              .build(
-                  new CacheLoader<String, ConcurrentLinkedQueue<BundleProcessor>>() {
-                    @Override
-                    public ConcurrentLinkedQueue<BundleProcessor> load(String s) throws Exception {
-                      return new ConcurrentLinkedQueue<>();
-                    }
-                  });
+                  removalNotification ->
+                      removalNotification
+                          .getValue()
+                          .forEach(bundleProcessor -> bundleProcessor.shutdown()));
+      if (timeout.compareTo(Duration.ZERO) > 0) {
+        builder = builder.expireAfterAccess(timeout);
+      }
+      this.cachedBundleProcessors =
+          builder.build(
+              new CacheLoader<String, ConcurrentLinkedQueue<BundleProcessor>>() {
+                @Override
+                public ConcurrentLinkedQueue<BundleProcessor> load(String s) throws Exception {
+                  return new ConcurrentLinkedQueue<>();
+                }
+              });
       // We specifically use a weak hash map so that references will automatically go out of scope
       // and not need to be freed explicitly from the cache.
       this.activeBundleProcessors = Collections.synchronizedMap(new WeakHashMap<>());

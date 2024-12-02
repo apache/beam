@@ -576,8 +576,8 @@ def chain_as_composite(spec):
         pass
       else:
         raise ValueError(
-            f'Transform {identify_object(transform)} is part of a chain, '
-            'must have implicit inputs and outputs.')
+            f'Transform {identify_object(transform)} is part of a chain. '
+            'Cannot define explicit inputs on chain pipeline')
     if ix == 0:
       if is_explicitly_empty(transform.get('input', None)):
         pass

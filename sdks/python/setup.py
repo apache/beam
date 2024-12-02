@@ -490,12 +490,9 @@ if __name__ == '__main__':
               'sentence-transformers',
               'skl2onnx',
               'pillow',
-              # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
-              # Once TF version is unpinned, also don't restrict Python version.
-              'tensorflow<2.16.0;python_version<"3.12"',
+              'tensorflow',
               'tensorflow-hub',
-              # https://github.com/tensorflow/transform/issues/313
-              'tensorflow-transform;python_version<"3.11"',
+              'tensorflow-transform',
               'tf2onnx',
               'torch',
               'transformers',
@@ -503,6 +500,19 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+          ],
+          'p312_ml_test': [
+              'datatable',
+              'embeddings',
+              'onnxruntime',
+              'sentence-transformers',
+              'skl2onnx',
+              'pillow',
+              'tensorflow',
+              'tensorflow-hub',
+              'tf2onnx',
+              'torch',
+              'transformers',
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
