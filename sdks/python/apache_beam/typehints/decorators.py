@@ -82,7 +82,6 @@ defined, or before importing a module containing type-hinted functions.
 import inspect
 import itertools
 import logging
-import sys
 import traceback
 import types
 from typing import Any

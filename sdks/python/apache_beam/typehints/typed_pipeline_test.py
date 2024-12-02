@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import sys
 import typing
 import unittest
 

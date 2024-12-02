@@ -21,7 +21,6 @@
 
 import collections.abc
 import enum
-import sys
 import typing
 import unittest
 

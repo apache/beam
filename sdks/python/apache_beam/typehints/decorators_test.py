@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import functools
-import sys
 import typing
 import unittest
 
