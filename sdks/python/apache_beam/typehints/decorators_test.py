@@ -70,14 +70,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_from_callable_method_descriptor(self):
     # from_callable() injects an annotation in this special type of builtin.
     th = decorators.IOTypeHints.from_callable(str.strip)
-    if sys.version_info >= (3, 7):
-      self.assertEqual(th.input_types, ((str, Any), {}))
-    else:
-      self.assertEqual(
-          th.input_types,
-          ((str, decorators._ANY_VAR_POSITIONAL), {
-              '__unknown__keywords': decorators._ANY_VAR_KEYWORD
-          }))
+    self.assertEqual(th.input_types, ((str, Any), {}))
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_strip_iterable_not_simple_output_noop(self):

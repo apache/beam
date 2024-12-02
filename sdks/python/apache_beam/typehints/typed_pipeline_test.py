@@ -874,12 +874,7 @@ class CustomTransformTest(unittest.TestCase):
 class AnnotationsTest(unittest.TestCase):
   def test_pardo_wrapper_builtin_method(self):
     th = beam.ParDo(str.strip).get_type_hints()
-    if sys.version_info < (3, 7):
-      self.assertEqual(th.input_types, ((str, ), {}))
-    else:
-      # Python 3.7+ has annotations for CPython builtins
-      # (_MethodDescriptorType).
-      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.input_types, ((str, typehints.Any), {}))
     self.assertEqual(th.output_types, ((typehints.Any, ), {}))
 
   def test_pardo_wrapper_builtin_type(self):

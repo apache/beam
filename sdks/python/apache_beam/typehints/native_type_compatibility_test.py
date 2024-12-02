@@ -128,105 +128,98 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       self.assertEqual(converted_typing_type, typing_type, description)
 
   def test_convert_to_beam_type_with_builtin_types(self):
-    if sys.version_info >= (3, 9):
-      test_cases = [
-          ('builtin dict', dict[str, int], typehints.Dict[str, int]),
-          ('builtin list', list[str], typehints.List[str]),
-          ('builtin tuple', tuple[str],
-           typehints.Tuple[str]), ('builtin set', set[str], typehints.Set[str]),
-          ('builtin frozenset', frozenset[int], typehints.FrozenSet[int]),
-          (
-              'nested builtin',
-              dict[str, list[tuple[float]]],
-              typehints.Dict[str, typehints.List[typehints.Tuple[float]]]),
-          (
-              'builtin nested tuple',
-              tuple[str, list],
-              typehints.Tuple[str, typehints.List[typehints.Any]],
-          )
-      ]
+    test_cases = [
+        ('builtin dict', dict[str, int], typehints.Dict[str, int]),
+        ('builtin list', list[str], typehints.List[str]),
+        ('builtin tuple', tuple[str],
+         typehints.Tuple[str]), ('builtin set', set[str], typehints.Set[str]),
+        ('builtin frozenset', frozenset[int], typehints.FrozenSet[int]),
+        (
+            'nested builtin',
+            dict[str, list[tuple[float]]],
+            typehints.Dict[str, typehints.List[typehints.Tuple[float]]]),
+        (
+            'builtin nested tuple',
+            tuple[str, list],
+            typehints.Tuple[str, typehints.List[typehints.Any]],
+        )
+    ]
 
-      for test_case in test_cases:
-        description = test_case[0]
-        builtins_type = test_case[1]
-        expected_beam_type = test_case[2]
-        converted_beam_type = convert_to_beam_type(builtins_type)
-        self.assertEqual(converted_beam_type, expected_beam_type, description)
+    for test_case in test_cases:
+      description = test_case[0]
+      builtins_type = test_case[1]
+      expected_beam_type = test_case[2]
+      converted_beam_type = convert_to_beam_type(builtins_type)
+      self.assertEqual(converted_beam_type, expected_beam_type, description)
 
   def test_convert_to_beam_type_with_collections_types(self):
-    if sys.version_info >= (3, 9):
-      test_cases = [
-          (
-              'collection iterable',
-              collections.abc.Iterable[int],
-              typehints.Iterable[int]),
-          (
-              'collection generator',
-              collections.abc.Generator[int],
-              typehints.Generator[int]),
-          (
-              'collection iterator',
-              collections.abc.Iterator[int],
-              typehints.Iterator[int]),
-          (
-              'nested iterable',
-              tuple[bytes, collections.abc.Iterable[int]],
-              typehints.Tuple[bytes, typehints.Iterable[int]]),
-          (
-              'iterable over tuple',
-              collections.abc.Iterable[tuple[str, int]],
-              typehints.Iterable[typehints.Tuple[str, int]]),
-          (
-              'mapping not caught',
-              collections.abc.Mapping[str, int],
-              collections.abc.Mapping[str, int]),
-          ('set', collections.abc.Set[str], typehints.Set[str]),
-          ('mutable set', collections.abc.MutableSet[int], typehints.Set[int]),
-          (
-              'enum set',
-              collections.abc.Set[_TestEnum],
-              typehints.Set[_TestEnum]),
-          (
-              'enum mutable set',
-              collections.abc.MutableSet[_TestEnum],
-              typehints.Set[_TestEnum]),
-          (
-              'collection enum',
-              collections.abc.Collection[_TestEnum],
-              typehints.Collection[_TestEnum]),
-          (
-              'collection of tuples',
-              collections.abc.Collection[tuple[str, int]],
-              typehints.Collection[typehints.Tuple[str, int]]),
-      ]
+    test_cases = [
+        (
+            'collection iterable',
+            collections.abc.Iterable[int],
+            typehints.Iterable[int]),
+        (
+            'collection generator',
+            collections.abc.Generator[int],
+            typehints.Generator[int]),
+        (
+            'collection iterator',
+            collections.abc.Iterator[int],
+            typehints.Iterator[int]),
+        (
+            'nested iterable',
+            tuple[bytes, collections.abc.Iterable[int]],
+            typehints.Tuple[bytes, typehints.Iterable[int]]),
+        (
+            'iterable over tuple',
+            collections.abc.Iterable[tuple[str, int]],
+            typehints.Iterable[typehints.Tuple[str, int]]),
+        (
+            'mapping not caught',
+            collections.abc.Mapping[str, int],
+            collections.abc.Mapping[str, int]),
+        ('set', collections.abc.Set[str], typehints.Set[str]),
+        ('mutable set', collections.abc.MutableSet[int], typehints.Set[int]),
+        ('enum set', collections.abc.Set[_TestEnum], typehints.Set[_TestEnum]),
+        (
+            'enum mutable set',
+            collections.abc.MutableSet[_TestEnum],
+            typehints.Set[_TestEnum]),
+        (
+            'collection enum',
+            collections.abc.Collection[_TestEnum],
+            typehints.Collection[_TestEnum]),
+        (
+            'collection of tuples',
+            collections.abc.Collection[tuple[str, int]],
+            typehints.Collection[typehints.Tuple[str, int]]),
+    ]
 
-      for test_case in test_cases:
-        description = test_case[0]
-        builtins_type = test_case[1]
-        expected_beam_type = test_case[2]
-        converted_beam_type = convert_to_beam_type(builtins_type)
-        self.assertEqual(converted_beam_type, expected_beam_type, description)
+    for test_case in test_cases:
+      description = test_case[0]
+      builtins_type = test_case[1]
+      expected_beam_type = test_case[2]
+      converted_beam_type = convert_to_beam_type(builtins_type)
+      self.assertEqual(converted_beam_type, expected_beam_type, description)
 
   def test_convert_builtin_to_typing(self):
-    if sys.version_info >= (3, 9):
-      test_cases = [
-          ('dict', dict[str, int], typing.Dict[str, int]),
-          ('list', list[str], typing.List[str]),
-          ('tuple', tuple[str], typing.Tuple[str]),
-          ('set', set[str], typing.Set[str]),
-          (
-              'nested',
-              dict[str, list[tuple[float]]],
-              typing.Dict[str, typing.List[typing.Tuple[float]]]),
-      ]
+    test_cases = [
+        ('dict', dict[str, int], typing.Dict[str, int]),
+        ('list', list[str], typing.List[str]),
+        ('tuple', tuple[str], typing.Tuple[str]),
+        ('set', set[str], typing.Set[str]),
+        (
+            'nested',
+            dict[str, list[tuple[float]]],
+            typing.Dict[str, typing.List[typing.Tuple[float]]]),
+    ]
 
-      for test_case in test_cases:
-        description = test_case[0]
-        builtin_type = test_case[1]
-        expected_typing_type = test_case[2]
-        converted_typing_type = convert_builtin_to_typing(builtin_type)
-        self.assertEqual(
-            converted_typing_type, expected_typing_type, description)
+    for test_case in test_cases:
+      description = test_case[0]
+      builtin_type = test_case[1]
+      expected_typing_type = test_case[2]
+      converted_typing_type = convert_builtin_to_typing(builtin_type)
+      self.assertEqual(converted_typing_type, expected_typing_type, description)
 
   def test_generator_converted_to_iterator(self):
     self.assertEqual(
@@ -293,14 +286,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             typing.Tuple[typing.Iterator],
             typehints.Tuple[typehints.Iterator[typehints.TypeVariable('T_co')]]
         ),
+        (
+            'bare generator',
+            typing.Generator,
+            typehints.Generator[typehints.TypeVariable('T_co')]),
     ]
-    if sys.version_info >= (3, 7):
-      test_cases += [
-          (
-              'bare generator',
-              typing.Generator,
-              typehints.Generator[typehints.TypeVariable('T_co')]),
-      ]
     for test_case in test_cases:
       description = test_case[0]
       typing_type = test_case[1]
