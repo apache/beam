@@ -71,6 +71,7 @@ func (d *TentativeData) WriteTimers(transformID, familyID string, timers []byte)
 	}
 	link := TimerKey{Transform: transformID, Family: familyID}
 	d.timers[link] = append(d.timers[link], timers)
+	// slog.Debug("Data() WriteTimers", slog.Any("transformID", transformID), slog.Any("familyID", familyID), slog.Any("Data", timers))
 }
 
 func (d *TentativeData) toWindow(wKey []byte) typex.Window {

@@ -3367,7 +3367,7 @@ public class ParDoTest implements Serializable {
               o.output(state.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(12)));
               o.output(state.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(13)));
               o.output(state.readRange(Instant.ofEpochMilli(13), Instant.ofEpochMilli(53)));
-              o.output(state.readRange(Instant.ofEpochMilli(52), Instant.ofEpochMilli(98)));
+               o.output(state.readRange(Instant.ofEpochMilli(52), Instant.ofEpochMilli(98)));
             }
           };
 
@@ -3385,7 +3385,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
               .apply(ParDo.of(fn));
 
-      List<TimestampedValue<String>> expected1 = Lists.newArrayList();
+     List<TimestampedValue<String>> expected1 = Lists.newArrayList();
 
       List<TimestampedValue<String>> expected2 =
           Lists.newArrayList(TimestampedValue.of("c", Instant.ofEpochMilli(12)));
@@ -3399,7 +3399,7 @@ public class ParDoTest implements Serializable {
           Lists.newArrayList(
               TimestampedValue.of("b", Instant.ofEpochMilli(52)),
               TimestampedValue.of("a", Instant.ofEpochMilli(97)));
-
+ 
       PAssert.that(output).containsInAnyOrder(expected1, expected2, expected3, expected4);
       pipeline.run();
     }
