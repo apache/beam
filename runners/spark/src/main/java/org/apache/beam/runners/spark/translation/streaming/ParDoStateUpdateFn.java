@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
@@ -69,26 +68,9 @@ import scala.runtime.AbstractFunction3;
  * <p>Current Implementation Status:
  *
  * <ul>
- *   <li>State: Fully implemented and supported
- *   <li>Timers: Not yet implemented. Currently uses {@link InMemoryTimerInternals} as a placeholder
- * </ul>
- *
- * <p>The function takes three parameters:
- *
- * <ul>
- *   <li>A serialized key
- *   <li>A serialized value (optional)
- *   <li>The current state
- * </ul>
- *
- * <p>For each input element, it:
- *
- * <ul>
- *   <li>Deserializes the input key and value
- *   <li>Manages state through {@link SparkStateInternals}
- *   <li>Sets up and executes the DoFn with proper context and state management
- *   <li>Handles side inputs and additional outputs
- *   <li>Serializes and returns the processed outputs
+ *   <li>State: Fully implemented and supported through {@link SparkStateInternals}
+ *   <li>Timers: Not supported. While {@link SparkTimerInternals} is present in the code, timer
+ *       functionality is not yet fully implemented and operational
  * </ul>
  *
  * @param <KeyT> The type of the key in the input KV pairs
