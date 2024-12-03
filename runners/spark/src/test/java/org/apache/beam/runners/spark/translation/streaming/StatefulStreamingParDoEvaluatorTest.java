@@ -52,7 +52,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "unused"})
 public class StatefulStreamingParDoEvaluatorTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(streamingOptions());

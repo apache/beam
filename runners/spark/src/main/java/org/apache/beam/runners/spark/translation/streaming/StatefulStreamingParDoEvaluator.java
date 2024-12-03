@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.runners.spark.translation.TranslationUtils.*;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.getBatchDuration;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectTimers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +52,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.spark.streaming.State;
 import org.apache.spark.streaming.StateSpec;
 import org.apache.spark.streaming.api.java.JavaDStream;
