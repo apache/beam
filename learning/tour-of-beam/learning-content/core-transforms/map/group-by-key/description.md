@@ -65,7 +65,7 @@ PCollection<KV<String, Iterable<String>>> reduced = input.apply(GroupByKey.<Stri
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
-While all SDKs have a `GroupByKey` transform, using `GroupB`y is generally more natural. The `GroupBy` transform can be parameterized by the name(s) of properties on which to group the elements of the PCollection, or a function taking the each element as input that maps to a key on which to do grouping.
+While all SDKs have a `GroupByKey` transform, using `GroupBy` is generally more natural. The `GroupBy` transform can be parameterized by the name(s) of properties on which to group the elements of the PCollection, or a function taking the each element as input that maps to a key on which to do grouping.
 
 ```
 input = ...
