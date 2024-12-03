@@ -191,7 +191,6 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               username=self.username,
               password=self.password,
               classpath=classpath,
-              write_batch_size=5,
           ))
 
     # Register MillisInstant logical type to override the mapping from Timestamp
