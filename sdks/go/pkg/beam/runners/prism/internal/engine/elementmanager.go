@@ -1159,7 +1159,7 @@ func (ss *stageState) AddPending(newPending []element) int {
 				}
 				ss.pendingByKeys[string(e.keyBytes)] = dnt
 			}
-			dnt.elements.Push(e)
+			heap.Push(&dnt.elements, e)
 
 			if e.IsTimer() {
 				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {

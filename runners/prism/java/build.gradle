@@ -178,10 +178,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
 
-    // Timer race condition/ordering issue in Prism.
-    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded',
-
-    // Missing output due to timer skew.
+    // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
     // TestStream + BundleFinalization.
@@ -241,10 +238,6 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
        excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
     }
     filter {
-      // Hangs forever with prism. Put here instead of sickbay to allow sickbay runs to terminate.
-      // https://github.com/apache/beam/issues/32222
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate'
-
       for (String test : sickbayTests) {
           excludeTestsMatching test
       }
