@@ -107,7 +107,7 @@ public class SparkTimerInternals implements TimerInternals {
     return timers;
   }
 
-  void addTimers(Iterator<TimerData> timers) {
+  public void addTimers(Iterator<TimerData> timers) {
     while (timers.hasNext()) {
       TimerData timer = timers.next();
       this.timers.add(timer);
@@ -163,7 +163,7 @@ public class SparkTimerInternals implements TimerInternals {
       Instant target,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    throw new UnsupportedOperationException("Setting a timer by ID not yet supported.");
+    this.setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
   @Override

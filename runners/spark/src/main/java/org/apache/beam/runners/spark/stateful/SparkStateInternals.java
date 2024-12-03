@@ -412,7 +412,7 @@ public class SparkStateInternals<K> implements StateInternals {
     @Override
     public ReadableState<MapValueT> computeIfAbsent(
         MapKeyT key, Function<? super MapKeyT, ? extends MapValueT> mappingFunction) {
-      Map<MapKeyT, MapValueT> sparkMapState = readValue();
+      Map<MapKeyT, MapValueT> sparkMapState = readAsMap();
       MapValueT current = sparkMapState.get(key);
       if (current == null) {
         put(key, mappingFunction.apply(key));
@@ -420,9 +420,17 @@ public class SparkStateInternals<K> implements StateInternals {
       return ReadableStates.immediate(current);
     }
 
+    private Map<MapKeyT, MapValueT> readAsMap() {
+      Map<MapKeyT, MapValueT> mapState = readValue();
+      if (mapState == null) {
+        mapState = new HashMap<>();
+      }
+      return mapState;
+    }
+
     @Override
     public void remove(MapKeyT key) {
-      Map<MapKeyT, MapValueT> sparkMapState = readValue();
+      Map<MapKeyT, MapValueT> sparkMapState = readAsMap();
       sparkMapState.remove(key);
       writeValue(sparkMapState);
     }
