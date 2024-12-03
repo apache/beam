@@ -186,21 +186,21 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                         watermarks,
                         sourceIds)));
 
-    final JavaPairDStream<TupleTag<?>, byte[]> testPairDStream =
-        processedPairDStream.flatMapToPair(List::iterator);
-
     all =
-        testPairDStream.mapToPair(
-            (Tuple2<TupleTag<?>, byte[]> e) -> {
-              // deserialize
-              final Coder<?> outputCoder = outputCoders.get(e._1());
-              @SuppressWarnings("nullness")
-              final WindowedValue<?> windowedValue =
-                  CoderHelpers.fromByteArray(
-                      e._2(),
-                      WindowedValue.FullWindowedValueCoder.of(outputCoder, windowFn.windowCoder()));
-              return Tuple2.apply(e._1(), windowedValue);
-            });
+        processedPairDStream.flatMapToPair(
+            (List<Tuple2<TupleTag<?>, byte[]>> list) ->
+                Iterators.transform(
+                    list.iterator(),
+                    (Tuple2<TupleTag<?>, byte[]> tuple) -> {
+                      final Coder<?> outputCoder = outputCoders.get(tuple._1());
+                      @SuppressWarnings("nullness")
+                      final WindowedValue<?> windowedValue =
+                          CoderHelpers.fromByteArray(
+                              tuple._2(),
+                              WindowedValue.FullWindowedValueCoder.of(
+                                  outputCoder, windowFn.windowCoder()));
+                      return Tuple2.apply(tuple._1(), windowedValue);
+                    }));
 
     Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
     if (hasMultipleOutputs(outputs)) {
