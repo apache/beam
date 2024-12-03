@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
@@ -43,6 +44,15 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   GcsUtil getGcsUtil();
 
   void setGcsUtil(GcsUtil value);
+
+  @JsonIgnore
+  @Description(
+      "The GoogleCloudStorageReadOptions instance that should be used to read from Google Cloud Storage.")
+  @Default.InstanceFactory(GcsUtil.GcsReadOptionsFactory.class)
+  @Hidden
+  GoogleCloudStorageReadOptions getGoogleCloudStorageReadOptions();
+
+  void setGoogleCloudStorageReadOptions(GoogleCloudStorageReadOptions value);
 
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an

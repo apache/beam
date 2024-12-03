@@ -15,11 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PostCommit Sickbay Python
+name: PostCommit Java ValidatesDistrolessContainer Dataflow
 
 on:
+  schedule:
+    - cron: '30 6/8 * * *'
   pull_request_target:
-    paths: ['.github/trigger_files/beam_PostCommit_Sickbay_Python.json']
+    paths:
+      - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Dataflow_V2.json'
+      - '.github/trigger_files/beam_PostCommit_Java_ValidatesDistrolessContainer_Dataflow.json'
+      
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -49,57 +55,61 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Sickbay_Python:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
+  beam_PostCommit_Java_ValidatesDistrolessContainer_Dataflow:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 390
     strategy:
-      fail-fast: false
       matrix:
-        job_name: [beam_PostCommit_Sickbay_Python]
-        job_phrase_1: [Run Python]
-        job_phrase_2: [PostCommit Sickbay]
-        python_version: ['3.9', '3.10', '3.11', '3.12']
+        job_name: [beam_PostCommit_Java_ValidatesDistrolessContainer_Dataflow]
+        job_phrase: [Run Java Dataflow ValidatesDistrolessContainer]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      (startswith(github.event.comment.body, 'Run Python') &&
-         endswith(github.event.comment.body, 'PostCommit Sickbay'))
+      github.event.comment.body == 'Run Java Dataflow ValidatesDistrolessContainer'
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: ${{ matrix.python_version }}
-      - name: Set PY_VER_CLEAN
-        id: set_py_ver_clean
+          java-version: |
+            17
+            21
+      - name: Setup docker
         run: |
-          PY_VER=${{ matrix.python_version }}
-          PY_VER_CLEAN=${PY_VER//.}
-          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
-      - name: run PostCommit Python ${{ matrix.python_version }} script
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
+          gcloud auth configure-docker us.gcr.io --quiet
+          gcloud auth configure-docker gcr.io --quiet
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+      - name: run validatesDistrolessContainer script (Java 17)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitSickbay
-          arguments: |
-            -PpythonVersion=${{ matrix.python_version }} \
-      - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
-        if: failure()
+          gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
+          arguments: '-PtestJavaVersion=java17 -PdockerTag=$(date +%s)'
+          max-workers: 12
+      - name: run validatesDistrolessContainer script (Java 21)
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          name: Python Test Results
-          path: '**/pytest*.xml'
-      - name: Publish Python Test Results
+          gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
+          arguments: '-PtestJavaVersion=java21 -PdockerTag=$(date +%s)'
+          max-workers: 12
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
+        with:
+          name: JUnit Test Results
+          path: "**/build/reports/tests/"
+      - name: Publish JUnit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
-          files: '**/pytest*.xml'
+          files: '**/build/test-results/**/*.xml'
