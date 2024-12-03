@@ -67,6 +67,7 @@ func (d *TentativeData) WriteTimers(transformID, familyID string, timers []byte)
 	}
 	link := TimerKey{Transform: transformID, Family: familyID}
 	d.timers[link] = append(d.timers[link], timers)
+	// slog.Debug("Data() WriteTimers", slog.Any("transformID", transformID), slog.Any("familyID", familyID), slog.Any("Data", timers))
 }
 
 func (d *TentativeData) toWindow(wKey []byte) typex.Window {
@@ -282,7 +283,7 @@ func (d *TentativeData) GetOrderedListState(stateID LinkID, wKey, uKey []byte, s
 	data := winMap[w][string(uKey)]
 
 	lo, hi := findRange(data.Bag, start, end)
-	slog.Debug("State() OrderedList.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Group("range", slog.Int64("start", start), slog.Int64("end", end)), slog.Any("Data", data.Bag[lo:hi]))
+	slog.Debug("State() OrderedList.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Group("range", slog.Int64("start", start), slog.Int64("end", end)), slog.Group("outrange", slog.Int("lo", lo), slog.Int("hi", hi)), slog.Any("Data", data.Bag[lo:hi]))
 	return data.Bag[lo:hi]
 }
 

@@ -66,11 +66,11 @@ type stage struct {
 	envID              string
 	finalize           bool
 	stateful           bool
-	onWindowExpiration struct{ Transform, TimerFamily string }
+	onWindowExpiration engine.StaticTimerID
 
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
-	hasTimers            []struct{ Transform, TimerFamily string }
+	hasTimers            []engine.StaticTimerID
 	processingTimeTimers map[string]bool
 
 	exe              transformExecuter
