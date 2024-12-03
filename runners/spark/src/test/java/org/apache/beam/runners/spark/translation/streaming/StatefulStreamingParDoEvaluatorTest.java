@@ -50,14 +50,10 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"unused", "unchecked"})
+@SuppressWarnings("unchecked")
 public class StatefulStreamingParDoEvaluatorTest {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(StatefulStreamingParDoEvaluatorTest.class);
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(streamingOptions());
 
   private PTransform<PBegin, PCollection<KV<Integer, Integer>>> createStreamingSource(
