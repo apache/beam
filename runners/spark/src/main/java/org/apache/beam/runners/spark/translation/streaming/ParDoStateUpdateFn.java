@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -34,12 +33,14 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals;
+import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.stateful.StateAndTimers;
 import org.apache.beam.runners.spark.translation.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.spark.translation.SparkInputDataProcessor;
 import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.CachedSideInputReader;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
@@ -122,6 +123,10 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<String, PCollectionView<?>> sideInputMapping;
+  // for timer
+  private final Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks;
+  private final List<Integer> sourceIds;
+  private final TimerInternals.TimerDataCoderV2 timerDataCoder;
 
   public ParDoStateUpdateFn(
       MetricsContainerStepMapAccumulator metricsAccum,
@@ -137,7 +142,9 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping,
+      Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks,
+      List<Integer> sourceIds) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -152,6 +159,10 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     this.windowingStrategy = windowingStrategy;
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
+    this.watermarks = watermarks;
+    this.sourceIds = sourceIds;
+    this.timerDataCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
   @Override
@@ -162,12 +173,15 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     }
 
     SparkStateInternals<KeyT> stateInternals;
-    TimerInternals timerInternals = new InMemoryTimerInternals();
+    final SparkTimerInternals timerInternals =
+        SparkTimerInternals.forStreamFromSources(sourceIds, watermarks);
     final KeyT key = CoderHelpers.fromByteArray(serializedKey.getValue(), this.keyCoder);
 
     if (state.exists()) {
       final StateAndTimers stateAndTimers = state.get();
       stateInternals = SparkStateInternals.forKeyAndState(key, stateAndTimers.getState());
+      timerInternals.addTimers(
+          SparkTimerInternals.deserializeTimers(stateAndTimers.getTimers(), timerDataCoder));
     } else {
       stateInternals = SparkStateInternals.forKey(key);
     }
@@ -232,7 +246,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
 
     SparkProcessContext<KeyT, InputT, OutputT> ctx =
         new SparkProcessContext<>(
-            stepName, doFn, doFnRunnerWithMetrics, key, Collections.emptyIterator());
+            stepName, doFn, doFnRunnerWithMetrics, key, timerInternals.getTimers().iterator());
 
     final Iterator<WindowedValue<KV<KeyT, ValueT>>> iterator =
         Lists.newArrayList(keyedWindowedValue).iterator();
@@ -240,10 +254,15 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     final Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> outputIterator =
         processor.createOutputIterator((Iterator) iterator, ctx);
 
+    state.update(
+        StateAndTimers.of(
+            stateInternals.getState(),
+            SparkTimerInternals.serializeTimers(timerInternals.getTimers(), timerDataCoder)));
+
     final List<Tuple2<TupleTag<?>, WindowedValue<?>>> resultList =
         Lists.newArrayList(outputIterator);
 
-    final List<Tuple2<TupleTag<?>, byte[]>> serliizedResultList =
+    return (List<Tuple2<TupleTag<?>, byte[]>>)
         (List)
             resultList.stream()
                 .map(
@@ -261,9 +280,5 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
                           CoderHelpers.toByteArray((WindowedValue) e._2(), outputWindowCoder));
                     })
                 .collect(Collectors.toList());
-
-    state.update(StateAndTimers.of(stateInternals.getState(), Collections.emptyList()));
-
-    return serliizedResultList;
   }
 }

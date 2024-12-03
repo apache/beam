@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectTimers;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.*;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -30,11 +32,11 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.stateful.StateAndTimers;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
-import org.apache.beam.runners.spark.translation.ReifyTimestampsAndWindowsFunction;
 import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.ByteArray;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -131,13 +133,33 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
         TranslationUtils.getSideInputs(
             transform.getSideInputs().values(), context.getSparkContext(), pviews);
 
+    // Original code used multiple map operations (.map -> .mapToPair -> .mapToPair)
+    // which created intermediate RDDs for each transformation.
+    // Changed to use mapPartitionsToPair to:
+    // 1. Reduce the number of RDD creations by combining multiple operations
+    // 2. Process data in batches (partitions) rather than element by element
+    // 3. Improve performance by reducing serialization/deserialization overhead
+    // 4. Minimize the number of function objects created during execution
     final JavaPairDStream<
             /*Serialized KeyT*/ ByteArray, /*Serialized WindowedValue<ValueT>*/ byte[]>
         serializedDStream =
-            dStream
-                .map(new ReifyTimestampsAndWindowsFunction<>())
-                .mapToPair(TranslationUtils.toPairFunction())
-                .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+            dStream.mapPartitionsToPair(
+                (Iterator<WindowedValue<KV<KeyT, ValueT>>> iter) ->
+                    Iterators.transform(
+                        iter,
+                        (WindowedValue<KV<KeyT, ValueT>> windowedKV) -> {
+                          final KeyT key = windowedKV.getValue().getKey();
+                          final WindowedValue<ValueT> windowedValue =
+                              windowedKV.withValue(windowedKV.getValue().getValue());
+                          final ByteArray keyBytes =
+                              new ByteArray(CoderHelpers.toByteArray(key, keyCoder));
+                          final byte[] valueBytes =
+                              CoderHelpers.toByteArray(windowedValue, wvCoder);
+                          return Tuple2.apply(keyBytes, valueBytes);
+                        }));
+
+    final Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks =
+        GlobalWatermarkHolder.get(getBatchDuration(options));
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     final JavaMapWithStateDStream<
@@ -159,7 +181,9 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                         sideInputs,
                         windowingStrategy,
                         doFnSchemaInformation,
-                        sideInputMapping)));
+                        sideInputMapping,
+                        watermarks,
+                        sourceIds)));
 
     final JavaPairDStream<TupleTag<?>, byte[]> testPairDStream =
         processedPairDStream.flatMapToPair(List::iterator);
