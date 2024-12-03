@@ -32,9 +32,10 @@ See the &lt;a href="/get-started/downloads/#2610-2024-11-25">download page&lt;/a
 &lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
 &lt;ul>
 &lt;li>Added support for read with metadata in MqttIO (Java) (&lt;a href="https://github.com/apache/beam/issues/32195">#32195&lt;/a>)&lt;/li>
-&lt;li>Added support for processing events which use a global sequence to &amp;ldquo;ordered&amp;rdquo; extension (Java) &lt;a href="https://github.com/apache/beam/pull/32540">#32540&lt;/a>&lt;/li>
+&lt;li>Added support for processing events which use a global sequence to &amp;ldquo;ordered&amp;rdquo; extension (Java) (&lt;a href="https://github.com/apache/beam/pull/32540">#32540&lt;/a>)&lt;/li>
 &lt;li>Add new meta-transform FlattenWith and Tee that allow one to introduce branching
 without breaking the linear/chaining style of pipeline construction.&lt;/li>
+&lt;li>Use Prism as a fallback to the Python Portable runner when running a pipeline with the Python Direct runner (&lt;a href="https://github.com/apache/beam/pull/32876">#32876&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="deprecations">Deprecations&lt;/h2>
 &lt;ul>
