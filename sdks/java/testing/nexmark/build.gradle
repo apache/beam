@@ -119,11 +119,7 @@ def getNexmarkArgs = {
       }
     } else {
       def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-      // Provide job with a customizable worker jar.
-      // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
-      // More context and discussions can be found in PR#6694.
       nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
-      nexmarkArgsList.add('--workerHarnessContainerImage=')
 
       def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
       if (nexmarkProfile.equals("true")) {

@@ -124,7 +124,6 @@ categories:
     - "PostCommit Java PVR Samza"
     - "PreCommit Java Tika IO Direct"
     - "PostCommit Java SingleStoreIO IT"
-    - "PostCommit Java Sickbay"
     - "PostCommit Java ValidatesRunner Direct"
     - "PreCommit Java SingleStore IO Direct"
     - "PreCommit Java InfluxDb IO Direct"
@@ -227,7 +226,6 @@ categories:
     - "PreCommit Python Transforms" 
     - "Build python source distribution and wheels" 
     - "Python tests" 
-    - "PostCommit Sickbay Python" 
     - "PreCommit Portable Python" 
     - "PreCommit Python Coverage" 
     - "PreCommit Python Docker" 
@@ -317,7 +315,6 @@ categories:
     - "PostCommit PortableJar Spark" 
     - "PreCommit Integration and Load Test Framework" 
     - "pr-bot-update-reviewers" 
-    - "Cut Release Branch" 
     - "Generate issue report" 
     - "Dask Runner Tests" 
     - "PreCommit Typescript" 
@@ -328,6 +325,12 @@ categories:
     - "Assign Milestone on issue close" 
     - "Local environment tests" 
     - "PreCommit SQL" 
-    - "LabelPrs" 
+    - "LabelPrs"
+  - name: safe_to_ignore
+    groupThreshold: 0
+    tests:
     - "build_release_candidate" 
+    - "Cut Release Branch" 
+    - "PostCommit Java Sickbay"
+    - "PostCommit Sickbay Python" 
 

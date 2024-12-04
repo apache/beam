@@ -68,6 +68,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("disableAutoCommit", FieldType.BOOLEAN)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .addNullableField("autosharding", FieldType.BOOLEAN)
+        .addNullableField("writeBatchSize", FieldType.INT64)
         // Partitioning support. If you specify a partition column we will use that instead of
         // readQuery
         .addNullableField("partitionColumn", FieldType.STRING)
@@ -193,6 +194,10 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
           @Nullable Boolean autosharding = config.getBoolean("autosharding");
           if (autosharding != null && autosharding) {
             writeRows = writeRows.withAutoSharding();
+          }
+          @Nullable Long writeBatchSize = config.getInt64("writeBatchSize");
+          if (writeBatchSize != null) {
+            writeRows = writeRows.withBatchSize(writeBatchSize);
           }
           return input.apply(writeRows);
         }
