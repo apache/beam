@@ -251,7 +251,7 @@ def main():
         if options.markdown_file or options.html_file:
           if '-' in transforms[0]:
             extra_docs = 'Supported languages: ' + ', '.join(
-                t.split('-')[-1] for t in sorted(transforms))
+                t.split('-')[-1] for t in sorted(transforms)) + '.'
           else:
             extra_docs = ''
           markdown_out.write(
