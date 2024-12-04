@@ -53,6 +53,7 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
+    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     implementation library.java.hadoop_common
 
     testImplementation project(":sdks:java:managed")
