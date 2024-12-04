@@ -106,6 +106,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating',
     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
     'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
 
     // GroupIntoBatchesTest tests that fail:
     // Teststream has bad KV encodings due to using an outer context.
@@ -178,13 +179,6 @@ def sickbayTests = [
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
-    // Requires Time Sorted Input 
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInput',
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream',
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
-
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
@@ -198,6 +192,10 @@ def sickbayTests = [
 
     // sharded_key coder isn't implemented in Prism.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+
+    // SDK dies, terminating the job, but due to a bug in how onWindowExpiry is implemented in prism.
+    // excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow'
+    // excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
 
     // Filtered by PortableRunner tests.
     // Teardown not called in exceptions
@@ -246,9 +244,6 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
     }
     filter {
-      // Hangs, but due to a bug in how onWindowExpiry is implemented in prism.
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
       for (String test : sickbayTests) {
           excludeTestsMatching test
       }
