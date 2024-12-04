@@ -1159,7 +1159,7 @@ func (ss *stageState) AddPending(newPending []element) int {
 				}
 				ss.pendingByKeys[string(e.keyBytes)] = dnt
 			}
-			dnt.elements.Push(e)
+			heap.Push(&dnt.elements, e)
 
 			if e.IsTimer() {
 				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
@@ -1576,6 +1576,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		// They'll never be read in again.
 		for _, wins := range ss.sideInputs {
 			for win := range wins {
+				// TODO(#https://github.com/apache/beam/issues/31438):
+				// Adjust with AllowedLateness
 				// Clear out anything we've already used.
 				if win.MaxTimestamp() < newOut {
 					delete(wins, win)
@@ -1584,7 +1586,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		}
 		for _, wins := range ss.state {
 			for win := range wins {
-				// Clear out anything we've already used.
+				// TODO(#https://github.com/apache/beam/issues/31438):
+				// Adjust with AllowedLateness
 				if win.MaxTimestamp() < newOut {
 					delete(wins, win)
 				}
