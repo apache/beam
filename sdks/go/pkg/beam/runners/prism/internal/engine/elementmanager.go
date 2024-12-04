@@ -1576,16 +1576,19 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		// They'll never be read in again.
 		for _, wins := range ss.sideInputs {
 			for win := range wins {
+				// TODO(#https://github.com/apache/beam/issues/31438):
+				// Adjust with AllowedLateness
 				// Clear out anything we've already used.
-				if win.MaxTimestamp() < newOut {
+				if win.MaxTimestamp()+1 < newOut {
 					delete(wins, win)
 				}
 			}
 		}
 		for _, wins := range ss.state {
 			for win := range wins {
-				// Clear out anything we've already used.
-				if win.MaxTimestamp() < newOut {
+				// TODO(#https://github.com/apache/beam/issues/31438):
+				// Adjust with AllowedLateness
+				if win.MaxTimestamp()+1 < newOut {
 					delete(wins, win)
 				}
 			}
