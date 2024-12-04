@@ -500,7 +500,8 @@ providers:
        jar: /path/or/url/to/myExpansionService.jar
     transforms:
        MyCustomTransform: &#34;urn:registered:in:expansion:service&#34;
-</code></pre><p>Arbitrary Python transforms can be provided as well, using the syntax</p><pre tabindex=0><code>providers:
+</code></pre><p>A full example of how to build a java provider can be found
+<a href=https://github.com/Polber/beam-yaml-xlang>here</a>.</p><p>Arbitrary Python transforms can be provided as well, using the syntax</p><pre tabindex=0><code>providers:
   - type: pythonPackage
     config:
        packages:
