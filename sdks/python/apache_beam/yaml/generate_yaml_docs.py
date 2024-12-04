@@ -189,11 +189,8 @@ def io_grouping_key(transform_name):
     return 0, transform_name
 
 
-# Deprecated providers
-SKIP = {
-    'ReadFromPubSubLite',
-    'WriteToPubSubLite',
-}
+# Exclude providers
+SKIP = {}
 
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
