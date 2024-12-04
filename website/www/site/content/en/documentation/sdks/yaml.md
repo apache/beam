@@ -678,6 +678,19 @@ providers:
        MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
 ```
 
+One can additionally reference an external listings of providers as follows
+
+```
+providers:
+  - include: "file:///path/to/local/providers.yaml"
+  - include: "gs://path/to/remote/providers.yaml"
+  - include: "https://example.com/hosted/providers.yaml"
+  ...
+```
+
+where `providers.yaml` is simply a yaml file containing a list of providers
+in the same format as those inlined in this providers block.
+
 ## Pipeline options
 
 [Pipeline options](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options)
