@@ -570,7 +570,7 @@ class StringSetData(object):
   def get_cumulative(self) -> "StringSetData":
     return StringSetData(set(self.string_set), self.string_size)
 
-  def get_result(self) -> set[str]:
+  def get_result(self) -> Set[str]:
     return set(self.string_set)
 
   def add(self, *strings):
