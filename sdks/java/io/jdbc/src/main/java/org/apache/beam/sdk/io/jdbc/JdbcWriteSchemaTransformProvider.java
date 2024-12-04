@@ -337,7 +337,7 @@ public class JdbcWriteSchemaTransformProvider
     public abstract String getWriteStatement();
 
     public void validate() {
-      validate("JDBC");
+      validate("");
     }
 
     public void validate(String jdbcType) throws IllegalArgumentException {
@@ -360,7 +360,8 @@ public class JdbcWriteSchemaTransformProvider
       }
       if (jdbcTypePresent
           && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
-        throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
+        throw new IllegalArgumentException(
+            "JDBC type must be one of " + JDBC_DRIVER_MAP.keySet() + " but was " + jdbcType);
       }
 
       boolean writeStatementPresent =
