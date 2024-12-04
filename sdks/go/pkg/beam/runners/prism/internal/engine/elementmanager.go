@@ -866,7 +866,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// watermark advancement.
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
-	slog.Warn("PersistBundle-cleanup", slog.String("bundle", rb.BundleID))
+	slog.Warn("PersistBundle-cleanup", slog.String("bundle", rb.BundleID), slog.String("stage", rb.StageID))
 	em.addPending(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
 	for k := range stage.inprogressKeysByBundle[rb.BundleID] {
@@ -928,7 +928,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			}
 		}
 	}
-	slog.Warn("PersistBundle-cleanup finished", slog.String("bundle", rb.BundleID))
+	slog.Warn("PersistBundle-cleanup finished", slog.String("bundle", rb.BundleID), slog.String("stage", rb.StageID))
 	stage.mu.Unlock()
 
 	em.markChangedAndClearBundle(stage.ID, rb.BundleID, ptRefreshes)
@@ -1205,6 +1205,18 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	// TODO(#https://github.com/apache/beam/issues/31438):
+	// Adjust with AllowedLateness
+	// Data that arrives after the *output* watermark is late.
+	threshold := ss.output
+	origPending := make([]element, 0, ss.pending.Len())
+	for _, e := range newPending {
+		if e.timestamp < threshold {
+			continue
+		}
+		origPending = append(origPending, e)
+	}
+	newPending = origPending
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
