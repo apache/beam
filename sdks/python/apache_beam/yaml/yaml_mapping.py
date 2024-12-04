@@ -672,9 +672,9 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 def _PyJsMapToFields(
     pcoll,
     fields: Mapping[str, Union[str, Mapping[str, str]]],
-    append: bool = False,
-    drop: Iterable[str] = (),
-    language: str = 'generic'):
+    append: Optional[bool] = False,
+    drop: Optional[Iterable[str]] = None,
+    language: Optional[str] = None):
   """Creates records with new fields defined in terms of the input fields.
 
   See more complete documentation on
@@ -683,18 +683,18 @@ def _PyJsMapToFields(
   Args:
     fields: The output fields to compute, each mapping to the expression or
       callable that creates them.
-    append: (Optional) Whether to append the created fields to the set of
+    append: Whether to append the created fields to the set of
       fields already present, outputting a union of both the new fields and
       the original fields for each record.  Defaults to False.
-    drop: (Optional) If `append` is true, enumerates a subset of fields from the
+    drop: If `append` is true, enumerates a subset of fields from the
       original record that should not be kept
-    language: (Optional) The language used to define (and execute) the
+    language: The language used to define (and execute) the
       expressions and/or callables in `fields`. Defaults to generic.
-    error_handling: (Optional) Whether and where to output records that throw errors when
+    error_handling: Whether and where to output records that throw errors when
       the above expressions are evaluated.
   """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
-      pcoll, fields, drop, append, language=language)
+      pcoll, fields, drop or (), append, language=language or 'generic')
   if language == 'javascript':
     options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
 
