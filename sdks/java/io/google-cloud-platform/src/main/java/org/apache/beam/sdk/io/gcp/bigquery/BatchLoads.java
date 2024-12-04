@@ -485,7 +485,7 @@ class BatchLoads<DestinationT, ElementT>
     // loading.
     PCollectionTuple partitions =
         results
-            .apply("ReifyResults", new ReifyAsIterable<>())
+            .apply("ReifyResults", new CombineAsIterable<>())
             .setCoder(IterableCoder.of(WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
             .apply(
                 "WritePartitionUntriggered",
