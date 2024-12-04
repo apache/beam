@@ -1579,7 +1579,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 				// TODO(#https://github.com/apache/beam/issues/31438):
 				// Adjust with AllowedLateness
 				// Clear out anything we've already used.
-				if win.MaxTimestamp()+1 < newOut {
+				if win.MaxTimestamp() < newOut {
 					delete(wins, win)
 				}
 			}
@@ -1588,7 +1588,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 			for win := range wins {
 				// TODO(#https://github.com/apache/beam/issues/31438):
 				// Adjust with AllowedLateness
-				if win.MaxTimestamp()+1 < newOut {
+				if win.MaxTimestamp() < newOut {
 					delete(wins, win)
 				}
 			}

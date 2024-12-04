@@ -776,7 +776,8 @@ class FnApiRunnerTest(unittest.TestCase):
           state.clear()
           yield buffer
         else:
-          timer.set(ts + 1)
+          # Set the timer to fire within it's window.
+          timer.set(ts + (1 - timestamp.Duration(micros=1000)))
 
       @userstate.on_timer(timer_spec)
       def process_timer(self, state=beam.DoFn.StateParam(state_spec)):
