@@ -203,12 +203,12 @@ def add_transform_links(transform, description, provider_list):
   would be converted to
     "Some description talking about <a href="#mytransform">MyTransform</a>"
 
-  meanwhile,
-  ```
-    - type: MyTransform
-      config:
-        ...
-  ```
+  meanwhile::
+
+    type: MyTransform
+    config:
+      ...
+
   Would remain unchanged.
 
   Avoid self-linking within a Transform page.
