@@ -62,9 +62,12 @@ def _validate_equalities(equalities, pcolls):
   error_prefix = f'Invalid value "{equalities}" for "equalities".'
 
   valid_cols = {
-      name: set(dict(pcoll.element_type._fields).keys())
+      name: set(
+          dict(fields).keys() if fields and all(
+              isinstance(field, tuple) for field in fields) else fields)
       for name,
       pcoll in pcolls.items()
+      for fields in [getattr(pcoll.element_type, '_fields', [])]
   }
 
   if isinstance(equalities, str):
