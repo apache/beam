@@ -119,8 +119,11 @@ JdbcConfigSchema = typing.NamedTuple(
 
 Config = typing.NamedTuple(
     'Config',
-    [('driver_class_name', str), ('jdbc_url', str), ('username', str),
-     ('password', str), ('connection_properties', typing.Optional[str]),
+    [('driver_class_name', str),
+     ('jdbc_url', str),
+     ('username', str),
+     ('password', str),
+     ('connection_properties', typing.Optional[str]),
      ('connection_init_sqls', typing.Optional[typing.List[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
@@ -128,11 +131,11 @@ Config = typing.NamedTuple(
      ('disable_autocommit', typing.Optional[bool]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
-     ('write_batch_size', typing.Optional[np.int64]),
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
      ('max_connections', typing.Optional[np.int16]),
-     ('driver_jars', typing.Optional[str])],
+     ('driver_jars', typing.Optional[str]),
+     ('write_batch_size', typing.Optional[np.int64])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
