@@ -41,7 +41,7 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
   @VisibleForTesting
   TableIdentifier getTableIdentifier() {
     if (tableId == null) {
-      tableId = TableIdentifier.parse(checkStateNotNull(tableIdString));
+      tableId = IcebergUtils.parseTableIdentifier(checkStateNotNull(tableIdString));
     }
     return tableId;
   }
@@ -86,6 +86,6 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
   @Override
   public void readExternal(ObjectInput in) throws IOException {
     tableIdString = in.readUTF();
-    tableId = TableIdentifier.parse(tableIdString);
+    tableId = IcebergUtils.parseTableIdentifier(tableIdString);
   }
 }
