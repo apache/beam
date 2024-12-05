@@ -44,7 +44,6 @@ class DataflowCostBenchmark(LoadTest):
   calculate the cost of the job later, as different accelerators have different
   billing rates per hour of use.
   """
-
   def __init__(
       self,
       metrics_namespace: Optional[str] = None,

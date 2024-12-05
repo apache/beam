@@ -33,7 +33,6 @@ from apache_beam.runners.runner import PipelineResult
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
-
   def process(self, element):
     """Returns an iterator over the words of this element.
 
