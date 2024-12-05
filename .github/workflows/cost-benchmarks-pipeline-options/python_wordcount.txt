@@ -19,6 +19,7 @@
 --num_workers=1
 --disk_size_gb=50
 --autoscaling_algorithm=NONE
+--input_options={}
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
 --publish_to_big_query=true

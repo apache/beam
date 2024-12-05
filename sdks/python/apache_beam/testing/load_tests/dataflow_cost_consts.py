@@ -17,6 +17,8 @@
 # These values are Dataflow costs for running jobs in us-central1.
 # The cost values are found at https://cloud.google.com/dataflow/pricing
 
+from enum import Enum
+
 VCPU_PER_HR_BATCH = 0.056
 VCPU_PER_HR_STREAMING = 0.069
 MEM_PER_GB_HR_BATCH = 0.003557
@@ -34,3 +36,24 @@ P4_PER_GPU_PER_HOUR = 0.72
 L4_PER_GPU_PER_HOUR = 0.672
 A100_40GB_PER_GPU_PER_HOUR = 3.72
 A100_80GB_PER_GPU_PER_HOUR = 4.7137
+
+
+class Accelerator(Enum):
+  P100 = 1
+  V100 = 2
+  T4 = 3
+  P4 = 4
+  L4 = 5
+  A100_40GB = 6
+  A100_80GB = 7
+
+
+ACCELERATOR_TO_COST: dict[Accelerator, float] = {
+    Accelerator.P100: P100_PER_GPU_PER_HOUR,
+    Accelerator.V100: V100_PER_GPU_PER_HOUR,
+    Accelerator.T4: T4_PER_GPU_PER_HOUR,
+    Accelerator.P4: P4_PER_GPU_PER_HOUR,
+    Accelerator.L4: L4_PER_GPU_PER_HOUR,
+    Accelerator.A100_40GB: A100_40GB_PER_GPU_PER_HOUR,
+    Accelerator.A100_80GB: A100_80GB_PER_GPU_PER_HOUR,
+}

@@ -14,21 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
 
 import logging
 
-from apache_beam.examples import wordcount
+from apache_beam.examples import wordcount_with_return
 from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostBenchmark
 
-class WordcountCostBenchmark(DataflowCostBenchmark):
-    def __init__(self):
-        super().__init__()
 
-    def test(self):
-        extra_opts = {}
-        extra_opts['output'] = self.pipeline.get_option('output_file')
-        self.result = wordcount.run(self.pipeline.get_full_options_as_args(**extra_opts))
+class WordcountCostBenchmark(DataflowCostBenchmark):
+
+  def __init__(self):
+    super().__init__()
+
+  def test(self):
+    extra_opts = {}
+    extra_opts['output'] = self.pipeline.get_option('output_file')
+    self.result = wordcount_with_return.run(
+        self.pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    WordcountCostBenchmark().test()
+  logging.basicConfig(level=logging.INFO)
+  WordcountCostBenchmark().run()
