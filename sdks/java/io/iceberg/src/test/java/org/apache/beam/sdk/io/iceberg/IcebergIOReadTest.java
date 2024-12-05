@@ -21,7 +21,11 @@ import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.RowCoder;
