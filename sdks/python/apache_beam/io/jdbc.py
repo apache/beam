@@ -128,11 +128,11 @@ Config = typing.NamedTuple(
      ('disable_autocommit', typing.Optional[bool]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
+     ('write_batch_size', typing.Optional[np.int64]),
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
      ('max_connections', typing.Optional[np.int16]),
-     ('driver_jars', typing.Optional[str]),
-     ('write_batch_size', typing.Optional[np.int64])],
+     ('driver_jars', typing.Optional[str])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
