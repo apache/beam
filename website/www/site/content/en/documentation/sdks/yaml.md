@@ -708,6 +708,49 @@ options:
   streaming: true
 ```
 
+## Jinja Templatization
+
+It is a common to want to run a single Beam pipeline in different contexts
+and/or with different configurations.
+When running a YAML pipeline either locally or via the gcloud,
+the yaml file can be parameterized with externally provided variables using
+the [jinja variable syntax](https://jinja.palletsprojects.com/en/stable/templates/#variables).
+The values are then passed via a `--jinja_variables` command line flag.
+
+For example, one could start a pipeline with
+
+```
+pipeline:
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: {{input_pattern}}
+```
+
+and then run it with
+
+```sh
+python -m apache_beam.yaml.main \
+    --yaml_pipeline_file=pipeline.yaml \
+    --jinja_variables='{"input_pattern": "gs://path/to/this/runs/files*.csv"}'
+```
+
+Arbitrary [jinja control structures](https://jinja.palletsprojects.com/en/stable/templates/#list-of-control-structures),
+such as looping and conditionals, can be used as well if desired as long as the
+output results in a valid Beam YAML pipeline.
+
+We also expose the [`datetime`](https://docs.python.org/3/library/datetime.html)
+module as a variable by default, which can be particularly useful in reading
+or writing dated sources and sinks, e.g.
+
+```
+- type: WriteToJson
+  config:
+    path: "gs://path/to/{{ datetime.datetime.now().strftime('%Y/%m/%d') }}/dated-output.json"
+```
+
+would write to files like `gs://path/to/2016/08/04/dated-output*.json`.
+
 ## Other Resources
 
 * [Example pipeline](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples)
