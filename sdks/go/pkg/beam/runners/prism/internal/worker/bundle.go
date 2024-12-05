@@ -126,13 +126,25 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	slog.Debug("processing", "bundle", b, "worker", wk)
 
 	// Tell the SDK to start processing the bundle.
-	wk.InstReqs <- &fnpb.InstructionRequest{
+	req := &fnpb.InstructionRequest{
 		InstructionId: b.InstID,
 		Request: &fnpb.InstructionRequest_ProcessBundle{
 			ProcessBundle: &fnpb.ProcessBundleRequest{
 				ProcessBundleDescriptorId: b.PBDID,
 			},
 		},
+	}
+	select {
+	case <-wk.StoppedChan:
+		// The worker was stopped before req was sent.
+		// Quit to avoid sending on a closed channel.
+		outCap := b.OutputCount + len(b.HasTimers)
+		for i := 0; i < outCap; i++ {
+			b.DataOrTimerDone()
+		}
+		return b.DataWait
+	case wk.InstReqs <- req:
+		// desired outcome
 	}
 
 	// TODO: make batching decisions on the maxium to send per elements block, to reduce processing time overhead.
@@ -163,10 +175,13 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		}
 
 		select {
-		case wk.DataReqs <- elms:
+		case <-wk.StoppedChan:
+			b.DataOrTimerDone()
+			return b.DataWait
 		case <-ctx.Done():
 			b.DataOrTimerDone()
 			return b.DataWait
+		case wk.DataReqs <- elms:
 		}
 	}
 
@@ -181,6 +196,12 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		})
 	}
 	select {
+	case <-wk.StoppedChan:
+		b.DataOrTimerDone()
+		return b.DataWait
+	case <-ctx.Done():
+		b.DataOrTimerDone()
+		return b.DataWait
 	case wk.DataReqs <- &fnpb.Elements{
 		Timers: timers,
 		Data: []*fnpb.Elements_Data{
@@ -191,9 +212,6 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 			},
 		},
 	}:
-	case <-ctx.Done():
-		b.DataOrTimerDone()
-		return b.DataWait
 	}
 
 	return b.DataWait
