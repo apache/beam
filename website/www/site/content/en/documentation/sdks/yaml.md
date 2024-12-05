@@ -712,7 +712,7 @@ options:
 
 It is a common to want to run a single Beam pipeline in different contexts
 and/or with different configurations.
-When running a YAML pipeline either locally or via the gcloud,
+When running a YAML pipeline using `apache_beam.yaml.main` or via gcloud,
 the yaml file can be parameterized with externally provided variables using
 the [jinja variable syntax](https://jinja.palletsprojects.com/en/stable/templates/#variables).
 The values are then passed via a `--jinja_variables` command line flag.
