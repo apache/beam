@@ -211,7 +211,8 @@ func launchSDKProcess() error {
 		}
 	}
 
-	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles); setupErr != nil {
+	bufLogger := tools.NewBufferedLogger(logger)
+	if setupErr := installSetupPackages(ctx, bufLogger, fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
 		logger.Errorf(ctx, fmtErr.Error())
@@ -382,8 +383,8 @@ func setupAcceptableWheelSpecs() error {
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
-	bufLogger := tools.NewBufferedLogger(logger)
+func installSetupPackages(ctx context.Context, bufLogger *tools.BufferedLogger, files []string, workDir string, requirementsFiles []string) error {
+	logger := bufLogger.GetLogger()
 	bufLogger.Printf(ctx, "Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
