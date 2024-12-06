@@ -1006,17 +1006,12 @@ class TestFlatMapTuple(unittest.TestCase):
     def identity(x: Tuple[str, int]) -> Tuple[str, int]:
       return x
 
-    def inner(k, vs):
-      return [(k, v) for v in vs]
-
-    wrapper = lambda x: inner(*x)
     with beam.Pipeline() as p:
       with beam.Pipeline() as p:
         (
             p
             | "Generate input" >> beam.Create([('P1', [2])])
-            #| "Flat" >> beam.FlatMapTuple(inner)
-            | "Flat" >> beam.FlatMap(wrapper)
+            | "Flat" >> beam.FlatMapTuple(lambda k, vs: [(k, v) for v in vs])
             | "Identity" >> beam.Map(identity))
 
 
