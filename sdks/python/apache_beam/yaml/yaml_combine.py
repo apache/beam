@@ -96,7 +96,7 @@ class PyJsYamlCombine(beam.PTransform):
   [YAML Aggregation](https://beam.apache.org/documentation/sdks/yaml-combine/).
 
   Args:
-    group_by: The field to aggregate on.
+    group_by: The field(s) to aggregate on.
     combine: The aggregation function to use.
     language: The language used to define (and execute) the
       custom callables in `combine`. Defaults to generic.
