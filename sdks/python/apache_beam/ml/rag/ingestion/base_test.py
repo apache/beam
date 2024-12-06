@@ -25,14 +25,12 @@ from apache_beam.ml.rag.ingestion.base import (
 
 class MockWriteTransform(beam.PTransform):
   """Mock transform that returns element."""
-
   def expand(self, pcoll):
     return pcoll | beam.Map(lambda x: x)
 
 
 class MockDatabaseConfig(VectorDatabaseConfig):
   """Mock database config for testing."""
-
   def __init__(self):
     self.write_transform = MockWriteTransform()
 
@@ -41,7 +39,6 @@ class MockDatabaseConfig(VectorDatabaseConfig):
 
 
 class VectorDatabaseBaseTest(unittest.TestCase):
-
   def test_write_transform_creation(self):
     """Test that write transform is created correctly."""
     config = MockDatabaseConfig()

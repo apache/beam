@@ -19,17 +19,21 @@
 import unittest
 
 import apache_beam as beam
+
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.ml.rag.types import Chunk
 
-from langchain.text_splitter import (
-    RecursiveCharacterTextSplitter,
-    CharacterTextSplitter,
-)
-
-from apache_beam.ml.rag.chunking.langchain import LangChainChunkingProvider
-from apache_beam.ml.rag.types import Chunk, Content
+try:
+  from apache_beam.ml.rag.chunking.langchain import LangChainChunkingProvider
+  from langchain.text_splitter import (
+      RecursiveCharacterTextSplitter,
+      CharacterTextSplitter,
+  )
+  LANGCHAIN_AVAILABLE = True
+except ImportError:
+  LANGCHAIN_AVAILABLE = False
 
 # Import optional dependencies
 try:
@@ -49,7 +53,6 @@ def chunk_equals(expected, actual):
 
 
 class LangChainChunkingTest(unittest.TestCase):
-
   def setUp(self):
     self.simple_text = {
         'content': 'This is a simple test document. It has multiple sentences. '
@@ -72,7 +75,7 @@ class LangChainChunkingTest(unittest.TestCase):
     """Test chunking with no metadata fields specified."""
     splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=20)
     provider = LangChainChunkingProvider(
-        document_field='content', text_splitter=splitter)
+        document_field='content', metadata_fields=[], text_splitter=splitter)
 
     with TestPipeline() as p:
       chunks = (
@@ -102,7 +105,8 @@ class LangChainChunkingTest(unittest.TestCase):
 
       assert_that(chunks_count, lambda x: x[0] > 0, 'Has chunks')
       assert_that(
-          chunks, lambda x: all(
+          chunks,
+          lambda x: all(
               c.metadata == {
                   'source': 'simple.txt', 'language': 'en'
               } for c in x))

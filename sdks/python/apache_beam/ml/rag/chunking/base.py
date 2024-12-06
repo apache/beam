@@ -18,7 +18,7 @@
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransformProvider
 from apache_beam.ml.rag.types import Chunk
-from typing import List, Optional
+from typing import Optional
 from collections.abc import Callable
 import abc
 import uuid
@@ -37,7 +37,6 @@ def assign_chunk_id(chunk_id_fn: ChunkIdFn, chunk: Chunk):
 
 
 class ChunkingTransformProvider(MLTransformProvider):
-
   def __init__(self, chunk_id_fn: Optional[ChunkIdFn] = None):
     self.assign_chunk_id_fn = functools.partial(
         assign_chunk_id,

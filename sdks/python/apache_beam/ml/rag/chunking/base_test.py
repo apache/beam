@@ -25,11 +25,10 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.ml.rag.chunking.base import ChunkingTransformProvider, ChunkIdFn
 from apache_beam.ml.rag.types import Chunk, Content
-from typing import List, Optional
+from typing import Optional
 
 
 class WordSplitter(beam.DoFn):
-
   def process(self, element):
     words = element['text'].split()
     for i, word in enumerate(words):
@@ -40,7 +39,6 @@ class WordSplitter(beam.DoFn):
 
 
 class MockChunkingProvider(ChunkingTransformProvider):
-
   def __init__(self, chunk_id_fn: Optional[ChunkIdFn] = None):
     super().__init__(chunk_id_fn=chunk_id_fn)
 
@@ -67,7 +65,6 @@ def id_equals(expected, actual):
 
 @pytest.mark.uses_transformers
 class ChunkingTransformProviderTest(unittest.TestCase):
-
   def setUp(self):
     self.test_doc = {'text': 'hello world test', 'source': 'test.txt'}
 
@@ -100,7 +97,6 @@ class ChunkingTransformProviderTest(unittest.TestCase):
 
   def test_custom_chunk_id_fn(self):
     """Test the a custom chink id function."""
-
     def source_index_id_fn(chunk: Chunk):
       return f"{chunk.metadata['source']}_{chunk.index}"
 
