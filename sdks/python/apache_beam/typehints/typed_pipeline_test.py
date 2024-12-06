@@ -1009,13 +1009,12 @@ class TestFlatMapTuple(unittest.TestCase):
       return x
 
     with beam.Pipeline() as p:
-      with beam.Pipeline() as p:
-        # Just checking that this doesn't raise an exception.
-        (
-            p
-            | "Generate input" >> beam.Create([('P1', [2])])
-            | "Flat" >> beam.FlatMapTuple(lambda k, vs: [(k, v) for v in vs])
-            | "Identity" >> beam.Map(identity))
+      # Just checking that this doesn't raise an exception.
+      (
+          p
+          | "Generate input" >> beam.Create([('P1', [2])])
+          | "Flat" >> beam.FlatMapTuple(lambda k, vs: [(k, v) for v in vs])
+          | "Identity" >> beam.Map(identity))
 
 
 if __name__ == '__main__':
