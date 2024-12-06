@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 """Core types for RAG pipelines.
 This module contains the core dataclasses used throughout the RAG pipeline
 implementation, including Chunk and Embedding types that define the data
@@ -25,16 +24,18 @@ contracts between different stages of the pipeline.
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Any
 
+
 @dataclass
 class Content:
-    """Container for embeddable content.
+  """Container for embeddable content.
     """
-    text: Optional[str] = None
-    image_data: Optional[bytes] = None
+  text: Optional[str] = None
+  image_data: Optional[bytes] = None
+
 
 @dataclass
 class Chunk:
-    """Represents a chunk of text with metadata.
+  """Represents a chunk of text with metadata.
     
     Attributes:
         text: The actual content of the chunk
@@ -42,14 +43,15 @@ class Chunk:
         index: Index of this chunk within the original document
         metadata: Additional metadata about the chunk (e.g., document source)
     """
-    content: Content
-    id: Optional[str] = None
-    index: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+  content: Content
+  id: Optional[str] = None
+  index: Optional[int] = None
+  metadata: Optional[Dict[str, Any]] = None
+
 
 @dataclass
 class Embedding:
-    """Represents vector embeddings with associated metadata.
+  """Represents vector embeddings with associated metadata.
     
     Attributes:
         id: Unique identifier for the embedding
@@ -58,9 +60,9 @@ class Embedding:
           search
         metadata: Additional metadata about the embedding
     """
-    id: str
-    dense_embedding: Optional[List[float]] = None
-    # For hybrid search
-    sparse_embedding: Optional[Tuple[List[int], List[float]]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    content: Optional[Content] = None
+  id: str
+  dense_embedding: Optional[List[float]] = None
+  # For hybrid search
+  sparse_embedding: Optional[Tuple[List[int], List[float]]] = None
+  metadata: Dict[str, Any] = field(default_factory=dict)
+  content: Optional[Content] = None
