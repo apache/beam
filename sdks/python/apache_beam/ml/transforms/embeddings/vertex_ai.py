@@ -108,7 +108,6 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
       text_batch: Sequence[TextEmbeddingInput],
       model: MultiModalEmbeddingModel,
       throttle_delay_secs: int):
-    
     while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
       LOGGER.info(
           "Delaying request for %d seconds due to previous failures",
@@ -143,7 +142,8 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
               text=text, title=self.title, task_type=self.task_type)
           for text in text_batch
       ]
-      embeddings_batch = self.get_request(text_batch=text_batch, model=model, throttle_delay_secs=5)
+      embeddings_batch = self.get_request(
+          text_batch=text_batch, model=model, throttle_delay_secs=5)
       embeddings.extend([el.values for el in embeddings_batch])
     return embeddings
 
@@ -232,7 +232,7 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
     # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
     # for more details.
     self.throttled_secs = Metrics.counter(
-      VertexAIImageEmbeddings, "cumulativeThrottlingSeconds")
+        VertexAIImageEmbeddings, "cumulativeThrottlingSeconds")
     self.throttler = AdaptiveThrottler(
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
@@ -243,7 +243,6 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
       img: Image,
       model: MultiModalEmbeddingModel,
       throttle_delay_secs: int):
-    
     while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
       LOGGER.info(
           "Delaying request for %d seconds due to previous failures",
