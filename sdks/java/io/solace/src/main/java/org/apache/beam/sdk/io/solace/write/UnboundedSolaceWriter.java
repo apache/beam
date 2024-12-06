@@ -20,14 +20,9 @@ package org.apache.beam.sdk.io.solace.write;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
 
-import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import com.solacesystems.jcsmp.JCSMPFactory;
-import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -50,7 +45,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -62,12 +56,10 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 public abstract class UnboundedSolaceWriter
-    extends DoFn<KV<Integer, Solace.Record>, Solace.PublishResult> {
+    extends DoFn<KV<Integer, Iterable<Solace.Record>>, Solace.PublishResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSolaceWriter.class);
 
-  // This is the batch limit supported by the send multiple JCSMP API method.
-  static final int SOLACE_BATCH_LIMIT = 50;
   private final Distribution latencyPublish =
       Metrics.distribution(SolaceIO.Write.class, "latency_publish_ms");
 
@@ -83,8 +75,6 @@ public abstract class UnboundedSolaceWriter
   private final boolean publishLatencyMetrics;
   private static final AtomicInteger bundleProducerIndexCounter = new AtomicInteger();
   private int currentBundleProducerIndex = 0;
-
-  private final List<Solace.Record> batchToEmit;
 
   private @Nullable Instant bundleTimestamp;
 
@@ -106,7 +96,6 @@ public abstract class UnboundedSolaceWriter
     this.submissionMode = submissionMode;
     this.producersMapCardinality = producersMapCardinality;
     this.publishLatencyMetrics = publishLatencyMetrics;
-    this.batchToEmit = new ArrayList<>();
   }
 
   @Teardown
@@ -124,7 +113,6 @@ public abstract class UnboundedSolaceWriter
   public void startBundle() {
     // Pick a producer at random for this bundle, reuse for the whole bundle
     updateProducerIndex();
-    batchToEmit.clear();
   }
 
   public SessionService solaceSessionServiceWithProducer() {
@@ -218,65 +206,6 @@ public abstract class UnboundedSolaceWriter
     }
   }
 
-  public BytesXMLMessage createSingleMessage(
-      Solace.Record record, boolean useCorrelationKeyLatency) {
-    JCSMPFactory jcsmpFactory = JCSMPFactory.onlyInstance();
-    BytesXMLMessage msg = jcsmpFactory.createBytesXMLMessage();
-    byte[] payload = record.getPayload();
-    msg.writeBytes(payload);
-
-    Long senderTimestamp = record.getSenderTimestamp();
-    if (senderTimestamp == null) {
-      LOG.error(
-          "SolaceIO.Write: Record with id {} has no sender timestamp. Using current"
-              + " worker clock as timestamp.",
-          record.getMessageId());
-      senderTimestamp = System.currentTimeMillis();
-    }
-    msg.setSenderTimestamp(senderTimestamp);
-    msg.setDeliveryMode(getDeliveryMode());
-    if (useCorrelationKeyLatency) {
-      Solace.CorrelationKey key =
-          Solace.CorrelationKey.builder()
-              .setMessageId(record.getMessageId())
-              .setPublishMonotonicNanos(System.nanoTime())
-              .build();
-      msg.setCorrelationKey(key);
-    } else {
-      // Use only a string as correlation key
-      msg.setCorrelationKey(record.getMessageId());
-    }
-    msg.setApplicationMessageId(record.getMessageId());
-    return msg;
-  }
-
-  public JCSMPSendMultipleEntry[] createMessagesArray(
-      Iterable<Solace.Record> records, boolean useCorrelationKeyLatency) {
-    // Solace batch publishing only supports 50 elements max, so it is safe to convert to
-    // list here
-    ArrayList<Solace.Record> recordsList = Lists.newArrayList(records);
-    if (recordsList.size() > SOLACE_BATCH_LIMIT) {
-      LOG.error(
-          "SolaceIO.Write: Trying to create a batch of {}, but Solace supports a"
-              + " maximum of {}. The batch will likely be rejected by Solace.",
-          recordsList.size(),
-          SOLACE_BATCH_LIMIT);
-    }
-
-    JCSMPSendMultipleEntry[] entries = new JCSMPSendMultipleEntry[recordsList.size()];
-    for (int i = 0; i < recordsList.size(); i++) {
-      Solace.Record record = recordsList.get(i);
-      JCSMPSendMultipleEntry entry =
-          JCSMPFactory.onlyInstance()
-              .createSendMultipleEntry(
-                  createSingleMessage(record, useCorrelationKeyLatency),
-                  getDestinationFn().apply(record));
-      entries[i] = entry;
-    }
-
-    return entries;
-  }
-
   public int getProducersMapCardinality() {
     return producersMapCardinality;
   }
@@ -303,14 +232,6 @@ public abstract class UnboundedSolaceWriter
 
   public SubmissionMode getSubmissionMode() {
     return submissionMode;
-  }
-
-  public void addToCurrentBundle(Solace.Record record) {
-    batchToEmit.add(record);
-  }
-
-  public List<Solace.Record> getCurrentBundle() {
-    return batchToEmit;
   }
 
   public @Nullable Instant getCurrentBundleTimestamp() {
