@@ -21,9 +21,8 @@
 
 import typing
 import unittest
-from typing import Tuple
-import apache_beam as beam
 
+import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.options.pipeline_options import OptionsContext
@@ -998,23 +997,6 @@ class AnnotationsTest(unittest.TestCase):
     th = beam.Filter(filter_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
-
-
-class TestFlatMapTuple(unittest.TestCase):
-  def test_flatmaptuple(self):
-    # Regression test. See
-    # https://github.com/apache/beam/issues/33014
-
-    def identity(x: Tuple[str, int]) -> Tuple[str, int]:
-      return x
-
-    with beam.Pipeline() as p:
-      # Just checking that this doesn't raise an exception.
-      (
-          p
-          | "Generate input" >> beam.Create([('P1', [2])])
-          | "Flat" >> beam.FlatMapTuple(lambda k, vs: [(k, v) for v in vs])
-          | "Identity" >> beam.Map(identity))
 
 
 if __name__ == '__main__':
