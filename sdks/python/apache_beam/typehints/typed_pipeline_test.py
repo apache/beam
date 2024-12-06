@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import typing
+from typing import Tuple
 import unittest
 
 import apache_beam as beam
@@ -1000,14 +1001,16 @@ class AnnotationsTest(unittest.TestCase):
 
 
 class TestFlatMapTuple(unittest.TestCase):
-  def test_flatmap(self):
-    from typing import Tuple
+  def test_flatmaptuple(self):
+    # Regression test. See
+    # https://github.com/apache/beam/issues/33014
 
     def identity(x: Tuple[str, int]) -> Tuple[str, int]:
       return x
 
     with beam.Pipeline() as p:
       with beam.Pipeline() as p:
+        # Just checking that this doesn't raise an exception.
         (
             p
             | "Generate input" >> beam.Create([('P1', [2])])
