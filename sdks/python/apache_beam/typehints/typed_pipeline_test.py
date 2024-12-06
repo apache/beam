@@ -1005,5 +1005,21 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((int, ), {}))
 
 
+class TestFlatMapTuple(unittest.TestCase):
+  def test_flatmap(self):
+    from typing import Tuple
+
+    def identity(x: Tuple[str, int]) -> Tuple[str, int]:
+      return x
+
+    with beam.Pipeline() as p:
+      with beam.Pipeline() as p:
+        (
+            p
+            | "Generate input" >> beam.Create([('P1', [2])])
+            | "Flat" >> beam.FlatMapTuple(lambda k, vs: [(k, v) for v in vs])
+            | "Identity" >> beam.Map(identity))
+
+
 if __name__ == '__main__':
   unittest.main()
