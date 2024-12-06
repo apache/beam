@@ -16,15 +16,13 @@
 #
 
 import os
-import secrets
-import shutil
-import tempfile
 import time
 import unittest
 
 import pytest
 
 import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -35,17 +33,15 @@ from apache_beam.testing.util import equal_to
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
-  def setUp(self):
-    self._tempdir = tempfile.mkdtemp()
-    if not os.path.exists(self._tempdir):
-      os.mkdir(self._tempdir)
-    test_warehouse_name = 'test_warehouse_%d_%s' % (
-        int(time.time()), secrets.token_hex(3))
-    self.warehouse_path = os.path.join(self._tempdir, test_warehouse_name)
-    os.mkdir(self.warehouse_path)
+  WAREHOUSE = "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java"
 
-  def tearDown(self):
-    shutil.rmtree(self._tempdir, ignore_errors=False)
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.args = self.test_pipeline.get_full_options_as_args()
+    self.args.extend([
+        '--experiments=enable_managed_transforms',
+        '--dataflow_endpoint=https://dataflow-staging.sandbox.googleapis.com',
+    ])
 
   def _create_row(self, num: int):
     return beam.Row(
@@ -57,24 +53,24 @@ class ManagedIcebergIT(unittest.TestCase):
 
   def test_write_read_pipeline(self):
     iceberg_config = {
-        "table": "test.write_read",
+        "table": "test_iceberg_write_read.test_" + str(int(time.time())),
         "catalog_name": "default",
         "catalog_properties": {
             "type": "hadoop",
-            "warehouse": f"file://{self.warehouse_path}",
+            "warehouse": self.WAREHOUSE,
         }
     }
 
     rows = [self._create_row(i) for i in range(100)]
     expected_dicts = [row.as_dict() for row in rows]
 
-    with beam.Pipeline() as write_pipeline:
+    with beam.Pipeline(argv=self.args) as write_pipeline:
       _ = (
           write_pipeline
           | beam.Create(rows)
           | beam.managed.Write(beam.managed.ICEBERG, config=iceberg_config))
 
-    with beam.Pipeline() as read_pipeline:
+    with beam.Pipeline(argv=self.args) as read_pipeline:
       output_dicts = (
           read_pipeline
           | beam.managed.Read(beam.managed.ICEBERG, config=iceberg_config)
