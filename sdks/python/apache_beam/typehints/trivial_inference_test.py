@@ -21,8 +21,8 @@
 
 import types
 import unittest
-
 import apache_beam as beam
+
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
