@@ -71,6 +71,9 @@ dependencies {
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
     }
 }
 
@@ -78,6 +81,11 @@ hadoopVersions.each {kv ->
     configurations."hadoopVersion$kv.key" {
         resolutionStrategy {
             force "org.apache.hadoop:hadoop-client:$kv.value"
+            force "org.apache.hadoop:hadoop-common:$kv.value"
+            force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+            force "org.apache.hadoop:hadoop-minicluster:$kv.value"
+            force "org.apache.hadoop:hadoop-hdfs:$kv.value"
+            force "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
         }
     }
 }
