@@ -22,8 +22,8 @@
 import typing
 import unittest
 from typing import Tuple
-import apache_beam as beam
 
+import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.options.pipeline_options import OptionsContext
