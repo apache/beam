@@ -252,6 +252,8 @@ class EmbeddingsManager(MLTransformProvider):
     self.columns = columns
     if columns is not None:
       self.type_adapter = create_dict_adapter(columns)
+    else:
+      self.type_adapter = type_adapter
     self.inference_args = kwargs.pop('inference_args', {})
 
     if kwargs:
