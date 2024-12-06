@@ -1016,6 +1016,51 @@ class RunnerApiTest(unittest.TestCase):
             transform.annotations['proto'], some_proto.SerializeToString())
     self.assertEqual(seen, 2)
 
+  def assertHasAnnotation(self, pipeline_proto, transform, key, value):
+    for transform_proto in pipeline_proto.components.transforms.values():
+      if transform_proto.unique_name == transform:
+        self.assertIn(key, transform_proto.annotations.keys())
+        self.assertEqual(transform_proto.annotations[key], value)
+        break
+    else:
+      self.fail(
+          "Unknown transform: %r not in %s" % (
+              transform,
+              sorted([
+                  t.unique_name
+                  for t in pipeline_proto.components.transforms.values()
+              ])))
+
+  def test_pipeline_context_annotations(self):
+    p = beam.Pipeline()
+    with p.transform_annotations(foo='first'):
+      pcoll = p | beam.Create([1, 2, 3]) | 'First' >> beam.Map(lambda x: x + 1)
+    with p.transform_annotations(foo='second'):
+      pcoll | 'Second' >> beam.Map(lambda x: x * 2)
+      with p.transform_annotations(foo='nested', another='more'):
+        pcoll | 'Nested' >> beam.Map(lambda x: x * 3)
+
+    proto = p.to_runner_api()
+    self.assertHasAnnotation(proto, 'First', 'foo', b'first')
+    self.assertHasAnnotation(proto, 'Second', 'foo', b'second')
+    self.assertHasAnnotation(proto, 'Nested', 'foo', b'nested')
+    self.assertHasAnnotation(proto, 'Nested', 'another', b'more')
+
+  def test_beam_context_annotations(self):
+    p = beam.Pipeline()
+    with beam.transform_annotations(foo='first'):
+      pcoll = p | beam.Create([1, 2, 3]) | 'First' >> beam.Map(lambda x: x + 1)
+    with beam.transform_annotations(foo='second'):
+      pcoll | 'Second' >> beam.Map(lambda x: x * 2)
+      with beam.transform_annotations(foo='nested', another='more'):
+        pcoll | 'Nested' >> beam.Map(lambda x: x * 3)
+
+    proto = p.to_runner_api()
+    self.assertHasAnnotation(proto, 'First', 'foo', b'first')
+    self.assertHasAnnotation(proto, 'Second', 'foo', b'second')
+    self.assertHasAnnotation(proto, 'Nested', 'foo', b'nested')
+    self.assertHasAnnotation(proto, 'Nested', 'another', b'more')
+
   def test_transform_ids(self):
     class MyPTransform(beam.PTransform):
       def expand(self, p):

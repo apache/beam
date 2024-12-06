@@ -272,7 +272,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
     for pcoll in [pcoll1, pcoll2, pcoll3]:
       applied = AppliedPTransform(
-          None, beam.GroupByKey(), "label", {'pcoll': pcoll})
+          None, beam.GroupByKey(), "label", {'pcoll': pcoll}, None, None)
       applied.outputs[None] = PCollection(None)
       common.group_by_key_input_visitor().visit_transform(applied)
       self.assertEqual(
@@ -291,7 +291,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
         common.group_by_key_input_visitor().visit_transform(
-            AppliedPTransform(None, beam.GroupByKey(), "label", {'in': pcoll}))
+            AppliedPTransform(None, beam.GroupByKey(), "label", {'in': pcoll}),
+            None,
+            None)
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
     p = TestPipeline()
@@ -299,7 +301,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
       common.group_by_key_input_visitor().visit_transform(
-          AppliedPTransform(None, transform, "label", {'in': pcoll}))
+          AppliedPTransform(None, transform, "label", {'in': pcoll}),
+          None,
+          None)
       self.assertEqual(pcoll.element_type, typehints.Any)
 
   def test_flatten_input_with_visitor_with_single_input(self):
@@ -319,7 +323,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     output_pcoll = PCollection(p)
     output_pcoll.element_type = output_type
 
-    flatten = AppliedPTransform(None, beam.Flatten(), "label", inputs)
+    flatten = AppliedPTransform(
+        None, beam.Flatten(), "label", inputs, None, None)
     flatten.add_output(output_pcoll, None)
     DataflowRunner.flatten_input_visitor().visit_transform(flatten)
     for _ in range(num_inputs):
@@ -357,7 +362,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         z: (x, y, z),
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
-    applied_transform = AppliedPTransform(None, transform, "label", {'pc': pc})
+    applied_transform = AppliedPTransform(
+        None, transform, "label", {'pc': pc}, None, None)
     DataflowRunner.side_input_visitor().visit_transform(applied_transform)
     self.assertEqual(2, len(applied_transform.side_inputs))
     self.assertEqual(
