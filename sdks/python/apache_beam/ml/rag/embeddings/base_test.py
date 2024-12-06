@@ -20,7 +20,6 @@ from apache_beam.ml.rag.embeddings.base import (create_rag_adapter)
 
 
 class RAGBaseEmbeddingsTest(unittest.TestCase):
-
   def setUp(self):
     self.test_chunks = [
         Chunk(

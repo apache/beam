@@ -24,7 +24,6 @@ class VectorDatabaseConfig(ABC):
     Implementations should provide database-specific configuration and
     create appropriate write transforms.
     """
-
   @abstractmethod
   def create_write_transform(self) -> beam.PTransform:
     """Creates a PTransform that writes to the vector database.
@@ -40,7 +39,6 @@ class VectorDatabaseWriteTransform(beam.PTransform):
     
     Uses the provided database config to create an appropriate write transform.
     """
-
   def __init__(self, database_config: VectorDatabaseConfig):
     """Initialize transform with database config.
         

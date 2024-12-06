@@ -26,15 +26,15 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.ml.transforms.base import MLTransform
+from apache_beam.ml.rag.types import Chunk, Content, Embedding
+from apache_beam.ml.rag.embeddings.huggingface import HuggingfaceTextEmbeddings
 
+# pylint: disable=unused-import
 try:
   from sentence_transformers import SentenceTransformer
   SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
   SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-from apache_beam.ml.rag.types import Chunk, Content, Embedding
-from apache_beam.ml.rag.embeddings.huggingface import HuggingfaceTextEmbeddings
 
 
 def embedding_approximately_equals(expected, actual):
@@ -52,7 +52,6 @@ def embedding_approximately_equals(expected, actual):
 @unittest.skipIf(
     not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available")
 class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
-
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
     self.test_chunks = [
@@ -89,7 +88,6 @@ class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
             },
             content=Content(text="This is a test sentence."))
     ]
-    """Test the complete embedding pipeline."""
     embedder = HuggingfaceTextEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2")
 

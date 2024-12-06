@@ -32,9 +32,13 @@ def create_rag_adapter() -> EmbeddingTypeAdapter:
     """
   return EmbeddingTypeAdapter(
       input_fn=lambda chunks: [chunk.content.text for chunk in chunks],
-      output_fn=lambda chunks, embeddings: [
+      output_fn=lambda chunks,
+      embeddings: [
           Embedding(
-              id=chunk.id, dense_embedding=embeddings, sparse_embedding=None,
-              metadata=chunk.metadata, content=chunk.content)
-          for chunk, embeddings in zip(chunks, embeddings)
+              id=chunk.id,
+              dense_embedding=embeddings,
+              sparse_embedding=None,
+              metadata=chunk.metadata,
+              content=chunk.content) for chunk,
+          embeddings in zip(chunks, embeddings)
       ])

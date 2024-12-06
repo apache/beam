@@ -56,8 +56,7 @@ class BigQueryVectorWriterConfig(VectorDatabaseConfig):
 
 
 class _WriteToBigQueryVectorDatabase(beam.PTransform):
-  """Implementation of BigQuery vector database write."""
-
+  """Implementation of BigQuery vector database write. """
   def __init__(self, config: BigQueryVectorWriterConfig):
     self.config = config
 
@@ -69,9 +68,7 @@ class _WriteToBigQueryVectorDatabase(beam.PTransform):
             id=lambda x: str(x.id),
             embedding=lambda x: [float(v) for v in x.dense_embedding],
             content=lambda x: str(x.content.text),
-            metadata=lambda x: {
-                str(k): str(v)
-                for k, v in x.metadata.items()
-            })
+            metadata=lambda x: {str(k): str(v)
+                                for k, v in x.metadata.items()})
         | "Write to BigQuery" >> beam.managed.Write(
             beam.managed.BIGQUERY, config=self.config.write_config))

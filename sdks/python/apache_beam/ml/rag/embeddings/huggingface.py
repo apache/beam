@@ -38,7 +38,6 @@ class HuggingfaceTextEmbeddings(EmbeddingsManager):
     - Copies Chunk.metadata to Embedding.metadata
     - Converts model output to Embedding.dense_embedding
     """
-
   def __init__(
       self, model_name: str, *, max_seq_length: Optional[int] = None, **kwargs):
     """Initialize RAG embeddings.

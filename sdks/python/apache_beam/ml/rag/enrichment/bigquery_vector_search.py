@@ -100,7 +100,6 @@ class BigQueryVectorSearchEnrichmentHandler(
     EnrichmentSourceHandler[Union[Embedding, List[Embedding]],
                             Union[Embedding, List[Embedding]]]):
   """Enrichment handler for BigQuery vector search."""
-
   def __init__(
       self,
       project: str,

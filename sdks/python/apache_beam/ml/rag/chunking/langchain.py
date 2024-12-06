@@ -23,12 +23,11 @@ from typing import List, Optional
 
 
 class LangChainChunkingProvider(ChunkingTransformProvider):
-
   def __init__(
       self,
       text_splitter: TextSplitter,
       document_field: str,
-      metadata_fields: List[str] = [],
+      metadata_fields: List[str],
       chunk_id_fn: Optional[ChunkIdFn] = None):
     if not isinstance(text_splitter, TextSplitter):
       raise TypeError("text_splitter must be a LangChain TextSplitter")
@@ -48,7 +47,6 @@ class LangChainChunkingProvider(ChunkingTransformProvider):
 
 
 class LangChainTextSplitter(beam.DoFn):
-
   def __init__(
       self,
       text_splitter: TextSplitter,
