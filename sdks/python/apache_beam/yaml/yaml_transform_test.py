@@ -401,6 +401,51 @@ class ErrorHandlingTest(unittest.TestCase):
       assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
       assert_that(result['bad'], equal_to(["ValueError('biiiiig')"]))
 
+  def test_strip_error_metadata(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                  elements: ['a', 'b', 'biiiiig']
+
+            - type: SizeLimiter
+              input: Create
+              config:
+                  limit: 5
+                  error_handling:
+                    output: errors
+            - type: StripErrorMetadata
+              name: StripErrorMetadata1
+              input: SizeLimiter.errors
+
+            - type: MapToFields
+              input: Create
+              config:
+                  language: python
+                  fields:
+                    out: "1/(1-len(element))"
+                  error_handling:
+                    output: errors
+            - type: StripErrorMetadata
+              name: StripErrorMetadata2
+              input: MapToFields.errors
+
+          output:
+            good: SizeLimiter
+            bad1: StripErrorMetadata1
+            bad2: StripErrorMetadata2
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
+      assert_that(
+          result['bad1'] | beam.Map(lambda x: x.element), equal_to(['biiiiig']))
+      assert_that(
+          result['bad2'] | beam.Map(lambda x: x.element), equal_to(['a', 'b']))
+
   def test_must_handle_error_output(self):
     with self.assertRaisesRegex(Exception, 'Unconsumed error output .*line 7'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

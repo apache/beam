@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -83,17 +86,20 @@ public class Managed {
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
   public static final String KAFKA = "kafka";
+  public static final String BIGQUERY = "bigquery";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
           .build();
 
   /**
@@ -101,7 +107,9 @@ public class Managed {
    * supported managed sources are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
+   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables
+   *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics
+   *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables
    * </ul>
    */
   public static ManagedTransform read(String source) {
@@ -121,7 +129,9 @@ public class Managed {
    * managed sinks are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
+   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg tables
+   *   <li>{@link Managed#KAFKA} : Write to Apache Kafka topics
+   *   <li>{@link Managed#BIGQUERY} : Write to GCP BigQuery tables
    * </ul>
    */
   public static ManagedTransform write(String sink) {

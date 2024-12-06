@@ -27,8 +27,15 @@ applyJavaNature(
   shadowClosure: {},
 )
 
+// TODO(https://github.com/apache/beam/pull/32486/) Use library.java.kafka_clients once >=3.1.0 is set as default
+configurations.runtimeClasspath {
+  // Pin kafka-clients version due to <3.1.0 missing auth callback classes
+  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.1.2'
+}
+
 shadowJar {
   mergeServiceFiles()
+  outputs.upToDateWhen { false }
 }
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
@@ -37,6 +44,8 @@ ext.summary = "Expansion service serving several Java IOs"
 dependencies {
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:managed")
+  permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
   implementation project(":sdks:java:io:iceberg")
   permitUnusedDeclared project(":sdks:java:io:iceberg") // BEAM-11761
   implementation project(":sdks:java:io:kafka")

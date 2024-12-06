@@ -27,6 +27,7 @@ package jobservices
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -37,13 +38,13 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var supportedRequirements = map[string]struct{}{
 	urns.RequirementSplittableDoFn:     {},
 	urns.RequirementStatefulProcessing: {},
+	urns.RequirementBundleFinalization: {},
 }
 
 // TODO, move back to main package, and key off of executor handlers?
@@ -87,6 +88,8 @@ type Job struct {
 	// Context used to terminate this job.
 	RootCtx  context.Context
 	CancelFn context.CancelCauseFunc
+	// Logger for this job.
+	Logger *slog.Logger
 
 	metrics metricsStore
 }

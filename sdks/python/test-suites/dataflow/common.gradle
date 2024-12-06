@@ -380,6 +380,50 @@ task validatesContainer() {
   }
 }
 
+tasks.register('validatesDistrolessContainer', Task.class) {
+  dependsOn 'initializeForDataflowJob'
+  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+  def tag = java.time.Instant.now().getEpochSecond()
+  def imageURL = "${repository}/beam_python${pythonVersion}_sdk_distroless:${tag}"
+  doLast {
+    exec {
+      executable 'docker'
+      workingDir rootDir
+      args = [
+              'buildx',
+              'build',
+              '-t',
+              imageURL,
+              '-f',
+              'sdks/python/container/Dockerfile-distroless',
+              "--build-arg=BASE=gcr.io/apache-beam-testing/beam-sdk/beam_python${pythonVersion}_sdk",
+              "."
+      ]
+    }
+    exec {
+      executable 'docker'
+      args = ['push', imageURL]
+    }
+    exec {
+      def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
+      def argMap = [
+              "output"             : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
+              "project"            : "apache-beam-testing",
+              "region"             : "us-central1",
+              "runner"             : "TestDataflowRunner",
+              "sdk_container_image": "${imageURL}",
+              "sdk_location"       : "container",
+              "staging_location"   : "gs://temp-storage-for-end-to-end-tests/staging-it",
+              "temp_location"      : "gs://temp-storage-for-end-to-end-tests/temp-it",
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      workingDir = "${rootDir}/sdks/python"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pytest ${testTarget} --test-pipeline-options=\"${cmdArgs}\""
+    }
+  }
+}
+
 task validatesContainerARM() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
@@ -420,6 +464,39 @@ def tensorRTTests = tasks.create("tensorRTtests") {
   exec {
     executable 'sh'
     args '-c', ". ${envdir}/bin/activate && pip install pillow && python -m apache_beam.examples.inference.tensorrt_object_detection $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver' --experiment=no_use_multiple_sdk_containers"
+  }
+ }
+}
+
+def vllmTests = tasks.create("vllmTests") {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+ doLast {
+  def testOpts = basicPytestOpts
+  def argMap = [
+    "runner": "DataflowRunner",
+    "machine_type":"n1-standard-4",
+    // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
+    // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
+    // declaration for this project.
+    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile
+    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
+    "sdk_location": files(configurations.distTarBall.files).singleFile,
+    "project": "apache-beam-testing",
+    "region": "us-central1",
+    "model": "facebook/opt-125m",
+    "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
+    "disk_size_gb": 75
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  // Exec one version with and one version without the chat option
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+  }
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat true --chat_template 'gs://apache-beam-ml/additional_files/sample_chat_template.jinja' --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
   }
  }
 }
@@ -510,14 +587,21 @@ task mockAPITests {
 }
 
 // add all RunInference E2E tests that run on DataflowRunner
-// As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
-// contains Python 3.8.
+// As of now, this test suite is enable in py310 suite as the base NVIDIA image used for Tensor RT
+// contains Python 3.10.
 // TODO: https://github.com/apache/beam/issues/22651
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
-  'tensorRTtests',
+  // Temporarily disabled because of a container issue  
+  // 'tensorRTtests',
   'vertexAIInferenceTest',
   'mockAPITests',
+  ]
+}
+
+project.tasks.register("inferencePostCommitITPy312") {
+  dependsOn = [
+  'vllmTests',
   ]
 }
 

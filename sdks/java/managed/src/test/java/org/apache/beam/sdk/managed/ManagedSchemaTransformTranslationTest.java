@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
 public class ManagedSchemaTransformTranslationTest {
@@ -169,26 +171,33 @@ public class ManagedSchemaTransformTranslationTest {
             .withFieldValue("transform_identifier", TestSchemaTransformProvider.IDENTIFIER)
             .withFieldValue("config", yamlStringConfig)
             .build();
-    Map<String, ByteString> expectedAnnotations =
-        ImmutableMap.<String, ByteString>builder()
-            .put(
-                BeamUrns.getConstant(SCHEMATRANSFORM_URN_KEY),
-                ByteString.copyFromUtf8(MANAGED_TRANSFORM_URN))
-            .put(
-                BeamUrns.getConstant(MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
-                ByteString.copyFromUtf8(TestSchemaTransformProvider.IDENTIFIER))
-            .put(
-                BeamUrns.getConstant(CONFIG_ROW_KEY),
-                ByteString.copyFrom(
-                    CoderUtils.encodeToByteArray(
-                        RowCoder.of(PROVIDER.configurationSchema()), managedConfigRow)))
-            .put(
-                BeamUrns.getConstant(CONFIG_ROW_SCHEMA_KEY),
-                ByteString.copyFrom(
-                    SchemaTranslation.schemaToProto(PROVIDER.configurationSchema(), true)
-                        .toByteArray()))
-            .build();
-    assertEquals(expectedAnnotations, convertedTransform.getAnnotationsMap());
+    assertEquals(
+        ImmutableSet.of(
+            BeamUrns.getConstant(SCHEMATRANSFORM_URN_KEY),
+            BeamUrns.getConstant(MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
+            BeamUrns.getConstant(CONFIG_ROW_KEY),
+            BeamUrns.getConstant(CONFIG_ROW_SCHEMA_KEY)),
+        convertedTransform.getAnnotationsMap().keySet());
+    assertEquals(
+        ByteString.copyFromUtf8(MANAGED_TRANSFORM_URN),
+        convertedTransform.getAnnotationsMap().get(BeamUrns.getConstant(SCHEMATRANSFORM_URN_KEY)));
+    assertEquals(
+        ByteString.copyFromUtf8(TestSchemaTransformProvider.IDENTIFIER),
+        convertedTransform
+            .getAnnotationsMap()
+            .get(BeamUrns.getConstant(MANAGED_UNDERLYING_TRANSFORM_URN_KEY)));
+    Schema annotationSchema =
+        SchemaTranslation.schemaFromProto(
+            SchemaApi.Schema.parseFrom(
+                convertedTransform
+                    .getAnnotationsMap()
+                    .get(BeamUrns.getConstant(CONFIG_ROW_SCHEMA_KEY))));
+    assertEquals(PROVIDER.configurationSchema(), annotationSchema);
+    assertEquals(
+        managedConfigRow,
+        CoderUtils.decodeFromByteString(
+            RowCoder.of(annotationSchema),
+            convertedTransform.getAnnotationsMap().get(BeamUrns.getConstant(CONFIG_ROW_KEY))));
 
     // Check that the spec proto contains correct values
     RunnerApi.FunctionSpec spec = convertedTransform.getSpec();

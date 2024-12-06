@@ -149,4 +149,8 @@ public class TestDataWarehouse extends ExternalResource {
     someTableHasBeenCreated = true;
     return catalog.createTable(tableId, schema, partitionSpec);
   }
+
+  public Table loadTable(TableIdentifier tableId) {
+    return catalog.loadTable(tableId);
+  }
 }

@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
-	"golang.org/x/exp/slog"
 )
 
 // SideInputKey is for data lookups for a given bundle.
@@ -126,13 +126,25 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	slog.Debug("processing", "bundle", b, "worker", wk)
 
 	// Tell the SDK to start processing the bundle.
-	wk.InstReqs <- &fnpb.InstructionRequest{
+	req := &fnpb.InstructionRequest{
 		InstructionId: b.InstID,
 		Request: &fnpb.InstructionRequest_ProcessBundle{
 			ProcessBundle: &fnpb.ProcessBundleRequest{
 				ProcessBundleDescriptorId: b.PBDID,
 			},
 		},
+	}
+	select {
+	case <-wk.StoppedChan:
+		// The worker was stopped before req was sent.
+		// Quit to avoid sending on a closed channel.
+		outCap := b.OutputCount + len(b.HasTimers)
+		for i := 0; i < outCap; i++ {
+			b.DataOrTimerDone()
+		}
+		return b.DataWait
+	case wk.InstReqs <- req:
+		// desired outcome
 	}
 
 	// TODO: make batching decisions on the maxium to send per elements block, to reduce processing time overhead.
@@ -163,10 +175,13 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		}
 
 		select {
-		case wk.DataReqs <- elms:
+		case <-wk.StoppedChan:
+			b.DataOrTimerDone()
+			return b.DataWait
 		case <-ctx.Done():
 			b.DataOrTimerDone()
 			return b.DataWait
+		case wk.DataReqs <- elms:
 		}
 	}
 
@@ -181,6 +196,12 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		})
 	}
 	select {
+	case <-wk.StoppedChan:
+		b.DataOrTimerDone()
+		return b.DataWait
+	case <-ctx.Done():
+		b.DataOrTimerDone()
+		return b.DataWait
 	case wk.DataReqs <- &fnpb.Elements{
 		Timers: timers,
 		Data: []*fnpb.Elements_Data{
@@ -191,9 +212,6 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 			},
 		},
 	}:
-	case <-ctx.Done():
-		b.DataOrTimerDone()
-		return b.DataWait
 	}
 
 	return b.DataWait
@@ -204,6 +222,17 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Lock()
 	delete(wk.activeInstructions, b.InstID)
 	wk.mu.Unlock()
+}
+
+func (b *B) Finalize(ctx context.Context, wk *W) (*fnpb.FinalizeBundleResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_FinalizeBundle{
+			FinalizeBundle: &fnpb.FinalizeBundleRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	})
+	return resp.GetFinalizeBundle(), nil
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.

@@ -29,10 +29,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
 ext.summary = "Integration with Iceberg data warehouses."
 
 def hadoopVersions = [
-        "285": "2.8.5",
-        "292": "2.9.2",
-        "2102": "2.10.2",
-        "324": "3.2.4",
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
@@ -44,7 +44,7 @@ def orc_version = "1.9.2"
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":sdks:java:managed")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
@@ -53,8 +53,10 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
+    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     implementation library.java.hadoop_common
 
+    testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_gcs_connector

@@ -507,7 +507,7 @@ with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
     RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
-    for pyver in 3.8 3.9 3.10 3.11; do
+    for pyver in 3.9 3.10 3.11 3.12; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
@@ -554,10 +554,10 @@ to PyPI with an `rc` suffix.
 
 __Attention:__ Verify that:
 - [ ] The File names version include ``rc-#`` suffix
-- [ ] [Download Files](https://pypi.org/project/apache-beam/#files) have:
-      - [ ] All wheels uploaded as artifacts
-      - [ ] Release source's zip published
-      - [ ] Signatures and hashes do not need to be uploaded
+- [Download Files](https://pypi.org/project/apache-beam/#files) have:
+- [ ] All wheels uploaded as artifacts
+- [ ] Release source's zip published
+- [ ] Signatures and hashes do not need to be uploaded
 
 ### Propose pull requests for website updates
 
@@ -608,8 +608,12 @@ as an example.
 
 > **TIP**
 > Use git log to find contributors to the releases. (e.g: `git fetch
-> origin --tags; git log --pretty='%aN' ^v2.10.0 v2.11.0-RC1 | sort | uniq`).
+> origin --tags; git log --pretty='%aN' ^v2.10.0 v2.11.0-RC1 | sort | uniq | tr '\n' ',' | sed 's/,/, /g' | sed 's/..$/\n/'`).
 > Make sure to clean it up, as there may be duplicate or incorrect user names.
+>
+> The command gets all pretty printed names from git, sorts them, de-duplicates them,
+> replaces newlines with commas, replaces all commas with a comma and a space, and
+> and finally strips the trailing comma, and adds a final line break for easier copying.
 
 > **NOTE**
 > Make sure to include any breaking changes, even to `@Experimental`
@@ -689,6 +693,15 @@ as an example.
     ${CONTRIBUTORS}
 
 
+### Update the Github Release with the Blog post content
+
+Use the content of the blog post as the description of the release.
+
+You may now also uncheck the "draft" checkbox.
+This allows it to be visible to non-committers, and makes the assets publically accessible.
+
+Be sure the release is still marked as a pre-release (not as latest).
+
 ### Checklist to proceed to the next phase
 
 - [ ] Maven artifacts deployed to the staging repository of
@@ -702,6 +715,7 @@ as an example.
 - [ ] Docker images are published to
   [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with
   tags: `{RELEASE_VERSION}rc{RC_NUM}`.
+- [ ] Github Release page contains the blog post.
 
 You can (optionally) also do additional verification by:
 
@@ -742,7 +756,7 @@ template; please adjust as you see fit.
 
     Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
     no issues are found. Only PMC member votes will count towards the final vote, but votes from all
-    community members is encouraged and helpful for finding regressions; you can either test your own
+    community members are encouraged and helpful for finding regressions; you can either test your own
     use cases [13] or use cases from the validation sheet [10].
 
     The complete staging area is available for your review, which includes:
@@ -751,11 +765,12 @@ template; please adjust as you see fit.
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
+    * Python artifacts are deployed along with the source release to dist.apache.org [2] and PyPI[8].
     * Go artifacts and documentation are available at pkg.go.dev [9]
     * Validation sheet with a tab for 1.2.3 release to help with validation [10].
     * Docker images published to Docker Hub [11].
     * PR to run tests against release branch [12].
+    * Github Release pre-release page for v1.2.3-RC3 [13].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -776,7 +791,8 @@ template; please adjust as you see fit.
     [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
     [12] https://github.com/apache/beam/pull/...
-    [13] https://github.com/apache/beam/blob/master/contributor-docs/rc-testing-guide.md
+    [13] https://github.com/apache/beam/releases/tag/v1.2.3-RC3
+    [14] https://github.com/apache/beam/blob/master/contributor-docs/rc-testing-guide.md
 
 If there are any issues found in the release candidate, reply on the vote
 thread to cancel the vote.  There’s no need to wait 72 hours. Go back to
@@ -871,7 +887,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.18:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.19:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1132,20 +1148,20 @@ All wheels should be published, in addition to the zip of the release source.
 ### Merge Website pull requests
 
 Merge all of the website pull requests
-- [listing the release](/get-started/downloads/)
+- [listing the release](https://beam.apache.org/get-started/downloads/)
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
 
-### Publish release to Github
+### Publish the Github Release page
 
-Once the tag is uploaded, publish the release notes to Github.
-From the [Beam release page on Github](https://github.com/apache/beam/releases)
+Once the tag is uploaded, update the page with the final release tag, and publish the release notes to Github.
+
+* From the [Beam release page on Github](https://github.com/apache/beam/releases)
 find and open the release for the final RC tag for for editing.
-Update the release with the final version tag created above.
-Use the content of the release blog post as the body of the release notes,
-set this version as the latest release, and publish it.
+* Update the release with the final version tag created above.
+* Set this version as the latest release, and publish it.
 
-The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
+The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page with the correct version.
 
 ### Mark the version as released in GitHub
 
@@ -1292,6 +1308,12 @@ number).
 You can also update the versions in https://github.com/apache/beam-starter-python and
 https://github.com/apache/beam-starter-go if you would like. This is optional because dependabot will automatically
 open a PR to do this if you don't.
+
+### Update the container republishing workflow
+
+After the Beam release is published, update the default versions in https://github.com/apache/beam/blob/master/.github/workflows/republish_released_docker_containers.yml#L37
+to point to the most recent release and its accepted RC version. This script will then regularly
+republish containers using the same underlying source (but updated base images) to allow users to stay ahead of vulnerabilities.
 
 ### Update Beam Playground
 

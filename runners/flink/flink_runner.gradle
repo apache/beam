@@ -173,36 +173,19 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.args4j
 
-  // Flink 1.15 shades all remaining scala dependencies and therefor does not depend on a specific version of Scala anymore
-  if (flink_version.compareTo("1.15") >= 0) {
-    implementation "org.apache.flink:flink-clients:$flink_version"
-    // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
-    // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
-    permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
+  implementation "org.apache.flink:flink-clients:$flink_version"
+  // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
+  // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
+  permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
 
-    implementation "org.apache.flink:flink-streaming-java:$flink_version"
-    // RocksDB state backend (included in the Flink distribution)
-    provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
-    testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
-    testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
-    testImplementation "org.apache.flink:flink-test-utils:$flink_version"
+  implementation "org.apache.flink:flink-streaming-java:$flink_version"
+  // RocksDB state backend (included in the Flink distribution)
+  provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
+  testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
+  testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-test-utils:$flink_version"
 
-    miniCluster "org.apache.flink:flink-runtime-web:$flink_version"
-  } else {
-    implementation "org.apache.flink:flink-clients_2.12:$flink_version"
-    // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
-    // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
-    permitUnusedDeclared "org.apache.flink:flink-clients_2.12:$flink_version"
-
-    implementation "org.apache.flink:flink-streaming-java_2.12:$flink_version"
-    // RocksDB state backend (included in the Flink distribution)
-    provided "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
-    testImplementation "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
-    testImplementation "org.apache.flink:flink-streaming-java_2.12:$flink_version:tests"
-    testImplementation "org.apache.flink:flink-test-utils_2.12:$flink_version"
-
-    miniCluster "org.apache.flink:flink-runtime-web_2.12:$flink_version"
-  }
+  miniCluster "org.apache.flink:flink-runtime-web:$flink_version"
 
   implementation "org.apache.flink:flink-core:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"

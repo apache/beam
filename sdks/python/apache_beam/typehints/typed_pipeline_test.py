@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import sys
 import typing
 import unittest
 
@@ -88,11 +87,11 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual(['1', '2', '3'], sorted(result))
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_method(self):
@@ -104,11 +103,11 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual(['1', '2', '3'], sorted(result))
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_method_with_class_decorators(self):
@@ -124,12 +123,12 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*got.*str'):
+        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*applied.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*got.*int'):
+        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*applied.*int'):
       _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_callable_iterable_output(self):
@@ -156,11 +155,11 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual(['1', '2', '3'], sorted(result))
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(my_do_fn)
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       _ = [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
   def test_typed_callable_instance(self):
@@ -177,11 +176,11 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual(['1', '2', '3'], sorted(result))
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       _ = ['a', 'b', 'c'] | pardo
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
+                                r'requires.*int.*applied.*str'):
       _ = [1, 2, 3] | (pardo | 'again' >> pardo)
 
   def test_filter_type_hint(self):
@@ -422,7 +421,7 @@ class MainInputTest(unittest.TestCase):
     # In this case, both MyMap and its contained ParDo have separate type
     # checks (that disagree with each other).
     @beam.ptransform_fn
-    @typehints.with_input_types(int)
+    @typehints.with_input_types(str)
     def MyMap(pcoll):
       def fn(element: float):
         yield element
@@ -430,11 +429,11 @@ class MainInputTest(unittest.TestCase):
       return pcoll | beam.ParDo(fn)
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'ParDo.*requires.*float.*got.*int'):
-      _ = [1, 2, 3] | MyMap()
+                                r'ParDo.*requires.*float.*applied.*str'):
+      _ = ['1', '2', '3'] | MyMap()
     with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'MyMap.*expected.*int.*got.*str'):
-      _ = ['a'] | MyMap()
+                                r'MyMap.*expected.*str.*got.*bytes'):
+      _ = [b'a'] | MyMap()
 
   def test_typed_dofn_string_literals(self):
     class MyDoFn(beam.DoFn):
@@ -632,14 +631,14 @@ class MainInputTest(unittest.TestCase):
       return e
 
     @typehints.with_input_types(int)
-    def requires_int(e):
+    def accepts_int(e):
       return e
 
     class MyPTransform(beam.PTransform):
       def expand(self, pcoll):
         unknowns = pcoll | beam.Map(produces_unkown)
         ints = pcoll | beam.Map(int)
-        return (unknowns, ints) | beam.Flatten() | beam.Map(requires_int)
+        return (unknowns, ints) | beam.Flatten() | beam.Map(accepts_int)
 
     _ = [1, 2, 3] | MyPTransform()
 
@@ -761,8 +760,8 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires Tuple\[Union\[<class \'int\'>, <class \'str\'>\], ...\] but '
-        r'got Tuple\[Union\[<class \'float\'>, <class \'int\'>\], ...\]'):
+        r'requires.*Tuple\[Union\[<class \'int\'>, <class \'str\'>\], ...\].*'
+        r'applied.*Tuple\[Union\[<class \'float\'>, <class \'int\'>\], ...\]'):
       _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
 
   def test_var_keyword_side_input_hint(self):
@@ -874,12 +873,7 @@ class CustomTransformTest(unittest.TestCase):
 class AnnotationsTest(unittest.TestCase):
   def test_pardo_wrapper_builtin_method(self):
     th = beam.ParDo(str.strip).get_type_hints()
-    if sys.version_info < (3, 7):
-      self.assertEqual(th.input_types, ((str, ), {}))
-    else:
-      # Python 3.7+ has annotations for CPython builtins
-      # (_MethodDescriptorType).
-      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.input_types, ((str, typehints.Any), {}))
     self.assertEqual(th.output_types, ((typehints.Any, ), {}))
 
   def test_pardo_wrapper_builtin_type(self):

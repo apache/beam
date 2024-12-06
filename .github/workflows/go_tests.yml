@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*']
+    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*', '.github/workflows/go_test.yml']
   workflow_dispatch:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -50,7 +50,7 @@ jobs:
       - name: Delete old coverage
         run: "cd sdks && rm -rf .coverage.txt || :"
       - name: Run coverage
-        run: cd sdks && go test -coverprofile=coverage.txt -covermode=atomic ./go/pkg/... ./go/container/... ./java/container/... ./python/container/... ./typescript/container/...
+        run: cd sdks && go test -timeout=25m -coverprofile=coverage.txt -covermode=atomic ./go/pkg/... ./go/container/... ./java/container/... ./python/container/... ./typescript/container/...
       - uses: codecov/codecov-action@v3
         with:
           flags: go 
@@ -64,6 +64,6 @@ jobs:
           go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2023.1.7"
+          go install "honnef.co/go/tools/cmd/staticcheck@2024.1.1"
           cd sdks/go/pkg/beam
           $(go env GOPATH)/bin/staticcheck ./...

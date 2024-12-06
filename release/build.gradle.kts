@@ -39,7 +39,7 @@ task("runJavaExamplesValidationTask") {
   dependsOn(":runners:direct-java:runQuickstartJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
   dependsOn(":runners:spark:3:runQuickstartJavaSpark")
-  dependsOn(":runners:flink:1.18:runQuickstartJavaFlinkLocal")
+  dependsOn(":runners:flink:1.19:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
   dependsOn(":runners:twister2:runQuickstartJavaTwister2")

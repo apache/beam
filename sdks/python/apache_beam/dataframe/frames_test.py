@@ -18,7 +18,6 @@ import re
 import sys
 import unittest
 import warnings
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -1025,6 +1024,17 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
 
+  def test_dataframe_column_fillna_constant_as_value(self):
+    from apache_beam.dataframe import convert
+    from apache_beam.testing.util import assert_that
+    from apache_beam.testing.util import equal_to
+    with beam.Pipeline(None) as p:
+      pcoll = (
+          p | beam.Create([1.0, np.nan, -1.0]) | beam.Select(x=lambda x: x))
+      df = convert.to_dataframe(pcoll)
+      df_new = df['x'].fillna(0)
+      assert_that(convert.to_pcollection(df_new), equal_to([1.0, 0.0, -1.0]))
+
   @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
@@ -1696,7 +1706,7 @@ AGGREGATIONS_WHERE_NUMERIC_ONLY_DEFAULTS_TO_TRUE_IN_PANDAS_1 = set(
         'describe'))
 
 
-def numeric_only_kwargs_for_pandas_2(agg_type: str) -> Dict[str, bool]:
+def numeric_only_kwargs_for_pandas_2(agg_type: str) -> dict[str, bool]:
   """Get proper arguments for numeric_only.
 
   Behavior for numeric_only in these methods changed in Pandas 2 to default

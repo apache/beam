@@ -140,7 +140,7 @@ class Metrics(object):
     def __init__(
         self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
-      self.inc = MetricUpdater(  # type: ignore[assignment]
+      self.inc = MetricUpdater(  # type: ignore[method-assign]
           cells.CounterCell,
           metric_name,
           default_value=1,
@@ -150,19 +150,19 @@ class Metrics(object):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[assignment]
+      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
+      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingStringSet(StringSet):
     """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[assignment]
+      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[method-assign]
 
 
 class MetricResults(object):
@@ -370,7 +370,31 @@ class Lineage:
 
   def add(
       self, system: str, *segments: str, subtype: Optional[str] = None) -> None:
-    self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
+    """
+    Adds the given details as Lineage.
+
+    For asset level lineage the resource location should be specified as
+    Dataplex FQN, see
+    https://cloud.google.com/data-catalog/docs/fully-qualified-names
+
+    Example of adding FQN components:
+
+    - `add("system", "segment1", "segment2")`
+    - `add("system", "segment1", "segment2", subtype="subtype")`
+
+    Example of adding a FQN:
+
+    - `add("system:segment1.segment2")`
+    - `add("system:subtype:segment1.segment2")`
+
+    The first positional argument serves as system, if full segments are
+    provided, or the full FQN if it is provided as a single argument.
+    """
+    system_or_details = system
+    if len(segments) == 0 and subtype is None:
+      self.metric.add(system_or_details)
+    else:
+      self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
 
   @staticmethod
   def query(results: MetricResults, label: str) -> Set[str]:

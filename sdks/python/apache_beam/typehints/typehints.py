@@ -391,12 +391,6 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     if isinstance(type_param, types.UnionType):
       is_not_type_constraint = False
-  # Pre-Python 3.9 compositve type-hinting with built-in types was not
-  # supported, the typing module equivalents should be used instead.
-  if sys.version_info.major == 3 and sys.version_info.minor < 9:
-    is_not_type_constraint = is_not_type_constraint or (
-        isinstance(type_param, type) and
-        type_param in DISALLOWED_PRIMITIVE_TYPES)
 
   if is_not_type_constraint:
     raise TypeError(
@@ -1266,7 +1260,7 @@ def normalize(x, none_as_type=False):
   # Avoid circular imports
   from apache_beam.typehints import native_type_compatibility
 
-  if sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
+  if isinstance(x, types.GenericAlias):
     x = native_type_compatibility.convert_builtin_to_typing(x)
 
   if none_as_type and x is None:
@@ -1308,6 +1302,12 @@ def is_consistent_with(sub, base):
     # Common special case.
     return True
   if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
+    return True
+  # Per PEP484, ints are considered floats and complexes and
+  # floats are considered complexes.
+  if sub is int and base in (float, complex):
+    return True
+  if sub is float and base is complex:
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)

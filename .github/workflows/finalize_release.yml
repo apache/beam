@@ -55,7 +55,7 @@ jobs:
         echo "Publish SDK docker images to Docker Hub."
         
         echo "================Pull RC Containers from DockerHub==========="
-        IMAGES=$(docker search apache/beam_ --format "{{.Name}}" --limit 100)
+        IMAGES=$(docker search apache/beam --format "{{.Name}}" --limit 100)
         KNOWN_IMAGES=()
         echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
         while read IMAGE; do

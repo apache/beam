@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
+import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
@@ -27,19 +30,53 @@ import org.slf4j.LoggerFactory;
 /** StreamingEngine stream pool based implementation of {@link HeartbeatSender}. */
 @Internal
 public final class StreamPoolHeartbeatSender implements HeartbeatSender {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamPoolHeartbeatSender.class);
 
-  private final WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool;
+  @Nonnull
+  private final AtomicReference<WindmillStreamPool<WindmillStream.GetDataStream>>
+      heartbeatStreamPool = new AtomicReference<>();
 
-  public StreamPoolHeartbeatSender(
+  private StreamPoolHeartbeatSender(
       WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool) {
-    this.heartbeatStreamPool = heartbeatStreamPool;
+    this.heartbeatStreamPool.set(heartbeatStreamPool);
+  }
+
+  public static StreamPoolHeartbeatSender create(
+      @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool) {
+    return new StreamPoolHeartbeatSender(heartbeatStreamPool);
+  }
+
+  /**
+   * Creates StreamPoolHeartbeatSender that switches between the passed in stream pools depending on
+   * global config.
+   *
+   * @param dedicatedHeartbeatPool stream to use when using separate streams for heartbeat is
+   *     enabled.
+   * @param getDataPool stream to use when using separate streams for heartbeat is disabled.
+   */
+  public static StreamPoolHeartbeatSender create(
+      @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> dedicatedHeartbeatPool,
+      @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> getDataPool,
+      @Nonnull StreamingGlobalConfigHandle configHandle) {
+    // Use getDataPool as the default, settings callback will
+    // switch to the separate pool if enabled before processing any elements are processed.
+    StreamPoolHeartbeatSender heartbeatSender = new StreamPoolHeartbeatSender(getDataPool);
+    configHandle.registerConfigObserver(
+        streamingGlobalConfig ->
+            heartbeatSender.heartbeatStreamPool.set(
+                streamingGlobalConfig
+                        .userWorkerJobSettings()
+                        .getUseSeparateWindmillHeartbeatStreams()
+                    ? dedicatedHeartbeatPool
+                    : getDataPool));
+    return heartbeatSender;
   }
 
   @Override
   public void sendHeartbeats(Heartbeats heartbeats) {
     try (CloseableStream<WindmillStream.GetDataStream> closeableStream =
-        heartbeatStreamPool.getCloseableStream()) {
+        heartbeatStreamPool.get().getCloseableStream()) {
       closeableStream.stream().refreshActiveWork(heartbeats.heartbeatRequests().asMap());
     } catch (Exception e) {
       LOG.warn("Error occurred sending heartbeats=[{}].", heartbeats, e);

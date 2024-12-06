@@ -15,7 +15,7 @@ limitations under the License.
 
 Apache Beam provides a portable API layer for building sophisticated data-parallel processing `pipelines` that may be executed across a diversity of execution engines, or `runners`. The core concepts of this layer are based upon the Beam Model (formerly referred to as the Dataflow Model), and implemented to varying degrees in each Beam `runner`.
 
-### Direct runner
+### Direct Runner
 The Direct Runner executes pipelines on your machine and is designed to validate that pipelines adhere to the Apache Beam model as closely as possible. Instead of focusing on efficient pipeline execution, the Direct Runner performs additional checks to ensure that users do not rely on semantics that are not guaranteed by the model. Some of these checks include:
 
 * enforcing immutability of elements
@@ -53,7 +53,7 @@ When using Java, you must specify your dependency on the Direct Runner in your p
 
 #### Set runner
 
-In java, you need to set runner to `args` when you start the program.
+In Java, you need to set runner to `args` when you start the program.
 
 ```
 --runner=DirectRunner
@@ -61,9 +61,9 @@ In java, you need to set runner to `args` when you start the program.
 {{end}}
 
 {{if (eq .Sdk "python")}}
-In the Python SDK , the default is runner **DirectRunner**.
+In the Python SDK , the **DirectRunner** is the default runner and is used if no runner is specified.
 
-Additionally, you can read more about the Direct Runner [here](https://beam.apache.org/documentation/runners/direct/)
+You can read more about the **DirectRunner** [here](https://beam.apache.org/documentation/runners/direct/)
 
 #### Run example
 
@@ -191,8 +191,8 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 {{if (eq .Sdk "java")}}
 
 ##### Portable
-1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.15`, `Flink 1.16`, `Flink 1.17`, `Flink 1.18`.
-2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
+1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.16`, `Flink 1.17`, `Flink 1.18`.
+2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest`
 3. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService). Optionally set environment_type set to LOOPBACK. For example:
 
 ```
@@ -233,8 +233,8 @@ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 {{end}}
 
 {{if (eq .Sdk "python")}}
-1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.10`, `Flink 1.11`, `Flink 1.12`, `Flink 1.13`, `Flink 1.14`.
-2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
+1. Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub: `Flink 1.16`, `Flink 1.17`, `Flink 1.18`.
+2. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest`
 3. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService). Optionally set environment_type set to LOOPBACK. For example:
 
 ```

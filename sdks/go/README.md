@@ -33,7 +33,7 @@ The examples are normal Go programs and are most easily run directly.
 They are parameterized by Go flags.
 For example, to run wordcount on the Go direct runner do:
 
-```
+```bash
 $ pwd
 [...]/sdks/go
 $ go run examples/wordcount/wordcount.go --output=/tmp/result.txt
@@ -70,7 +70,7 @@ Edges: 1: Impulse [] -> [Out: []uint8 -> {1: []uint8/GW/bytes}]
 The debugging output is currently quite verbose and likely to change. The output is a local
 file in this case:
 
-```
+```bash
 $ head /tmp/result.txt
 while: 2
 darkling: 1
@@ -86,13 +86,13 @@ purse: 6
 
 To run wordcount on dataflow runner do:
 
-```
-$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<YOUR_GCP_REGION> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
+```bash
+$ go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<YOUR_GCP_REGION> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
 ```
 
 The output is a GCS file in this case:
 
-```
+```bash
 $ gsutil cat <YOUR_GCS_LOCATION>/output* | head
 Blanket: 1
 blot: 1
@@ -106,7 +106,6 @@ sport: 3
 Crown'd: 1
 ```
 
-
 See [BUILD.md](./BUILD.md) for how to build Go code in general. See
 [container documentation](https://beam.apache.org/documentation/runtime/environments/#building-container-images) for how to build and push the Go SDK harness container image.
 
@@ -117,9 +116,10 @@ Please use the [`sdk-go`](https://github.com/apache/beam/issues?q=is%3Aopen+is%3
 ## Contributing to the Go SDK
 
 ### New to developing Go?
-https://tour.golang.org : The Go Tour gives you the basics of the language, interactively no installation required.
 
-https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go.
+<https://tour.golang.org> : The Go Tour gives you the basics of the language, interactively no installation required.
+
+<https://github.com/campoy/go-tooling-workshop> is a great start on learning good (optional) development tools for Go.
 
 ### Developing Go Beam SDK on Github
 
@@ -130,11 +130,10 @@ Executing all unit tests for the SDK is possible from the `<beam root>\sdks\go` 
 
 To test your change as Jenkins would execute it from a PR, from the
 beam root directory, run:
- * `./gradlew :sdks:go:goTest` executes the unit tests.
- * `./gradlew :sdks:go:test:prismValidatesRunner` validates the SDK against the Go Prism runner as a stand alone binary, with containers.
- * `./gradlew :sdks:go:test:ulrValidatesRunner` validates the SDK against the Portable Python runner.
- * `./gradlew :sdks:go:test:flinkValidatesRunner` validates the SDK against the Flink runner.
+
+* `./gradlew :sdks:go:goTest` executes the unit tests.
+* `./gradlew :sdks:go:test:prismValidatesRunner` validates the SDK against the Go Prism runner as a stand alone binary, with containers.
+* `./gradlew :sdks:go:test:ulrValidatesRunner` validates the SDK against the Portable Python runner.
+* `./gradlew :sdks:go:test:flinkValidatesRunner` validates the SDK against the Flink runner.
 
 Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
-
-

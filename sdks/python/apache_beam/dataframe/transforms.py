@@ -16,12 +16,8 @@
 
 import collections
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Mapping
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -30,17 +26,15 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
+from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
+from apache_beam.pvalue import PCollection
 from apache_beam.utils import windowed_value
 
 __all__ = [
     'DataframeTransform',
 ]
-
-if TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from apache_beam.pvalue import PCollection
 
 T = TypeVar('T')
 
@@ -108,15 +102,15 @@ class DataframeTransform(transforms.PTransform):
     from apache_beam.dataframe import convert
 
     # Convert inputs to a flat dict.
-    input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
+    input_dict: dict[Any, PCollection] = _flatten(input_pcolls)
     proxies = _flatten(self._proxy) if self._proxy is not None else {
         tag: None
         for tag in input_dict
     }
-    input_frames = {
+    input_frames: dict[Any, frame_base.DeferredFrame] = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
-    }  # type: Dict[Any, DeferredFrame] # noqa: F821
+    }  # noqa: F821
 
     # Apply the function.
     frames_input = _substitute(input_pcolls, input_frames)
@@ -152,9 +146,9 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
   def _apply_deferred_ops(
       self,
-      inputs,  # type: Dict[expressions.Expression, PCollection]
-      outputs,  # type: Dict[Any, expressions.Expression]
-      ):  # -> Dict[Any, PCollection]
+      inputs: dict[expressions.Expression, PCollection],
+      outputs: dict[Any, expressions.Expression],
+  ) -> dict[Any, PCollection]:
     """Construct a Beam graph that evaluates a set of expressions on a set of
     input PCollections.
 
@@ -395,7 +389,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
       if stage is None:
         # No stage available, compute this expression as part of a new stage.
-        stage = Stage(expr.args(), expr.requires_partition_by())
+        stage = Stage([
+            arg for arg in expr.args()
+            if not isinstance(arg, expressions.ConstantExpression)
+        ],
+                      expr.requires_partition_by())
         for arg in expr.args():
           # For each argument, declare that it is also available in
           # this new stage.
@@ -581,11 +579,9 @@ def _concat(parts):
 
 
 def _flatten(
-    valueish,  # type: Union[T, List[T], Tuple[T], Dict[Any, T]]
-    root=(),  # type: Tuple[Any, ...]
-    ):
-  # type: (...) -> Mapping[Tuple[Any, ...], T]
-
+    valueish: Union[T, list[T], tuple[T], dict[Any, T]],
+    root: tuple[Any, ...] = (),
+) -> Mapping[tuple[Any, ...], T]:
   """Given a nested structure of dicts, tuples, and lists, return a flat
   dictionary where the values are the leafs and the keys are the "paths" to
   these leaves.

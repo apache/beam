@@ -65,7 +65,8 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
       enumerationType = EnumerationType.create(enumValues);
     }
     oneOfSchema = Schema.builder().addFields(nullableFields).build();
-    schemaProtoRepresentation = SchemaTranslation.schemaToProto(oneOfSchema, false).toByteArray();
+    schemaProtoRepresentation =
+        SchemaTranslation.schemaToProto(oneOfSchema, false, false).toByteArray();
   }
 
   /** Create an {@link OneOfType} logical type. */

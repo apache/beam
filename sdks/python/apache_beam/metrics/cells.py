@@ -23,12 +23,13 @@ context.
 
 # pytype: skip-file
 
+import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any
+from typing import Iterable
 from typing import Optional
-from typing import SupportsInt
+from typing import Set
 
 try:
   import cython
@@ -40,12 +41,10 @@ except ImportError:
   globals()['cython'] = fake_cython
 
 __all__ = [
-    'MetricAggregator',
-    'MetricCell',
-    'MetricCellFactory',
-    'DistributionResult',
-    'GaugeResult'
+    'MetricCell', 'MetricCellFactory', 'DistributionResult', 'GaugeResult'
 ]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MetricCell(object):
@@ -105,11 +104,11 @@ class CounterCell(MetricCell):
   """
   def __init__(self, *args):
     super().__init__(*args)
-    self.value = CounterAggregator.identity_element()
+    self.value = 0
 
   def reset(self):
     # type: () -> None
-    self.value = CounterAggregator.identity_element()
+    self.value = 0
 
   def combine(self, other):
     # type: (CounterCell) -> CounterCell
@@ -170,11 +169,11 @@ class DistributionCell(MetricCell):
   """
   def __init__(self, *args):
     super().__init__(*args)
-    self.data = DistributionAggregator.identity_element()
+    self.data = DistributionData.identity_element()
 
   def reset(self):
     # type: () -> None
-    self.data = DistributionAggregator.identity_element()
+    self.data = DistributionData.identity_element()
 
   def combine(self, other):
     # type: (DistributionCell) -> DistributionCell
@@ -216,7 +215,46 @@ class DistributionCell(MetricCell):
         ptransform=transform_id)
 
 
-class GaugeCell(MetricCell):
+class AbstractMetricCell(MetricCell):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value and delta for a metric with a data class.
+
+  This class is thread safe.
+  """
+  def __init__(self, data_class):
+    super().__init__()
+    self.data_class = data_class
+    self.data = self.data_class.identity_element()
+
+  def reset(self):
+    self.data = self.data_class.identity_element()
+
+  def combine(self, other: 'AbstractMetricCell') -> 'AbstractMetricCell':
+    result = type(self)()  # type: ignore[call-arg]
+    result.data = self.data.combine(other.data)
+    return result
+
+  def set(self, value):
+    with self._lock:
+      self._update_locked(value)
+
+  def update(self, value):
+    with self._lock:
+      self._update_locked(value)
+
+  def _update_locked(self, value):
+    raise NotImplementedError(type(self))
+
+  def get_cumulative(self):
+    with self._lock:
+      return self.data.get_cumulative()
+
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
+    raise NotImplementedError(type(self))
+
+
+class GaugeCell(AbstractMetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value and delta for a gauge metric.
@@ -227,35 +265,14 @@ class GaugeCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, *args):
-    super().__init__(*args)
-    self.data = GaugeAggregator.identity_element()
+  def __init__(self):
+    super().__init__(GaugeData)
 
-  def reset(self):
-    self.data = GaugeAggregator.identity_element()
-
-  def combine(self, other):
-    # type: (GaugeCell) -> GaugeCell
-    result = GaugeCell()
-    result.data = self.data.combine(other.data)
-    return result
-
-  def set(self, value):
-    self.update(value)
-
-  def update(self, value):
-    # type: (SupportsInt) -> None
-    value = int(value)
-    with self._lock:
-      # Set the value directly without checking timestamp, because
-      # this value is naturally the latest value.
-      self.data.value = value
-      self.data.timestamp = time.time()
-
-  def get_cumulative(self):
-    # type: () -> GaugeData
-    with self._lock:
-      return self.data.get_cumulative()
+  def _update_locked(self, value):
+    # Set the value directly without checking timestamp, because
+    # this value is naturally the latest value.
+    self.data.value = int(value)
+    self.data.timestamp = time.time()
 
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
@@ -266,7 +283,7 @@ class GaugeCell(MetricCell):
         ptransform=transform_id)
 
 
-class StringSetCell(MetricCell):
+class StringSetCell(AbstractMetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
   Tracks the current value for a StringSet metric.
@@ -277,49 +294,22 @@ class StringSetCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, *args):
-    super().__init__(*args)
-    self.data = StringSetAggregator.identity_element()
+  def __init__(self):
+    super().__init__(StringSetData)
 
   def add(self, value):
     self.update(value)
 
-  def update(self, value):
-    # type: (str) -> None
-    if cython.compiled:
-      # We will hold the GIL throughout the entire _update.
-      self._update(value)
-    else:
-      with self._lock:
-        self._update(value)
-
-  def _update(self, value):
+  def _update_locked(self, value):
     self.data.add(value)
-
-  def get_cumulative(self):
-    # type: () -> set
-    with self._lock:
-      return set(self.data)
-
-  def combine(self, other):
-    # type: (StringSetCell) -> StringSetCell
-    combined = StringSetAggregator().combine(self.data, other.data)
-    result = StringSetCell()
-    result.data = combined
-    return result
 
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
-
     return monitoring_infos.user_set_string(
         name.namespace,
         name.name,
         self.get_cumulative(),
         ptransform=transform_id)
-
-  def reset(self):
-    # type: () -> None
-    self.data = StringSetAggregator.identity_element()
 
 
 class DistributionResult(object):
@@ -444,6 +434,10 @@ class GaugeData(object):
     # type: () -> GaugeData
     return GaugeData(self.value, timestamp=self.timestamp)
 
+  def get_result(self):
+    # type: () -> GaugeResult
+    return GaugeResult(self.get_cumulative())
+
   def combine(self, other):
     # type: (Optional[GaugeData]) -> GaugeData
     if other is None:
@@ -458,6 +452,11 @@ class GaugeData(object):
   def singleton(value, timestamp=None):
     # type: (Optional[int], Optional[int]) -> GaugeData
     return GaugeData(value, timestamp=timestamp)
+
+  @staticmethod
+  def identity_element():
+    # type: () -> GaugeData
+    return GaugeData(0, timestamp=0)
 
 
 class DistributionData(object):
@@ -505,6 +504,9 @@ class DistributionData(object):
     # type: () -> DistributionData
     return DistributionData(self.sum, self.count, self.min, self.max)
 
+  def get_result(self) -> DistributionResult:
+    return DistributionResult(self.get_cumulative())
+
   def combine(self, other):
     # type: (Optional[DistributionData]) -> DistributionData
     if other is None:
@@ -521,108 +523,110 @@ class DistributionData(object):
     # type: (int) -> DistributionData
     return DistributionData(value, 1, value, value)
 
-
-class MetricAggregator(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Base interface for aggregating metric data during pipeline execution."""
-  def identity_element(self):
-    # type: () -> Any
-
-    """Returns the identical element of an Aggregation.
-
-    For the identity element, it must hold that
-     Aggregator.combine(any_element, identity_element) == any_element.
-    """
-    raise NotImplementedError
-
-  def combine(self, x, y):
-    # type: (Any, Any) -> Any
-    raise NotImplementedError
-
-  def result(self, x):
-    # type: (Any) -> Any
-    raise NotImplementedError
-
-
-class CounterAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Counter metric data during pipeline execution.
-
-  Values aggregated should be ``int`` objects.
-  """
-  @staticmethod
-  def identity_element():
-    # type: () -> int
-    return 0
-
-  def combine(self, x, y):
-    # type: (SupportsInt, SupportsInt) -> int
-    return int(x) + int(y)
-
-  def result(self, x):
-    # type: (SupportsInt) -> int
-    return int(x)
-
-
-class DistributionAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Distribution metric data during pipeline execution.
-
-  Values aggregated should be ``DistributionData`` objects.
-  """
   @staticmethod
   def identity_element():
     # type: () -> DistributionData
     return DistributionData(0, 0, 2**63 - 1, -2**63)
 
-  def combine(self, x, y):
-    # type: (DistributionData, DistributionData) -> DistributionData
-    return x.combine(y)
 
-  def result(self, x):
-    # type: (DistributionData) -> DistributionResult
-    return DistributionResult(x.get_cumulative())
-
-
-class GaugeAggregator(MetricAggregator):
+class StringSetData(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Aggregator for Gauge metric data during pipeline execution.
+  The data structure that holds data about a StringSet metric.
 
-  Values aggregated should be ``GaugeData`` objects.
+  StringSet metrics are restricted to set of strings only.
+
+  This object is not thread safe, so it's not supposed to be modified
+  by other than the StringSetCell that contains it.
+
+  The summation of all string length for a StringSetData cannot exceed 1 MB.
+  Further addition of elements are dropped.
   """
-  @staticmethod
-  def identity_element():
-    # type: () -> GaugeData
-    return GaugeData(0, timestamp=0)
 
-  def combine(self, x, y):
-    # type: (GaugeData, GaugeData) -> GaugeData
-    result = x.combine(y)
-    return result
+  _STRING_SET_SIZE_LIMIT = 1_000_000
 
-  def result(self, x):
-    # type: (GaugeData) -> GaugeResult
-    return GaugeResult(x.get_cumulative())
+  def __init__(self, string_set: Optional[Set] = None, string_size: int = 0):
+    self.string_set = string_set or set()
+    if not string_size:
+      string_size = 0
+      for s in self.string_set:
+        string_size += len(s)
+    self.string_size = string_size
 
-
-class StringSetAggregator(MetricAggregator):
-  @staticmethod
-  def identity_element():
-    # type: () -> set
-    return set()
-
-  def combine(self, x, y):
-    # type: (set, set) -> set
-    if len(x) == 0:
-      return y
-    elif len(y) == 0:
-      return x
+  def __eq__(self, other: object) -> bool:
+    if isinstance(other, StringSetData):
+      return (
+          self.string_size == other.string_size and
+          self.string_set == other.string_set)
     else:
-      return set.union(x, y)
+      return False
 
-  def result(self, x):
-    return x
+  def __hash__(self) -> int:
+    return hash(self.string_set)
+
+  def __repr__(self) -> str:
+    return 'StringSetData{}:{}'.format(self.string_set, self.string_size)
+
+  def get_cumulative(self) -> "StringSetData":
+    return StringSetData(set(self.string_set), self.string_size)
+
+  def get_result(self) -> Set[str]:
+    return set(self.string_set)
+
+  def add(self, *strings):
+    """
+    Add strings into this StringSetData and return the result StringSetData.
+    Reuse the original StringSetData's set.
+    """
+    self.string_size = self.add_until_capacity(
+        self.string_set, self.string_size, strings)
+    return self
+
+  def combine(self, other: "StringSetData") -> "StringSetData":
+    """
+    Combines this StringSetData with other, both original StringSetData are left
+    intact.
+    """
+    if other is None:
+      return self
+
+    if not other.string_set:
+      return self
+    elif not self.string_set:
+      return other
+
+    combined = set(self.string_set)
+    string_size = self.add_until_capacity(
+        combined, self.string_size, other.string_set)
+    return StringSetData(combined, string_size)
+
+  @classmethod
+  def add_until_capacity(
+      cls, combined: set, current_size: int, others: Iterable[str]):
+    """
+    Add strings into set until reach capacity. Return the all string size of
+    added set.
+    """
+    if current_size > cls._STRING_SET_SIZE_LIMIT:
+      return current_size
+
+    for string in others:
+      if string not in combined:
+        combined.add(string)
+        current_size += len(string)
+        if current_size > cls._STRING_SET_SIZE_LIMIT:
+          _LOGGER.warning(
+              "StringSet metrics reaches capacity. Further incoming elements "
+              "won't be recorded. Current size: %d, last element size: %d.",
+              current_size,
+              len(string))
+          break
+    return current_size
+
+  @staticmethod
+  def singleton(value: str) -> "StringSetData":
+    return StringSetData({value})
+
+  @staticmethod
+  def identity_element() -> "StringSetData":
+    return StringSetData()

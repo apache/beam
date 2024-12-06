@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -76,7 +77,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
-import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.EndOffsetErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Lineage;
@@ -114,6 +115,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -145,12 +147,14 @@ import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.common.utils.Utils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -263,10 +267,6 @@ public class KafkaIOTest {
           public synchronized void assign(final Collection<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
-            for (TopicPartition tp : assigned) {
-              updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
-            }
           }
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
@@ -286,9 +286,12 @@ public class KafkaIOTest {
           }
         };
 
-    for (String topic : topics) {
-      consumer.updatePartitions(topic, partitionMap.get(topic));
-    }
+    partitionMap.forEach(consumer::updatePartitions);
+    consumer.updateBeginningOffsets(
+        records.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> 0L)));
+    consumer.updateEndOffsets(
+        records.entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> (long) e.getValue().size())));
 
     // MockConsumer does not maintain any relationship between partition seek position and the
     // records added. e.g. if we add 10 records to a partition and then seek to end of the
@@ -512,6 +515,15 @@ public class KafkaIOTest {
 
     PAssert.that(input).containsInAnyOrder(inputs);
     p.run();
+  }
+
+  @Test
+  public void testKafkaVersion() {
+    // KafkaIO compatibility tests run unit tests in KafkaIOTest
+    @Nullable String targetVer = System.getProperty("beam.target.kafka.version");
+    Assume.assumeTrue(!Strings.isNullOrEmpty(targetVer));
+    String actualVer = AppInfoParser.getVersion();
+    assertEquals(targetVer, actualVer);
   }
 
   @Test
@@ -970,8 +982,9 @@ public class KafkaIOTest {
     thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(instanceOf(IllegalStateException.class));
     thrown.expectMessage(
-        "Could not find any partitions info. Please check Kafka configuration and make sure that "
-            + "provided topics exist.");
+        matchesPattern(
+            ".*Could not find any partitions(?: info)?\\. Please check Kafka "
+                + "configuration and (?:make sure that provided topics exist|topic names).*"));
 
     int numElements = 1000;
     KafkaIO.Read<Integer, Long> reader =
@@ -1511,13 +1524,14 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("topic_a");
 
-    PositionErrorConsumerFactory positionErrorConsumerFactory = new PositionErrorConsumerFactory();
+    EndOffsetErrorConsumerFactory endOffsetErrorConsumerFactory =
+        new EndOffsetErrorConsumerFactory();
 
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopics(topics)
-            .withConsumerFactoryFn(positionErrorConsumerFactory)
+            .withConsumerFactoryFn(endOffsetErrorConsumerFactory)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .makeSource();
@@ -1526,7 +1540,7 @@ public class KafkaIOTest {
 
     reader.start();
 
-    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partition");
+    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partitions");
 
     reader.close();
   }
@@ -1579,6 +1593,11 @@ public class KafkaIOTest {
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
       // intentionally left blank for compatibility with older kafka versions
+    }
+
+    @Override
+    public void close() {
+      // intentionally left blank for compatibility with kafka-client v2.2 or older
     }
   }
 
