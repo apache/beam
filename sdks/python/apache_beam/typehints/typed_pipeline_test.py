@@ -22,7 +22,6 @@
 import typing
 import unittest
 from typing import Tuple
-
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
