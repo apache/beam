@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,14 +39,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper for keeping track of which {@link DataStream DataStreams} map to which {@link PTransform
  * PTransforms}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class FlinkStreamingTranslationContext {
 
   private final StreamExecutionEnvironment env;
@@ -61,12 +59,12 @@ class FlinkStreamingTranslationContext {
 
   private final Map<PValue, PTransform<?, ?>> producers = new HashMap<>();
 
-  private AppliedPTransform<?, ?, ?> currentTransform;
+  private @Nullable AppliedPTransform<?, ?, ?> currentTransform = null;
 
   public FlinkStreamingTranslationContext(
       StreamExecutionEnvironment env, PipelineOptions options, boolean isStreaming) {
-    this.env = checkNotNull(env);
-    this.options = checkNotNull(options);
+    this.env = env;
+    this.options = options;
     this.isStreaming = isStreaming;
   }
 
@@ -84,11 +82,13 @@ class FlinkStreamingTranslationContext {
 
   @SuppressWarnings("unchecked")
   public <T> DataStream<T> getInputDataStream(PValue value) {
-    return (DataStream<T>) dataStreams.get(value);
+    return (DataStream<T>)
+        checkStateNotNull(dataStreams.get(value), "No data stream associated with PValue " + value);
   }
 
   public void setOutputDataStream(PValue value, DataStream<?> set) {
-    final PTransform<?, ?> previousProducer = producers.put(value, currentTransform.getTransform());
+    final PTransform<?, ?> previousProducer =
+        producers.put(value, getCurrentTransform().getTransform());
     Preconditions.checkArgument(
         previousProducer == null, "PValue can only have a single producer.");
     if (!dataStreams.containsKey(value)) {
@@ -98,7 +98,9 @@ class FlinkStreamingTranslationContext {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   <T extends PValue> PTransform<?, T> getProducer(T value) {
-    return (PTransform) producers.get(value);
+    return (PTransform)
+        checkStateNotNull(
+            producers.get(value), "No producer PTransform associated with PValue " + value);
   }
 
   /**
@@ -121,7 +123,7 @@ class FlinkStreamingTranslationContext {
   }
 
   public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
-    return currentTransform.getOutputs().entrySet().stream()
+    return getCurrentTransform().getOutputs().entrySet().stream()
         .filter(e -> e.getValue() instanceof PCollection)
         .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
@@ -132,25 +134,27 @@ class FlinkStreamingTranslationContext {
   }
 
   public AppliedPTransform<?, ?, ?> getCurrentTransform() {
-    return currentTransform;
+    return checkStateNotNull(
+        currentTransform,
+        "Attempted to get current transform when not in context of translating any transform");
   }
 
   @SuppressWarnings("unchecked")
   public <T extends PValue> T getInput(PTransform<T, ?> transform) {
-    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
+    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(getCurrentTransform()));
   }
 
   public <T extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<T, ?> transform) {
-    return currentTransform.getInputs();
+    return getCurrentTransform().getInputs();
   }
 
   @SuppressWarnings("unchecked")
   public <T extends PValue> T getOutput(PTransform<?, T> transform) {
-    return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
+    return (T) Iterables.getOnlyElement(getCurrentTransform().getOutputs().values());
   }
 
   public <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
       PTransform<?, OutputT> transform) {
-    return currentTransform.getOutputs();
+    return getCurrentTransform().getOutputs();
   }
 }

@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ public class PipelineResources {
    * @return A list of absolute paths to the resources the class loader uses.
    */
   public static List<String> detectClassPathResourcesToStage(
-      ClassLoader classLoader, PipelineOptions options) {
+      @Nullable ClassLoader classLoader, PipelineOptions options) {
 
     PipelineResourcesOptions artifactsRelatedOptions = options.as(PipelineResourcesOptions.class);
     List<String> detectedResources =

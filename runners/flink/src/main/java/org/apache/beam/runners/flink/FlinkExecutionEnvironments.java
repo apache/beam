@@ -21,6 +21,7 @@ import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironm
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -63,9 +64,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
@@ -225,7 +223,7 @@ public class FlinkExecutionEnvironments {
               hostAndPort.getPort(),
               flinkConfiguration,
               filesToStage.toArray(new String[filesToStage.size()]),
-              null,
+              new URL[] {},
               savepointRestoreSettings);
       LOG.info("Using Flink Master URL {}:{}.", hostAndPort.getHost(), hostAndPort.getPort());
     }
@@ -325,7 +323,7 @@ public class FlinkExecutionEnvironments {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == null || this.getClass() != obj.getClass()) {
         return false;
       }
