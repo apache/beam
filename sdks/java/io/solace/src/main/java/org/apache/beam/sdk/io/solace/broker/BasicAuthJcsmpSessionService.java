@@ -102,10 +102,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
           if (messageReceiver != null) {
             messageReceiver.close();
           }
-          if (messageProducer != null) {
-            messageProducer.close();
-          }
-          if (!isClosed()) {
+          if (jcsmpSession != null) {
             checkStateNotNull(jcsmpSession).closeSession();
           }
           return 0;
@@ -119,8 +116,9 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
       this.messageReceiver =
           retryCallableManager.retryCallable(
               this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+      this.messageReceiver.start();
     }
-    return this.messageReceiver;
+    return checkStateNotNull(this.messageReceiver);
   }
 
   @Override
@@ -138,15 +136,10 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
     return publishedResultsQueue;
   }
 
-  @Override
-  public boolean isClosed() {
-    return jcsmpSession == null || jcsmpSession.isClosed();
-  }
-
   private MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
       throws JCSMPException, IOException {
 
-    if (isClosed()) {
+    if (jcsmpSession == null) {
       connectWriteSession(submissionMode);
     }
 
@@ -165,9 +158,6 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
-    if (isClosed()) {
-      connectSession();
-    }
 
     Queue queue =
         JCSMPFactory.onlyInstance()
