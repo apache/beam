@@ -956,28 +956,17 @@ def preprocess(spec, verbose=False, known_transforms=None):
       return spec
 
   def validate_transform_references(spec):
-    if 'transforms' not in spec:
-      return spec
+    name = spec.get('name', '')
+    transform_type = spec.get('type')
+    inputs = spec.get('input').get('input', [])
 
-    for transform in spec['transforms']:
-      name = transform.get('name')
-      inputs = transform.get('input')
-      if name is None or inputs is None:
-        continue
-
-      input_values = []
-      if isinstance(inputs, str):
-        input_values = [inputs]
-      elif isinstance(inputs, list):
-        input_values = inputs
-      elif isinstance(inputs, dict):
-        input_values = list(inputs.values())
-
+    if not is_empty(inputs):
+      input_values = [inputs] if isinstance(inputs, str) else inputs
       for input_value in input_values:
-        if isinstance(input_value, str) and input_value.lower() == name.lower():
+        if input_value in (name, transform_type):
           raise ValueError(
               f"Circular reference detected: Transform {name} "
-              f"references itself as input in {identify_object(transform)}")
+              f"references itself as input in {identify_object(spec)}")
 
     return spec
 
@@ -985,13 +974,13 @@ def preprocess(spec, verbose=False, known_transforms=None):
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
-      validate_transform_references,
       preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
       tag_explicit_inputs,
       normalize_inputs_outputs,
+      validate_transform_references,
       preprocess_flattened_inputs,
       ensure_errors_consumed,
       preprocess_windowing,
