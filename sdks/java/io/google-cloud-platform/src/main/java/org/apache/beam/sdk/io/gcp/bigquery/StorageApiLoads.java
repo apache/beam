@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
@@ -76,6 +77,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final boolean usesCdc;
 
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final Map<String, String> bigLakeConfiguration;
 
   private final BadRecordRouter badRecordRouter;
 
@@ -98,6 +100,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       Predicate<String> propagateSuccessfulStorageApiWritesPredicate,
       boolean usesCdc,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      Map<String, String> bigLakeConfiguration,
       BadRecordRouter badRecordRouter,
       ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
     this.destinationCoder = destinationCoder;
@@ -118,6 +121,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.successfulRowsPredicate = propagateSuccessfulStorageApiWritesPredicate;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.bigLakeConfiguration = bigLakeConfiguration;
     this.badRecordRouter = badRecordRouter;
     this.badRecordErrorHandler = badRecordErrorHandler;
   }
@@ -186,7 +190,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     createDisposition,
                     kmsKey,
                     usesCdc,
-                    defaultMissingValueInterpretation));
+                    defaultMissingValueInterpretation,
+                    bigLakeConfiguration));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -279,7 +284,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulRowsPredicate,
                 autoUpdateSchema,
                 ignoreUnknownValues,
-                defaultMissingValueInterpretation));
+                defaultMissingValueInterpretation,
+                bigLakeConfiguration));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -372,7 +378,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     createDisposition,
                     kmsKey,
                     usesCdc,
-                    defaultMissingValueInterpretation));
+                    defaultMissingValueInterpretation,
+                    bigLakeConfiguration));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
