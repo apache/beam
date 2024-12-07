@@ -40,6 +40,8 @@ import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -88,6 +90,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     // which are not null-safe.
     @SuppressWarnings("nullness")
     org.apache.iceberg.@NonNull Schema project = this.project;
+    NameMapping nameMapping = MappingUtil.create(project);
 
     do {
       // If our current iterator is working... do that.
@@ -123,6 +126,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
                   .project(project)
                   .createReaderFunc(fileSchema -> GenericOrcReader.buildReader(project, fileSchema))
                   .filter(fileTask.residual())
+                  .withNameMapping(nameMapping)
                   .build();
           break;
         case PARQUET:
@@ -134,6 +138,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
                   .createReaderFunc(
                       fileSchema -> GenericParquetReaders.buildReader(project, fileSchema))
                   .filter(fileTask.residual())
+                  .withNameMapping(nameMapping)
                   .build();
           break;
         case AVRO:
@@ -143,6 +148,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
                   .split(fileTask.start(), fileTask.length())
                   .project(project)
                   .createReaderFunc(DataReader::create)
+                  .withNameMapping(nameMapping)
                   .build();
           break;
         default:
