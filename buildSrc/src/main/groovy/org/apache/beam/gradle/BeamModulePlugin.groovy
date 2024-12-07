@@ -614,7 +614,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def grpc_version = "1.67.1"
     def guava_version = "33.1.0-jre"
-    def hadoop_version = "2.10.2"
+    def hadoop_version = "3.4.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
