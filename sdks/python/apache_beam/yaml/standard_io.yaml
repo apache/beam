@@ -22,6 +22,7 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
+# BigQueryIO Java
 - type: renaming
   transforms:
     'ReadFromBigQuery': 'ReadFromBigQuery'
@@ -48,6 +49,7 @@
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
+# KafkaIO Java
 - type: renaming
   transforms:
     'ReadFromKafka': 'ReadFromKafka'
@@ -83,6 +85,7 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+# PubSubLite Java
 - type: renaming
   transforms:
     'ReadFromPubSubLite': 'ReadFromPubSubLite'
@@ -120,69 +123,30 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# BigQueryIO Python
 - type: python
   transforms:
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
     # Disable until https://github.com/apache/beam/issues/28162 is resolved.
     # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+
+# FileIO Python
+- type: python
+  transforms:
     'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
     'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
     'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
     'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
+    'ReadFromCsv': 'apache_beam.yaml.yaml_io.read_from_csv'
+    'WriteToCsv': 'apache_beam.yaml.yaml_io.write_to_csv'
+    'ReadFromJson': 'apache_beam.yaml.yaml_io.read_from_json'
+    'WriteToJson': 'apache_beam.yaml.yaml_io.write_to_json'
+    'ReadFromParquet': 'apache_beam.yaml.yaml_io.read_from_parquet'
+    'WriteToParquet': 'apache_beam.yaml.yaml_io.write_to_parquet'
+    'ReadFromAvro': 'apache_beam.yaml.yaml_io.read_from_avro'
+    'WriteToAvro': 'apache_beam.yaml.yaml_io.write_to_avro'
 
-# Declared as a renaming transform to avoid exposing all
-# (implementation-specific) pandas arguments and aligning with possible Java
-# implementation.
-# Invoking these directly as a PyTransform is still an option for anyone wanting
-# to use these power-features in a language-dependent manner.
-- type: renaming
-  transforms:
-    'ReadFromCsv': 'ReadFromCsv'
-    'WriteToCsv': 'WriteToCsv'
-    'ReadFromJson': 'ReadFromJson'
-    'WriteToJson': 'WriteToJson'
-    'ReadFromParquet': 'ReadFromParquet'
-    'WriteToParquet': 'WriteToParquet'
-    'ReadFromAvro': 'ReadFromAvro'
-    'WriteToAvro': 'WriteToAvro'
-  config:
-    mappings:
-      'ReadFromCsv':
-        path: 'path'
-        delimiter: 'sep'
-        comment: 'comment'
-      'WriteToCsv':
-        path: 'path'
-        delimiter: 'sep'
-      'ReadFromJson':
-        path: 'path'
-      'WriteToJson':
-        path: 'path'
-      'ReadFromParquet':
-        path: 'file_pattern'
-      'WriteToParquet':
-        path: 'file_path_prefix'
-      'ReadFromAvro':
-        path: 'file_pattern'
-      'WriteToAvro':
-        path: 'file_path_prefix'
-    defaults:
-      'ReadFromParquet':
-        as_rows: True
-      'ReadFromAvro':
-        as_rows: True
-    underlying_provider:
-      type: python
-      transforms:
-        'ReadFromCsv': 'apache_beam.io.ReadFromCsv'
-        'WriteToCsv': 'apache_beam.io.WriteToCsv'
-        'ReadFromJson': 'apache_beam.io.ReadFromJson'
-        'WriteToJson': 'apache_beam.io.WriteToJson'
-        'ReadFromParquet': 'apache_beam.io.ReadFromParquet'
-        'WriteToParquet': 'apache_beam.io.WriteToParquet'
-        'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
-        'WriteToAvro': 'apache_beam.io.WriteToAvro'
-
+# FileIO Java
 - type: beamJar
   transforms:
     'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
@@ -190,6 +154,7 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# JdbcIO Java
 - type: renaming
   transforms:
     'ReadFromJdbc': 'ReadFromJdbc'
@@ -259,6 +224,7 @@
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# SpannerIO Java
 - type: renaming
   transforms:
     'ReadFromSpanner': 'ReadFromSpanner'
