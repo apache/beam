@@ -96,6 +96,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerEarly',
     'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle',
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
     // Requires Allowed Lateness, among others.
     'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
     'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate',
@@ -105,6 +106,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating',
     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
     'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
 
     // Coding error somehow: short write: reached end of stream after reading 5 bytes; 98 bytes expected
     'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
@@ -171,13 +173,6 @@ def sickbayTests = [
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
-    // Requires Time Sorted Input
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInput',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
-
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
@@ -188,6 +183,13 @@ def sickbayTests = [
     // Biased to test problem, due to how they are constructed.
     'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalization',
     'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithSideInputs',
+
+    // sharded_key coder isn't implemented in Prism.
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+
+    // SDK dies, terminating the job, but due to a bug in how onWindowExpiry is implemented in prism.
+    // excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow'
+    // excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
 
     // Filtered by PortableRunner tests.
     // Teardown not called in exceptions
@@ -216,9 +218,9 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
         "--runner=TestPrismRunner",
         "--experiments=beam_fn_api",
         "--defaultEnvironmentType=${environmentType}",
-        "--prismLogLevel=warn",
+        "--prismLogLevel=debug",
         "--prismLocation=${prismBuildTask.project.property('buildTarget').toString()}",
-        "--enableWebUI=false",
+        "--enableWebUI=true",
     ])
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
@@ -229,9 +231,9 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
 
       // Not yet implemented in Prism
       // https://github.com/apache/beam/issues/32211
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+      // excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       // https://github.com/apache/beam/issues/32929
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+      // excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
 
        // Not supported in Portable Java SDK yet.
        // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState

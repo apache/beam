@@ -345,7 +345,7 @@ func TestWorker_State_MultimapKeysSideInput(t *testing.T) {
 			instID := wk.NextInst()
 			wk.activeInstructions[instID] = &B{
 				MultiMapSideInputData: map[SideInputKey]map[typex.Window]map[string][][]byte{
-					SideInputKey{
+					{
 						TransformID: "transformID",
 						Local:       "i1",
 					}: {
@@ -419,7 +419,7 @@ func TestWorker_State_MultimapSideInput(t *testing.T) {
 			instID := wk.NextInst()
 			wk.activeInstructions[instID] = &B{
 				MultiMapSideInputData: map[SideInputKey]map[typex.Window]map[string][][]byte{
-					SideInputKey{
+					{
 						TransformID: "transformID",
 						Local:       "i1",
 					}: {
