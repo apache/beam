@@ -66,24 +66,25 @@ pipeline:
             callable: 'lambda x: x.order_amount'
             output_type: integer
 
-    # Step 4: Filter orders with amount greater than 100
+    # Step 4: Filter orders with amount greater than 110
     - type: Filter
       name: FilterHighValueOrders
       input: MapEnrichedValues
       config:
-        keep: "order_amount > 100"
+        keep: "order_amount > 110"
         language: "python"
 
 
     # Step 6: Write processed order to another spanner table
+    #   Note: Make sure to replace $VARS with your values.
     - type: WriteToSpanner
       name: WriteProcessedOrders
       input: FilterHighValueOrders
       config:
-        project_id: 'apache-beam-testing'
-        instance_id: 'orders-test'
-        database_id: 'order-database'
-        table_id: 'orders_with_customers'
+        project_id: '$PROJECT'
+        instance_id: '$INSTANCE'
+        database_id: '$DATABASE'
+        table_id: '$TABLE'
         error_handling:
           output: my_error_output
 
@@ -94,6 +95,8 @@ pipeline:
       config:
         path: 'errors.json'
 
+options:
+  yaml_experimental_features: Enrichment
+
 # Expected:
 #  Row(customer_id=1001, customer_name='Alice', customer_email='alice@gmail.com', product_id=2001, order_date='24-03-24', order_amount=150)
-#  Row(customer_id=1003, customer_name='Claire', customer_email='claire@gmail.com', product_id=2003, order_date='7-05-24', order_amount=110)
