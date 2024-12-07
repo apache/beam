@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.JsonFormat;
@@ -137,6 +138,7 @@ public class MetricsContainerStepMap implements Serializable {
     Map<MetricKey, MetricResult<DistributionData>> distributions = new HashMap<>();
     Map<MetricKey, MetricResult<GaugeData>> gauges = new HashMap<>();
     Map<MetricKey, MetricResult<StringSetData>> sets = new HashMap<>();
+    Map<MetricKey, MetricResult<HistogramData>> perWorkerHistograms = new HashMap<>();
 
     attemptedMetricsContainers.forEachMetricContainer(
         container -> {
@@ -146,6 +148,8 @@ public class MetricsContainerStepMap implements Serializable {
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeAttemptedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
           mergeAttemptedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
+          mergeAttemptedResults(
+              perWorkerHistograms, cumulative.perWorkerHistogramsUpdates(), HistogramData::combine);
         });
     committedMetricsContainers.forEachMetricContainer(
         container -> {
@@ -155,6 +159,8 @@ public class MetricsContainerStepMap implements Serializable {
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeCommittedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
           mergeCommittedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
+          mergeCommittedResults(
+              perWorkerHistograms, cumulative.perWorkerHistogramsUpdates(), HistogramData::combine);
         });
 
     return new DefaultMetricResults(
@@ -167,6 +173,9 @@ public class MetricsContainerStepMap implements Serializable {
             .collect(toList()),
         sets.values().stream()
             .map(result -> result.transform(StringSetData::extractResult))
+            .collect(toList()),
+        perWorkerHistograms.values().stream()
+            .map(result -> result.transform(HistogramData::extractResult))
             .collect(toList()));
   }
 

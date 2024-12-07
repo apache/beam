@@ -26,6 +26,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -88,6 +89,11 @@ public class FailedRunningPipelineResults implements PipelineResult {
 
           @Override
           public Iterable<MetricResult<StringSetResult>> getStringSets() {
+            return Collections.emptyList();
+          }
+
+          @Override
+          public Iterable<MetricResult<HistogramData>> getPerWorkerHistograms() {
             return Collections.emptyList();
           }
         };

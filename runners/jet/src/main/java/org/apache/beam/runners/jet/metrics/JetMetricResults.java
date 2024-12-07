@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jet.metrics;
 
 import com.hazelcast.map.IMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -104,6 +106,7 @@ public class JetMetricResults extends MetricResults {
     private final Iterable<MetricResult<DistributionResult>> distributions;
     private final Iterable<MetricResult<GaugeResult>> gauges;
     private final Iterable<MetricResult<StringSetResult>> stringSets;
+    private final Iterable<MetricResult<HistogramData>> perWorkerHistograms;
 
     private QueryResults(
         Iterable<MetricResult<Long>> counters,
@@ -114,6 +117,7 @@ public class JetMetricResults extends MetricResults {
       this.distributions = distributions;
       this.gauges = gauges;
       this.stringSets = stringSets;
+      this.perWorkerHistograms = Collections.emptyList(); // not implemented
     }
 
     @Override
@@ -134,6 +138,11 @@ public class JetMetricResults extends MetricResults {
     @Override
     public Iterable<MetricResult<StringSetResult>> getStringSets() {
       return stringSets;
+    }
+
+    @Override
+    public Iterable<MetricResult<HistogramData>> getPerWorkerHistograms() {
+      return perWorkerHistograms;
     }
   }
 
