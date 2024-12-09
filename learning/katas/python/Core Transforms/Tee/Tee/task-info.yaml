@@ -17,16 +17,17 @@
 # under the License.
 #
 
-content:
-- Map
-- GroupByKey
-- CoGroupByKey
-- Combine
-- Flatten
-- FlattenWith
-- Partition
-- Side Input
-- Side Output
-- Branching
-- Composite Transform
-- Tee
+type: edu
+files:
+  - name: task.py
+    visible: true
+    placeholders:
+      - offset: 1320
+        length: 63
+        placeholder_text: TODO()
+  - name: tests/test_task.py
+    visible: false
+  - name: __init__.py
+    visible: false
+  - name: tests/__init__.py
+    visible: false
