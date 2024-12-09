@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import static org.apache.beam.runners.dataflow.worker.MetricsToPerStepNamespaceMetricsConverter.KAFKA_SINK_METRICS_NAMESPACE;
 import static org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -35,7 +36,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
-import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
@@ -120,8 +120,7 @@ public abstract class StageInfo {
     for (PerStepNamespaceMetrics perStepnamespaceMetrics : metrics) {
       if (!BigQuerySinkMetrics.METRICS_NAMESPACE.equals(
               perStepnamespaceMetrics.getMetricsNamespace())
-          && !KafkaSinkMetrics.METRICS_NAMESPACE.equals(
-              perStepnamespaceMetrics.getMetricsNamespace())) {
+          && !KAFKA_SINK_METRICS_NAMESPACE.equals(perStepnamespaceMetrics.getMetricsNamespace())) {
         continue;
       }
       for (MetricValue metric : perStepnamespaceMetrics.getMetricValues()) {
