@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.storage.model.Objects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -36,6 +37,9 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
@@ -80,6 +84,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -87,10 +92,14 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Integration tests for {@link IcebergIO} source and sink. */
 @RunWith(JUnit4.class)
 public class IcebergIOIT implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergIOIT.class);
+
   private static final org.apache.beam.sdk.schemas.Schema DOUBLY_NESTED_ROW_SCHEMA =
       org.apache.beam.sdk.schemas.Schema.builder()
           .addStringField("doubly_nested_str")
@@ -176,27 +185,45 @@ public class IcebergIOIT implements Serializable {
 
   @Rule public TestName testName = new TestName();
 
-  private String warehouseLocation;
+  private static String warehouseLocation;
 
   private String tableId;
-  private Catalog catalog;
+  private static Catalog catalog;
 
   @BeforeClass
   public static void beforeClass() {
     options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-
+    warehouseLocation =
+        String.format("%s/IcebergIOIT/%s", options.getTempLocation(), UUID.randomUUID());
     catalogHadoopConf = new Configuration();
     catalogHadoopConf.set("fs.gs.project.id", options.getProject());
     catalogHadoopConf.set("fs.gs.auth.type", "APPLICATION_DEFAULT");
+    catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
   }
 
   @Before
   public void setUp() {
-    warehouseLocation =
-        String.format("%s/IcebergIOIT/%s", options.getTempLocation(), UUID.randomUUID());
-
     tableId = testName.getMethodName() + ".test_table";
-    catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    try {
+      GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
+      GcsPath path = GcsPath.fromUri(warehouseLocation);
+
+      Objects objects =
+          gcsUtil.listObjects(
+              path.getBucket(), "IcebergIOIT/" + path.getFileName().toString(), null);
+      List<String> filesToDelete =
+          objects.getItems().stream()
+              .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
+              .collect(Collectors.toList());
+
+      gcsUtil.remove(filesToDelete);
+    } catch (Exception e) {
+      LOG.warn("Failed to clean up files.", e);
+    }
   }
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */

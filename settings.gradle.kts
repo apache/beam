@@ -19,7 +19,7 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
   }
 }
 
@@ -333,6 +333,8 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
+include("sdks:java:io:kafka:kafka-312")
+findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
 include("sdks:java:io:kafka:kafka-241")
@@ -345,12 +347,6 @@ include("sdks:java:io:kafka:kafka-211")
 findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
 include("sdks:java:io:kafka:kafka-201")
 findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
-include("sdks:java:io:kafka:kafka-111")
-findProject(":sdks:java:io:kafka:kafka-111")?.name = "kafka-111"
-include("sdks:java:io:kafka:kafka-100")
-findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
-include("sdks:java:io:kafka:kafka-01103")
-findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")

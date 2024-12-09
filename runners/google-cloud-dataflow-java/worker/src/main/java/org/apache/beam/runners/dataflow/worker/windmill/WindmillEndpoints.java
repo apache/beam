@@ -40,13 +40,15 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class WindmillEndpoints {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
+  private static final WindmillEndpoints NO_ENDPOINTS =
+      WindmillEndpoints.builder()
+          .setVersion(Long.MAX_VALUE)
+          .setWindmillEndpoints(ImmutableSet.of())
+          .setGlobalDataEndpoints(ImmutableMap.of())
+          .build();
 
   public static WindmillEndpoints none() {
-    return WindmillEndpoints.builder()
-        .setVersion(Long.MAX_VALUE)
-        .setWindmillEndpoints(ImmutableSet.of())
-        .setGlobalDataEndpoints(ImmutableMap.of())
-        .build();
+    return NO_ENDPOINTS;
   }
 
   public static WindmillEndpoints from(
@@ -86,17 +88,23 @@ public abstract class WindmillEndpoints {
             .map(address -> AuthenticatedGcpServiceAddress.create(authenticatingService, address))
             .map(WindmillServiceAddress::create);
 
-    return directEndpointIpV6Address.isPresent()
-        ? directEndpointIpV6Address
-        : tryParseEndpointIntoHostAndPort(endpointProto.getDirectEndpoint())
-            .map(WindmillServiceAddress::create);
+    Optional<WindmillServiceAddress> windmillServiceAddress =
+        directEndpointIpV6Address.isPresent()
+            ? directEndpointIpV6Address
+            : tryParseEndpointIntoHostAndPort(endpointProto.getDirectEndpoint())
+                .map(WindmillServiceAddress::create);
+
+    if (!windmillServiceAddress.isPresent()) {
+      LOG.warn("Endpoint {} could not be parsed into a WindmillServiceAddress.", endpointProto);
+    }
+
+    return windmillServiceAddress;
   }
 
   private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
     try {
       return Optional.of(HostAndPort.fromString(directEndpoint));
     } catch (IllegalArgumentException e) {
-      LOG.warn("{} cannot be parsed into a gcpServiceAddress", directEndpoint);
       return Optional.empty();
     }
   }
@@ -111,19 +119,12 @@ public abstract class WindmillEndpoints {
     try {
       directEndpointAddress = Inet6Address.getByName(endpointProto.getDirectEndpoint());
     } catch (UnknownHostException e) {
-      LOG.warn(
-          "Error occurred trying to parse direct_endpoint={} into IPv6 address. Exception={}",
-          endpointProto.getDirectEndpoint(),
-          e.toString());
       return Optional.empty();
     }
 
     // Inet6Address.getByAddress returns either an IPv4 or an IPv6 address depending on the format
     // of the direct_endpoint string.
     if (!(directEndpointAddress instanceof Inet6Address)) {
-      LOG.warn(
-          "{} is not an IPv6 address. Direct endpoints are expected to be in IPv6 format.",
-          endpointProto.getDirectEndpoint());
       return Optional.empty();
     }
 

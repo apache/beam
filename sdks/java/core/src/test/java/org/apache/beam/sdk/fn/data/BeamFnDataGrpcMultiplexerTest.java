@@ -280,6 +280,7 @@ public class BeamFnDataGrpcMultiplexerTest {
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
+    final AtomicBoolean closed = new AtomicBoolean();
     multiplexer.registerConsumer(
         DATA_INSTRUCTION_ID,
         new CloseableFnDataReceiver<BeamFnApi.Elements>() {
@@ -290,7 +291,7 @@ public class BeamFnDataGrpcMultiplexerTest {
 
           @Override
           public void close() throws Exception {
-            fail("Unexpected call");
+            closed.set(true);
           }
 
           @Override
@@ -320,6 +321,7 @@ public class BeamFnDataGrpcMultiplexerTest {
         dataInboundValues,
         Matchers.contains(
             BeamFnApi.Elements.newBuilder().addData(data.setTransformId("A").build()).build()));
+    assertTrue(closed.get());
   }
 
   @Test

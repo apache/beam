@@ -291,8 +291,8 @@ import org.slf4j.LoggerFactory;
  * grouped into batches. The default maximum size of the batch is set to 1MB or 5000 mutated cells,
  * or 500 rows (whichever is reached first). To override this use {@link
  * Write#withBatchSizeBytes(long) withBatchSizeBytes()}, {@link Write#withMaxNumMutations(long)
- * withMaxNumMutations()} or {@link Write#withMaxNumMutations(long) withMaxNumRows()}. Setting
- * either to a small value or zero disables batching.
+ * withMaxNumMutations()} or {@link Write#withMaxNumRows(long) withMaxNumRows()}. Setting either to
+ * a small value or zero disables batching.
  *
  * <p>Note that the <a
  * href="https://cloud.google.com/spanner/quotas#limits_for_creating_reading_updating_and_deleting_data">maximum

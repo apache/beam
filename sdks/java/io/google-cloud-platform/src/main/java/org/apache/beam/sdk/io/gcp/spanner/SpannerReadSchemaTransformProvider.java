@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
+/** A provider for reading from Cloud Spanner using a Schema Transform Provider. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -54,42 +55,80 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
  *
  * <p>The transformation leverages the {@link SpannerIO} to perform the read operation and maps the
  * results to Beam rows, preserving the schema.
- *
- * <p>Example usage in a YAML pipeline using query:
- *
- * <pre>{@code
- * pipeline:
- *   transforms:
- *     - type: ReadFromSpanner
- *       name: ReadShipments
- *       # Columns: shipment_id, customer_id, shipment_date, shipment_cost, customer_name, customer_email
- *       config:
- *         project_id: 'apache-beam-testing'
- *         instance_id: 'shipment-test'
- *         database_id: 'shipment'
- *         query: 'SELECT * FROM shipments'
- * }</pre>
- *
- * <p>Example usage in a YAML pipeline using a table and columns:
- *
- * <pre>{@code
- * pipeline:
- *   transforms:
- *     - type: ReadFromSpanner
- *       name: ReadShipments
- *       # Columns: shipment_id, customer_id, shipment_date, shipment_cost, customer_name, customer_email
- *       config:
- *         project_id: 'apache-beam-testing'
- *         instance_id: 'shipment-test'
- *         database_id: 'shipment'
- *         table: 'shipments'
- *         columns: ['customer_id', 'customer_name']
- * }</pre>
  */
 @AutoService(SchemaTransformProvider.class)
 public class SpannerReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerReadSchemaTransformProvider.SpannerReadSchemaTransformConfiguration> {
+
+  @Override
+  public String identifier() {
+    return "beam:schematransform:org.apache.beam:spanner_read:v1";
+  }
+
+  @Override
+  public String description() {
+    return "Performs a Bulk read from Google Cloud Spanner using a specified SQL query or "
+        + "by directly accessing a single table and its columns.\n"
+        + "\n"
+        + "Both Query and Read APIs are supported. See more information about "
+        + "<a href=\"https://cloud.google.com/spanner/docs/reads\">reading from Cloud Spanner</a>.\n"
+        + "\n"
+        + "Example configuration for performing a read using a SQL query: ::\n"
+        + "\n"
+        + "    pipeline:\n"
+        + "      transforms:\n"
+        + "        - type: ReadFromSpanner\n"
+        + "          config:\n"
+        + "            instance_id: 'my-instance-id'\n"
+        + "            database_id: 'my-database'\n"
+        + "            query: 'SELECT * FROM table'\n"
+        + "\n"
+        + "It is also possible to read a table by specifying a table name and a list of columns. For "
+        + "example, the following configuration will perform a read on an entire table: ::\n"
+        + "\n"
+        + "    pipeline:\n"
+        + "      transforms:\n"
+        + "        - type: ReadFromSpanner\n"
+        + "          config:\n"
+        + "            instance_id: 'my-instance-id'\n"
+        + "            database_id: 'my-database'\n"
+        + "            table: 'my-table'\n"
+        + "            columns: ['col1', 'col2']\n"
+        + "\n"
+        + "Additionally, to read using a <a href=\"https://cloud.google.com/spanner/docs/secondary-indexes\">"
+        + "Secondary Index</a>, specify the index name: ::"
+        + "\n"
+        + "    pipeline:\n"
+        + "      transforms:\n"
+        + "        - type: ReadFromSpanner\n"
+        + "          config:\n"
+        + "            instance_id: 'my-instance-id'\n"
+        + "            database_id: 'my-database'\n"
+        + "            table: 'my-table'\n"
+        + "            index: 'my-index'\n"
+        + "            columns: ['col1', 'col2']\n"
+        + "\n"
+        + "### Advanced Usage\n"
+        + "\n"
+        + "Reads by default use the <a href=\"https://cloud.google.com/spanner/docs/reads#read_data_in_parallel\">"
+        + "PartitionQuery API</a> which enforces some limitations on the type of queries that can be used so that "
+        + "the data can be read in parallel. If the query is not supported by the PartitionQuery API, then you "
+        + "can specify a non-partitioned read by setting batching to false.\n"
+        + "\n"
+        + "For example: ::"
+        + "\n"
+        + "    pipeline:\n"
+        + "      transforms:\n"
+        + "        - type: ReadFromSpanner\n"
+        + "          config:\n"
+        + "            batching: false\n"
+        + "            ...\n"
+        + "\n"
+        + "Note: See <a href=\""
+        + "https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html\">"
+        + "SpannerIO</a> for more advanced information.";
+  }
 
   static class SpannerSchemaTransformRead extends SchemaTransform implements Serializable {
     private final SpannerReadSchemaTransformConfiguration configuration;
@@ -113,6 +152,12 @@ public class SpannerReadSchemaTransformProvider
       } else {
         read = read.withTable(configuration.getTableId()).withColumns(configuration.getColumns());
       }
+      if (!Strings.isNullOrEmpty(configuration.getIndex())) {
+        read = read.withIndex(configuration.getIndex());
+      }
+      if (Boolean.FALSE.equals(configuration.getBatching())) {
+        read = read.withBatching(false);
+      }
       PCollection<Struct> spannerRows = input.getPipeline().apply(read);
       Schema schema = spannerRows.getSchema();
       PCollection<Row> rows =
@@ -122,11 +167,6 @@ public class SpannerReadSchemaTransformProvider
 
       return PCollectionRowTuple.of("output", rows.setRowSchema(schema));
     }
-  }
-
-  @Override
-  public String identifier() {
-    return "beam:schematransform:org.apache.beam:spanner_read:v1";
   }
 
   @Override
@@ -156,6 +196,10 @@ public class SpannerReadSchemaTransformProvider
       public abstract Builder setQuery(String query);
 
       public abstract Builder setColumns(List<String> columns);
+
+      public abstract Builder setIndex(String index);
+
+      public abstract Builder setBatching(Boolean batching);
 
       public abstract SpannerReadSchemaTransformConfiguration build();
     }
@@ -193,15 +237,15 @@ public class SpannerReadSchemaTransformProvider
           .Builder();
     }
 
-    @SchemaFieldDescription("Specifies the GCP project ID.")
-    @Nullable
-    public abstract String getProjectId();
-
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner database.")
     public abstract String getDatabaseId();
+
+    @SchemaFieldDescription("Specifies the GCP project ID.")
+    @Nullable
+    public abstract String getProjectId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     @Nullable
@@ -211,9 +255,20 @@ public class SpannerReadSchemaTransformProvider
     @Nullable
     public abstract String getQuery();
 
-    @SchemaFieldDescription("Specifies the columns to read from the table.")
+    @SchemaFieldDescription(
+        "Specifies the columns to read from the table. This parameter is required when table is specified.")
     @Nullable
     public abstract List<String> getColumns();
+
+    @SchemaFieldDescription(
+        "Specifies the Index to read from. This parameter can only be specified when using table.")
+    @Nullable
+    public abstract String getIndex();
+
+    @SchemaFieldDescription(
+        "Set to false to disable batching. Useful when using a query that is not compatible with the PartitionQuery API. Defaults to true.")
+    @Nullable
+    public abstract Boolean getBatching();
   }
 
   @Override

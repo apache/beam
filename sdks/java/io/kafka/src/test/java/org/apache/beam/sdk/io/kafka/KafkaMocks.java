@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +28,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.MockConsumer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -66,51 +67,33 @@ public class KafkaMocks {
     }
   }
 
-  public static final class PositionErrorConsumer extends MockConsumer<byte[], byte[]> {
-
-    public PositionErrorConsumer() {
-      super(null);
-    }
-
-    @Override
-    public synchronized long position(TopicPartition partition) {
-      throw new KafkaException("fakeException");
-    }
-
-    @Override
-    public synchronized List<PartitionInfo> partitionsFor(String topic) {
-      return Collections.singletonList(
-          new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null));
-    }
-  }
-
-  public static final class PositionErrorConsumerFactory
+  public static final class EndOffsetErrorConsumerFactory
       implements SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> {
-    public PositionErrorConsumerFactory() {}
+    public EndOffsetErrorConsumerFactory() {}
 
     @Override
     public MockConsumer<byte[], byte[]> apply(Map<String, Object> input) {
+      final MockConsumer<byte[], byte[]> consumer;
       if (input.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-        return new PositionErrorConsumer();
-      } else {
-        MockConsumer<byte[], byte[]> consumer =
-            new MockConsumer<byte[], byte[]>(null) {
+        consumer =
+            new MockConsumer<byte[], byte[]>(OffsetResetStrategy.EARLIEST) {
               @Override
-              public synchronized long position(TopicPartition partition) {
-                return 1L;
-              }
-
-              @Override
-              public synchronized ConsumerRecords<byte[], byte[]> poll(long timeout) {
-                return ConsumerRecords.empty();
+              public synchronized Map<TopicPartition, Long> endOffsets(
+                  Collection<TopicPartition> partitions) {
+                throw new KafkaException("fakeException");
               }
             };
-        consumer.updatePartitions(
-            "topic_a",
-            Collections.singletonList(
-                new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null)));
-        return consumer;
+      } else {
+        consumer = new MockConsumer<byte[], byte[]>(OffsetResetStrategy.EARLIEST);
       }
+      consumer.updatePartitions(
+          "topic_a",
+          Collections.singletonList(
+              new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null)));
+      consumer.updateBeginningOffsets(
+          Collections.singletonMap(new TopicPartition("topic_a", 1), 0L));
+      consumer.updateEndOffsets(Collections.singletonMap(new TopicPartition("topic_a", 1), 0L));
+      return consumer;
     }
   }
 

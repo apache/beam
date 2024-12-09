@@ -104,6 +104,7 @@ class RecordWriterManager implements AutoCloseable {
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
     private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
+    private final List<Exception> exceptions = Lists.newArrayList();
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
       this.icebergDestination = icebergDestination;
@@ -129,11 +130,14 @@ class RecordWriterManager implements AutoCloseable {
                     try {
                       recordWriter.close();
                     } catch (IOException e) {
-                      throw new RuntimeException(
-                          String.format(
-                              "Encountered an error when closing data writer for table '%s', partition %s",
-                              icebergDestination.getTableIdentifier(), pk),
-                          e);
+                      RuntimeException rethrow =
+                          new RuntimeException(
+                              String.format(
+                                  "Encountered an error when closing data writer for table '%s', path: %s",
+                                  icebergDestination.getTableIdentifier(), recordWriter.path()),
+                              e);
+                      exceptions.add(rethrow);
+                      throw rethrow;
                     }
                     openWriters--;
                     String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
@@ -358,6 +362,17 @@ class RecordWriterManager implements AutoCloseable {
       // removing writers from the state's cache will trigger the logic to collect each writer's
       // data file.
       state.writers.invalidateAll();
+      // first check for any exceptions swallowed by the cache
+      if (!state.exceptions.isEmpty()) {
+        IllegalStateException exception =
+            new IllegalStateException(
+                String.format("Encountered %s failed writer(s).", state.exceptions.size()));
+        for (Exception e : state.exceptions) {
+          exception.addSuppressed(e);
+        }
+        throw exception;
+      }
+
       if (state.dataFiles.isEmpty()) {
         continue;
       }

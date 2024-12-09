@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
@@ -24,6 +25,8 @@ import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -72,6 +75,41 @@ public class HistogramData implements Serializable {
     this.bottomRecordsSum = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
+  }
+
+  /**
+   * Create a histogram from DataflowHistogramValue proto.
+   *
+   * @param histogramProto DataflowHistogramValue proto used to populate stats for the histogram.
+   */
+  public HistogramData(DataflowHistogramValue histogramProto) {
+    int numBuckets;
+    if (histogramProto.getBucketOptions().getLinear() != null) {
+      double start = histogramProto.getBucketOptions().getLinear().getStart();
+      double width = histogramProto.getBucketOptions().getLinear().getWidth();
+      numBuckets = histogramProto.getBucketOptions().getLinear().getNumberOfBuckets();
+      this.bucketType = LinearBuckets.of(start, width, numBuckets);
+      this.buckets = new long[bucketType.getNumBuckets()];
+
+      int idx = 0;
+      for (long val : histogramProto.getBucketCounts()) {
+        this.buckets[idx] = val;
+        this.numBoundedBucketRecords += val;
+        idx++;
+      }
+    } else {
+      // Assume it's a exponential histogram if its not linear
+      int scale = histogramProto.getBucketOptions().getExponential().getScale();
+      numBuckets = histogramProto.getBucketOptions().getExponential().getNumberOfBuckets();
+      this.bucketType = ExponentialBuckets.of(scale, numBuckets);
+      this.buckets = new long[bucketType.getNumBuckets()];
+      int idx = 0;
+      for (long val : histogramProto.getBucketCounts()) {
+        this.buckets[idx] = val;
+        this.numBoundedBucketRecords += val;
+        idx++;
+      }
+    }
   }
 
   public BucketType getBucketType() {
@@ -291,6 +329,10 @@ public class HistogramData implements Serializable {
 
   public synchronized long getTopBucketCount() {
     return numTopRecords;
+  }
+
+  public synchronized long[] getBucketCount() {
+    return buckets;
   }
 
   public synchronized double getTopBucketMean() {
@@ -571,6 +613,42 @@ public class HistogramData implements Serializable {
     }
 
     // Note: equals() and hashCode() are implemented by the AutoValue.
+  }
+
+  /** Used for testing unsupported Bucket formats. */
+  @AutoValue
+  @Internal
+  @VisibleForTesting
+  public abstract static class UnsupportedBuckets implements BucketType {
+
+    public static UnsupportedBuckets of() {
+      return new AutoValue_HistogramData_UnsupportedBuckets(0);
+    }
+
+    @Override
+    public int getBucketIndex(double value) {
+      return 0;
+    }
+
+    @Override
+    public double getBucketSize(int index) {
+      return 0;
+    }
+
+    @Override
+    public double getAccumulatedBucketSize(int index) {
+      return 0;
+    }
+
+    @Override
+    public double getRangeFrom() {
+      return 0;
+    }
+
+    @Override
+    public double getRangeTo() {
+      return 0;
+    }
   }
 
   @Override

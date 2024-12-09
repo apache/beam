@@ -48,6 +48,7 @@ import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -57,6 +58,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
@@ -629,5 +631,63 @@ public class RecordWriterManagerTest {
         serializableDataFile.createDataFile(
             catalog.loadTable(dest.getValue().getTableIdentifier()).specs());
     assertThat(dataFile.path().toString(), containsString(expectedPartition));
+  }
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testWriterExceptionGetsCaught() throws IOException {
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
+    PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
+    partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+
+    writerManager.write(windowedDestination, row);
+
+    RecordWriterManager.DestinationState state =
+        writerManager.destinations.get(windowedDestination);
+    // replace with a failing record writer
+    FailingRecordWriter failingWriter =
+        new FailingRecordWriter(
+            catalog, windowedDestination.getValue(), "test_failing_writer", partitionKey);
+    state.writers.put(partitionKey, failingWriter);
+    writerManager.write(windowedDestination, row);
+
+    // this tests that we indeed enter the catch block
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Encountered 1 failed writer(s)");
+    try {
+      writerManager.close();
+    } catch (IllegalStateException e) {
+      // fetch underlying exceptions and validate
+      Throwable[] underlyingExceptions = e.getSuppressed();
+      assertEquals(1, underlyingExceptions.length);
+      for (Throwable t : underlyingExceptions) {
+        assertThat(
+            t.getMessage(),
+            containsString("Encountered an error when closing data writer for table"));
+        assertThat(
+            t.getMessage(),
+            containsString(windowedDestination.getValue().getTableIdentifier().toString()));
+        assertThat(t.getMessage(), containsString(failingWriter.path()));
+        Throwable realCause = t.getCause();
+        assertEquals("I am failing!", realCause.getMessage());
+      }
+
+      throw e;
+    }
+  }
+
+  static class FailingRecordWriter extends RecordWriter {
+    FailingRecordWriter(
+        Catalog catalog, IcebergDestination destination, String filename, PartitionKey partitionKey)
+        throws IOException {
+      super(catalog, destination, filename, partitionKey);
+    }
+
+    @Override
+    public void close() throws IOException {
+      throw new IOException("I am failing!");
+    }
   }
 }
