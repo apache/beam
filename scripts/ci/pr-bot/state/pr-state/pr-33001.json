@@ -5,7 +5,7 @@
     "io": "johnjcasey",
     "bigtable": "mutianf"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": true
