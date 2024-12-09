@@ -647,6 +647,22 @@ tasks.register("checkSetup") {
   dependsOn(":examples:java:wordCount")
 }
 
+// if not disabled make spotlessApply dependency of compileJava and compileTestJava
+val disableSpotlessCheck: String by project
+val isSpotlessDisabled = project.hasProperty("disableSpotlessCheck") &&
+        disableSpotlessCheck == "true"
+if (!isSpotlessDisabled) {
+  subprojects {
+    afterEvaluate {
+      tasks.findByName("spotlessApply")?.let {
+        listOf("compileJava", "compileTestJava").forEach {
+          t -> tasks.findByName(t)?.let { f -> f.dependsOn("spotlessApply") }
+        }
+      }
+    }
+  }
+}
+
 // Generates external transform config
 project.tasks.register("generateExternalTransformsConfig") {
   dependsOn(":sdks:python:generateExternalTransformsConfig")
