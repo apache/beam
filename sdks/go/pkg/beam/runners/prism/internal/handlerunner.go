@@ -129,7 +129,7 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 	return prepareResult{}
 }
 
-func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *runner) handleReshuffle(_ string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
 	// TODO: Implement the windowing strategy the "backup" transforms used for Reshuffle.
 
 	if h.config.SDKReshuffle {

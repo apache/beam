@@ -318,6 +318,10 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			if stage.stateful {
 				em.StageStateful(stage.ID)
 			}
+			if stage.onWindowExpiration.TimerFamily != "" {
+				slog.Warn("OnWindowExpiration", slog.String("stage", stage.ID), slog.Any("values", stage.onWindowExpiration))
+				em.StageOnWindowExpiration(stage.ID, stage.onWindowExpiration.Transform, stage.onWindowExpiration.TimerFamily)
+			}
 			if len(stage.processingTimeTimers) > 0 {
 				em.StageProcessingTimeTimers(stage.ID, stage.processingTimeTimers)
 			}
@@ -356,7 +360,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				wk := wks[s.envID]
 				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
-					em.FailBundle(rb)
+					em.FailBundle(rb, err)
 					return err
 				}
 				return nil
