@@ -17,15 +17,19 @@
 # under the License.
 #
 
-content:
-- Map
-- GroupByKey
-- CoGroupByKey
-- Combine
-- Flatten
-- FlattenWith
-- Partition
-- Side Input
-- Side Output
-- Branching
-- Composite Transform
+import unittest
+
+from test_helper import test_is_not_empty, get_file_output
+
+
+class TestCase(unittest.TestCase):
+    def test_not_empty(self):
+        self.assertTrue(test_is_not_empty(), 'The output is empty')
+
+    def test_output(self):
+        output = get_file_output(path='task.py')
+
+        answers = ['ball', 'book', 'bow', 'APPLE', 'ANT', 'ARROW']
+
+        for ans in answers:
+            self.assertIn(ans, output, f"'{ans}' not found in output. Ensure words are correctly transformed and the PCollections are flattened properly using `FlattenWith`.")
