@@ -2145,6 +2145,8 @@ public class BigtableIO {
 
     abstract @Nullable Duration getBacklogReplicationAdjustment();
 
+    abstract @Nullable Duration getReadChangeStreamTimeout();
+
     abstract @Nullable Boolean getValidateConfig();
 
     abstract ReadChangeStream.Builder toBuilder();
@@ -2352,6 +2354,22 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that overrides timeout for ReadChangeStream
+     * requests.
+     *
+     * <p>This is useful to override the default of 15s timeout if the checkpoint duration is longer
+     * than 15s. Setting this value to longer (to add some padding) than periodic checkpoint
+     * duration ensures that ReadChangeStream will stream until the next checkpoint is initiated.
+     *
+     * <p>Optional: defaults to 15 seconds.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withReadChangeStreamTimeout(Duration timeout) {
+      return toBuilder().setReadChangeStreamTimeout(timeout).build();
+    }
+
+    /**
      * Disables validation that the table being read and the metadata table exists, and that the app
      * profile used is single cluster and single row transaction enabled. Set this option if the
      * caller does not have additional Bigtable permissions to validate the configurations.
@@ -2466,6 +2484,7 @@ public class BigtableIO {
       DaoFactory daoFactory =
           new DaoFactory(
               bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
+      daoFactory.setReadChangeStreamTimeout(getReadChangeStreamTimeout());
 
       // Validate the configuration is correct before creating the pipeline, if required.
       try {
@@ -2541,6 +2560,8 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setCreateOrUpdateMetadataTable(boolean shouldCreate);
 
       abstract ReadChangeStream.Builder setBacklogReplicationAdjustment(Duration adjustment);
+
+      abstract ReadChangeStream.Builder setReadChangeStreamTimeout(Duration timeout);
 
       abstract ReadChangeStream.Builder setValidateConfig(boolean validateConfig);
 

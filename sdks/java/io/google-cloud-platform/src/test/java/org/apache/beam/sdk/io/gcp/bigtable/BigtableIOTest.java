@@ -2053,6 +2053,7 @@ public class BigtableIOTest {
             .withMetadataTableAppProfileId("metadata-app-profile")
             .withStartTime(startTime)
             .withBacklogReplicationAdjustment(Duration.standardMinutes(1))
+            .withReadChangeStreamTimeout(Duration.standardMinutes(1))
             .withCreateOrUpdateMetadataTable(false)
             .withExistingPipelineOptions(BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
     assertEquals("project", readChangeStream.getBigtableConfig().getProjectId().get());
@@ -2071,6 +2072,7 @@ public class BigtableIOTest {
     assertEquals("change-stream-name", readChangeStream.getChangeStreamName());
     assertEquals(startTime, readChangeStream.getStartTime());
     assertEquals(Duration.standardMinutes(1), readChangeStream.getBacklogReplicationAdjustment());
+    assertEquals(Duration.standardMinutes(1), readChangeStream.getReadChangeStreamTimeout());
     assertEquals(false, readChangeStream.getCreateOrUpdateMetadataTable());
     assertEquals(
         BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS,
