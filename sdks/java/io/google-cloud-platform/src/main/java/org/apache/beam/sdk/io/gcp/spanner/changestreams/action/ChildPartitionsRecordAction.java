@@ -26,6 +26,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -105,6 +106,7 @@ public class ChildPartitionsRecordAction {
       PartitionMetadata partition,
       ChildPartitionsRecord record,
       RestrictionTracker<TimestampRange, Timestamp> tracker,
+      RestrictionInterrupter<Timestamp> interrupter,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
@@ -113,6 +115,13 @@ public class ChildPartitionsRecordAction {
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
+    if (interrupter.tryInterrupt(startTimestamp)) {
+      LOG.debug(
+          "[{}] Soft deadline reached with child partitions record at {}, rescheduling",
+          token,
+          startTimestamp);
+      return Optional.of(ProcessContinuation.resume());
+    }
     if (!tracker.tryClaim(startTimestamp)) {
       LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, startTimestamp);
       return Optional.of(ProcessContinuation.stop());

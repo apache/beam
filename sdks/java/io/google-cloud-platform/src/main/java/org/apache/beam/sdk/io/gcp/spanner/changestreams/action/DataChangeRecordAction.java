@@ -24,6 +24,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEsti
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -80,6 +81,7 @@ public class DataChangeRecordAction {
       PartitionMetadata partition,
       DataChangeRecord record,
       RestrictionTracker<TimestampRange, Timestamp> tracker,
+      RestrictionInterrupter<Timestamp> interrupter,
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
@@ -88,6 +90,13 @@ public class DataChangeRecordAction {
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
+    if (interrupter.tryInterrupt(commitTimestamp)) {
+      LOG.debug(
+          "[{}] Soft deadline reached with data change record at {}, rescheduling",
+          token,
+          commitTimestamp);
+      return Optional.of(ProcessContinuation.resume());
+    }
     if (!tracker.tryClaim(commitTimestamp)) {
       LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, commitTimestamp);
       return Optional.of(ProcessContinuation.stop());
