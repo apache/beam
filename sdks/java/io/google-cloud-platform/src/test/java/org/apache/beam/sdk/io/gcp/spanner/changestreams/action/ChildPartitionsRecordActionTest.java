@@ -38,10 +38,12 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestTransactionAnswer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -53,7 +55,8 @@ public class ChildPartitionsRecordActionTest {
   private InTransactionContext transaction;
   private ChangeStreamMetrics metrics;
   private ChildPartitionsRecordAction action;
-  private ReadChangeStreamPartitionRangeTracker tracker;
+  private RestrictionTracker<TimestampRange, Timestamp> tracker;
+  private RestrictionInterrupter<Timestamp> interrupter;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
@@ -62,7 +65,8 @@ public class ChildPartitionsRecordActionTest {
     transaction = mock(InTransactionContext.class);
     metrics = mock(ChangeStreamMetrics.class);
     action = new ChildPartitionsRecordAction(dao, metrics);
-    tracker = mock(ReadChangeStreamPartitionRangeTracker.class);
+    tracker = mock(RestrictionTracker.class);
+    interrupter = mock(RestrictionInterrupter.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
 
     when(dao.runInTransaction(any(), anyObject()))
@@ -87,13 +91,12 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.shouldContinue(startTimestamp)).thenReturn(true);
     when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition("childPartition1")).thenReturn(null);
     when(transaction.getPartition("childPartition2")).thenReturn(null);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
@@ -139,13 +142,12 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.shouldContinue(startTimestamp)).thenReturn(true);
     when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition("childPartition1")).thenReturn(mock(Struct.class));
     when(transaction.getPartition("childPartition2")).thenReturn(mock(Struct.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
@@ -170,12 +172,11 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.shouldContinue(startTimestamp)).thenReturn(true);
     when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition(childPartitionToken)).thenReturn(null);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
@@ -211,12 +212,11 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.shouldContinue(startTimestamp)).thenReturn(true);
     when(tracker.tryClaim(startTimestamp)).thenReturn(true);
     when(transaction.getPartition(childPartitionToken)).thenReturn(mock(Struct.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
@@ -237,11 +237,10 @@ public class ChildPartitionsRecordActionTest {
                 new ChildPartition("childPartition2", partitionToken)),
             null);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.shouldContinue(startTimestamp)).thenReturn(true);
     when(tracker.tryClaim(startTimestamp)).thenReturn(false);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());
@@ -262,11 +261,11 @@ public class ChildPartitionsRecordActionTest {
                 new ChildPartition("childPartition2", partitionToken)),
             null);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
-    when(tracker.shouldContinue(startTimestamp)).thenReturn(false);
+    when(interrupter.tryInterrupt(startTimestamp)).thenReturn(true);
     when(tracker.tryClaim(startTimestamp)).thenReturn(true);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, record, tracker, watermarkEstimator);
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.resume()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());

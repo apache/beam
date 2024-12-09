@@ -22,7 +22,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Interruptible;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -73,6 +73,7 @@ public class HeartbeatRecordAction {
       PartitionMetadata partition,
       HeartbeatRecord record,
       RestrictionTracker<TimestampRange, Timestamp> tracker,
+      RestrictionInterrupter<Timestamp> interrupter,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
@@ -80,7 +81,7 @@ public class HeartbeatRecordAction {
 
     final Timestamp timestamp = record.getTimestamp();
     final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
-    if (tracker instanceof Interruptible && !((Interruptible) tracker).shouldContinue(timestamp)) {
+    if (interrupter.tryInterrupt(timestamp)) {
       LOG.debug(
           "[{}] Soft deadline reached with heartbeat record at {}, rescheduling", token, timestamp);
       return Optional.of(ProcessContinuation.resume());

@@ -33,7 +33,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Interruptible;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -166,10 +166,9 @@ public class QueryChangeStreamAction {
                     new IllegalStateException(
                         "Partition " + token + " not found in metadata table"));
 
-    // Set the soft timeout to commit the work if any records have been processed.
-    if (tracker instanceof Interruptible) {
-      ((Interruptible) tracker).setSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
-    }
+    // Interrupter with soft timeout to commit the work if any records have been processed.
+    RestrictionInterrupter<Timestamp> interrupter =
+        RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
 
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
@@ -189,16 +188,25 @@ public class QueryChangeStreamAction {
                     updatedPartition,
                     (DataChangeRecord) record,
                     tracker,
+                    interrupter,
                     receiver,
                     watermarkEstimator);
           } else if (record instanceof HeartbeatRecord) {
             maybeContinuation =
                 heartbeatRecordAction.run(
-                    updatedPartition, (HeartbeatRecord) record, tracker, watermarkEstimator);
+                    updatedPartition,
+                    (HeartbeatRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
           } else if (record instanceof ChildPartitionsRecord) {
             maybeContinuation =
                 childPartitionsRecordAction.run(
-                    updatedPartition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
+                    updatedPartition,
+                    (ChildPartitionsRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
           } else {
             LOG.error("[{}] Unknown record type {}", token, record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());

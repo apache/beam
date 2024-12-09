@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -60,48 +59,5 @@ public class ReadChangeStreamPartitionRangeTrackerTest {
     when(partition.getPartitionToken()).thenReturn(InitialPartition.PARTITION_TOKEN);
 
     assertNull(tracker.trySplit(0.0D));
-  }
-
-  @Test
-  public void testShouldContinueWithoutTimeout() {
-    assertEquals(range, tracker.currentRestriction());
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(20L)));
-    assertFalse(tracker.tryClaim(Timestamp.ofTimeMicroseconds(20L)));
-  }
-
-  @Test
-  public void testShouldContinueWithTimeout() {
-    assertEquals(range, tracker.currentRestriction());
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(10L, 0));
-    tracker.setSoftTimeout(Duration.standardSeconds(30));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(15L, 0));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(20L, 0));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(30L, 0));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(39L, 0));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(16L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(16L)));
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(40L, 0));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(16L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(16L)));
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(50L, 0));
-    assertTrue(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(16L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(16L)));
-    assertFalse(tracker.shouldContinue(Timestamp.ofTimeMicroseconds(19L)));
   }
 }
