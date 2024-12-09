@@ -228,8 +228,6 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
 
       // Not yet implemented in Prism
-      // https://github.com/apache/beam/issues/32211
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       // https://github.com/apache/beam/issues/32929
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
 
