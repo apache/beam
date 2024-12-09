@@ -16,16 +16,3 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-content:
-- Map
-- GroupByKey
-- CoGroupByKey
-- Combine
-- Flatten
-- FlattenWith
-- Partition
-- Side Input
-- Side Output
-- Branching
-- Composite Transform
