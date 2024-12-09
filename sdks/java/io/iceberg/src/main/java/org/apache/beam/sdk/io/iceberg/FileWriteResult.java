@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.catalog.TableIdentifierParser;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 @AutoValue
@@ -41,7 +42,7 @@ abstract class FileWriteResult {
   @SchemaIgnore
   public TableIdentifier getTableIdentifier() {
     if (cachedTableIdentifier == null) {
-      cachedTableIdentifier = TableIdentifier.parse(getTableIdentifierString());
+      cachedTableIdentifier = IcebergUtils.parseTableIdentifier(getTableIdentifierString());
     }
     return cachedTableIdentifier;
   }
@@ -67,7 +68,7 @@ abstract class FileWriteResult {
 
     @SchemaIgnore
     public Builder setTableIdentifier(TableIdentifier tableId) {
-      return setTableIdentifierString(tableId.toString());
+      return setTableIdentifierString(TableIdentifierParser.toJson(tableId));
     }
 
     public abstract FileWriteResult build();
