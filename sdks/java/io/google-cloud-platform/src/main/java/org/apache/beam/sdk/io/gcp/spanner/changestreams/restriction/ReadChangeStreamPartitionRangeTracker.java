@@ -22,8 +22,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 /**
  * This restriction tracker delegates most of its behavior to an internal {@link

@@ -44,9 +44,7 @@ public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
   private final ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
-  /**
-   * @param throughputEstimator an estimator to calculate local throughput of this action.
-   */
+  /** @param throughputEstimator an estimator to calculate local throughput of this action. */
   public DataChangeRecordAction(ThroughputEstimator<DataChangeRecord> throughputEstimator) {
     this.throughputEstimator = throughputEstimator;
   }
