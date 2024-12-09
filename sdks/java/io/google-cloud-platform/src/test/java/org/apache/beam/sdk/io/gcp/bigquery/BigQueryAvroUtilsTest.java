@@ -647,7 +647,7 @@ public class BigQueryAvroUtilsTest {
     {
       // STRUCT/RECORD
       TableFieldSchema subInteger =
-          new TableFieldSchema().setName("int").setType("INTEGER").setMode("REQUIRED");
+          new TableFieldSchema().setName("int").setType("INTEGER").setMode("NULLABLE");
       TableFieldSchema subFloat =
           new TableFieldSchema().setName("float").setType("FLOAT").setMode("REQUIRED");
       TableSchema structTableSchema =
@@ -671,7 +671,11 @@ public class BigQueryAvroUtilsTest {
                       .fields()
                       .name("int")
                       .type()
+                      .unionOf()
+                      .nullType()
+                      .and()
                       .longType()
+                      .endUnion()
                       .noDefault()
                       .name("float")
                       .type()
