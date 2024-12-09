@@ -120,6 +120,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final @Nullable Map<String, String> bigLakeConfiguration;
 
   /**
    * The Guava cache object is thread-safe. However our protocol requires that client pin the
@@ -179,7 +180,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable Map<String, String> bigLakeConfiguration) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -193,6 +195,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.bigLakeConfiguration = bigLakeConfiguration;
   }
 
   @Override
@@ -228,7 +231,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         kmsKey,
                         usesCdc,
                         defaultMissingValueInterpretation,
-                        options.getStorageWriteApiMaxRetries()))
+                        options.getStorageWriteApiMaxRetries(),
+                        bigLakeConfiguration))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -954,6 +958,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
     private int streamAppendClientCount;
+    private final @Nullable Map<String, String> bigLakeConfiguration;
 
     WriteRecordsDoFn(
         String operationName,
@@ -973,7 +978,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         @Nullable String kmsKey,
         boolean usesCdc,
         AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-        int maxRetries) {
+        int maxRetries,
+        @Nullable Map<String, String> bigLakeConfiguration) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -992,6 +998,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.usesCdc = usesCdc;
       this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
       this.maxRetries = maxRetries;
+      this.bigLakeConfiguration = bigLakeConfiguration;
     }
 
     boolean shouldFlush() {
@@ -1098,7 +1105,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 createDisposition,
                 destinationCoder,
                 kmsKey,
-                bqServices);
+                bqServices,
+                bigLakeConfiguration);
             return true;
           };
 
