@@ -105,6 +105,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
   # pylint: disable=expression-not-assigned
   output | 'Write' >> WriteToText(known_args.output)
 
+  # Execute the pipeline and return the result.
   result = pipeline.run()
   result.wait_until_finish()
   return result
