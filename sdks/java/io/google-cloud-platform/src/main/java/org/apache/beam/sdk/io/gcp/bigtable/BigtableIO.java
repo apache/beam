@@ -2114,8 +2114,6 @@ public class BigtableIO {
     private static final Duration DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT =
         Duration.standardSeconds(30);
 
-    private static final Duration DEFAULT_READ_CHANGE_STREAM_TIMEOUT = Duration.standardSeconds(15);
-
     static ReadChangeStream create() {
       BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
       BigtableConfig metadataTableconfig = BigtableConfig.builder().setValidate(true).build();
@@ -2481,21 +2479,13 @@ public class BigtableIO {
         backlogReplicationAdjustment = DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT;
       }
 
-      Duration readChangeStreamTimeout = getReadChangeStreamTimeout();
-      if (readChangeStreamTimeout == null) {
-        readChangeStreamTimeout = DEFAULT_READ_CHANGE_STREAM_TIMEOUT;
-      }
-
       ActionFactory actionFactory = new ActionFactory();
       ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       DaoFactory daoFactory =
           new DaoFactory(
-              bigtableConfig,
-              metadataTableConfig,
-              getTableId(),
-              metadataTableId,
-              changeStreamName,
-              readChangeStreamTimeout);
+              bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
+
+      daoFactory.setReadChangeStreamTimeout(getReadChangeStreamTimeout());
 
       // Validate the configuration is correct before creating the pipeline, if required.
       try {
@@ -2610,14 +2600,7 @@ public class BigtableIO {
       tableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
     }
 
-    DaoFactory daoFactory =
-        new DaoFactory(
-            null,
-            bigtableConfig,
-            null,
-            tableId,
-            null,
-            ReadChangeStream.DEFAULT_READ_CHANGE_STREAM_TIMEOUT);
+    DaoFactory daoFactory = new DaoFactory(null, bigtableConfig, null, tableId, null);
 
     try {
       MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();

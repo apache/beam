@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 // Allows transient fields to be intialized later
@@ -46,21 +47,19 @@ public class DaoFactory implements Serializable, AutoCloseable {
   private final String metadataTableId;
   private final String changeStreamName;
 
-  private final Duration readChangeStreamTimeout;
+  @Nullable private Duration readChangeStreamTimeout;
 
   public DaoFactory(
       BigtableConfig changeStreamConfig,
       BigtableConfig metadataTableConfig,
       String tableId,
       String metadataTableId,
-      String changeStreamName,
-      Duration readChangeStreamTimeout) {
+      String changeStreamName) {
     this.changeStreamConfig = changeStreamConfig;
     this.metadataTableConfig = metadataTableConfig;
     this.changeStreamName = changeStreamName;
     this.tableId = tableId;
     this.metadataTableId = metadataTableId;
-    this.readChangeStreamTimeout = readChangeStreamTimeout;
   }
 
   @Override
@@ -74,6 +73,10 @@ public class DaoFactory implements Serializable, AutoCloseable {
       }
     } catch (Exception ignored) {
     }
+  }
+
+  public void setReadChangeStreamTimeout(@Nullable Duration readChangeStreamTimeout) {
+    this.readChangeStreamTimeout = readChangeStreamTimeout;
   }
 
   public String getChangeStreamName() {
@@ -111,8 +114,10 @@ public class DaoFactory implements Serializable, AutoCloseable {
       checkArgumentNotNull(changeStreamConfig.getProjectId());
       checkArgumentNotNull(changeStreamConfig.getInstanceId());
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
-      BigtableChangeStreamAccessor.setReadChangeStreamTimeout(
-          org.threeten.bp.Duration.ofMillis(readChangeStreamTimeout.getMillis()));
+      if (readChangeStreamTimeout != null) {
+        BigtableChangeStreamAccessor.setReadChangeStreamTimeout(
+            org.threeten.bp.Duration.ofMillis(readChangeStreamTimeout.getMillis()));
+      }
       BigtableDataClient dataClient =
           BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).getDataClient();
       changeStreamDao = new ChangeStreamDao(dataClient, this.tableId);
