@@ -31,6 +31,7 @@
 
 ## New Features / Improvements
 
+* The datetime module is now available for use in jinja templatization for yaml.
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
