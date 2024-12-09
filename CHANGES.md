@@ -68,6 +68,7 @@
 
 ## New Features / Improvements
 
+* Added OrderedList state support in SparkRunner ([#33211](https://github.com/apache/beam/issues/33211)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
