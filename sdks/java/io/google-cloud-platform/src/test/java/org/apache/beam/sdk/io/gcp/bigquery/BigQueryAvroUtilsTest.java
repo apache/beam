@@ -517,9 +517,9 @@ public class BigQueryAvroUtilsTest {
     {
       // NUMERIC with precision
       TableSchema tableSchema =
-          tableSchema(f -> f.setType("NUMERIC").setPrecision(42L).setMode("REQUIRED"));
+          tableSchema(f -> f.setType("NUMERIC").setPrecision(29L).setMode("REQUIRED"));
       Schema decimalType =
-          LogicalTypes.decimal(42, 0).addToSchema(SchemaBuilder.builder().bytesType());
+          LogicalTypes.decimal(29, 0).addToSchema(SchemaBuilder.builder().bytesType());
       Schema expected = avroSchema(f -> f.type(decimalType).noDefault());
 
       assertEquals(expected, BigQueryAvroUtils.toGenericAvroSchema(tableSchema));
@@ -529,10 +529,9 @@ public class BigQueryAvroUtilsTest {
     {
       // NUMERIC with precision and scale
       TableSchema tableSchema =
-          tableSchema(
-              f -> f.setType("NUMERIC").setPrecision(42L).setScale(20L).setMode("REQUIRED"));
+          tableSchema(f -> f.setType("NUMERIC").setPrecision(10L).setScale(9L).setMode("REQUIRED"));
       Schema decimalType =
-          LogicalTypes.decimal(42, 20).addToSchema(SchemaBuilder.builder().bytesType());
+          LogicalTypes.decimal(10, 9).addToSchema(SchemaBuilder.builder().bytesType());
       Schema expected = avroSchema(f -> f.type(decimalType).noDefault());
 
       assertEquals(expected, BigQueryAvroUtils.toGenericAvroSchema(tableSchema));
@@ -553,9 +552,9 @@ public class BigQueryAvroUtilsTest {
     {
       // BIGNUMERIC with precision
       TableSchema tableSchema =
-          tableSchema(f -> f.setType("BIGNUMERIC").setPrecision(42L).setMode("REQUIRED"));
+          tableSchema(f -> f.setType("BIGNUMERIC").setPrecision(38L).setMode("REQUIRED"));
       Schema decimalType =
-          LogicalTypes.decimal(42, 0).addToSchema(SchemaBuilder.builder().bytesType());
+          LogicalTypes.decimal(38, 0).addToSchema(SchemaBuilder.builder().bytesType());
       Schema expected = avroSchema(f -> f.type(decimalType).noDefault());
 
       assertEquals(expected, BigQueryAvroUtils.toGenericAvroSchema(tableSchema));
@@ -566,9 +565,9 @@ public class BigQueryAvroUtilsTest {
       // BIGNUMERIC with precision and scale
       TableSchema tableSchema =
           tableSchema(
-              f -> f.setType("BIGNUMERIC").setPrecision(42L).setScale(20L).setMode("REQUIRED"));
+              f -> f.setType("BIGNUMERIC").setPrecision(39L).setScale(38L).setMode("REQUIRED"));
       Schema decimalType =
-          LogicalTypes.decimal(42, 20).addToSchema(SchemaBuilder.builder().bytesType());
+          LogicalTypes.decimal(39, 38).addToSchema(SchemaBuilder.builder().bytesType());
       Schema expected = avroSchema(f -> f.type(decimalType).noDefault());
 
       assertEquals(expected, BigQueryAvroUtils.toGenericAvroSchema(tableSchema));
