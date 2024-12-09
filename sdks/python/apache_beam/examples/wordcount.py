@@ -45,6 +45,7 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -63,7 +64,7 @@ class WordExtractingDoFn(beam.DoFn):
     return re.findall(r'[\w\']+', element, re.UNICODE)
 
 
-def run(argv=None, save_main_session=True):
+def run(argv=None, save_main_session=True) -> PipelineResult:
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -83,27 +84,30 @@ def run(argv=None, save_main_session=True):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
-  # The pipeline will be run on exiting the with block.
-  with beam.Pipeline(options=pipeline_options) as p:
+  pipeline = beam.Pipeline(options=pipeline_options)
 
-    # Read the text file[pattern] into a PCollection.
-    lines = p | 'Read' >> ReadFromText(known_args.input)
+  # Read the text file[pattern] into a PCollection.
+  lines = pipeline | 'Read' >> ReadFromText(known_args.input)
 
-    counts = (
-        lines
-        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
-        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
-        | 'GroupAndSum' >> beam.CombinePerKey(sum))
+  counts = (
+      lines
+      | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
+      | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+      | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
-    # Format the counts into a PCollection of strings.
-    def format_result(word, count):
-      return '%s: %d' % (word, count)
+  # Format the counts into a PCollection of strings.
+  def format_result(word, count):
+    return '%s: %d' % (word, count)
 
-    output = counts | 'Format' >> beam.MapTuple(format_result)
+  output = counts | 'Format' >> beam.MapTuple(format_result)
 
-    # Write the output using a "Write" transform that has side effects.
-    # pylint: disable=expression-not-assigned
-    output | 'Write' >> WriteToText(known_args.output)
+  # Write the output using a "Write" transform that has side effects.
+  # pylint: disable=expression-not-assigned
+  output | 'Write' >> WriteToText(known_args.output)
+
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
