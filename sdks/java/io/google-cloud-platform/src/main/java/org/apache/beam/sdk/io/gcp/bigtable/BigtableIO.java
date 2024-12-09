@@ -2484,7 +2484,6 @@ public class BigtableIO {
       DaoFactory daoFactory =
           new DaoFactory(
               bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
-
       daoFactory.setReadChangeStreamTimeout(getReadChangeStreamTimeout());
 
       // Validate the configuration is correct before creating the pipeline, if required.

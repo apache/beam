@@ -47,7 +47,7 @@ public class DaoFactory implements Serializable, AutoCloseable {
   private final String metadataTableId;
   private final String changeStreamName;
 
-  @Nullable private Duration readChangeStreamTimeout;
+  private @Nullable Duration readChangeStreamTimeout;
 
   public DaoFactory(
       BigtableConfig changeStreamConfig,
