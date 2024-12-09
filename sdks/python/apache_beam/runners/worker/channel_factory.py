@@ -23,8 +23,11 @@ import grpc
 
 class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
   DEFAULT_OPTIONS = [
-      ("grpc.keepalive_time_ms", 20000),
-      ("grpc.keepalive_timeout_ms", 300000),
+      # Don't send keep-alive pings. They should be disabled by default but
+      # historically in some cases were still incorrectly sent.
+      # https://issues.apache.org/jira/browse/BEAM-6258
+      ("grpc.keepalive_time_ms", 2**31 - 1),
+      ("grpc.keepalive_timeout_ms", 2**31 - 1),
   ]
 
   def __init__(self):
