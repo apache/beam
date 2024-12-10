@@ -184,7 +184,8 @@ type Config struct {
 //
 // Watermarks are advanced based on consumed input, except if the stage produces residuals.
 type ElementManager struct {
-	config Config
+	config     Config
+	nextBundID func() string // Generates unique bundleIDs. Set in the Bundles method.
 
 	impulses set[string]            // List of impulse stages.
 	stages   map[string]*stageState // The state for each stage.
@@ -276,10 +277,10 @@ func (em *ElementManager) StageStateful(ID string) {
 // processed by key.
 func (em *ElementManager) StageOnWindowExpiration(stageID string, timer StaticTimerID) {
 	ss := em.stages[stageID]
-	ss.onWindowExpirationFamily = timer.TimerFamily
-	ss.onWindowExpirationTransform = timer.Transform
+	ss.onWindowExpiration = timer
 	ss.keysToExpireByWindow = map[typex.Window]set[string]{}
 	ss.inProgressExpiredWindows = map[typex.Window]int{}
+	ss.expiryWindowsByBundles = map[string]typex.Window{}
 }
 
 // StageProcessingTimeTimers indicates which timers are processingTime domain timers.
@@ -349,6 +350,8 @@ func (rb RunBundle) LogValue() slog.Value {
 // The returned channel is closed when the context is canceled, or there are no pending elements
 // remaining.
 func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.CancelCauseFunc, nextBundID func() string) <-chan RunBundle {
+	// Make it easier for side channel bundles to get unique IDs.
+	em.nextBundID = nextBundID
 	runStageCh := make(chan RunBundle)
 	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
@@ -408,7 +411,6 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 					return
 				case runStageCh <- rb:
 				}
-				slog.Debug("OnWindowExpiration-Bundle sent", slog.Any("bundle", rb), slog.Int64("livePending", em.livePending.Load()))
 				em.refreshCond.L.Lock()
 			}
 
@@ -877,6 +879,19 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 	delete(stage.inprogressHoldsByBundle, rb.BundleID)
 
+	// Clean up OnWindowExpiration bundle accounting, so window state
+	// may be garbage collected.
+	if stage.expiryWindowsByBundles != nil {
+		win, ok := stage.expiryWindowsByBundles[rb.BundleID]
+		if ok {
+			stage.inProgressExpiredWindows[win] -= 1
+			if stage.inProgressExpiredWindows[win] == 0 {
+				delete(stage.inProgressExpiredWindows, win)
+			}
+			delete(stage.expiryWindowsByBundles, rb.BundleID)
+		}
+	}
+
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
 	if len(residuals.MinOutputWatermarks) > 0 {
@@ -1099,10 +1114,10 @@ type stageState struct {
 	processingTimeTimersFamilies map[string]bool // Indicates which timer families use the processing time domain.
 
 	// onWindowExpiration management
-	onWindowExpirationFamily    string // If non-empty, indicates that this stage has an OnWindowExpiration timer that must trigger.
-	onWindowExpirationTransform string // The transform name of the DoFn with OnWindowExpiration
-	keysToExpireByWindow        map[typex.Window]set[string]
-	inProgressExpiredWindows    map[typex.Window]int
+	onWindowExpiration       StaticTimerID                // The static ID of the OnWindowExpiration callback.
+	keysToExpireByWindow     map[typex.Window]set[string] // Tracks all keys ever used with a window, so they may be expired.
+	inProgressExpiredWindows map[typex.Window]int         // Tracks the number of bundles currently expiring these windows, so we don't prematurely collect them.
+	expiryWindowsByBundles   map[string]typex.Window      // Tracks which bundle is handling which window, so the above map can be cleared.
 
 	mu                 sync.Mutex
 	upstreamWatermarks sync.Map   // watermark set from inputPCollection's parent.
@@ -1605,69 +1620,11 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	}
 
 	// If bigger, advance the output watermark
-	var preventDownstreamUpdate bool
-	for win, keys := range ss.keysToExpireByWindow {
-		// Check if the window has expired.
-		// TODO(#https://github.com/apache/beam/issues/31438):
-		// Adjust with AllowedLateness
-		if win.MaxTimestamp() >= newOut {
-			continue
-		}
-		// We can't advance the output watermark if there's garbage to collect.
-		preventDownstreamUpdate = true
-		// Hold off on garbage collecting data for these windows while these
-		// are in progress.
-		ss.inProgressExpiredWindows[win] += 1
+	preventDownstreamUpdate := ss.createOnWindowExpirationBundles(newOut, em)
 
-		// Produce bundle(s) for these keys and window, and side channel them.
-		wm := win.MaxTimestamp()
-		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + ss.ID + "-" + win.MaxTimestamp().String(), Watermark: wm}
-
-		// Now we need to actually build the bundle.
-		var toProcess []element
-		busyKeys := set[string]{}
-		for k := range keys {
-			if ss.inprogressKeys.present(k) {
-				busyKeys.insert(k)
-				continue
-			}
-			toProcess = append(toProcess, element{
-				window:        win,
-				timestamp:     wm,
-				pane:          typex.NoFiringPane(),
-				holdTimestamp: wm,
-				transform:     ss.onWindowExpirationTransform,
-				family:        ss.onWindowExpirationFamily,
-				sequence:      1,
-				keyBytes:      []byte(k),
-				elmBytes:      nil,
-			})
-		}
-		em.addPending(len(toProcess))
-		ss.watermarkHolds.Add(wm, 1)
-		ss.makeInProgressBundle(
-			func() string { return rb.BundleID },
-			toProcess,
-			wm,
-			keys,
-			map[mtime.Time]int{wm: 1},
-		)
-
-		slog.Debug("OnWindowExpiration-Bundle Created", slog.Any("bundle", rb), slog.Any("keys", keys), slog.Any("window", win), slog.Any("toProcess", toProcess))
-		// We're already in the refreshCond critical section.
-		// Insert that this is in progress here to avoid a race condition.
-		em.inprogressBundles.insert(rb.BundleID)
-		em.sideChannelBundles = append(em.sideChannelBundles, rb)
-
-		// Remove the key accounting, or continue tracking which keys still need clearing.
-		if len(busyKeys) == 0 {
-			delete(ss.keysToExpireByWindow, win)
-		} else {
-			ss.keysToExpireByWindow[win] = busyKeys
-		}
-	}
 	// Garbage collect state, timers and side inputs, for all windows
-	// that are before the new output watermark.
+	// that are before the new output watermark, if they aren't in progress
+	// of being expired.
 	// They'll never be read in again.
 	for _, wins := range ss.sideInputs {
 		for win := range wins {
@@ -1717,6 +1674,81 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		}
 	}
 	return refreshes
+}
+
+// createOnWindowExpirationBundles creates side channel bundles when windows
+// expire for all keys that were used in that window. Returns true if any
+// bundles are created, which means that the window must not yet be garbage
+// collected.
+//
+// Must be called within the stageState.mu's and the ElementManager.refreshCond
+// critical sections.
+func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *ElementManager) bool {
+	var preventDownstreamUpdate bool
+	for win, keys := range ss.keysToExpireByWindow {
+		// Check if the window has expired.
+		// TODO(#https://github.com/apache/beam/issues/31438):
+		// Adjust with AllowedLateness
+		if win.MaxTimestamp() >= newOut {
+			continue
+		}
+		// We can't advance the output watermark if there's garbage to collect.
+		preventDownstreamUpdate = true
+		// Hold off on garbage collecting data for these windows while these
+		// are in progress.
+		ss.inProgressExpiredWindows[win] += 1
+
+		// Produce bundle(s) for these keys and window, and side channel them.
+		wm := win.MaxTimestamp()
+		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + em.nextBundID(), Watermark: wm}
+
+		// Now we need to actually build the bundle.
+		var toProcess []element
+		busyKeys := set[string]{}
+		usedKeys := set[string]{}
+		for k := range keys {
+			if ss.inprogressKeys.present(k) {
+				busyKeys.insert(k)
+				continue
+			}
+			usedKeys.insert(k)
+			toProcess = append(toProcess, element{
+				window:        win,
+				timestamp:     wm,
+				pane:          typex.NoFiringPane(),
+				holdTimestamp: wm,
+				transform:     ss.onWindowExpiration.Transform,
+				family:        ss.onWindowExpiration.TimerFamily,
+				sequence:      1,
+				keyBytes:      []byte(k),
+				elmBytes:      nil,
+			})
+		}
+		em.addPending(len(toProcess))
+		ss.watermarkHolds.Add(wm, 1)
+		ss.makeInProgressBundle(
+			func() string { return rb.BundleID },
+			toProcess,
+			wm,
+			usedKeys,
+			map[mtime.Time]int{wm: 1},
+		)
+		ss.expiryWindowsByBundles[rb.BundleID] = win
+
+		slog.Debug("OnWindowExpiration-Bundle Created", slog.Any("bundle", rb), slog.Any("usedKeys", usedKeys), slog.Any("window", win), slog.Any("toProcess", toProcess), slog.Any("busyKeys", busyKeys))
+		// We're already in the refreshCond critical section.
+		// Insert that this is in progress here to avoid a race condition.
+		em.inprogressBundles.insert(rb.BundleID)
+		em.sideChannelBundles = append(em.sideChannelBundles, rb)
+
+		// Remove the key accounting, or continue tracking which keys still need clearing.
+		if len(busyKeys) == 0 {
+			delete(ss.keysToExpireByWindow, win)
+		} else {
+			ss.keysToExpireByWindow[win] = busyKeys
+		}
+	}
+	return preventDownstreamUpdate
 }
 
 // bundleReady returns the maximum allowed watermark for this stage, and whether
