@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_E
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -97,7 +97,7 @@ public class BigQueryIOStorageQueryIT {
     PCollection<Long> count =
         p.apply(
                 "Query",
-                BigQueryIO.read(TableRowParser.INSTANCE)
+                BigQueryIO.readTableRows()
                     .fromQuery("SELECT * FROM `" + options.getInputTable() + "`")
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ))
@@ -112,7 +112,7 @@ public class BigQueryIOStorageQueryIT {
     runBigQueryIOStorageQueryPipeline();
   }
 
-  static class FailingTableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
+  static class FailingTableRowParser implements SerializableFunction<GenericRecord, TableRow> {
 
     public static final BigQueryIOStorageReadIT.FailingTableRowParser INSTANCE =
         new BigQueryIOStorageReadIT.FailingTableRowParser();
@@ -120,12 +120,12 @@ public class BigQueryIOStorageQueryIT {
     private int parseCount = 0;
 
     @Override
-    public TableRow apply(SchemaAndRecord schemaAndRecord) {
+    public TableRow apply(GenericRecord record) {
       parseCount++;
       if (parseCount % 50 == 0) {
         throw new RuntimeException("ExpectedException");
       }
-      return TableRowParser.INSTANCE.apply(schemaAndRecord);
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
     }
   }
 
@@ -138,7 +138,7 @@ public class BigQueryIOStorageQueryIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.read(FailingTableRowParser.INSTANCE)
+                BigQueryIO.readAvro(FailingTableRowParser.INSTANCE)
                     .fromQuery("SELECT * FROM `" + options.getInputTable() + "`")
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ)
