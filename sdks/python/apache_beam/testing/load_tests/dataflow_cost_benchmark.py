@@ -109,5 +109,7 @@ class DataflowCostBenchmark(LoadTest):
       metric_key = entry.key
       metric = metric_key.metric
       if metric_key.step == '' and metric.namespace == 'dataflow/v1b3':
+        if entry.committed is None:
+          entry.committed = 0.0
         system_metrics[metric.name] = entry.committed
     return system_metrics
