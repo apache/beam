@@ -61,21 +61,21 @@ def test_enrichment(
 
     def _fn(row):
       left = row._asdict()
-      right = products[str(row[row_key])]
+      right = products[str(left[row_key])]
       left['product'] = left.get('product', None) or right
-      return beam.Row(**row)
+      return beam.Row(**left)
   elif enrichment_handler == 'BigQuery':
     row_key = handler_config['fields']
     dataset, table = handler_config['table_name'].split('.')[-2:]
     bq_data = INPUT_TABLES[('BigQuery', str(dataset), str(table))]
-    products = {
+    bq_data = {
         tuple(str(data[key]) for key in row_key): data
         for data in bq_data
     }
 
     def _fn(row):
       left = row._asdict()
-      right = products[tuple(str(left[k]) for k in row_key)]
+      right = bq_data[tuple(str(left[k]) for k in row_key)]
       row = {
           key: left.get(key, None) or right[key]
           for key in {*left.keys(), *right.keys()}
@@ -393,7 +393,7 @@ def _spanner_io_read_test_preprocessor(
                                   'SELECT ').replace(' from ', ' FROM ')
           columns = set(
               ''.join(config['query'].split('SELECT ')[1:]).split(
-                  ' FROM', maxsplit=1)[0])
+                  ' FROM', maxsplit=1)[0].split(', '))
           if columns != {'*'}:
             elements = [{
                 column: element[column]
