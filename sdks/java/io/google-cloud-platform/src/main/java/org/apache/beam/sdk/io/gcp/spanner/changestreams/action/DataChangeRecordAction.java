@@ -21,7 +21,6 @@ import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
@@ -69,12 +68,15 @@ public class DataChangeRecordAction {
    * @param partition the current partition being processed
    * @param record the change stream data record received
    * @param tracker the restriction tracker of the {@link ReadChangeStreamPartitionDoFn} SDF
+   * @param interrupter the restriction interrupter suggesting early termination of the processing
    * @param outputReceiver the output receiver of the {@link ReadChangeStreamPartitionDoFn} SDF
    * @param watermarkEstimator the watermark estimator of the {@link ReadChangeStreamPartitionDoFn}
    *     SDF
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
-   *     to claim the {@link ChildPartitionsRecord} timestamp
+   *     to claim the {@link DataChangeRecord} timestamp. A non empty {@link Optional} with {@link
+   *     ProcessContinuation#resume()} if this function should commit what has already been
+   *     processed and resume.
    */
   @VisibleForTesting
   public Optional<ProcessContinuation> run(

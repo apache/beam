@@ -57,7 +57,9 @@ public class HeartbeatRecordAction {
    * not. If the {@link Optional} returned is empty, it means that the calling function can continue
    * with the processing. If an {@link Optional} of {@link ProcessContinuation#stop()} is returned,
    * it means that this function was unable to claim the timestamp of the {@link HeartbeatRecord},
-   * so the caller should stop.
+   * so the caller should stop. If an {@link Optional} of {@link ProcessContinuation#resume()} is
+   * returned, it means that this function should not attempt to claim further timestamps of the
+   * {@link HeartbeatRecord}, but instead should commit what it has processed so far.
    *
    * <p>When processing the {@link HeartbeatRecord} the following procedure is applied:
    *

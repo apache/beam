@@ -38,10 +38,14 @@ public class RestrictionInterrupterTest {
     interrupter.setTimeSupplier(() -> Instant.ofEpochSecond(30));
     assertFalse(interrupter.tryInterrupt(3));
     interrupter.setTimeSupplier(() -> Instant.ofEpochSecond(40));
+    // Though the deadline has passed same position as previously accepted is not interrupted.
     assertFalse(interrupter.tryInterrupt(3));
     assertTrue(interrupter.tryInterrupt(4));
     assertTrue(interrupter.tryInterrupt(5));
     interrupter.setTimeSupplier(() -> Instant.ofEpochSecond(50));
+    assertTrue(interrupter.tryInterrupt(5));
+    // Even with non-monotonic clock the interrupter will now always interrupt.
+    interrupter.setTimeSupplier(() -> Instant.ofEpochSecond(40));
     assertTrue(interrupter.tryInterrupt(5));
   }
 
@@ -52,6 +56,7 @@ public class RestrictionInterrupterTest {
             () -> Instant.ofEpochSecond(0), Duration.standardSeconds(30));
     interrupter.setTimeSupplier(() -> Instant.ofEpochSecond(40));
     assertFalse(interrupter.tryInterrupt(1));
+    // Though the deadline has passed same position as previously accepted is not interrupted.
     assertFalse(interrupter.tryInterrupt(1));
     assertTrue(interrupter.tryInterrupt(2));
     interrupter.setTimeSupplier(() -> Instant.ofEpochSecond(50));

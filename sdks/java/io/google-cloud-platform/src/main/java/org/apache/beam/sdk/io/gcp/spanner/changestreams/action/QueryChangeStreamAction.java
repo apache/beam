@@ -63,6 +63,12 @@ public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
   private static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardMinutes(5);
+  /*
+   * Corresponds to the best effort timeout in case the restriction tracker cannot split the processing
+   * interval before the hard deadline. When reached it will assure that the already processed timestamps
+   * will be committed instead of thrown away (DEADLINE_EXCEEDED). The value should be less than
+   * the RetrySetting RPC timeout setting of SpannerIO#ReadChangeStream.
+   */
   private static final Duration RESTRICTION_TRACKER_TIMEOUT = Duration.standardSeconds(40);
   private static final String OUT_OF_RANGE_ERROR_MESSAGE = "Specified start_timestamp is invalid";
 

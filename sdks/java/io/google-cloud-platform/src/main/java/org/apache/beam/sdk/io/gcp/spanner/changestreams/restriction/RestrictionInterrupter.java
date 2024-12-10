@@ -19,18 +19,17 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import java.util.function.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** An interrupter for restriction tracker of type T. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class RestrictionInterrupter<T> {
-  private T lastAttemptedPosition;
+  private @Nullable T lastAttemptedPosition;
 
   private Supplier<Instant> timeSupplier;
-  private Instant softDeadline;
+  private final Instant softDeadline;
   private boolean hasInterrupted = true;
 
   /**
@@ -67,7 +66,7 @@ public class RestrictionInterrupter<T> {
    * @return {@code true} if the position processing should continue, {@code false} if the soft
    *     deadline has been reached and we have fully processed the previous position.
    */
-  public boolean tryInterrupt(T position) {
+  public boolean tryInterrupt(@NonNull T position) {
     if (hasInterrupted) {
       return true;
     }
@@ -75,10 +74,12 @@ public class RestrictionInterrupter<T> {
       lastAttemptedPosition = position;
       return false;
     }
-
-    hasInterrupted |=
-        timeSupplier.get().isAfter(softDeadline) && !position.equals(lastAttemptedPosition);
+    if (position.equals(lastAttemptedPosition)) {
+      return false;
+    }
     lastAttemptedPosition = position;
+
+    hasInterrupted |= timeSupplier.get().isAfter(softDeadline);
     return hasInterrupted;
   }
 }

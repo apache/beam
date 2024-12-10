@@ -95,11 +95,14 @@ public class ChildPartitionsRecordAction {
    * @param record the change stream child partition record received
    * @param tracker the restriction tracker of the {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param interrupter the restriction interrupter suggesting early termination of the processing
    * @param watermarkEstimator the watermark estimator of the {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
-   *     to claim the {@link ChildPartitionsRecord} timestamp
+   *     to claim the {@link ChildPartitionsRecord} timestamp. A non empty {@link Optional} with
+   *     {@link ProcessContinuation#resume()} if this function should commit what has already been 
+   *     processed and resume.
    */
   @VisibleForTesting
   public Optional<ProcessContinuation> run(
