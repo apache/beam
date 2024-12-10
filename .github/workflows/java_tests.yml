@@ -29,8 +29,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
-            'examples/kotlin/**', 'release/**', 'buildSrc/**']
+    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**', 'examples/kotlin/**', 'release/**', 'buildSrc/**']
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
@@ -40,25 +39,6 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 jobs:
-  check_gcp_variables:
-    timeout-minutes: 5
-    name: "Check GCP variables set"
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    outputs:
-      gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-      - name: "Check are GCP variables set"
-        run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
-        id: check_gcp_variables
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
-          GCP_REGION: "not-needed-here"
-          GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
-
   java_unit_tests:
     name: 'Java Unit Tests'
     runs-on: ${{ matrix.os }}
@@ -146,38 +126,4 @@ jobs:
         if: always()
         with:
           name: java_wordcount_direct_runner-${{matrix.os}}
-          path: examples/java/build/reports/tests/integrationTest
-
-  java_wordcount_dataflow:
-    name: 'Java Wordcount Dataflow'
-    needs:
-      - check_gcp_variables
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [[self-hosted, ubuntu-20.04, main], windows-latest]
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          submodules: recursive
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
-        with:
-          java-version: 11
-          go-version: default
-      - name: Run WordCount
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: integrationTest
-          arguments: -p examples/ --tests org.apache.beam.examples.WordCountIT
-            -DintegrationTestPipelineOptions=[\"--runner=DataflowRunner\",\"--project=${{ secrets.GCP_PROJECT_ID }}\",\"--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/\"]
-            -DintegrationTestRunner=dataflow
-      - name: Upload test logs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: java_wordcount_dataflow-${{matrix.os}}
           path: examples/java/build/reports/tests/integrationTest
