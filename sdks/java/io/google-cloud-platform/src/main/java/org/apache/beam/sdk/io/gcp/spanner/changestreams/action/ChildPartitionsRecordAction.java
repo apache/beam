@@ -101,7 +101,7 @@ public class ChildPartitionsRecordAction {
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
    *     to claim the {@link ChildPartitionsRecord} timestamp. A non empty {@link Optional} with
-   *     {@link ProcessContinuation#resume()} if this function should commit what has already been 
+   *     {@link ProcessContinuation#resume()} if this function should commit what has already been
    *     processed and resume.
    */
   @VisibleForTesting
