@@ -15,6 +15,26 @@
     under the License.
 -->
 
+# How to fix Workflows
+
+The following is guidance on how to practically make changes that fix workflows.
+
+1) Create a branch in https://github.com/apache/beam not your fork.
+
+    The reason to perform changes to a branch of the main repo instead of your fork is due to the challenge in replicating the environment within which Beam GitHub workflows execute. GitHub workflows allow you to execute against a branch of a repo.
+
+2) Make changes in this branch you anticipate will fix the failing workflow.
+
+3) Run the workflow designating your branch.
+
+    In the GitHub workflow interface, you can designate any branch of the repository to run the workflow against. Selecting your branch allows you to test the changes you made.
+
+4) Create a PR, pasting the link to your successful workflow run in the branch
+
+    When doing a PR, the checks will not run against your branch. Your reviewer may not know this so you'll want to mention this in your PR description, pasting the link to your successful run.
+
+5) After PR merges, execute the workflow manually to validate your merged changes.
+
 # Running Workflows Manually
 
 Most workflows will get kicked off automatically when you open a PR, push code, or on a schedule.
