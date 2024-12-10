@@ -54,6 +54,7 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
 
   // **** IcebergIO runtime dependencies ****
+  runtimeOnly library.java.hadoop_auth
   runtimeOnly library.java.hadoop_client
   // Needed when using GCS as the warehouse location.
   runtimeOnly library.java.bigdataoss_gcs_connector
