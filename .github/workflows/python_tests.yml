@@ -57,7 +57,6 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
 
@@ -156,8 +155,6 @@ jobs:
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
-    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     needs:
       - build_python_sdk_source
     runs-on: ${{ matrix.os }}
@@ -179,12 +176,6 @@ jobs:
         with:
           name: python_sdk_source
           path: apache-beam-source
-      - name: Authenticate on GCP
-        id: auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Install requirements
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e ".[gcp]"
