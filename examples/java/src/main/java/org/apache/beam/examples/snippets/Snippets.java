@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -60,7 +59,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
-import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -228,8 +226,7 @@ public class Snippets {
       // [START BigQueryReadFunction]
       PCollection<Double> maxTemperatures =
           p.apply(
-              BigQueryIO.read(
-                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              BigQueryIO.readAvro(record -> (Double) record.get("max_temperature"))
                   .from(tableSpec)
                   .withCoder(DoubleCoder.of()));
       // [END BigQueryReadFunction]
@@ -239,8 +236,7 @@ public class Snippets {
       // [START BigQueryReadQuery]
       PCollection<Double> maxTemperatures =
           p.apply(
-              BigQueryIO.read(
-                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              BigQueryIO.readAvro(record -> (Double) record.get("max_temperature"))
                   .fromQuery(
                       "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]")
                   .withCoder(DoubleCoder.of()));
@@ -251,8 +247,7 @@ public class Snippets {
       // [START BigQueryReadQueryStdSQL]
       PCollection<Double> maxTemperatures =
           p.apply(
-              BigQueryIO.read(
-                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+              BigQueryIO.readAvro(record -> (Double) record.get("max_temperature"))
                   .fromQuery(
                       "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
                   .usingStandardSql()
@@ -392,15 +387,13 @@ public class Snippets {
 
       PCollection<WeatherData> weatherData =
           p.apply(
-              BigQueryIO.read(
-                      (SchemaAndRecord elem) -> {
-                        GenericRecord record = elem.getRecord();
-                        return new WeatherData(
-                            (Long) record.get("year"),
-                            (Long) record.get("month"),
-                            (Long) record.get("day"),
-                            (Double) record.get("max_temperature"));
-                      })
+              BigQueryIO.readAvro(
+                      record ->
+                          new WeatherData(
+                              (Long) record.get("year"),
+                              (Long) record.get("month"),
+                              (Long) record.get("day"),
+                              (Double) record.get("max_temperature")))
                   .fromQuery(
                       "SELECT year, month, day, max_temperature "
                           + "FROM [apache-beam-testing.samples.weather_stations] "

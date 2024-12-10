@@ -29,7 +29,6 @@ import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.values.Row;
@@ -47,13 +46,13 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
       org.apache.avro.@Nullable Schema schema,
       boolean extractWithLogicalTypes,
       AvroSource.DatumReaderFactory<AvroT> readerFactory,
-      SerializableBiFunction<TableSchema, AvroT, T> fromAvro) {
+      SerializableFunction<SchemaAndElement<AvroT>, T> fromAvro) {
     return new BigQueryAvroReaderFactory<>(
         schema, extractWithLogicalTypes, readerFactory, fromAvro);
   }
 
   static <T> BigQueryReaderFactory<T> arrow(
-      @Nullable Schema schema, SerializableBiFunction<TableSchema, Row, T> fromArrow) {
+      @Nullable Schema schema, SerializableFunction<SchemaAndRow, T> fromArrow) {
     return new BigQueryArrowReaderFactory<>(schema, fromArrow);
   }
 
@@ -84,13 +83,13 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         schemaSupplier; // avro 1.8 schema is not serializable
     private final boolean extractWithLogicalTypes;
     private final AvroSource.DatumReaderFactory<AvroT> readerFactory;
-    private final SerializableBiFunction<TableSchema, AvroT, T> fromAvro;
+    private final SerializableFunction<SchemaAndElement<AvroT>, T> fromAvro;
 
     BigQueryAvroReaderFactory(
         org.apache.avro.@Nullable Schema schema,
         boolean extractWithLogicalTypes,
         AvroSource.DatumReaderFactory<AvroT> readerFactory,
-        SerializableBiFunction<TableSchema, AvroT, T> fromAvro) {
+        SerializableFunction<SchemaAndElement<AvroT>, T> fromAvro) {
 
       this.schemaSupplier = schema == null ? null : new SerializableSchemaSupplier(schema);
       this.extractWithLogicalTypes = extractWithLogicalTypes;
@@ -119,7 +118,7 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema, extractWithLogicalTypes);
       }
       SerializableFunction<GenericRecord, T> parseFn =
-          (r) -> fromAvro.apply(tableSchema, (AvroT) r);
+          (r) -> fromAvro.apply(new SchemaAndElement<>((AvroT) r, tableSchema));
       return source
           .withSchema(readerSchema)
           .withDatumReaderFactory(readerFactory)
@@ -138,7 +137,8 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         // BQ storage always uses logical-types
         readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema, true);
       }
-      SerializableFunction<AvroT, T> fromAvroRecord = (r) -> fromAvro.apply(tableSchema, r);
+      SerializableFunction<AvroT, T> fromAvroRecord =
+          (r) -> fromAvro.apply(new SchemaAndElement<>(r, tableSchema));
       return new BigQueryStorageAvroReader<>(
           writerSchema, readerSchema, readerFactory, fromAvroRecord);
     }
@@ -149,10 +149,10 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
   /////////////////////////////////////////////////////////////////////////////
   static class BigQueryArrowReaderFactory<T> extends BigQueryReaderFactory<T> {
     private final SerializableFunction<TableSchema, Schema> schemaFactory;
-    private final SerializableBiFunction<TableSchema, Row, T> parseFn;
+    private final SerializableFunction<SchemaAndRow, T> parseFn;
 
     BigQueryArrowReaderFactory(
-        @Nullable Schema schema, SerializableBiFunction<TableSchema, Row, T> parseFn) {
+        @Nullable Schema schema, SerializableFunction<SchemaAndRow, T> parseFn) {
       this.parseFn = parseFn;
       if (schema == null) {
         this.schemaFactory = BigQueryUtils::fromTableSchema;
@@ -179,7 +179,8 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         org.apache.arrow.vector.types.pojo.Schema writerSchema =
             ArrowConversion.arrowSchemaFromInput(input);
         Schema readerSchema = schemaFactory.apply(tableSchema);
-        SerializableFunction<Row, T> fromRow = (r) -> parseFn.apply(tableSchema, r);
+        SerializableFunction<Row, T> fromRow =
+            (r) -> parseFn.apply(new SchemaAndRow(r, tableSchema));
         return new BigQueryStorageArrowReader<>(writerSchema, readerSchema, fromRow);
       }
     }
