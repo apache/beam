@@ -150,7 +150,7 @@ public class BigQueryIOReadTest implements Serializable {
           null,
           false,
           AvroDatumFactory.generic(),
-          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
+          (input) -> BigQueryAvroUtils.convertGenericRecordToTableRow(input.getElement()));
 
   private static class MyData implements Serializable {
     private String name;

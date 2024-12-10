@@ -177,10 +177,10 @@ public class BigQueryIOStorageReadTest {
           null,
           false,
           AvroDatumFactory.generic(),
-          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
+          input -> BigQueryAvroUtils.convertGenericRecordToTableRow(input.getRecord()));
 
   private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_ARROW_READER_FACTORY =
-      BigQueryReaderFactory.arrow(null, (s, r) -> BigQueryUtils.toTableRow(r));
+      BigQueryReaderFactory.arrow(null, input -> BigQueryUtils.toTableRow(input.getRow()));
 
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -2275,7 +2275,7 @@ public class BigQueryIOStorageReadTest {
         BigQueryIO.read(
                 record ->
                     BigQueryUtils.toBeamRow(
-                        record.getRecord(), schema, ConversionOptions.builder().build()))
+                        record.getElement(), schema, ConversionOptions.builder().build()))
             .withMethod(Method.DIRECT_READ)
             .withCoder(SchemaCoder.of(schema));
 
@@ -2301,7 +2301,7 @@ public class BigQueryIOStorageReadTest {
         BigQueryIO.read(
                 record ->
                     BigQueryUtils.toBeamRow(
-                        record.getRecord(), schema, ConversionOptions.builder().build()))
+                        record.getElement(), schema, ConversionOptions.builder().build()))
             .fromQuery("SELECT bar FROM `dataset.table`")
             .withMethod(Method.DIRECT_READ)
             .withCoder(SchemaCoder.of(schema));
@@ -2339,7 +2339,8 @@ public class BigQueryIOStorageReadTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageReaderFactory<GenericRecord> readerFactory =
-        BigQueryReaderFactory.avro(null, false, AvroDatumFactory.generic(), (s, r) -> r);
+        BigQueryReaderFactory.avro(
+            null, false, AvroDatumFactory.generic(), SchemaAndElement::getRecord);
     BigQueryStorageStreamSource<GenericRecord> streamSource =
         BigQueryStorageStreamSource.create(
             readSession,

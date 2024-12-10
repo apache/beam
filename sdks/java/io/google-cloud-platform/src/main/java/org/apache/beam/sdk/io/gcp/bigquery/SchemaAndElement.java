@@ -18,14 +18,35 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import org.apache.avro.generic.GenericRecord;
 
 /**
- * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
- * table (or query) it was generated from.
+ * A wrapper for a record and the {@link TableSchema} representing the schema of the table (or
+ * query) it was generated from.
  */
-public class SchemaAndRecord extends SchemaAndElement<GenericRecord> {
-  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
-    super(record, tableSchema);
+public class SchemaAndElement<T> {
+  private final T element;
+  private final TableSchema tableSchema;
+
+  public SchemaAndElement(T record, TableSchema tableSchema) {
+    this.element = record;
+    this.tableSchema = tableSchema;
+  }
+
+  public T getElement() {
+    return element;
+  }
+
+  // getRecord is defined here so method is present when cast to SchemaAndRecord
+  public T getRecord() {
+    return element;
+  }
+
+  // getRow is defined here so method is present when cast to SchemaAndRow
+  protected T getRow() {
+    return element;
+  }
+
+  public TableSchema getTableSchema() {
+    return tableSchema;
   }
 }
