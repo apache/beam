@@ -75,6 +75,7 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
@@ -966,7 +967,7 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-    ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+    ungrouped = pcoll | Map(reify_timestamps).with_input_types(Tuple[K, V]).with_output_types(Tuple[K, Tuple[V, Timestamp]])
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
@@ -1005,7 +1006,6 @@ class Reshuffle(PTransform):
       generated.
     """
     self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
-
     valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
     if not (num_buckets is None or valid_buckets):
       raise ValueError(
@@ -1015,12 +1015,12 @@ class Reshuffle(PTransform):
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-        pcoll | 'AddRandomKeys' >>
-        Map(lambda t: (random.randrange(0, self.num_buckets), t)
-            ).with_input_types(T).with_output_types(Tuple[int, T])
-        | ReshufflePerKey()
-        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            Tuple[int, T]).with_output_types(T))
+         pcoll | 'AddRandomKeys' >>
+         Map(lambda t: (random.randrange(0, self.num_buckets), t)
+             ).with_input_types(T).with_output_types(Tuple[int, T])
+         | ReshufflePerKey().with_input_types(Tuple[int, T]).with_output_types(Tuple[int, T])
+         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+             Tuple[int, T]).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
