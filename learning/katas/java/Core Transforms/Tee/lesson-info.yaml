@@ -18,15 +18,4 @@
 #
 
 content:
-- Map
-- GroupByKey
-- CoGroupByKey
-- Combine
-- Flatten
-- Partition
-- Side Input
-- Side Output
-- Branching
-- Composite Transform
-- DoFn Additional Parameters
-- Tee
+  - Tee
