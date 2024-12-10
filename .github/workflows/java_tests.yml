@@ -20,11 +20,7 @@
 name: Java Tests
 on:
   workflow_dispatch:
-    inputs:
-      runDataflow:
-        description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: 'false'
-        required: false
+  
   schedule:
     - cron: '10 2 * * *'
   push:
@@ -59,7 +55,6 @@ jobs:
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
           GCP_REGION: "not-needed-here"
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
@@ -162,10 +157,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], windows-latest]
-    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
-    if: |
-      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' &&
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -177,11 +168,6 @@ jobs:
         with:
           java-version: 11
           go-version: default
-      - name: Authenticate on GCP
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Run WordCount
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
