@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterp
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.InvalidClassException;
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -156,7 +157,14 @@ public class BigQueryIOTranslation {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
       if (transform.getAvroSchema() != null) {
-        fieldValues.put("avro_schema", toByteArray(transform.getAvroSchema()));
+        org.apache.avro.Schema avroSchema = transform.getAvroSchema();
+        // avro 1.8 Schema is not serializable
+        if (avroSchema instanceof Serializable) {
+          fieldValues.put("avro_schema", toByteArray(transform.getAvroSchema()));
+        } else {
+          String avroSchemaStr = avroSchema.toString();
+          fieldValues.put("avro_schema", toByteArray(avroSchemaStr));
+        }
       }
       if (transform.getDatumReaderFactory() != null) {
         fieldValues.put("datum_reader_factory", toByteArray(transform.getDatumReaderFactory()));
@@ -278,7 +286,15 @@ public class BigQueryIOTranslation {
         }
         byte[] avroSchemaBytes = configRow.getBytes("avro_schema");
         if (avroSchemaBytes != null) {
-          builder = builder.setAvroSchema((org.apache.avro.Schema) fromByteArray(avroSchemaBytes));
+          Object avroSchemaObj = fromByteArray(avroSchemaBytes);
+          if (avroSchemaObj instanceof org.apache.avro.Schema) {
+            builder = builder.setAvroSchema((org.apache.avro.Schema) avroSchemaObj);
+          } else {
+            String avroSchemaStr = (String) avroSchemaObj;
+            org.apache.avro.Schema avroSchema =
+                new org.apache.avro.Schema.Parser().parse(avroSchemaStr);
+            builder = builder.setAvroSchema(avroSchema);
+          }
         }
         byte[] parseFnBytes = configRow.getBytes("parse_fn");
         if (parseFnBytes != null) {
