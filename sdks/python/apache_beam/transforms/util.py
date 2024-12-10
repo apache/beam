@@ -41,6 +41,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam.coders import typecoders
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -73,6 +74,7 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
@@ -1005,22 +1007,39 @@ class Reshuffle(PTransform):
       generated.
     """
     self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
-
     valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
     if not (num_buckets is None or valid_buckets):
       raise ValueError(
           'If `num_buckets` is set, it has to be an '
           'integer greater than 0, got %s' % num_buckets)
 
+  def get_output_type(self):
+    return (
+        self.get_type_hints().simple_output_type(self.label) or
+        self.infer_output_type(None))
+
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
+    output_type = self.get_output_type()
+    if output_type == convert_to_beam_type(T):
+      return (
+          pcoll | 'AddRandomKeys' >>
+          Map(lambda t: (random.randrange(0, self.num_buckets), t)
+              ).with_input_types(T).with_output_types(Tuple[int, T])
+          | ReshufflePerKey()
+          | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+              Tuple[int, T]).with_output_types(T))
+
+    coder = typecoders.registry.get_coder(output_type)
     return (
-        pcoll | 'AddRandomKeys' >>
+        pcoll | Map(coder.encode).with_output_types(bytes)
+        | 'AddRandomKeys' >>
         Map(lambda t: (random.randrange(0, self.num_buckets), t)
             ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            Tuple[int, T]).with_output_types(T))
+            Tuple[int, T]).with_output_types(T)
+        | Map(coder.decode).with_output_types(self.get_output_type()))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
