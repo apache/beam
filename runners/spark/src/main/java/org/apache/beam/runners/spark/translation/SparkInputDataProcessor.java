@@ -47,7 +47,7 @@ import scala.Tuple2;
  * Processes Spark's input data iterators using Beam's {@link
  * org.apache.beam.runners.core.DoFnRunner}.
  */
-interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
+public interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
 
   /**
    * @return {@link OutputManager} to be used by {@link org.apache.beam.runners.core.DoFnRunner} for
