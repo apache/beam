@@ -30,10 +30,6 @@ on:
     tags: 'v*'
     paths: ['sdks/python/**', 'model/**']
   workflow_dispatch:
-    inputs:
-      runDataflow:
-        description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: false
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
