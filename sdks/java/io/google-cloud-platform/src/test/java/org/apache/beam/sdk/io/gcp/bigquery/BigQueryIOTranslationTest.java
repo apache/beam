@@ -24,11 +24,15 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -36,6 +40,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -58,7 +63,11 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "getWithTemplateCompatibility", "with_template_compatibility");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getBigQueryServices", "bigquery_services");
-    READ_TRANSFORM_SCHEMA_MAPPING.put("getBigQueryReaderFactory", "bigquery_reader_factory");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getAvroSchema", "avro_schema");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getParseFn", "parse_fn");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getDatumReaderFactory", "datum_reader_factory");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getArrowSchema", "arrow_schema");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getArrowParseFn", "arrow_parse_fn");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryPriority", "query_priority");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryLocation", "query_location");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempDataset", "query_temp_dataset");
@@ -142,9 +151,82 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordErrorHandler", "bad_record_error_handler");
   }
 
+  static class DummyParseFn implements SerializableFunction<SchemaAndRecord, Object> {
+    @Override
+    public Object apply(SchemaAndRecord input) {
+      return null;
+    }
+  }
+
+  @Test
+  public void testReCreateReadTransformFromDeprecatedArrow() {
+    BigQueryIO.TypedRead<Object> readTransform =
+        BigQueryIO.read(new DummyParseFn())
+            .withFormat(DataFormat.ARROW)
+            .from("dummyproject:dummydataset.dummytable")
+            .withMethod(TypedRead.Method.DIRECT_READ);
+
+    BigQueryIOTranslation.BigQueryIOReadTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOReadTranslator();
+
+    // old versions do not set arrow_parse_fn
+    Row row =
+        Row.fromRow(translator.toConfigRow(readTransform))
+            .withFieldValue("arrow_parse_fn", null)
+            .build();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.60.0");
+    BigQueryIO.TypedRead<TableRow> readTransformFromRow =
+        (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row, options);
+    assertNotNull(readTransformFromRow.getTable());
+    assertEquals("dummyproject", readTransformFromRow.getTable().getProjectId());
+    assertEquals("dummydataset", readTransformFromRow.getTable().getDatasetId());
+    assertEquals("dummytable", readTransformFromRow.getTable().getTableId());
+    assertNotNull(readTransformFromRow.getArrowParseFn());
+    assertEquals(TypedRead.Method.DIRECT_READ, readTransformFromRow.getMethod());
+  }
+
+  public static class DummyClass {
+
+    public String name;
+
+    @org.apache.avro.reflect.Nullable public Integer age;
+  }
+
+  @Test
+  public void testReCreateReadTransformFromDatumReader() {
+    AvroSource.DatumReaderFactory<DummyClass> readerFactory =
+        AvroDatumFactory.reflect(DummyClass.class);
+    BigQueryIO.TypedRead<DummyClass> readTransform =
+        BigQueryIO.readWithDatumReader(readerFactory).from("dummyproject:dummydataset.dummytable");
+
+    BigQueryIOTranslation.BigQueryIOReadTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOReadTranslator();
+
+    // old versions set a SerializableFunction with unused input and do not set parseFn
+    SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<?>> oldDatumFactory =
+        (schema) -> readerFactory;
+    Row row =
+        Row.fromRow(translator.toConfigRow(readTransform))
+            .withFieldValue("datum_reader_factory", TransformUpgrader.toByteArray(oldDatumFactory))
+            .withFieldValue("parse_fn", null)
+            .build();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.60.0");
+    BigQueryIO.TypedRead<TableRow> readTransformFromRow =
+        (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row, options);
+    assertNotNull(readTransformFromRow.getTable());
+    assertEquals("dummyproject", readTransformFromRow.getTable().getProjectId());
+    assertEquals("dummydataset", readTransformFromRow.getTable().getDatasetId());
+    assertEquals("dummytable", readTransformFromRow.getTable().getTableId());
+    assertTrue(
+        readTransformFromRow.getDatumReaderFactory() instanceof AvroSource.DatumReaderFactory);
+  }
+
   @Test
   public void testReCreateReadTransformFromRowTable() {
-    // setting a subset of fields here.
     BigQueryIO.TypedRead<TableRow> readTransform =
         BigQueryIO.readTableRows()
             .from("dummyproject:dummydataset.dummytable")
@@ -156,10 +238,8 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOReadTranslator();
     Row row = translator.toConfigRow(readTransform);
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.61.0");
-    BigQueryIO.TypedRead<TableRow> readTransformFromRow =
-        (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row, options);
+    BigQueryIO.TypedRead<?> readTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(readTransformFromRow.getTable());
     assertEquals("dummyproject", readTransformFromRow.getTable().getProjectId());
     assertEquals("dummydataset", readTransformFromRow.getTable().getDatasetId());
@@ -169,16 +249,8 @@ public class BigQueryIOTranslationTest {
     assertTrue(readTransformFromRow.getWithTemplateCompatibility());
   }
 
-  static class DummyParseFn implements SerializableFunction<SchemaAndRecord, Object> {
-    @Override
-    public Object apply(SchemaAndRecord input) {
-      return null;
-    }
-  }
-
   @Test
   public void testReCreateReadTransformFromRowQuery() {
-    // setting a subset of fields here.
     BigQueryIO.TypedRead<?> readTransform =
         BigQueryIO.read(new DummyParseFn())
             .fromQuery("dummyquery")
@@ -189,11 +261,11 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOReadTranslator();
     Row row = translator.toConfigRow(readTransform);
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.61.0");
-    BigQueryIO.TypedRead<?> readTransformFromRow = translator.fromConfigRow(row, options);
+    BigQueryIO.TypedRead<?> readTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertEquals("dummyquery", readTransformFromRow.getQuery().get());
-    assertNotNull(readTransformFromRow.getBigQueryReaderFactory());
+    assertNotNull(readTransformFromRow.getParseFn());
+    assertTrue(readTransformFromRow.getParseFn() instanceof DummyParseFn);
     assertTrue(readTransformFromRow.getUseAvroLogicalTypes());
     assertFalse(readTransformFromRow.getUseLegacySql());
   }

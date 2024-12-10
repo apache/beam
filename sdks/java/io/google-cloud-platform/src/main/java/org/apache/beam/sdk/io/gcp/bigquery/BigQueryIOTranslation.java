@@ -36,11 +36,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.FromBeamRowFunction;
@@ -59,7 +59,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
@@ -71,7 +70,6 @@ import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar
 import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
@@ -97,8 +95,11 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("use_legacy_sql")
             .addNullableBooleanField("with_template_compatibility")
             .addNullableByteArrayField("bigquery_services")
-            .addNullableByteArrayField("bigquery_reader_factory")
-            .addNullableByteArrayField("parse_fn") // for migration
+            .addNullableByteArrayField("avro_schema")
+            .addNullableByteArrayField("datum_reader_factory")
+            .addNullableByteArrayField("parse_fn")
+            .addNullableByteArrayField("arrow_schema")
+            .addNullableByteArrayField("arrow_parse_fn")
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
@@ -154,9 +155,20 @@ public class BigQueryIOTranslation {
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
-      if (transform.getBigQueryReaderFactory() != null) {
-        fieldValues.put(
-            "bigquery_reader_factory", toByteArray(transform.getBigQueryReaderFactory()));
+      if (transform.getAvroSchema() != null) {
+        fieldValues.put("avro_schema", toByteArray(transform.getAvroSchema()));
+      }
+      if (transform.getDatumReaderFactory() != null) {
+        fieldValues.put("datum_reader_factory", toByteArray(transform.getDatumReaderFactory()));
+      }
+      if (transform.getParseFn() != null) {
+        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
+      }
+      if (transform.getArrowSchema() != null) {
+        fieldValues.put("arrow_schema", toByteArray(transform.getArrowSchema()));
+      }
+      if (transform.getArrowParseFn() != null) {
+        fieldValues.put("arrow_parse_fn", toByteArray(transform.getArrowParseFn()));
       }
       if (transform.getQueryPriority() != null) {
         fieldValues.put("query_priority", toByteArray(transform.getQueryPriority()));
@@ -258,6 +270,61 @@ public class BigQueryIOTranslation {
             builder.setBigQueryServices(new BigQueryServicesImpl());
           }
         }
+        byte[] formatBytes = configRow.getBytes("format");
+        DataFormat format = null;
+        if (formatBytes != null) {
+          format = (DataFormat) fromByteArray(formatBytes);
+          builder = builder.setFormat(format);
+        }
+        byte[] avroSchemaBytes = configRow.getBytes("avro_schema");
+        if (avroSchemaBytes != null) {
+          builder = builder.setAvroSchema((org.apache.avro.Schema) fromByteArray(avroSchemaBytes));
+        }
+        byte[] parseFnBytes = configRow.getBytes("parse_fn");
+        if (parseFnBytes != null) {
+          builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
+        }
+        byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
+        if (datumReaderFactoryBytes != null) {
+          if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.62.0") < 0) {
+            // on old version, readWithDatumReader sets a SerializableFunction with unused parameter
+            // when parseFnBytes was set, just read as GenericRecord
+            if (parseFnBytes == null) {
+              SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<Object>>
+                  datumReaderFactoryFn =
+                      (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<Object>>)
+                          fromByteArray(datumReaderFactoryBytes);
+              builder = builder.setDatumReaderFactory(datumReaderFactoryFn.apply(null));
+            } else {
+              builder = builder.setDatumReaderFactory(AvroDatumFactory.generic());
+            }
+          } else {
+            builder =
+                builder.setDatumReaderFactory(
+                    (AvroSource.DatumReaderFactory<Object>) fromByteArray(datumReaderFactoryBytes));
+          }
+        }
+        byte[] arrowSchemaBytes = configRow.getBytes("arrow_schema");
+        if (arrowSchemaBytes != null) {
+          builder = builder.setArrowSchema((Schema) fromByteArray(avroSchemaBytes));
+        }
+        byte[] arrowParseFnBytes = configRow.getBytes("arrow_parse_fn");
+        if (arrowParseFnBytes != null) {
+          builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
+        } else if (format == DataFormat.ARROW
+            && TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.62.0") < 0) {
+          if (parseFnBytes != null) {
+            // on old version, arrow was read from avro record
+            SerializableFunction<SchemaAndRecord, ?> avroFn =
+                (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFnBytes);
+            SerializableFunction<SchemaAndRow, ?> arrowFn =
+                input ->
+                    avroFn.apply(
+                        new SchemaAndRecord(
+                            AvroUtils.toGenericRecord(input.getElement()), input.getTableSchema()));
+            builder = builder.setArrowParseFn(arrowFn);
+          }
+        }
         byte[] queryPriorityBytes = configRow.getBytes("query_priority");
         if (queryPriorityBytes != null) {
           builder = builder.setQueryPriority((QueryPriority) fromByteArray(queryPriorityBytes));
@@ -283,10 +350,6 @@ public class BigQueryIOTranslation {
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
-        }
-        byte[] formatBytes = configRow.getBytes("format");
-        if (formatBytes != null) {
-          builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
         if (selectedFields != null && !selectedFields.isEmpty()) {
@@ -344,54 +407,6 @@ public class BigQueryIOTranslation {
           byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
           builder.setBadRecordErrorHandler(
               (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
-        }
-
-        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.61.0") < 0) {
-          // best effort migration
-          DataFormat dataFormat = null;
-          if (formatBytes != null) {
-            dataFormat = (DataFormat) fromByteArray(formatBytes);
-          }
-
-          byte[] parseFnBytes = configRow.getBytes("parse_fn");
-          if (parseFnBytes == null) {
-            // parseFn is null only when creating IO with readWithDatumReader
-            throw new RuntimeException(
-                "Upgrading BigqueryIO readWithDatumReader transforms is not supported.");
-          } else {
-            SerializableFunction<SchemaAndRecord, ?> parseFn =
-                (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFnBytes);
-            BigQueryReaderFactory<?> readerFactory;
-            if (DataFormat.ARROW.equals(dataFormat)) {
-              SerializableBiFunction<TableSchema, Row, ?> fromArrow =
-                  (s, r) -> parseFn.apply(new SchemaAndRecord(AvroUtils.toGenericRecord(r), s));
-              readerFactory = BigQueryReaderFactory.arrow(null, fromArrow);
-            } else {
-              // default to avro
-              SerializableBiFunction<TableSchema, GenericRecord, ?> fromAvro =
-                  (s, r) -> parseFn.apply(new SchemaAndRecord(r, s));
-              boolean extractWithLogicalTypes = useAvroLogicalTypes != null && useAvroLogicalTypes;
-              readerFactory =
-                  BigQueryReaderFactory.avro(
-                      null, extractWithLogicalTypes, AvroDatumFactory.generic(), fromAvro);
-            }
-            builder.setBigQueryReaderFactory(readerFactory);
-
-            if (configRow.getBytes("type_descriptor") == null) {
-              TypeDescriptor typeDescriptor = TypeDescriptors.outputOf(parseFn);
-              if (!typeDescriptor.hasUnresolvedParameters()) {
-                builder.setTypeDescriptor(typeDescriptor);
-              }
-            }
-          }
-        } else {
-          // This property was added for Beam 2.60.0 hence not available when
-          // upgrading the transform from previous Beam versions.
-          byte[] readerFactoryBytes = configRow.getBytes("bigquery_reader_factory");
-          if (readerFactoryBytes != null) {
-            builder.setBigQueryReaderFactory(
-                (BigQueryReaderFactory<?>) fromByteArray(readerFactoryBytes));
-          }
         }
 
         return builder.build();

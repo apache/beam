@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.values.Row;
 
 /**
- * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
+ * A wrapper for an arrow {@link Row} and the {@link TableSchema} representing the schema of the
  * table (or query) it was generated from.
  */
-public class SchemaAndRecord extends SchemaAndElement<GenericRecord> {
-  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
-    super(record, tableSchema);
+public class SchemaAndRow extends SchemaAndElement<Row> {
+  public SchemaAndRow(Row row, TableSchema tableSchema) {
+    super(row, tableSchema);
   }
 }
