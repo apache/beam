@@ -61,7 +61,7 @@ jobs:
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
         (github.event_name == 'push' || github.event_name == 'schedule') ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
+        github.event_name == 'workflow_dispatch')
       )
     needs:
       - check_gcp_variables
