@@ -19,9 +19,10 @@ import groovy.json.JsonOutput
  */
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.iceberg.hive',
-        exportJavadoc: false,
-        shadowClosure: {},
+    automaticModuleName: 'org.apache.beam.sdk.io.iceberg.hive',
+    exportJavadoc: false,
+    publish: false,
+    shadowClosure: {},
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: Hive"

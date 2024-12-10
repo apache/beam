@@ -21,45 +21,67 @@ plugins {
     id 'com.github.johnrengelman.shadow'
 }
 
-dependencies {
-    implementation("org.apache.hive:hive-exec:3.1.3")
-    permitUnusedDeclared("org.apache.hive:hive-exec:3.1.3")
-}
+def hive_version = '3.1.3'
 
-configurations {
-    shadow
-}
-
-artifacts {
-    shadow(archives(shadowJar) {
-        builtBy shadowJar
-    })
-}
-
-shadowJar {
-    zip64 true
-
-    def problematicPackages = [
+// hive-exec is a shadowjar but does not relocate packages. Using it as a dependency
+// then causes old and/or incompatible dependency versions leaked into classpath.
+// several workarounds are done here:
+// 1. relocate packages. Put these into problematicPackages, and exclude them from
+//   META-INF/maven/
+// 2. Unshade packages. Exclude both classes and maven META-INF files
+applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk',
+    exportJavadoc: false,
+    publish: false,  // only used for testing and in expansion-service shadowjar
+    shadowClosure: {
+        dependencies {
+            include(dependency("org.apache.hive:hive-exec:$hive_version"))
+        }
+        def problematicPackages = [
             'com.google.protobuf',
             'com.google.common',
             'shaded.parquet',
+            'org.apache.calcite',
             'org.apache.parquet',
-            'org.joda'
-    ]
+            'org.apache.commons',
+        ]
 
-    problematicPackages.forEach {
-        relocate it, getJavaRelocatedPath("iceberg.hive.${it}")
-    }
+        problematicPackages.forEach {
+            relocate it, getJavaRelocatedPath("iceberg.hive.${it}")
+        }
 
-    version "3.1.3"
-    mergeServiceFiles()
-
-    exclude 'LICENSE'
-    exclude(
+        exclude(
             'org/xml/**',
             'javax/**',
-            'com/sun/**'
-    )
-}
+            'com/sun/**',
+            // unshaded packages
+            'org/joda/**',
+            'META-INF/maven/joda-time/**',
+            // pom.xml for relocated packages
+            'META-INF/maven/com.google.guava/**',
+            'META-INF/maven/com.google.protobuf/**',
+            'META-INF/maven/commons-codec/**',
+            'META-INF/maven/commons-lang/**',
+            'META-INF/maven/commons-lang3/**',
+            'META-INF/maven/commons-logging/**',
+            'META-INF/maven/com.google.guava/**',
+            'META-INF/maven/org.apache.calcite/**',
+            'META-INF/maven/org.apache.parquet/**',
+            // pom.xml for already shaded packages
+            'META-INF/maven/org.apache.avro/**',
+        )
+    }
+)
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: Hive :: Exec"
 ext.summary = "A copy of the hive-exec dependency with some popular libraries relocated."
+
+dependencies {
+    implementation "org.apache.hive:hive-exec:$hive_version"
+
+    // change to unshaded dependencies
+    shadow library.java.joda_time
+
+    // pin to newer version hadoop dependencies
+    shadow "org.apache.hadoop:hadoop-yarn-server-resourcemanager:3.4.1"
+}
