@@ -55,7 +55,6 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
-    runtimeOnly library.java.hadoop_auth
 
     testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client
