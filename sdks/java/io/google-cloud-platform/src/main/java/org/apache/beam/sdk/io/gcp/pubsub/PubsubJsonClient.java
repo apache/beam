@@ -158,12 +158,7 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
-    Map<String, String> attributes = null;
-    if (outgoingMessage.getMessage().getAttributesMap() == null) {
-      attributes = new TreeMap<>();
-    } else {
-      attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
-    }
+    Map<String, String> attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
     if (timestampAttribute != null) {
       attributes.put(
           timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
