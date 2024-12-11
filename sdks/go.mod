@@ -29,7 +29,7 @@ require (
 	cloud.google.com/go/profiler v0.4.1
 	cloud.google.com/go/pubsub v1.45.3
 	cloud.google.com/go/spanner v1.73.0
-	cloud.google.com/go/storage v1.47.0
+	cloud.google.com/go/storage v1.48.0
 	github.com/aws/aws-sdk-go-v2 v1.32.6
 	github.com/aws/aws-sdk-go-v2/config v1.28.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.47
@@ -60,7 +60,7 @@ require (
 	golang.org/x/text v0.21.0
 	google.golang.org/api v0.210.0
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697
-	google.golang.org/grpc v1.67.1
+	google.golang.org/grpc v1.67.2
 	google.golang.org/protobuf v1.35.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
