@@ -279,8 +279,11 @@ def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_num
   print("Starting downloading artifacts ... (it may take a while)")
   run_data = get_single_workflow_run_data(run_id, repo_url, github_token)
   artifacts_url = safe_get(run_data, "artifacts_url")
-  data_artifacts = request_url(artifacts_url, github_token)
+  data_artifacts = request_url(artifacts_url + '?per_page=100', github_token)
   artifacts = safe_get(data_artifacts, "artifacts", artifacts_url)
+  total_count = safe_get(data_artifacts, "total_count", artifacts_url)
+  if int(total_count) != len(artifacts):
+    raise RuntimeError(f"Expected total count {total_count} different than returned list length {len(data_artifacts)}")
   print('Filtering ', len(artifacts), ' artifacts')
   filtered_artifacts = filter_artifacts(artifacts, rc_number)
   print('Preparing to download ', len(filtered_artifacts), ' artifacts')

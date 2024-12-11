@@ -59,6 +59,24 @@ message ExpansionMethods {
   }
 }
 
+// Defines the URNs for managed transforms.
+message ManagedTransforms {
+  enum Urns {
+    ICEBERG_READ = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:iceberg_read:v1"];
+    ICEBERG_WRITE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:iceberg_write:v1"];
+    KAFKA_READ = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:kafka_read:v1"];
+    KAFKA_WRITE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:kafka_write:v1"];
+    BIGQUERY_READ = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"];
+    BIGQUERY_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:bigquery_write:v1"];
+  }
+}
+
 // A configuration payload for an external transform.
 // Used to define a Java transform that can be directly instantiated by a Java
 // expansion service.

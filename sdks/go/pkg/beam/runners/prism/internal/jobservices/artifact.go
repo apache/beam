@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -77,7 +77,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 
 				case *jobpb.ArtifactResponseWrapper_ResolveArtifactResponse:
 					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
-					slog.Error("GetArtifact failure", err)
+					slog.Error("GetArtifact failure", slog.Any("error", err))
 					return err
 				}
 			}

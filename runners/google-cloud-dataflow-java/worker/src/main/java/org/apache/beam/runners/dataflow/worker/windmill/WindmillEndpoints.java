@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
 import com.google.auto.value.AutoValue;
 import java.net.Inet6Address;
@@ -27,8 +27,8 @@ import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +40,16 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class WindmillEndpoints {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
+  private static final WindmillEndpoints NO_ENDPOINTS =
+      WindmillEndpoints.builder()
+          .setVersion(Long.MAX_VALUE)
+          .setWindmillEndpoints(ImmutableSet.of())
+          .setGlobalDataEndpoints(ImmutableMap.of())
+          .build();
+
+  public static WindmillEndpoints none() {
+    return NO_ENDPOINTS;
+  }
 
   public static WindmillEndpoints from(
       Windmill.WorkerMetadataResponse workerMetadataResponseProto) {
@@ -53,14 +63,15 @@ public abstract class WindmillEndpoints {
                             endpoint.getValue(),
                             workerMetadataResponseProto.getExternalEndpoint())));
 
-    ImmutableList<WindmillEndpoints.Endpoint> windmillServers =
+    ImmutableSet<WindmillEndpoints.Endpoint> windmillServers =
         workerMetadataResponseProto.getWorkEndpointsList().stream()
             .map(
                 endpointProto ->
                     Endpoint.from(endpointProto, workerMetadataResponseProto.getExternalEndpoint()))
-            .collect(toImmutableList());
+            .collect(toImmutableSet());
 
     return WindmillEndpoints.builder()
+        .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
         .setWindmillEndpoints(windmillServers)
         .build();
@@ -77,17 +88,23 @@ public abstract class WindmillEndpoints {
             .map(address -> AuthenticatedGcpServiceAddress.create(authenticatingService, address))
             .map(WindmillServiceAddress::create);
 
-    return directEndpointIpV6Address.isPresent()
-        ? directEndpointIpV6Address
-        : tryParseEndpointIntoHostAndPort(endpointProto.getDirectEndpoint())
-            .map(WindmillServiceAddress::create);
+    Optional<WindmillServiceAddress> windmillServiceAddress =
+        directEndpointIpV6Address.isPresent()
+            ? directEndpointIpV6Address
+            : tryParseEndpointIntoHostAndPort(endpointProto.getDirectEndpoint())
+                .map(WindmillServiceAddress::create);
+
+    if (!windmillServiceAddress.isPresent()) {
+      LOG.warn("Endpoint {} could not be parsed into a WindmillServiceAddress.", endpointProto);
+    }
+
+    return windmillServiceAddress;
   }
 
   private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
     try {
       return Optional.of(HostAndPort.fromString(directEndpoint));
     } catch (IllegalArgumentException e) {
-      LOG.warn("{} cannot be parsed into a gcpServiceAddress", directEndpoint);
       return Optional.empty();
     }
   }
@@ -102,19 +119,12 @@ public abstract class WindmillEndpoints {
     try {
       directEndpointAddress = Inet6Address.getByName(endpointProto.getDirectEndpoint());
     } catch (UnknownHostException e) {
-      LOG.warn(
-          "Error occurred trying to parse direct_endpoint={} into IPv6 address. Exception={}",
-          endpointProto.getDirectEndpoint(),
-          e.toString());
       return Optional.empty();
     }
 
     // Inet6Address.getByAddress returns either an IPv4 or an IPv6 address depending on the format
     // of the direct_endpoint string.
     if (!(directEndpointAddress instanceof Inet6Address)) {
-      LOG.warn(
-          "{} is not an IPv6 address. Direct endpoints are expected to be in IPv6 format.",
-          endpointProto.getDirectEndpoint());
       return Optional.empty();
     }
 
@@ -122,6 +132,9 @@ public abstract class WindmillEndpoints {
         HostAndPort.fromParts(
             directEndpointAddress.getHostAddress(), (int) endpointProto.getPort()));
   }
+
+  /** Version of the endpoints which increases with every modification. */
+  public abstract long version();
 
   /**
    * Used by GetData GlobalDataRequest(s) to support Beam side inputs. Returns a map where the key
@@ -138,7 +151,7 @@ public abstract class WindmillEndpoints {
    * Windmill servers. Returns a list of endpoints used to communicate with the corresponding
    * Windmill servers.
    */
-  public abstract ImmutableList<Endpoint> windmillEndpoints();
+  public abstract ImmutableSet<Endpoint> windmillEndpoints();
 
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
@@ -204,13 +217,15 @@ public abstract class WindmillEndpoints {
 
   @AutoValue.Builder
   public abstract static class Builder {
+    public abstract Builder setVersion(long version);
+
     public abstract Builder setGlobalDataEndpoints(
         ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers);
 
     public abstract Builder setWindmillEndpoints(
-        ImmutableList<WindmillEndpoints.Endpoint> windmillServers);
+        ImmutableSet<WindmillEndpoints.Endpoint> windmillServers);
 
-    abstract ImmutableList.Builder<WindmillEndpoints.Endpoint> windmillEndpointsBuilder();
+    abstract ImmutableSet.Builder<WindmillEndpoints.Endpoint> windmillEndpointsBuilder();
 
     public final Builder addWindmillEndpoint(WindmillEndpoints.Endpoint endpoint) {
       windmillEndpointsBuilder().add(endpoint);

@@ -31,7 +31,9 @@ DEP_SNAPSHOT_FILE_NAME="beam-py-requirements-$time.txt"
 cd $WORKSPACE/sdks/python/build
 
 # Rename the file to be apache-beam-{VERSION}-{datetime}.tar.gz
-for file in "apache-beam-$VERSION*.tar.gz"; do
+# Notice that the distribution name of beam can be "apache-beam" with
+# setuptools<69.3.0 or "apache_beam" with setuptools>=69.3.0.
+for file in "apache[-_]beam-$VERSION*.tar.gz"; do
   mv $file $SNAPSHOT
 done
 

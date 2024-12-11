@@ -17,15 +17,14 @@
 # pytype: skip-file
 
 import os
+import secrets
 import shutil
 import tempfile
-import typing
+import time
 import unittest
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Sequence
 
 import numpy as np
 from parameterized import param
@@ -140,8 +139,8 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': int, 'y': float
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
       param(
@@ -153,8 +152,8 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': np.int32, 'y': np.float32
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
       param(
@@ -162,11 +161,11 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
           }],
           input_types={
-              'x': List[int], 'y': List[float]
+              'x': list[int], 'y': list[float]
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
       param(
@@ -174,12 +173,12 @@ class BaseMLTransformTest(unittest.TestCase):
               'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
           }],
           input_types={
-              'x': typing.Sequence[int],
-              'y': typing.Sequence[float],
+              'x': Sequence[int],
+              'y': Sequence[float],
           },
           expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32],
+              'x': Sequence[np.float32],
+              'y': Sequence[np.float32],
           },
       ),
   ])
@@ -320,7 +319,7 @@ class BaseMLTransformTest(unittest.TestCase):
 
 
 class FakeModel:
-  def __call__(self, example: List[str]) -> List[str]:
+  def __call__(self, example: list[str]) -> list[str]:
     for i in range(len(example)):
       if not isinstance(example[i], str):
         raise TypeError('Input must be a string')
@@ -333,7 +332,7 @@ class FakeModelHandler(ModelHandler):
       self,
       batch: Sequence[str],
       model: Any,
-      inference_args: Optional[Dict[str, Any]] = None):
+      inference_args: Optional[dict[str, Any]] = None):
     return model(batch)
 
   def load_model(self):
@@ -345,7 +344,7 @@ class FakeEmbeddingsManager(base.EmbeddingsManager):
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
-    FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'  # type: ignore[assignment]
+    FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'  # type: ignore[method-assign]
     return FakeModelHandler()
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
@@ -508,7 +507,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
 
 
 class FakeImageModel:
-  def __call__(self, example: List[PIL_Image]) -> List[PIL_Image]:
+  def __call__(self, example: list[PIL_Image]) -> list[PIL_Image]:
     for i in range(len(example)):
       if not isinstance(example[i], PIL_Image):
         raise TypeError('Input must be an Image')
@@ -520,7 +519,7 @@ class FakeImageModelHandler(ModelHandler):
       self,
       batch: Sequence[PIL_Image],
       model: Any,
-      inference_args: Optional[Dict[str, Any]] = None):
+      inference_args: Optional[dict[str, Any]] = None):
     return model(batch)
 
   def load_model(self):
@@ -532,7 +531,7 @@ class FakeImageEmbeddingsManager(base.EmbeddingsManager):
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
-    FakeModelHandler.__repr__ = lambda x: 'FakeImageEmbeddingsManager'  # type: ignore[assignment]
+    FakeModelHandler.__repr__ = lambda x: 'FakeImageEmbeddingsManager'  # type: ignore[method-assign]
     return FakeImageModelHandler()
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
@@ -701,7 +700,7 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
 
   @unittest.skipIf(apiclient is None, 'apache_beam[gcp] is not installed.')
   def test_with_gcs_location_with_none_options(self):
-    path = 'gs://fake_path'
+    path = f"gs://fake_path_{secrets.token_hex(3)}_{int(time.time())}"
     with self.assertRaises(RuntimeError):
       self.attribute_manager.save_attributes(
           ptransform_list=[], artifact_location=path, options=None)

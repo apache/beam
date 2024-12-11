@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -38,16 +39,29 @@ import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
+import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
+import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
+import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -147,7 +161,7 @@ import org.slf4j.LoggerFactory;
  * function.
  *
  * <pre>{@code
- * @DefaultSchema(JavaBeanSchema.class)
+ * {@literal @}DefaultSchema(JavaBeanSchema.class)
  * public static class SimpleRecord {
  *    public String payload;
  *    public String messageId;
@@ -238,7 +252,7 @@ import org.slf4j.LoggerFactory;
  * default VPN name by setting the required JCSMP property in the session factory (in this case,
  * with {@link BasicAuthJcsmpSessionServiceFactory#vpnName()}), the number of clients per worker
  * with {@link Write#withNumberOfClientsPerWorker(int)} and the number of parallel write clients
- * using {@link Write#withMaxNumOfUsedWorkers(int)}.
+ * using {@link Write#withNumShards(int)}.
  *
  * <h3>Writing to dynamic destinations</h3>
  *
@@ -345,12 +359,16 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The streaming connector publishes each message individually, without holding up or batching
  * before the message is sent to Solace. This will ensure the lowest possible latency, but it will
- * offer a much lower throughput. The streaming connector does not use state & timers.
+ * offer a much lower throughput. The streaming connector does not use state and timers.
  *
- * <p>Both connectors uses state & timers to control the level of parallelism. If you are using
+ * <p>Both connectors uses state and timers to control the level of parallelism. If you are using
  * Cloud Dataflow, it is recommended that you enable <a
  * href="https://cloud.google.com/dataflow/docs/streaming-engine">Streaming Engine</a> to use this
  * connector.
+ *
+ * <p>For full control over all the properties, use {@link SubmissionMode#CUSTOM}. The connector
+ * will not override any property that you set, and you will have full control over all the JCSMP
+ * properties.
  *
  * <h3>Authentication</h3>
  *
@@ -396,7 +414,7 @@ public class SolaceIO {
   private static final boolean DEFAULT_DEDUPLICATE_RECORDS = false;
   private static final Duration DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD =
       Duration.standardSeconds(30);
-  public static final int DEFAULT_WRITER_MAX_NUMBER_OF_WORKERS = 20;
+  public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
   public static final int DEFAULT_WRITER_CLIENTS_PER_WORKER = 4;
   public static final Boolean DEFAULT_WRITER_PUBLISH_LATENCY_METRICS = false;
   public static final SubmissionMode DEFAULT_WRITER_SUBMISSION_MODE =
@@ -445,6 +463,7 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
   }
+
   /**
    * Create a {@link Read} transform, to read from Solace. Specify a {@link SerializableFunction} to
    * map incoming {@link BytesXMLMessage} records, to the object of your choice. You also need to
@@ -805,7 +824,9 @@ public class SolaceIO {
 
   public enum SubmissionMode {
     HIGHER_THROUGHPUT,
-    LOWER_LATENCY
+    LOWER_LATENCY,
+    CUSTOM, // Don't override any property set by the user
+    TESTING // Send acks 1 by 1, this will be very slow, never use this in an actual pipeline!
   }
 
   public enum WriterType {
@@ -816,8 +837,9 @@ public class SolaceIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, SolaceOutput> {
 
-    public static final TupleTag<Solace.PublishResult> FAILED_PUBLISH_TAG =
-        new TupleTag<Solace.PublishResult>() {};
+    private static final Logger LOG = LoggerFactory.getLogger(Write.class);
+
+    public static final TupleTag<BadRecord> FAILED_PUBLISH_TAG = new TupleTag<BadRecord>() {};
     public static final TupleTag<Solace.PublishResult> SUCCESSFUL_PUBLISH_TAG =
         new TupleTag<Solace.PublishResult>() {};
 
@@ -863,8 +885,8 @@ public class SolaceIO {
      * cluster, and the need for performance when writing to Solace (more workers will achieve
      * higher throughput).
      */
-    public Write<T> withMaxNumOfUsedWorkers(int maxNumOfUsedWorkers) {
-      return toBuilder().setMaxNumOfUsedWorkers(maxNumOfUsedWorkers).build();
+    public Write<T> withNumShards(int numShards) {
+      return toBuilder().setNumShards(numShards).build();
     }
 
     /**
@@ -877,8 +899,8 @@ public class SolaceIO {
      * the number of clients created per VM. The clients will be re-used across different threads in
      * the same worker.
      *
-     * <p>Set this number in combination with {@link #withMaxNumOfUsedWorkers}, to ensure that the
-     * limit for number of clients in your Solace cluster is not exceeded.
+     * <p>Set this number in combination with {@link #withNumShards}, to ensure that the limit for
+     * number of clients in your Solace cluster is not exceeded.
      *
      * <p>Normally, using a higher number of clients with fewer workers will achieve better
      * throughput at a lower cost, since the workers are better utilized. A good rule of thumb to
@@ -921,15 +943,19 @@ public class SolaceIO {
      * <p>For full details, please check <a
      * href="https://docs.solace.com/API/API-Developer-Guide/Java-API-Best-Practices.htm">https://docs.solace.com/API/API-Developer-Guide/Java-API-Best-Practices.htm</a>.
      *
-     * <p>The Solace JCSMP client libraries can dispatch messages using two different modes:
+     * <p>The Solace JCSMP client libraries can dispatch messages using three different modes:
      *
      * <p>One of the modes dispatches messages directly from the same thread that is doing the rest
      * of I/O work. This mode favors lower latency but lower throughput. Set this to LOWER_LATENCY
      * to use that mode (MESSAGE_CALLBACK_ON_REACTOR set to True).
      *
-     * <p>The other mode uses a parallel thread to accumulate and dispatch messages. This mode
-     * favors higher throughput but also has higher latency. Set this to HIGHER_THROUGHPUT to use
-     * that mode. This is the default mode (MESSAGE_CALLBACK_ON_REACTOR set to False).
+     * <p>Another mode uses a parallel thread to accumulate and dispatch messages. This mode favors
+     * higher throughput but also has higher latency. Set this to HIGHER_THROUGHPUT to use that
+     * mode. This is the default mode (MESSAGE_CALLBACK_ON_REACTOR set to False).
+     *
+     * <p>If you prefer to have full control over all the JCSMP properties, set this to CUSTOM, and
+     * override the classes {@link SessionServiceFactory} and {@link SessionService} to have full
+     * control on how to create the JCSMP sessions and producers used by the connector.
      *
      * <p>This is optional, the default value is HIGHER_THROUGHPUT.
      */
@@ -945,10 +971,12 @@ public class SolaceIO {
      * <p>In streaming mode, the publishing latency will be lower, but the throughput will also be
      * lower.
      *
-     * <p>With the batched mode, messages are accumulated until a batch size of 50 is reached, or 5
-     * seconds have elapsed since the first message in the batch was received. The 50 messages are
-     * sent to Solace in a single batch. This writer offers higher throughput but higher publishing
-     * latency, as messages can be held up for up to 5 seconds until they are published.
+     * <p>With the batched mode, messages are accumulated until a batch size of 50 is reached, or
+     * {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS} seconds have elapsed since
+     * the first message in the batch was received. The 50 messages are sent to Solace in a single
+     * batch. This writer offers higher throughput but higher publishing latency, as messages can be
+     * held up for up to {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS}5seconds
+     * until they are published.
      *
      * <p>Notice that this is the message publishing latency, not the end-to-end latency. For very
      * large scale pipelines, you will probably prefer to use the HIGHER_THROUGHPUT mode, as with
@@ -971,7 +999,20 @@ public class SolaceIO {
       return toBuilder().setSessionServiceFactory(factory).build();
     }
 
-    abstract int getMaxNumOfUsedWorkers();
+    /**
+     * An optional error handler for handling records that failed to publish to Solace.
+     *
+     * <p>If provided, this error handler will be invoked for each record that could not be
+     * successfully published. The error handler can implement custom logic for dealing with failed
+     * records, such as writing them to a dead-letter queue or logging them.
+     *
+     * <p>If no error handler is provided, failed records will be ignored.
+     */
+    public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setErrorHandler(errorHandler).build();
+    }
+
+    abstract int getNumShards();
 
     abstract int getNumberOfClientsPerWorker();
 
@@ -989,10 +1030,12 @@ public class SolaceIO {
 
     abstract @Nullable SessionServiceFactory getSessionServiceFactory();
 
+    abstract @Nullable ErrorHandler<BadRecord, ?> getErrorHandler();
+
     static <T> Builder<T> builder() {
       return new AutoValue_SolaceIO_Write.Builder<T>()
           .setDeliveryMode(DEFAULT_WRITER_DELIVERY_MODE)
-          .setMaxNumOfUsedWorkers(DEFAULT_WRITER_MAX_NUMBER_OF_WORKERS)
+          .setNumShards(DEFAULT_WRITER_NUM_SHARDS)
           .setNumberOfClientsPerWorker(DEFAULT_WRITER_CLIENTS_PER_WORKER)
           .setPublishLatencyMetrics(DEFAULT_WRITER_PUBLISH_LATENCY_METRICS)
           .setDispatchMode(DEFAULT_WRITER_SUBMISSION_MODE)
@@ -1003,7 +1046,7 @@ public class SolaceIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setMaxNumOfUsedWorkers(int maxNumOfUsedWorkers);
+      abstract Builder<T> setNumShards(int numShards);
 
       abstract Builder<T> setNumberOfClientsPerWorker(int numberOfClientsPerWorker);
 
@@ -1021,13 +1064,121 @@ public class SolaceIO {
 
       abstract Builder<T> setSessionServiceFactory(SessionServiceFactory factory);
 
+      abstract Builder<T> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
+
       abstract Write<T> build();
     }
 
     @Override
     public SolaceOutput expand(PCollection<T> input) {
-      // TODO: will be sent in upcoming PR
-      return SolaceOutput.in(input.getPipeline(), null, null);
+      boolean usingSolaceRecord =
+          TypeDescriptor.of(Solace.Record.class)
+              .isSupertypeOf(checkNotNull(input.getTypeDescriptor()));
+
+      validateWriteTransform(usingSolaceRecord);
+
+      boolean usingDynamicDestinations = getDestination() == null;
+      SerializableFunction<Solace.Record, Destination> destinationFn;
+      if (usingDynamicDestinations) {
+        destinationFn = x -> SolaceIO.convertToJcsmpDestination(checkNotNull(x.getDestination()));
+      } else {
+        // Constant destination for all messages (same topic or queue)
+        // This should not be non-null, as nulls would have been flagged by the
+        // validateWriteTransform method
+        destinationFn = x -> checkNotNull(getDestination());
+      }
+
+      @SuppressWarnings("unchecked")
+      PCollection<Solace.Record> records =
+          usingSolaceRecord
+              ? (PCollection<Solace.Record>) input
+              : input.apply(
+                  "Format records",
+                  MapElements.into(TypeDescriptor.of(Solace.Record.class))
+                      .via(checkNotNull(getFormatFunction())));
+
+      PCollection<Solace.Record> withGlobalWindow =
+          records.apply("Global window", Window.into(new GlobalWindows()));
+
+      PCollection<KV<Integer, Solace.Record>> withShardKeys =
+          withGlobalWindow.apply("Add shard key", ParDo.of(new AddShardKeyDoFn(getNumShards())));
+
+      String label =
+          getWriterType() == WriterType.STREAMING ? "Publish (streaming)" : "Publish (batched)";
+
+      PCollectionTuple solaceOutput = withShardKeys.apply(label, getWriterTransform(destinationFn));
+
+      SolaceOutput output;
+      if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+        if (getErrorHandler() != null) {
+          checkNotNull(getErrorHandler()).addErrorCollection(solaceOutput.get(FAILED_PUBLISH_TAG));
+        }
+        output = SolaceOutput.in(input.getPipeline(), solaceOutput.get(SUCCESSFUL_PUBLISH_TAG));
+      } else {
+        LOG.info(
+            "Solace.Write: omitting writer output because delivery mode is {}", getDeliveryMode());
+        output = SolaceOutput.in(input.getPipeline(), null);
+      }
+
+      return output;
+    }
+
+    private ParDo.MultiOutput<KV<Integer, Solace.Record>, Solace.PublishResult> getWriterTransform(
+        SerializableFunction<Record, Destination> destinationFn) {
+
+      ParDo.SingleOutput<KV<Integer, Solace.Record>, Solace.PublishResult> writer =
+          ParDo.of(
+              getWriterType() == WriterType.STREAMING
+                  ? new UnboundedStreamingSolaceWriter(
+                      destinationFn,
+                      checkNotNull(getSessionServiceFactory()),
+                      getDeliveryMode(),
+                      getDispatchMode(),
+                      getNumberOfClientsPerWorker(),
+                      getPublishLatencyMetrics())
+                  : new UnboundedBatchedSolaceWriter(
+                      destinationFn,
+                      checkNotNull(getSessionServiceFactory()),
+                      getDeliveryMode(),
+                      getDispatchMode(),
+                      getNumberOfClientsPerWorker(),
+                      getPublishLatencyMetrics()));
+
+      return writer.withOutputTags(SUCCESSFUL_PUBLISH_TAG, TupleTagList.of(FAILED_PUBLISH_TAG));
+    }
+
+    /**
+     * Called before running the Pipeline to verify this transform is fully and correctly specified.
+     */
+    private void validateWriteTransform(boolean usingSolaceRecords) {
+      if (!usingSolaceRecords) {
+        checkNotNull(
+            getFormatFunction(),
+            "SolaceIO.Write: If you are not using Solace.Record as the input type, you"
+                + " must set a format function using withFormatFunction().");
+      }
+
+      checkArgument(
+          getNumShards() > 0, "SolaceIO.Write: The number of used workers must be positive.");
+      checkArgument(
+          getNumberOfClientsPerWorker() > 0,
+          "SolaceIO.Write: The number of clients per worker must be positive.");
+      checkArgument(
+          getDeliveryMode() == DeliveryMode.DIRECT || getDeliveryMode() == DeliveryMode.PERSISTENT,
+          String.format(
+              "SolaceIO.Write: Delivery mode must be either DIRECT or PERSISTENT. %s"
+                  + " not supported",
+              getDeliveryMode()));
+      if (getPublishLatencyMetrics()) {
+        checkArgument(
+            getDeliveryMode() == DeliveryMode.PERSISTENT,
+            "SolaceIO.Write: Publish latency metrics can only be enabled for PERSISTENT"
+                + " delivery mode.");
+      }
+      checkNotNull(
+          getSessionServiceFactory(),
+          "SolaceIO: You need to pass a session service factory. For basic"
+              + " authentication, you can use BasicAuthJcsmpSessionServiceFactory.");
     }
   }
 }

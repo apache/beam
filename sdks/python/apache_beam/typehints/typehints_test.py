@@ -388,15 +388,10 @@ class TupleHintTestCase(TypeHintTestCase):
       typehints.Tuple[5, [1, 3]]
     self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
 
-    if sys.version_info < (3, 9):
-      with self.assertRaises(TypeError) as e:
-        typehints.Tuple[list, dict]
-      self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
-    else:
-      try:
-        typehints.Tuple[list, dict]
-      except TypeError:
-        self.fail("built-in composite raised TypeError unexpectedly")
+    try:
+      typehints.Tuple[list, dict]
+    except TypeError:
+      self.fail("built-in composite raised TypeError unexpectedly")
 
   def test_compatibility_arbitrary_length(self):
     self.assertNotCompatible(
@@ -548,15 +543,13 @@ class TupleHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_normalize_with_builtin_tuple(self):
-    if sys.version_info >= (3, 9):
-      expected_beam_type = typehints.Tuple[int, int]
-      converted_beam_type = typehints.normalize(tuple[int, int], False)
-      self.assertEqual(converted_beam_type, expected_beam_type)
+    expected_beam_type = typehints.Tuple[int, int]
+    converted_beam_type = typehints.normalize(tuple[int, int], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
 
   def test_builtin_and_type_compatibility(self):
-    if sys.version_info >= (3, 9):
-      self.assertCompatible(tuple, typing.Tuple)
-      self.assertCompatible(tuple[int, int], typing.Tuple[int, int])
+    self.assertCompatible(tuple, typing.Tuple)
+    self.assertCompatible(tuple[int, int], typing.Tuple[int, int])
 
 
 class ListHintTestCase(TypeHintTestCase):
@@ -618,22 +611,19 @@ class ListHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_normalize_with_builtin_list(self):
-    if sys.version_info >= (3, 9):
-      expected_beam_type = typehints.List[int]
-      converted_beam_type = typehints.normalize(list[int], False)
-      self.assertEqual(converted_beam_type, expected_beam_type)
+    expected_beam_type = typehints.List[int]
+    converted_beam_type = typehints.normalize(list[int], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
 
   def test_builtin_and_type_compatibility(self):
-    if sys.version_info >= (3, 9):
-      self.assertCompatible(list, typing.List)
-      self.assertCompatible(list[int], typing.List[int])
+    self.assertCompatible(list, typing.List)
+    self.assertCompatible(list[int], typing.List[int])
 
   def test_is_typing_generic(self):
     self.assertTrue(typehints.is_typing_generic(typing.List[str]))
 
   def test_builtin_is_typing_generic(self):
-    if sys.version_info >= (3, 9):
-      self.assertTrue(typehints.is_typing_generic(list[str]))
+    self.assertTrue(typehints.is_typing_generic(list[str]))
 
 
 class KVHintTestCase(TypeHintTestCase):
@@ -687,14 +677,10 @@ class DictHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_key_type_must_be_valid_composite_param(self):
-    if sys.version_info < (3, 9):
-      with self.assertRaises(TypeError):
-        typehints.Dict[list, int]
-    else:
-      try:
-        typehints.Tuple[list, int]
-      except TypeError:
-        self.fail("built-in composite raised TypeError unexpectedly")
+    try:
+      typehints.Tuple[list, int]
+    except TypeError:
+      self.fail("built-in composite raised TypeError unexpectedly")
 
   def test_value_type_must_be_valid_composite_param(self):
     with self.assertRaises(TypeError):
@@ -777,35 +763,24 @@ class DictHintTestCase(TypeHintTestCase):
                      hint.match_type_variables(typehints.Dict[int, str]))
 
   def test_normalize_with_builtin_dict(self):
-    if sys.version_info >= (3, 9):
-      expected_beam_type = typehints.Dict[str, int]
-      converted_beam_type = typehints.normalize(dict[str, int], False)
-      self.assertEqual(converted_beam_type, expected_beam_type)
+    expected_beam_type = typehints.Dict[str, int]
+    converted_beam_type = typehints.normalize(dict[str, int], False)
+    self.assertEqual(converted_beam_type, expected_beam_type)
 
   def test_builtin_and_type_compatibility(self):
-    if sys.version_info >= (3, 9):
-      self.assertCompatible(dict, typing.Dict)
-      self.assertCompatible(dict[str, int], typing.Dict[str, int])
-      self.assertCompatible(
-          dict[str, list[int]], typing.Dict[str, typing.List[int]])
+    self.assertCompatible(dict, typing.Dict)
+    self.assertCompatible(dict[str, int], typing.Dict[str, int])
+    self.assertCompatible(
+        dict[str, list[int]], typing.Dict[str, typing.List[int]])
 
 
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
     def test_getitem_invalid_composite_type_param(self):
-      if sys.version_info < (3, 9):
-        with self.assertRaises(TypeError) as e:
-          self.beam_type[list]
-        self.assertEqual(
-            "Parameter to a {} hint must be a non-sequence, a "
-            "type, or a TypeConstraint. {} is an instance of "
-            "type.".format(self.string_type, list),
-            e.exception.args[0])
-      else:
-        try:
-          self.beam_type[list]
-        except TypeError:
-          self.fail("built-in composite raised TypeError unexpectedly")
+      try:
+        self.beam_type[list]
+      except TypeError:
+        self.fail("built-in composite raised TypeError unexpectedly")
 
     def test_non_typing_generic(self):
       testCase = DummyTestClass1()
@@ -855,16 +830,14 @@ class SetHintTestCase(BaseSetHintTest.CommonTests):
   string_type = 'Set'
 
   def test_builtin_compatibility(self):
-    if sys.version_info >= (3, 9):
-      self.assertCompatible(set[int], collections.abc.Set[int])
-      self.assertCompatible(set[int], collections.abc.MutableSet[int])
+    self.assertCompatible(set[int], collections.abc.Set[int])
+    self.assertCompatible(set[int], collections.abc.MutableSet[int])
 
   def test_collections_compatibility(self):
-    if sys.version_info >= (3, 9):
-      self.assertCompatible(
-          collections.abc.Set[int], collections.abc.MutableSet[int])
-      self.assertCompatible(
-          collections.abc.MutableSet[int], collections.abc.Set[int])
+    self.assertCompatible(
+        collections.abc.Set[int], collections.abc.MutableSet[int])
+    self.assertCompatible(
+        collections.abc.MutableSet[int], collections.abc.Set[int])
 
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
@@ -1416,37 +1389,16 @@ class DecoratorHelpers(TypeHintTestCase):
                          func, *[Any, Any, Tuple[str, ...], int]))
 
   def test_getcallargs_forhints_builtins(self):
-    if sys.version_info < (3, 7):
-      # Signatures for builtins are not supported in 3.5 and 3.6.
-      self.assertEqual({
-          '_': str,
-          '__unknown__varargs': Tuple[Any, ...],
-          '__unknown__keywords': typehints.Dict[Any, Any]
-      },
-                       getcallargs_forhints(str.upper, str))
-      self.assertEqual({
-          '_': str,
-          '__unknown__varargs': Tuple[str, ...],
-          '__unknown__keywords': typehints.Dict[Any, Any]
-      },
-                       getcallargs_forhints(str.strip, str, str))
-      self.assertEqual({
-          '_': str,
-          '__unknown__varargs': Tuple[typehints.List[int], ...],
-          '__unknown__keywords': typehints.Dict[Any, Any]
-      },
-                       getcallargs_forhints(str.join, str, typehints.List[int]))
-    else:
-      self.assertEqual({'self': str}, getcallargs_forhints(str.upper, str))
-      # str.strip has an optional second argument.
-      self.assertEqual({
-          'self': str, 'chars': Any
-      },
-                       getcallargs_forhints(str.strip, str))
-      self.assertEqual({
-          'self': str, 'iterable': typehints.List[int]
-      },
-                       getcallargs_forhints(str.join, str, typehints.List[int]))
+    self.assertEqual({'self': str}, getcallargs_forhints(str.upper, str))
+    # str.strip has an optional second argument.
+    self.assertEqual({
+        'self': str, 'chars': Any
+    },
+                     getcallargs_forhints(str.strip, str))
+    self.assertEqual({
+        'self': str, 'iterable': typehints.List[int]
+    },
+                     getcallargs_forhints(str.join, str, typehints.List[int]))
 
 
 class TestGetYieldedType(unittest.TestCase):

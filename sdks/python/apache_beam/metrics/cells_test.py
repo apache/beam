@@ -26,6 +26,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import StringSetCell
+from apache_beam.metrics.cells import StringSetData
 from apache_beam.metrics.metricbase import MetricName
 
 
@@ -176,9 +177,9 @@ class TestStringSetCell(unittest.TestCase):
     c.add('test')
     c.add('another')
     s = c.get_cumulative()
-    self.assertEqual(s, set(('test', 'another')))
+    self.assertEqual(s, StringSetData({'test', 'another'}, 11))
     s.add('yet another')
-    self.assertEqual(c.get_cumulative(), set(('test', 'another')))
+    self.assertEqual(c.get_cumulative(), StringSetData({'test', 'another'}, 11))
 
   def test_combine_appropriately(self):
     s1 = StringSetCell()
@@ -190,7 +191,16 @@ class TestStringSetCell(unittest.TestCase):
     s2.add('3')
 
     result = s2.combine(s1)
-    self.assertEqual(result.data, set(('1', '2', '3')))
+    self.assertEqual(result.data, StringSetData({'1', '2', '3'}))
+
+  def test_add_size_tracked_correctly(self):
+    s = StringSetCell()
+    s.add('1')
+    s.add('2')
+    self.assertEqual(s.data.string_size, 2)
+    s.add('2')
+    s.add('3')
+    self.assertEqual(s.data.string_size, 3)
 
 
 if __name__ == '__main__':

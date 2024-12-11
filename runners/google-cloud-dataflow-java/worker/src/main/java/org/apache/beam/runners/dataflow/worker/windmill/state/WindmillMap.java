@@ -137,12 +137,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       ByteString keyBytes = keyStream.toByteString();
       // Leaving data blank means that we delete the tag.
-      commitBuilder
-          .addValueUpdatesBuilder()
-          .setTag(keyBytes)
-          .setStateFamily(stateFamily)
-          .getValueBuilder()
-          .setTimestamp(Long.MAX_VALUE);
+      commitBuilder.addValueUpdatesBuilder().setTag(keyBytes).setStateFamily(stateFamily);
 
       V cachedValue = cachedValues.remove(key);
       if (cachedValue != null) {

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -47,7 +46,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -78,10 +76,12 @@ class WriteUngroupedRowsToFiles
   private final IcebergCatalogConfig catalogConfig;
 
   WriteUngroupedRowsToFiles(
-      IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      String filePrefix) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
-    this.filePrefix = UUID.randomUUID().toString();
+    this.filePrefix = filePrefix;
   }
 
   @Override
@@ -265,14 +265,18 @@ class WriteUngroupedRowsToFiles
         return;
       }
       recordWriterManager.close();
-      for (Map.Entry<WindowedValue<IcebergDestination>, List<ManifestFile>> destinationAndFiles :
-          Preconditions.checkNotNull(recordWriterManager).getManifestFiles().entrySet()) {
+
+      for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+          destinationAndFiles :
+              Preconditions.checkNotNull(recordWriterManager)
+                  .getSerializableDataFiles()
+                  .entrySet()) {
         WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
 
-        for (ManifestFile manifestFile : destinationAndFiles.getValue()) {
+        for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
           c.output(
               FileWriteResult.builder()
-                  .setManifestFile(manifestFile)
+                  .setSerializableDataFile(dataFile)
                   .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
                   .build(),
               windowedDestination.getTimestamp(),

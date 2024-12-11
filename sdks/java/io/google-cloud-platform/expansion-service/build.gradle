@@ -36,6 +36,9 @@ dependencies {
     permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
     implementation project(":sdks:java:extensions:schemaio-expansion-service")
     permitUnusedDeclared project(":sdks:java:extensions:schemaio-expansion-service") // BEAM-11761
+    implementation project(":sdks:java:managed")
+    permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
+
     runtimeOnly library.java.slf4j_jdk14
 }
 
@@ -43,4 +46,8 @@ task runExpansionService (type: JavaExec) {
     mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
     classpath = sourceSets.test.runtimeClasspath
     args = [project.findProperty("constructionService.port") ?: "8097"]
+}
+
+shadowJar {
+  outputs.upToDateWhen { false }
 }

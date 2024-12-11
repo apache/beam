@@ -83,6 +83,14 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   }
 
   @Override
+  public void poisonInstructionId(String instructionId) {
+    LOG.debug("Poisoning instruction {}", instructionId);
+    for (BeamFnDataGrpcMultiplexer client : multiplexerCache.values()) {
+      client.poisonInstructionId(instructionId);
+    }
+  }
+
+  @Override
   public BeamFnDataOutboundAggregator createOutboundAggregator(
       ApiServiceDescriptor apiServiceDescriptor,
       Supplier<String> processBundleRequestIdSupplier,

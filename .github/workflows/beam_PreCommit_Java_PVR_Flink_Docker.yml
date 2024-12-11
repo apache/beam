@@ -99,7 +99,7 @@ jobs:
       - name: run PreCommit Java PVR Flink Docker script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.15:job-server:validatesPortableRunnerDocker
+          gradle-command: :runners:flink:1.19:job-server:validatesPortableRunnerDocker
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
       - name: Archive JUnit Test Results
@@ -115,3 +115,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true

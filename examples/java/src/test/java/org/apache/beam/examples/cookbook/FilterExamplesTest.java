@@ -22,13 +22,11 @@ import org.apache.beam.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
 import org.apache.beam.examples.cookbook.FilterExamples.ProjectionFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -68,7 +66,6 @@ public class FilterExamplesTest {
   @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testProjectionFn() {
     PCollection<TableRow> input = p.apply(Create.of(row1, row2, row3));
 
@@ -79,7 +76,6 @@ public class FilterExamplesTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testFilterSingleMonthDataFn() {
     PCollection<TableRow> input = p.apply(Create.of(outRow1, outRow2, outRow3));
 

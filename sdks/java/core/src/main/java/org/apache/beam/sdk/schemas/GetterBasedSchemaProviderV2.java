@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A newer version of {@link GetterBasedSchemaProvider}, which works with {@link TypeDescriptor}s,
@@ -28,12 +29,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public abstract class GetterBasedSchemaProviderV2 extends GetterBasedSchemaProvider {
   @Override
   public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    return fieldValueGetters(TypeDescriptor.of(targetClass), schema);
+    return (List) fieldValueGetters(TypeDescriptor.of(targetClass), schema);
   }
 
   @Override
-  public abstract List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema);
+  public abstract <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema);
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(

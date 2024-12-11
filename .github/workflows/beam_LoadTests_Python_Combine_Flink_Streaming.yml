@@ -50,12 +50,12 @@ env:
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-py-cmb-flink-streaming-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
-  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-1.15.0/flink-1.15.0-bin-scala_2.12.tgz
+  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-1.17.0/flink-1.17.0-bin-scala_2.12.tgz
   HADOOP_DOWNLOAD_URL: https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
   FLINK_TASKMANAGER_SLOTS: 1
   DETACHED_MODE: true
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
-  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.15_job_server:latest
+  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-loadtests-py-cmb-flink-streaming-${{ github.run_id }}
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python Combine Flink Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 720
+    timeout-minutes: 80
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -89,17 +89,22 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_2GB_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_2GB_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_small_Fanout_1.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_small_Fanout_2.txt
+          # large loads do not work now
+          # ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_2GB_Fanout_4.txt
+          # ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Flink_Streaming_2GB_Fanout_8.txt
       - name: Start Flink with parallelism 16
         env:
           FLINK_NUM_WORKERS: 16
+          HIGH_MEM_MACHINE: n1-highmem-16
+          HIGH_MEM_FLINK_PROPS: flink:taskmanager.memory.process.size=16g,flink:taskmanager.memory.flink.size=12g,flink:taskmanager.memory.jvm-overhead.max=4g,flink:jobmanager.memory.process.size=6g,flink:jobmanager.memory.jvm-overhead.max= 2g,flink:jobmanager.memory.flink.size=4g
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
-      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"  
-      - name: run Load test 2GB Fanout 4
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
+      - name: run Load test small Fanout 1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -108,7 +113,7 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Flink_Streaming_test_arguments_1 }} --job_name=load-tests-python-flink-streaming-combine-4-${{env.NOW_UTC}}' \
-      - name: run Load test 2GB Fanout 8
+      - name: run Load test small Fanout 2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

@@ -500,7 +500,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         self.encode_to_stream(value.value, stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
-    elif hasattr(value, "__getstate__"):
+    elif (hasattr(value, "__getstate__") and
+          # https://github.com/apache/beam/issues/33020
+          type(value).__reduce__ == object.__reduce__):
       if not hasattr(value, "__setstate__"):
         raise TypeError(
             "Unable to deterministically encode '%s' of type '%s', "
@@ -1975,7 +1977,7 @@ class DecimalCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     # type: (decimal.Decimal, create_OutputStream, bool) -> None
-    scale = -value.as_tuple().exponent
+    scale = -value.as_tuple().exponent  # type: ignore[operator]
     int_value = int(value.scaleb(scale))
     out.write_var_int64(scale)
     self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)

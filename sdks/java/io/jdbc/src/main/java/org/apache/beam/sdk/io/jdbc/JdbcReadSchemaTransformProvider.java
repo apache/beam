@@ -117,6 +117,10 @@ public class JdbcReadSchemaTransformProvider
       if (outputParallelization != null) {
         readRows = readRows.withOutputParallelization(outputParallelization);
       }
+      Boolean disableAutoCommit = config.getDisableAutoCommit();
+      if (disableAutoCommit != null) {
+        readRows = readRows.withDisableAutoCommit(disableAutoCommit);
+      }
       return PCollectionRowTuple.of("output", input.getPipeline().apply(readRows));
     }
   }
@@ -173,6 +177,9 @@ public class JdbcReadSchemaTransformProvider
 
     @Nullable
     public abstract Boolean getOutputParallelization();
+
+    @Nullable
+    public abstract Boolean getDisableAutoCommit();
 
     @Nullable
     public abstract String getDriverJars();
@@ -237,6 +244,8 @@ public class JdbcReadSchemaTransformProvider
       public abstract Builder setFetchSize(Short value);
 
       public abstract Builder setOutputParallelization(Boolean value);
+
+      public abstract Builder setDisableAutoCommit(Boolean value);
 
       public abstract Builder setDriverJars(String value);
 

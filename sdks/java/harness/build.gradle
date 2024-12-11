@@ -30,6 +30,7 @@ dependencies {
   provided project(path: ":model:pipeline", configuration: "shadow")
   provided project(path: ":sdks:java:core", configuration: "shadow")
   provided project(path: ":sdks:java:transform-service:launcher")
+  provided library.java.google_api_services_dataflow
   provided library.java.avro
   provided library.java.jackson_databind
   provided library.java.joda_time
@@ -79,4 +80,5 @@ dependencies {
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   permitUnusedDeclared library.java.avro
+  permitUnusedDeclared library.java.google_api_services_dataflow
 }
