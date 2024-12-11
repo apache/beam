@@ -17,13 +17,17 @@ package engine
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"log/slog"
+	"slices"
+	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // StateData is a "union" between Bag state and MultiMap state to increase common code.
@@ -219,4 +223,96 @@ func (d *TentativeData) ClearMultimapKeysState(stateID LinkID, wKey, uKey []byte
 	// Delete makes it difficult to delete the persisted stage state for the key.
 	kmap[string(uKey)] = StateData{}
 	slog.Debug("State() MultimapKeys.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("WindowKey", wKey))
+}
+
+// OrderedListState from the Java SDK is encoded as KVs with varint encoded millis
+// Followed by the value.  This is *not* the standard TimestampValueCoder encoding, which
+// uses a big-endian long as a suffix to the value.
+//
+// Next, is we need to parse out the individual values from the data blob anyway.
+// So we probably can't cheekily re-use the BagState like it currently is, even
+// after fixing the timestamp issue.
+//
+// Currently assuming the Value is length prefixed, which isn't always going to
+// be true for ints, bools, bytes, and other "known" coders.s
+
+// AppendOrderedListState appends the incoming timestamped data to the existing tentative data bundle.
+// Assumes the data is TimestampedValue encoded, which has a BigEndian int64 suffixed to the data.
+// This means we may always use the last 8 bytes to determine the value sorting.
+//
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) AppendOrderedListState(stateID LinkID, wKey, uKey []byte, data []byte) {
+	kmap := d.appendState(stateID, wKey)
+	var datums [][]byte
+
+	// Lets assume two length prefixed things in the KV.
+	for i := 0; i < len(data); {
+		_, tn := protowire.ConsumeVarint(data[i:])
+
+		// We need to fix that value to get the correct width
+		// of the bytes.
+		n, vn := protowire.ConsumeVarint(data[i+tn:])
+		prev := i
+		i += tn + vn + int(n)
+		datums = append(datums, data[prev:i])
+	}
+
+	s := StateData{Bag: append(kmap[string(uKey)].Bag, datums...)}
+	sort.SliceStable(s.Bag, func(i, j int) bool {
+		vi := s.Bag[i]
+		vj := s.Bag[j]
+		return compareTimestampSuffixes(vi, vj)
+	})
+	kmap[string(uKey)] = s
+	slog.Debug("State() OrderedList.Append", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Any("NewData", s))
+}
+
+func compareTimestampSuffixes(vi, vj []byte) bool {
+	// TODO FIX TO EXTRACT VARINTS
+	ims, _ := protowire.ConsumeVarint(vi)
+	jms, _ := protowire.ConsumeVarint(vj)
+	return (int64(ims)) < (int64(jms))
+}
+
+// GetOrderedListState available state from the tentative bundle data.
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) GetOrderedListState(stateID LinkID, wKey, uKey []byte, start, end int64) [][]byte {
+	winMap := d.state[stateID]
+	w := d.toWindow(wKey)
+	data := winMap[w][string(uKey)]
+
+	lo, hi := findRange(data.Bag, start, end)
+	slog.Debug("State() OrderedList.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Group("range", slog.Int64("start", start), slog.Int64("end", end)), slog.Group("outrange", slog.Int("lo", lo), slog.Int("hi", hi)), slog.Any("Data", data.Bag[lo:hi]))
+	return data.Bag[lo:hi]
+}
+
+func cmpSuffix(vs [][]byte, target int64) func(i int) int {
+	return func(i int) int {
+		v := vs[i]
+		ims, _ := protowire.ConsumeVarint(v)
+		tvsbi := cmp.Compare(target, int64(ims))
+		slog.Debug("cmpSuffix", "target", target, "bi", ims, "tvsbi", tvsbi)
+		return tvsbi
+	}
+}
+
+func findRange(bag [][]byte, start, end int64) (int, int) {
+	lo, _ := sort.Find(len(bag), cmpSuffix(bag, start))
+	hi, _ := sort.Find(len(bag), cmpSuffix(bag, end))
+	return lo, hi
+}
+
+func (d *TentativeData) ClearOrderedListState(stateID LinkID, wKey, uKey []byte, start, end int64) {
+	winMap := d.state[stateID]
+	w := d.toWindow(wKey)
+	kMap := winMap[w]
+	data := kMap[string(uKey)]
+
+	lo, hi := findRange(data.Bag, start, end)
+	slog.Debug("State() OrderedList.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Group("range", slog.Int64("start", start), slog.Int64("end", end)), "lo", lo, "hi", hi, slog.Any("PreClearData", data.Bag))
+
+	cleared := slices.Delete(data.Bag, lo, hi)
+	// Zero the current entry to clear.
+	// Delete makes it difficult to delete the persisted stage state for the key.
+	kMap[string(uKey)] = StateData{Bag: cleared}
 }
