@@ -23,14 +23,14 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Holds current processing context for {@link SparkInputDataProcessor}. */
-class SparkProcessContext<K, InputT, OutputT> {
+public class SparkProcessContext<K, InputT, OutputT> {
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
   private final DoFnRunner<InputT, OutputT> doFnRunner;
   private final Iterator<TimerInternals.TimerData> timerDataIterator;
   private final K key;
 
-  SparkProcessContext(
+  public SparkProcessContext(
       String stepName,
       DoFn<InputT, OutputT> doFn,
       DoFnRunner<InputT, OutputT> doFnRunner,
