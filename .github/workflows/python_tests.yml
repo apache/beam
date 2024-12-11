@@ -110,6 +110,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.params.py_ver }}
+          python-cache: true
+          tox-cache: true
       - name: Install tox
         run: pip install tox
       - name: Run tests basic linux
