@@ -49,46 +49,12 @@ type TentativeData struct {
 	// stateTypeLen is a map from LinkID to valueLen function for parsing data.
 	// Only used by OrderedListState, since Prism must manipulate these datavalues,
 	// which isn't expected, or a requirement of other state values.
-	stateTypeLen map[LinkID]valueLen
+	stateTypeLen map[LinkID]func([]byte) int
 	// state is a map from transformID + UserStateID, to window, to userKey, to datavalues.
 	state map[LinkID]map[typex.Window]map[string]StateData
 	// timers is a map from the Timer transform+family to the encoded timer.
 	timers map[TimerKey][][]byte
 }
-
-// valueLen is a function that extracts the length of a value in bytes from a
-// byte buffer. The expectation is that it will provide an exact count of bytes
-// that are required to consume the value from the buffer.
-type valueLen func([]byte) int
-
-var (
-	// varIntLen returns the number of bytes representing the varint.
-	varIntLen valueLen = func(b []byte) int {
-		_, n := protowire.ConsumeVarint(b)
-		return int(n)
-	}
-	// lenPrefiedLen returns the total length of the length prefixed
-	// value and the bytes of the length prefix.
-	// This applies to arbitrary custom coders, bytes, and string values.
-	lenPrefiedLen = func(b []byte) int {
-		l, n := protowire.ConsumeVarint(b)
-		return int(l) + n
-	}
-	// oneByteLen returns the number of bytes in a boolean, which is 1.
-	oneByteLen = func(_ []byte) int {
-		return 1
-	}
-	// fourByteLen returns the number of bytes in a single float, float32, or int32
-	// which is 4.
-	fourByteLen = func(_ []byte) int {
-		return 4
-	}
-	// eightByteLen returns the number of bytes in a double, float64, or int64
-	// which is 8.
-	eightByteLen = func(_ []byte) int {
-		return 8
-	}
-)
 
 // WriteData adds data to a given global collectionID.
 func (d *TentativeData) WriteData(colID string, data []byte) {
@@ -287,7 +253,7 @@ func (d *TentativeData) AppendOrderedListState(stateID LinkID, wKey, uKey []byte
 	// We need to parse out all values individually for later sorting.
 	for i := 0; i < len(data); {
 		// Get the length of the VarInt for the timestamp.
-		tn := varIntLen(data[i:])
+		_, tn := protowire.ConsumeVarint(data[i:])
 
 		// Get the length of the encoded value.
 		vn := typeLen(data[i+tn:])

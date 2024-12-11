@@ -58,8 +58,10 @@ func TestOrderedListState(t *testing.T) {
 
 	t.Run("bool", func(t *testing.T) {
 		d := TentativeData{
-			stateTypeLen: map[LinkID]valueLen{
-				linkID: oneByteLen,
+			stateTypeLen: map[LinkID]func([]byte) int{
+				linkID: func(_ []byte) int {
+					return 1
+				},
 			},
 		}
 
@@ -91,35 +93,12 @@ func TestOrderedListState(t *testing.T) {
 			t.Errorf("OrderedList booleans, after clear\n%v", d)
 		}
 	})
-	t.Run("int32", func(t *testing.T) {
-		d := TentativeData{
-			stateTypeLen: map[LinkID]valueLen{
-				linkID: fourByteLen,
-			},
-		}
-
-		d.AppendOrderedListState(linkID, wKey, uKey, cc(time5, 0, 0, 0, 1))
-		d.AppendOrderedListState(linkID, wKey, uKey, cc(time4, 0, 0, 1, 0))
-		d.AppendOrderedListState(linkID, wKey, uKey, cc(time3, 0, 1, 0, 0))
-		d.AppendOrderedListState(linkID, wKey, uKey, cc(time2, 1, 0, 0, 0))
-		d.AppendOrderedListState(linkID, wKey, uKey, cc(time1, 1, 0, 0, 1))
-
-		got := d.GetOrderedListState(linkID, wKey, uKey, 0, 60)
-		want := [][]byte{
-			cc(time1, 1, 0, 0, 1),
-			cc(time2, 1, 0, 0, 0),
-			cc(time3, 0, 1, 0, 0),
-			cc(time4, 0, 0, 1, 0),
-			cc(time5, 0, 0, 0, 1),
-		}
-		if d := cmp.Diff(want, got); d != "" {
-			t.Errorf("OrderedList int32 \n%v", d)
-		}
-	})
 	t.Run("float64", func(t *testing.T) {
 		d := TentativeData{
-			stateTypeLen: map[LinkID]valueLen{
-				linkID: eightByteLen,
+			stateTypeLen: map[LinkID]func([]byte) int{
+				linkID: func(_ []byte) int {
+					return 8
+				},
 			},
 		}
 
@@ -157,8 +136,11 @@ func TestOrderedListState(t *testing.T) {
 
 	t.Run("varint", func(t *testing.T) {
 		d := TentativeData{
-			stateTypeLen: map[LinkID]valueLen{
-				linkID: varIntLen,
+			stateTypeLen: map[LinkID]func([]byte) int{
+				linkID: func(b []byte) int {
+					_, n := protowire.ConsumeVarint(b)
+					return int(n)
+				},
 			},
 		}
 
@@ -182,8 +164,11 @@ func TestOrderedListState(t *testing.T) {
 	})
 	t.Run("lp", func(t *testing.T) {
 		d := TentativeData{
-			stateTypeLen: map[LinkID]valueLen{
-				linkID: lenPrefiedLen,
+			stateTypeLen: map[LinkID]func([]byte) int{
+				linkID: func(b []byte) int {
+					l, n := protowire.ConsumeVarint(b)
+					return int(l) + n
+				},
 			},
 		}
 
@@ -207,8 +192,11 @@ func TestOrderedListState(t *testing.T) {
 	})
 	t.Run("lp_onecall", func(t *testing.T) {
 		d := TentativeData{
-			stateTypeLen: map[LinkID]valueLen{
-				linkID: lenPrefiedLen,
+			stateTypeLen: map[LinkID]func([]byte) int{
+				linkID: func(b []byte) int {
+					l, n := protowire.ConsumeVarint(b)
+					return int(l) + n
+				},
 			},
 		}
 		d.AppendOrderedListState(linkID, wKey, uKey, bytes.Join([][]byte{
