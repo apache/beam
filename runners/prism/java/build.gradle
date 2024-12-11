@@ -230,8 +230,6 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       // Not yet implemented in Prism
       // https://github.com/apache/beam/issues/32211
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      // https://github.com/apache/beam/issues/32929
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
 
        // Not supported in Portable Java SDK yet.
        // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
