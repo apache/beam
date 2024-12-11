@@ -26,7 +26,7 @@ To streamline this process, Beam’s portability framework enables the use of po
 
 The SchemaTransform framework represents the latest advancement in enhancing this multi-language capability.
 
-The following jumps straight into the guide. Check out the [appendix](#appendix) section below for some of the terminology used here. For a runnable example, check out this [page](python-multi-language-pipelines-2.md). 
+The following jumps straight into the guide. Check out the [appendix](#appendix) section below for some of the terminology used here. For a runnable example, check out this [page](python-multi-language-pipelines-2.md).
 
 ## Create a Java SchemaTransform
 
@@ -274,7 +274,7 @@ This metadata is generated directly from the provider's implementation. The clas
 
 ### Portable transform
 
-Also known as a [cross-language transform](../glossary.md#cross-language-transforms): a transform that is made available to other SDKs (i.e. other languages) via an expansion service. Such a transform must offer a way to be constructed using language-agnostic parameter types. 
+Also known as a [cross-language transform](../glossary.md#cross-language-transforms): a transform that is made available to other SDKs (i.e. other languages) via an expansion service. Such a transform must offer a way to be constructed using language-agnostic parameter types.
 
 ### Expansion Service
 
