@@ -347,6 +347,18 @@ To learn more, see:
 * [Programming guide: Schemas](/documentation/programming-guide/#schemas)
 * [Schema Patterns](/documentation/patterns/schema/)
 
+## SchemaTransform
+
+A transform that takes and produces PCollections of Beam Rows with a predefined Schema, i.e.:
+
+```java
+SchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {}
+```
+
+Mainly used for portable transform use-cases. To learn more, see:
+
+* [Python Multi-Language Guide](sdks/python-custom-multi-language-pipelines-guide.md)
+
 ## Session
 
 A time interval for grouping data events. A session is defined by some minimum gap duration between events. For example, a data stream representing user mouse activity may have periods with high concentrations of clicks followed by periods of inactivity. A session can represent such a pattern of activity delimited by inactivity.

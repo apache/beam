@@ -59,7 +59,7 @@ public class WriteWordsProvider extends TypedSchemaTransformProvider<Configurati
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  protected abstract static class Configuration {
+  public abstract static class Configuration {
     public static Builder builder() {
       return new AutoValue_WriteWordsProvider_Configuration.Builder();
     }

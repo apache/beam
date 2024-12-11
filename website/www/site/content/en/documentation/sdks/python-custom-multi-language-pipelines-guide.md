@@ -20,25 +20,17 @@ limitations under the License.
 
 Apache Beam's powerful model enables the development of scalable, resilient, and production-ready transforms, but the process often requires significant time and effort.
 
-With SDKs available in multiple languages (Java, Python, Golang, YAML, etc.), creating and maintaining transforms for each language becomes a challenge, particularly for IOs. 
-Developers must navigate different APIs, address unique quirks, and manage ongoing maintenance—such as updates, 
-new features, and documentation—while ensuring consistent behavior across SDKs. 
-This results in redundant work, as the same functionality is implemented repeatedly for each language 
-(M x N effort, where M is the number of SDKs and N is the number of transforms).
+With SDKs available in multiple languages (Java, Python, Golang, YAML, etc.), creating and maintaining transforms for each language becomes a challenge, particularly for IOs. Developers must navigate different APIs, address unique quirks, and manage ongoing maintenance—such as updates, new features, and documentation—while ensuring consistent behavior across SDKs. This results in redundant work, as the same functionality is implemented repeatedly for each language (M x N effort, where M is the number of SDKs and N is the number of transforms).
 
-To streamline this process, Beam’s portability framework enables the use of portable transforms that can be shared across languages. 
-This reduces duplication, allowing developers to focus on maintaining only N transforms. 
-Pipelines combining [portable transforms](#portable-transform) from other SDK(s) are known as 
-[“multi-language” pipelines](../programming-guide.md#13-multi-language-pipelines-multi-language-pipelines).
+To streamline this process, Beam’s portability framework enables the use of portable transforms that can be shared across languages. This reduces duplication, allowing developers to focus on maintaining only N transforms. Pipelines combining [portable transforms](#portable-transform) from other SDK(s) are known as [“multi-language” pipelines](../programming-guide.md#13-multi-language-pipelines-multi-language-pipelines).
 
 The SchemaTransform framework represents the latest advancement in enhancing this multi-language capability.
 
-The following jumps straight into the guide. If you need help with some of the terminology, check out the [appendix](#appendix) section below.
+The following jumps straight into the guide. Check out the [appendix](#appendix) section below for some of the terminology used here. For a runnable example, check out this [page](python-multi-language-pipelines-2.md). 
 
 ## Create a Java SchemaTransform
 
-For better readability, use [**TypedSchemaTransformProvider**](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/schemas/transforms/TypedSchemaTransformProvider.html), a [SchemaTransformProvider](#schematransformprovider) parameterized on a custom configuration type `T`.
-TypedSchemaTransformProvider will take care of converting the custom type definition to a Beam [Schema](../basics.md#schema), and converting an instance to a Beam Row. 
+For better readability, use [**TypedSchemaTransformProvider**](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/schemas/transforms/TypedSchemaTransformProvider.html), a [SchemaTransformProvider](#schematransformprovider) parameterized on a custom configuration type `T`. TypedSchemaTransformProvider will take care of converting the custom type definition to a Beam [Schema](../basics.md#schema), and converting an instance to a Beam Row.
 
 ```java
 TypedSchemaTransformProvider<T> extends SchemaTransformProvider {
@@ -50,8 +42,7 @@ TypedSchemaTransformProvider<T> extends SchemaTransformProvider {
 
 ### Implement a configuration
 
-First, set up a Beam Schema-compatible configuration. This will be used to construct the transform.
-AutoValue types are encouraged for readability. Adding the appropriate `@DefaultSchema` annotation will help Beam do the conversions mentioned above.
+First, set up a Beam Schema-compatible configuration. This will be used to construct the transform. AutoValue types are encouraged for readability. Adding the appropriate `@DefaultSchema` annotation will help Beam do the conversions mentioned above.
 
 ```java
 @DefaultSchema(AutoValueSchema.class)
@@ -102,9 +93,7 @@ pipeline:
 ### Implement a TypedSchemaTransformProvider
 Next, implement the `TypedSchemaTransformProvider`. The following two methods are required:
 
-- `identifier`: Returns a unique identifier for this transform. The [Beam standard](../programming-guide.md#1314-defining-a-urn)
-follows this structure: `<namespace>:<org>:<functionality>:<version>`.
-
+- `identifier`: Returns a unique identifier for this transform. The [Beam standard](../programming-guide.md#1314-defining-a-urn) follows this structure: `<namespace>:<org>:<functionality>:<version>`.
 - `from`: Builds the transform using a provided configuration.
 
 An [expansion service](#expansion-service) uses these methods to find and build the transform. The `@AutoService(SchemaTransformProvider.class)` annotation is also required to ensure this provider is recognized by the expansion service.
@@ -163,7 +152,7 @@ The following optional methods can help provide relevant metadata:
   }
 ```
 
-## Build an expansion service that contains the transform 
+## Build an expansion service that contains the transform
 
 Use an expansion service to make the transform available to foreign SDKs.
 
@@ -208,8 +197,7 @@ Registered SchemaTransformProviders:
         beam:schematransform:org.apache.beam:my_transform:v1
 ```
 
-The transform is discoverable at `localhost:12345`. Foreign SDKs can now discover and add it to their pipelines. 
-The next section demonstrates how to do this with a Python pipeline.
+The transform is discoverable at `localhost:12345`. Foreign SDKs can now discover and add it to their pipelines. The next section demonstrates how to do this with a Python pipeline.
 
 ## Use the SchemaTransform in a Python pipeline
 
@@ -251,8 +239,7 @@ provider = ExternalTransformProvider([
     JavaJarExpansionService("path/to/another-expansion-service.jar")])
 ```
 
-When initialized, the `ExternalTransformProvider` connects to the expansion service(s), 
-retrieves all portable transforms, and generates a Pythonic wrapper for each one.
+When initialized, the `ExternalTransformProvider` connects to the expansion service(s), retrieves all portable transforms, and generates a Pythonic wrapper for each one.
 
 ### Retrieve and use the transform
 
@@ -281,16 +268,13 @@ inspect.signature(MyTransform)
 #	     bar: "int: Description of what bar does....")
 ```
 
-This metadata is generated directly from the provider's implementation. 
-The class documentation is generated from the [optional **description** method](#additional-metadata). 
-The signature information is generated from the `@SchemaFieldDescription` annotations in the [configuration object](#implement-a-configuration).
+This metadata is generated directly from the provider's implementation. The class documentation is generated from the [optional **description** method](#additional-metadata). The signature information is generated from the `@SchemaFieldDescription` annotations in the [configuration object](#implement-a-configuration).
 
 ## Appendix
 
 ### Portable transform
 
-Also known as a [cross-language transform](../glossary.md#cross-language-transforms): a transform that is made available to other SDKs (i.e. other languages) via an expansion service.
-Such a transform must offer a way to be constructed using language-agnostic parameter types. 
+Also known as a [cross-language transform](../glossary.md#cross-language-transforms): a transform that is made available to other SDKs (i.e. other languages) via an expansion service. Such a transform must offer a way to be constructed using language-agnostic parameter types. 
 
 ### Expansion Service
 

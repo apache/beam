@@ -16,7 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Python multi-language pipelines quickstart
+# (Legacy) Python multi-language pipelines quickstart
+
+> Note: it's encouraged to use the newer SchemaTransform framework; check out the updated [quickstart](python-multi-language-pipelines-2.md) and [guide](python-custom-multi-language-pipelines-guide.md)
 
 This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. For a more comprehensive treatment of the topic, see [Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines).
 
@@ -119,7 +121,7 @@ The steps for running the expansion service will vary depending on your build to
 java -jar java-prefix-bundled-0.1.jar 12345
 ```
 
-For instructions on running an example expansion service, see [this README](https://github.com/apache/beam/blob/master/examples/multi-language/README.md).
+For instructions on running an example expansion service, see [this README](https://github.com/apache/beam/blob/master/examples/multi-language/README.md#instructions-for-running-the-pipelines).
 
 ## Create a Python pipeline
 

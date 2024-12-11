@@ -74,5 +74,5 @@ public class JavaCountProvider extends TypedSchemaTransformProvider<Configuratio
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  protected abstract static class Configuration {}
+  public abstract static class Configuration {}
 }
