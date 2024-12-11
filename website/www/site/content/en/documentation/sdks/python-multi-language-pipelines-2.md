@@ -18,7 +18,7 @@ limitations under the License.
 
 # Python multi-language pipelines quickstart
 
-This page provides instructions for running the updated multi-language examples for the Python SDK. Also see this step-by-step [guide](python-custom-multi-language-pipelines-guide.md) on creating and running custom multi-language transforms.
+This page provides instructions for running the updated multi-language examples for the Python SDK. For more details, see this step-by-step [guide](python-custom-multi-language-pipelines-guide.md) on creating and running custom multi-language transforms.
 
 The code shown in this quickstart is available in a [collection of runnable examples](https://github.com/apache/beam/tree/master/examples/multi-language).
 

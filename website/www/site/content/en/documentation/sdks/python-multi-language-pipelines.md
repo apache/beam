@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Python multi-language pipelines quickstart"
+title: "(Legacy) Python multi-language pipelines quickstart"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
