@@ -955,7 +955,8 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      ungrouped = pcoll | Map(reify_timestamps).with_input_types(Tuple[K, V]).with_output_types(Tuple[K, Tuple[V, Timestamp]])
+      ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+          Tuple[K, V]).with_output_types(Tuple[K, Tuple[V, Timestamp]])
     else:
 
       # typing: All conditional function variants must have identical signatures
@@ -1019,12 +1020,13 @@ class Reshuffle(PTransform):
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-         pcoll | 'AddRandomKeys' >>
-         Map(lambda t: (random.randrange(0, self.num_buckets), t)
-             ).with_input_types(T).with_output_types(Tuple[int, T])
-         | ReshufflePerKey().with_input_types(Tuple[int, T]).with_output_types(Tuple[int, T])
-         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-             Tuple[int, T]).with_output_types(T))
+        pcoll | 'AddRandomKeys' >>
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
+            ).with_input_types(T).with_output_types(Tuple[int, T])
+        | ReshufflePerKey().with_input_types(Tuple[int, T]).with_output_types(
+            Tuple[int, T])
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+            Tuple[int, T]).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]

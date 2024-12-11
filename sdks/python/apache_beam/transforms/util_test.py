@@ -1010,7 +1010,6 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected_data),
           label="formatted_after_reshuffle")
 
-
   def test_reshuffle_unpicklable_in_global_window(self):
     global _Unpicklable
 
@@ -1025,7 +1024,6 @@ class ReshuffleTest(unittest.TestCase):
         raise NotImplementedError()
 
     class _UnpicklableCoder(beam.coders.Coder):
-
       def encode(self, value):
         return str(value.value).encode()
 
