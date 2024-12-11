@@ -148,6 +148,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python }}
+          python-cache: true
+          tox-cache: true
       - name: Install requirements
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e .
@@ -176,6 +178,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           go-version: default
+          python-cache: true
+          tox-cache: true
       - name: Download source from artifacts
         uses: actions/download-artifact@v4.1.8
         with:
