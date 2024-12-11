@@ -17,16 +17,13 @@
 # under the License.
 #
 
-content:
-- Map
-- GroupByKey
-- CoGroupByKey
-- Combine
-- Flatten
-- Partition
-- Side Input
-- Side Output
-- Branching
-- Composite Transform
-- DoFn Additional Parameters
-- Tee
+type: edu
+files:
+  - name: src/org/apache/beam/learning/katas/coretransforms/tee/Task.java
+    visible: true
+    placeholders:
+      - offset: 2294
+        length: 85
+        placeholder_text: TODO()
+  - name: test/org/apache/beam/learning/katas/coretransforms/tee/TaskTest.java
+    visible: false
