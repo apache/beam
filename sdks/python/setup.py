@@ -336,7 +336,8 @@ if __name__ == '__main__':
               *get_portability_package_data()
           ]
       },
-      ext_modules=extensions,
+      #ext_modules=extensions,
+      ext_modules=[],
       install_requires=[
           'crcmod>=1.7,<2.0',
           'orjson>=3.9.7,<4',

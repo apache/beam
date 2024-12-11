@@ -954,6 +954,8 @@ class ReshufflePerKey(PTransform):
             window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values
         ]
+
+      ungrouped = pcoll | Map(reify_timestamps).with_input_types(Tuple[K, V]).with_output_types(Tuple[K, Tuple[V, Timestamp]])
     else:
 
       # typing: All conditional function variants must have identical signatures
@@ -967,7 +969,9 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-    ungrouped = pcoll | Map(reify_timestamps).with_input_types(Tuple[K, V]).with_output_types(Tuple[K, Tuple[V, Timestamp]])
+      # TODO(https://github.com/apache/beam/issues/33356): Support reshuffling
+      # unpicklable objects with a non-global window setting.
+      ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
