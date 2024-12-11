@@ -54,7 +54,6 @@ def sdk_provided_project_dependencies = [
         ":runners:google-cloud-dataflow-java",
         ":sdks:java:extensions:avro",
         ":sdks:java:extensions:google-cloud-platform-core",
-        ":sdks:java:io:kafka", // For metric propagation into worker
         ":sdks:java:io:google-cloud-platform",
 ]
 
