@@ -8042,7 +8042,7 @@ input.apply(
 
 #### 13.2.2. Using cross-language transforms in a Python pipeline
 
-For Beam versions 2.60.0+, please follow [this guide](sdks/python-custom-multi-language-pipelines-guide.md) instead.
+For Beam versions 2.60.0+, please follow [this guide](sdks/python-custom-multi-language-pipelines-guide.md#use-the-portable-transform-in-a-python-pipeline) instead.
 
 If a Python-specific wrapper for a cross-language transform is available, use that. Otherwise, you have to use the lower-level [`ExternalTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) class to access the transform.
 

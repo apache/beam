@@ -199,7 +199,7 @@ Registered SchemaTransformProviders:
 
 The transform is discoverable at `localhost:12345`. Foreign SDKs can now discover and add it to their pipelines. The next section demonstrates how to do this with a Python pipeline.
 
-## Use the SchemaTransform in a Python pipeline
+## Use the portable transform in a Python pipeline
 
 The Python SDK’s [**ExternalTransformProvider**](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external_transform_provider.html#apache_beam.transforms.external_transform_provider.ExternalTransformProvider)
 can dynamically generate wrappers for portable transforms.
