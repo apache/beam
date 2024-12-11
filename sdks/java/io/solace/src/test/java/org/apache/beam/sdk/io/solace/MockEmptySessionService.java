@@ -53,7 +53,7 @@ public abstract class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResultsQueue() {
+  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResults() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 

@@ -89,18 +89,11 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     }
 
     PublishResult publishResult = resultBuilder.build();
-    // Static reference, it receives all callbacks from all publications
-    // from all threads
+    @Nullable SettableFuture<PublishResult> settableFuture = publishResultsQueue.get(messageId);
 
-    // try {
-    //   Thread.sleep(500);
-    //   LOG.info("bzablockilog sleep for {}", messageId);
-    // } catch (InterruptedException e) {
-    //   throw new RuntimeException(e);
-    // }
-    SettableFuture<PublishResult> settableFuture = publishResultsQueue.getOrDefault(messageId, SettableFuture.create());
-    settableFuture.set(publishResult);
-
+    if(settableFuture != null) {
+      settableFuture.set(publishResult);
+    }
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {

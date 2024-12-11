@@ -97,7 +97,7 @@ public abstract class MockSessionService extends SessionService {
   }
 
   @Override
-  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResultsQueue() {
+  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResults() {
     return publishedResultsReceiver;
   }
 

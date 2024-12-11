@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.solace.write;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
@@ -28,6 +28,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -58,19 +59,21 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
       Metrics.counter(UnboundedStreamingSolaceWriter.class, "msgs_rejected_by_broker");
 
   public UnboundedStreamingSolaceWriter(
-      SerializableFunction<Solace.Record, Destination> destinationFn,
+      SerializableFunction<Record, Destination> destinationFn,
       SessionServiceFactory sessionServiceFactory,
       DeliveryMode deliveryMode,
-      SolaceIO.SubmissionMode submissionMode,
+      SubmissionMode submissionMode,
       int producersMapCardinality,
-      boolean publishLatencyMetrics) {
+      boolean publishLatencyMetrics,
+      Duration maxWaitTimeForPublishResponses) {
     super(
         destinationFn,
         sessionServiceFactory,
         deliveryMode,
         submissionMode,
         producersMapCardinality,
-        publishLatencyMetrics);
+        publishLatencyMetrics,
+        maxWaitTimeForPublishResponses);
   }
 
   @ProcessElement

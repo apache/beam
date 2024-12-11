@@ -846,6 +846,7 @@ public class SolaceIO {
     public static final TupleTag<Solace.PublishResult> SUCCESSFUL_PUBLISH_TAG =
         new TupleTag<Solace.PublishResult>() {};
     private static final Duration DEFAULT_MAX_BUFFERING_DURATION = Duration.standardSeconds(10);
+    private static final Duration DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES = Duration.standardSeconds(5);
 
     /**
      * Write to a Solace topic.
@@ -1027,6 +1028,14 @@ public class SolaceIO {
       return toBuilder().setMaxBufferingDuration(maxBufferingDuration).build();
     }
 
+    /**
+     *  todo add docs
+     *  {@link #DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES}
+     */
+    public Write<T> withMaxWaitTimeForPublishResponses(Duration maxWaitTimeForPublishResponses) {
+      return toBuilder().setMaxWaitTimeForPublishResponses(maxWaitTimeForPublishResponses).build();
+    }
+
     abstract int getNumShards();
 
     abstract int getNumberOfClientsPerWorker();
@@ -1049,6 +1058,8 @@ public class SolaceIO {
 
     abstract Duration getMaxBufferingDuration();
 
+    abstract Duration getMaxWaitTimeForPublishResponses();
+
     static <T> Builder<T> builder() {
       return new AutoValue_SolaceIO_Write.Builder<T>()
           .setDeliveryMode(DEFAULT_WRITER_DELIVERY_MODE)
@@ -1057,7 +1068,9 @@ public class SolaceIO {
           .setPublishLatencyMetrics(DEFAULT_WRITER_PUBLISH_LATENCY_METRICS)
           .setDispatchMode(DEFAULT_WRITER_SUBMISSION_MODE)
           .setWriterType(DEFAULT_WRITER_TYPE)
-          .setMaxBufferingDuration(DEFAULT_MAX_BUFFERING_DURATION);
+          .setMaxBufferingDuration(DEFAULT_MAX_BUFFERING_DURATION)
+          .setMaxWaitTimeForPublishResponses(DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES)
+          ;
     }
 
     abstract Builder<T> toBuilder();
@@ -1085,6 +1098,8 @@ public class SolaceIO {
       abstract Builder<T> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
 
       abstract Builder<T> setMaxBufferingDuration(Duration maxBufferingDuration);
+
+      abstract Builder<T> setMaxWaitTimeForPublishResponses(Duration maxWaitTimeForPublishResponses);
 
       abstract Write<T> build();
     }
@@ -1164,14 +1179,16 @@ public class SolaceIO {
                       getDeliveryMode(),
                       getDispatchMode(),
                       getNumberOfClientsPerWorker(),
-                      getPublishLatencyMetrics())
+                      getPublishLatencyMetrics(),
+                  getMaxWaitTimeForPublishResponses())
                   : new UnboundedBatchedSolaceWriter(
                       destinationFn,
                       checkNotNull(getSessionServiceFactory()),
                       getDeliveryMode(),
                       getDispatchMode(),
                       getNumberOfClientsPerWorker(),
-                      getPublishLatencyMetrics()));
+                      getPublishLatencyMetrics(),
+                      getMaxWaitTimeForPublishResponses()));
 
       return writer.withOutputTags(SUCCESSFUL_PUBLISH_TAG, TupleTagList.of(FAILED_PUBLISH_TAG));
     }

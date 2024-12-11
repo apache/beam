@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.SolaceIO;
@@ -138,11 +137,12 @@ public abstract class SessionService implements Serializable {
   public abstract MessageProducer getInitializedProducer(SubmissionMode mode);
 
   /**
-   * Returns the {@link Queue<PublishResult>} instance associated with this session, with the
+   * todo fix this doc
+   * Returns the {@link ConcurrentHashMap<String, SettableFuture<PublishResult>>} instance associated with this session, with the
    * asynchronously received callbacks from Solace for message publications. The queue
    * implementation has to be thread-safe for production use-cases.
    */
-  public abstract ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResultsQueue();
+  public abstract ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResults();
 
   /**
    * Override this method and provide your specific properties, including all those related to

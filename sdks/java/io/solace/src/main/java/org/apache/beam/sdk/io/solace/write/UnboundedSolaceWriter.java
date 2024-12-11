@@ -17,18 +17,10 @@
  */
 package org.apache.beam.sdk.io.solace.write;
 
-import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
-import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
-
-import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import java.io.IOException;
-import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
@@ -36,7 +28,6 @@ import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -44,12 +35,11 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,8 +51,6 @@ import org.slf4j.LoggerFactory;
 @Internal
 public abstract class UnboundedSolaceWriter
     extends DoFn<KV<Integer, Iterable<Solace.Record>>, Solace.PublishResult> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(UnboundedSolaceWriter.class);
 
   private final Distribution latencyPublish =
       Metrics.distribution(SolaceIO.Write.class, "latency_publish_ms");
@@ -82,6 +70,7 @@ public abstract class UnboundedSolaceWriter
 
   private @Nullable Instant bundleTimestamp;
   @Nullable ScheduledExecutorService scheduledExecutorService;
+  final Duration maxWaitTimeForPublishResponses;
 
   final UUID writerTransformUuid = UUID.randomUUID();
 
@@ -91,7 +80,7 @@ public abstract class UnboundedSolaceWriter
       DeliveryMode deliveryMode,
       SubmissionMode submissionMode,
       int producersMapCardinality,
-      boolean publishLatencyMetrics) {
+      boolean publishLatencyMetrics, Duration maxWaitTimeForPublishResponses) {
     this.destinationFn = destinationFn;
     this.sessionServiceFactory = sessionServiceFactory;
     // Make sure that we set the submission mode now that we know which mode has been set by the
@@ -101,12 +90,11 @@ public abstract class UnboundedSolaceWriter
     this.submissionMode = submissionMode;
     this.producersMapCardinality = producersMapCardinality;
     this.publishLatencyMetrics = publishLatencyMetrics;
+    this.maxWaitTimeForPublishResponses = maxWaitTimeForPublishResponses;
   }
 
   @Teardown
   public void teardown() {
-    // todo remove
-    LOG.info("bzablockilog teardown");
     SolaceWriteSessionsHandler.disconnectFromSolace(
         sessionServiceFactory, producersMapCardinality, writerTransformUuid);
   }

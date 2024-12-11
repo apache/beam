@@ -17,28 +17,33 @@
  */
 package org.apache.beam.sdk.io.solace.write;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
@@ -48,6 +53,9 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,6 +82,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
+//Log
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedBatchedSolaceWriter.class);
 
@@ -89,14 +98,133 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
       DeliveryMode deliveryMode,
       SubmissionMode submissionMode,
       int producersMapCardinality,
-      boolean publishLatencyMetrics) {
+      boolean publishLatencyMetrics,
+      Duration maxWaitTimeForPublishResponses) {
     super(
         destinationFn,
         sessionServiceFactory,
         deliveryMode,
         submissionMode,
         producersMapCardinality,
-        publishLatencyMetrics);
+        publishLatencyMetrics,
+        maxWaitTimeForPublishResponses);
+  }
+
+  static class PublishResultCallback implements FutureCallback<PublishResult> {
+
+    private final ConcurrentHashMap<String, PublishResult> receivedResponses;
+    // private final Set<String> waitingForAckIdsReference;
+    private final AtomicInteger messageCounter;
+    private final SettableFuture<Boolean> allResponsesBack;
+
+    public PublishResultCallback(
+        ConcurrentHashMap<String, PublishResult> receivedResponses,
+        AtomicInteger messageCounter,
+        SettableFuture<Boolean> allResponsesBack) {
+      this.receivedResponses = receivedResponses;
+      // this.waitingForAckIdsReference = waitingForAckIdsReference;
+      this.messageCounter = messageCounter;
+      this.allResponsesBack = allResponsesBack;
+    }
+
+    @Override
+    public void onSuccess(PublishResult result) {
+      // synchronized (messageCounter) {
+      // waitingForAckIdsReference.remove(result.getMessageId());
+      receivedResponses.put(result.getMessageId(), result);
+      int i = messageCounter.decrementAndGet();
+      if (i<=0){
+        allResponsesBack.set(true);
+      }
+      // }
+    }
+
+    @Override
+    public void onFailure(Throwable t) {
+      // todo this shouldn't happen but act here.
+    }
+  }
+
+  static class FutureWithCallbackHelper {
+    private final List<Record> materializedRecords = new ArrayList<>();
+    private final ConcurrentHashMap<String, PublishResult> receivedResponses =
+        new ConcurrentHashMap<>();
+
+    private final ScheduledExecutorService scheduledExecutorService;
+    private final SessionService sessionService;
+    private final Duration maxWaitTimeForPublishResponses;
+    private final AtomicInteger messageCounter = new AtomicInteger(0);
+    private final SettableFuture<Boolean> allResponsesBack = SettableFuture.create();
+
+    FutureWithCallbackHelper(
+        ScheduledExecutorService scheduledExecutorService,
+        SessionService sessionService,
+        Duration maxWaitTimeForPublishResponses) {
+      this.scheduledExecutorService = scheduledExecutorService;
+      this.sessionService = sessionService;
+      this.maxWaitTimeForPublishResponses = maxWaitTimeForPublishResponses;
+    }
+
+    public List<Record> getMaterializedRecords() {
+      return materializedRecords;
+    }
+
+    private SettableFuture<PublishResult> createNewFutureWithCallback() {
+      SettableFuture<PublishResult> future = SettableFuture.create();
+      Futures.addCallback(
+          future,
+          new PublishResultCallback(receivedResponses, messageCounter, allResponsesBack),
+          scheduledExecutorService);
+      return future;
+    }
+
+    public void addObservedRecord(Record record) {
+      materializedRecords.add(record);
+      messageCounter.incrementAndGet();
+    }
+
+    // private boolean collectedAllResponses() {
+    //   // return waitingForAckIds.isEmpty();
+    //   return messageCounter.get() <= 0;
+    // }
+
+    public AckResults waitForResponses() {
+      long now = System.currentTimeMillis();
+      try {
+        // waitingForResponses.get(maxWaitTimeForPublishResponses.getMillis(), TimeUnit.MILLISECONDS);
+        allResponsesBack.get(maxWaitTimeForPublishResponses.getMillis(), TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+      } catch (TimeoutException e) {
+        // Not all responses are back from Solace, but that's ok, we handle it below.
+      }
+      LOG.info("bzablockilog allResponsesBack.get() took {}ms", System.currentTimeMillis() - now);
+
+      // Make a deep copy of received responses to have synchronized access to keys and values
+      // separately.
+      HashMap<String, PublishResult> copyOfReceivedResponses = new HashMap<>(receivedResponses);
+
+      Set<String> responseReceivedIds = copyOfReceivedResponses.keySet();
+      Collection<PublishResult> publishResults = copyOfReceivedResponses.values();
+
+      // Infer a set of message ids that we have not received based on the list of records that we
+      // published (materializedRecords) and the list of message ids that we received a response for
+      // (responseReceivedIds).
+      Set<String> responseNotReceivedIds =
+          materializedRecords.stream()
+              .map(Record::getMessageId)
+              .filter(id -> !responseReceivedIds.contains(id))
+              .collect(Collectors.toSet());
+
+      // Remove entries from the map that stores the SettableFutures with Callbacks
+      materializedRecords.stream()
+          .map(Record::getMessageId)
+          .forEach(sessionService.getPublishedResults()::remove);
+
+      return new AckResults(publishResults, responseNotReceivedIds, maxWaitTimeForPublishResponses);
+    }
   }
 
   @ProcessElement
@@ -106,124 +234,98 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
       MultiOutputReceiver outputReceiver) {
     setCurrentBundleTimestamp(timestamp);
     Iterable<Solace.Record> records = element.getValue();
-    // Materialize all the records
-    List<Record> materializedRecords = new ArrayList<>();
-    records.iterator().forEachRemaining(materializedRecords::add);
 
-    materializedRecords.forEach(
-        record ->
-            solaceSessionServiceWithProducer()
-                .getPublishedResultsQueue()
-                .put(record.getMessageId(), SettableFuture.create()));
+    FutureWithCallbackHelper futureWithCallbackHelper =
+        new FutureWithCallbackHelper(
+            checkNotNull(scheduledExecutorService),
+            solaceSessionServiceWithProducer(),
+            maxWaitTimeForPublishResponses);
 
-    publishBatch(materializedRecords);
+    // can be converted into a collection/list
+    records
+        .iterator()
+        .forEachRemaining(
+            record -> {
+              futureWithCallbackHelper.addObservedRecord(record);
 
-    AckResults ackResults =
-        waitForResponses(
-            materializedRecords.stream().map(Record::getMessageId).collect(Collectors.toList()));
+              solaceSessionServiceWithProducer()
+                  .getPublishedResults()
+                  .put(
+                      record.getMessageId(),
+                      futureWithCallbackHelper.createNewFutureWithCallback());
+            });
 
-    ackResults.publishResults.forEach(
-        result -> {
-          // todo this check shouldn't be needed
-          // if (result != null) {
-          if (result.getPublished()) {
-            outputReceiver.get(SUCCESSFUL_PUBLISH_TAG).output(result);
-          } else {
-            try {
-              BadRecord badRecord =
-                  BadRecord.fromExceptionInformation(
-                      result,
-                      null,
-                      null,
-                      Optional.ofNullable(result.getError())
-                          .orElse("SolaceIO.Write: unknown error."));
-              outputReceiver.get(FAILED_PUBLISH_TAG).output(badRecord);
-            } catch (IOException e) {
-              // ignore, the exception is thrown when the exception argument in the
-              // `BadRecord.fromExceptionInformation` is not null.
-            }
-            // }
-          }
-        });
-  }
+    publishBatch(futureWithCallbackHelper.getMaterializedRecords());
 
-  private AckResults waitForResponses(List<String> materializedRecordIds) {
-    ScheduledExecutorService scheduledExecutorService = checkNotNull(this.scheduledExecutorService);
-    List<ListenableFuture<PublishResult>> futuresWithTimeout =
-        materializedRecordIds.stream()
-            .map(
-                key -> {
-                  SettableFuture<PublishResult> futureFromResultsQueue =
-                      solaceSessionServiceWithProducer().getPublishedResultsQueue().remove(key);
-                  return futureFromResultsQueue == null
-                      ? SettableFuture.<PublishResult>create()
-                      : futureFromResultsQueue;
-                })
-            .map(
-                future ->
-                    Futures.withTimeout(
-                        future, 2 * 1000, TimeUnit.MILLISECONDS, scheduledExecutorService))
-            .collect(Collectors.toList());
+    AckResults ackResults = futureWithCallbackHelper.waitForResponses();
 
-    String message = "";
-    UUID uuid = UUID.randomUUID();
-    List<PublishResult> publishResults;
-    try {
-      long now = System.currentTimeMillis();
-      publishResults =
-          Futures.successfulAsList(futuresWithTimeout).get().stream()
-              .filter(Objects::nonNull)
-              .collect(Collectors.toList());
-      LOG.info(
-          "bzablockilog {} first Futures.successfulAsList took {}ms",
-          uuid,
-          System.currentTimeMillis() - now);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e);
-    }
-
-    // map publishResults collection to list of ids
-    Set<String> responseReceivedIds =
-        publishResults.stream()
-            // .filter(Objects::nonNull)
-            .map(
-                x -> {
-                  // if (x == null) {
-                  //   return "";
-                  // }
-                  return x.getMessageId();
-                })
-            .collect(Collectors.toSet());
-
-    // compare sucessfulids and materializedRecordIds and return only  materializedRecordIds that
-    // are not in successfullids
-    Set<String> responseNotReceivedIds =
-        materializedRecordIds.stream()
-            .filter(id -> !responseReceivedIds.contains(id))
-            .collect(Collectors.toSet());
-
-    // publishResults(UnboundedSolaceWriter.BeamContextWrapper.of(context));
-    LOG.info(
-        "bzablockilog {} {} expected: [{}], received: [{}], missing: [{}]",
-        uuid,
-        message,
-        String.join(",", materializedRecordIds),
-        String.join(",", responseReceivedIds),
-        String.join(",", responseNotReceivedIds));
-
-    return new AckResults(publishResults, responseNotReceivedIds);
+    ackResults.outputToReceiver(outputReceiver, SUCCESSFUL_PUBLISH_TAG, FAILED_PUBLISH_TAG);
   }
 
   private static class AckResults {
-    // todo this shouldn't be nullable, we filter it in the stream
-    public final List<PublishResult> publishResults;
-    public final Set<String> failedIds;
+    private final Collection<PublishResult> publishResults;
+    private final Set<String> failedIds;
+    private final Duration maxWaitTimeForPublishResponses;
 
-    private AckResults(List<PublishResult> publishResults, Set<String> failedIds) {
+    private AckResults(
+        Collection<PublishResult> publishResults,
+        Set<String> failedIds,
+        Duration maxWaitTimeForPublishResponses) {
       this.publishResults = publishResults;
       this.failedIds = failedIds;
+      this.maxWaitTimeForPublishResponses = maxWaitTimeForPublishResponses;
+    }
+
+    private List<PublishResult> getSuccessAndFailedPublishResults() {
+      List<PublishResult> allPublishResults = new ArrayList<>(publishResults);
+
+      failedIds.forEach(
+          recordId -> {
+            PublishResult.Builder resultBuilder = PublishResult.builder();
+            resultBuilder.setMessageId(recordId);
+            resultBuilder.setPublished(false);
+            resultBuilder.setError(
+                String.format(
+                    "Did not receive delivery confirmation from Solace in the specified timeout of %s. Consider increasing the .withMaxWaitTimeForPublishResponses() option.",
+                    maxWaitTimeForPublishResponses));
+            allPublishResults.add(resultBuilder.build());
+          });
+
+      return allPublishResults;
+    }
+
+    public void outputToReceiver(
+        MultiOutputReceiver outputReceiver,
+        TupleTag<PublishResult> successfulPublishTag,
+        TupleTag<BadRecord> failedPublishTag) {
+      getSuccessAndFailedPublishResults()
+          .forEach(
+              result -> {
+                if (result.getPublished()) {
+                  outputReceiver.get(successfulPublishTag).output(result);
+                } else {
+                  BadRecord badRecord = createBadRecord(result);
+                  if (badRecord != null) {
+                    outputReceiver.get(failedPublishTag).output(badRecord);
+                  }
+                }
+              });
+    }
+
+    private @Nullable BadRecord createBadRecord(PublishResult result) {
+      try {
+        return BadRecord.fromExceptionInformation(
+            result,
+            null,
+            null,
+            Optional.ofNullable(result.getError())
+                .orElse(
+                    "SolaceIO.Write: message delivery is not confirmed. The response from Solace was not returned before the timeout.")); // todo specify timeout
+      } catch (IOException e) {
+        // ignore, this method can throw the exception only when the `exception` argument is not
+        // null.
+        return null;
+      }
     }
   }
 
