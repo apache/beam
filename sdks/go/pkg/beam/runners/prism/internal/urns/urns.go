@@ -95,8 +95,9 @@ var (
 	SideInputMultiMap = siUrn(pipepb.StandardSideInputTypes_MULTIMAP)
 
 	// UserState kinds
-	UserStateBag      = usUrn(pipepb.StandardUserStateTypes_BAG)
-	UserStateMultiMap = usUrn(pipepb.StandardUserStateTypes_MULTIMAP)
+	UserStateBag         = usUrn(pipepb.StandardUserStateTypes_BAG)
+	UserStateMultiMap    = usUrn(pipepb.StandardUserStateTypes_MULTIMAP)
+	UserStateOrderedList = usUrn(pipepb.StandardUserStateTypes_ORDERED_LIST)
 
 	// WindowsFns
 	WindowFnGlobal  = quickUrn(pipepb.GlobalWindowsPayload_PROPERTIES)

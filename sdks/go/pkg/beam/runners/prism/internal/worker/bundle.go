@@ -42,7 +42,7 @@ type B struct {
 	InputTransformID       string
 	Input                  []*engine.Block // Data and Timers for this bundle.
 	EstimatedInputElements int
-	HasTimers              []struct{ Transform, TimerFamily string } // Timer streams to terminate.
+	HasTimers              []engine.StaticTimerID // Timer streams to terminate.
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
