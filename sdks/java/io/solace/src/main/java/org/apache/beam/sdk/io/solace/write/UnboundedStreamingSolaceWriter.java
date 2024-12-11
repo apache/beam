@@ -94,22 +94,23 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
       sentToBroker.inc();
     } catch (Exception e) {
       rejectedByBroker.inc();
-      Solace.PublishResult errorPublish =
-          Solace.PublishResult.builder()
-              .setPublished(false)
-              .setMessageId(record.getMessageId())
-              .setError(
-                  String.format(
-                      "Message could not be published after several retries. Error: %s",
-                      e.getMessage()))
-              .setLatencyNanos(System.nanoTime())
-              .build();
-      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      // Solace.PublishResult errorPublish =
+      //     Solace.PublishResult.builder()
+      //         .setPublished(false)
+      //         .setMessageId(record.getMessageId())
+      //         .setError(
+      //             String.format(
+      //                 "Message could not be published after several retries. Error: %s",
+      //                 e.getMessage()))
+      //         .setLatencyNanos(System.nanoTime())
+      //         .build();
+      // todo handle this
+      // solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
     }
   }
 
   @FinishBundle
   public void finishBundle(FinishBundleContext context) {
-    publishResults(BeamContextWrapper.of(context));
+    // publishResults(BeamContextWrapper.of(context));
   }
 }

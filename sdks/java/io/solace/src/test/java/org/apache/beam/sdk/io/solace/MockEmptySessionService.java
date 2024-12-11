@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.JCSMPProperties;
-import java.util.Queue;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
@@ -51,7 +53,7 @@ public abstract class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public Queue<PublishResult> getPublishedResultsQueue() {
+  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResultsQueue() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 

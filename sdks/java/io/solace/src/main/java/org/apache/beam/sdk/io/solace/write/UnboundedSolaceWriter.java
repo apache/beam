@@ -20,12 +20,14 @@ package org.apache.beam.sdk.io.solace.write;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
 
+import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
@@ -38,6 +40,8 @@ import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExecutorOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
@@ -77,6 +81,7 @@ public abstract class UnboundedSolaceWriter
   private int currentBundleProducerIndex = 0;
 
   private @Nullable Instant bundleTimestamp;
+  @Nullable ScheduledExecutorService scheduledExecutorService;
 
   final UUID writerTransformUuid = UUID.randomUUID();
 
@@ -100,6 +105,8 @@ public abstract class UnboundedSolaceWriter
 
   @Teardown
   public void teardown() {
+    // todo remove
+    LOG.info("bzablockilog teardown");
     SolaceWriteSessionsHandler.disconnectFromSolace(
         sessionServiceFactory, producersMapCardinality, writerTransformUuid);
   }
@@ -110,9 +117,12 @@ public abstract class UnboundedSolaceWriter
   }
 
   @StartBundle
-  public void startBundle() {
+  public void startBundle(PipelineOptions pipelineOptions) {
     // Pick a producer at random for this bundle, reuse for the whole bundle
     updateProducerIndex();
+      scheduledExecutorService = pipelineOptions.as(ExecutorOptions.class)
+          .getScheduledExecutorService();
+
   }
 
   public SessionService solaceSessionServiceWithProducer() {
@@ -120,91 +130,92 @@ public abstract class UnboundedSolaceWriter
         currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
   }
 
-  public void publishResults(BeamContextWrapper context) {
-    long sumPublish = 0;
-    long countPublish = 0;
-    long minPublish = Long.MAX_VALUE;
-    long maxPublish = 0;
-
-    long sumFailed = 0;
-    long countFailed = 0;
-    long minFailed = Long.MAX_VALUE;
-    long maxFailed = 0;
-
-    Queue<PublishResult> publishResultsQueue =
-        solaceSessionServiceWithProducer().getPublishedResultsQueue();
-    Solace.PublishResult result = publishResultsQueue.poll();
-
-    if (result != null) {
-      if (getCurrentBundleTimestamp() == null) {
-        setCurrentBundleTimestamp(Instant.now());
-      }
-    }
-
-    while (result != null) {
-      Long latency = result.getLatencyNanos();
-
-      if (latency == null && shouldPublishLatencyMetrics()) {
-        LOG.error(
-            "SolaceIO.Write: Latency is null but user asked for latency metrics."
-                + " This may be a bug.");
-      }
-
-      if (latency != null) {
-        if (result.getPublished()) {
-          sumPublish += latency;
-          countPublish++;
-          minPublish = Math.min(minPublish, latency);
-          maxPublish = Math.max(maxPublish, latency);
-        } else {
-          sumFailed += latency;
-          countFailed++;
-          minFailed = Math.min(minFailed, latency);
-          maxFailed = Math.max(maxFailed, latency);
-        }
-      }
-      if (result.getPublished()) {
-        context.output(
-            SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
-      } else {
-        try {
-          BadRecord b =
-              BadRecord.fromExceptionInformation(
-                  result,
-                  null,
-                  null,
-                  Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown error."));
-          context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
-        } catch (IOException e) {
-          // ignore, the exception is thrown when the exception argument in the
-          // `BadRecord.fromExceptionInformation` is not null.
-        }
-      }
-
-      result = publishResultsQueue.poll();
-    }
-
-    if (shouldPublishLatencyMetrics()) {
-      // Report all latency value in milliseconds
-      if (countPublish > 0) {
-        getPublishLatencyMetric()
-            .update(
-                TimeUnit.NANOSECONDS.toMillis(sumPublish),
-                countPublish,
-                TimeUnit.NANOSECONDS.toMillis(minPublish),
-                TimeUnit.NANOSECONDS.toMillis(maxPublish));
-      }
-
-      if (countFailed > 0) {
-        getFailedLatencyMetric()
-            .update(
-                TimeUnit.NANOSECONDS.toMillis(sumFailed),
-                countFailed,
-                TimeUnit.NANOSECONDS.toMillis(minFailed),
-                TimeUnit.NANOSECONDS.toMillis(maxFailed));
-      }
-    }
-  }
+  // todo we need this in some form
+  // public void publishResults(BeamContextWrapper context) {
+  //   long sumPublish = 0;
+  //   long countPublish = 0;
+  //   long minPublish = Long.MAX_VALUE;
+  //   long maxPublish = 0;
+  //
+  //   long sumFailed = 0;
+  //   long countFailed = 0;
+  //   long minFailed = Long.MAX_VALUE;
+  //   long maxFailed = 0;
+  //
+  //   Map<String, SettableFuture<PublishResult>> publishResultsQueue =
+  //       solaceSessionServiceWithProducer().getPublishedResultsQueue();
+  //   Solace.PublishResult result = publishResultsQueue.get("");
+  //
+  //   if (result != null) {
+  //     if (getCurrentBundleTimestamp() == null) {
+  //       setCurrentBundleTimestamp(Instant.now());
+  //     }
+  //   }
+  //
+  //   while (result != null) {
+  //     Long latency = result.getLatencyNanos();
+  //
+  //     if (latency == null && shouldPublishLatencyMetrics()) {
+  //       LOG.error(
+  //           "SolaceIO.Write: Latency is null but user asked for latency metrics."
+  //               + " This may be a bug.");
+  //     }
+  //
+  //     if (latency != null) {
+  //       if (result.getPublished()) {
+  //         sumPublish += latency;
+  //         countPublish++;
+  //         minPublish = Math.min(minPublish, latency);
+  //         maxPublish = Math.max(maxPublish, latency);
+  //       } else {
+  //         sumFailed += latency;
+  //         countFailed++;
+  //         minFailed = Math.min(minFailed, latency);
+  //         maxFailed = Math.max(maxFailed, latency);
+  //       }
+  //     }
+  //     if (result.getPublished()) {
+  //       context.output(
+  //           SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
+  //     } else {
+  //       try {
+  //         BadRecord b =
+  //             BadRecord.fromExceptionInformation(
+  //                 result,
+  //                 null,
+  //                 null,
+  //                 Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown error."));
+  //         context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
+  //       } catch (IOException e) {
+  //         // ignore, the exception is thrown when the exception argument in the
+  //         // `BadRecord.fromExceptionInformation` is not null.
+  //       }
+  //     }
+  //
+  //     result = publishResultsQueue.poll();
+  //   }
+  //
+  //   if (shouldPublishLatencyMetrics()) {
+  //     // Report all latency value in milliseconds
+  //     if (countPublish > 0) {
+  //       getPublishLatencyMetric()
+  //           .update(
+  //               TimeUnit.NANOSECONDS.toMillis(sumPublish),
+  //               countPublish,
+  //               TimeUnit.NANOSECONDS.toMillis(minPublish),
+  //               TimeUnit.NANOSECONDS.toMillis(maxPublish));
+  //     }
+  //
+  //     if (countFailed > 0) {
+  //       getFailedLatencyMetric()
+  //           .update(
+  //               TimeUnit.NANOSECONDS.toMillis(sumFailed),
+  //               countFailed,
+  //               TimeUnit.NANOSECONDS.toMillis(minFailed),
+  //               TimeUnit.NANOSECONDS.toMillis(maxFailed));
+  //     }
+  //   }
+  // }
 
   public int getProducersMapCardinality() {
     return producersMapCardinality;

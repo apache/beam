@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -48,7 +51,7 @@ public abstract class MockSessionService extends SessionService {
 
   public abstract Function<PublishResultHandler, MockProducer> mockProducerFn();
 
-  private final Queue<PublishResult> publishedResultsReceiver = new ConcurrentLinkedQueue<>();
+  private final ConcurrentHashMap<String, SettableFuture<PublishResult>> publishedResultsReceiver = new ConcurrentHashMap<>();
 
   public static Builder builder() {
     return new AutoValue_MockSessionService.Builder()
@@ -94,7 +97,7 @@ public abstract class MockSessionService extends SessionService {
   }
 
   @Override
-  public Queue<PublishResult> getPublishedResultsQueue() {
+  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResultsQueue() {
     return publishedResultsReceiver;
   }
 

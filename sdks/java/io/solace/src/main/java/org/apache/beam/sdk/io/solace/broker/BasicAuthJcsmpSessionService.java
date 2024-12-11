@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.broker;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.FlowReceiver;
@@ -31,8 +32,10 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
@@ -86,8 +89,10 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   @Nullable private transient JCSMPSession jcsmpSession;
   @Nullable private transient MessageReceiver messageReceiver;
   @Nullable private transient MessageProducer messageProducer;
-  private final java.util.Queue<PublishResult> publishedResultsQueue =
-      new ConcurrentLinkedQueue<>();
+
+  // cache with cleanup policy.
+  private final ConcurrentHashMap<String, SettableFuture<PublishResult>> publishedResultsQueue =
+      new ConcurrentHashMap<>();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   @Override
@@ -132,7 +137,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public java.util.Queue<PublishResult> getPublishedResultsQueue() {
+  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResultsQueue() {
     return publishedResultsQueue;
   }
 

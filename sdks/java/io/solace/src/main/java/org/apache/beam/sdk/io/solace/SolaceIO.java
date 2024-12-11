@@ -47,6 +47,7 @@ import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
 import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;

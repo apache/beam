@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
+import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
@@ -41,11 +43,11 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
-  private final Queue<PublishResult> publishResultsQueue;
+  private final ConcurrentHashMap<String, SettableFuture<PublishResult>> publishResultsQueue;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(Queue<PublishResult> publishResultsQueue) {
+  public PublishResultHandler(ConcurrentHashMap<String, SettableFuture<PublishResult>> publishResultsQueue) {
     this.publishResultsQueue = publishResultsQueue;
   }
 
@@ -89,7 +91,16 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     PublishResult publishResult = resultBuilder.build();
     // Static reference, it receives all callbacks from all publications
     // from all threads
-    publishResultsQueue.add(publishResult);
+
+    // try {
+    //   Thread.sleep(500);
+    //   LOG.info("bzablockilog sleep for {}", messageId);
+    // } catch (InterruptedException e) {
+    //   throw new RuntimeException(e);
+    // }
+    SettableFuture<PublishResult> settableFuture = publishResultsQueue.getOrDefault(messageId, SettableFuture.create());
+    settableFuture.set(publishResult);
+
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {
