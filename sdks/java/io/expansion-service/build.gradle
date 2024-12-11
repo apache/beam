@@ -60,10 +60,11 @@ dependencies {
   runtimeOnly library.java.bigdataoss_gcs_connector
   // Needed for HiveCatalog
   runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
-  runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
+  runtimeOnly project(path: ":sdks:java:io:iceberg:hive")
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
+  testImplementation(library.java.junit)
 }
 
 task runExpansionService (type: JavaExec) {
