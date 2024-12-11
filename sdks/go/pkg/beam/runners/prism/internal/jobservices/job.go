@@ -45,6 +45,7 @@ var supportedRequirements = map[string]struct{}{
 	urns.RequirementSplittableDoFn:     {},
 	urns.RequirementStatefulProcessing: {},
 	urns.RequirementBundleFinalization: {},
+	urns.RequirementOnWindowExpiration: {},
 }
 
 // TODO, move back to main package, and key off of executor handlers?
