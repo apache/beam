@@ -42,19 +42,27 @@ public class WriteWordsProvider extends TypedSchemaTransformProvider<Configurati
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
-    return new SchemaTransform() {
-      @Override
-      public PCollectionRowTuple expand(PCollectionRowTuple input) {
-        input
-            .get("input")
-            .apply(
-                MapElements.into(TypeDescriptors.strings())
-                    .via(row -> Preconditions.checkStateNotNull(row.getString("line"))))
-            .apply(TextIO.write().to(configuration.getFilePathPrefix()));
+    return new WriteWordsTransform(configuration);
+  }
 
-        return PCollectionRowTuple.empty(input.getPipeline());
-      }
-    };
+  static class WriteWordsTransform extends SchemaTransform {
+    private final String filePathPrefix;
+
+    WriteWordsTransform(Configuration configuration) {
+      this.filePathPrefix = configuration.getFilePathPrefix();
+    }
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      input
+          .get("input")
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via(row -> Preconditions.checkStateNotNull(row.getString("line"))))
+          .apply(TextIO.write().to(filePathPrefix));
+
+      return PCollectionRowTuple.empty(input.getPipeline());
+    }
   }
 
   @DefaultSchema(AutoValueSchema.class)

@@ -44,32 +44,34 @@ public class JavaCountProvider extends TypedSchemaTransformProvider<Configuratio
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
-    return new SchemaTransform() {
-      @Override
-      public PCollectionRowTuple expand(PCollectionRowTuple input) {
-        Schema outputSchema =
-            Schema.builder().addStringField("word").addInt64Field("count").build();
+    return new JavaCountTransform();
+  }
 
-        PCollection<Row> wordCounts =
-            input
-                .get("input")
-                .apply(Count.perElement())
-                .apply(
-                    MapElements.into(TypeDescriptors.rows())
-                        .via(
-                            kv ->
-                                Row.withSchema(outputSchema)
-                                    .withFieldValue(
-                                        "word",
-                                        Preconditions.checkStateNotNull(
-                                            kv.getKey().getString("word")))
-                                    .withFieldValue("count", kv.getValue())
-                                    .build()))
-                .setRowSchema(outputSchema);
+  static class JavaCountTransform extends SchemaTransform {
+    static final Schema OUTPUT_SCHEMA =
+        Schema.builder().addStringField("word").addInt64Field("count").build();
 
-        return PCollectionRowTuple.of("output", wordCounts);
-      }
-    };
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      PCollection<Row> wordCounts =
+          input
+              .get("input")
+              .apply(Count.perElement())
+              .apply(
+                  MapElements.into(TypeDescriptors.rows())
+                      .via(
+                          kv ->
+                              Row.withSchema(OUTPUT_SCHEMA)
+                                  .withFieldValue(
+                                      "word",
+                                      Preconditions.checkStateNotNull(
+                                          kv.getKey().getString("word")))
+                                  .withFieldValue("count", kv.getValue())
+                                  .build()))
+              .setRowSchema(OUTPUT_SCHEMA);
+
+      return PCollectionRowTuple.of("output", wordCounts);
+    }
   }
 
   @DefaultSchema(AutoValueSchema.class)
