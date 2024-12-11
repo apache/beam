@@ -7639,6 +7639,8 @@ In this section, we will use [KafkaIO.Read](https://beam.apache.org/releases/jav
 
 #### 13.1.1. Creating cross-language Java transforms
 
+For Beam versions 2.60.0+, please follow this [guide](sdks/python-custom-multi-language-pipelines-guide.md) instead.
+
 There are two ways to make Java transforms available to other SDKs.
 
 * Option 1: In some cases, you can use existing Java transforms from other SDKs without writing any additional Java code.

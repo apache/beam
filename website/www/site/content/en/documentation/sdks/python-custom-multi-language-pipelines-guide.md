@@ -72,8 +72,8 @@ This configuration is surfaced to foreign SDKs. For example, when using this tra
 
 ```python
 with beam.Pipeline() as p:
-  (p 
-   | Create([...]) 
+  (p
+   | Create([...])
    | MySchemaTransform(foo="abc", bar=123)
 ```
 
@@ -176,7 +176,7 @@ dependencies {
 
     // Beam's expansion service
     runtimeOnly "org.apache.beam:beam-sdks-java-expansion-service:$beamVersion"
-    // AutoService annotation for our SchemaTransform provider 
+    // AutoService annotation for our SchemaTransform provider
     compileOnly "com.google.auto.service:auto-service-annotations:1.0.1"
     annotationProcessor "com.google.auto.service:auto-service:1.0.1"
     // AutoValue annotation for our configuration object
@@ -264,7 +264,7 @@ inspect.getdoc(MyTransform)
 # Output: "This transform does this and that..."
 
 inspect.signature(MyTransform)
-# Output: (foo: "str: Description of what foo does...", 
+# Output: (foo: "str: Description of what foo does...",
 #	     bar: "int: Description of what bar does....")
 ```
 
@@ -299,7 +299,7 @@ Produces a SchemaTransform using a provided configuration. An expansion service 
 ```java
 SchemaTransformProvider {
   String identifier();
-  
+
   SchemaTransform from(Row configuration);
 
   Schema configurationSchema();
