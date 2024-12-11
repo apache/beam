@@ -318,7 +318,7 @@ class StringSetCell(AbstractMetricCell):
 class BoundedTrieCell(AbstractMetricCell):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Tracks the current value for a StringSet metric.
+  Tracks the current value for a BoundedTrie metric.
 
   Each cell tracks the state of a metric independently per context per bundle.
   Therefore, each metric has a different cell in each bundle, that is later
