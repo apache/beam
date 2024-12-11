@@ -122,6 +122,7 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v4
         if: always()
