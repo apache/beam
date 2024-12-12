@@ -555,8 +555,8 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 		}
 		validateSideBundles := func(t *testing.T, keys set[string]) {
 			t.Helper()
-			if len(em.sideChannelBundles) == 0 {
-				t.Errorf("no sideChannelBundles exist when checking keys: %v", keys)
+			if len(em.injectedBundles) == 0 {
+				t.Errorf("no injectedBundles exist when checking keys: %v", keys)
 			}
 			// Check that all keys are marked as in progress
 			for k := range keys {
@@ -567,7 +567,7 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 
 			bundleID := ""
 		sideBundles:
-			for _, rb := range em.sideChannelBundles {
+			for _, rb := range em.injectedBundles {
 				// find that a side channel bundle exists with these keys.
 				bkeys := stage.inprogressKeysByBundle[rb.BundleID]
 				if len(bkeys) != len(keys) {
@@ -582,7 +582,7 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 				break
 			}
 			if bundleID == "" {
-				t.Errorf("no bundle found with all the given keys: %v: bundles: %v keysByBundle: %v", keys, em.sideChannelBundles, stage.inprogressKeysByBundle)
+				t.Errorf("no bundle found with all the given keys: %v: bundles: %v keysByBundle: %v", keys, em.injectedBundles, stage.inprogressKeysByBundle)
 			}
 		}
 
@@ -595,8 +595,8 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 		if got, want := len(stage.inProgressExpiredWindows), 0; got != want {
 			t.Errorf("len(stage.inProgressExpiredWindows) = %v, want %v", got, want)
 		}
-		if got, want := len(em.sideChannelBundles), 0; got != want {
-			t.Errorf("len(em.sideChannelBundles) = %v, want %v", got, want)
+		if got, want := len(em.injectedBundles), 0; got != want {
+			t.Errorf("len(em.injectedBundles) = %v, want %v", got, want)
 		}
 
 		// Configure a few conditions to validate in the call.
@@ -623,9 +623,9 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 			t.Errorf("createOnWindowExpirationBundles(%v) = %v, want %v", newOut, got, want)
 		}
 
-		// We should only see 2 sideChannelBundles at this point.
-		if got, want := len(em.sideChannelBundles), 2; got != want {
-			t.Errorf("len(em.sideChannelBundles) = %v, want %v", got, want)
+		// We should only see 2 injectedBundles at this point.
+		if got, want := len(em.injectedBundles), 2; got != want {
+			t.Errorf("len(em.injectedBundles) = %v, want %v", got, want)
 		}
 
 		validateInProgressExpiredWindows(t, expiredWindow1, 1)
@@ -643,9 +643,9 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 			t.Errorf("createOnWindowExpirationBundles(%v) = %v, want %v", newOut, got, want)
 		}
 
-		// We should see 3 sideChannelBundles at this point.
-		if got, want := len(em.sideChannelBundles), 3; got != want {
-			t.Errorf("len(em.sideChannelBundles) = %v, want %v", got, want)
+		// We should see 3 injectedBundles at this point.
+		if got, want := len(em.injectedBundles), 3; got != want {
+			t.Errorf("len(em.injectedBundles) = %v, want %v", got, want)
 		}
 
 		validateInProgressExpiredWindows(t, expiredWindow1, 1)
