@@ -21,7 +21,6 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg.hive',
         exportJavadoc: false,
-        validateShadowJar: false, // fails with "Could not receive a message from the daemon.", likely a shadow plugin bug
         publish: false, // it's an intermediate jar for io-expansion-service
 )
 

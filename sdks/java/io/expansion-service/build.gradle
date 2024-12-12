@@ -64,7 +64,6 @@ dependencies {
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
-  testImplementation(library.java.junit)
 }
 
 task runExpansionService (type: JavaExec) {
