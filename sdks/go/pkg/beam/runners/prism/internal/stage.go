@@ -57,18 +57,20 @@ type link struct {
 // account, but all serialization boundaries remain since the pcollections
 // would continue to get serialized.
 type stage struct {
-	ID           string
-	transforms   []string
-	primaryInput string          // PCollection used as the parallel input.
-	outputs      []link          // PCollections that must escape this stage.
-	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
-	internalCols []string        // PCollections that escape. Used for precise coder sending.
-	envID        string
-	finalize     bool
-	stateful     bool
+	ID                 string
+	transforms         []string
+	primaryInput       string          // PCollection used as the parallel input.
+	outputs            []link          // PCollections that must escape this stage.
+	sideInputs         []engine.LinkID // Non-parallel input PCollections and their consumers
+	internalCols       []string        // PCollections that escape. Used for precise coder sending.
+	envID              string
+	finalize           bool
+	stateful           bool
+	onWindowExpiration engine.StaticTimerID
+
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
-	hasTimers            []struct{ Transform, TimerFamily string }
+	hasTimers            []engine.StaticTimerID
 	processingTimeTimers map[string]bool
 
 	exe              transformExecuter
@@ -452,7 +454,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			}
 		}
 		for timerID, v := range pardo.GetTimerFamilySpecs() {
-			stg.hasTimers = append(stg.hasTimers, struct{ Transform, TimerFamily string }{Transform: tid, TimerFamily: timerID})
+			stg.hasTimers = append(stg.hasTimers, engine.StaticTimerID{TransformID: tid, TimerFamily: timerID})
 			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
 				if stg.processingTimeTimers == nil {
 					stg.processingTimeTimers = map[string]bool{}
