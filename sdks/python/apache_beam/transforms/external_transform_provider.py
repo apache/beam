@@ -239,7 +239,8 @@ class ExternalTransformProvider:
         schematransform_configs = SchemaAwareExternalTransform.discover(service)
       except Exception as e:
         logging.exception(
-            "Encountered an error while discovering expansion service at '%s':\n%s",
+            "Encountered an error while discovering "
+            "expansion service at '%s':\n%s",
             target,
             e)
         continue
