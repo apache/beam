@@ -1013,6 +1013,7 @@ class Reshuffle(PTransform):
       generated.
     """
     self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
+
     valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
     if not (num_buckets is None or valid_buckets):
       raise ValueError(
