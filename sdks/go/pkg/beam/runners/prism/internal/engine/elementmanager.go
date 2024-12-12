@@ -656,7 +656,8 @@ type Block struct {
 	Transform, Family string
 }
 
-// StaticTimerID represents the static user identifiers for a timer.
+// StaticTimerID represents the static user identifiers for a timer,
+// in particular, the ID of the Transform, and the family for the timer.
 type StaticTimerID struct {
 	Transform, TimerFamily string
 }
