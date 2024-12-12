@@ -195,10 +195,10 @@ type ElementManager struct {
 
 	pcolParents map[string]string // Map from pcollectionID to stageIDs that produce the pcollection.
 
-	refreshCond        sync.Cond   // refreshCond protects the following fields with it's lock, and unblocks bundle scheduling.
-	inprogressBundles  set[string] // Active bundleIDs
-	changedStages      set[string] // Stages that have changed and need their watermark refreshed.
-	sideChannelBundles []RunBundle // Represents ready to executed bundles prepared on the side by a stage instead of in the main loop, such as for onWindowExpiry, or for Triggers.
+	refreshCond       sync.Cond   // refreshCond protects the following fields with it's lock, and unblocks bundle scheduling.
+	inprogressBundles set[string] // Active bundleIDs
+	changedStages     set[string] // Stages that have changed and need their watermark refreshed.
+	injectedBundles   []RunBundle // Represents ready to execute bundles prepared outside of the main loop, such as for onWindowExpiration, or for Triggers.
 
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
@@ -350,7 +350,7 @@ func (rb RunBundle) LogValue() slog.Value {
 // The returned channel is closed when the context is canceled, or there are no pending elements
 // remaining.
 func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.CancelCauseFunc, nextBundID func() string) <-chan RunBundle {
-	// Make it easier for side channel bundles to get unique IDs.
+	// Make it easier for injected bundles to get unique IDs.
 	em.nextBundID = nextBundID
 	runStageCh := make(chan RunBundle)
 	ctx, cancelFn := context.WithCancelCause(ctx)
@@ -384,8 +384,9 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 			changedByProcessingTime := em.processTimeEvents.AdvanceTo(emNow)
 			em.changedStages.merge(changedByProcessingTime)
 
-			// If there are no changed stages or ready processing time events available, we wait until there are.
-			for len(em.changedStages)+len(changedByProcessingTime)+len(em.sideChannelBundles) == 0 {
+			// If there are no changed stages, ready processing time events,
+			// or injected bundles available, we wait until there are.
+			for len(em.changedStages)+len(changedByProcessingTime)+len(em.injectedBundles) == 0 {
 				// Check to see if we must exit
 				select {
 				case <-ctx.Done():
@@ -400,10 +401,10 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				changedByProcessingTime = em.processTimeEvents.AdvanceTo(emNow)
 				em.changedStages.merge(changedByProcessingTime)
 			}
-			// Run any side channel bundles first.
-			for len(em.sideChannelBundles) > 0 {
-				rb := em.sideChannelBundles[0]
-				em.sideChannelBundles = em.sideChannelBundles[1:]
+			// Run any injected bundles first.
+			for len(em.injectedBundles) > 0 {
+				rb := em.injectedBundles[0]
+				em.injectedBundles = em.injectedBundles[1:]
 				em.refreshCond.L.Unlock()
 
 				select {
@@ -1676,7 +1677,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	return refreshes
 }
 
-// createOnWindowExpirationBundles creates side channel bundles when windows
+// createOnWindowExpirationBundles injects bundles when windows
 // expire for all keys that were used in that window. Returns true if any
 // bundles are created, which means that the window must not yet be garbage
 // collected.
@@ -1698,7 +1699,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		// are in progress.
 		ss.inProgressExpiredWindows[win] += 1
 
-		// Produce bundle(s) for these keys and window, and side channel them.
+		// Produce bundle(s) for these keys and window, and inject them.
 		wm := win.MaxTimestamp()
 		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + em.nextBundID(), Watermark: wm}
 
@@ -1739,7 +1740,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		// We're already in the refreshCond critical section.
 		// Insert that this is in progress here to avoid a race condition.
 		em.inprogressBundles.insert(rb.BundleID)
-		em.sideChannelBundles = append(em.sideChannelBundles, rb)
+		em.injectedBundles = append(em.injectedBundles, rb)
 
 		// Remove the key accounting, or continue tracking which keys still need clearing.
 		if len(busyKeys) == 0 {
