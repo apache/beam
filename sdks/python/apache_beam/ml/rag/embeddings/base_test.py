@@ -15,8 +15,11 @@
 # limitations under the License.
 
 import unittest
-from apache_beam.ml.rag.types import Chunk, Content, Embedding
-from apache_beam.ml.rag.embeddings.base import (create_rag_adapter)
+
+from apache_beam.ml.rag.embeddings.base import create_rag_adapter
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import Embedding
 
 
 class RAGBaseEmbeddingsTest(unittest.TestCase):

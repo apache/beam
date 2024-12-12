@@ -14,10 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
-from apache_beam.ml.rag.types import Embedding, Chunk
-from typing import List
 from collections.abc import Sequence
+from typing import List
+
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 
 
 def create_rag_adapter() -> EmbeddingTypeAdapter[Chunk, Chunk]:

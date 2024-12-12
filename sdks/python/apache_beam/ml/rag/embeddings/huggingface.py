@@ -22,10 +22,10 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.rag.embeddings.base import create_rag_adapter
 from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.transforms.base import (
-    EmbeddingsManager, _TextEmbeddingHandler)
-from apache_beam.ml.transforms.embeddings.huggingface import (
-    SentenceTransformer, _SentenceTransformerModelHandler)
+from apache_beam.ml.transforms.base import EmbeddingsManager
+from apache_beam.ml.transforms.base import _TextEmbeddingHandler
+from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformer
+from apache_beam.ml.transforms.embeddings.huggingface import _SentenceTransformerModelHandler
 
 
 class HuggingfaceTextEmbeddings(EmbeddingsManager):

@@ -21,9 +21,14 @@ implementation, including Chunk and Embedding types that define the data
 contracts between different stages of the pipeline.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
 import uuid
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 
 @dataclass

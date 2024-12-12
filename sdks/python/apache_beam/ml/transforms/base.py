@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import abc
+import functools
 import logging
 import os
 import tempfile
@@ -22,8 +23,8 @@ import uuid
 from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
-from typing import cast
 from typing import Dict
 from typing import Generic
 from typing import Iterable
@@ -31,12 +32,10 @@ from typing import List
 from typing import Optional
 from typing import TypeVar
 from typing import Union
+from typing import cast
 
-import functools
 import jsonpickle
 import numpy as np
-
-from dataclasses import dataclass
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -258,11 +257,6 @@ class EmbeddingsManager(MLTransformProvider):
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
-    if columns is not None and type_adapter is not None:
-      raise ValueError(
-          "Cannot specify both 'columns' and 'type_adapter'. "
-          "Use either columns for dict processing or type_adapter "
-          "for custom types.")
     self.load_model_args = load_model_args or {}
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
