@@ -659,7 +659,7 @@ type Block struct {
 // StaticTimerID represents the static user identifiers for a timer,
 // in particular, the ID of the Transform, and the family for the timer.
 type StaticTimerID struct {
-	Transform, TimerFamily string
+	TransformID, TimerFamily string
 }
 
 // StateForBundle retreives relevant state for the given bundle, WRT the data in the bundle.
@@ -1719,7 +1719,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 				timestamp:     wm,
 				pane:          typex.NoFiringPane(),
 				holdTimestamp: wm,
-				transform:     ss.onWindowExpiration.Transform,
+				transform:     ss.onWindowExpiration.TransformID,
 				family:        ss.onWindowExpiration.TimerFamily,
 				sequence:      1,
 				keyBytes:      []byte(k),

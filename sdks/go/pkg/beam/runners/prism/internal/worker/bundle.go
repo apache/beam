@@ -190,7 +190,7 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	for _, tid := range b.HasTimers {
 		timers = append(timers, &fnpb.Elements_Timers{
 			InstructionId: b.InstID,
-			TransformId:   tid.Transform,
+			TransformId:   tid.TransformID,
 			TimerFamilyId: tid.TimerFamily,
 			IsLast:        true,
 		})

@@ -537,7 +537,7 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn", []string{"input"}, nil, nil)
 		onWE := StaticTimerID{
-			Transform:   "dofn1",
+			TransformID: "dofn1",
 			TimerFamily: "onWinExp",
 		}
 		em.StageOnWindowExpiration("dofn", onWE)
