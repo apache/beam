@@ -430,9 +430,9 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam", 'y': "Hello world", 'z': 'unchanged'
         },
     ]
-    self.embedding_conig.columns = ['x', 'y']
+    embedding_config = FakeEmbeddingsManager(columns=['x', 'y'])
     expected_data = [{
-        key: (value[::-1] if key in self.embedding_conig.columns else value)
+        key: (value[::-1] if key in embedding_config.columns else value)
         for key,
         value in d.items()
     } for d in data]
@@ -440,9 +440,8 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       result = (
           p
           | beam.Create(data)
-          | base.MLTransform(
-              write_artifact_location=self.artifact_location).with_transform(
-                  self.embedding_conig))
+          | base.MLTransform(write_artifact_location=self.artifact_location).
+          with_transform(embedding_config))
       assert_that(
           result,
           equal_to(expected_data),
@@ -457,16 +456,15 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam", 'y': "Hello world"
         },
     ]
-    self.embedding_conig.columns = ['x', 'y', 'a']
+    embedding_config = FakeEmbeddingsManager(columns=['x', 'y', 'a'])
 
     with self.assertRaises(RuntimeError):
       with beam.Pipeline() as p:
         _ = (
             p
             | beam.Create(data)
-            | base.MLTransform(
-                write_artifact_location=self.artifact_location).with_transform(
-                    self.embedding_conig))
+            | base.MLTransform(write_artifact_location=self.artifact_location).
+            with_transform(embedding_config))
 
   def test_handler_with_list_data(self):
     data = [{
@@ -588,31 +586,37 @@ class TestImageEmbeddingHandler(unittest.TestCase):
 
 
 class TestUtilFunctions(unittest.TestCase):
-  def test_list_of_dicts_to_dict_of_lists_normal(self):
+  def test_dict_input_fn_normal(self):
     input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
-    expected_output = {'a': [1, 3], 'b': [2, 4]}
-    self.assertEqual(
-        base._convert_list_of_dicts_to_dict_of_lists(input_list),
-        expected_output)
+    columns = ['a', 'b']
 
-  def test_list_of_dicts_to_dict_of_lists_on_list_inputs(self):
+    expected_output = [1, 2, 3, 4]
+    self.assertEqual(base._dict_input_fn(columns, input_list), expected_output)
+
+  def test_dict_output_fn_normal(self):
+    input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
+    columns = ['a', 'b']
+    embeddings = [1.1, 2.2, 3.3, 4.4]
+
+    expected_output = [{'a': 1.1, 'b': 2.2}, {'a': 3.3, 'b': 4.4}]
+    self.assertEqual(
+        base._dict_output_fn(columns, input_list, embeddings), expected_output)
+
+  def test_dict_input_fn_on_list_inputs(self):
     input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]
-    expected_output = {'a': [[1, 2, 10], [1]], 'b': [3, 5]}
-    self.assertEqual(
-        base._convert_list_of_dicts_to_dict_of_lists(input_list),
-        expected_output)
+    columns = ['a', 'b']
 
-  def test_dict_of_lists_to_lists_of_dict_normal(self):
-    input_dict = {'a': [1, 3], 'b': [2, 4]}
-    expected_output = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
-    self.assertEqual(
-        base._convert_dict_of_lists_to_lists_of_dict(input_dict),
-        expected_output)
+    expected_output = [[1, 2, 10], 3, [1], 5]
+    self.assertEqual(base._dict_input_fn(columns, input_list), expected_output)
 
-  def test_dict_of_lists_to_lists_of_dict_unequal_length(self):
-    input_dict = {'a': [1, 3], 'b': [2]}
-    with self.assertRaises(AssertionError):
-      base._convert_dict_of_lists_to_lists_of_dict(input_dict)
+  def test_dict_output_fn_on_list_inputs(self):
+    input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]
+    columns = ['a', 'b']
+    embeddings = [1.1, 2.2, 3.3, 4.4]
+
+    expected_output = [{'a': 1.1, 'b': 2.2}, {'a': 3.3, 'b': 4.4}]
+    self.assertEqual(
+        base._dict_output_fn(columns, input_list, embeddings), expected_output)
 
 
 class TestJsonPickleTransformAttributeManager(unittest.TestCase):
