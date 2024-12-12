@@ -1118,7 +1118,7 @@ type stageState struct {
 	// onWindowExpiration management
 	onWindowExpiration       StaticTimerID                // The static ID of the OnWindowExpiration callback.
 	keysToExpireByWindow     map[typex.Window]set[string] // Tracks all keys ever used with a window, so they may be expired.
-	inProgressExpiredWindows map[typex.Window]int         // Tracks the number of bundles currently expiring these windows, so we don't prematurely collect them.
+	inProgressExpiredWindows map[typex.Window]int         // Tracks the number of bundles currently expiring these windows, so we don't prematurely garbage collect them.
 	expiryWindowsByBundles   map[string]typex.Window      // Tracks which bundle is handling which window, so the above map can be cleared.
 
 	mu                 sync.Mutex
