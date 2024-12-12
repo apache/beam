@@ -33,6 +33,7 @@ from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -75,10 +76,10 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
-from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
@@ -956,7 +957,8 @@ class ReshufflePerKey(PTransform):
         ]
 
       ungrouped = pcoll | Map(reify_timestamps).with_input_types(
-          Tuple[K, V]).with_output_types(Tuple[K, Tuple[V, Timestamp]])
+          Tuple[K, V]).with_output_types(
+              Tuple[K, Tuple[V, Optional[Timestamp]]])
     else:
 
       # typing: All conditional function variants must have identical signatures
