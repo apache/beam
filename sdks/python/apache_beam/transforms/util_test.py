@@ -1012,6 +1012,7 @@ class ReshuffleTest(unittest.TestCase):
 
   global _Unpicklable
   global _UnpicklableCoder
+
   class _Unpicklable(object):
     def __init__(self, value):
       self.value = value
