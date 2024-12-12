@@ -162,7 +162,8 @@ public class GcsUtil {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions.getGoogleCloudStorageReadOptions());
+          gcsOptions.getGoogleCloudStorageReadOptions(),
+          gcsOptions.getGoogleCloudStorageProvider());
     }
 
     /** Returns an instance of {@link GcsUtil} based on the given parameters. */
@@ -174,7 +175,8 @@ public class GcsUtil {
         Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes,
         GcsCountersOptions gcsCountersOptions,
-        GoogleCloudStorageReadOptions gcsReadOptions) {
+        GoogleCloudStorageReadOptions gcsReadOptions,
+        GcsOptions.GoogleCloudStorageProvider googleCloudStorageProvider) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
@@ -184,7 +186,17 @@ public class GcsUtil {
           uploadBufferSizeBytes,
           null,
           gcsCountersOptions,
-          gcsReadOptions);
+          gcsReadOptions,
+          googleCloudStorageProvider);
+    }
+  }
+
+  public static class GoogleCloudStorageProviderFactory
+      implements DefaultValueFactory<GcsOptions.GoogleCloudStorageProvider> {
+    @Override
+    public GcsOptions.GoogleCloudStorageProvider create(PipelineOptions options) {
+      return (storageOptions, storage, credentials, httpRequestInitializer) ->
+          new GoogleCloudStorageImpl(storageOptions, storage, credentials);
     }
   }
 
@@ -228,6 +240,7 @@ public class GcsUtil {
   private final Credentials credentials;
 
   private GoogleCloudStorage googleCloudStorage;
+  private GcsOptions.GoogleCloudStorageProvider googleCloudStorageProvider;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
 
   private final int rewriteDataOpBatchLimit;
@@ -261,7 +274,8 @@ public class GcsUtil {
       @Nullable Integer uploadBufferSizeBytes,
       @Nullable Integer rewriteDataOpBatchLimit,
       GcsCountersOptions gcsCountersOptions,
-      GoogleCloudStorageReadOptions gcsReadOptions) {
+      GoogleCloudStorageReadOptions gcsReadOptions,
+      GcsOptions.GoogleCloudStorageProvider googleCloudStorageProvider) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
@@ -269,6 +283,7 @@ public class GcsUtil {
     this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
+    this.googleCloudStorageProvider = googleCloudStorageProvider;
     googleCloudStorageOptions =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
@@ -276,7 +291,8 @@ public class GcsUtil {
             .setGrpcEnabled(shouldUseGrpc)
             .build();
     googleCloudStorage =
-        createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
+        googleCloudStorageProvider.get(
+            googleCloudStorageOptions, storageClient, credentials, httpRequestInitializer);
     this.batchRequestSupplier =
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
@@ -509,6 +525,11 @@ public class GcsUtil {
     googleCloudStorageOptions = g;
   }
 
+  @VisibleForTesting
+  void setCloudStorageProviderImpl(GcsOptions.GoogleCloudStorageProvider p) {
+    googleCloudStorageProvider = p;
+  }
+
   /**
    * Create an integer consumer that updates the counter identified by a prefix and a bucket name.
    */
@@ -695,8 +716,11 @@ public class GcsUtil {
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     GoogleCloudStorage gcpStorage =
-        createGoogleCloudStorage(
-            newGoogleCloudStorageOptions, this.storageClient, this.credentials);
+        googleCloudStorageProvider.get(
+            newGoogleCloudStorageOptions,
+            this.storageClient,
+            this.credentials,
+            httpRequestInitializer);
     StorageResourceId resourceId =
         new StorageResourceId(
             path.getBucket(),
@@ -735,11 +759,6 @@ public class GcsUtil {
       }
       throw e;
     }
-  }
-
-  GoogleCloudStorage createGoogleCloudStorage(
-      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
-    return new GoogleCloudStorageImpl(options, storage, credentials);
   }
 
   /**
