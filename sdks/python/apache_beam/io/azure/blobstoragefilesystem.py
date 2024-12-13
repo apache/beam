@@ -328,4 +328,4 @@ class BlobStorageFileSystem(FileSystem):
       or(len(components) > 1 and components[-1] == ''):
       # bucket only
       components = components[:-1]
-    lineage.add('abs', *components)
+    lineage.add('abs', *components, last_segment_sep='/')

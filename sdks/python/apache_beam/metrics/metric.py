@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Set
@@ -342,8 +343,8 @@ class Lineage:
   SINK = "sinks"
 
   _METRICS = {
-      SOURCE: Metrics.string_set(LINEAGE_NAMESPACE, SOURCE),
-      SINK: Metrics.string_set(LINEAGE_NAMESPACE, SINK)
+      SOURCE: Metrics.bounded_trie(LINEAGE_NAMESPACE, SOURCE),
+      SINK: Metrics.bounded_trie(LINEAGE_NAMESPACE, SINK)
   }
 
   def __init__(self, label: str) -> None:
@@ -392,8 +393,32 @@ class Lineage:
       return ':'.join((system, subtype, segs))
     return ':'.join((system, segs))
 
+  @staticmethod
+  def _get_fqn_parts(
+      system: str,
+      *segments: str,
+      subtype: Optional[str] = None,
+      last_segment_sep: Optional[str] = None) -> Iterator[str]:
+    yield system + ':'
+    if subtype:
+      yield subtype + ':'
+    if segments:
+      for segment in segments[:-1]:
+        yield segment + '.'
+      if last_segment_sep:
+        sub_segments = segments[-1].split(last_segment_sep)
+        for sub_segment in sub_segments[:-1]:
+          yield sub_segment + last_segment_sep
+        yield sub_segments[-1]
+      else:
+        yield segments[-1]
+
   def add(
-      self, system: str, *segments: str, subtype: Optional[str] = None) -> None:
+      self,
+      system: str,
+      *segments: str,
+      subtype: Optional[str] = None,
+      last_segment_sep: Optional[str] = None) -> None:
     """
     Adds the given details as Lineage.
 
@@ -414,11 +439,21 @@ class Lineage:
     The first positional argument serves as system, if full segments are
     provided, or the full FQN if it is provided as a single argument.
     """
-    system_or_details = system
-    if len(segments) == 0 and subtype is None:
-      self.metric.add(system_or_details)
-    else:
-      self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
+    self.add_raw(
+        *self._get_fqn_parts(
+            system,
+            *segments,
+            subtype=subtype,
+            last_segment_sep=last_segment_sep))
+
+  def add_raw(self, *rollup_segments: str) -> None:
+    """Adds the given fqn as lineage.
+
+    `rollup_segments` should be an iterable of strings whose concatenation
+    is a valid Dataplex FQN.  In particular, this means they will often have
+    trailing delimiters.
+    """
+    self.metric.add(rollup_segments)
 
   @staticmethod
   def query(results: MetricResults, label: str) -> Set[str]:
