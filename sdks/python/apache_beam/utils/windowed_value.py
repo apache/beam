@@ -28,13 +28,11 @@ import collections
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
-from typing import TypeVar
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -43,8 +41,6 @@ from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused
 
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
-
-T = TypeVar('T')
 
 
 class PaneInfoTiming(object):
@@ -211,7 +207,7 @@ class WindowedValue(object):
   """
   def __init__(
       self,
-      value,  # type: T
+      value,
       timestamp,  # type: TimestampTypes
       windows,  # type: Tuple[BoundedWindow, ...]
       pane_info=PANE_INFO_UNKNOWN  # type: PaneInfo
@@ -263,7 +259,7 @@ class WindowedValue(object):
             (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value):
-    # type: (Any) -> WindowedValue[T]
+    # type: (Any) -> WindowedValue
 
     """Creates a new WindowedValue with the same timestamps and windows as this.
 
@@ -275,17 +271,6 @@ class WindowedValue(object):
   def __reduce__(self):
     return WindowedValue, (
         self.value, self.timestamp, self.windows, self.pane_info)
-
-
-# During type inference of WindowedValue, we need to make it generic and pass
-# in the inner value type. We cannot do that directly on WindowedValue class
-# because it is cythonized and it seems cython could not handle generic classes.
-# The workaround here is creating a subclass and keep it uncythonized.
-# This class should be used solely for type inference, and should never be used
-# for creating instances.
-class TypedWindowedValue(Generic[T]):
-  def __init__(self, *args, **kwargs):
-    raise NotImplementedError("This class is solely for type inference")
 
 
 # TODO(robertwb): Move this to a static method.

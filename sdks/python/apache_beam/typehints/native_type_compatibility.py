@@ -24,9 +24,12 @@ import logging
 import sys
 import types
 import typing
+from typing import Generic
+from typing import TypeVar
 
 from apache_beam.typehints import typehints
-from apache_beam.utils.windowed_value import TypedWindowedValue
+
+T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -215,6 +218,17 @@ def convert_collections_to_typing(typ):
     elif _match_is_exactly_iterable(typ):
       typ = typing.Iterable[typ.__args__]
   return typ
+
+
+# During type inference of WindowedValue, we need to make it generic and pass
+# in the inner value type. We cannot do that directly on WindowedValue class
+# because it is cythonized and it seems cython could not handle generic classes.
+# The workaround here is creating a subclass and keep it uncythonized.
+# This class should be used solely for type inference, and should never be used
+# for creating instances.
+class TypedWindowedValue(Generic[T]):
+  def __init__(self, *args, **kwargs):
+    raise NotImplementedError("This class is solely for type inference")
 
 
 def convert_to_beam_type(typ):
