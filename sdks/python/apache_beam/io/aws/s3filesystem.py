@@ -325,4 +325,4 @@ class S3FileSystem(FileSystem):
         (len(components) > 1 and components[-1] == ''):
       # bucket only
       components = components[:-1]
-    lineage.add('s3', *components)
+    lineage.add('s3', *components, last_segment_sep='/')
