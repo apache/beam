@@ -826,7 +826,7 @@ class BoundedTrieData(object):
   def get_cumulative(self) -> "BoundedTrieData":
     return copy.deepcopy(self)
 
-  def get_result(self) -> set[tuple]:
+  def get_result(self) -> Set[tuple]:
     if self._root is None:
       if self._singleton is None:
         return set()
