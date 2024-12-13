@@ -40,7 +40,8 @@ public final class KeyCommitTooLargeException extends Exception {
     message.append(
         ". This may be caused by grouping a very "
             + "large amount of data in a single window without using Combine,"
-            + " or by producing a large amount of data from a single input element.");
+            + " or by producing a large amount of data from a single input element."
+            + " See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception.");
     return new KeyCommitTooLargeException(message.toString());
   }
 
