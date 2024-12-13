@@ -277,6 +277,12 @@ class WindowedValue(object):
         self.value, self.timestamp, self.windows, self.pane_info)
 
 
+# During type inference of WindowedValue, we need to make it generic and pass
+# in the inner value type. We cannot do that directly on WindowedValue class
+# because it is cythonized and it seems cython could not handle generic classes.
+# The workaround here is creating a subclass and keep it uncythonized.
+# This class should be used solely for type inference, and should never be used
+# for creating instances.
 class TypedWindowedValue(WindowedValue, Generic[T]):
   def __init__(self, *args, **kwargs):
     raise NotImplementedError("This class is solely for type inference")
