@@ -44,7 +44,6 @@ from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
 
-
 T = TypeVar('T')
 
 
@@ -198,7 +197,7 @@ _BYTE_TO_PANE_INFO = _construct_well_known_pane_infos()
 PANE_INFO_UNKNOWN = _BYTE_TO_PANE_INFO[0xF]
 
 
-class WindowedValue(Generic[T]):
+class WindowedValue(object):
   """A windowed value having a value, a timestamp and set of windows.
 
   Attributes:
@@ -276,6 +275,11 @@ class WindowedValue(Generic[T]):
   def __reduce__(self):
     return WindowedValue, (
         self.value, self.timestamp, self.windows, self.pane_info)
+
+
+class TypedWindowedValue(WindowedValue, Generic[T]):
+  def __init__(self, *args, **kwargs):
+    raise NotImplementedError("This class is solely for type inference")
 
 
 # TODO(robertwb): Move this to a static method.

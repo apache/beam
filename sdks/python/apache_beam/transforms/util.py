@@ -975,7 +975,7 @@ class ReshufflePerKey(PTransform):
 
       ungrouped = pcoll | Map(reify_timestamps).with_input_types(
           Tuple[K, V]).with_output_types(
-              Tuple[K, windowed_value.WindowedValue[V]])
+              Tuple[K, windowed_value.TypedWindowedValue[V]])
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
