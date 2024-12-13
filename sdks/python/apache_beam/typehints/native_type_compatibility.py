@@ -220,12 +220,13 @@ def convert_collections_to_typing(typ):
   return typ
 
 
-# During type inference of WindowedValue, we need to make it generic and pass
-# in the inner value type. We cannot do that directly on WindowedValue class
-# because it is cythonized and it seems cython could not handle generic classes.
-# The workaround here is creating a subclass and keep it uncythonized.
-# This class should be used solely for type inference, and should never be used
-# for creating instances.
+# During type inference of WindowedValue, we need to pass in the inner value
+# type. This cannot be achieved immediately with WindowedValue class because it
+# is not parameterized. Changing it to a generic class (e.g. WindowedValue[T])
+# could work in theory. However, the class is cythonized and it seems that
+# cython does not handle generic classes well.
+# The workaround here is to create a separate class solely for the type
+# inference purpose. This class should never be used for creating instances.
 class TypedWindowedValue(Generic[T]):
   def __init__(self, *args, **kwargs):
     raise NotImplementedError("This class is solely for type inference")
