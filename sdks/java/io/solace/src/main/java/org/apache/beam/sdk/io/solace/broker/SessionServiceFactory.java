@@ -77,7 +77,7 @@ public abstract class SessionServiceFactory implements Serializable {
   public abstract SessionService create();
 
   /**
-   * Do not override. This method is called in the {@link
+   * This method is called in the {@link
    * org.apache.beam.sdk.io.solace.SolaceIO.Read#expand(org.apache.beam.sdk.values.PBegin)} method
    * to set the Queue reference based on {@link
    * org.apache.beam.sdk.io.solace.SolaceIO.Read#from(Solace.Queue)} or {@link
@@ -90,8 +90,8 @@ public abstract class SessionServiceFactory implements Serializable {
   }
 
   /**
-   * Getter for the queue. Do not override. This is nullable, because at the construction time this
-   * reference is null. Once the pipeline is compiled and the {@link
+   * Getter for the queue. This is nullable, because at the construction time this reference is
+   * null. Once the pipeline is compiled and the {@link
    * org.apache.beam.sdk.io.solace.SolaceIO.Read#expand(org.apache.beam.sdk.values.PBegin)} method
    * is called, this reference is valid.
    *

@@ -139,10 +139,6 @@ public abstract class JcsmpSessionService extends SessionService {
   }
 
   private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
-    if (isClosed()) {
-      connectReadSession();
-    }
-
     Queue queue = checkStateNotNull(queue(), "SolaceIO.Read: Queue is not set.");
 
     ConsumerFlowProperties flowProperties = new ConsumerFlowProperties();
