@@ -283,7 +283,7 @@ class WindowedValue(object):
 # The workaround here is creating a subclass and keep it uncythonized.
 # This class should be used solely for type inference, and should never be used
 # for creating instances.
-class TypedWindowedValue(Generic[T], WindowedValue):
+class TypedWindowedValue(Generic[T]):
   def __init__(self, *args, **kwargs):
     raise NotImplementedError("This class is solely for type inference")
 
