@@ -37,7 +37,7 @@ def _assign_chunk_id(chunk_id_fn: ChunkIdFn, chunk: Chunk):
 class ChunkingTransformProvider(MLTransformProvider):
   def __init__(self, chunk_id_fn: Optional[ChunkIdFn] = None):
     """Base class for chunking transforms in RAG pipelines.
-    
+
     ChunkingTransformProvider defines the interface for splitting documents
     into chunks for embedding and retrieval. Implementations should define how
     to split content while preserving metadata and managing chunk IDs.
@@ -49,24 +49,23 @@ class ChunkingTransformProvider(MLTransformProvider):
     4. Optionally assigns unique IDs to chunks (configurable via chunk_id_fn).
 
     Example usage:
-        ```python
-        class MyChunker(ChunkingTransformProvider):
-            def get_splitter_transform(self):
-                return beam.ParDo(MySplitterDoFn())
-                
-        chunker = MyChunker(chunk_id_fn=my_id_function)
-        
-        with beam.Pipeline() as p:
-            chunks = (
-                p 
-                | beam.Create([{'text': 'document...', 'source': 'doc.txt'}])
-                | MLTransform(...).with_transform(chunker))
-        ```
+      ```python
+      class MyChunker(ChunkingTransformProvider):
+        def get_splitter_transform(self):
+          return beam.ParDo(MySplitterDoFn())
+
+      chunker = MyChunker(chunk_id_fn=my_id_function)
+
+      with beam.Pipeline() as p:
+        chunks = (
+          p 
+          | beam.Create([{'text': 'document...', 'source': 'doc.txt'}])
+          | MLTransform(...).with_transform(chunker))
+      ```
 
     Args:
-        chunk_id_fn: Optional function to generate chunk IDs. If not provided,
-          random UUIDs will be used. Function should take a Chunk and return
-          str.
+      chunk_id_fn: Optional function to generate chunk IDs. If not provided,
+        random UUIDs will be used. Function should take a Chunk and return str.
     """
     self.assign_chunk_id_fn = functools.partial(
         _assign_chunk_id, chunk_id_fn) if chunk_id_fn is not None else None

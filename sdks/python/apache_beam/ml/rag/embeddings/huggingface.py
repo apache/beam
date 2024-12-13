@@ -29,20 +29,14 @@ from apache_beam.ml.transforms.embeddings.huggingface import _SentenceTransforme
 
 
 class HuggingfaceTextEmbeddings(EmbeddingsManager):
-  """SentenceTransformer embeddings for RAG pipeline.
-    
-    Extends EmbeddingsManager to work with RAG-specific types:
-    - Input: Chunk objects containing text to embed
-    - Output: Chunk objects with embedding property set
-    """
   def __init__(
       self, model_name: str, *, max_seq_length: Optional[int] = None, **kwargs):
-    """Initialize RAG embeddings.
-        
+    """Utilizes huggingface SentenceTransformer embeddings for RAG pipeline.
+
         Args:
             model_name: Name of the sentence-transformers model to use
             max_seq_length: Maximum sequence length for the model
-            **kwargs: Additional arguments passed to parent
+            **kwargs: Additional arguments including ModelHandlers arguments
         """
     super().__init__(type_adapter=create_rag_adapter(), **kwargs)
     self.model_name = model_name

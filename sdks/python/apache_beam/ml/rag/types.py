@@ -34,6 +34,9 @@ from typing import Tuple
 @dataclass
 class Content:
   """Container for embeddable content. Add new types as when as necessary.
+
+    Args:
+        text: Text content to be embedded
     """
   text: Optional[str] = None
 
@@ -42,7 +45,7 @@ class Content:
 class Embedding:
   """Represents vector embeddings.
     
-    Attributes:
+    Args:
         dense_embedding: Dense vector representation
         sparse_embedding: Optional sparse vector representation for hybrid
           search
@@ -56,7 +59,7 @@ class Embedding:
 class Chunk:
   """Represents a chunk of embeddable content with metadata.
     
-    Attributes:
+    Args:
         content: The actual content of the chunk
         id: Unique identifier for the chunk
         index: Index of this chunk within the original document
