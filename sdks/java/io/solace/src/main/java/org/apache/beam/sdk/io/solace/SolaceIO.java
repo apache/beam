@@ -47,7 +47,6 @@ import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
 import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
-import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -846,7 +845,8 @@ public class SolaceIO {
     public static final TupleTag<Solace.PublishResult> SUCCESSFUL_PUBLISH_TAG =
         new TupleTag<Solace.PublishResult>() {};
     private static final Duration DEFAULT_MAX_BUFFERING_DURATION = Duration.standardSeconds(10);
-    private static final Duration DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES = Duration.standardSeconds(5);
+    private static final Duration DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES =
+        Duration.standardSeconds(5);
 
     /**
      * Write to a Solace topic.
@@ -1028,10 +1028,7 @@ public class SolaceIO {
       return toBuilder().setMaxBufferingDuration(maxBufferingDuration).build();
     }
 
-    /**
-     *  todo add docs
-     *  {@link #DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES}
-     */
+    /** todo add docs {@link #DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES} */
     public Write<T> withMaxWaitTimeForPublishResponses(Duration maxWaitTimeForPublishResponses) {
       return toBuilder().setMaxWaitTimeForPublishResponses(maxWaitTimeForPublishResponses).build();
     }
@@ -1069,8 +1066,7 @@ public class SolaceIO {
           .setDispatchMode(DEFAULT_WRITER_SUBMISSION_MODE)
           .setWriterType(DEFAULT_WRITER_TYPE)
           .setMaxBufferingDuration(DEFAULT_MAX_BUFFERING_DURATION)
-          .setMaxWaitTimeForPublishResponses(DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES)
-          ;
+          .setMaxWaitTimeForPublishResponses(DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES);
     }
 
     abstract Builder<T> toBuilder();
@@ -1099,7 +1095,8 @@ public class SolaceIO {
 
       abstract Builder<T> setMaxBufferingDuration(Duration maxBufferingDuration);
 
-      abstract Builder<T> setMaxWaitTimeForPublishResponses(Duration maxWaitTimeForPublishResponses);
+      abstract Builder<T> setMaxWaitTimeForPublishResponses(
+          Duration maxWaitTimeForPublishResponses);
 
       abstract Write<T> build();
     }
@@ -1180,7 +1177,7 @@ public class SolaceIO {
                       getDispatchMode(),
                       getNumberOfClientsPerWorker(),
                       getPublishLatencyMetrics(),
-                  getMaxWaitTimeForPublishResponses())
+                      getMaxWaitTimeForPublishResponses())
                   : new UnboundedBatchedSolaceWriter(
                       destinationFn,
                       checkNotNull(getSessionServiceFactory()),

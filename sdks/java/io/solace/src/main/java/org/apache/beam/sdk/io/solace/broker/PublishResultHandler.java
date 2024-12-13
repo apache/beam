@@ -92,7 +92,10 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
 
     if (publishPhaser != null) {
       // todo we should first add and then deregister
-      int arrived = publishPhaser.arrive();
+      if (publishPhaser.getArrivedParties() > 0) {
+        publishPhaser.successfulRecords.put(messageId, publishResult);
+        publishPhaser.arrive();
+      }
       // LOG.info(
       //     "bzablockilog arrived {} for message {}. unarrived: {}, arrived: {}, phase: {}",
       //     arrived,
@@ -100,11 +103,11 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
       //     publishPhaser.getUnarrivedParties(),
       //     publishPhaser.getArrivedParties(),
       //     publishPhaser.getPhase());
-      if (arrived < 0) {
-        // NOOOOOOOOOOOOO, this batch expired before
-      } else {
-        publishPhaser.successfulRecords.put(messageId, publishResult);
-      }
+      // if (arrived < 0) {
+      //   // NOOOOOOOOOOOOO, this batch expired before
+      // } else {
+      //
+      // }
     }
   }
 

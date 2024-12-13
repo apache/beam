@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -49,7 +47,8 @@ public abstract class MockSessionService extends SessionService {
 
   public abstract Function<PublishResultHandler, MockProducer> mockProducerFn();
 
-  private final ConcurrentHashMap<String, PublishPhaser> publishedResultsReceiver = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, PublishPhaser> publishedResultsReceiver =
+      new ConcurrentHashMap<>();
 
   public static Builder builder() {
     return new AutoValue_MockSessionService.Builder()

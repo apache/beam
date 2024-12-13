@@ -137,10 +137,10 @@ public abstract class SessionService implements Serializable {
   public abstract MessageProducer getInitializedProducer(SubmissionMode mode);
 
   /**
-   * todo fix this doc
-   * Returns the {@link ConcurrentHashMap<String, SettableFuture<PublishResult>>} instance associated with this session, with the
-   * asynchronously received callbacks from Solace for message publications. The queue
-   * implementation has to be thread-safe for production use-cases.
+   * todo fix this doc Returns the {@link ConcurrentHashMap<String, SettableFuture<PublishResult>>}
+   * instance associated with this session, with the asynchronously received callbacks from Solace
+   * for message publications. The queue implementation has to be thread-safe for production
+   * use-cases.
    */
   public abstract ConcurrentHashMap<String, PublishPhaser> getPublishedResults();
 

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.write;
 
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.solacesystems.jcsmp.DeliveryMode;
@@ -27,7 +28,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap.KeySetView;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -42,10 +42,13 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This DoFn is the responsible for writing to Solace in batch mode (holding up any messages), and
@@ -71,7 +74,7 @@ import org.joda.time.Instant;
 public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   // Log
 
-  // private static final Logger LOG = LoggerFactory.getLogger(UnboundedBatchedSolaceWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedBatchedSolaceWriter.class);
 
   private final Counter sentToBroker =
       Metrics.counter(UnboundedBatchedSolaceWriter.class, "msgs_sent_to_broker");
@@ -101,16 +104,23 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   public void processElement(
       @Element KV<Integer, Iterable<Solace.Record>> element,
       @Timestamp Instant timestamp,
+      BoundedWindow window,
       MultiOutputReceiver outputReceiver) {
     setCurrentBundleTimestamp(timestamp);
+    setCurrentBundleWindow(window);
     Iterable<Solace.Record> records = element.getValue();
 
     ImmutableList<Record> materializedRecords = ImmutableList.copyOf(records);
-    // UUID uuid = UUID.randomUUID();
-    PublishPhaser phaser = new PublishPhaser(0);
-    int registrationPhase = phaser.bulkRegister(materializedRecords.size() );
 
-    // LOG.info("bzablockilog {} registrationPhase {}", uuid, registrationPhase);
+    PublishPhaser phaser = checkNotNull(this.phaser);
+
+    this.bundleRegistrationPhase = phaser.bulkRegister(materializedRecords.size());
+
+    LOG.info(
+        "bzablockilog {} registrationPhase {}, registered parties:{}",
+        this.bundleUuid,
+        bundleRegistrationPhase,
+        phaser.getRegisteredParties());
     materializedRecords.forEach(
         record -> {
           solaceSessionServiceWithProducer()
@@ -118,20 +128,34 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
               .put(record.getMessageId(), phaser);
         });
 
+    this.bundleRecords.addAll(materializedRecords);
     publishBatch(materializedRecords);
+  }
 
-    // long now = System.currentTimeMillis();
+  @FinishBundle
+  public void finishBundle(FinishBundleContext context) {
+    publishResults(BeamContextWrapper.of(context));
+  }
+
+  public void publishResults(BeamContextWrapper context) {
+
+    PublishPhaser phaser = checkNotNull(this.phaser);
+    LOG.info(
+        "bzablockilog {} registered parties: {}",
+        checkNotNull(this.bundleUuid),
+        phaser.getRegisteredParties());
+    long now = System.currentTimeMillis();
     try {
-      phaser.awaitAdvanceInterruptibly(registrationPhase, 3, TimeUnit.SECONDS);
+      phaser.awaitAdvanceInterruptibly(bundleRegistrationPhase, 20, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } catch (TimeoutException e) {
       // that's ok, we handle it below.
     }
-    // LOG.info(
-    //     "bzablockilog {} awaitAdvanceInterruptibly took {}ms",
-    //     uuid,
-    //     System.currentTimeMillis() - now);
+    LOG.info(
+        "bzablockilog {} awaitAdvanceInterruptibly took {}ms",
+        checkNotNull(this.bundleUuid),
+        System.currentTimeMillis() - now);
 
     if (phaser.getUnarrivedParties() > 0) {
       phaser.forceTermination();
@@ -142,17 +166,17 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
     // published (materializedRecords) and the list of message ids that we received a response for
     // (responseReceivedIds).
     Set<String> responseNotReceivedIds =
-        materializedRecords.stream()
+        bundleRecords.stream()
             .map(Record::getMessageId)
             .filter(id -> !responseReceivedIds.contains(id))
             .collect(Collectors.toSet());
 
-    // LOG.info(
-    //     "bzablockilog {}, materializedRecords: {}, received:{}, responseNotReceivedIds: {}",
-    //     uuid,
-    //     materializedRecords.stream().map(Record::getMessageId).collect(Collectors.toList()),
-    //     responseReceivedIds,
-    //     responseNotReceivedIds);
+    LOG.info(
+        "bzablockilog {} materializedRecords: {}, received:{}, responseNotReceivedIds: {}",
+        checkNotNull(this.bundleUuid),
+        this.bundleRecords.size(),
+        responseReceivedIds.size(),
+        responseNotReceivedIds.size());
 
     responseNotReceivedIds.forEach(
         recordId -> {
@@ -164,24 +188,36 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
                       .setMessageId(recordId)
                       .build());
           if (badRecord != null) {
-            outputReceiver.get(FAILED_PUBLISH_TAG).output(badRecord);
+            context.output(
+                FAILED_PUBLISH_TAG,
+                badRecord,
+                getCurrentBundleTimestamp(),
+                getCurrentBundleWindow()); // todo nulls?
           }
         });
 
     phaser.successfulRecords.forEach(
         (key, value) -> {
           if (value.getPublished()) {
-            outputReceiver.get(SUCCESSFUL_PUBLISH_TAG).output(value);
+            context.output(
+                SUCCESSFUL_PUBLISH_TAG,
+                value,
+                getCurrentBundleTimestamp(),
+                getCurrentBundleWindow()); // todo nulls?
           } else {
             BadRecord badRecord = createBadRecord(value);
             if (badRecord != null) {
-              outputReceiver.get(FAILED_PUBLISH_TAG).output(badRecord);
+              context.output(
+                  FAILED_PUBLISH_TAG,
+                  badRecord,
+                  getCurrentBundleTimestamp(),
+                  getCurrentBundleWindow()); // todo nulls?
             }
           }
         });
 
     // Remove entries from the map that stores the SettableFutures with Callbacks
-    materializedRecords.stream()
+    this.bundleRecords.stream()
         .map(Record::getMessageId)
         .forEach(solaceSessionServiceWithProducer().getPublishedResults()::remove);
   }

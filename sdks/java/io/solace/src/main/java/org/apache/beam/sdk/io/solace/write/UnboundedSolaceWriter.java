@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.write;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,8 +42,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This DoFn encapsulates common code used both for the {@link UnboundedBatchedSolaceWriter} and
@@ -73,6 +72,11 @@ public abstract class UnboundedSolaceWriter
   final Duration maxWaitTimeForPublishResponses;
 
   final UUID writerTransformUuid = UUID.randomUUID();
+  ArrayList<Record> bundleRecords = new ArrayList<>();
+  protected @Nullable PublishPhaser phaser;
+  protected @Nullable UUID bundleUuid;
+  protected @Nullable BoundedWindow bundleWindow;
+  protected int bundleRegistrationPhase;
 
   public UnboundedSolaceWriter(
       SerializableFunction<Record, Destination> destinationFn,
@@ -80,7 +84,8 @@ public abstract class UnboundedSolaceWriter
       DeliveryMode deliveryMode,
       SubmissionMode submissionMode,
       int producersMapCardinality,
-      boolean publishLatencyMetrics, Duration maxWaitTimeForPublishResponses) {
+      boolean publishLatencyMetrics,
+      Duration maxWaitTimeForPublishResponses) {
     this.destinationFn = destinationFn;
     this.sessionServiceFactory = sessionServiceFactory;
     // Make sure that we set the submission mode now that we know which mode has been set by the
@@ -108,9 +113,12 @@ public abstract class UnboundedSolaceWriter
   public void startBundle(PipelineOptions pipelineOptions) {
     // Pick a producer at random for this bundle, reuse for the whole bundle
     updateProducerIndex();
-      scheduledExecutorService = pipelineOptions.as(ExecutorOptions.class)
-          .getScheduledExecutorService();
+    scheduledExecutorService =
+        pipelineOptions.as(ExecutorOptions.class).getScheduledExecutorService();
 
+    this.bundleRecords = new ArrayList<>();
+    this.phaser = new PublishPhaser(0);
+    this.bundleUuid = UUID.randomUUID();
   }
 
   public SessionService solaceSessionServiceWithProducer() {
@@ -172,8 +180,10 @@ public abstract class UnboundedSolaceWriter
   //                 result,
   //                 null,
   //                 null,
-  //                 Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown error."));
-  //         context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
+  //                 Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown
+  // error."));
+  //         context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(),
+  // GlobalWindow.INSTANCE);
   //       } catch (IOException e) {
   //         // ignore, the exception is thrown when the exception argument in the
   //         // `BadRecord.fromExceptionInformation` is not null.
@@ -243,11 +253,19 @@ public abstract class UnboundedSolaceWriter
     }
   }
 
+  public void setCurrentBundleWindow(BoundedWindow window) {
+    this.bundleWindow = window;
+  }
+
+  public @Nullable BoundedWindow getCurrentBundleWindow() {
+    return bundleWindow;
+  }
+
   /**
    * Since we need to publish from on timer methods and finish bundle methods, we need a consistent
    * way to handle both WindowedContext and FinishBundleContext.
    */
-  static class BeamContextWrapper {
+  public static class BeamContextWrapper {
     private @Nullable WindowedContext windowedContext;
     private @Nullable FinishBundleContext finishBundleContext;
 

@@ -88,7 +88,8 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   @Nullable private transient MessageProducer messageProducer;
 
   // todo cache with cleanup policy.
-  private final ConcurrentHashMap<String, PublishPhaser> publishPhaserMap = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, PublishPhaser> publishPhaserMap =
+      new ConcurrentHashMap<>();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   @Override
