@@ -22,10 +22,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
-import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.beam.sdk.io.solace.MockProducer.MockSuccessProducer;
@@ -35,6 +32,7 @@ import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -51,7 +49,7 @@ public abstract class MockSessionService extends SessionService {
 
   public abstract Function<PublishResultHandler, MockProducer> mockProducerFn();
 
-  private final ConcurrentHashMap<String, SettableFuture<PublishResult>> publishedResultsReceiver = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, PublishPhaser> publishedResultsReceiver = new ConcurrentHashMap<>();
 
   public static Builder builder() {
     return new AutoValue_MockSessionService.Builder()
@@ -97,7 +95,7 @@ public abstract class MockSessionService extends SessionService {
   }
 
   @Override
-  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResults() {
+  public ConcurrentHashMap<String, PublishPhaser> getPublishedResults() {
     return publishedResultsReceiver;
   }
 

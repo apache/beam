@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -43,12 +42,12 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
-  private final ConcurrentHashMap<String, SettableFuture<PublishResult>> publishResultsQueue;
+  private final ConcurrentHashMap<String, PublishPhaser> publishPhaserMap;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(ConcurrentHashMap<String, SettableFuture<PublishResult>> publishResultsQueue) {
-    this.publishResultsQueue = publishResultsQueue;
+  public PublishResultHandler(ConcurrentHashMap<String, PublishPhaser> publishPhaserMap) {
+    this.publishPhaserMap = publishPhaserMap;
   }
 
   @Override
@@ -89,10 +88,23 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     }
 
     PublishResult publishResult = resultBuilder.build();
-    @Nullable SettableFuture<PublishResult> settableFuture = publishResultsQueue.get(messageId);
+    @Nullable PublishPhaser publishPhaser = publishPhaserMap.get(messageId);
 
-    if(settableFuture != null) {
-      settableFuture.set(publishResult);
+    if (publishPhaser != null) {
+      // todo we should first add and then deregister
+      int arrived = publishPhaser.arrive();
+      // LOG.info(
+      //     "bzablockilog arrived {} for message {}. unarrived: {}, arrived: {}, phase: {}",
+      //     arrived,
+      //     messageId,
+      //     publishPhaser.getUnarrivedParties(),
+      //     publishPhaser.getArrivedParties(),
+      //     publishPhaser.getPhase());
+      if (arrived < 0) {
+        // NOOOOOOOOOOOOO, this batch expired before
+      } else {
+        publishPhaser.successfulRecords.put(messageId, publishResult);
+      }
     }
   }
 

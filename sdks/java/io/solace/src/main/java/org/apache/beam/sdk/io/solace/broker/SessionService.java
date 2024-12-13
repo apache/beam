@@ -20,11 +20,11 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,7 +142,7 @@ public abstract class SessionService implements Serializable {
    * asynchronously received callbacks from Solace for message publications. The queue
    * implementation has to be thread-safe for production use-cases.
    */
-  public abstract ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResults();
+  public abstract ConcurrentHashMap<String, PublishPhaser> getPublishedResults();
 
   /**
    * Override this method and provide your specific properties, including all those related to

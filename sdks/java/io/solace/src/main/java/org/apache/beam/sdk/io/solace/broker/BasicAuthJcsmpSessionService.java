@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.solace.broker;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.util.concurrent.SettableFuture;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.FlowReceiver;
@@ -32,15 +31,13 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
@@ -90,9 +87,8 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   @Nullable private transient MessageReceiver messageReceiver;
   @Nullable private transient MessageProducer messageProducer;
 
-  // cache with cleanup policy.
-  private final ConcurrentHashMap<String, SettableFuture<PublishResult>> publishedResultsQueue =
-      new ConcurrentHashMap<>();
+  // todo cache with cleanup policy.
+  private final ConcurrentHashMap<String, PublishPhaser> publishPhaserMap = new ConcurrentHashMap<>();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   @Override
@@ -137,8 +133,8 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public ConcurrentHashMap<String, SettableFuture<PublishResult>> getPublishedResults() {
-    return publishedResultsQueue;
+  public ConcurrentHashMap<String, PublishPhaser> getPublishedResults() {
+    return publishPhaserMap;
   }
 
   private MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
@@ -152,7 +148,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
     Callable<XMLMessageProducer> initProducer =
         () ->
             Objects.requireNonNull(jcsmpSession)
-                .getMessageProducer(new PublishResultHandler(publishedResultsQueue));
+                .getMessageProducer(new PublishResultHandler(publishPhaserMap));
 
     XMLMessageProducer producer =
         retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));
