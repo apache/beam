@@ -283,7 +283,7 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
     _LOGGER.info('Converting NewType type hint to Any: "%s"', typ)
     return typehints.Any
-  elif typ_module == 'apache_beam.utils.windowed_value' and \
+  elif typ_module == 'apache_beam.typehints.native_type_compatibility' and \
       typ.__name__ == 'TypedWindowedValue':
     # Need to pass through WindowedValue class so that it can be converted
     # to the correct type constraint in Beam
