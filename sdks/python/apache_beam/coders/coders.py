@@ -1405,6 +1405,9 @@ class WindowedValueCoder(FastCoder):
   @classmethod
   def from_type_hint(cls, typehint, registry):
     # type: (Any, CoderRegistry) -> WindowedValueCoder
+    # Ideally this'd take two parameters so that one could hint at
+    # the window type as well instead of falling back to the
+    # pickle coders.
     return cls(registry.get_coder(typehint.inner_type))
 
 
