@@ -365,8 +365,5 @@ class LocalFileSystem(FileSystem):
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
 
-  def report_lineage(self, path, lineage, level=None):
-    if level == FileSystem.LineageLevel.TOP_LEVEL:
-      lineage.add('filesystem', 'localhost')
-    else:
-      lineage.add('filesystem', 'localhost', path, last_segment_sep='/')
+  def report_lineage(self, path, lineage):
+    lineage.add('filesystem', 'localhost', path, last_segment_sep='/')
