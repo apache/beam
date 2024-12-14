@@ -74,6 +74,7 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
+from apache_beam.typehints.native_type_compatibility import TypedWindowedValue
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
@@ -972,9 +973,8 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      # TODO(https://github.com/apache/beam/issues/33356): Support reshuffling
-      # unpicklable objects with a non-global window setting.
-      ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
+      ungrouped = pcoll | Map(reify_timestamps).with_input_types(
+          Tuple[K, V]).with_output_types(Tuple[K, TypedWindowedValue[V]])
 
     # TODO(https://github.com/apache/beam/issues/19785) Using global window as
     # one of the standard window. This is to mitigate the Dataflow Java Runner
