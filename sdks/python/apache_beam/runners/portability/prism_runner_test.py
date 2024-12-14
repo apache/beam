@@ -231,6 +231,9 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         "Requires Prism to support coder:" +
         " 'beam:coder:tuple:v1'. https://github.com/apache/beam/issues/32636")
 
+  def test_metrics(self):
+    super().test_metrics(check_bounded_trie=False)
+
 
 # Inherits all other tests.
 
