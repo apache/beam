@@ -1213,6 +1213,15 @@ class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
               repr(self.inner_type),
               instance.value.__class__.__name__))
 
+  def bind_type_variables(self, bindings):
+    bound_inner_type = bind_type_variables(self.inner_type, bindings)
+    if bound_inner_type == self.inner_type:
+      return self
+    return WindowedValue[bound_inner_type]
+
+  def __repr__(self):
+    return 'WindowedValue[%s]' % repr(self.inner_type)
+
 
 class GeneratorHint(IteratorHint):
   """A Generator type hint.

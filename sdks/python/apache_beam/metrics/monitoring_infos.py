@@ -50,11 +50,14 @@ USER_DISTRIBUTION_URN = (
     common_urns.monitoring_info_specs.USER_DISTRIBUTION_INT64.spec.urn)
 USER_GAUGE_URN = common_urns.monitoring_info_specs.USER_LATEST_INT64.spec.urn
 USER_STRING_SET_URN = common_urns.monitoring_info_specs.USER_SET_STRING.spec.urn
+USER_BOUNDED_TRIE_URN = (
+    common_urns.monitoring_info_specs.USER_BOUNDED_TRIE.spec.urn)
 USER_METRIC_URNS = set([
     USER_COUNTER_URN,
     USER_DISTRIBUTION_URN,
     USER_GAUGE_URN,
-    USER_STRING_SET_URN
+    USER_STRING_SET_URN,
+    USER_BOUNDED_TRIE_URN,
 ])
 WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
 WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
@@ -72,11 +75,13 @@ DISTRIBUTION_INT64_TYPE = (
 LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 PROGRESS_TYPE = common_urns.monitoring_info_types.PROGRESS_TYPE.urn
 STRING_SET_TYPE = common_urns.monitoring_info_types.SET_STRING_TYPE.urn
+BOUNDED_TRIE_TYPE = common_urns.monitoring_info_types.BOUNDED_TRIE_TYPE.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
 STRING_SET_TYPES = set([STRING_SET_TYPE])
+BOUNDED_TRIE_TYPES = set([BOUNDED_TRIE_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
 PCOLLECTION_LABEL = (
@@ -318,6 +323,23 @@ def user_set_string(namespace, name, metric, ptransform=None):
     metric = coders.IterableCoder(coders.StrUtf8Coder()).encode(metric)
   return create_monitoring_info(
       USER_STRING_SET_URN, STRING_SET_TYPE, metric, labels)
+
+
+def user_bounded_trie(namespace, name, metric, ptransform=None):
+  """Return the string set monitoring info for the URN, metric and labels.
+
+  Args:
+    namespace: User-defined namespace of BoundedTrie.
+    name: Name of BoundedTrie.
+    metric: The BoundedTrieData representing the metrics.
+    ptransform: The ptransform id used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  return create_monitoring_info(
+      USER_BOUNDED_TRIE_URN,
+      BOUNDED_TRIE_TYPE,
+      metric.to_proto().SerializeToString(),
+      labels)
 
 
 def create_monitoring_info(

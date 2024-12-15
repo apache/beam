@@ -182,8 +182,6 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
 
-			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
-
 			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
 			if pardo.GetRestrictionCoderId() != "" && isStateful {
 				check("Splittable+Stateful DoFn", "See https://github.com/apache/beam/issues/32139 for information.", "")

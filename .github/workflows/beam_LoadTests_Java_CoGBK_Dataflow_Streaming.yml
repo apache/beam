@@ -125,3 +125,4 @@ jobs:
         if: always()
         with:
           files: '**/build/test-results/**/*.xml'
+          large_files: true

@@ -198,6 +198,17 @@ message MonitoringInfoSpecs {
       }]
     }];
 
+    // Represents a set of strings seen across bundles.
+    USER_BOUNDED_TRIE = 22 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:bounded_trie:v1",
+      type: "beam:metrics:bounded_trie:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
     // General monitored state information which contains structured information
     // which does not fit into a typical metric format. See MonitoringTableData
     // for more details.
@@ -576,6 +587,12 @@ message MonitoringInfoTypeUrns {
     SET_STRING_TYPE = 11 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:set_string:v1"];
 
+    // Represents a bounded trie of strings.
+    //
+    // Encoding: BoundedTrie proto
+    BOUNDED_TRIE_TYPE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:metrics:bounded_trie:v1"];
+
     // General monitored state information which contains structured information
     // which does not fit into a typical metric format. See MonitoringTableData
     // for more details.
@@ -587,6 +604,30 @@ message MonitoringInfoTypeUrns {
     //                            "beam:metrics:monitoring_table:v1"];
   }
 }
+
+
+// A single node in a BoundedTrie.
+message BoundedTrieNode {
+  // Whether this node has been truncated.
+  // A truncated leaf represents possibly many children with the same prefix.
+  bool truncated = 1;
+
+  // Children of this node.  Must be empty if truncated is true.
+  map<string, BoundedTrieNode> children = 2;
+}
+
+// The message type used for encoding metrics of type bounded trie.
+message BoundedTrie {
+  // The maximum number of elements to store before truncation.
+  int32 bound = 1;
+
+  // A compact representation of all the elements in this trie.
+  BoundedTrieNode root = 2;
+
+  // A more efficient representation for metrics consisting of a single value.
+  repeated string singleton = 3;
+}
+
 
 // General monitored state information which contains structured information
 // which does not fit into a typical metric format.
