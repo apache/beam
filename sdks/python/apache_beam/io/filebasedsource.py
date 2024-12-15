@@ -259,7 +259,15 @@ class FileBasedSource(iobase.BoundedSource):
     return self._splittable
 
 
+def _is_decompressive_transcoding_enabled(file_path):
+
+  return True
+
+
 def _determine_splittability_from_compression_type(file_path, compression_type):
+  if not FileSystems.check_splittability(file_path):
+    return False
+
   if compression_type == CompressionTypes.AUTO:
     compression_type = CompressionTypes.detect_compression_type(file_path)
 
