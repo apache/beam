@@ -462,7 +462,8 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(
     name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming'],
+    pipelineOptions: legacyPipelineOptions + ['--streaming']
+            + ['--experiments=enable_gbk_state_multiplexing'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesMapState',

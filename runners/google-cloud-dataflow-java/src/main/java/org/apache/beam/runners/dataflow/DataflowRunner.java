@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
@@ -64,6 +65,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
+import org.apache.beam.runners.dataflow.internal.StateMultiplexingGroupByKey;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -215,8 +217,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
-  private static final String EXPERIMENT_ENABLE_GBK_STATE_MULTIPLEXING =
-      "enable_gbk_state_multiplexing";
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
 
@@ -801,11 +801,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             new RedistributeByKeyOverrideFactory()));
 
     if (streaming) {
-      if (DataflowRunner.hasExperiment(options, EXPERIMENT_ENABLE_GBK_STATE_MULTIPLEXING)) {
+      if (DataflowRunner.hasExperiment(
+          options, StateMultiplexingGroupByKey.EXPERIMENT_ENABLE_GBK_STATE_MULTIPLEXING)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(GroupByKey.class),
-                new StateMultiplexingGroupByKeyOverrideFactory<>()));
+                new StateMultiplexingGroupByKeyOverrideFactory<>(options)));
       }
       // For update compatibility, always use a Read for Create in streaming mode.
       overridesBuilder
@@ -1712,6 +1713,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     List<String> experiments =
         firstNonNull(options.getExperiments(), Collections.<String>emptyList());
     return experiments.contains(experiment);
+  }
+
+  /** Return the value for the specified experiment or null if not present. */
+  public static Optional<String> getExperimentValue(
+      DataflowPipelineDebugOptions options, String experiment) {
+    List<String> experiments = options.getExperiments();
+    if (experiments == null) {
+      return Optional.empty();
+    }
+    String prefix = experiment + "=";
+    for (String experimentEntry : experiments) {
+      if (experimentEntry.startsWith(prefix)) {
+        return Optional.of(experimentEntry.substring(prefix.length()));
+      }
+    }
+    return Optional.empty();
   }
 
   /** Helper to configure the Dataflow Job Environment based on the user's job options. */

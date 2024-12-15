@@ -2,5 +2,6 @@
   "comment": "Modify this file in a trivial way to cause this test suite to run",
   "https://github.com/apache/beam/pull/31156": "noting that PR #31156 should run this test",
   "https://github.com/apache/beam/pull/31268": "noting that PR #31268 should run this test",
-  "https://github.com/apache/beam/pull/31490": "noting that PR #31490 should run this test"
+  "https://github.com/apache/beam/pull/31490": "noting that PR #31490 should run this test",
+  "https://github.com/apache/beam/pull/33318": "noting that PR #33318 should run this test"
 }

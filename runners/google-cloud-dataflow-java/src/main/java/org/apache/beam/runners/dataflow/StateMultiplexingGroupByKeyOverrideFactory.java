@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.runners.dataflow.internal.StateMultiplexingGroupByKey;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.construction.PTransformReplacements;
@@ -28,6 +29,11 @@ import org.apache.beam.sdk.values.PCollection;
 class StateMultiplexingGroupByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
         PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKey<K, V>> {
+  private final DataflowPipelineOptions options;
+
+  StateMultiplexingGroupByKeyOverrideFactory(DataflowPipelineOptions options) {
+    this.options = options;
+  }
 
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
@@ -37,6 +43,6 @@ class StateMultiplexingGroupByKeyOverrideFactory<K, V>
               transform) {
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        StateMultiplexingGroupByKey.create(transform.getTransform().fewKeys()));
+        StateMultiplexingGroupByKey.create(options, transform.getTransform().fewKeys()));
   }
 }
