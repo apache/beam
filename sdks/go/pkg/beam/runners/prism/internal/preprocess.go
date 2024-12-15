@@ -449,6 +449,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
 				}
+				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
+					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
+				}
 				sis = pardo.GetSideInputs()
 			}
 			if _, ok := sis[link.Local]; ok {
