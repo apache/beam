@@ -88,11 +88,6 @@ jobs:
       uses: ./.github/actions/setup-environment-action
       with:
         java-version: default
-    - name: Authenticate on GCP
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
     - name: run scheduled javaPostcommitIOPerformanceTests script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
@@ -122,3 +117,4 @@ jobs:
         commit: '${{ env.prsha || env.GITHUB_SHA }}'
         comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
         files: '**/build/test-results/**/*.xml'
+        large_files: true

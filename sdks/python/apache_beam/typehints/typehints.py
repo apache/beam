@@ -391,12 +391,6 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     if isinstance(type_param, types.UnionType):
       is_not_type_constraint = False
-  # Pre-Python 3.9 compositve type-hinting with built-in types was not
-  # supported, the typing module equivalents should be used instead.
-  if sys.version_info.major == 3 and sys.version_info.minor < 9:
-    is_not_type_constraint = is_not_type_constraint or (
-        isinstance(type_param, type) and
-        type_param in DISALLOWED_PRIMITIVE_TYPES)
 
   if is_not_type_constraint:
     raise TypeError(
@@ -1219,6 +1213,15 @@ class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
               repr(self.inner_type),
               instance.value.__class__.__name__))
 
+  def bind_type_variables(self, bindings):
+    bound_inner_type = bind_type_variables(self.inner_type, bindings)
+    if bound_inner_type == self.inner_type:
+      return self
+    return WindowedValue[bound_inner_type]
+
+  def __repr__(self):
+    return 'WindowedValue[%s]' % repr(self.inner_type)
+
 
 class GeneratorHint(IteratorHint):
   """A Generator type hint.
@@ -1266,7 +1269,7 @@ def normalize(x, none_as_type=False):
   # Avoid circular imports
   from apache_beam.typehints import native_type_compatibility
 
-  if sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
+  if isinstance(x, types.GenericAlias):
     x = native_type_compatibility.convert_builtin_to_typing(x)
 
   if none_as_type and x is None:

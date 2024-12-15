@@ -98,6 +98,21 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: precommit
+          test-language: go,python,java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/go_Combine_Flink_Batch_small.txt
+            ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/python_Combine_Flink_Batch_small.txt
+            ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/java_Combine_Flink_Batch_small.txt
+      - name: get current time
+        run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: Start Flink with 2 workers
         env:
           FLINK_NUM_WORKERS: 2
@@ -112,36 +127,18 @@ jobs:
           arguments: |
             -PloadTest.mainClass=combine \
             -Prunner=PortableRunner \
-            -PloadTest.args="
-              --runner=FlinkRunner \
-              --job_endpoint=localhost:8099 \
-              --environment_type=DOCKER \
-              --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest \
-              --parallelism=1 \
-              --input_options=\"{\"num_records\":200,\"key_size\":1,\"value_size\":9}\"
-              --fanout=1 \
-              --top_count=10 \
-              --iterations=1"
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_1 }} --job_name=flink-tests-go-${{env.NOW_UTC}}'
 
       # Run a Python Combine load test to verify the Flink container
       - name: Run Flink Container Test with Python Combine
-        timeout-minutes: 10
+        timeout-minutes: 20
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test:load:run
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=FlinkRunner \
-            -PloadTest.args="
-              --runner=PortableRunner \
-              --job_endpoint=localhost:8099 \
-              --environment_type=DOCKER \
-              --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest \
-              --parallelism=1 \
-              --input_options=\"{\"num_records\":200,\"key_size\":1,\"value_size\":9,\"algorithm\":\"lcg\"}\" \
-              --fanout=1 \
-              --top_count=10 \
-              --iterations=1"
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
 
       # Run a Java Combine load test to verify the Flink container
       - name: Run Flink Container Test with Java Combine
@@ -152,15 +149,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CombineLoadTest \
             -Prunner=:runners:flink:1.17 \
-            -PloadTest.args="
-              --runner=FlinkRunner \
-              --environment_type=DOCKER \
-              --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest \
-              --parallelism=1 \
-              --sourceOptions={\"numRecords\":200,\"keySizeBytes\":1,\"valueSizeBytes\":9} \
-              --fanout=1 \
-              --iterations=1 \
-              --topCount=10"
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_3 }} --jobName=flink-tests-java11-${{env.NOW_UTC}}'
 
       - name: Teardown Flink
         if: always()

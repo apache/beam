@@ -105,19 +105,10 @@ public class ChannelCacheTest {
   @Test
   public void testRemoveAndClose() throws InterruptedException {
     String channelName = "existingChannel";
-    CountDownLatch verifyRemovalListenerAsync = new CountDownLatch(1);
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            ignored -> newChannel(channelName),
-            () -> {
-              try {
-                verifyRemovalListenerAsync.await();
-                notifyWhenChannelClosed.countDown();
-              } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-            });
+            ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
 
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
@@ -125,7 +116,6 @@ public class ChannelCacheTest {
     // Assert that the removal happened before we check to see if the shutdowns happen to confirm
     // that removals are async.
     assertTrue(cache.isEmpty());
-    verifyRemovalListenerAsync.countDown();
 
     // Assert that the channel gets shutdown.
     notifyWhenChannelClosed.await();

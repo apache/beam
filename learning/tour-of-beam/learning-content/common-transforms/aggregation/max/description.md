@@ -42,11 +42,11 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-You can find the global maximum value from the `PCollection` by using `Max.doublesGlobally()`
+You can find the global maximum value from the `PCollection` by using `Max.integersGlobally()`
 
 ```
 PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-PCollection<Double> max = input.apply(Max.doublesGlobally());
+PCollection<Integer> max = input.apply(Max.integersGlobally());
 ```
 
 Output
