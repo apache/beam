@@ -114,10 +114,8 @@ public class StateMultiplexingGroupByKey<K, V>
     KvCoder<K, Iterable<V>> outputKvCoder = DataflowGroupByKey.getOutputKvCoder(input.getCoder());
 
     Preconditions.checkArgument(numVirtualKeys > 0);
-    final TupleTag<KV<ByteString, V>> largeKeys = new TupleTag<KV<ByteString, V>>() {
-    };
-    final TupleTag<KV<ByteString, V>> smallKeys = new TupleTag<KV<ByteString, V>>() {
-    };
+    final TupleTag<KV<ByteString, V>> largeKeys = new TupleTag<KV<ByteString, V>>() {};
+    final TupleTag<KV<ByteString, V>> smallKeys = new TupleTag<KV<ByteString, V>>() {};
     WindowingStrategy<?, ?> originalWindowingStrategy = input.getWindowingStrategy();
     WindowFn<?, ?> originalWindowFn = originalWindowingStrategy.getWindowFn();
 
@@ -126,7 +124,8 @@ public class StateMultiplexingGroupByKey<K, V>
             "MapKeysToBytes",
             ParDo.of(
                     new DoFn<KV<K, V>, KV<ByteString, V>>() {
-                      transient ByteStringOutputStream byteStringOutputStream;
+                      transient ByteStringOutputStream byteStringOutputStream =
+                          new ByteStringOutputStream();
 
                       @StartBundle
                       public void setup() {
@@ -160,7 +159,10 @@ public class StateMultiplexingGroupByKey<K, V>
         mapKeysToBytes
             .get(largeKeys)
             .setCoder(KvCoder.of(ByteStringCoder.of(), valueCoder))
-            .apply(fewKeys ? DataflowGroupByKey.createWithFewKeys() : DataflowGroupByKey.create())
+            .apply(
+                fewKeys
+                    ? DataflowGroupByKey.<ByteString, V>createWithFewKeys()
+                    : DataflowGroupByKey.<ByteString, V>create())
             .apply(
                 "DecodeKey",
                 MapElements.via(
@@ -192,7 +194,10 @@ public class StateMultiplexingGroupByKey<K, V>
                         return KV.of(value.getKey().hashCode() % numVirtualKeys, value.getValue());
                       }
                     }))
-            .apply(fewKeys ? DataflowGroupByKey.createWithFewKeys() : DataflowGroupByKey.create())
+            .apply(
+                fewKeys
+                    ? DataflowGroupByKey.<Integer, V>createWithFewKeys()
+                    : DataflowGroupByKey.<Integer, V>create())
             .apply(
                 "RestoreOriginalKeys",
                 ParDo.of(
@@ -225,7 +230,8 @@ public class StateMultiplexingGroupByKey<K, V>
       builder.add(DisplayData.item("fewKeys", true).withLabel("Has Few Keys"));
     }
     builder.add(DisplayData.item("numVirtualKeys", numVirtualKeys).withLabel("Num Virtual Keys"));
-    builder.add(DisplayData.item("smallKeyBytesThreshold", smallKeyBytesThreshold)
-        .withLabel("Small Key Bytes Threshold"));
+    builder.add(
+        DisplayData.item("smallKeyBytesThreshold", smallKeyBytesThreshold)
+            .withLabel("Small Key Bytes Threshold"));
   }
 }
