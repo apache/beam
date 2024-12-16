@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.util.ByteStringCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -164,7 +165,7 @@ public class StateMultiplexingGroupByKey<K, V>
     PCollection<KV<K, Iterable<V>>> largeKeyBranch =
         mapKeysToBytes
             .get(largeKeys)
-            .setCoder(KvCoder.of(ByteStringCoder.of(), valueCoder))
+            .setCoder(KvCoder.of(NullableCoder.of(ByteStringCoder.of()), valueCoder))
             .apply(
                 fewKeys
                     ? DataflowGroupByKey.<ByteString, V>createWithFewKeys()
@@ -176,6 +177,9 @@ public class StateMultiplexingGroupByKey<K, V>
                       @Override
                       public KV<K, Iterable<V>> apply(KV<ByteString, Iterable<V>> kv) {
                         try {
+                          if (kv.getKey() == null) {
+                            return KV.of((K) null, kv.getValue());
+                          }
                           return KV.of(keyCoder.decode(kv.getKey().newInput()), kv.getValue());
                         } catch (IOException e) {
                           throw new RuntimeException(e);
