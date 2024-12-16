@@ -509,7 +509,13 @@ providers:
            - /path/to/local/package.zip
     transforms:
        MyCustomTransform: &#34;pkg.subpkg.PTransformClassOrCallable&#34;
-</code></pre><h2 id=pipeline-options>Pipeline options</h2><p><a href=https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options>Pipeline options</a>
+</code></pre><p>One can additionally reference an external listings of providers as follows</p><pre tabindex=0><code>providers:
+  - include: &#34;file:///path/to/local/providers.yaml&#34;
+  - include: &#34;gs://path/to/remote/providers.yaml&#34;
+  - include: &#34;https://example.com/hosted/providers.yaml&#34;
+  ...
+</code></pre><p>where <code>providers.yaml</code> is simply a yaml file containing a list of providers
+in the same format as those inlined in this providers block.</p><h2 id=pipeline-options>Pipeline options</h2><p><a href=https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options>Pipeline options</a>
 are used to configure different aspects of your pipeline, such as the pipeline runner that will execute
 your pipeline and any runner-specific configuration required by the chosen runner. To set pipeline options,
 append an options block at the end of your yaml file. For example:</p><pre tabindex=0><code>pipeline:
