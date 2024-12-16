@@ -37,7 +37,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
@@ -237,14 +236,14 @@ class RecordWriterManager implements AutoCloseable {
   @VisibleForTesting
   static String getPartitionDataPath(
       String partitionPath, Map<String, PartitionField> partitionFieldMap) {
-    if (Strings.isNullOrEmpty(partitionPath) || partitionFieldMap.isEmpty()) {
+    if (partitionPath.isEmpty() || partitionFieldMap.isEmpty()) {
       return partitionPath;
     }
     List<String> resolved = new ArrayList<>();
     for (String partition : Splitter.on('/').splitToList(partitionPath)) {
-      List<String> parts = Splitter.on('=').splitToList(partition);
-      String name = parts.get(0);
-      String value = parts.get(1);
+      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
+      String name = nameAndValue.get(0);
+      String value = nameAndValue.get(1);
       String transformName =
           Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
       if (Transforms.month().toString().equals(transformName)) {
