@@ -119,7 +119,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -805,7 +804,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           options, StateMultiplexingGroupByKey.EXPERIMENT_ENABLE_GBK_STATE_MULTIPLEXING)) {
         overridesBuilder.add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(GroupByKey.class),
+                StateMultiplexingGroupByKeyTransformMatcher.getInstance(),
                 new StateMultiplexingGroupByKeyOverrideFactory<>(options)));
       }
       // For update compatibility, always use a Read for Create in streaming mode.

@@ -201,6 +201,7 @@ public class StateMultiplexingGroupByKey<K, V>
                     new SimpleFunction<KV<ByteString, V>, KV<Integer, V>>() {
                       @Override
                       public KV<Integer, V> apply(KV<ByteString, V> value) {
+                        // should we use a different hash code?
                         return KV.of(value.getKey().hashCode() % numVirtualKeys, value.getValue());
                       }
                     }))
