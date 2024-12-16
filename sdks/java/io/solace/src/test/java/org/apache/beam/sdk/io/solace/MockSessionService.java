@@ -78,11 +78,6 @@ public abstract class MockSessionService extends SessionService {
   public void close() {}
 
   @Override
-  public boolean isClosed() {
-    return false;
-  }
-
-  @Override
   public MessageReceiver getReceiver() {
     if (messageReceiver == null) {
       messageReceiver = new MockReceiver(recordFn(), minMessagesReceived());
@@ -130,11 +125,6 @@ public abstract class MockSessionService extends SessionService {
 
     @Override
     public void start() {}
-
-    @Override
-    public boolean isClosed() {
-      return false;
-    }
 
     @Override
     public BytesXMLMessage receive() throws IOException {

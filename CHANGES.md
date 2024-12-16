@@ -31,6 +31,7 @@
 
 ## New Features / Improvements
 
+* The datetime module is now available for use in jinja templatization for yaml.
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
@@ -69,7 +70,10 @@
 
 ## New Features / Improvements
 
+* Improved batch performance of SparkRunner's GroupByKey ([#20943](https://github.com/apache/beam/pull/20943)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support OnWindowExpiration in Prism ([#32211](https://github.com/apache/beam/issues/32211)).
+  * This enables initial Java GroupIntoBatches support.
 
 ## Breaking Changes
 

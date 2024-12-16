@@ -18,17 +18,16 @@
 package org.apache.beam.sdk.io.solace.read;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Queue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Checkpoint for an unbounded Solace source. Consists of the Solace messages waiting to be
@@ -38,10 +37,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @VisibleForTesting
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
-  private transient AtomicBoolean activeReader;
-  // BytesXMLMessage is not serializable so if a job restarts from the checkpoint, we cannot retry
-  // these messages here. We relay on Solace's retry mechanism.
-  private transient ArrayDeque<BytesXMLMessage> ackQueue;
+  private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
+  private transient Queue<BytesXMLMessage> safeToAck;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
@@ -49,25 +46,24 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   /**
    * Creates a new {@link SolaceCheckpointMark}.
    *
-   * @param activeReader {@link AtomicBoolean} indicating if the related reader is active. The
-   *     reader creating the messages has to be active to acknowledge the messages.
-   * @param ackQueue {@link List} of {@link BytesXMLMessage} to be acknowledged.
+   * @param safeToAck - a queue of {@link BytesXMLMessage} to be acknowledged.
    */
-  SolaceCheckpointMark(AtomicBoolean activeReader, List<BytesXMLMessage> ackQueue) {
-    this.activeReader = activeReader;
-    this.ackQueue = new ArrayDeque<>(ackQueue);
+  SolaceCheckpointMark(Queue<BytesXMLMessage> safeToAck) {
+    this.safeToAck = safeToAck;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    if (activeReader == null || !activeReader.get() || ackQueue == null) {
-      return;
-    }
-
-    while (!ackQueue.isEmpty()) {
-      BytesXMLMessage msg = ackQueue.poll();
-      if (msg != null) {
+    BytesXMLMessage msg;
+    while ((msg = safeToAck.poll()) != null) {
+      try {
         msg.ackMessage();
+      } catch (IllegalStateException e) {
+        LOG.error(
+            "SolaceIO.Read: cannot acknowledge the message with applicationMessageId={}, ackMessageId={}. It will not be retried.",
+            msg.getApplicationMessageId(),
+            msg.getAckMessageId(),
+            e);
       }
     }
   }
@@ -84,15 +80,11 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
       return false;
     }
     SolaceCheckpointMark that = (SolaceCheckpointMark) o;
-    // Needed to convert to ArrayList because ArrayDeque.equals checks only for reference, not
-    // content.
-    ArrayList<BytesXMLMessage> ackList = new ArrayList<>(ackQueue);
-    ArrayList<BytesXMLMessage> thatAckList = new ArrayList<>(that.ackQueue);
-    return Objects.equals(activeReader, that.activeReader) && Objects.equals(ackList, thatAckList);
+    return Objects.equals(safeToAck, that.safeToAck);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(activeReader, ackQueue);
+    return Objects.hash(safeToAck);
   }
 }
