@@ -89,7 +89,7 @@ from apache_beam import io
 from apache_beam import metrics
 from apache_beam import typehints
 from apache_beam import version
-from apache_beam.pipeline import Pipeline
+from apache_beam.pipeline import *
 from apache_beam.transforms import *
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
