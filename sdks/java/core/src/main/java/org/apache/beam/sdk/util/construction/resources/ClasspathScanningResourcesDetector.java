@@ -21,6 +21,8 @@ import io.github.classgraph.ClassGraph;
 import java.io.File;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Attempts to detect all the resources to be staged using classgraph library.
@@ -43,11 +45,16 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
    * @return A list of absolute paths to the resources the class loader uses.
    */
   @Override
-  public List<String> detect(ClassLoader classLoader) {
+  public List<String> detect(@Nullable ClassLoader classLoader) {
+
+    @SuppressWarnings("nullness") // ClassGraph is not null-correct
+    @NonNull
+    ClassLoader nullableClassLoader = classLoader;
+
     List<File> classpathContents =
         classGraph
             .disableNestedJarScanning()
-            .addClassLoader(classLoader)
+            .addClassLoader(nullableClassLoader)
             .scan(1)
             .getClasspathFiles();
 
