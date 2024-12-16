@@ -16,6 +16,7 @@
 #
 
 import collections
+import datetime
 import functools
 import json
 import logging
@@ -493,7 +494,7 @@ def expand_leaf_transform(spec, scope):
       outputs = inputs | scope.unique_name(spec, ptransform) >> ptransform
   except Exception as exn:
     raise ValueError(
-        f"Error apply transform {identify_object(spec)}: {exn}") from exn
+        f"Error applying transform {identify_object(spec)}: {exn}") from exn
   if isinstance(outputs, dict):
     # TODO: Handle (or at least reject) nested case.
     return outputs
@@ -576,8 +577,8 @@ def chain_as_composite(spec):
         pass
       else:
         raise ValueError(
-            f'Transform {identify_object(transform)} is part of a chain, '
-            'must have implicit inputs and outputs.')
+            f'Transform {identify_object(transform)} is part of a chain. '
+            'Cannot define explicit inputs on chain pipeline')
     if ix == 0:
       if is_explicitly_empty(transform.get('input', None)):
         pass
@@ -992,7 +993,7 @@ def expand_jinja(
       jinja2.Environment(
           undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
       .from_string(jinja_template)
-      .render(**jinja_variables))
+      .render(datetime=datetime, **jinja_variables))
 
 
 class YamlTransform(beam.PTransform):

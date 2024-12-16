@@ -63,6 +63,7 @@ from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 
 class Provider:
@@ -876,8 +877,10 @@ class YamlProviders:
       return beam.WindowInto(window_fn)
 
   @staticmethod
+  @beam.ptransform_fn
+  @maybe_with_exception_handling_transform_fn
   def log_for_testing(
-      level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
+      pcoll, *, level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
@@ -918,7 +921,7 @@ class YamlProviders:
       logger(prefix + json.dumps(to_loggable_json_recursive(x)))
       return x
 
-    return "LogForTesting" >> beam.Map(log_and_return)
+    return pcoll | "LogForTesting" >> beam.Map(log_and_return)
 
   @staticmethod
   def create_builtin_provider():

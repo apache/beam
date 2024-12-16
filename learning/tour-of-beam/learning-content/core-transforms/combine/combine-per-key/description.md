@@ -14,9 +14,9 @@ limitations under the License.
 
 # CombinePerKey
 
-CombinePerKey is a transform in Apache Beam that applies a `CombineFn` function to each key of a PCollection of key-value pairs. The `CombineFn` function can be used to aggregate, sum, or combine the values associated with each key in the input `PCollection`.
+`CombinePerKey` is a transform in Apache Beam that applies a `CombineFn` function to each key of a `PCollection` of key-value pairs. The `CombineFn` function can be used to aggregate, sum, or combine the values associated with each key in the input `PCollection`.
 
-The `CombinePerKey` transform takes in an instance of a `CombineFn` class and applies it to the input `PCollection`. The output of the transform is a new PCollection where each element is a key-value pair, where the key is the same as the input key, and the value is the result of applying the `CombineFn` function to all the values associated with that key in the input `PCollection`.
+The `CombinePerKey` transform takes in an instance of a `CombineFn` class and applies it to the input `PCollection`. The output of the transform is a new `PCollection` where each element is a key-value pair, where the key is the same as the input key, and the value is the result of applying the `CombineFn` function to all the values associated with that key in the input `PCollection`.
 
 {{if (eq .Sdk "go")}}
 ```
@@ -81,7 +81,7 @@ func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 {{if (eq .Sdk "java")}}
 ```
 PCollection<KV<String, Integer>> input = pipeline
-                .apply("ParseCitiesToTimeKV", Create.of(
+                .apply(Create.of(
                         KV.of("a", "apple"),
                         KV.of("o", "orange"),
                         KV.of("a", "avocado),
@@ -93,7 +93,7 @@ static PCollection<KV<String, String>> applyTransform(PCollection<KV<String, Str
         return input.apply(Combine.perKey(new SumStringBinaryCombineFn()));
     }
 
-    static class SumIntBinaryCombineFn extends BinaryCombineFn<String> {
+    static class SumStringBinaryCombineFn extends BinaryCombineFn<String> {
 
         @Override
         public String apply(String left, String right) {

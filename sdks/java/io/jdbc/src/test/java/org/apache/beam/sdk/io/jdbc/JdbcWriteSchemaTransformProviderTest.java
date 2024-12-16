@@ -175,6 +175,7 @@ public class JdbcWriteSchemaTransformProviderTest {
                     .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
                     .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
                     .setLocation(writeTableName)
+                    .setBatchSize(1L)
                     .build()));
     pipeline.run();
     DatabaseTestHelper.assertRowCount(DATA_SOURCE, writeTableName, 2);

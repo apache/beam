@@ -30,7 +30,7 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
-from apache_beam.yaml.yaml_mapping import ErrorHandlingConfig
+from apache_beam.yaml.yaml_errors import ErrorHandlingConfig
 
 
 def _singular(name):
@@ -154,8 +154,9 @@ def config_docs(schema):
                               PythonCallableWithSource.load_from_expression(
                                   param.type_name),
                               param.description) for param in doc.params
-                      ]))),
-          description=f.description)
+                      ])),
+              nullable=True),
+          description=f.description or doc.short_description)
     return f
 
   def lines():
@@ -189,11 +190,8 @@ def io_grouping_key(transform_name):
     return 0, transform_name
 
 
-SKIP = [
-    'Combine',
-    'Filter',
-    'MapToFields',
-]
+# Exclude providers
+SKIP = {}
 
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
@@ -236,7 +234,8 @@ def main():
   options = parser.parse_args()
   include = re.compile(options.include).match
   exclude = (
-      re.compile(options.exclude).match if options.exclude else lambda _: False)
+      re.compile(options.exclude).match
+      if options.exclude else lambda x: x in SKIP)
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []

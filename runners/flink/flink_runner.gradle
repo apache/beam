@@ -422,3 +422,8 @@ createPipelineOptionsTableTask('Python')
 // Update the pipeline options documentation before running the tests
 test.dependsOn(generatePipelineOptionsTableJava)
 test.dependsOn(generatePipelineOptionsTablePython)
+
+// delegate spotlessApply to :runners:flink:spotlessApply
+tasks.named("spotlessApply") {
+  dependsOn ":runners:flink:spotlessApply"
+}

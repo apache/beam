@@ -33,6 +33,7 @@ cdef class CounterCell(MetricCell):
   cpdef bint update(self, value) except -1
 
 
+# Not using AbstractMetricCell so that data can be typed.
 cdef class DistributionCell(MetricCell):
   cdef readonly DistributionData data
 
@@ -40,14 +41,18 @@ cdef class DistributionCell(MetricCell):
   cdef inline bint _update(self, value) except -1
 
 
-cdef class GaugeCell(MetricCell):
-  cdef readonly object data
+cdef class AbstractMetricCell(MetricCell):
+  cdef readonly object data_class
+  cdef public object data
+  cdef bint _update_locked(self, value) except -1
 
 
-cdef class StringSetCell(MetricCell):
-  cdef readonly object data
+cdef class GaugeCell(AbstractMetricCell):
+  pass
 
-  cdef inline bint _update(self, value) except -1
+
+cdef class StringSetCell(AbstractMetricCell):
+  pass
 
 
 cdef class DistributionData(object):
@@ -55,3 +60,14 @@ cdef class DistributionData(object):
   cdef readonly libc.stdint.int64_t count
   cdef readonly libc.stdint.int64_t min
   cdef readonly libc.stdint.int64_t max
+
+
+cdef class _BoundedTrieNode(object):
+  cdef readonly libc.stdint.int64_t _size
+  cdef readonly dict _children
+  cdef readonly bint _truncated
+
+cdef class BoundedTrieData(object):
+  cdef readonly libc.stdint.int64_t _bound
+  cdef readonly object _singleton
+  cdef readonly _BoundedTrieNode _root

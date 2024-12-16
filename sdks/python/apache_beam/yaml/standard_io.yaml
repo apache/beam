@@ -225,6 +225,7 @@
         driver_jars: 'driver_jars'
         connection_properties: 'connection_properties'
         connection_init_sql: 'connection_init_sql'
+        batch_size: 'batch_size'
       'ReadFromMySql': 'ReadFromJdbc'
       'WriteToMySql': 'WriteToJdbc'
       'ReadFromPostgres': 'ReadFromJdbc'
@@ -235,21 +236,21 @@
       'WriteToSqlServer': 'WriteToJdbc'
     defaults:
       'ReadFromMySql':
-        jdbcType: 'mysql'
+        jdbc_type: 'mysql'
       'WriteToMySql':
-        jdbcType: 'mysql'
+        jdbc_type: 'mysql'
       'ReadFromPostgres':
-        jdbcType: 'postgres'
+        jdbc_type: 'postgres'
       'WriteToPostgres':
-        jdbcType: 'postgres'
+        jdbc_type: 'postgres'
       'ReadFromOracle':
-        jdbcType: 'oracle'
+        jdbc_type: 'oracle'
       'WriteToOracle':
-        jdbcType: 'oracle'
+        jdbc_type: 'oracle'
       'ReadFromSqlServer':
-        jdbcType: 'mssql'
+        jdbc_type: 'mssql'
       'WriteToSqlServer':
-        jdbcType: 'mssql'
+        jdbc_type: 'mssql'
     underlying_provider:
       type: beamJar
       transforms:

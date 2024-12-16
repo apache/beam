@@ -574,7 +574,7 @@ class BigQueryWrapper(object):
 
   def _start_job(
       self,
-      request,  # type: bigquery.BigqueryJobsInsertRequest
+      request: 'bigquery.BigqueryJobsInsertRequest',
       stream=None,
   ):
     """Inserts a BigQuery job.
@@ -1802,9 +1802,11 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
 
 
 def check_schema_equal(
-    left, right, *, ignore_descriptions=False, ignore_field_order=False):
-  # type: (Union[bigquery.TableSchema, bigquery.TableFieldSchema], Union[bigquery.TableSchema, bigquery.TableFieldSchema], bool, bool) -> bool
-
+    left: Union['bigquery.TableSchema', 'bigquery.TableFieldSchema'],
+    right: Union['bigquery.TableSchema', 'bigquery.TableFieldSchema'],
+    *,
+    ignore_descriptions: bool = False,
+    ignore_field_order: bool = False) -> bool:
   """Check whether schemas are equivalent.
 
   This comparison function differs from using == to compare TableSchema
