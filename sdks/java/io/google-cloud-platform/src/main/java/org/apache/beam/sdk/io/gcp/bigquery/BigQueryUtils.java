@@ -461,14 +461,14 @@ public class BigQueryUtils {
   }
 
   /** Convert an Avro {@link org.apache.avro.Schema} to a BigQuery {@link TableSchema}. */
-  public static TableSchema toTableSchema(org.apache.avro.Schema schema) {
-    return toTableSchema(schema, false);
+  public static TableSchema fromGenericAvroSchema(org.apache.avro.Schema schema) {
+    return fromGenericAvroSchema(schema, false);
   }
 
   /** Convert an Avro {@link org.apache.avro.Schema} to a BigQuery {@link TableSchema}. */
-  public static TableSchema toTableSchema(
+  public static TableSchema fromGenericAvroSchema(
       org.apache.avro.Schema schema, Boolean useAvroLogicalTypes) {
-    return BigQueryAvroUtils.toTableSchema(schema, useAvroLogicalTypes);
+    return BigQueryAvroUtils.fromGenericAvroSchema(schema, useAvroLogicalTypes);
   }
 
   /** Convert a BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */

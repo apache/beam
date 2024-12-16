@@ -532,11 +532,11 @@ class BigQueryAvroUtils {
         (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
   }
 
-  static TableSchema toTableSchema(Schema schema) {
-    return toTableSchema(schema, true);
+  static TableSchema fromGenericAvroSchema(Schema schema) {
+    return fromGenericAvroSchema(schema, true);
   }
 
-  static TableSchema toTableSchema(Schema schema, Boolean useAvroLogicalTypes) {
+  static TableSchema fromGenericAvroSchema(Schema schema, Boolean useAvroLogicalTypes) {
     verify(
         schema.getType() == Type.RECORD,
         "Expected Avro schema type RECORD, not %s",
@@ -544,12 +544,12 @@ class BigQueryAvroUtils {
 
     List<TableFieldSchema> fields =
         schema.getFields().stream()
-            .map(f -> toTableFieldSchema(f, useAvroLogicalTypes))
+            .map(f -> fromAvroFieldSchema(f, useAvroLogicalTypes))
             .collect(Collectors.toList());
     return new TableSchema().setFields(fields);
   }
 
-  private static TableFieldSchema toTableFieldSchema(
+  private static TableFieldSchema fromAvroFieldSchema(
       Schema.Field avrofield, Boolean useAvroLogicalTypes) {
     Schema fieldSchema = avrofield.schema();
     TableFieldSchema field;
@@ -660,7 +660,7 @@ class BigQueryAvroUtils {
       case RECORD:
         List<TableFieldSchema> recordFields =
             type.getFields().stream()
-                .map(f -> toTableFieldSchema(f, useAvroLogicalTypes))
+                .map(f -> fromAvroFieldSchema(f, useAvroLogicalTypes))
                 .collect(Collectors.toList());
         return new TableFieldSchema().setType("RECORD").setFields(recordFields);
       default:
