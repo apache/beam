@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
@@ -354,25 +355,34 @@ public class StorageApiLoads<DestinationT, ElementT>
                 rowUpdateFn,
                 badRecordRouter));
 
+    PCollection<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRows =
+        convertMessagesResult.get(successfulConvertedRowsTag);
+
+    if (numShards > 0) {
+      successfulConvertedRows =
+          successfulConvertedRows.apply(
+              "ResdistibuteNumShards",
+              Redistribute.<KV<DestinationT, StorageApiWritePayload>>arbitrarily()
+                  .withNumBuckets(numShards));
+    }
+
     PCollectionTuple writeRecordsResult =
-        convertMessagesResult
-            .get(successfulConvertedRowsTag)
-            .apply(
-                "StorageApiWriteUnsharded",
-                new StorageApiWriteUnshardedRecords<>(
-                    dynamicDestinations,
-                    bqServices,
-                    failedRowsTag,
-                    successfulWrittenRowsTag,
-                    successfulRowsPredicate,
-                    BigQueryStorageApiInsertErrorCoder.of(),
-                    TableRowJsonCoder.of(),
-                    autoUpdateSchema,
-                    ignoreUnknownValues,
-                    createDisposition,
-                    kmsKey,
-                    usesCdc,
-                    defaultMissingValueInterpretation));
+        successfulConvertedRows.apply(
+            "StorageApiWriteUnsharded",
+            new StorageApiWriteUnshardedRecords<>(
+                dynamicDestinations,
+                bqServices,
+                failedRowsTag,
+                successfulWrittenRowsTag,
+                successfulRowsPredicate,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                TableRowJsonCoder.of(),
+                autoUpdateSchema,
+                ignoreUnknownValues,
+                createDisposition,
+                kmsKey,
+                usesCdc,
+                defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
