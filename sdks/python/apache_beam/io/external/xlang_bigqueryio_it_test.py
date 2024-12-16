@@ -25,6 +25,7 @@ import secrets
 import time
 import unittest
 from decimal import Decimal
+from typing import Dict
 
 import pytest
 from hamcrest.core import assert_that as hamcrest_assert
@@ -245,57 +246,72 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           | StorageWriteToBigQuery(table=table_id))
     hamcrest_assert(p, bq_matcher)
 
+  EXPECTED_CDC_DATA = [
+      # (name, value, route)
+      {
+          "name": "cdc_test", "value": 5, "route": 3
+      }
+  ]
+
+  CDC_ROW_DATA = [
+      beam.Row(name="cdc_test", value=5, route=3),
+      beam.Row(name="cdc_test", value=3, route=3),
+      beam.Row(name="cdc_test", value=2, route=1)
+  ]
+
+  def run_and_validate_cdc_writes(
+      self, table_name, table_id, data, schema, use_cdc_writes):
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table_name),
+        data=self.parse_expected_data(self.EXPECTED_CDC_DATA))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(data)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              use_at_least_once=True,
+              use_cdc_writes=use_cdc_writes,
+              schema=schema,
+              primary_key=["name"]))
+    hamcrest_assert(p, bq_matcher)
+
+  def test_write_with_beam_rows_cdc_info_fn(self):
+    table = 'write_with_beam_rows_cdc_info_fn'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    rows = self.CDC_ROW_DATA
+
+    def cdc_info_rows(row: beam.Row) -> beam.Row:
+      return beam.Row(
+          mutation_type="UPSERT",
+          change_sequence_number="AAA/" + str(row.value + row.route))
+
+    self.run_and_validate_cdc_writes(table, table_id, rows, None, cdc_info_rows)
+
   def test_write_with_beam_rows_cdc(self):
     table = 'write_with_beam_rows_cdc'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
-
-    expected_data_on_bq = [
-        # (name, value)
-        {
-            "name": "cdc_test",
-            "value": 5,
-        }
-    ]
 
     rows_with_cdc = [
         beam.Row(
             row_mutation_info=beam.Row(
                 mutation_type="UPSERT", change_sequence_number="AAA/2"),
-            record=beam.Row(name="cdc_test", value=5)),
+            record=beam.Row(name="cdc_test", value=5, route=3)),
         beam.Row(
             row_mutation_info=beam.Row(
                 mutation_type="UPSERT", change_sequence_number="AAA/1"),
-            record=beam.Row(name="cdc_test", value=3))
+            record=beam.Row(name="cdc_test", value=3, route=1))
     ]
 
-    bq_matcher = BigqueryFullResultMatcher(
-        project=self.project,
-        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-        data=self.parse_expected_data(expected_data_on_bq))
-
-    with beam.Pipeline(argv=self.args) as p:
-      _ = (
-          p
-          | beam.Create(rows_with_cdc)
-          | beam.io.WriteToBigQuery(
-              table=table_id,
-              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              use_at_least_once=True,
-              use_cdc_writes=True,
-              primary_key=["name"]))
-    hamcrest_assert(p, bq_matcher)
+    self.run_and_validate_cdc_writes(table, table_id, rows_with_cdc, None, True)
 
   def test_write_with_dicts_cdc(self):
     table = 'write_with_dicts_cdc'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
-
-    expected_data_on_bq = [
-        # (name, value)
-        {
-            "name": "cdc_test",
-            "value": 5,
-        }
-    ]
 
     data_with_cdc = [
         # record: (name, value)
@@ -304,7 +320,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
                 'mutation_type': 'UPSERT', 'change_sequence_number': 'AAA/2'
             },
             'record': {
-                'name': 'cdc_test', 'value': 5
+                'name': 'cdc_test', 'value': 5, 'route': 3
             }
         },
         {
@@ -312,7 +328,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
                 'mutation_type': 'UPSERT', 'change_sequence_number': 'AAA/1'
             },
             'record': {
-                'name': 'cdc_test', 'value': 3
+                'name': 'cdc_test', 'value': 3, 'route': 1
             }
         }
     ]
@@ -344,28 +360,51 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
                     "name": "name", "type": "STRING"
                 }, {
                     "name": "value", "type": "INTEGER"
+                }, {
+                    "name": "route", "type": "INTEGER"
                 }]
             }
         ]
     }
 
-    bq_matcher = BigqueryFullResultMatcher(
-        project=self.project,
-        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-        data=self.parse_expected_data(expected_data_on_bq))
+    self.run_and_validate_cdc_writes(
+        table, table_id, data_with_cdc, schema, True)
 
-    with beam.Pipeline(argv=self.args) as p:
-      _ = (
-          p
-          | beam.Create(data_with_cdc)
-          | beam.io.WriteToBigQuery(
-              table=table_id,
-              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              use_at_least_once=True,
-              use_cdc_writes=True,
-              schema=schema,
-              primary_key=["name"]))
-    hamcrest_assert(p, bq_matcher)
+  def test_write_with_dicts_cdc_info_fn(self):
+    table = 'write_with_dicts_cdc_info_fn'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    data = [
+        # record: (name, value)
+        {
+            'name': 'cdc_test', 'value': 5, 'route': 3
+        },
+        {
+            'name': 'cdc_test', 'value': 3, 'route': 1
+        }
+    ]
+
+    schema = {
+        "fields": [{
+            "name": "name", "type": "STRING"
+        }, {
+            "name": "value", "type": "INTEGER"
+        }, {
+            "name": "route", "type": "INTEGER"
+        }]
+    }
+
+    def cdc_info_fn(data: Dict) -> Dict:
+      if data["value"] == 3:
+        csn = 1
+      else:
+        csn = 2
+      return {
+          'mutation_type': 'UPSERT',
+          'change_sequence_number': 'AAA/' + str(csn)
+      }
+
+    self.run_and_validate_cdc_writes(table, table_id, data, schema, cdc_info_fn)
 
   def test_write_to_dynamic_destinations(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
@@ -390,6 +429,66 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               schema=self.ALL_TYPES_SCHEMA,
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
+
+  def test_write_to_dynamic_destinations_rows_cdc_fn(self):
+    table_name_prefix = 'dynamic_dest_cdc_row_'
+    base_table_spec = '{}.{}'.format(self.dataset_id, table_name_prefix)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    table = table_name_prefix + "3"
+
+    def cdc_info_rows(row: beam.Row) -> beam.Row:
+      return beam.Row(
+          mutation_type="UPSERT",
+          change_sequence_number="AAA/" + str(row.value + row.route))
+
+    self.run_and_validate_cdc_writes(
+        table,
+        lambda record: spec_with_project + str(record.route),
+        self.CDC_ROW_DATA,
+        None,
+        cdc_info_rows)
+
+  def test_write_to_dynamic_destinations_dicts_cdc_fn(self):
+    table_name_prefix = 'dynamic_dest_cdc_dict_'
+    base_table_spec = '{}.{}'.format(self.dataset_id, table_name_prefix)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    table = table_name_prefix + "3"
+
+    data = [
+        # record: (name, value, route)
+        {
+            'name': 'cdc_test', 'value': 5, 'route': 3
+        },
+        {
+            'name': 'cdc_test', 'value': 3, 'route': 3
+        },
+        {
+            'name': 'cdc_test', 'value': 2, 'route': 1
+        }
+    ]
+
+    schema = {
+        "fields": [{
+            "name": "name", "type": "STRING"
+        }, {
+            "name": "value", "type": "INTEGER"
+        }, {
+            "name": "route", "type": "INTEGER"
+        }]
+    }
+
+    def cdc_info_fn(data: Dict) -> Dict:
+      return {
+          'mutation_type': 'UPSERT',
+          'change_sequence_number': 'AAA/' + str(data["value"])
+      }
+
+    self.run_and_validate_cdc_writes(
+        table,
+        lambda data: spec_with_project + str(data["route"]),
+        data,
+        schema,
+        cdc_info_fn)
 
   def test_write_to_dynamic_destinations_with_beam_rows(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
