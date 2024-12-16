@@ -698,7 +698,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().booleanType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("BOOLEAN").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -706,7 +706,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().optional().booleanType());
       TableSchema expected = tableSchema(f -> f.setType("BOOLEAN").setMode("NULLABLE"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -714,7 +714,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().array().items().booleanType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("BOOLEAN").setMode("REPEATED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -722,7 +722,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().intType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -730,7 +730,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().longType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -738,7 +738,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().floatType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("FLOAT").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -746,7 +746,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().doubleType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("FLOAT").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -754,7 +754,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().bytesType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -762,7 +762,7 @@ public class BigQueryAvroUtilsTest {
       Schema avroSchema = avroSchema(f -> f.type().stringType().noDefault());
       TableSchema expected = tableSchema(f -> f.setType("STRING").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
 
     {
@@ -773,8 +773,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("NUMERIC").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -786,8 +786,8 @@ public class BigQueryAvroUtilsTest {
           tableSchema(f -> f.setType("NUMERIC").setPrecision(29L).setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -799,8 +799,8 @@ public class BigQueryAvroUtilsTest {
           tableSchema(f -> f.setType("NUMERIC").setPrecision(10L).setScale(9L).setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -811,8 +811,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("BIGNUMERIC").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -824,8 +824,8 @@ public class BigQueryAvroUtilsTest {
           tableSchema(f -> f.setType("BIGNUMERIC").setPrecision(38L).setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -838,8 +838,8 @@ public class BigQueryAvroUtilsTest {
               f -> f.setType("BIGNUMERIC").setPrecision(39L).setScale(38L).setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("BYTES").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -849,8 +849,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("DATE").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -860,8 +860,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("TIME").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -871,8 +871,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("TIME").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -883,8 +883,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("DATETIME").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -895,8 +895,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("DATETIME").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -907,8 +907,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("TIMESTAMP").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -919,8 +919,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("TIMESTAMP").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -931,8 +931,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("GEOGRAPHY").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("STRING").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -942,8 +942,8 @@ public class BigQueryAvroUtilsTest {
       TableSchema expected = tableSchema(f -> f.setType("JSON").setMode("REQUIRED"));
       TableSchema expectedRaw = tableSchema(f -> f.setType("STRING").setMode("REQUIRED"));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
-      assertEquals(expectedRaw, BigQueryAvroUtils.toTableSchema(avroSchema, false));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
     }
 
     {
@@ -973,7 +973,7 @@ public class BigQueryAvroUtilsTest {
                       .setMode("REQUIRED")
                       .setFields(Lists.newArrayList(subInteger, subFloat)));
 
-      assertEquals(expected, BigQueryAvroUtils.toTableSchema(avroSchema));
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
     }
   }
 

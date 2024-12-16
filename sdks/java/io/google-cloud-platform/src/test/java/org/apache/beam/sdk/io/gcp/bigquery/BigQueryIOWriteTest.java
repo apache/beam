@@ -4168,7 +4168,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .requiredString("sqn")
             .endRecord();
 
-    TableSchema tableSchema = BigQueryAvroUtils.toTableSchema(avroSchema);
+    TableSchema tableSchema = BigQueryAvroUtils.fromGenericAvroSchema(avroSchema);
 
     Table fakeTable = new Table();
     TableReference ref =
