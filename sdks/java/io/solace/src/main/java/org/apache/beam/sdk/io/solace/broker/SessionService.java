@@ -32,8 +32,8 @@ import org.slf4j.LoggerFactory;
  * messaging system. It allows for establishing a connection, creating a message-receiver object,
  * checking if the connection is closed or not, and gracefully closing the session.
  *
- * <p>Override this class and the method {@link #initializeSessionProperties(JCSMPProperties)} with
- * your specific properties, including all those related to authentication.
+ * <p>Override this class and the method {@link #getSessionProperties()} with your specific
+ * properties, including all those related to authentication.
  *
  * <p>The connector will call the method only once per session created, so you can perform
  * relatively heavy operations in that method (e.g. connect to a store or vault to retrieve
@@ -70,8 +70,7 @@ import org.slf4j.LoggerFactory;
  * <p>The connector ensures that no two threads will be calling that method at the same time, so you
  * don't have to take any specific precautions to avoid race conditions.
  *
- * <p>For basic authentication, use {@link BasicAuthJcsmpSessionService} and {@link
- * BasicAuthJcsmpSessionServiceFactory}.
+ * <p>For basic authentication, use {@link BasicAuthJcsmpSessionServiceFactory}.
  *
  * <p>For other situations, you need to extend this class and implement the `equals` method, so two
  * instances of your class can be compared by value. We recommend using AutoValue for that. For
@@ -143,11 +142,7 @@ public abstract class SessionService implements Serializable {
 
   /**
    * Override this method and provide your specific properties, including all those related to
-   * authentication, and possibly others too. The {@code}baseProperties{@code} parameter sets the
-   * Solace VPN to "default" if none is specified.
-   *
-   * <p>You should add your properties to the parameter {@code}baseProperties{@code}, and return the
-   * result.
+   * authentication, and possibly others too.
    *
    * <p>The method will be used whenever the session needs to be created or refreshed. If you are
    * setting credentials with expiration, just make sure that the latest available credentials (e.g.
@@ -160,7 +155,7 @@ public abstract class SessionService implements Serializable {
    *       href="https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html">https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html</a>
    * </ul>
    */
-  public abstract JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties);
+  public abstract JCSMPProperties getSessionProperties();
 
   /**
    * You need to override this method to be able to compare these objects by value. We recommend
@@ -187,20 +182,8 @@ public abstract class SessionService implements Serializable {
    * token), this method will be called again.
    */
   public final JCSMPProperties initializeWriteSessionProperties(SolaceIO.SubmissionMode mode) {
-    JCSMPProperties jcsmpProperties = initializeSessionProperties(getDefaultProperties());
+    JCSMPProperties jcsmpProperties = getSessionProperties();
     return overrideConnectorProperties(jcsmpProperties, mode);
-  }
-
-  private static JCSMPProperties getDefaultProperties() {
-    JCSMPProperties props = new JCSMPProperties();
-    props.setProperty(JCSMPProperties.VPN_NAME, DEFAULT_VPN_NAME);
-    // Outgoing messages will have a sender timestamp field populated
-    props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, true);
-    // Make XMLProducer safe to access from several threads. This is the default value, setting
-    // it just in case.
-    props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, true);
-
-    return props;
   }
 
   /**
@@ -209,6 +192,19 @@ public abstract class SessionService implements Serializable {
    */
   private static JCSMPProperties overrideConnectorProperties(
       JCSMPProperties props, SolaceIO.SubmissionMode mode) {
+
+    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+      props.setProperty(JCSMPProperties.VPN_NAME, DEFAULT_VPN_NAME);
+    }
+    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+      // Outgoing messages will have a sender timestamp field populated
+      props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, true);
+    }
+    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+      // Make XMLProducer safe to access from several threads. This is the default value, setting
+      // it just in case.
+      props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, true);
+    }
 
     // PUB_ACK_WINDOW_SIZE heavily affects performance when publishing persistent
     // messages. It can be a value between 1 and 255. This is the batch size for the ack
