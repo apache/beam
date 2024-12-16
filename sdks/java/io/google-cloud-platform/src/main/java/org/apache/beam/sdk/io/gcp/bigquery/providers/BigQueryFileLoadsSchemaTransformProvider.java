@@ -25,7 +25,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -104,13 +103,12 @@ public class BigQueryFileLoadsSchemaTransformProvider
           BigQueryIO.<Row>write()
               .to(dynamicDestinations)
               .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
-              .withFormatFunction(BigQueryUtils.toTableRow())
               // TODO(https://github.com/apache/beam/issues/33074) BatchLoad's
               // createTempFilePrefixView() doesn't pick up the pipeline option
               .withCustomGcsTempLocation(
                   ValueProvider.StaticValueProvider.of(options.getTempLocation()))
               .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-              .withFormatFunction(dynamicDestinations.getFilterFormatFunction(false));
+              .withAvroFormatFunction(dynamicDestinations.getAvroFilterFormatFunction(false));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
