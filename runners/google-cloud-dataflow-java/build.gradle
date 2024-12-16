@@ -244,10 +244,10 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
 
 def createValidatesRunnerStreamingTest = { boolean enableGbkMultiplexing ->
   def pipelineOptions = legacyPipelineOptions + ['--streaming']
-  if (enableGbkMultiplexing) {
-    pipelineOptions = pipelineOptions + ['--experiments=enable_gbk_state_multiplexing']
-  }
   def name = 'validatesRunnerLegacyWorkerTestStreaming'
+//  if (enableGbkMultiplexing) {
+  pipelineOptions = pipelineOptions + ['--experiments=enable_gbk_state_multiplexing']
+//  }
   if (enableGbkMultiplexing) {
     name = 'validatesRunnerLegacyWorkerTestStreamingGbkMultiplexing'
   }
@@ -493,7 +493,7 @@ task validatesRunnerStreaming {
 
 task validatesRunnerStreamingWithGbkMultiplexing {
   group = "Verification"
-  description "Validates Dataflow runner forcing streaming mode"
+  description "Validates Dataflow runner forcing streaming mode with GBK state multiplexing"
   dependsOn(createValidatesRunnerStreamingTest(/*enableGbkMultiplexing=*/true))
 }
 

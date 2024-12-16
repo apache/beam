@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.internal;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * A GroupByKey implementation that multiplexes many small user keys over a fixed set of sharding
