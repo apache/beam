@@ -189,7 +189,7 @@ public class BigQueryHllSketchCompatibilityIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> result =
         p.apply(
-                BigQueryIO.readAvro(parseQueryResultToByteArray)
+                BigQueryIO.parseGenericRecords(parseQueryResultToByteArray)
                     .fromQuery(query)
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ)

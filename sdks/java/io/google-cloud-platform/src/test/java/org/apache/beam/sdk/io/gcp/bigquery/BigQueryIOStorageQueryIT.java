@@ -138,7 +138,7 @@ public class BigQueryIOStorageQueryIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.readAvro(FailingTableRowParser.INSTANCE)
+                BigQueryIO.parseGenericRecords(FailingTableRowParser.INSTANCE)
                     .fromQuery("SELECT * FROM `" + options.getInputTable() + "`")
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ)

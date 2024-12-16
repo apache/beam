@@ -147,7 +147,7 @@ public class BigQueryIOStorageReadIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.readAvro(FailingTableRowParser.INSTANCE)
+                BigQueryIO.parseGenericRecords(FailingTableRowParser.INSTANCE)
                     .from(options.getInputTable())
                     .withMethod(Method.DIRECT_READ)
                     .withErrorHandler(errorHandler))
@@ -237,7 +237,7 @@ public class BigQueryIOStorageReadIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.readAvro(
+                BigQueryIO.parseGenericRecords(
                         record ->
                             BigQueryUtils.toBeamRow(
                                 record, multiFieldSchema, ConversionOptions.builder().build()))
