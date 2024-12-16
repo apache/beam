@@ -1352,9 +1352,7 @@ Coder.register_structured_urn(
 
 class _OrderedUnionCoder(FastCoder):
   def __init__(
-      self,
-      *coder_types: Tuple[type, Coder],
-      fallback_coder: Optional[Coder]):
+      self, *coder_types: Tuple[type, Coder], fallback_coder: Optional[Coder]):
     self._coder_types = coder_types
     self._fallback_coder = fallback_coder
 
