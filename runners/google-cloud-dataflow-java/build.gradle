@@ -242,6 +242,34 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
   }
 }
 
+def createValidatesRunnerStreamingTest = { boolean enableGbkMultiplexing ->
+  def pipelineOptions = legacyPipelineOptions + ['--streaming']
+  if (enableGbkMultiplexing) {
+    pipelineOptions = pipelineOptions + ['--experiments=enable_gbk_state_multiplexing']
+  }
+  def name = 'validatesRunnerLegacyWorkerTestStreaming'
+  if (enableGbkMultiplexing) {
+    name = 'validatesRunnerLegacyWorkerTestStreamingGbkMultiplexing'
+  }
+  return createLegacyWorkerValidatesRunnerTest(
+          name: name,
+          pipelineOptions: pipelineOptions,
+          excludedCategories: [
+                  'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+                  'org.apache.beam.sdk.testing.UsesMapState',
+                  'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+                  'org.apache.beam.sdk.testing.UsesSetState',
+          ],
+          excludedTests: [
+                  // TODO(https://github.com/apache/beam/issues/21472)
+                  'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+                  // GroupIntoBatches.withShardedKey not supported on streaming runner v1
+                  // https://github.com/apache/beam/issues/22592
+                  'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+          ]
+  )
+}
+
 def createRunnerV2ValidatesRunnerTest = { Map args ->
   def name = args.name
   def pipelineOptions = args.pipelineOptions ?: runnerV2PipelineOptions
@@ -460,24 +488,13 @@ task validatesRunner {
 task validatesRunnerStreaming {
   group = "Verification"
   description "Validates Dataflow runner forcing streaming mode"
-  dependsOn(createLegacyWorkerValidatesRunnerTest(
-    name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming']
-            + ['--experiments=enable_gbk_state_multiplexing'],
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-      'org.apache.beam.sdk.testing.UsesMapState',
-      'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-      'org.apache.beam.sdk.testing.UsesSetState',
-    ],
-    excludedTests: [
-      // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
-      // https://github.com/apache/beam/issues/22592
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
-    ]
-  ))
+  dependsOn(createValidatesRunnerStreamingTest(/*enableGbkMultiplexing=*/false))
+}
+
+task validatesRunnerStreamingWithGbkMultiplexing {
+  group = "Verification"
+  description "Validates Dataflow runner forcing streaming mode"
+  dependsOn(createValidatesRunnerStreamingTest(/*enableGbkMultiplexing=*/true))
 }
 
 def setupXVR = tasks.register("setupXVR") {
