@@ -1397,4 +1397,17 @@ public class TestJavaBeans {
               Schema.Field.nullable("value", FieldType.FLOAT)
                   .withDescription("This value is the value stored in the object as a float."))
           .build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class SimpleBeanWithOverriddenAccessors extends SimpleBean {
+    @Override
+    public String getStr() {
+      return super.getStr();
+    }
+
+    @Override
+    public void setStr(String str) {
+      super.setStr(str);
+    }
+  }
 }
