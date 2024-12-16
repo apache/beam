@@ -24,8 +24,12 @@ from apache_beam.ml.rag.embeddings.base import create_rag_adapter
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformer
 from apache_beam.ml.transforms.embeddings.huggingface import _SentenceTransformerModelHandler
+
+try:
+  from sentence_transformers import SentenceTransformer
+except ImportError:
+  SentenceTransformer = None
 
 
 class HuggingfaceTextEmbeddings(EmbeddingsManager):
@@ -38,6 +42,11 @@ class HuggingfaceTextEmbeddings(EmbeddingsManager):
             max_seq_length: Maximum sequence length for the model
             **kwargs: Additional arguments including ModelHandlers arguments
         """
+    if not SentenceTransformer:
+      raise ImportError(
+          "sentence-transformers is required to use "
+          "HuggingfaceTextEmbeddings."
+          "Please install it with using `pip install sentence-transformers`.")
     super().__init__(type_adapter=create_rag_adapter(), **kwargs)
     self.model_name = model_name
     self.max_seq_length = max_seq_length

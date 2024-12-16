@@ -29,7 +29,7 @@ from apache_beam.ml.rag.types import Content
 try:
   from langchain.text_splitter import TextSplitter
 except ImportError:
-  TextSplitter = None  # type: ignore
+  TextSplitter = None
 
 
 class LangChainChunker(ChunkingTransformProvider):
