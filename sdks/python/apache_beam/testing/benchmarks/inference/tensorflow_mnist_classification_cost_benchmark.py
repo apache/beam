@@ -21,6 +21,7 @@ import logging
 from apache_beam.examples.inference import tensorflow_mnist_classification
 from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostBenchmark
 
+
 class TensorflowMNISTClassificationCostBenchmark(DataflowCostBenchmark):
   def __init__(self):
     super().__init__()
