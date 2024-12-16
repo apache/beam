@@ -203,7 +203,6 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
       if (other instanceof KeyedWindowFn) {
         windowFn.verifyCompatibility(((KeyedWindowFn<?, ?, ?>) other).windowFn);
       }
-      ;
     }
 
     @Override

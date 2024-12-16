@@ -135,6 +135,12 @@ public class StateMultiplexingGroupByKey<K, V>
                       @ProcessElement
                       public void processElement(ProcessContext c) {
                         KV<K, V> kv = c.element();
+                        if (kv.getKey() == null) {
+                          // Combine.globally treats null keys specially
+                          // so don't multiplex them.
+                          c.output(largeKeys, KV.of(null, kv.getValue()));
+                          return;
+                        }
                         try {
                           // clear output stream
                           byteStringOutputStream.toByteStringAndReset();
