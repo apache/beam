@@ -1508,7 +1508,7 @@ public class BigQueryIOStorageReadTest {
 
     PCollection<KV<String, Long>> output =
         p.apply(
-            BigQueryIO.readAvro(new ParseAvroKeyValue())
+            BigQueryIO.parseGenericRecords(new ParseAvroKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
                 .withTestServices(
@@ -1716,7 +1716,7 @@ public class BigQueryIOStorageReadTest {
 
     PCollection<KV<String, Long>> output =
         p.apply(
-            BigQueryIO.readArrow(new ParseArrowKeyValue())
+            BigQueryIO.parseArrowRows(new ParseArrowKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
                 .withTestServices(

@@ -121,7 +121,7 @@ object Snippets {
             val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [START BigQueryReadFunction]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.readAvro { it["max_temperature"] as Double? }
+                    BigQueryIO.parseGenericRecords { it["max_temperature"] as Double? }
                             .from(tableSpec)
                             .withCoder(DoubleCoder.of()))
             // [END BigQueryReadFunction]
@@ -130,7 +130,7 @@ object Snippets {
         run {
             // [START BigQueryReadQuery]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.readAvro { it["max_temperature"] as Double? }
+                    BigQueryIO.parseGenericRecords { it["max_temperature"] as Double? }
                             .fromQuery(
                                     "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]")
                             .withCoder(DoubleCoder.of()))
@@ -140,7 +140,7 @@ object Snippets {
         run {
             // [START BigQueryReadQueryStdSQL]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.readAvro { it["max_temperature"] as Double? }
+                    BigQueryIO.parseGenericRecords { it["max_temperature"] as Double? }
                             .fromQuery(
                                     "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
                             .usingStandardSql()
@@ -249,7 +249,7 @@ object Snippets {
             )
             */
             val weatherData = pipeline.apply(
-                    BigQueryIO.readAvro {
+                    BigQueryIO.parseGenericRecords {
                         WeatherData(
                                 it.get("year") as Long,
                                 it.get("month") as Long,

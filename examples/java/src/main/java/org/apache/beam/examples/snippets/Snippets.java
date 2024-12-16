@@ -226,7 +226,7 @@ public class Snippets {
       // [START BigQueryReadFunction]
       PCollection<Double> maxTemperatures =
           p.apply(
-              BigQueryIO.readAvro(record -> (Double) record.get("max_temperature"))
+              BigQueryIO.parseGenericRecords(record -> (Double) record.get("max_temperature"))
                   .from(tableSpec)
                   .withCoder(DoubleCoder.of()));
       // [END BigQueryReadFunction]
@@ -236,7 +236,7 @@ public class Snippets {
       // [START BigQueryReadQuery]
       PCollection<Double> maxTemperatures =
           p.apply(
-              BigQueryIO.readAvro(record -> (Double) record.get("max_temperature"))
+              BigQueryIO.parseGenericRecords(record -> (Double) record.get("max_temperature"))
                   .fromQuery(
                       "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]")
                   .withCoder(DoubleCoder.of()));
@@ -247,7 +247,7 @@ public class Snippets {
       // [START BigQueryReadQueryStdSQL]
       PCollection<Double> maxTemperatures =
           p.apply(
-              BigQueryIO.readAvro(record -> (Double) record.get("max_temperature"))
+              BigQueryIO.parseGenericRecords(record -> (Double) record.get("max_temperature"))
                   .fromQuery(
                       "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
                   .usingStandardSql()
@@ -387,7 +387,7 @@ public class Snippets {
 
       PCollection<WeatherData> weatherData =
           p.apply(
-              BigQueryIO.readAvro(
+              BigQueryIO.parseGenericRecords(
                       record ->
                           new WeatherData(
                               (Long) record.get("year"),

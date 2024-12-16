@@ -614,13 +614,6 @@ public class BigQueryIO {
   static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
       SerializableFunctions.identity();
 
-  /**
-   * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
-   * PCollection<GenericRecord>} directly to BigQueryIO.Write.
-   */
-  static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
-      GENERIC_RECORD_IDENTITY_FORMATTER = AvroWriteRequest::getElement;
-
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
 
@@ -628,8 +621,8 @@ public class BigQueryIO {
       DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
 
   /**
-   * @deprecated Use {@link #readAvro(SerializableFunction)}, {@link
-   *     #readArrow(SerializableFunction)} or {@link #readTableRows} instead. {@link
+   * @deprecated Use {@link #parseGenericRecords(SerializableFunction)}, {@link
+   *     #parseArrowRows(SerializableFunction)} or {@link #readTableRows} instead. {@link
    *     #readTableRows()} does exactly the same as {@link #read}.
    */
   @Deprecated
@@ -643,9 +636,9 @@ public class BigQueryIO {
    * {@link TableRow}.
    *
    * <p>This method is more convenient to use in some cases, but usually has significantly lower
-   * performance than using {@link #readAvro(SerializableFunction)} or {@link
-   * #readArrow(SerializableFunction)} directly to parse data into a domain-specific type, due to
-   * the overhead of converting the rows to {@link TableRow}.
+   * performance than using {@link #parseGenericRecords(SerializableFunction)} or {@link
+   * #parseArrowRows(SerializableFunction)} directly to parse data into a domain-specific type, due
+   * to the overhead of converting the rows to {@link TableRow}.
    */
   public static TypedRead<TableRow> readTableRows() {
     return readTableRows(DataFormat.AVRO);
@@ -695,9 +688,9 @@ public class BigQueryIO {
    * {@link Row}.
    *
    * <p>This method is more convenient to use in some cases, but usually has significantly lower
-   * performance than using {@link #readAvro(SerializableFunction)} or {@link
-   * #readArrow(SerializableFunction)} directly to parse data into a domain-specific type, due to
-   * the overhead of converting the rows to {@link Row}.
+   * performance than using {@link #parseGenericRecords(SerializableFunction)} or {@link
+   * #parseArrowRows(SerializableFunction)} directly to parse data into a domain-specific type, due
+   * to the overhead of converting the rows to {@link Row}.
    */
   public static TypedRead<Row> readRows() {
     return readRows(DataFormat.AVRO);
@@ -708,9 +701,9 @@ public class BigQueryIO {
    */
   public static TypedRead<Row> readRows(DataFormat dataFormat) {
     if (dataFormat == DataFormat.AVRO) {
-      return readAvro(new RowAvroParser());
+      return parseGenericRecords(new RowAvroParser());
     } else if (dataFormat == DataFormat.ARROW) {
-      return readArrow();
+      return readArrowRows();
     } else {
       throw new IllegalArgumentException("Unsupported data format: " + dataFormat);
     }
@@ -736,7 +729,7 @@ public class BigQueryIO {
    * }).from("...");
    * }</pre>
    *
-   * @deprecated Use {@link #readAvro(SerializableFunction)} instead.
+   * @deprecated Use {@link #parseGenericRecords(SerializableFunction)} instead.
    */
   @Deprecated
   public static <T> TypedRead<T> read(SerializableFunction<SchemaAndRecord, T> parseFn) {
@@ -769,7 +762,7 @@ public class BigQueryIO {
    * each row of the table or query result as {@link GenericRecord}. Logical type in Extract jobs
    * will be enabled.
    */
-  public static TypedRead<GenericRecord> readAvro() {
+  public static TypedRead<GenericRecord> readGenericRecords() {
     return readAvroImpl(
         null,
         true,
@@ -784,7 +777,7 @@ public class BigQueryIO {
    * each row of the table or query result as {@link GenericRecord} with the desired schema. Logical
    * type in Extract jobs will be enabled.
    */
-  public static TypedRead<GenericRecord> readAvro(org.apache.avro.Schema schema) {
+  public static TypedRead<GenericRecord> readGenericRecords(org.apache.avro.Schema schema) {
     return readAvroImpl(
         schema,
         true,
@@ -799,7 +792,7 @@ public class BigQueryIO {
    * each row of the table or query result as input avro class. Logical type in Extract jobs will be
    * enabled.
    */
-  public static <T> TypedRead<T> readAvro(Class<T> recordClass) {
+  public static <T> TypedRead<T> readSpecificRecords(Class<T> recordClass) {
     org.apache.avro.Schema schema = ReflectData.get().getSchema(recordClass);
     AvroDatumFactory<T> factory;
     if (GenericRecord.class.equals(recordClass)) {
@@ -820,7 +813,7 @@ public class BigQueryIO {
    * input class, based on the appropriate {@link org.apache.avro.io.DatumReader} and schema.
    * Logical type in Extract jobs will be enabled.
    */
-  public static <T> TypedRead<T> readAvro(
+  public static <T> TypedRead<T> readRecords(
       org.apache.avro.Schema schema, AvroSource.DatumReaderFactory<T> readerFactory) {
     TypeDescriptor<T> td = null;
     Coder<T> coder = null;
@@ -836,7 +829,7 @@ public class BigQueryIO {
    * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
    * function. Logical type in Extract jobs will be enabled.
    */
-  public static <T> TypedRead<T> readAvro(
+  public static <T> TypedRead<T> parseGenericRecords(
       SerializableFunction<GenericRecord, T> avroFormatFunction) {
     return readAvroImpl(
         null,
@@ -883,7 +876,7 @@ public class BigQueryIO {
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result as {@link Row}.
    */
-  public static TypedRead<Row> readArrow() {
+  public static TypedRead<Row> readArrowRows() {
     return readArrowImpl(null, SchemaAndRow::getElement, null, TypeDescriptor.of(Row.class));
   }
 
@@ -891,7 +884,7 @@ public class BigQueryIO {
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result as {@link Row} with the desired schema.
    */
-  public static TypedRead<Row> readArrow(Schema schema) {
+  public static TypedRead<Row> readArrowRows(Schema schema) {
     return readArrowImpl(
         schema, SchemaAndRow::getElement, RowCoder.of(schema), TypeDescriptor.of(Row.class));
   }
@@ -901,7 +894,7 @@ public class BigQueryIO {
    * each row of the table or query result, parsed from the BigQuery ARROW format using the
    * specified function.
    */
-  public static <T> TypedRead<T> readArrow(SerializableFunction<Row, T> arrowFormatFunction) {
+  public static <T> TypedRead<T> parseArrowRows(SerializableFunction<Row, T> arrowFormatFunction) {
     return readArrowImpl(
         null,
         input -> arrowFormatFunction.apply(input.getElement()),
@@ -2210,7 +2203,7 @@ public class BigQueryIO {
     /**
      * See {@link DataFormat}.
      *
-     * @deprecated User {@link #readAvro()} or {@link #readArrow()} instead
+     * @deprecated User {@link #readGenericRecords()} or {@link #readArrowRows()} instead
      */
     @Deprecated
     public TypedRead<T> withFormat(DataFormat format) {
@@ -2438,8 +2431,15 @@ public class BigQueryIO {
    * GenericRecords} to a BigQuery table.
    */
   public static Write<GenericRecord> writeGenericRecords() {
-    return BigQueryIO.<GenericRecord>write()
-        .withAvroFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
+    return BigQueryIO.<GenericRecord>write().withAvroWriter(GENERIC_DATUM_WRITER_FACTORY);
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link SpecificRecord
+   * SpecificRecord} to a BigQuery table.
+   */
+  public static <T extends SpecificRecord> Write<T> writeSpecificRecords(Class<T> type) {
+    return BigQueryIO.<T>write().withAvroWriter(AvroDatumFactory.specific(type)::apply);
   }
 
   /**

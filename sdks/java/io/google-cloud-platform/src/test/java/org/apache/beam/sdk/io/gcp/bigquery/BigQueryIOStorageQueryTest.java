@@ -830,7 +830,7 @@ public class BigQueryIOStorageQueryTest {
     when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
-    return BigQueryIO.readAvro(parseFn)
+    return BigQueryIO.parseGenericRecords(parseFn)
         .fromQuery(encodedQuery)
         .withMethod(Method.DIRECT_READ)
         .withTestServices(
