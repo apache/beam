@@ -43,25 +43,23 @@ class ChunkingTransformProvider(MLTransformProvider):
     to split content while preserving metadata and managing chunk IDs.
 
     The transform flow:
-    1. Takes input documents with content and metadata
-    2. Splits content into chunks using implementation-specific logic
-    3. Preserves document metadata in resulting chunks
-    4. Optionally assigns unique IDs to chunks (configurable via chunk_id_fn).
+    - Takes input documents with content and metadata
+    - Splits content into chunks using implementation-specific logic
+    - Preserves document metadata in resulting chunks
+    - Optionally assigns unique IDs to chunks (configurable via chunk_id_fn
 
     Example usage:
-      ```python
-      class MyChunker(ChunkingTransformProvider):
-        def get_splitter_transform(self):
-          return beam.ParDo(MySplitterDoFn())
-
-      chunker = MyChunker(chunk_id_fn=my_id_function)
-
-      with beam.Pipeline() as p:
-        chunks = (
-          p 
-          | beam.Create([{'text': 'document...', 'source': 'doc.txt'}])
-          | MLTransform(...).with_transform(chunker))
-      ```
+      >>> class MyChunker(ChunkingTransformProvider):
+      ...     def get_splitter_transform(self):
+      ...         return beam.ParDo(MySplitterDoFn())
+      ... 
+      >>> chunker = MyChunker(chunk_id_fn=my_id_function)
+      >>> 
+      >>> with beam.Pipeline() as p:
+      ...     chunks = (
+      ...         p 
+      ...         | beam.Create([{'text': 'document...', 'source': 'doc.txt'}])
+      ...         | MLTransform(...).with_transform(chunker))
 
     Args:
       chunk_id_fn: Optional function to generate chunk IDs. If not provided,
