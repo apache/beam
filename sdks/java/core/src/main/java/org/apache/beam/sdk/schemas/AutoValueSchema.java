@@ -123,7 +123,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
     // SchemaTypeCreator for creating AutoValue objects.
     SchemaUserTypeCreator creatorFactory =
         AutoValueUtils.getBuilderCreator(
-            targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
+            targetTypeDescriptor, schema, AbstractGetterTypeSupplier.INSTANCE);
     if (creatorFactory != null) {
       return creatorFactory;
     }
