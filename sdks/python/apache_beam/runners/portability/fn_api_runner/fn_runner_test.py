@@ -1255,7 +1255,8 @@ class FnApiRunnerTest(unittest.TestCase):
                                     .with_name('bounded_trie'))['bounded_tries']
       self.assertEqual(bounded_trie.committed.size(), 2)
       for element in elements:
-        self.assertTrue(bounded_trie.committed.contains(tuple(element)), element)
+        self.assertTrue(
+            bounded_trie.committed.contains(tuple(element)), element)
 
   def test_callbacks_with_exception(self):
     elements_list = ['1', '2']
