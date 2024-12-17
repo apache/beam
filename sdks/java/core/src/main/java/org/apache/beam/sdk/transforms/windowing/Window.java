@@ -356,6 +356,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     if (outputStrategy.isTriggerSpecified()
         && !(outputStrategy.getTrigger() instanceof DefaultTrigger)
         && !(outputStrategy.getWindowFn() instanceof GlobalWindows)
+        // :TODO Add proper logic for Keyed Window here
+        && !(outputStrategy.getWindowFn().getClass().getName().contains("KeyedWindow"))
         && !outputStrategy.isAllowedLatenessSpecified()) {
       throw new IllegalArgumentException(
           "Except when using GlobalWindows,"

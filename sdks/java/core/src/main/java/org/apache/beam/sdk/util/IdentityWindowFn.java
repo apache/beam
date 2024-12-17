@@ -70,12 +70,14 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
-    throw new UnsupportedOperationException(
-        String.format(
-            "%s.isCompatible() should never be called."
-                + " It is a private implementation detail of sdk utilities."
-                + " This message indicates a bug in the Beam SDK.",
-            getClass().getCanonicalName()));
+    // :TODO anything else to consider here?
+    // throw new UnsupportedOperationException(
+    //     String.format(
+    //         "%s.isCompatible() should never be called."
+    //             + " It is a private implementation detail of sdk utilities."
+    //             + " This message indicates a bug in the Beam SDK.",
+    //         getClass().getCanonicalName()));
+    return other instanceof IdentityWindowFn;
   }
 
   @Override
