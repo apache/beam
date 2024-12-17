@@ -28,6 +28,7 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
@@ -527,6 +528,30 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       element.getKey().getKey(), dynamicDestinations, datasetService);
               tableSchema = converter.getTableSchema();
               descriptor = converter.getDescriptor(false);
+
+              if (autoUpdateSchema) {
+                // A StreamWriter ignores table schema updates that happen prior to its creation.
+                // So before creating a StreamWriter below, we fetch the table schema to check if we
+                // missed an update.
+                // If so, use the new schema instead of the base schema
+                @Nullable
+                WriteStream writeStream =
+                    writeStreamService.getWriteStream(getOrCreateStream.get());
+                TableSchema streamSchema =
+                    writeStream == null
+                        ? TableSchema.getDefaultInstance()
+                        : writeStream.getTableSchema();
+                Optional<TableSchema> newSchema =
+                    TableSchemaUpdateUtils.getUpdatedSchema(tableSchema, streamSchema);
+
+                if (newSchema.isPresent()) {
+                  tableSchema = newSchema.get();
+                  descriptor =
+                      TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+                          tableSchema, true, false);
+                  updatedSchema.write(tableSchema);
+                }
+              }
             }
             AppendClientInfo info =
                 AppendClientInfo.of(

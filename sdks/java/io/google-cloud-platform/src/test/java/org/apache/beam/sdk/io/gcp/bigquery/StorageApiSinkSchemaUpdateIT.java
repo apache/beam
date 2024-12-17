@@ -131,6 +131,7 @@ public class StorageApiSinkSchemaUpdateIT {
   private static final int ORIGINAL_N = 60;
   // for dynamic destination test
   private static final int NUM_DESTINATIONS = 3;
+  private static final int TOTAL_NUM_STREAMS = 9;
 
   private final Random randomGenerator = new Random();
 
@@ -217,9 +218,10 @@ public class StorageApiSinkSchemaUpdateIT {
     public void processElement(ProcessContext c, @StateId(ROW_COUNTER) ValueState<Integer> counter)
         throws Exception {
       int current = firstNonNull(counter.read(), 0);
-      // We update schema early on to leave a healthy amount of time for
-      // StreamWriter to recognize it.
-      if (current == 10) {
+      // We update schema early on to leave a healthy amount of time for StreamWriter to recognize
+      // it.
+      // We also update halfway through so that some writers are created *after* the schema update
+      if (current == TOTAL_NUM_STREAMS / 2) {
         for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
           bqClient.updateTableSchema(
               projectId,
@@ -322,7 +324,7 @@ public class StorageApiSinkSchemaUpdateIT {
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
     // Limit parallelism so that all streams recognize the new schema in an expected short amount
     // of time (before we start writing rows with updated schema)
-    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(3);
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(TOTAL_NUM_STREAMS);
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
@@ -559,15 +561,14 @@ public class StorageApiSinkSchemaUpdateIT {
     runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, true);
   }
 
-  @Test
-  public void testExactlyOnceDynamicDestinationsWithAutoSchemaUpdate() throws Exception {
+  public void runDynamicDestinationsWithAutoSchemaUpdate(boolean useAtLeastOnce) throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
-    // Set threshold bytes to 0 so that the stream attempts to fetch an updated schema after each
-    // append
+    // 0 threshold so that the stream tries fetching an updated schema after each append
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
-    // Limit parallelism so that all streams recognize the new schema in an expected short amount
-    // of time (before we start writing rows with updated schema)
-    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(3);
+    // Total streams per destination
+    p.getOptions()
+        .as(BigQueryOptions.class)
+        .setNumStorageWriteApiStreams(TOTAL_NUM_STREAMS / NUM_DESTINATIONS);
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
@@ -619,15 +620,20 @@ public class StorageApiSinkSchemaUpdateIT {
                 })
             .withAutoSchemaUpdate(true)
             .ignoreUnknownValues()
-            .withMethod(Write.Method.STORAGE_WRITE_API)
-            .withTriggeringFrequency(Duration.standardSeconds(1))
+            .withMethod(Write.Method.STORAGE_API_AT_LEAST_ONCE)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     if (useInputSchema) {
       write = write.withSchema(inputSchema);
     }
+    if (!useAtLeastOnce) {
+      write =
+          write
+              .withMethod(Write.Method.STORAGE_WRITE_API)
+              .withTriggeringFrequency(Duration.standardSeconds(1));
+    }
 
-    int numRows = TOTAL_N * NUM_DESTINATIONS;
+    int numRows = TOTAL_N;
     // set up and build pipeline
     Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
@@ -690,5 +696,15 @@ public class StorageApiSinkSchemaUpdateIT {
       checkRowCompleteness(dest, expectedCount.getValue(), true);
       checkRowsWithUpdatedSchema(dest, extraFields.get(dest), true);
     }
+  }
+
+  @Test
+  public void testExactlyOnceDynamicDestinationsWithAutoSchemaUpdate() throws Exception {
+    runDynamicDestinationsWithAutoSchemaUpdate(false);
+  }
+
+  @Test
+  public void testAtLeastOnceDynamicDestinationsWithAutoSchemaUpdate() throws Exception {
+    runDynamicDestinationsWithAutoSchemaUpdate(true);
   }
 }

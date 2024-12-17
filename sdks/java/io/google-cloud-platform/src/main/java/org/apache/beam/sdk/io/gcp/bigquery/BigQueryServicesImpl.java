@@ -76,6 +76,7 @@ import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1.FlushRowsRequest;
 import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.GetWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
@@ -86,6 +87,7 @@ import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
+import com.google.cloud.bigquery.storage.v1.WriteStreamView;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.DescriptorProtos;
@@ -1419,7 +1421,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public @Nullable WriteStream getWriteStream(String writeStream) {
-      return newWriteClient.getWriteStream(writeStream);
+      return newWriteClient.getWriteStream(
+          GetWriteStreamRequest.newBuilder()
+              .setView(WriteStreamView.FULL)
+              .setName(writeStream)
+              .build());
     }
 
     @Override
