@@ -258,6 +258,12 @@ class NumpyIntAsKeyTest(unittest.TestCase):
         _ = indata | "CombinePerKey" >> beam.CombinePerKey(sum)
 
 
+class WindowedValueCoderTest(unittest.TestCase):
+  def test_to_type_hint(self):
+    coder = coders.WindowedValueCoder(coders.VarIntCoder())
+    self.assertEqual(coder.to_type_hint(), typehints.WindowedValue[int])  # type: ignore[misc]
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

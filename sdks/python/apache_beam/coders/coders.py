@@ -1446,6 +1446,9 @@ class WindowedValueCoder(FastCoder):
     # pickle coders.
     return cls(registry.get_coder(typehint.inner_type))
 
+  def to_type_hint(self):
+    return typehints.WindowedValue[self.wrapped_value_coder.to_type_hint()]
+
 
 Coder.register_structured_urn(
     common_urns.coders.WINDOWED_VALUE.urn, WindowedValueCoder)
