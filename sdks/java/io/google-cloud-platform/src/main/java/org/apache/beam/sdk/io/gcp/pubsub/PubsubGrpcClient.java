@@ -269,13 +269,12 @@ public class PubsubGrpcClient extends PubsubClient {
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessagesCount());
     for (ReceivedMessage message : response.getReceivedMessagesList()) {
       PubsubMessage pubsubMessage = message.getMessage();
-      @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
+      Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Timestamp.
       long timestampMsSinceEpoch;
       if (Strings.isNullOrEmpty(timestampAttribute)) {
         Timestamp timestampProto = pubsubMessage.getPublishTime();
-        checkArgument(timestampProto != null, "Pubsub message is missing timestamp proto");
         timestampMsSinceEpoch =
             timestampProto.getSeconds() * 1000 + timestampProto.getNanos() / 1000L / 1000L;
       } else {
@@ -288,7 +287,7 @@ public class PubsubGrpcClient extends PubsubClient {
 
       // Record id, if any.
       @Nullable String recordId = null;
-      if (idAttribute != null && attributes != null) {
+      if (idAttribute != null) {
         recordId = attributes.get(idAttribute);
       }
       if (Strings.isNullOrEmpty(recordId)) {

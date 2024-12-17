@@ -1197,7 +1197,7 @@ public final class FirestoreV1 {
                     .filter(
                         v -> {
                           String referenceValue = v.getReferenceValue();
-                          return referenceValue != null && !referenceValue.isEmpty();
+                          return !referenceValue.isEmpty();
                         })
                     .findFirst();
         Function<String, String[]> stringToPath = (String s) -> s.split("/");
