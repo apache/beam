@@ -49,7 +49,7 @@ env:
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
-  beam_Inference_Python_Benchmarks_Dataflow:
+  beam_Python_Cost_Benchmarks_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
