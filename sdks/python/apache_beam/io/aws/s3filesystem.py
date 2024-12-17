@@ -18,6 +18,7 @@
 """S3 file system implementation for accessing files on AWS S3."""
 
 # pytype: skip-file
+import traceback
 
 from apache_beam.io.aws import s3io
 from apache_beam.io.filesystem import BeamIOError
