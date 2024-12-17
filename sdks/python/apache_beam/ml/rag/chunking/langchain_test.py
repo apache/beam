@@ -179,17 +179,20 @@ class LangChainChunkingTest(unittest.TestCase):
             | beam.Create([self.simple_text])
             | provider.get_ptransform_for_processing())
 
+  def test_empty_document_field(self):
+    """Test that using an invalid document field raises KeyError."""
+    splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=20)
+
+    with self.assertRaises(ValueError):
+      _ = LangChainChunker(
+          document_field='', metadata_fields={}, text_splitter=splitter)
+
   def test_invalid_text_splitter(self):
     """Test that using an invalid document field raises KeyError."""
 
     with self.assertRaises(TypeError):
-      provider = LangChainChunker(
+      _ = LangChainChunker(
           document_field='nonexistent', text_splitter="Not a text splitter!")
-      with TestPipeline() as p:
-        _ = (
-            p
-            | beam.Create([self.simple_text])
-            | provider.get_ptransform_for_processing())
 
   def test_empty_text(self):
     """Test that empty text produces no chunks."""

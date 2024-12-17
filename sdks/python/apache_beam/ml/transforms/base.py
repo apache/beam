@@ -684,12 +684,6 @@ class _EmbeddingHandler(ModelHandler):
   def _validate_column_data(self, batch):
     pass
 
-  def _validate_batch(self, batch: Sequence[dict[str, Any]]):
-    if not batch or not isinstance(batch[0], dict):
-      raise TypeError(
-          'Expected data to be dicts, got '
-          f'{type(batch[0])} instead.')
-
   def run_inference(
       self,
       batch: Sequence[dict[str, list[str]]],

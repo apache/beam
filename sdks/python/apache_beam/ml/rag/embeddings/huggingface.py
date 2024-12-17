@@ -40,7 +40,9 @@ class HuggingfaceTextEmbeddings(EmbeddingsManager):
         Args:
             model_name: Name of the sentence-transformers model to use
             max_seq_length: Maximum sequence length for the model
-            **kwargs: Additional arguments including ModelHandlers arguments
+            **kwargs: Additional arguments passed to 
+            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`
+            constructor including ModelHandler arguments
         """
     if not SentenceTransformer:
       raise ImportError(

@@ -78,6 +78,10 @@ class BaseMLTransformTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
+  def test_ml_transform_no_read_or_write_artifact_lcoation(self):
+    with self.assertRaises(ValueError):
+      _ = base.MLTransform(transforms=[])
+
   @unittest.skipIf(tft is None, 'tft module is not installed.')
   def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
     fake_fn_1 = _FakeOperation(name='fake_fn_1', columns=['x'])
@@ -354,6 +358,21 @@ class FakeEmbeddingsManager(base.EmbeddingsManager):
     return 'FakeEmbeddingsManager'
 
 
+class InvalidEmbeddingsManager(base.EmbeddingsManager):
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
+  def get_model_handler(self) -> ModelHandler:
+    InvalidEmbeddingsManager.__repr__ = lambda x: 'InvalidEmbeddingsManager'  # type: ignore[method-assign]
+    return FakeModelHandler()
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    return (RunInference(model_handler=base._TextEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'InvalidEmbeddingsManager'
+
+
 class TextEmbeddingHandlerTest(unittest.TestCase):
   def setUp(self) -> None:
     self.embedding_conig = FakeEmbeddingsManager(columns=['x'])
@@ -361,6 +380,10 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
+
+  def test_no_columns_or_type_adapter(self):
+    with self.assertRaises(ValueError):
+      _ = InvalidEmbeddingsManager()
 
   def test_handler_with_incompatible_datatype(self):
     text_handler = base._TextEmbeddingHandler(
@@ -548,13 +571,31 @@ class TestImageEmbeddingHandler(unittest.TestCase):
     shutil.rmtree(self.artifact_location)
 
   @unittest.skipIf(PIL is None, 'PIL module is not installed.')
-  def test_handler_with_incompatible_datatype(self):
+  def test_handler_with_non_dict_datatype(self):
     image_handler = base._ImageEmbeddingHandler(
         embeddings_manager=self.embedding_config)
     data = [
         ('x', 'hi there'),
         ('x', 'not an image'),
         ('x', 'image_path.jpg'),
+    ]
+    with self.assertRaises(TypeError):
+      image_handler.run_inference(data, None, None)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_non_image_datatype(self):
+    image_handler = base._ImageEmbeddingHandler(
+        embeddings_manager=self.embedding_config)
+    data = [
+        {
+            'x': 'hi there'
+        },
+        {
+            'x': 'not an image'
+        },
+        {
+            'x': 'image_path.jpg'
+        },
     ]
     with self.assertRaises(TypeError):
       image_handler.run_inference(data, None, None)

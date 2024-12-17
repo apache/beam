@@ -43,6 +43,11 @@ class WordSplitter(beam.DoFn):
           metadata={'source': element['source']})
 
 
+class InvalidChunkingProvider(ChunkingTransformProvider):
+  def __init__(self, chunk_id_fn: Optional[ChunkIdFn] = None):
+    super().__init__(chunk_id_fn=chunk_id_fn)
+
+
 class MockChunkingProvider(ChunkingTransformProvider):
   def __init__(self, chunk_id_fn: Optional[ChunkIdFn] = None):
     super().__init__(chunk_id_fn=chunk_id_fn)
@@ -75,6 +80,11 @@ def id_equals(expected, actual):
 class ChunkingTransformProviderTest(unittest.TestCase):
   def setUp(self):
     self.test_doc = {'text': 'hello world test', 'source': 'test.txt'}
+
+  def test_doesnt_override_get_text_splitter_transform(self):
+    provider = InvalidChunkingProvider()
+    with self.assertRaises(NotImplementedError):
+      provider.get_splitter_transform()
 
   def test_chunking_transform(self):
     """Test the complete chunking transform."""
