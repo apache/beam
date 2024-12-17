@@ -16,6 +16,7 @@
 #
 
 import collections
+import datetime
 import functools
 import json
 import logging
@@ -992,7 +993,7 @@ def expand_jinja(
       jinja2.Environment(
           undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
       .from_string(jinja_template)
-      .render(**jinja_variables))
+      .render(datetime=datetime, **jinja_variables))
 
 
 class YamlTransform(beam.PTransform):
