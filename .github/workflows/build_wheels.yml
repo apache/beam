@@ -251,7 +251,7 @@ jobs:
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==2.20.0 setuptools
+      run: pip install cibuildwheel==2.18.0 setuptools
     - name: Build wheel
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
