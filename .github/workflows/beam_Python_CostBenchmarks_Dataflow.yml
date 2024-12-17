@@ -17,7 +17,7 @@ name: Python Cost Benchmarks Dataflow
 
 on:
   schedule:
-    - cron: '30 18 * * 6' # Run at 11:30 pm UTC on Saturdays
+    - cron: '30 18 * * 6' # Run at 6:30 pm UTC on Saturdays
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
