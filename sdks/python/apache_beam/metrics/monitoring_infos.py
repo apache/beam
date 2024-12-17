@@ -392,7 +392,7 @@ def is_string_set(monitoring_info_proto):
 
 
 def is_bounded_trie(monitoring_info_proto):
-  """Returns true if the monitoring info is a StringSet metric."""
+  """Returns true if the monitoring info is a BoundedTrie metric."""
   return monitoring_info_proto.type in BOUNDED_TRIE_TYPES
 
 
