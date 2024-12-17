@@ -297,10 +297,13 @@ def _expand_python_mapping_func(
     # TODO(robertwb): Consider constructing a single callable that takes
     # the row and returns the new row, rather than invoking (and unpacking)
     # for each field individually.
-    source = '\n'.join(['def fn(__row__):'] + [
-        f'  {name} = __row__.{name}'
+    source = '\n'.join(['def fn(__row__):'] + ['  try:'] + [
+        f'    {name} = __row__.{name}'
         for name in original_fields if name in expression
-    ] + ['  return (' + expression + ')'])
+    ] + [f'    return ({expression})'] + ['  except NameError as e:'] + [
+        f'    raise ValueError(f"{{e}}. Valid values include '
+        f'{original_fields}")'
+    ])
 
   else:
     source = callable

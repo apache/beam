@@ -76,6 +76,28 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(label='389a', rank=2),
           ]))
 
+  def test_name_error(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        f".*error_field.*is not defined.*{'.*'.join(DATA[0].as_dict().keys())}"
+    ):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        output = (
+            p
+            | beam.Create(DATA)
+            | YamlTransform(
+                '''
+            type: MapToFields
+            config:
+                language: python
+                fields: 
+                  new_field: error_field
+                append: true
+                drop: [conductor]
+            '''))
+      self.assertFalse(output)
+
   def test_filter(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
