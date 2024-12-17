@@ -354,7 +354,7 @@ public class IcebergIOIT implements Serializable {
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA)
             .identity("bool")
-            .identity("modulo_5")
+            .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
     Table table =
