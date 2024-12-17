@@ -1536,16 +1536,18 @@ class FnApiMetrics(metric.MetricResults):
     self._distributions = {}
     self._gauges = {}
     self._string_sets = {}
+    self._bounded_tries = {}
     self._user_metrics_only = user_metrics_only
     self._monitoring_infos = step_monitoring_infos
 
     for smi in step_monitoring_infos.values():
-      counters, distributions, gauges, string_sets = \
-          portable_metrics.from_monitoring_infos(smi, user_metrics_only)
+      counters, distributions, gauges, string_sets, bounded_tries = (
+          portable_metrics.from_monitoring_infos(smi, user_metrics_only))
       self._counters.update(counters)
       self._distributions.update(distributions)
       self._gauges.update(gauges)
       self._string_sets.update(string_sets)
+      self._bounded_tries.update(bounded_tries)
 
   def query(self, filter=None):
     counters = [
@@ -1564,12 +1566,17 @@ class FnApiMetrics(metric.MetricResults):
         MetricResult(k, v, v) for k,
         v in self._string_sets.items() if self.matches(filter, k)
     ]
+    bounded_tries = [
+        MetricResult(k, v, v) for k,
+        v in self._bounded_tries.items() if self.matches(filter, k)
+    ]
 
     return {
         self.COUNTERS: counters,
         self.DISTRIBUTIONS: distributions,
         self.GAUGES: gauges,
-        self.STRINGSETS: string_sets
+        self.STRINGSETS: string_sets,
+        self.BOUNDED_TRIES: bounded_tries,
     }
 
   def monitoring_infos(self) -> List[metrics_pb2.MonitoringInfo]:
