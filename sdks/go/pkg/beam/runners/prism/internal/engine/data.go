@@ -229,17 +229,6 @@ func (d *TentativeData) ClearMultimapKeysState(stateID LinkID, wKey, uKey []byte
 	slog.Debug("State() MultimapKeys.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("WindowKey", wKey))
 }
 
-// OrderedListState from the Java SDK is encoded as KVs with varint encoded millis
-// followed by the value. This is *not* the standard TimestampValueCoder encoding, which
-// uses a big-endian long as a suffix to the value.
-//
-// Next, is we need to parse out the individual values from the data blob anyway.
-// So we probably can't cheekily re-use the BagState like it currently is, even
-// after fixing the timestamp issue.
-//
-// Currently assuming the Value is length prefixed, which isn't always going to
-// be true for ints, bools, bytes, and other "known" coders.s
-
 // AppendOrderedListState appends the incoming timestamped data to the existing tentative data bundle.
 // Assumes the data is TimestampedValue encoded, which has a BigEndian int64 suffixed to the data.
 // This means we may always use the last 8 bytes to determine the value sorting.
@@ -251,6 +240,14 @@ func (d *TentativeData) AppendOrderedListState(stateID LinkID, wKey, uKey []byte
 	var datums [][]byte
 
 	// We need to parse out all values individually for later sorting.
+	//
+	// OrderedListState is encoded as KVs with varint encoded millis followed by the value.
+	// This is not the standard TimestampValueCoder encoding, which
+	// uses a big-endian long as a suffix to the value. This is important since
+	// values may be concatenated, and we'll need to split them out out.
+	//
+	// The TentativeData.stateTypeLen is populated with a function to extract
+	// the length of a the next value, so we can skip through elements individually.
 	for i := 0; i < len(data); {
 		// Get the length of the VarInt for the timestamp.
 		_, tn := protowire.ConsumeVarint(data[i:])
