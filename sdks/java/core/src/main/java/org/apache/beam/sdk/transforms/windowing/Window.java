@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.KeyedWindow.KeyedWindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -214,6 +215,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
   @AutoValue.Builder
   abstract static class Builder<T> {
+
     abstract Builder<T> setWindowFn(WindowFn<? super T, ?> windowFn);
 
     abstract Builder<T> setTrigger(Trigger trigger);
@@ -352,12 +354,17 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
 
+    boolean isGlobalWindow = (outputStrategy.getWindowFn() instanceof GlobalWindows);
+    if (outputStrategy.getWindowFn() instanceof KeyedWindow.KeyedWindowFn) {
+      isGlobalWindow =
+          (((KeyedWindowFn<?, ?, ?>) outputStrategy.getWindowFn()).getInnerWindowFn()
+              instanceof GlobalWindows);
+    }
+
     // Make sure that the windowing strategy is complete & valid.
     if (outputStrategy.isTriggerSpecified()
         && !(outputStrategy.getTrigger() instanceof DefaultTrigger)
-        && !(outputStrategy.getWindowFn() instanceof GlobalWindows)
-        // :TODO Add proper logic for Keyed Window here
-        && !(outputStrategy.getWindowFn().getClass().getName().contains("KeyedWindow"))
+        && !(isGlobalWindow)
         && !outputStrategy.isAllowedLatenessSpecified()) {
       throw new IllegalArgumentException(
           "Except when using GlobalWindows,"
@@ -456,6 +463,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * Pipeline authors should use {@link Window} directly instead.
    */
   public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
+
     private final @Nullable Window<T> original;
     private final WindowingStrategy<T, ?> updatedStrategy;
 
@@ -506,6 +514,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * again as part of the next {@link org.apache.beam.sdk.transforms.GroupByKey}.
    */
   private static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input

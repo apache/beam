@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,33 +27,27 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.dataflow.util.ByteStringCoder;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
-import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow {
+@Internal
+public class KeyedWindow<K, W extends @NonNull BoundedWindow> extends BoundedWindow {
 
-  private final ByteString key;
+  private final K key;
   private final W window;
 
-  public KeyedWindow(ByteString name, W window) {
-    this.key = name;
+  public KeyedWindow(K key, W window) {
+    this.key = key;
     this.window = window;
   }
 
-  public ByteString getKey() {
+  public K getKey() {
     return key;
   }
 
@@ -82,7 +76,7 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
     if (!(o instanceof KeyedWindow)) {
       return false;
     }
-    KeyedWindow<?> that = (KeyedWindow<?>) o;
+    KeyedWindow<?, ?> that = (KeyedWindow<?, ?>) o;
     return Objects.equals(key, that.key) && Objects.equals(window, that.window);
   }
 
@@ -91,18 +85,25 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
     return Objects.hash(key, window);
   }
 
-  public static class KeyedWindowFn<K extends ByteString, V, W extends BoundedWindow>
-      extends WindowFn<KV<K, V>, KeyedWindow<W>> {
+  @Internal
+  public static class KeyedWindowFn<K, V, W extends BoundedWindow>
+      extends WindowFn<KV<K, V>, KeyedWindow<K, W>> {
 
     private final WindowFn<V, W> windowFn;
+    private final Coder<K> keyCoder;
 
-    public KeyedWindowFn(WindowFn<?, ?> windowFn) {
+    public KeyedWindowFn(Coder<K> keyCoder, WindowFn<?, ?> windowFn) {
+      this.keyCoder = keyCoder;
       this.windowFn = (WindowFn<V, W>) windowFn;
     }
 
+    public WindowFn<V, W> getInnerWindowFn() {
+      return windowFn;
+    }
+
     @Override
-    public Collection<KeyedWindow<W>> assignWindows(
-        WindowFn<KV<K, V>, KeyedWindow<W>>.AssignContext c) throws Exception {
+    public Collection<KeyedWindow<K, W>> assignWindows(
+        WindowFn<KV<K, V>, KeyedWindow<K, W>>.AssignContext c) throws Exception {
 
       return windowFn
           .assignWindows(
@@ -129,11 +130,12 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
     }
 
     @Override
-    public void mergeWindows(WindowFn<KV<K, V>, KeyedWindow<W>>.MergeContext c) throws Exception {
+    public void mergeWindows(WindowFn<KV<K, V>, KeyedWindow<K, W>>.MergeContext c)
+        throws Exception {
       if (windowFn instanceof NonMergingWindowFn) {
         return;
       }
-      HashMap<ByteString, List<W>> keyToWindow = new HashMap<>();
+      HashMap<K, List<W>> keyToWindow = new HashMap<>();
       c.windows()
           .forEach(
               keyedWindow -> {
@@ -141,8 +143,8 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
                     keyToWindow.computeIfAbsent(keyedWindow.getKey(), k -> new ArrayList<>());
                 windows.add(keyedWindow.getWindow());
               });
-      for (Entry<ByteString, List<W>> entry : keyToWindow.entrySet()) {
-        ByteString key = entry.getKey();
+      for (Entry<K, List<W>> entry : keyToWindow.entrySet()) {
+        K key = entry.getKey();
         List<W> windows = entry.getValue();
         windowFn.mergeWindows(
             new WindowFn<V, W>.MergeContext() {
@@ -153,7 +155,7 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
 
               @Override
               public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-                List<KeyedWindow<W>> toMergedKeyedWindows =
+                List<KeyedWindow<K, W>> toMergedKeyedWindows =
                     toBeMerged.stream()
                         .map(window -> new KeyedWindow<>(key, window))
                         .collect(Collectors.toList());
@@ -170,22 +172,13 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
     }
 
     @Override
-    public Coder<KeyedWindow<W>> windowCoder() {
-      return new KeyedWindowCoder<>(windowFn.windowCoder());
+    public Coder<KeyedWindow<K, W>> windowCoder() {
+      return new KeyedWindowCoder<>(keyCoder, windowFn.windowCoder());
     }
 
     @Override
-    public WindowMappingFn<KeyedWindow<W>> getDefaultWindowMappingFn() {
-      return new WindowMappingFn<KeyedWindow<W>>() {
-        @Override
-        public KeyedWindow<W> getSideInputWindow(BoundedWindow mainWindow) {
-          Preconditions.checkArgument(mainWindow instanceof KeyedWindow);
-          KeyedWindow<W> mainKeyedWindow = (KeyedWindow<W>) mainWindow;
-          return new KeyedWindow<>(
-              mainKeyedWindow.getKey(),
-              windowFn.getDefaultWindowMappingFn().getSideInputWindow(mainKeyedWindow.getWindow()));
-        }
-      };
+    public WindowMappingFn<KeyedWindow<K, W>> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException("KeyedWindow not supported with side inputs");
     }
 
     @Override
@@ -211,23 +204,25 @@ public class KeyedWindow<W extends @NonNull BoundedWindow> extends BoundedWindow
     }
   }
 
-  public static class KeyedWindowCoder<W extends BoundedWindow> extends Coder<KeyedWindow<W>> {
+  @Internal
+  public static class KeyedWindowCoder<K, W extends BoundedWindow>
+      extends Coder<KeyedWindow<K, W>> {
 
-    private final KvCoder<ByteString, W> coder;
+    private final KvCoder<K, W> coder;
 
-    public KeyedWindowCoder(Coder<W> windowCoder) {
+    public KeyedWindowCoder(Coder<K> keyCoder, Coder<W> windowCoder) {
       // :TODO consider swapping the order for improved state locality
-      this.coder = KvCoder.of(ByteStringCoder.of(), windowCoder);
+      this.coder = KvCoder.of(keyCoder, windowCoder);
     }
 
     @Override
-    public void encode(KeyedWindow<W> value, OutputStream outStream) throws IOException {
+    public void encode(KeyedWindow<K, W> value, OutputStream outStream) throws IOException {
       coder.encode(KV.of(value.getKey(), value.getWindow()), outStream);
     }
 
     @Override
-    public KeyedWindow<W> decode(InputStream inStream) throws IOException {
-      KV<ByteString, W> decode = coder.decode(inStream);
+    public KeyedWindow<K, W> decode(InputStream inStream) throws IOException {
+      KV<K, W> decode = coder.decode(inStream);
       return new KeyedWindow<>(decode.getKey(), decode.getValue());
     }
 

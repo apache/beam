@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.internal.KeyedWindow.KeyedWindowFn;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.ByteStringCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,6 +35,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.KeyedWindow;
+import org.apache.beam.sdk.transforms.windowing.KeyedWindow.KeyedWindowFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -194,7 +195,7 @@ public class StateMultiplexingGroupByKey<K, V>
     PCollection<KV<K, Iterable<V>>> smallKeyBranch =
         mapKeysToBytes
             .get(smallKeys)
-            .apply(Window.into(new KeyedWindowFn<>(originalWindowFn)))
+            .apply(Window.into(new KeyedWindowFn<>(ByteStringCoder.of(), originalWindowFn)))
             .apply(
                 "MapKeysToVirtualKeys",
                 MapElements.via(
@@ -215,13 +216,13 @@ public class StateMultiplexingGroupByKey<K, V>
                     new DoFn<KV<Integer, Iterable<V>>, KV<K, Iterable<V>>>() {
                       @ProcessElement
                       public void processElement(ProcessContext c, BoundedWindow w, PaneInfo pane) {
-                        ByteString key = ((KeyedWindow<?>) w).getKey();
+                        ByteString key = ((KeyedWindow<ByteString, ?>) w).getKey();
                         try {
                           // is it correct to use the pane from Keyed window here?
                           c.outputWindowedValue(
                               KV.of(keyCoder.decode(key.newInput()), c.element().getValue()),
                               c.timestamp(),
-                              Collections.singleton(((KeyedWindow<?>) w).getWindow()),
+                              Collections.singleton(((KeyedWindow<ByteString, ?>) w).getWindow()),
                               pane);
                         } catch (IOException e) {
                           throw new RuntimeException(e);

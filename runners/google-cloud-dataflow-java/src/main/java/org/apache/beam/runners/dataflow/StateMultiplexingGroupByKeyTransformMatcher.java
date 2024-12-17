@@ -36,13 +36,10 @@ class StateMultiplexingGroupByKeyTransformMatcher implements PTransformMatcher {
 
   @Override
   public boolean matches(AppliedPTransform<?, ?, ?> application) {
-    LOG.info(application.getFullName());
     if (!(application.getTransform() instanceof GroupByKey)) {
-      LOG.info(application.getFullName() + " returning false");
       return false;
     }
     for (PCollection<?> pCollection : application.getMainInputs().values()) {
-      LOG.info(application.getFullName() + " " + pCollection.getCoder());
       Coder<?> coder = pCollection.getCoder();
       if (!(coder instanceof KvCoder)) {
         return false;
@@ -52,7 +49,7 @@ class StateMultiplexingGroupByKeyTransformMatcher implements PTransformMatcher {
         return false;
       }
     }
-    LOG.info(application.getFullName() + " returning true");
+    LOG.info("Enabling State Multiplexing on {}", application.getFullName());
     return true;
   }
 
