@@ -18,6 +18,7 @@
 """Azure Blob Storage Implementation for accesing files on
 Azure Blob Storage.
 """
+import traceback
 
 from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import BeamIOError
