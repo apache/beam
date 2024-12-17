@@ -269,8 +269,10 @@ func (em *ElementManager) StageAggregates(ID string) {
 
 // StageStateful marks the given stage as stateful, which means elements are
 // processed by key.
-func (em *ElementManager) StageStateful(ID string) {
-	em.stages[ID].stateful = true
+func (em *ElementManager) StageStateful(ID string, stateTypeLen map[LinkID]func([]byte) int) {
+	ss := em.stages[ID]
+	ss.stateful = true
+	ss.stateTypeLen = stateTypeLen
 }
 
 // StageOnWindowExpiration marks the given stage as stateful, which means elements are
@@ -669,7 +671,9 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	ss := em.stages[rb.StageID]
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	var ret TentativeData
+	ret := TentativeData{
+		stateTypeLen: ss.stateTypeLen,
+	}
 	keys := ss.inprogressKeysByBundle[rb.BundleID]
 	// TODO(lostluck): Also track windows per bundle, to reduce copying.
 	if len(ss.state) > 0 {
@@ -1136,6 +1140,7 @@ type stageState struct {
 	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
 	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
 	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
+	stateTypeLen           map[LinkID]func([]byte) int                      // map from state to a function that will produce the total length of a single value in bytes.
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
