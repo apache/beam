@@ -31,12 +31,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /** DoFnRunner decorator which registers {@link MetricsContainerImpl}. */
-class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> delegate;
   private final String stepName;
   private final MetricsContainerStepMapAccumulator metricsAccum;
 
-  DoFnRunnerWithMetrics(
+  public DoFnRunnerWithMetrics(
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
       MetricsContainerStepMapAccumulator metricsAccum) {
