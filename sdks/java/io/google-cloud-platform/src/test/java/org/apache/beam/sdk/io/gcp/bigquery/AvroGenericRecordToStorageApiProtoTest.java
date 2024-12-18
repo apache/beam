@@ -28,6 +28,7 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -308,7 +309,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
       Instant now = Instant.now();
       baseRecord =
           new GenericRecordBuilder(BASE_SCHEMA)
-              .set("bytesValue", BYTES)
+              .set("bytesValue", ByteBuffer.wrap(BYTES))
               .set("intValue", (int) 3)
               .set("longValue", (long) 4)
               .set("floatValue", (float) 3.14)

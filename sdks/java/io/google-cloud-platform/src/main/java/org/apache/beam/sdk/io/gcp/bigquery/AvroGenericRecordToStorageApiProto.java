@@ -86,7 +86,7 @@ public class AvroGenericRecordToStorageApiProto {
           .put(Schema.Type.STRING, Object::toString)
           .put(Schema.Type.BOOLEAN, Function.identity())
           .put(Schema.Type.ENUM, o -> o.toString())
-          .put(Schema.Type.BYTES, o -> ByteString.copyFrom((byte[]) o))
+          .put(Schema.Type.BYTES, o -> ByteString.copyFrom(((ByteBuffer) o).duplicate()))
           .build();
 
   // A map of supported logical types to their encoding functions.
