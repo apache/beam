@@ -31,7 +31,7 @@ class TensorflowMNISTClassificationCostBenchmark(DataflowCostBenchmark):
     extra_opts['input'] = self.pipeline.get_option('input_file')
     extra_opts['output'] = self.pipeline.get_option('output_file')
     extra_opts['model_path'] = self.pipeline.get_option('model')
-    tensorflow_mnist_classification.run(
+    self.result = tensorflow_mnist_classification.run(
         self.pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
