@@ -79,7 +79,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
       if (serviceEndpoint != null) {
-        this.serviceEndpoint = URI(serviceEndpoint);
+        this.serviceEndpoint = new URI(serviceEndpoint);
       }
     }
   }
@@ -254,7 +254,13 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       }
       // Convert back to bytes to keep consistency with previous verison:
       // https://github.com/apache/beam/blob/5eed396caf9e0065d8ed82edcc236bad5b71ba22/sdks/java/io/kinesis/src/main/java/org/apache/beam/sdk/io/kinesis/KinesisTransformRegistrar.java
-      return readTransform.Map(kr -> kr.getDataAsBytes());
+      return readTransform.apply("Convert to bytes", ParDo.of(new DoFn<KiesisRecord, byte[]>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+                KinesisRecord record = c.element();
+                return record.getDataAsBytes();
+            }
+        }));
     }
   }
 }
