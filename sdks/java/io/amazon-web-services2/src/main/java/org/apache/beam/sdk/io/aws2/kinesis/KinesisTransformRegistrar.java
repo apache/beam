@@ -32,7 +32,6 @@ import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -86,7 +85,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
   }
 
   public static class WriteBuilder
-      implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
+      implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, KinesisIO.Write.Result> {
 
     public static class Configuration extends CrossLanguageConfiguration {
       private String partitionKey;
@@ -97,7 +96,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     @Override
-    public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration configuration) {
+    public PTransform<PCollection<byte[]>, KinesisIO.Write.Result> buildExternal(Configuration configuration) {
       AwsBasicCredentials creds = AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
       KinesisIO.Write<byte[]> writeTransform =
