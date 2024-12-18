@@ -49,7 +49,8 @@
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) a expansion service jar and use
   that to expand transforms. Currently Kinesis transforms use the
-  'beam-sdks-java-io-kinesis-expansion-service' jar for this purpose.
+  'beam-sdks-java-io-amazon-web-services2-expansion-service' jar for this
+  purpose.
 
   *Option 2: specify a custom expansion service*
 
@@ -99,7 +100,7 @@ __all__ = [
 
 def default_io_expansion_service():
   return BeamJarExpansionService(
-      'sdks:java:io:kinesis:expansion-service:shadowJar')
+      'sdks:java:io:amazon-web-services2:expansion-service:shadowJar')
 
 
 WriteToKinesisSchema = NamedTuple(
@@ -111,7 +112,6 @@ WriteToKinesisSchema = NamedTuple(
         ('region', str),
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
-        ('verify_certificate', Optional[bool]),
         ('producer_properties', Optional[Mapping[str, str]]),
     ],
 )
@@ -123,7 +123,7 @@ class WriteToKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_write:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_write:v2'
 
   def __init__(
       self,
@@ -145,14 +145,26 @@ class WriteToKinesis(ExternalTransform):
     :param aws_secret_key: Kinesis access key secret.
     :param region: AWS region. Example: 'us-east-1'.
     :param service_endpoint: Kinesis service endpoint
-    :param verify_certificate: Enable or disable certificate verification.
-        Never set to False on production. True by default.
+    :param verify_certificate: Deprecated - certificates will always be
+        verified.
     :param partition_key: Specify default partition key.
     :param producer_properties: Specify the configuration properties for Kinesis
         Producer Library (KPL) as dictionary.
         Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    if verify_certificate is False:
+      # Previously, we supported this via
+      # https://javadoc.io/doc/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#isVerifyCertificate--
+      # With the new AWS client, we no longer support it and it is always True
+      raise ValueError(
+        'verify_certificate set to False. This option is no longer ' +
+        'supported and certificate verification will still happen.')
+    if verify_certificate is True:
+      logging.warning(
+        'verify_certificate set to True. This option is no longer ' +
+        'supported and certificate verification will automatically happen. ' +
+        'This option may be removed in a future release')
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -163,7 +175,6 @@ class WriteToKinesis(ExternalTransform):
                 region=region,
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
-                verify_certificate=verify_certificate,
                 producer_properties=producer_properties,
             )),
         expansion_service or default_io_expansion_service(),
@@ -178,7 +189,6 @@ ReadFromKinesisSchema = NamedTuple(
         ('aws_secret_key', str),
         ('region', str),
         ('service_endpoint', Optional[str]),
-        ('verify_certificate', Optional[bool]),
         ('max_num_records', Optional[int]),
         ('max_read_time', Optional[int]),
         ('initial_position_in_stream', Optional[str]),
@@ -199,7 +209,7 @@ class ReadDataFromKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v2'
 
   def __init__(
       self,
@@ -229,8 +239,8 @@ class ReadDataFromKinesis(ExternalTransform):
     :param aws_secret_key: Kinesis access key secret.
     :param region: AWS region. Example: 'us-east-1'.
     :param service_endpoint: Kinesis service endpoint
-    :param verify_certificate: Enable or disable certificate verification.
-        Never set to False on production. True by default.
+    :param verify_certificate:  Deprecated - certificates will always be
+        verified.
     :param max_num_records: Specifies to read at most a given number of records.
         Must be greater than 0.
     :param max_read_time: Specifies to read records during x milliseconds.
@@ -277,6 +287,19 @@ class ReadDataFromKinesis(ExternalTransform):
     ):
       logging.warning('Provided timestamp emplaced not in the past.')
 
+    if verify_certificate is False:
+      # Previously, we supported this via
+      # https://javadoc.io/doc/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#isVerifyCertificate--
+      # With the new AWS client, we no longer support it and it is always True
+      raise ValueError(
+        'verify_certificate set to False. This option is no longer ' +
+        'supported and certificate verification will still happen.')
+    if verify_certificate is True:
+      logging.warning(
+        'verify_certificate set to True. This option is no longer ' +
+        'supported and certificate verification will automatically happen. ' +
+        'This option may be removed in a future release')
+
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -286,7 +309,6 @@ class ReadDataFromKinesis(ExternalTransform):
                 aws_secret_key=aws_secret_key,
                 region=region,
                 service_endpoint=service_endpoint,
-                verify_certificate=verify_certificate,
                 max_num_records=max_num_records,
                 max_read_time=max_read_time,
                 initial_position_in_stream=initial_position_in_stream,

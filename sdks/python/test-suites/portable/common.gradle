@@ -376,7 +376,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
           ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
           ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
-          ':sdks:java:io:kinesis:expansion-service:shadowJar',
+          ':sdks:java:io:amazon-web-services2:expansion-service:shadowJar',
           ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
           ':sdks:java:io:debezium:expansion-service:shadowJar'
   ]
@@ -426,7 +426,7 @@ project.tasks.register("xlangSpannerIOIT") {
           ":sdks:java:container:${currentJavaVersion}:docker",
           ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
-          ':sdks:java:io:kinesis:expansion-service:shadowJar',
+          ':sdks:java:io:amazon-web-services2:expansion-service:shadowJar',
           ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
           ':sdks:java:io:debezium:expansion-service:shadowJar'
   ]
