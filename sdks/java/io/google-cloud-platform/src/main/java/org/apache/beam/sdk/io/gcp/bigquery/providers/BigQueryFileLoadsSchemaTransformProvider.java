@@ -108,6 +108,7 @@ public class BigQueryFileLoadsSchemaTransformProvider
               .withCustomGcsTempLocation(
                   ValueProvider.StaticValueProvider.of(options.getTempLocation()))
               .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+              // Use Avro format for better performance. Don't change this unless it's for a good reason.
               .withAvroFormatFunction(dynamicDestinations.getAvroFilterFormatFunction(false));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
