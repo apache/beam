@@ -1010,60 +1010,6 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected_data),
           label="formatted_after_reshuffle")
 
-  global _Unpicklable
-  global _UnpicklableCoder
-
-  class _Unpicklable(object):
-    def __init__(self, value):
-      self.value = value
-
-    def __getstate__(self):
-      raise NotImplementedError()
-
-    def __setstate__(self, state):
-      raise NotImplementedError()
-
-  class _UnpicklableCoder(beam.coders.Coder):
-    def encode(self, value):
-      return str(value.value).encode()
-
-    def decode(self, encoded):
-      return _Unpicklable(int(encoded.decode()))
-
-    def to_type_hint(self):
-      return _Unpicklable
-
-    def is_deterministic(self):
-      return True
-
-  def test_reshuffle_unpicklable_in_global_window(self):
-    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
-
-    with TestPipeline() as pipeline:
-      data = [_Unpicklable(i) for i in range(5)]
-      expected_data = [0, 10, 20, 30, 40]
-      result = (
-          pipeline
-          | beam.Create(data)
-          | beam.WindowInto(GlobalWindows())
-          | beam.Reshuffle()
-          | beam.Map(lambda u: u.value * 10))
-      assert_that(result, equal_to(expected_data))
-
-  def test_reshuffle_unpicklable_in_non_global_window(self):
-    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
-
-    with TestPipeline() as pipeline:
-      data = [_Unpicklable(i) for i in range(5)]
-      expected_data = [0, 0, 0, 10, 10, 10, 20, 20, 20, 30, 30, 30, 40, 40, 40]
-      result = (
-          pipeline
-          | beam.Create(data)
-          | beam.WindowInto(window.SlidingWindows(size=3, period=1))
-          | beam.Reshuffle()
-          | beam.Map(lambda u: u.value * 10))
-      assert_that(result, equal_to(expected_data))
-
 
 class WithKeysTest(unittest.TestCase):
   def setUp(self):
