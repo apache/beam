@@ -71,11 +71,12 @@
 
 ## New Features / Improvements
 
+* Added support for stateful processing in Spark Runner for streaming pipelines. Timer functionality is not yet supported and will be implemented in a future release ([#33237](https://github.com/apache/beam/issues/33237)).
 * Improved batch performance of SparkRunner's GroupByKey ([#20943](https://github.com/apache/beam/pull/20943)).
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Support OnWindowExpiration in Prism ([#32211](https://github.com/apache/beam/issues/32211)).
   * This enables initial Java GroupIntoBatches support.
 * Support OrderedListState in Prism ([#32929](https://github.com/apache/beam/issues/32929)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
