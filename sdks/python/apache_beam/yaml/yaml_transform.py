@@ -40,7 +40,6 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
-from apache_beam.yaml.yaml_ml import normalize_ml
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 __all__ = ["YamlTransform"]
@@ -907,7 +906,6 @@ def preprocess(spec, verbose=False, known_transforms=None):
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
-      normalize_ml,
       preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
