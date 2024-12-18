@@ -622,7 +622,7 @@ def _PyJsFilter(
     keep: An expression evaluating to true for those records that should be kept.
     language: The language of the above expression.
       Defaults to generic.
-    error_handling: (Optional) Whether and where to output records that throw errors when
+    error_handling: Whether and where to output records that throw errors when
       the above expressions are evaluated.
   """  # pylint: disable=line-too-long
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
