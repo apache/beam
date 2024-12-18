@@ -22,6 +22,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import com.google.auto.service.AutoService;
+import java.net.URI;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -59,7 +60,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String awsAccessKey;
     String awsSecretKey;
     Region region;
-    @Nullable String serviceEndpoint;
+    @Nullable URI serviceEndpoint;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -78,7 +79,9 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
-      this.serviceEndpoint = serviceEndpoint;
+      if (serviceEndpoint != null) {
+        this.serviceEndpoint = URI(serviceEndpoint);
+      }
     }
   }
 
@@ -97,7 +100,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration configuration) {
       AwsBasicCredentials creds = AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
-      KinesisIO.Write writeTransform =
+      KinesisIO.Write<byte[]> writeTransform =
           KinesisIO.<byte[]>write()
               .withStreamName(configuration.streamName)
               .withClientConfiguration(
@@ -250,7 +253,9 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
         readTransform =
             readTransform.withInitialTimestampInStream(configuration.initialTimestampInStream);
       }
-      return readTransform;
+      // Convert back to bytes to keep consistency with previous verison:
+      // https://github.com/apache/beam/blob/5eed396caf9e0065d8ed82edcc236bad5b71ba22/sdks/java/io/kinesis/src/main/java/org/apache/beam/sdk/io/kinesis/KinesisTransformRegistrar.java
+      return readTransform.Map(kr -> kr.getDataAsBytes());
     }
   }
 }
