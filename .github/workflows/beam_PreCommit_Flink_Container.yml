@@ -1,0 +1,157 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PreCommit Flink Container
+
+on:
+  pull_request_target:
+    paths:
+      - 'model/**'
+      - 'sdks/python/**'
+      - 'release/**'
+      - 'sdks/java/io/kafka/**'
+      - 'runners/core-construction-java/**'
+      - 'runners/core-java/**'
+      - 'runners/extensions-java/**'
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'runners/reference/**'
+      - '.github/trigger_files/beam_PreCommit_Flink_Container.json'
+      - 'release/trigger_all_tests.json'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+# Setting explicit permissions for the action to avoid the default permissions which are `write-all`
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
+  GCLOUD_ZONE: us-central1-a
+  CLUSTER_NAME: beam-precommit-flink-container-${{ github.run_id }}
+  GCS_BUCKET: gs://beam-flink-cluster
+  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-1.17.0/flink-1.17.0-bin-scala_2.12.tgz
+  HADOOP_DOWNLOAD_URL: https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
+  FLINK_TASKMANAGER_SLOTS: 1
+  DETACHED_MODE: true
+  HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
+  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.17_job_server:latest
+  ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
+
+jobs:
+  beam_PreCommit_Flink_Container:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      github.event.comment.body == 'Run Flink Container PreCommit'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 45
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PreCommit_Flink_Container"]
+        job_phrase: ["Run Flink Container PreCommit"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: precommit
+          test-language: go,python,java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/go_Combine_Flink_Batch_small.txt
+            ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/python_Combine_Flink_Batch_small.txt
+            ${{ github.workspace }}/.github/workflows/flink-tests-pipeline-options/java_Combine_Flink_Batch_small.txt
+      - name: get current time
+        run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
+      - name: Start Flink with 2 workers
+        env:
+          FLINK_NUM_WORKERS: 2
+        run: |
+          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
+      # Run a simple Go Combine load test to verify the Flink container
+      - name: Run Flink Container Test with Go Combine
+        timeout-minutes: 10
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=combine \
+            -Prunner=PortableRunner \
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_1 }} --job_name=flink-tests-go-${{env.NOW_UTC}}'
+
+      # Run a Python Combine load test to verify the Flink container
+      - name: Run Flink Container Test with Python Combine
+        timeout-minutes: 20
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
+            -Prunner=FlinkRunner \
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_2 }} --job_name=flink-tests-python-${{env.NOW_UTC}}'
+
+      # Run a Java Combine load test to verify the Flink container
+      - name: Run Flink Container Test with Java Combine
+        timeout-minutes: 10
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:load-tests:run
+          arguments: |
+            -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CombineLoadTest \
+            -Prunner=:runners:flink:1.17 \
+            '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_3 }} --jobName=flink-tests-java11-${{env.NOW_UTC}}'
+
+      - name: Teardown Flink
+        if: always()
+        run: |
+          ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete

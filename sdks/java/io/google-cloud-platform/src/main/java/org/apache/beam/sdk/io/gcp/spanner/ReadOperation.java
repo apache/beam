@@ -135,7 +135,6 @@ public abstract class ReadOperation implements Serializable {
       return getTable();
     } else if (getQuery() != null) {
       String query = getQuery().getSql();
-      System.err.println(query);
       Matcher matcher = queryPattern.matcher(query);
       if (matcher.find()) {
         return matcher.group("table");

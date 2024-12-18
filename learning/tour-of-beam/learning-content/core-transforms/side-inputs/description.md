@@ -11,7 +11,7 @@ limitations under the License.
 -->
 # Side inputs
 
-In addition to the main input `PCollection`, you can provide additional inputs to a `ParDo` transform in the form of side inputs. A side input is an additional input that your `DoFn` can access each time it processes an element in the input PCollection. When you specify a side input, you create a view of some other data that can be read from within the `ParDo` transform’s `DoFn` while processing each element.
+In addition to the main input `PCollection`, you can provide additional inputs to a `ParDo` transform in the form of side inputs. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. When you specify a side input, you create a view of some other data that can be read from within the `ParDo` transform’s `DoFn` while processing each element.
 
 Side inputs are useful if your `ParDo` needs to inject additional data when processing each element in the input `PCollection`, but the additional data needs to be determined at runtime (and not hard-coded). Such values might be determined by the input data, or depend on a different branch of your pipeline.
 {{if (eq .Sdk "go")}}
@@ -172,7 +172,7 @@ If the side input has multiple trigger firings, Beam uses the value from the lat
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-At the entrance we have a map whose key is the city of the country value. And we also have a `Person` structure with his name and city. We can compare cities and embed countries in `Person`.
+At the entrance we have a map whose key is the city of the country value. And we also have a `Person` structure with their name and city. We can compare cities and embed countries in `Person`.
 
 You can also use it as a variable for mathematical calculations.
 

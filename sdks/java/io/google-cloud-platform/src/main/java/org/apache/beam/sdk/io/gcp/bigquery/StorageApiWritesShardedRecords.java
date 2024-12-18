@@ -132,6 +132,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final @Nullable Map<String, String> bigLakeConfiguration;
 
   private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -233,7 +234,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Predicate<String> successfulRowsPredicate,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable Map<String, String> bigLakeConfiguration) {
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
@@ -247,6 +249,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.bigLakeConfiguration = bigLakeConfiguration;
   }
 
   @Override
@@ -500,7 +503,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 createDisposition,
                 destinationCoder,
                 kmsKey,
-                bqServices);
+                bqServices,
+                bigLakeConfiguration);
             return true;
           };
 

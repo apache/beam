@@ -24,8 +24,12 @@ import logging
 import sys
 import types
 import typing
+from typing import Generic
+from typing import TypeVar
 
 from apache_beam.typehints import typehints
+
+T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,10 +105,7 @@ def _match_issubclass(match_against):
 
 def _match_is_exactly_mapping(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
-  if sys.version_info < (3, 7):
-    expected_origin = typing.Mapping
-  else:
-    expected_origin = collections.abc.Mapping
+  expected_origin = collections.abc.Mapping
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
@@ -112,10 +113,7 @@ def _match_is_exactly_iterable(user_type):
   if user_type is typing.Iterable:
     return True
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
-  if sys.version_info < (3, 7):
-    expected_origin = typing.Iterable
-  else:
-    expected_origin = collections.abc.Iterable
+  expected_origin = collections.abc.Iterable
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
@@ -222,6 +220,18 @@ def convert_collections_to_typing(typ):
   return typ
 
 
+# During type inference of WindowedValue, we need to pass in the inner value
+# type. This cannot be achieved immediately with WindowedValue class because it
+# is not parameterized. Changing it to a generic class (e.g. WindowedValue[T])
+# could work in theory. However, the class is cythonized and it seems that
+# cython does not handle generic classes well.
+# The workaround here is to create a separate class solely for the type
+# inference purpose. This class should never be used for creating instances.
+class TypedWindowedValue(Generic[T]):
+  def __init__(self, *args, **kwargs):
+    raise NotImplementedError("This class is solely for type inference")
+
+
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -244,11 +254,10 @@ def convert_to_beam_type(typ):
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
 
-  if sys.version_info >= (3, 9) and isinstance(typ, types.GenericAlias):
+  if isinstance(typ, types.GenericAlias):
     typ = convert_builtin_to_typing(typ)
 
-  if sys.version_info >= (3, 9) and getattr(typ, '__module__',
-                                            None) == 'collections.abc':
+  if getattr(typ, '__module__', None) == 'collections.abc':
     typ = convert_collections_to_typing(typ)
 
   typ_module = getattr(typ, '__module__', None)
@@ -274,6 +283,12 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
     _LOGGER.info('Converting NewType type hint to Any: "%s"', typ)
     return typehints.Any
+  elif typ_module == 'apache_beam.typehints.native_type_compatibility' and \
+      getattr(typ, "__name__", typ.__origin__.__name__) == 'TypedWindowedValue':
+    # Need to pass through WindowedValue class so that it can be converted
+    # to the correct type constraint in Beam
+    # This is needed to fix https://github.com/apache/beam/issues/33356
+    pass
   elif (typ_module != 'typing') and (typ_module != 'collections.abc'):
     # Only translate types from the typing and collections.abc modules.
     return typ
@@ -331,6 +346,10 @@ def convert_to_beam_type(typ):
           match=_match_is_exactly_collection,
           arity=1,
           beam_type=typehints.Collection),
+      _TypeMapEntry(
+          match=_match_issubclass(TypedWindowedValue),
+          arity=1,
+          beam_type=typehints.WindowedValue),
   ]
 
   # Find the first matching entry.

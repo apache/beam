@@ -42,6 +42,7 @@ from typing import Union
 from apache_beam.metrics import cells
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
+from apache_beam.metrics.metricbase import BoundedTrie
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
@@ -135,6 +136,22 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingStringSet(MetricName(namespace, name))
 
+  @staticmethod
+  def bounded_trie(
+      namespace: Union[Type, str],
+      name: str) -> 'Metrics.DelegatingBoundedTrie':
+    """Obtains or creates a Bounded Trie metric.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A BoundedTrie object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingBoundedTrie(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
     def __init__(
@@ -164,12 +181,19 @@ class Metrics(object):
       super().__init__(metric_name)
       self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[method-assign]
 
+  class DelegatingBoundedTrie(BoundedTrie):
+    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    def __init__(self, metric_name: MetricName) -> None:
+      super().__init__(metric_name)
+      self.add = MetricUpdater(cells.BoundedTrieCell, metric_name)  # type: ignore[method-assign]
+
 
 class MetricResults(object):
   COUNTERS = "counters"
   DISTRIBUTIONS = "distributions"
   GAUGES = "gauges"
   STRINGSETS = "string_sets"
+  BOUNDED_TRIES = "bounded_tries"
 
   @staticmethod
   def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:

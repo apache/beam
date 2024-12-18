@@ -428,19 +428,19 @@ class _StripErrorMetadata(beam.PTransform):
 
   For example, in the following pipeline snippet::
 
-    - name: MyMappingTransform
-      type: MapToFields
-      input: SomeInput
-      config:
-        language: python
-        fields:
-          ...
-        error_handling:
-          output: errors
+      - name: MyMappingTransform
+        type: MapToFields
+        input: SomeInput
+        config:
+          language: python
+          fields:
+            ...
+          error_handling:
+            output: errors
 
-    - name: RecoverOriginalElements
-      type: StripErrorMetadata
-      input: MyMappingTransform.errors
+      - name: RecoverOriginalElements
+        type: StripErrorMetadata
+        input: MyMappingTransform.errors
 
   the output of `RecoverOriginalElements` will contain exactly those elements
   from SomeInput that failed to processes (whereas `MyMappingTransform.errors`
@@ -452,6 +452,9 @@ class _StripErrorMetadata(beam.PTransform):
   """
 
   _ERROR_FIELD_NAMES = ('failed_row', 'element', 'record')
+
+  def __init__(self):
+    super().__init__(label=None)
 
   def expand(self, pcoll):
     try:
@@ -467,7 +470,9 @@ class _StripErrorMetadata(beam.PTransform):
           break
       else:
         raise ValueError(
-            f"No field name matches one of {self._ERROR_FIELD_NAMES}")
+            'The input to this transform does not appear to be an error ' +
+            "output.  Expected a schema'd input with a field named " +
+            ' or '.join(repr(fld) for fld in self._ERROR_FIELD_NAMES))
 
     if fld is None:
       # This handles with_exception_handling() that returns bare tuples.

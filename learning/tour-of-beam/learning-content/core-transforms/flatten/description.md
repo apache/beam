@@ -56,7 +56,7 @@ By default, the coder for the output `PCollection` is the same as the coder for 
 
 When using `Flatten` to merge `PCollection` objects that have a windowing strategy applied, all of the `PCollection` objects you want to merge must use a compatible windowing strategy and window sizing. For example, all the collections you’re merging must all use (hypothetically) identical 5-minute fixed windows or 4-minute sliding windows starting every 30 seconds.
 
-If your pipeline attempts to use `Flatten` to merge `PCollection` objects with incompatible windows, Beam generates an IllegalStateException error when your pipeline is constructed.
+If your pipeline attempts to use `Flatten` to merge `PCollection` objects with incompatible windows, Beam generates an `IllegalStateException` error when your pipeline is constructed.
 
 ### Playground exercise
 

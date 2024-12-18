@@ -19,7 +19,7 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
   }
 }
 
@@ -357,5 +357,3 @@ include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
 include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
-include("sdks:java:io:iceberg:hive:exec")
-findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"

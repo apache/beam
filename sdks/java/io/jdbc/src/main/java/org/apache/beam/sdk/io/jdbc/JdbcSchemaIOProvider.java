@@ -74,6 +74,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("partitions", FieldType.INT16)
         .addNullableField("maxConnections", FieldType.INT16)
         .addNullableField("driverJars", FieldType.STRING)
+        .addNullableField("writeBatchSize", FieldType.INT64)
         .build();
   }
 
@@ -193,6 +194,10 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
           @Nullable Boolean autosharding = config.getBoolean("autosharding");
           if (autosharding != null && autosharding) {
             writeRows = writeRows.withAutoSharding();
+          }
+          @Nullable Long writeBatchSize = config.getInt64("writeBatchSize");
+          if (writeBatchSize != null) {
+            writeRows = writeRows.withBatchSize(writeBatchSize);
           }
           return input.apply(writeRows);
         }
