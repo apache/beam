@@ -112,7 +112,6 @@ WriteToKinesisSchema = NamedTuple(
         ('region', str),
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
-        ('producer_properties', Optional[Mapping[str, str]]),
     ],
 )
 
@@ -165,6 +164,10 @@ class WriteToKinesis(ExternalTransform):
         'verify_certificate set to True. This option is no longer ' +
         'supported and certificate verification will automatically happen. ' +
         'This option may be removed in a future release')
+    if producer_properties is not None:
+      raise ValueError(
+        'producer_properties is no longer supported and will be removed in ' +
+        'a future release.')
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -175,7 +178,6 @@ class WriteToKinesis(ExternalTransform):
                 region=region,
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
-                producer_properties=producer_properties,
             )),
         expansion_service or default_io_expansion_service(),
     )

@@ -116,8 +116,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               region=self.aws_region,
               service_endpoint=self.aws_service_endpoint,
               verify_certificate=(not self.use_localstack),
-              partition_key='1',
-              producer_properties=self.producer_properties,
+              partition_key='1'
           ))
 
   def run_kinesis_read(self):
@@ -219,10 +218,6 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
     self.aws_service_endpoint = known_args.aws_service_endpoint
     self.use_localstack = not known_args.use_real_aws
     self.expansion_service = known_args.expansion_service
-    self.producer_properties = {
-        'CollectionMaxCount': str(NUM_RECORDS),
-        'ConnectTimeout': str(MAX_READ_TIME),
-    }
 
     if self.use_localstack:
       self.set_localstack()
