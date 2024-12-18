@@ -245,6 +245,7 @@ class SdkHarness(object):
     self._responses = queue.Queue(
     )  # type: queue.Queue[Union[beam_fn_api_pb2.InstructionResponse, Sentinel]]
     _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
+    _LOGGER.info('@@@' + str(GRPCChannelFactory.DEFAULT_OPTIONS))
 
   def run(self):
     # type: () -> None
