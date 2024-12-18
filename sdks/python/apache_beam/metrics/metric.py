@@ -456,14 +456,18 @@ class Lineage:
     self.metric.add(rollup_segments)
 
   @staticmethod
-  def query(results: MetricResults, label: str) -> Set[str]:
+  def query(results: MetricResults,
+            label: str,
+            truncated_marker: str = '*') -> Set[str]:
     if not label in Lineage._METRICS:
       raise ValueError("Label {} does not exist for Lineage", label)
     response = results.query(
         MetricsFilter().with_namespace(Lineage.LINEAGE_NAMESPACE).with_name(
-            label))[MetricResults.STRINGSETS]
+            label))[MetricResults.BOUNDED_TRIES]
     result = set()
     for metric in response:
-      result.update(metric.committed)
-      result.update(metric.attempted)
+      for fqn in metric.committed.flattened():
+        result.add(''.join(fqn[:-1]) + (truncated_marker if fqn[-1] else ''))
+      for fqn in metric.attempted.flattened():
+        result.add(''.join(fqn[:-1]) + (truncated_marker if fqn[-1] else ''))
     return result

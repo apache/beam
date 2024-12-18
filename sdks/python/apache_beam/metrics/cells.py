@@ -811,6 +811,9 @@ class BoundedTrieData(object):
     else:
       return False
 
+  def flattened(self):
+    return self.as_trie().flattened()
+
   def to_proto(self) -> metrics_pb2.BoundedTrie:
     return metrics_pb2.BoundedTrie(
         bound=self._bound,
