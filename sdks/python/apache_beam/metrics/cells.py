@@ -822,7 +822,9 @@ class BoundedTrieData(object):
     return BoundedTrieData(
         bound=proto.bound,
         singleton=tuple(proto.singleton) if proto.singleton else None,
-        root=_BoundedTrieNode.from_proto(proto.root) if proto.root else None)
+        root=(
+            _BoundedTrieNode.from_proto(proto.root)
+            if proto.HasField('root') else None))
 
   def as_trie(self):
     if self._root is not None:
