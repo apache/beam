@@ -25,6 +25,7 @@ import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -85,16 +86,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      private Properties producerProperties;
       private String partitionKey;
-
-      public void setProducerProperties(Map<String, String> producerProperties) {
-        if (producerProperties != null) {
-          Properties properties = new Properties();
-          producerProperties.forEach(properties::setProperty);
-          this.producerProperties = properties;
-        }
-      }
 
       public void setPartitionKey(String partitionKey) {
         this.partitionKey = partitionKey;
@@ -103,23 +95,18 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration configuration) {
-      AwsBasicCredentials creds =
-      AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
+      AwsBasicCredentials creds = AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
       KinesisIO.Write writeTransform =
-          KinesisIO.write()
+          KinesisIO.<byte[]>write()
               .withStreamName(configuration.streamName)
               .withClientConfiguration(
                   ClientConfiguration.builder()
                     .credentialsProvider(provider)
-                    .region(Region.of(configuration.region))
+                    .region(configuration.region)
                     .endpoint(configuration.serviceEndpoint)
                     .build())
               .withPartitioner(p -> configuration.partitionKey);
-
-      if (configuration.producerProperties != null) {
-        writeTransform = writeTransform.withProducerProperties(configuration.producerProperties);
-      }
 
       return writeTransform;
     }
@@ -206,13 +193,15 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     @Override
     public PTransform<PBegin, PCollection<byte[]>> buildExternal(
         ReadDataBuilder.Configuration configuration) {
-      KinesisIO.Read<byte[]> readTransform =
-          KinesisIO.readData()
+      AwsBasicCredentials creds = AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
+      StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
+      KinesisIO.Read readTransform =
+          KinesisIO.read()
               .withStreamName(configuration.streamName)
               .withClientConfiguration(
                   ClientConfiguration.builder()
                     .credentialsProvider(provider)
-                    .region(Region.of(configuration.region))
+                    .region(configuration.region)
                     .endpoint(configuration.serviceEndpoint)
                     .build());
 
