@@ -39,7 +39,8 @@ import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandl
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.debug.DataSampler;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.status.BeamFnStatusClient;
 import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
@@ -283,8 +284,8 @@ public class FnHarness {
 
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
-    try (BeamFnLoggingClient logging =
-        BeamFnLoggingClient.createAndStart(
+    try (LoggingClient logging =
+        LoggingClientFactory.createAndStart(
             options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
       LOG.info("Fn Harness started");
       // Register standard file systems.
@@ -410,7 +411,7 @@ public class FnHarness {
               outboundObserverFactory,
               executorService,
               handlers);
-      CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
+      CompletableFuture.allOf(control.terminationFuture(), logging.terminationFuture()).get();
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();
       }

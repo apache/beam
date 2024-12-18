@@ -110,6 +110,13 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setLogMdc(boolean value);
 
+   /** This option controls whether logging will be redirected through the logging service. */
+  @Description("Controls whether logging will be redirected through the logging service.")
+  @Default.Boolean(true)
+  boolean getEnableLoggingService();
+  
+  void setEnableLoggingService(boolean enableLoggingService);
+
   /**
    * Size (in MB) of each grouping table used to pre-combine elements. Larger values may reduce the
    * amount of data shuffled. If unset, defaults to 100 MB.
