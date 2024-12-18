@@ -66,7 +66,7 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
       self,
       write_config: Dict[str, Any],
       *,  # Force keyword arguments
-      schema_config: Optional[SchemaConfig]
+      schema_config: Optional[SchemaConfig] = None
       ):
     """Configuration for writing vectors to BigQuery using managed transforms.
     
