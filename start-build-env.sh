@@ -91,7 +91,7 @@ RUN echo "${USER_NAME} ALL=NOPASSWD: ALL" > "/etc/sudoers.d/beam-build-${USER_ID
 ENV HOME "${DOCKER_HOME_DIR}"
 ENV GOPATH ${DOCKER_HOME_DIR}/beam/sdks/go/examples/.gogradle/project_gopath
 # This next command still runs as root causing the ~/.cache/go-build to be owned by root
-RUN go get github.com/linkedin/goavro/v2
+RUN go mod init beam-build-${USER_ID} && go get github.com/linkedin/goavro/v2
 RUN chown -R ${USER_NAME}:${GROUP_ID} ${DOCKER_HOME_DIR}/.cache
 UserSpecificDocker
 
