@@ -15,13 +15,13 @@
 # limitations under the License.
 
 import unittest
-import apache_beam as beam
-from apache_beam.ml.rag.types import Chunk, Embedding, Content
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
 
+import apache_beam as beam
 from apache_beam.ml.rag.ingestion.base import (
     VectorDatabaseWriteConfig, VectorDatabaseWriteTransform)
+from apache_beam.ml.rag.types import Chunk, Content, Embedding
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 
 
 class MockWriteTransform(beam.PTransform):
