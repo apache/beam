@@ -52,10 +52,10 @@ public class ExtractWordsProvider extends TypedSchemaTransformProvider<Configura
 
   static class ExtractWordsTransform extends SchemaTransform {
     private static final Schema OUTPUT_SCHEMA = Schema.builder().addStringField("word").build();
-    private final List<String> filter;
+    private final List<String> drop;
 
     ExtractWordsTransform(Configuration configuration) {
-      this.filter = configuration.getFilter();
+      this.drop = configuration.getDrop();
     }
 
     @Override
@@ -73,7 +73,7 @@ public class ExtractWordsProvider extends TypedSchemaTransformProvider<Configura
                           String line = Preconditions.checkStateNotNull(element.getString("line"));
                           String[] words = line.split("[^\\p{L}]+", -1);
                           Arrays.stream(words)
-                              .filter(filter::contains)
+                              .filter(w -> !drop.contains(w))
                               .forEach(
                                   word ->
                                       receiver.output(
@@ -93,12 +93,12 @@ public class ExtractWordsProvider extends TypedSchemaTransformProvider<Configura
       return new AutoValue_ExtractWordsProvider_Configuration.Builder();
     }
 
-    @SchemaFieldDescription("List of words to filter out.")
-    public abstract List<String> getFilter();
+    @SchemaFieldDescription("List of words to drop.")
+    public abstract List<String> getDrop();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setFilter(List<String> foo);
+      public abstract Builder setDrop(List<String> foo);
 
       public abstract Configuration build();
     }

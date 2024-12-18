@@ -19,6 +19,7 @@ import logging
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 """A Python multi-language pipeline that counts words using multiple Java SchemaTransforms.
@@ -67,17 +68,22 @@ WRITE_IDENTIFIER = "beam:schematransform:org.apache.beam:write_words:v1"
 def run(input_path, output_path, expansion_service_port, pipeline_args):
     pipeline_options = PipelineOptions(pipeline_args)
 
-    provider = ExternalTransformProvider("localhost:" + expansion_service_port)
-    # Retrieve portable transforms
-    Extract = provider.get_urn(EXTRACT_IDENTIFIER)
-    Count = provider.get_urn(COUNT_IDENTIFIER)
-    Write = provider.get_urn(WRITE_IDENTIFIER)
-
     with beam.Pipeline(options=pipeline_options) as p:
+        expansion_service = BeamJarExpansionService(
+            "examples:multi-language:shadowJar")
+        if expansion_service_port:
+            expansion_service = "localhost:" + expansion_service_port
+
+        provider = ExternalTransformProvider(expansion_service)
+        # Retrieve portable transforms
+        Extract = provider.get_urn(EXTRACT_IDENTIFIER)
+        Count = provider.get_urn(COUNT_IDENTIFIER)
+        Write = provider.get_urn(WRITE_IDENTIFIER)
+
         _ = (p
              | 'Read' >> beam.io.ReadFromText(input_path)
              | 'Prepare Rows' >> beam.Map(lambda line: beam.Row(line=line))
-             | 'Extract Words' >> Extract(filter=["king", "palace"])
+             | 'Extract Words' >> Extract(drop=["king", "palace"])
              | 'Count Words' >> Count()
              | 'Format Text' >> beam.Map(lambda row: beam.Row(line="%s: %s" % (
                  row.word, row.count))).with_output_types(
@@ -100,8 +106,10 @@ if __name__ == '__main__':
                         help='Output file')
     parser.add_argument('--expansion_service_port',
                         dest='expansion_service_port',
-                        required=True,
-                        help='Expansion service port')
+                        required=False,
+                        help='Expansion service port. If left empty, the '
+                        'existing multi-language examples service will '
+                        'be used by default.')
     known_args, pipeline_args = parser.parse_known_args()
 
     run(known_args.input, known_args.output, known_args.expansion_service_port,
