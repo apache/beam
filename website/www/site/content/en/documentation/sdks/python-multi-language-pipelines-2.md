@@ -57,16 +57,21 @@ The config object is a simple Java object (POJO) that has fields required by the
       return new AutoValue_ExtractWordsProvider_Configuration.Builder();
     }
 
-    @SchemaFieldDescription("List of words to filter out.")
-    public abstract List<String> getFilter();
+    @SchemaFieldDescription("List of words to drop.")
+    public abstract List<String> getDrop();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setFilter(List<String> foo);
+      public abstract Builder setDrop(List<String> drop);
 
       public abstract Configuration build();
     }
   }
+```
+
+Beam uses this configuration to generate a Python transform with the following signature:
+```python
+Extract(drop=["foo", "bar"])
 ```
 
 The transform can be any implementation of your choice, as long as it meets the requirements of a [SchemaTransform](../glossary.md#schematransform). For this example, the transform does the following:
@@ -74,10 +79,10 @@ The transform can be any implementation of your choice, as long as it meets the 
 ```java
   static class ExtractWordsTransform extends SchemaTransform {
     private static final Schema OUTPUT_SCHEMA = Schema.builder().addStringField("word").build();
-    private final List<String> filter;
+    private final List<String> drop;
 
     ExtractWordsTransform(Configuration configuration) {
-      this.filter = configuration.getFilter();
+      this.drop = configuration.getDrop();
     }
 
     @Override
@@ -95,7 +100,7 @@ The transform can be any implementation of your choice, as long as it meets the 
                           String line = Preconditions.checkStateNotNull(element.getString("line"));
                           String[] words = line.split("[^\\p{L}]+", -1);
                           Arrays.stream(words)
-                              .filter(filter::contains)
+                              .filter(w -> !drop.contains(w))
                               .forEach(
                                   word ->
                                       receiver.output(
@@ -159,7 +164,7 @@ with beam.Pipeline(options=pipeline_options) as p:
 _ = (p
      | 'Read' >> beam.io.ReadFromText(input_path)
      | 'Prepare Rows' >> beam.Map(lambda line: beam.Row(line=line))
-     | 'Extract Words' >> Extract(filter=["king", "palace"])
+     | 'Extract Words' >> Extract(drop=["king", "palace"])
      | 'Count Words' >> Count()
      | 'Format Text' >> beam.Map(lambda row: beam.Row(line="%s: %s" % (
           row.word, row.count))).with_output_types(
