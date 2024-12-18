@@ -174,7 +174,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Validate all the state features
 			for _, spec := range pardo.GetStateSpecs() {
 				isStateful = true
-				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(),
+					urns.UserStateBag, urns.UserStateMultiMap, urns.UserStateOrderedList)
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {

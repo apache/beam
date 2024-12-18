@@ -769,6 +769,14 @@ class CodersTest(unittest.TestCase):
           test_encodings[idx],
           base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
 
+  def test_OrderedUnionCoder(self):
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, coders.VarIntCoder()),
+                                           fallback_coder=coders.FloatCoder())
+    self.check_coder(test_coder, 's')
+    self.check_coder(test_coder, 123)
+    self.check_coder(test_coder, 1.5)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -2257,6 +2257,40 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testBigLakeConfigurationFailsForNonStorageApiWrites() {
+    assumeTrue(!useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "bigLakeConfiguration is only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE");
+
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table")
+                .withBigLakeConfiguration(
+                    ImmutableMap.of(
+                        "connectionId", "some-connection",
+                        "storageUri", "gs://bucket"))
+                .withTestServices(fakeBqServices));
+    p.run();
+  }
+
+  @Test
+  public void testBigLakeConfigurationFailsForMissingProperties() {
+    assumeTrue(useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("bigLakeConfiguration must contain keys 'connectionId' and 'storageUri'");
+
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table")
+                .withBigLakeConfiguration(ImmutableMap.of("connectionId", "some-connection"))
+                .withTestServices(fakeBqServices));
+    p.run();
+  }
+
   @SuppressWarnings({"unused"})
   static class UpdateTableSchemaDoFn extends DoFn<KV<String, TableRow>, TableRow> {
     @TimerId("updateTimer")

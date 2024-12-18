@@ -303,7 +303,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     super().test_flattened_side_input(with_transcoding=False)
 
   def test_metrics(self):
-    super().test_metrics(check_gauge=False)
+    super().test_metrics(check_gauge=False, check_bounded_trie=False)
 
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("BEAM-2939")

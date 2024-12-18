@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -65,6 +64,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -434,11 +434,27 @@ public final class StreamingTransformTranslator {
       public void evaluate(
           final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
+        final DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
         checkArgument(
-            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            !signature.processElement().isSplittable(),
             "Splittable DoFn not yet supported in streaming mode: %s",
             doFn);
-        rejectStateAndTimers(doFn);
+        checkState(
+            signature.onWindowExpiration() == null,
+            "onWindowExpiration is not supported: %s",
+            doFn);
+
+        boolean stateful =
+            signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+
+        if (stateful) {
+          final StatefulStreamingParDoEvaluator<?, ?, ?> delegate =
+              new StatefulStreamingParDoEvaluator<>();
+
+          delegate.evaluate((ParDo.MultiOutput) transform, context);
+          return;
+        }
+
         final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
         final WindowingStrategy<?, ?> windowingStrategy =

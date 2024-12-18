@@ -42,6 +42,7 @@ def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):
   distributions = {}
   gauges = {}
   string_sets = {}
+  bounded_tries = {}
 
   for mi in monitoring_info_list:
     if (user_metrics_only and not monitoring_infos.is_user_monitoring_info(mi)):
@@ -62,8 +63,10 @@ def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):
       gauges[key] = metric_result
     elif monitoring_infos.is_string_set(mi):
       string_sets[key] = metric_result
+    elif monitoring_infos.is_bounded_trie(mi):
+      bounded_tries[key] = metric_result
 
-  return counters, distributions, gauges, string_sets
+  return counters, distributions, gauges, string_sets, bounded_tries
 
 
 def _create_metric_key(monitoring_info):

@@ -606,7 +606,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def gax_version = "2.55.0"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
-    def google_cloud_bigdataoss_version = "2.2.16"
+    def google_cloud_bigdataoss_version = "2.2.26"
     // [bomupgrader] determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
     def google_cloud_spanner_version = "6.79.0"
     def google_code_gson_version = "2.10.1"
