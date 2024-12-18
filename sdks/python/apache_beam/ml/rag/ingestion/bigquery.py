@@ -14,16 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
-
-from typing import Optional, List, Dict, Any
 from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
+from apache_beam.io.gcp.bigquery_tools import get_beam_typehints_from_tableschema
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.typehints.row_type import RowTypeConstraint
-from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict, get_beam_typehints_from_tableschema
 
 ChunkToDictFn = Callable[[Chunk], Dict[str, any]]
 
@@ -39,23 +42,23 @@ class SchemaConfig:
   Attributes:
       schema: BigQuery TableSchema dict defining the table structure.
           Example:
-          {
-              'fields': [
-                  {'name': 'id', 'type': 'STRING'},
-                  {'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'},
-                  {'name': 'custom_field', 'type': 'STRING'}
-              ]
-          }
+          >>> {
+          ...   'fields': [
+          ...     {'name': 'id', 'type': 'STRING'},
+          ...     {'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'},
+          ...     {'name': 'custom_field', 'type': 'STRING'}
+          ...   ]
+          ... }
       chunk_to_dict_fn: Function that converts a Chunk to a dict matching the
           schema. Takes a Chunk and returns Dict[str, Any] with keys matching
           schema fields.
           Example:
-          def chunk_to_dict(chunk: Chunk) -> Dict[str, Any]:
-              return {
-                  'id': chunk.id,
-                  'embedding': chunk.embedding.dense_embedding,
-                  'custom_field': chunk.metadata.get('custom_field')
-              }
+          >>> def chunk_to_dict(chunk: Chunk) -> Dict[str, Any]:
+          ...     return {
+          ...         'id': chunk.id,
+          ...         'embedding': chunk.embedding.dense_embedding,
+          ...         'custom_field': chunk.metadata.get('custom_field')
+          ...     }
   """
   schema: Dict
   chunk_to_dict_fn: ChunkToDictFn
@@ -66,7 +69,7 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
       self,
       write_config: Dict[str, Any],
       *,  # Force keyword arguments
-      schema_config: Optional[SchemaConfig]
+      schema_config: Optional[SchemaConfig] = None
       ):
     """Configuration for writing vectors to BigQuery using managed transforms.
     
@@ -74,32 +77,28 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
     custom schemas through SchemaConfig.
 
     Example with default schema:
-      ```python
-      config = BigQueryVectorWriterConfig(
-          write_config={'table': 'project.dataset.embeddings'})
-      ```
+      >>> config = BigQueryVectorWriterConfig(
+      ...     write_config={'table': 'project.dataset.embeddings'})
 
     Example with custom schema:
-      ```python
-      schema_config = SchemaConfig(
-          schema={
-              'fields': [
-                  {'name': 'id', 'type': 'STRING'},
-                  {'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'},
-                  {'name': 'source_url', 'type': 'STRING'}
-              ]
-          },
-          chunk_to_dict_fn=lambda chunk: {
-              'id': chunk.id,
-              'embedding': chunk.embedding.dense_embedding,
-              'source_url': chunk.metadata.get('url')
-          }
-      )
-      config = BigQueryVectorWriterConfig(
-          write_config={'table': 'project.dataset.embeddings'},
-          schema_config=schema_config
-      )
-      ```
+      >>> schema_config = SchemaConfig(
+      ...   schema={
+      ...     'fields': [
+      ...       {'name': 'id', 'type': 'STRING'},
+      ...       {'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'},
+      ...       {'name': 'source_url', 'type': 'STRING'}
+      ...     ]
+      ...   },
+      ...   chunk_to_dict_fn=lambda chunk: {
+      ...       'id': chunk.id,
+      ...       'embedding': chunk.embedding.dense_embedding,
+      ...       'source_url': chunk.metadata.get('url')
+      ...   }
+      ... )
+      >>> config = BigQueryVectorWriterConfig(
+      ...   write_config={'table': 'project.dataset.embeddings'},
+      ...   schema_config=schema_config
+      ... )
 
     Args:
         write_config: BigQuery write configuration dict. Must include 'table'.

@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -33,16 +34,14 @@ class VectorDatabaseWriteConfig(ABC):
   3. Transform handles converting Chunks to database-specific format
 
   Example implementation:
-    ```python
-    class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
-        def __init__(self, table: str):
-            self.embedding_column = embedding_column
-            
-        def create_write_transform(self):
-            return beam.io.WriteToBigQuery(
-                table=self.table
-            )
-    ```
+    >>> class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
+    ...     def __init__(self, table: str):
+    ...         self.embedding_column = embedding_column
+    ...         
+    ...     def create_write_transform(self):
+    ...         return beam.io.WriteToBigQuery(
+    ...             table=self.table
+    ...         )
   """
   @abstractmethod
   def create_write_transform(self) -> beam.PTransform:
@@ -67,16 +66,14 @@ class VectorDatabaseWriteTransform(beam.PTransform):
   the database-specific write transform.
 
   Example usage:
-    ```python
-    config = BigQueryVectorConfig(
-        table='project.dataset.embeddings',
-        embedding_column='embedding'
-    )
-
-    with beam.Pipeline() as p:
-        chunks = p | beam.Create([...])  # PCollection[Chunk]
-        chunks | VectorDatabaseWriteTransform(config)
-    ```
+    >>> config = BigQueryVectorConfig(
+    ...     table='project.dataset.embeddings',
+    ...     embedding_column='embedding'
+    ... )
+    >>> 
+    >>> with beam.Pipeline() as p:
+    ...     chunks = p | beam.Create([...])  # PCollection[Chunk]
+    ...     chunks | VectorDatabaseWriteTransform(config)
 
   Args:
       database_config: Configuration for the target vector database.

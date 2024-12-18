@@ -447,6 +447,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
       pythonPipelineOptions: [
         "--runner=TestDirectRunner",
         "--project=${gcpProject}",
+        "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
       ],
       pytestOptions: [
         "--capture=no",  // print stdout instantly
