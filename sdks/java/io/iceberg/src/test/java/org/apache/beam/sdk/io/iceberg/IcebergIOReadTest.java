@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -35,8 +36,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.types.Types;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -112,6 +116,74 @@ public class IcebergIOReadTest {
             .apply(IcebergIO.readRows(catalogConfig).from(tableId))
             .apply(ParDo.of(new PrintRow()))
             .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+
+    PAssert.that(output)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
+              return null;
+            });
+
+    testPipeline.run();
+  }
+
+  @Test
+  public void testIdentityColumnScan() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+
+    String identityColumnName = "identity";
+    String identityColumnValue = "some-value";
+    simpleTable.updateSchema().addColumn(identityColumnName, Types.StringType.get()).commit();
+    simpleTable.updateSpec().addField(identityColumnName).commit();
+
+    PartitionSpec spec = simpleTable.spec();
+    PartitionKey partitionKey = new PartitionKey(simpleTable.spec(), simpleTable.schema());
+    partitionKey.set(0, identityColumnValue);
+
+    simpleTable
+        .newFastAppend()
+        .appendFile(
+            warehouse.writeRecords(
+                "file1s1.parquet",
+                TestFixtures.SCHEMA,
+                spec,
+                partitionKey,
+                TestFixtures.FILE1SNAPSHOT1))
+        .commit();
+
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema());
+    final List<Row> expectedRows =
+        Stream.of(TestFixtures.FILE1SNAPSHOT1_DATA)
+            .flatMap(List::stream)
+            .map(
+                d ->
+                    ImmutableMap.<String, Object>builder()
+                        .putAll(d)
+                        .put(identityColumnName, identityColumnValue)
+                        .build())
+            .map(r -> createRecord(simpleTable.schema(), r))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    PCollection<Row> output =
+        testPipeline
+            .apply(IcebergIO.readRows(catalogConfig).from(tableId))
+            .apply(ParDo.of(new PrintRow()))
+            .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema())));
 
     PAssert.that(output)
         .satisfies(
