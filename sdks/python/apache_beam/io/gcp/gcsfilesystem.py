@@ -377,3 +377,17 @@ class GCSFileSystem(FileSystem):
       # bucket only
       components = components[:-1]
     lineage.add('gcs', *components)
+
+  def check_splittability(self, path):
+    try:
+      file_metadata = self._gcsIO()._status(path)
+      if file_metadata.get('content_encoding', None) == 'gzip':
+        # When decompressive transcoding is enabled, the file stored in GCS is a
+        # gzip file but when it is read, the returned data is uncompressed.
+        # However, the blob size is still the gzipped file size, which does not
+        # match the size of the returned data.
+        # Here we disable splittable so later it will use [0, inf] as in range
+        # tracker.
+        return False
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Metadata operation failed", {path: e})

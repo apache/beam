@@ -415,3 +415,8 @@ class FileSystems(object):
     """
     filesystem = FileSystems.get_filesystem(path)
     filesystem.report_lineage(path, Lineage.sinks(), level=level)
+
+  @staticmethod
+  def check_splittability(path):
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.check_splittability(path)

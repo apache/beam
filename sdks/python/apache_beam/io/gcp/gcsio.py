@@ -475,6 +475,8 @@ class GcsIO(object):
       file_status['updated'] = self._updated_to_seconds(gcs_object.updated)
     if hasattr(gcs_object, 'size'):
       file_status['size'] = gcs_object.size
+    if hasattr(gcs_object, 'content_encoding'):
+      file_status['content_encoding'] = gcs_object.content_encoding
     return file_status
 
   def _gcs_object(self, path):
