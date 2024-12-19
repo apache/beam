@@ -82,7 +82,6 @@
 
 import logging
 import time
-from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 
