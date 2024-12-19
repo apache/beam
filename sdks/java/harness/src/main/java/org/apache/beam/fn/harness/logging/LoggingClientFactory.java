@@ -23,7 +23,7 @@ public class LoggingClientFactory {
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
-    if (options.as(SdkHarnessOptions.class).getEnableLoggingService()) {
+    if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
       return BeamFnLoggingClient.createAndStart(options, apiServiceDescriptor, channelFactory);
     } else {
       return new NoOpLoggingClient();

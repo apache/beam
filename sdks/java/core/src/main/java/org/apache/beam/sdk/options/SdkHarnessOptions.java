@@ -110,12 +110,12 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setLogMdc(boolean value);
 
-   /** This option controls whether logging will be redirected through the logging service. */
-  @Description("Controls whether logging will be redirected through the logging service.")
+   /** This option controls whether logging will be redirected through the FnApi. */
+  @Description("Controls whether logging will be redirected through the FnApi.")
   @Default.Boolean(true)
-  boolean getEnableLoggingService();
+  boolean getEnableLogViaFnApi();
   
-  void setEnableLoggingService(boolean enableLoggingService);
+  void setEnableLogViaFnApi(boolean enableLogViaFnApi);
 
   /**
    * Size (in MB) of each grouping table used to pre-combine elements. Larger values may reduce the
