@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import collections.abc
 import logging
 import sys
 import types
@@ -49,7 +50,18 @@ _BUILTINS_TO_TYPING = {
     frozenset: typing.FrozenSet,
 }
 
+_BUILTINS = [
+    dict,
+    list,
+    tuple,
+    set,
+    frozenset,
+]
+
 _CONVERTED_COLLECTIONS = [
+    collections.abc.Iterable,
+    collections.abc.Iterator,
+    collections.abc.Generator,
     collections.abc.Set,
     collections.abc.MutableSet,
     collections.abc.Collection,
@@ -103,6 +115,17 @@ def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
+def _is_primative(user_type, primative):
+  # catch bare primatives
+  if user_type is primative:
+    return True
+  return getattr(user_type, '__origin__', None) is primative
+
+
+def _match_is_primative(match_against):
+  return lambda user_type: _is_primative(user_type, match_against)
+
+
 def _match_is_exactly_mapping(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
   expected_origin = collections.abc.Mapping
@@ -110,7 +133,7 @@ def _match_is_exactly_mapping(user_type):
 
 
 def _match_is_exactly_iterable(user_type):
-  if user_type is typing.Iterable:
+  if user_type is typing.Iterable or user_type is collections.abc.Iterable:
     return True
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
   expected_origin = collections.abc.Iterable
@@ -156,11 +179,13 @@ def _match_is_union(user_type):
   return False
 
 
-def match_is_set(user_type):
-  if _safe_issubclass(user_type, typing.Set):
+def _match_is_set(user_type):
+  if _safe_issubclass(user_type, typing.Set) or _is_primative(user_type, set):
     return True
   elif getattr(user_type, '__origin__', None) is not None:
-    return _safe_issubclass(user_type.__origin__, collections.abc.Set)
+    return _safe_issubclass(
+        user_type.__origin__, collections.abc.Set) or _safe_issubclass(
+            user_type.__origin__, collections.abc.MutableSet)
   else:
     return False
 
@@ -201,6 +226,36 @@ def convert_builtin_to_typing(typ):
   return typ
 
 
+def convert_typing_to_builtin(typ):
+  """Converts a given typing collections type to its builtin counterpart.
+
+  Args:
+    typ: A typing type (e.g., typing.List[int]).
+
+  Returns:
+    type: The corresponding builtin type (e.g., list).
+  """
+  origin = getattr(typ, '__origin__', None)
+  args = getattr(typ, '__args__', None)
+  # Typing types return the primative type as the origin from 3.9 on
+  if origin not in _BUILTINS:
+    return typ
+  # Early return for bare types
+  if not args:
+    return origin
+  if origin is list:
+    return list[convert_typing_to_builtin(args[0])]
+  elif origin is dict:
+    return dict[convert_typing_to_builtin(args[0]),
+                convert_typing_to_builtin(args[1])]
+  elif origin is tuple:
+    return tuple[tuple(convert_typing_to_builtin(args))]
+  elif origin is set:
+    return set[convert_typing_to_builtin(args)]
+  elif origin is frozenset:
+    return frozenset[convert_typing_to_builtin(args)]
+
+
 def convert_collections_to_typing(typ):
   """Converts a given collections.abc type to a typing object.
 
@@ -218,6 +273,12 @@ def convert_collections_to_typing(typ):
     elif _match_is_exactly_iterable(typ):
       typ = typing.Iterable[typ.__args__]
   return typ
+
+
+def is_builtin(typ):
+  if typ in _BUILTINS:
+    return True
+  return getattr(typ, '__origin__', None) in _BUILTINS
 
 
 # During type inference of WindowedValue, we need to pass in the inner value
@@ -254,11 +315,8 @@ def convert_to_beam_type(typ):
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
 
-  if isinstance(typ, types.GenericAlias):
-    typ = convert_builtin_to_typing(typ)
-
-  if getattr(typ, '__module__', None) == 'collections.abc':
-    typ = convert_collections_to_typing(typ)
+  if getattr(typ, '__module__', None) == 'typing':
+    typ = convert_typing_to_builtin(typ)
 
   typ_module = getattr(typ, '__module__', None)
   if isinstance(typ, typing.TypeVar):
@@ -289,8 +347,10 @@ def convert_to_beam_type(typ):
     # to the correct type constraint in Beam
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
-  elif (typ_module != 'typing') and (typ_module != 'collections.abc'):
-    # Only translate types from the typing and collections.abc modules.
+
+  elif (typ_module != 'typing') and (typ_module !=
+                                     'collections.abc') and not is_builtin(typ):
+    # Only translate primatives and types from the typing and collections.abc modules.
     return typ
   if (typ_module == 'collections.abc' and
       typ.__origin__ not in _CONVERTED_COLLECTIONS):
@@ -307,39 +367,34 @@ def convert_to_beam_type(typ):
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Dict),
-          arity=2,
-          beam_type=typehints.Dict),
+          match=_match_is_primative(dict), arity=2, beam_type=typehints.Dict),
       _TypeMapEntry(
           match=_match_is_exactly_iterable,
           arity=1,
           beam_type=typehints.Iterable),
       _TypeMapEntry(
-          match=_match_issubclass(typing.List),
-          arity=1,
-          beam_type=typehints.List),
+          match=_match_is_primative(list), arity=1, beam_type=typehints.List),
       # FrozenSets are a specific instance of a set, so we check this first.
       _TypeMapEntry(
-          match=_match_issubclass(typing.FrozenSet),
+          match=_match_is_primative(frozenset),
           arity=1,
           beam_type=typehints.FrozenSet),
-      _TypeMapEntry(match=match_is_set, arity=1, beam_type=typehints.Set),
+      _TypeMapEntry(match=_match_is_set, arity=1, beam_type=typehints.Set),
       # NamedTuple is a subclass of Tuple, but it needs special handling.
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
           match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Tuple),
-          arity=-1,
+          match=_match_is_primative(tuple), arity=-1,
           beam_type=typehints.Tuple),
       _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Generator),
+          match=_match_issubclass(collections.abc.Generator),
           arity=3,
           beam_type=typehints.Generator),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Iterator),
+          match=_match_issubclass(collections.abc.Iterator),
           arity=1,
           beam_type=typehints.Iterator),
       _TypeMapEntry(
@@ -470,30 +525,6 @@ def convert_to_typing_type(typ):
     return typing.Iterator[convert_to_typing_type(typ.yielded_type)]
 
   raise ValueError('Failed to convert Beam type: %s' % typ)
-
-
-def convert_collections_from_typing(typ):
-  """Converts a given typing collections type to its builtin counterpart.
-
-  Args:
-    typ: A typing type (e.g., typing.List[int]).
-
-  Returns:
-    type: The corresponding builtin type (e.g., list).
-  """
-  origin = getattr(typ, '__origin__', None)
-  if origin is typing.List:
-    return list[convert_to_typing_type(typ.__args__[0])]
-  elif origin is typing.Dict:
-    return dict[convert_to_typing_type(typ.__args__[0]), convert_to_typing_type(typ.__args__[1])]
-  elif origin is typing.Tuple:
-    return tuple[tuple(convert_to_typing_types(typ.__args__))]
-  elif origin is typing.Set:
-    return set[convert_to_typing_type(typ.__args__[0])]
-  elif origin is typing.FrozenSet:
-    return frozenset[convert_to_typing_type(typ.__args__[0])]
-  else:
-    return typ
 
 
 def convert_to_typing_types(args):
