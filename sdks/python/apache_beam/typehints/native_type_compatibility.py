@@ -472,6 +472,30 @@ def convert_to_typing_type(typ):
   raise ValueError('Failed to convert Beam type: %s' % typ)
 
 
+def convert_collections_from_typing(typ):
+  """Converts a given typing collections type to its builtin counterpart.
+
+  Args:
+    typ: A typing type (e.g., typing.List[int]).
+
+  Returns:
+    type: The corresponding builtin type (e.g., list).
+  """
+  origin = getattr(typ, '__origin__', None)
+  if origin is typing.List:
+    return list[convert_to_typing_type(typ.__args__[0])]
+  elif origin is typing.Dict:
+    return dict[convert_to_typing_type(typ.__args__[0]), convert_to_typing_type(typ.__args__[1])]
+  elif origin is typing.Tuple:
+    return tuple[tuple(convert_to_typing_types(typ.__args__))]
+  elif origin is typing.Set:
+    return set[convert_to_typing_type(typ.__args__[0])]
+  elif origin is typing.FrozenSet:
+    return frozenset[convert_to_typing_type(typ.__args__[0])]
+  else:
+    return typ
+
+
 def convert_to_typing_types(args):
   """Convert the given list or dictionary of args to typing types.
 

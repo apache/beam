@@ -30,7 +30,7 @@ from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
-from apache_beam.typehints.native_type_compatibility import is_any
+from apache_beam.typehints.native_type_compatibility import convert_collections_from_typing, is_any
 
 _TestNamedTuple = typing.NamedTuple(
     '_TestNamedTuple', [('age', int), ('name', bytes)])
@@ -43,6 +43,7 @@ class _TestClass(object):
 
 
 T = typing.TypeVar('T')
+U = typing.TypeVar('U')
 
 
 class _TestGeneric(typing.Generic[T]):
@@ -336,6 +337,33 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     ]
     for expected, typ in test_cases:
       self.assertEqual(expected, is_any(typ), msg='%s' % typ)
+
+  def test_convert_collections_from_typing(self):
+    test_cases = [
+        ('list', typing.List[int], list[int]),
+        ('dict', typing.Dict[str, int], dict[str, int]),
+        ('tuple', typing.Tuple[str, int], tuple[str, int]),
+        ('set', typing.Set[str], set[str]),
+        ('frozenset', typing.FrozenSet[int], frozenset[int]),
+        ('nested', typing.List[typing.Dict[str, typing.Tuple[int]]], list[dict[str, tuple[int]]]),
+        ('typevar', typing.List[T], list[T]),
+        ('nested_typevar', typing.Dict[T, typing.List[U]], dict[T, list[U]])
+
+    ]
+    U = typing.TypeVar('U')
+
+    for description, typing_type, expected_builtin_type in test_cases:
+      converted_type = convert_to_typing_type(convert_to_beam_type(typing_type))
+      self.assertEqual(converted_type, expected_builtin_type, description)
+
+      converted_beam_type = convert_to_beam_type(typing_type)
+      self.assertEqual(convert_to_typing_type(converted_beam_type), typing_type)
+
+      builtin_type = convert_collections_from_typing(typing_type)
+      self.assertEqual(builtin_type, expected_builtin_type, description)
+
+
+
 
 
 if __name__ == '__main__':
