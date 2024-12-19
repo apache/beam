@@ -157,17 +157,17 @@ class WriteToKinesis(ExternalTransform):
       # https://javadoc.io/doc/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#isVerifyCertificate--
       # With the new AWS client, we no longer support it and it is always True
       raise ValueError(
-        'verify_certificate set to False. This option is no longer ' +
-        'supported and certificate verification will still happen.')
+          'verify_certificate set to False. This option is no longer ' +
+          'supported and certificate verification will still happen.')
     if verify_certificate is True:
       logging.warning(
-        'verify_certificate set to True. This option is no longer ' +
-        'supported and certificate verification will automatically happen. ' +
-        'This option may be removed in a future release')
+          'verify_certificate set to True. This option is no longer ' +
+          'supported and certificate verification will automatically ' +
+          'happen. This option may be removed in a future release')
     if producer_properties is not None:
       raise ValueError(
-        'producer_properties is no longer supported and will be removed in ' +
-        'a future release.')
+          'producer_properties is no longer supported and will be removed ' +
+          'in a future release.')
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -294,13 +294,13 @@ class ReadDataFromKinesis(ExternalTransform):
       # https://javadoc.io/doc/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#isVerifyCertificate--
       # With the new AWS client, we no longer support it and it is always True
       raise ValueError(
-        'verify_certificate set to False. This option is no longer ' +
-        'supported and certificate verification will still happen.')
+          'verify_certificate set to False. This option is no longer ' +
+          'supported and certificate verification will still happen.')
     if verify_certificate is True:
       logging.warning(
-        'verify_certificate set to True. This option is no longer ' +
-        'supported and certificate verification will automatically happen. ' +
-        'This option may be removed in a future release')
+          'verify_certificate set to True. This option is no longer ' +
+          'supported and certificate verification will automatically ' +
+          'happen. This option may be removed in a future release')
 
     super().__init__(
         self.URN,
