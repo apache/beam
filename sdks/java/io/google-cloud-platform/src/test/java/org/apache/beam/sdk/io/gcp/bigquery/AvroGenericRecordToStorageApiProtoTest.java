@@ -360,7 +360,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
                           LogicalTypes.decimal(2, 1)))
               .set("dateValue", 42)
               .set("timeMicrosValue", 42_000_000L)
-              .set("timeMillisValue", 42_000L)
+              .set("timeMillisValue", 42_000) // expects int
               .set("timestampMicrosValue", 42_000_000L)
               .set("timestampMillisValue", 42_000L)
               .set("localTimestampMicrosValue", 42_000_000L)
