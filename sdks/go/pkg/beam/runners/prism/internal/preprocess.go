@@ -449,6 +449,11 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
 				}
+				// Just make things that require time sorted input be stateful.
+				// Probably need to just make them a fusion break, but lets start here.
+				if pardo.GetRequiresTimeSortedInput() {
+					stg.stateful = true
+				}
 				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
 					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
 				}

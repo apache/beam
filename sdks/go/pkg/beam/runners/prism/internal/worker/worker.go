@@ -575,14 +575,19 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				}
 
 			case *fnpb.StateRequest_Append:
+				slog.Debug("StateRequest_Append", "request", prototext.Format(req), "bundle", b)
 				key := req.GetStateKey()
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					b.OutputData.AppendBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
+					b.OutputData.AppendBagState(
+						engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()},
+						bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+					b.OutputData.AppendMultimapState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
 				case *fnpb.StateKey_OrderedListUserState_:
 					olkey := key.GetOrderedListUserState()
 					b.OutputData.AppendOrderedListState(
@@ -600,6 +605,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				}
 
 			case *fnpb.StateRequest_Clear:
+				slog.Debug("StateRequest_Clear", "request", prototext.Format(req), "bundle", b)
 				key := req.GetStateKey()
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:

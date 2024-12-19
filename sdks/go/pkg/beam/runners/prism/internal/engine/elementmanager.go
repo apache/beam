@@ -709,6 +709,7 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 					Bag:      append([][]byte(nil), data.Bag...),
 					Multimap: mm,
 				}
+				slog.Debug("StateForBundle", slog.String("bundleID", rb.BundleID), slog.Any("state", wlinkMap[key]), slog.Any("key", key), slog.Any("window", w), slog.Any("ret", ret))
 			}
 		}
 	}
@@ -848,7 +849,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// Triage timers into their time domains for scheduling.
 	// EventTime timers are handled with normal elements,
 	// ProcessingTime timers need to be scheduled into the processing time based queue.
-	newHolds, ptRefreshes := em.triageTimers(d, inputInfo, stage)
+	newHolds, ptRefreshes := em.triageTimers(rb, d, inputInfo, stage)
 
 	// Return unprocessed to this stage's pending
 	// TODO sort out pending element watermark holds for process continuation residuals.
@@ -865,6 +866,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// watermark advancement.
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
+	slog.Warn("PersistBundle-cleanup", slog.String("bundle", rb.BundleID), slog.String("stage", rb.StageID))
 	em.addPending(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
 	for k := range stage.inprogressKeysByBundle[rb.BundleID] {
@@ -926,20 +928,21 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			}
 		}
 	}
+	slog.Warn("PersistBundle-cleanup finished", slog.String("bundle", rb.BundleID), slog.String("stage", rb.StageID))
 	stage.mu.Unlock()
 
 	em.markChangedAndClearBundle(stage.ID, rb.BundleID, ptRefreshes)
 }
 
 // triageTimers prepares received timers for eventual firing, as well as rebasing processing time timers as needed.
-func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState) (map[mtime.Time]int, set[mtime.Time]) {
+func (em *ElementManager) triageTimers(rb RunBundle, d TentativeData, inputInfo PColInfo, stage *stageState) (map[mtime.Time]int, set[mtime.Time]) {
 	// Process each timer family in the order we received them, so we can filter to the last one.
 	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
 	// The last timer set for each combination is the next one we're keeping.
 	type timerKey struct {
-		key string
-		tag string
-		win typex.Window
+		Key string
+		Tag string
+		Win typex.Window
 	}
 	em.refreshCond.L.Lock()
 	emNow := em.ProcessingTimeNow()
@@ -955,11 +958,11 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 			iter := decodeTimerIter(inputInfo.KeyDec, inputInfo.WindowCoder, t)
 			iter(func(ret timerRet) bool {
 				for _, e := range ret.elms {
-					keyToTimers[timerKey{key: string(ret.keyBytes), tag: ret.tag, win: e.window}] = e
+					keyToTimers[timerKey{Key: string(ret.keyBytes), Tag: ret.tag, Win: e.window}] = e
 				}
 				if len(ret.elms) == 0 {
 					for _, w := range ret.windows {
-						delete(keyToTimers, timerKey{key: string(ret.keyBytes), tag: ret.tag, win: w})
+						delete(keyToTimers, timerKey{Key: string(ret.keyBytes), Tag: ret.tag, Win: w})
 					}
 				}
 				// Indicate we'd like to continue iterating.
@@ -967,7 +970,8 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 			})
 		}
 
-		for _, elm := range keyToTimers {
+		for tk, elm := range keyToTimers {
+			slog.Debug("PersistBundle() triageTimers", slog.String("bundle", rb.BundleID), slog.Any("staticTimerKey", tentativeKey), slog.Any("timerKey", tk), slog.Any("timerElm", elm))
 			elm.transform = tentativeKey.Transform
 			elm.family = tentativeKey.Family
 
@@ -1006,7 +1010,8 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 }
 
 // FailBundle clears the extant data allowing the execution to shut down.
-func (em *ElementManager) FailBundle(rb RunBundle) {
+func (em *ElementManager) FailBundle(rb RunBundle, err error) {
+	slog.Debug("FailBundle", slog.String("bundle", rb.BundleID), slog.Int64("livePending", em.livePending.Load()), slog.Any("error", err))
 	stage := em.stages[rb.StageID]
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
@@ -1200,6 +1205,18 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	// TODO(#https://github.com/apache/beam/issues/31438):
+	// Adjust with AllowedLateness
+	// Data that arrives after the *output* watermark is late.
+	threshold := ss.output
+	origPending := make([]element, 0, ss.pending.Len())
+	for _, e := range newPending {
+		if e.timestamp < threshold {
+			continue
+		}
+		origPending = append(origPending, e)
+	}
+	newPending = origPending
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
@@ -1389,6 +1406,7 @@ keysPerBundle:
 			e := heap.Pop(&dnt.elements).(element)
 			if e.IsTimer() {
 				lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
+				slog.Debug("startEventTimeBundle: timer read", slog.String("family", e.family), slog.Any("EventTime", lastSet.firing))
 				if !ok {
 					timerCleared = true
 					continue // Timer has "fired" already, so this can be ignored.
@@ -1402,6 +1420,9 @@ keysPerBundle:
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
 			}
 			toProcess = append(toProcess, e)
+			if e.family == "ts-gc" {
+				slog.Debug("startEventTimeBundle: ts-gc timer to be processed")
+			}
 			if OneElementPerKey {
 				break
 			}

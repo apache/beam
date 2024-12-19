@@ -180,7 +180,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
 				isStateful = true
-				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(),
+					pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
 
 			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
