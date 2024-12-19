@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "Abacn",
-    "io": "johnjcasey",
-    "bigtable": "mutianf"
+    "java": "damondouglas",
+    "io": "damondouglas",
+    "bigtable": "Abacn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
