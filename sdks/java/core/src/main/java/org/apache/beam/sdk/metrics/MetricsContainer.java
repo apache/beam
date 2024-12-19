@@ -60,6 +60,12 @@ public interface MetricsContainer extends Serializable {
   StringSet getStringSet(MetricName metricName);
 
   /**
+   * Return the {@link BoundedTrie} that should be used for implementing the given {@code
+   * metricName} in this container.
+   */
+  BoundedTrie getBoundedTrie(MetricName metricName);
+
+  /**
    * Return the {@link Histogram} that should be used for implementing the given {@code metricName}
    * in this container.
    */

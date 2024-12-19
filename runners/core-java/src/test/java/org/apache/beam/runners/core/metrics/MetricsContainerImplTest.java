@@ -457,6 +457,11 @@ public class MetricsContainerImplTest {
     differentStringSets.getStringSet(MetricName.named("namespace", "name"));
     Assert.assertNotEquals(metricsContainerImpl, differentStringSets);
     Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentStringSets.hashCode());
+
+    MetricsContainerImpl differentBoundedTries = new MetricsContainerImpl("stepName");
+    differentBoundedTries.getBoundedTrie(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentBoundedTries);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentBoundedTries.hashCode());
   }
 
   @Test
