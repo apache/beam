@@ -30,7 +30,7 @@ ext.summary = "Runtime dependencies needed for Hive catalog integration."
 def hive_version = "3.1.3"
 def hbase_version = "2.6.1-hadoop3"
 def hadoop_version = "3.4.1"
-def iceberg_version = "1.4.2"
+def iceberg_version = "1.6.1"
 def avatica_version = "1.25.0"
 
 dependencies {

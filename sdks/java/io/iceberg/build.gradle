@@ -37,7 +37,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def iceberg_version = "1.4.2"
+def iceberg_version = "1.6.1"
 def parquet_version = "1.12.0"
 def orc_version = "1.9.2"
 
