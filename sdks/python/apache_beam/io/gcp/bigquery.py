@@ -1163,7 +1163,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
           self.table_reference.datasetId,
           self.table_reference.tableId)
       Lineage.sources().add(
-          "bigquery",
+          'bigquery',
           self.table_reference.projectId,
           self.table_reference.datasetId,
           self.table_reference.tableId)

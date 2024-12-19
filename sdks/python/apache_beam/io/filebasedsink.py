@@ -286,24 +286,16 @@ class FileBasedSink(iobase.Sink):
 
   def _report_sink_lineage(self, dst_glob, dst_files):
     """
-    Report sink Lineage. Report every file if number of files no more than 100,
-    otherwise only report at directory level.
+    Report sink Lineage. Report every file if number of files no more than 10,
+    otherwise only report glob.
     """
-    if len(dst_files) <= 100:
+    # There is rollup at the higher level, but this loses glob information.
+    # Better to report multiple globs than just the parent directory.
+    if len(dst_files) <= 10:
       for dst in dst_files:
         FileSystems.report_sink_lineage(dst)
     else:
-      dst = dst_glob
-      # dst_glob has a wildcard for shard number (see _shard_name_template)
-      sep = dst_glob.find('*')
-      if sep > 0:
-        dst = dst[:sep]
-      try:
-        dst, _ = FileSystems.split(dst)
-      except ValueError:
-        return  # lineage report is fail-safe
-
-      FileSystems.report_sink_lineage(dst)
+      FileSystems.report_sink_lineage(dst_glob)
 
   @check_accessible(['file_path_prefix'])
   def finalize_write(
