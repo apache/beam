@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.ValueState;
@@ -50,9 +52,11 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -76,6 +80,8 @@ public abstract class StateInternalsTest {
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<SetState<String>> STRING_SET_ADDR =
       StateTags.set("stringSet", StringUtf8Coder.of());
+  private static final StateTag<OrderedListState<String>> STRING_ORDERED_LIST_ADDR =
+      StateTags.orderedList("stringOrderedList", StringUtf8Coder.of());
   private static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
       StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
   private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
@@ -183,6 +189,99 @@ public abstract class StateInternalsTest {
 
     // Reading the merged bag gets both the contents
     assertThat(bag3.read(), containsInAnyOrder("Hello", "World", "!"));
+    assertThat(bag1.read(), Matchers.emptyIterable());
+    assertThat(bag2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testOrderedList() {
+    final OrderedListState<String> value = underTest.state(NAMESPACE_1, STRING_ORDERED_LIST_ADDR);
+
+    assertThat(value, equalTo(underTest.state(NAMESPACE_1, STRING_ORDERED_LIST_ADDR)));
+    assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_ORDERED_LIST_ADDR))));
+
+    assertThat(value.read(), Matchers.emptyIterable());
+    Instant base = new Instant(0);
+    value.add(TimestampedValue.of("world", base.plus(Duration.millis(1))));
+    assertThat(
+        value.read(),
+        containsInAnyOrder(TimestampedValue.of("world", base.plus(Duration.millis(1)))));
+
+    value.add(TimestampedValue.of("hello", base));
+    assertThat(
+        value.read(),
+        contains(
+            TimestampedValue.of("hello", base),
+            TimestampedValue.of("world", base.plus(Duration.millis(1)))));
+    value.add(TimestampedValue.of("ignore", base.plus(Duration.millis(10))));
+
+    final Iterable<TimestampedValue<String>> range =
+        value.readRange(base, base.plus(Duration.millis(2L)));
+    assertThat(
+        range,
+        contains(
+            TimestampedValue.of("hello", base),
+            TimestampedValue.of("world", base.plus(Duration.millis(1)))));
+
+    assertThat(range, not(contains(TimestampedValue.of("ignore", base.plus(Duration.millis(10))))));
+
+    value.clear();
+    assertThat(value.read(), Matchers.emptyIterable());
+    assertThat(underTest.state(NAMESPACE_1, STRING_ORDERED_LIST_ADDR), equalTo(value));
+  }
+
+  @Test
+  public void testOrderedListIsEmpty() {
+    final OrderedListState<String> value = underTest.state(NAMESPACE_1, STRING_ORDERED_LIST_ADDR);
+    final Instant base = new Instant(0);
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    final ReadableState<Boolean> readFuture = value.isEmpty();
+    value.add(TimestampedValue.of("hello", base));
+    assertThat(readFuture.read(), Matchers.is(false));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testMergeOrderedListIntoSource() {
+    final OrderedListState<String> bag1 = underTest.state(NAMESPACE_1, STRING_ORDERED_LIST_ADDR);
+    final OrderedListState<String> bag2 = underTest.state(NAMESPACE_2, STRING_ORDERED_LIST_ADDR);
+    final Instant base = new Instant();
+
+    bag1.add(TimestampedValue.of("World", base.plus(Duration.millis(1L))));
+    bag2.add(TimestampedValue.of("Hello", base));
+    bag1.add(TimestampedValue.of("!", base.plus(Duration.millis(5L))));
+
+    StateMerging.mergeOrderedLists(Arrays.asList(bag1, bag2), bag1);
+
+    assertThat(
+        bag1.read(),
+        contains(
+            TimestampedValue.of("Hello", base),
+            TimestampedValue.of("World", base.plus(Duration.millis(1L))),
+            TimestampedValue.of("!", base.plus(Duration.millis(5L)))));
+    assertThat(bag2.read(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testMergeOrderedListIntoNewNamespace() {
+    final OrderedListState<String> bag1 = underTest.state(NAMESPACE_1, STRING_ORDERED_LIST_ADDR);
+    final OrderedListState<String> bag2 = underTest.state(NAMESPACE_2, STRING_ORDERED_LIST_ADDR);
+    final OrderedListState<String> bag3 = underTest.state(NAMESPACE_3, STRING_ORDERED_LIST_ADDR);
+    final Instant base = new Instant();
+
+    bag1.add(TimestampedValue.of("World", base.plus(Duration.millis(1L))));
+    bag2.add(TimestampedValue.of("Hello", base));
+    bag1.add(TimestampedValue.of("!", base.plus(Duration.millis(5L))));
+
+    StateMerging.mergeOrderedLists(Arrays.asList(bag1, bag2), bag3);
+    assertThat(
+        bag3.read(),
+        contains(
+            TimestampedValue.of("Hello", base),
+            TimestampedValue.of("World", base.plus(Duration.millis(1L))),
+            TimestampedValue.of("!", base.plus(Duration.millis(5L)))));
     assertThat(bag1.read(), Matchers.emptyIterable());
     assertThat(bag2.read(), Matchers.emptyIterable());
   }
