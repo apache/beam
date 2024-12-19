@@ -153,6 +153,29 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   }
 
   @Test
+  public void testConvert_skipInvalidMetricNameSpaces() {
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
+    Map<MetricName, Long> counters = new HashMap<>();
+    Map<MetricName, Long> emptyGauges = new HashMap<MetricName, Long>();
+    MetricName invalidNameSpace1 = MetricName.named("Unsupported", "baseLabel1");
+    counters.put(invalidNameSpace1, 5L);
+
+    Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
+    MetricName invalidNameSpace2 = MetricName.named("Unsupported", "baseLabel2");
+    LockFreeHistogram nonEmptyLinearHistogram =
+        new LockFreeHistogram(invalidNameSpace2, lienarBuckets);
+    nonEmptyLinearHistogram.update(-5.0);
+    histograms.put(invalidNameSpace2, nonEmptyLinearHistogram.getSnapshotAndReset().get());
+
+    Collection<PerStepNamespaceMetrics> conversionResult =
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            "testStep", counters, emptyGauges, histograms, parsedMetricNames);
+    assertThat(conversionResult.size(), equalTo(0));
+    assertThat(parsedMetricNames.size(), equalTo(0));
+  }
+
+  @Test
   public void testConvert_successfulConvertHistograms() {
     Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
     Map<MetricName, Long> emptyGauges = new HashMap<MetricName, Long>();
