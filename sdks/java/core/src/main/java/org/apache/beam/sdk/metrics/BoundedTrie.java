@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.metrics;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * A metric that represents a bounded trie data structure. This interface extends the {@link Metric}
- * interface and provides methods for adding string sequences (paths) to the trie.
+ * <b>Internal:</b> For internal use only and not for public consumption. This API is subject to
+ * incompatible changes, or even removal, in a future release. A metric that represents a bounded
+ * trie data structure. This interface extends the {@link Metric} interface and provides methods for
+ * adding string sequences (paths) to the trie.
  *
  * <p>The trie is bounded in size (max=100), meaning it has a maximum capacity for storing paths.
  * When the trie reaches its capacity, it truncates paths. This is useful for tracking and
@@ -29,6 +32,7 @@ import java.util.Arrays;
  * recommended that parts of paths provided as strings are hierarchical in nature so the truncation
  * reduces granularity rather than complete data loss.
  */
+@Internal
 public interface BoundedTrie extends Metric {
 
   /**
