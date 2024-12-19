@@ -109,6 +109,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       AwsBasicCredentials creds =
           AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
+      SerializableFunction<byte[], byte[]> serializer = v -> v;
       KinesisIO.Write<byte[]> writeTransform =
           KinesisIO.<byte[]>write()
               .withStreamName(configuration.streamName)
@@ -118,7 +119,8 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .region(configuration.region)
                       .endpoint(configuration.serviceEndpoint)
                       .build())
-              .withPartitioner(p -> configuration.partitionKey);
+              .withPartitioner(p -> configuration.partitionKey)
+              .withSerializer(serializer);
 
       return writeTransform;
     }
