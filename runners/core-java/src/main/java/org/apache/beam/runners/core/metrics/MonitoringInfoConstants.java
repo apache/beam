@@ -54,6 +54,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_DOUBLE);
     public static final String USER_SET_STRING =
         extractUrn(MonitoringInfoSpecs.Enum.USER_SET_STRING);
+    public static final String USER_BOUNDED_TRIE =
+        extractUrn(MonitoringInfoSpecs.Enum.USER_BOUNDED_TRIE);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
     public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);
@@ -165,6 +167,7 @@ public final class MonitoringInfoConstants {
     public static final String BOTTOM_N_DOUBLE_TYPE = "beam:metrics:bottom_n_double:v1";
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
     public static final String SET_STRING_TYPE = "beam:metrics:set_string:v1";
+    public static final String BOUNDED_TRIE_TYPE = "beam:metrics:bounded_trie:v1";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -191,6 +194,8 @@ public final class MonitoringInfoConstants {
           BOTTOM_N_DOUBLE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOTTOM_N_DOUBLE_TYPE)));
       checkArgument(PROGRESS_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.PROGRESS_TYPE)));
       checkArgument(SET_STRING_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SET_STRING_TYPE)));
+      checkArgument(
+          BOUNDED_TRIE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOUNDED_TRIE_TYPE)));
     }
   }
 
