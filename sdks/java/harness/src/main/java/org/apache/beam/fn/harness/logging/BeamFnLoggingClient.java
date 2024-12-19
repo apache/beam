@@ -68,7 +68,7 @@ import org.slf4j.MDC;
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
  */
-public class BeamFnLoggingClient implements AutoCloseable {
+public class BeamFnLoggingClient implements LoggingClient {
   private static final String ROOT_LOGGER_NAME = "";
   private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity.Enum> LOG_LEVEL_MAP =
       ImmutableMap.<Level, BeamFnApi.LogEntry.Severity.Enum>builder()
@@ -119,7 +119,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
    */
   private @Nullable Thread logEntryHandlerThread = null;
 
-  public static BeamFnLoggingClient createAndStart(
+  static BeamFnLoggingClient createAndStart(
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
@@ -383,6 +383,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
+  @Override
   public CompletableFuture<?> terminationFuture() {
     checkNotNull(bufferedLogConsumer, "BeamFnLoggingClient not fully started");
     return bufferedLogConsumer;

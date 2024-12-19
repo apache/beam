@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.logging.LoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -80,7 +82,7 @@ public class BeamFnLoggingClientBenchmark {
   /** Setup a simple logging service and configure the {@link BeamFnLoggingClient}. */
   @State(Scope.Benchmark)
   public static class ManageLoggingClientAndService {
-    public final BeamFnLoggingClient loggingClient;
+    public final LoggingClient loggingClient;
     public final CallCountLoggingService loggingService;
     public final Server server;
 
@@ -98,7 +100,7 @@ public class BeamFnLoggingClientBenchmark {
                 .build();
         server.start();
         loggingClient =
-            BeamFnLoggingClient.createAndStart(
+            LoggingClientFactory.createAndStart(
                 PipelineOptionsFactory.create(),
                 apiServiceDescriptor,
                 managedChannelFactory::forDescriptor);
