@@ -138,7 +138,7 @@ public class AvroGenericRecordToStorageApiProto {
     } else {
       Preconditions.checkArgument(
           value instanceof Long, "Expecting a value as Long type (timestamp).");
-      return ((Long) value) * (micros ? 1 : 1_000L);
+      return (micros ? 1 : 1_000L) * ((Long) value);
     }
   }
 
@@ -161,8 +161,15 @@ public class AvroGenericRecordToStorageApiProto {
       return java.util.concurrent.TimeUnit.NANOSECONDS.toMicros(
           ((java.time.LocalTime) value).toNanoOfDay());
     } else {
-      Preconditions.checkArgument(value instanceof Long, "Expecting a value as Long type (time).");
-      return (Long) value * (micros ? 1 : 1_000L);
+      if (micros) {
+        Preconditions.checkArgument(
+            value instanceof Long, "Expecting a value as Long type (time).");
+        return (Long) value;
+      } else {
+        Preconditions.checkArgument(
+            value instanceof Integer, "Expecting a value as Integer type (time).");
+        return 1_000L * (Integer) value;
+      }
     }
   }
 
@@ -180,7 +187,7 @@ public class AvroGenericRecordToStorageApiProto {
     } else {
       Preconditions.checkArgument(
           value instanceof Long, "Expecting a value as Long type (local-timestamp).");
-      return ((Long) value) * (micros ? 1 : 1_000L);
+      return (micros ? 1 : 1_000L) * ((Long) value);
     }
   }
 
