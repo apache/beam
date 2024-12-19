@@ -24,6 +24,7 @@ import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.LongString;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -81,38 +82,39 @@ public class RabbitMqMessage implements Serializable {
     Map<String, Object> returned = new HashMap<>();
     if (headers != null) {
       for (Map.Entry<String, Object> h : headers.entrySet()) {
-        Object value = h.getValue();
-        if (value instanceof List<?>) {
-          // Transformation for List type headers
-          value =
-              ((List<?>) value)
-                  .stream().map(RabbitMqMessage::getTransformedValue).collect(Collectors.toList());
-        } else if (!(value instanceof Serializable)) {
-          value = getTransformedValue(value);
-        }
-        returned.put(h.getKey(), value);
+        returned.put(h.getKey(), convertLongStringIfNecessary(h.getValue()));
       }
     }
     return returned;
   }
 
-  private static Object getTransformedValue(Object value) {
-    try {
-      if (value instanceof LongString) {
-        LongString longString = (LongString) value;
-        byte[] bytes = longString.getBytes();
-        value = new String(bytes, StandardCharsets.UTF_8);
-      } else {
-        throw new RuntimeException(String.format("No transformation defined for %s", value));
-      }
-    } catch (Throwable t) {
+  private static Object convertLongStringIfNecessary(Object value) {
+    if (value instanceof LongString) {
+      return convertLongString(value);
+    } else if (value instanceof List) {
+      return ((List<?>) value)
+          .stream()
+              .map(RabbitMqMessage::convertLongStringIfNecessary)
+              .collect(Collectors.toCollection(ArrayList::new));
+    } else if (value instanceof Map) {
+      Map<String, Object> convertedValues = new HashMap<>();
+      ((Map<?, ?>) value)
+          .forEach(
+              (key, val) -> convertedValues.put((String) key, convertLongStringIfNecessary(val)));
+      return convertedValues;
+    } else if (!(value instanceof Serializable)) {
       throw new UnsupportedOperationException(
           String.format(
               "Can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
-              value),
-          t);
+              value));
     }
     return value;
+  }
+
+  private static Object convertLongString(Object value) {
+    LongString longString = (LongString) value;
+    byte[] bytes = longString.getBytes();
+    return new String(bytes, StandardCharsets.UTF_8);
   }
 
   private final @Nullable String routingKey;
