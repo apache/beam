@@ -82,7 +82,7 @@ public class BeamFnLoggingClientBenchmark {
   /** Setup a simple logging service and configure the {@link BeamFnLoggingClient}. */
   @State(Scope.Benchmark)
   public static class ManageLoggingClientAndService {
-    public final BeamFnLoggingClient loggingClient;
+    public final LoggingClient loggingClient;
     public final CallCountLoggingService loggingService;
     public final Server server;
 
