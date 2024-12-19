@@ -18,8 +18,8 @@
 import logging
 
 import apache_beam as beam
-from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 """A Python multi-language pipeline that counts words using multiple Java SchemaTransforms.
@@ -60,39 +60,35 @@ $ python wordcount_external.py \
       --expansion_service_port <PORT>
 """
 
-# Original Java transform is in ExtractWordsProvider.java
 EXTRACT_IDENTIFIER = "beam:schematransform:org.apache.beam:extract_words:v1"
-# Original Java transform is in JavaCountProvider.java
 COUNT_IDENTIFIER = "beam:schematransform:org.apache.beam:count:v1"
-# Original Java transform is in WriteWordsProvider.java
 WRITE_IDENTIFIER = "beam:schematransform:org.apache.beam:write_words:v1"
 
 
 def run(input_path, output_path, expansion_service_port, pipeline_args):
     pipeline_options = PipelineOptions(pipeline_args)
 
-    # Discover and get external transforms from this expansion service
-    provider = ExternalTransformProvider("localhost:" + expansion_service_port)
-    # Get transforms with identifiers, then use them as you would a regular
-    # native PTransform
-    Extract = provider.get_urn(EXTRACT_IDENTIFIER)
-    Count = provider.get_urn(COUNT_IDENTIFIER)
-    Write = provider.get_urn(WRITE_IDENTIFIER)
-
     with beam.Pipeline(options=pipeline_options) as p:
-        lines = p | 'Read' >> ReadFromText(input_path)
+        expansion_service = BeamJarExpansionService(
+            "examples:multi-language:shadowJar")
+        if expansion_service_port:
+            expansion_service = "localhost:" + expansion_service_port
 
-        words = (lines
-                 | 'Prepare Rows' >> beam.Map(lambda line: beam.Row(line=line))
-                 | 'Extract Words' >> Extract())
-        word_counts = words | 'Count Words' >> Count()
-        formatted_words = (
-            word_counts
-            | 'Format Text' >> beam.Map(lambda row: beam.Row(line="%s: %s" % (
-                row.word, row.count))).with_output_types(
-                    RowTypeConstraint.from_fields([('line', str)])))
+        provider = ExternalTransformProvider(expansion_service)
+        # Retrieve portable transforms
+        Extract = provider.get_urn(EXTRACT_IDENTIFIER)
+        Count = provider.get_urn(COUNT_IDENTIFIER)
+        Write = provider.get_urn(WRITE_IDENTIFIER)
 
-        formatted_words | 'Write' >> Write(file_path_prefix=output_path)
+        _ = (p
+             | 'Read' >> beam.io.ReadFromText(input_path)
+             | 'Prepare Rows' >> beam.Map(lambda line: beam.Row(line=line))
+             | 'Extract Words' >> Extract(drop=["king", "palace"])
+             | 'Count Words' >> Count()
+             | 'Format Text' >> beam.Map(lambda row: beam.Row(line="%s: %s" % (
+                 row.word, row.count))).with_output_types(
+                     RowTypeConstraint.from_fields([('line', str)]))
+             | 'Write' >> Write(file_path_prefix=output_path))
 
 
 if __name__ == '__main__':
@@ -110,8 +106,10 @@ if __name__ == '__main__':
                         help='Output file')
     parser.add_argument('--expansion_service_port',
                         dest='expansion_service_port',
-                        required=True,
-                        help='Expansion service port')
+                        required=False,
+                        help='Expansion service port. If left empty, the '
+                        'existing multi-language examples service will '
+                        'be used by default.')
     known_args, pipeline_args = parser.parse_known_args()
 
     run(known_args.input, known_args.output, known_args.expansion_service_port,
