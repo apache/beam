@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.logging.LoggingClient;
 import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;

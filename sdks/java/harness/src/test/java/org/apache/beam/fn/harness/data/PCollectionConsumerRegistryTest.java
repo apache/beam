@@ -49,6 +49,7 @@ import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTr
 import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.logging.LoggingClient;
 import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
