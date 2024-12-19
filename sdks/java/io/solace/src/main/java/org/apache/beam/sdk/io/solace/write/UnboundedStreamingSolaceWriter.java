@@ -20,19 +20,16 @@ package org.apache.beam.sdk.io.solace.write;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This DoFn is the responsible for writing to Solace in streaming mode (one message at a time, not
@@ -55,56 +52,39 @@ import org.slf4j.LoggerFactory;
 @Internal
 public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter {
 
-  private static final Logger LOG = LoggerFactory.getLogger(UnboundedStreamingSolaceWriter.class);
-
   private final Counter sentToBroker =
       Metrics.counter(UnboundedStreamingSolaceWriter.class, "msgs_sent_to_broker");
 
   private final Counter rejectedByBroker =
       Metrics.counter(UnboundedStreamingSolaceWriter.class, "msgs_rejected_by_broker");
 
-  // We use a state variable to force a shuffling and ensure the cardinality of the processing
-  @SuppressWarnings("UnusedVariable")
-  @StateId("current_key")
-  private final StateSpec<ValueState<Integer>> currentKeySpec = StateSpecs.value();
-
   public UnboundedStreamingSolaceWriter(
-      SerializableFunction<Solace.Record, Destination> destinationFn,
+      SerializableFunction<Record, Destination> destinationFn,
       SessionServiceFactory sessionServiceFactory,
       DeliveryMode deliveryMode,
-      SolaceIO.SubmissionMode submissionMode,
+      SubmissionMode submissionMode,
       int producersMapCardinality,
-      boolean publishLatencyMetrics) {
+      boolean publishLatencyMetrics,
+      Duration maxWaitTimeForPublishResponses) {
     super(
         destinationFn,
         sessionServiceFactory,
         deliveryMode,
         submissionMode,
         producersMapCardinality,
-        publishLatencyMetrics);
+        publishLatencyMetrics,
+        maxWaitTimeForPublishResponses);
   }
 
   @ProcessElement
   public void processElement(
-      @Element KV<Integer, Solace.Record> element,
-      @Timestamp Instant timestamp,
-      @AlwaysFetched @StateId("current_key") ValueState<Integer> currentKeyState) {
-
+      @Element KV<Integer, Iterable<Solace.Record>> element, @Timestamp Instant timestamp) {
     setCurrentBundleTimestamp(timestamp);
+    Iterable<Solace.Record> records = element.getValue();
+    records.iterator().forEachRemaining(this::publishRecord);
+  }
 
-    Integer currentKey = currentKeyState.read();
-    Integer elementKey = element.getKey();
-    Solace.Record record = element.getValue();
-
-    if (currentKey == null || !currentKey.equals(elementKey)) {
-      currentKeyState.write(elementKey);
-    }
-
-    if (record == null) {
-      LOG.error("SolaceIO.Write: Found null record with key {}. Ignoring record.", elementKey);
-      return;
-    }
-
+  private void publishRecord(Record record) {
     // The publish method will retry, let's send a failure message if all the retries fail
     try {
       solaceSessionServiceWithProducer()
@@ -117,22 +97,23 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
       sentToBroker.inc();
     } catch (Exception e) {
       rejectedByBroker.inc();
-      Solace.PublishResult errorPublish =
-          Solace.PublishResult.builder()
-              .setPublished(false)
-              .setMessageId(record.getMessageId())
-              .setError(
-                  String.format(
-                      "Message could not be published after several" + " retries. Error: %s",
-                      e.getMessage()))
-              .setLatencyNanos(System.nanoTime())
-              .build();
-      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      // Solace.PublishResult errorPublish =
+      //     Solace.PublishResult.builder()
+      //         .setPublished(false)
+      //         .setMessageId(record.getMessageId())
+      //         .setError(
+      //             String.format(
+      //                 "Message could not be published after several retries. Error: %s",
+      //                 e.getMessage()))
+      //         .setLatencyNanos(System.nanoTime())
+      //         .build();
+      // todo handle this
+      // solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
     }
   }
 
   @FinishBundle
   public void finishBundle(FinishBundleContext context) {
-    publishResults(BeamContextWrapper.of(context));
+    // publishResults(BeamContextWrapper.of(context));
   }
 }

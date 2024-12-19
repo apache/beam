@@ -19,9 +19,10 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
-import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -41,12 +42,12 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
-  private final Queue<PublishResult> publishResultsQueue;
+  private final ConcurrentHashMap<String, PublishPhaser> publishPhaserMap;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(Queue<PublishResult> publishResultsQueue) {
-    this.publishResultsQueue = publishResultsQueue;
+  public PublishResultHandler(ConcurrentHashMap<String, PublishPhaser> publishPhaserMap) {
+    this.publishPhaserMap = publishPhaserMap;
   }
 
   @Override
@@ -87,9 +88,27 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     }
 
     PublishResult publishResult = resultBuilder.build();
-    // Static reference, it receives all callbacks from all publications
-    // from all threads
-    publishResultsQueue.add(publishResult);
+    @Nullable PublishPhaser publishPhaser = publishPhaserMap.get(messageId);
+
+    if (publishPhaser != null) {
+      // todo we should first add and then deregister
+      if (publishPhaser.getArrivedParties() > 0) {
+        publishPhaser.successfulRecords.put(messageId, publishResult);
+        publishPhaser.arrive();
+      }
+      // LOG.info(
+      //     "bzablockilog arrived {} for message {}. unarrived: {}, arrived: {}, phase: {}",
+      //     arrived,
+      //     messageId,
+      //     publishPhaser.getUnarrivedParties(),
+      //     publishPhaser.getArrivedParties(),
+      //     publishPhaser.getPhase());
+      // if (arrived < 0) {
+      //   // NOOOOOOOOOOOOO, this batch expired before
+      // } else {
+      //
+      // }
+    }
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {
