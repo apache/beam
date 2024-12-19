@@ -96,7 +96,8 @@ public class BigQueryFileLoadsSchemaTransformProvider
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
-    BigQueryIO.Write<Row> toWrite(Schema schema, PipelineOptions options) {
+    @VisibleForTesting
+    public BigQueryIO.Write<Row> toWrite(Schema schema, PipelineOptions options) {
       PortableBigQueryDestinations dynamicDestinations =
           new PortableBigQueryDestinations(schema, configuration);
       BigQueryIO.Write<Row> write =
@@ -108,7 +109,8 @@ public class BigQueryFileLoadsSchemaTransformProvider
               .withCustomGcsTempLocation(
                   ValueProvider.StaticValueProvider.of(options.getTempLocation()))
               .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-              // Use Avro format for better performance. Don't change this unless it's for a good reason.
+              // Use Avro format for better performance. Don't change this unless it's for a good
+              // reason.
               .withAvroFormatFunction(dynamicDestinations.getAvroFilterFormatFunction(false));
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
