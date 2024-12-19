@@ -239,8 +239,7 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
         extra = set(py_value.keys()) - set(row_type._fields)
         if extra:
           raise ValueError(
-              f"Transform '{self.identifier()}' was configured with unknown "
-              f"fields: {extra}. Valid fields: {set(row_type._fields)}")
+              f"Unknown fields: {extra}. Valid fields: {row_type._fields}")
         return row_type(
             *[
                 dict_to_row_recursive(

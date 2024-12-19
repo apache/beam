@@ -21,12 +21,9 @@ import static org.apache.beam.examples.multilanguage.schematransforms.ExtractWor
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -39,6 +36,7 @@ import org.apache.beam.sdk.values.Row;
 /** Splits a line into separate words and returns each word. */
 @AutoService(SchemaTransformProvider.class)
 public class ExtractWordsProvider extends TypedSchemaTransformProvider<Configuration> {
+  public static final Schema OUTPUT_SCHEMA = Schema.builder().addStringField("word").build();
 
   @Override
   public String identifier() {
@@ -47,60 +45,32 @@ public class ExtractWordsProvider extends TypedSchemaTransformProvider<Configura
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
-    return new ExtractWordsTransform(configuration);
+    return new SchemaTransform() {
+      @Override
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        return PCollectionRowTuple.of(
+            "output",
+            input.get("input").apply(ParDo.of(new ExtractWordsFn())).setRowSchema(OUTPUT_SCHEMA));
+      }
+    };
   }
 
-  static class ExtractWordsTransform extends SchemaTransform {
-    private static final Schema OUTPUT_SCHEMA = Schema.builder().addStringField("word").build();
-    private final List<String> drop;
+  static class ExtractWordsFn extends DoFn<Row, Row> {
+    @ProcessElement
+    public void processElement(@Element Row element, OutputReceiver<Row> receiver) {
+      // Split the line into words.
+      String line = Preconditions.checkStateNotNull(element.getString("line"));
+      String[] words = line.split("[^\\p{L}]+", -1);
 
-    ExtractWordsTransform(Configuration configuration) {
-      this.drop = configuration.getDrop();
-    }
-
-    @Override
-    public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      return PCollectionRowTuple.of(
-          "output",
-          input
-              .getSinglePCollection()
-              .apply(
-                  ParDo.of(
-                      new DoFn<Row, Row>() {
-                        @ProcessElement
-                        public void process(@Element Row element, OutputReceiver<Row> receiver) {
-                          // Split the line into words.
-                          String line = Preconditions.checkStateNotNull(element.getString("line"));
-                          String[] words = line.split("[^\\p{L}]+", -1);
-                          Arrays.stream(words)
-                              .filter(w -> !drop.contains(w))
-                              .forEach(
-                                  word ->
-                                      receiver.output(
-                                          Row.withSchema(OUTPUT_SCHEMA)
-                                              .withFieldValue("word", word)
-                                              .build()));
-                        }
-                      }))
-              .setRowSchema(OUTPUT_SCHEMA));
+      for (String word : words) {
+        if (!word.isEmpty()) {
+          receiver.output(Row.withSchema(OUTPUT_SCHEMA).withFieldValue("word", word).build());
+        }
+      }
     }
   }
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class Configuration {
-    public static Builder builder() {
-      return new AutoValue_ExtractWordsProvider_Configuration.Builder();
-    }
-
-    @SchemaFieldDescription("List of words to drop.")
-    public abstract List<String> getDrop();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setDrop(List<String> foo);
-
-      public abstract Configuration build();
-    }
-  }
+  protected abstract static class Configuration {}
 }
