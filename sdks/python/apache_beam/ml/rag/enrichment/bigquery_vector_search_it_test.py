@@ -43,7 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class BigQueryVectorSearchIT(unittest.TestCase):
   bigquery_dataset_id = 'python_vector_search_test_'
-  project = "dataflow-test"
+  project = "apache-beam-testing"
 
   @classmethod
   def setUpClass(cls):
