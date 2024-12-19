@@ -47,8 +47,11 @@ public class DataflowGroupByKey<K, V>
   // Plumbed from Redistribute transform.
   private final boolean allowDuplicates;
 
-  private DataflowGroupByKey(boolean allowDuplicates) {
+  private final boolean fewKeys;
+
+  private DataflowGroupByKey(boolean allowDuplicates, boolean fewKeys) {
     this.allowDuplicates = allowDuplicates;
+    this.fewKeys = fewKeys;
   }
 
   /**
@@ -59,7 +62,11 @@ public class DataflowGroupByKey<K, V>
    *     {@code Iterable}s in the output {@code PCollection}
    */
   public static <K, V> DataflowGroupByKey<K, V> create() {
-    return new DataflowGroupByKey<>(false);
+    return new DataflowGroupByKey<>(/*allowDuplicates=*/ false, /*fewKeys=*/ false);
+  }
+
+  static <K, V> DataflowGroupByKey<K, V> createWithFewKeys() {
+    return new DataflowGroupByKey<>(/*allowDuplicates=*/ false, /*fewKeys=*/ true);
   }
 
   /**
@@ -71,7 +78,7 @@ public class DataflowGroupByKey<K, V>
    *     {@code Iterable}s in the output {@code PCollection}
    */
   public static <K, V> DataflowGroupByKey<K, V> createWithAllowDuplicates() {
-    return new DataflowGroupByKey<>(true);
+    return new DataflowGroupByKey<>(/*allowDuplicates=*/ true, /*fewKeys=*/ false);
   }
 
   /** Returns whether it allows duplicated elements in the output. */
@@ -79,6 +86,10 @@ public class DataflowGroupByKey<K, V>
     return allowDuplicates;
   }
 
+  /** Returns whether it groups just few keys. */
+  public boolean fewKeys() {
+    return fewKeys;
+  }
   /////////////////////////////////////////////////////////////////////////////
 
   public static void applicableTo(PCollection<?> input) {

@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
@@ -64,6 +65,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
+import org.apache.beam.runners.dataflow.internal.StateMultiplexingGroupByKey;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -596,6 +598,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class AlwaysCreateViaRead<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+
     @Override
     public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
         getReplacementTransform(
@@ -797,6 +800,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             new RedistributeByKeyOverrideFactory()));
 
     if (streaming) {
+      if (DataflowRunner.hasExperiment(
+          options, StateMultiplexingGroupByKey.EXPERIMENT_ENABLE_GBK_STATE_MULTIPLEXING)) {
+        overridesBuilder.add(
+            PTransformOverride.of(
+                StateMultiplexingGroupByKeyTransformMatcher.getInstance(),
+                new StateMultiplexingGroupByKeyOverrideFactory<>(options)));
+      }
       // For update compatibility, always use a Read for Create in streaming mode.
       overridesBuilder
           .add(
@@ -1180,6 +1190,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static boolean isMultiLanguagePipeline(Pipeline pipeline) {
     class IsMultiLanguageVisitor extends PipelineVisitor.Defaults {
+
       private boolean isMultiLanguage = false;
 
       private void performMultiLanguageTest(Node node) {
@@ -1648,6 +1659,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @AutoValue
   abstract static class EnvironmentInfo {
+
     static EnvironmentInfo create(
         String environmentId, String containerUrl, List<String> capabilities) {
       return new AutoValue_DataflowRunner_EnvironmentInfo(
@@ -1700,6 +1712,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     List<String> experiments =
         firstNonNull(options.getExperiments(), Collections.<String>emptyList());
     return experiments.contains(experiment);
+  }
+
+  /** Return the value for the specified experiment or null if not present. */
+  public static Optional<String> getExperimentValue(
+      DataflowPipelineDebugOptions options, String experiment) {
+    List<String> experiments = options.getExperiments();
+    if (experiments == null) {
+      return Optional.empty();
+    }
+    String prefix = experiment + "=";
+    for (String experimentEntry : experiments) {
+      if (experimentEntry.startsWith(prefix)) {
+        return Optional.of(experimentEntry.substring(prefix.length()));
+      }
+    }
+    return Optional.empty();
   }
 
   /** Helper to configure the Dataflow Job Environment based on the user's job options. */
@@ -2105,6 +2133,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class StreamingPubsubSinkTranslators {
+
     /** Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node. */
     static class StreamingPubsubIOWriteTranslator
         implements TransformTranslator<StreamingPubsubIOWrite> {
@@ -2161,6 +2190,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class SingleOutputExpandableTransformTranslator
       implements TransformTranslator<External.SingleOutputExpandableTransform> {
+
     @Override
     public void translate(
         External.SingleOutputExpandableTransform transform, TranslationContext context) {
@@ -2178,6 +2208,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class MultiOutputExpandableTransformTranslator
       implements TransformTranslator<External.MultiOutputExpandableTransform> {
+
     @Override
     public void translate(
         External.MultiOutputExpandableTransform transform, TranslationContext context) {
@@ -2726,6 +2757,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class DataflowPayloadTranslator
       implements TransformPayloadTranslator<PTransform<?, ?>> {
+
     @Override
     public String getUrn(PTransform transform) {
       return "dataflow_stub:" + transform.getClass().getName();
@@ -2750,6 +2782,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   })
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
