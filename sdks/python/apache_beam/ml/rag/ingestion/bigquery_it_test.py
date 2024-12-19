@@ -175,16 +175,30 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
             id="2",
             embedding=Embedding(dense_embedding=[0.3, 0.4]),
             content=Content(text="bar"),
-            metadata={"c": "d"})
+            metadata={"c": "d"}),
+        Chunk(
+            id="3",
+            embedding=Embedding(dense_embedding=[0.5, 0.6]),
+            content=Content(text="foo"),
+            metadata={"e": "f"}),
+        Chunk(
+            id="4",
+            embedding=Embedding(dense_embedding=[0.7, 0.8]),
+            content=Content(text="bar"),
+            metadata={"g": "h"})
     ]
 
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT id, content, embedding, metadata FROM %s" % table_id,
-            data=[("0", "foo", [0.1, 0.2], [{
+            data=[("1", "foo", [0.1, 0.2], [{
                 "key": "a", "value": "b"
             }]), ("2", "bar", [0.3, 0.4], [{
+                "key": "c", "value": "d"
+            }]), ("3", "bar", [0.5, 0.6], [{
+                "key": "e", "value": "f"
+            }]), ("4", "bar", [0.7, 0.8], [{
                 "key": "c", "value": "d"
             }])])
     ]
