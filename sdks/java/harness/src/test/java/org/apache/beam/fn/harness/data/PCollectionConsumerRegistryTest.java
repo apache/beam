@@ -648,8 +648,8 @@ public class PCollectionConsumerRegistryTest {
     // Start the test within the logging context. This reroutes logging through to the boiler-plate
     // that was set up
     // earlier.
-    try (BeamFnLoggingClient ignored =
-        LoggingClientFactory.createAndStart(
+    try (LoggingClient ignored =
+         LoggingClientFactory.createAndStart(
             PipelineOptionsFactory.create(),
             apiServiceDescriptor,
             (Endpoints.ApiServiceDescriptor descriptor) -> channel)) {
