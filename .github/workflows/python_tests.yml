@@ -30,10 +30,6 @@ on:
     tags: 'v*'
     paths: ['sdks/python/**', 'model/**']
   workflow_dispatch:
-    inputs:
-      runDataflow:
-        description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
-        default: false
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -57,7 +53,6 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
 
@@ -65,8 +60,8 @@ jobs:
     name: 'Build python source distribution'
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
-        (github.event_name == 'push' || github.event_name == 'schedule') ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
+        ((github.event_name == 'push' || github.event_name == 'schedule') ||
+        github.event_name == 'workflow_dispatch')
       )
     needs:
       - check_gcp_variables
@@ -153,50 +148,3 @@ jobs:
         working-directory: ./sdks/python
         shell: bash
         run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
-
-  python_wordcount_dataflow:
-    name: 'Python Wordcount Dataflow'
-    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
-    needs:
-      - build_python_sdk_source
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.9", "3.10", "3.11", "3.12"]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
-        with:
-          python-version: ${{ matrix.python }}
-          go-version: default
-      - name: Download source from artifacts
-        uses: actions/download-artifact@v4.1.8
-        with:
-          name: python_sdk_source
-          path: apache-beam-source
-      - name: Authenticate on GCP
-        id: auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - name: Install requirements
-        working-directory: ./sdks/python
-        run: pip install setuptools --upgrade && pip install -e ".[gcp]"
-      - name: Run WordCount
-        working-directory: ./sdks/python
-        shell: bash
-        run: |
-          python -m apache_beam.examples.wordcount \
-            --input gs://dataflow-samples/shakespeare/kinglear.txt \
-            --output gs://${{ secrets.GCP_TESTING_BUCKET }}/python_wordcount_dataflow/counts \
-            --runner DataflowRunner \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --region ${{ secrets.GCP_REGION }} \
-            --temp_location gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/python_wordcount_dataflow/ \
-            --sdk_location ../../apache-beam-source/apache-beam-source.tar.gz
