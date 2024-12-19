@@ -25,7 +25,10 @@ import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.List;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
@@ -100,6 +103,18 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
       }
       Row filtered = rowFilter.filter(row);
       return BigQueryUtils.toTableRow(filtered);
+    };
+  }
+
+  public SerializableFunction<AvroWriteRequest<Row>, GenericRecord> getAvroFilterFormatFunction(
+      boolean fetchNestedRecord) {
+    return request -> {
+      Row row = request.getElement();
+      if (fetchNestedRecord) {
+        row = checkStateNotNull(row.getRow(RECORD));
+      }
+      Row filtered = rowFilter.filter(row);
+      return AvroUtils.toGenericRecord(filtered);
     };
   }
 }
