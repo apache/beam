@@ -62,7 +62,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String awsAccessKey;
     String awsSecretKey;
     Region region;
-    @Nullable URI serviceEndpoint;
+    @Nullable String serviceEndpoint;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -81,14 +81,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
-      if (serviceEndpoint != null) {
-        try {
-          this.serviceEndpoint = new URI(serviceEndpoint);
-        } catch (URISyntaxException ex) {
-          throw new RuntimeException(
-              String.format("Service endpoint must be URI format, got: %s", serviceEndpoint));
-        }
-      }
+      this.serviceEndpoint = serviceEndpoint;
     }
   }
 
@@ -111,6 +104,16 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
           AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
       SerializableFunction<byte[], byte[]> serializer = v -> v;
+      @Nullable URI endpoint;
+      if (configuration.serviceEndpoint != null) {
+        try {
+          endpoint = configuration.serviceEndpoint;
+        }
+        catch (URISyntaxException ex) {
+          throw new RuntimeException(
+              String.format("Service endpoint must be URI format, got: %s", serviceEndpoint));
+        }
+      }
       KinesisIO.Write<byte[]> writeTransform =
           KinesisIO.<byte[]>write()
               .withStreamName(configuration.streamName)
@@ -118,7 +121,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                   ClientConfiguration.builder()
                       .credentialsProvider(provider)
                       .region(configuration.region)
-                      .endpoint(configuration.serviceEndpoint)
+                      .endpoint(endpoint)
                       .build())
               .withPartitioner(p -> configuration.partitionKey)
               .withSerializer(serializer);
@@ -211,6 +214,16 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       AwsBasicCredentials creds =
           AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
+      @Nullable URI endpoint;
+      if (configuration.serviceEndpoint != null) {
+        try {
+          endpoint = configuration.serviceEndpoint;
+        }
+        catch (URISyntaxException ex) {
+          throw new RuntimeException(
+              String.format("Service endpoint must be URI format, got: %s", serviceEndpoint));
+        }
+      }
       KinesisIO.Read readTransform =
           KinesisIO.read()
               .withStreamName(configuration.streamName)
@@ -218,7 +231,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                   ClientConfiguration.builder()
                       .credentialsProvider(provider)
                       .region(configuration.region)
-                      .endpoint(configuration.serviceEndpoint)
+                      .endpoint(endpoint)
                       .build());
 
       if (configuration.maxNumRecords != null) {
