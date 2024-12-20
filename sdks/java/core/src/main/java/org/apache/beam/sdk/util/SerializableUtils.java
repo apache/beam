@@ -59,7 +59,7 @@ public class SerializableUtils {
       return buffer.toByteArray();
     } catch (IOException exn) {
       ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
-      throw new IllegalArgumentException("unable to serialize " + ow.writeValueAsString(object), exn);
+      throw new IllegalArgumentException("unable to serialize " + ow.writeValueAsString(value), exn);
     }
   }
 
