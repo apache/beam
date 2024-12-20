@@ -17,7 +17,6 @@
 
 """This module defines yaml wrappings for some ML transforms."""
 from typing import Any
-from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -41,7 +40,7 @@ except ImportError:
 
 
 class ModelHandlerProvider:
-  handler_types: Dict[str, Callable[..., "ModelHandlerProvider"]] = {}
+  handler_types: Dict[str, "ModelHandlerProvider"] = {}
 
   def __init__(
       self,
@@ -158,7 +157,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
     This Model Handler also required a `preprocess` function to be defined.
     Preprocessing and Postprocessing are described in more detail in the
     RunInference docs:
-      https://beam.apache.org/releases/yamldoc/current/#runinference
+    https://beam.apache.org/releases/yamldoc/current/#runinference
 
     Every model will have a unique input, but all requests should be
     JSON-formatted. For example, most language models such as Llama and Gemma
@@ -414,7 +413,7 @@ def run_inference(
       'inference'.
     inference_args: Extra arguments for models whose inference call requires
       extra parameters. Make sure to check the underlying ModelHandler docs to
-        see which args are allowed.
+      see which args are allowed.
 
   """
 
