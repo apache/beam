@@ -24,7 +24,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/pipeline/v1/external_transforms.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package pipeline_v1
 
@@ -193,14 +193,11 @@ func (x Annotations_Enum) Number() protoreflect.EnumNumber {
 // A configuration payload for an external transform.
 // Used as the payload of ExternalTransform as part of an ExpansionRequest.
 type ExternalConfigurationPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A schema for use in beam:coder:row:v1
-	Schema *Schema `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
-	// A payload which can be decoded using beam:coder:row:v1 and the given
-	// schema.
-	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Schema  *Schema                `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
+	xxx_hidden_Payload []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ExternalConfigurationPayload) Reset() {
@@ -230,38 +227,38 @@ func (x *ExternalConfigurationPayload) ProtoReflect() protoreflect.Message {
 
 func (x *ExternalConfigurationPayload) GetSchema() *Schema {
 	if x != nil {
-		return x.Schema
+		return x.xxx_hidden_Schema
 	}
 	return nil
 }
 
 func (x *ExternalConfigurationPayload) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *ExternalConfigurationPayload) SetSchema(v *Schema) {
-	x.Schema = v
+	x.xxx_hidden_Schema = v
 }
 
 func (x *ExternalConfigurationPayload) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 func (x *ExternalConfigurationPayload) HasSchema() bool {
 	if x == nil {
 		return false
 	}
-	return x.Schema != nil
+	return x.xxx_hidden_Schema != nil
 }
 
 func (x *ExternalConfigurationPayload) ClearSchema() {
-	x.Schema = nil
+	x.xxx_hidden_Schema = nil
 }
 
 type ExternalConfigurationPayload_builder struct {
@@ -278,8 +275,8 @@ func (b0 ExternalConfigurationPayload_builder) Build() *ExternalConfigurationPay
 	m0 := &ExternalConfigurationPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Schema = b.Schema
-	x.Payload = b.Payload
+	x.xxx_hidden_Schema = b.Schema
+	x.xxx_hidden_Payload = b.Payload
 	return m0
 }
 
@@ -287,7 +284,7 @@ func (b0 ExternalConfigurationPayload_builder) Build() *ExternalConfigurationPay
 // transforms.
 // Has to be set as the URN of the transform of the expansion request.
 type ExpansionMethods struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -331,7 +328,7 @@ func (b0 ExpansionMethods_builder) Build() *ExpansionMethods {
 
 // Defines the URNs for managed transforms.
 type ManagedTransforms struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -377,30 +374,14 @@ func (b0 ManagedTransforms_builder) Build() *ManagedTransforms {
 // Used to define a Java transform that can be directly instantiated by a Java
 // expansion service.
 type JavaClassLookupPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Name of the Java transform class.
-	ClassName string `protobuf:"bytes,1,opt,name=class_name,json=className,proto3" json:"class_name,omitempty"`
-	// A static method to construct the initial instance of the transform.
-	// If not provided, the transform should be instantiated using a class
-	// constructor.
-	ConstructorMethod string `protobuf:"bytes,2,opt,name=constructor_method,json=constructorMethod,proto3" json:"constructor_method,omitempty"`
-	// The top level fields of the schema represent the method parameters in
-	// order.
-	// If able, top level field names are also verified against the method
-	// parameters for a match.
-	// Any field names in the form 'ignore[0-9]+' will not be used for validation
-	// hence that format can be used to represent arbitrary field names.
-	ConstructorSchema *Schema `protobuf:"bytes,3,opt,name=constructor_schema,json=constructorSchema,proto3" json:"constructor_schema,omitempty"`
-	// A payload which can be decoded using beam:coder:row:v1 and the provided
-	// constructor schema.
-	ConstructorPayload []byte `protobuf:"bytes,4,opt,name=constructor_payload,json=constructorPayload,proto3" json:"constructor_payload,omitempty"`
-	// Set of builder methods and corresponding parameters to apply after the
-	// transform object is constructed.
-	// When constructing the transform object, given builder methods will be
-	// applied in order.
-	BuilderMethods []*BuilderMethod `protobuf:"bytes,5,rep,name=builder_methods,json=builderMethods,proto3" json:"builder_methods,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ClassName          string                 `protobuf:"bytes,1,opt,name=class_name,json=className,proto3" json:"class_name,omitempty"`
+	xxx_hidden_ConstructorMethod  string                 `protobuf:"bytes,2,opt,name=constructor_method,json=constructorMethod,proto3" json:"constructor_method,omitempty"`
+	xxx_hidden_ConstructorSchema  *Schema                `protobuf:"bytes,3,opt,name=constructor_schema,json=constructorSchema,proto3" json:"constructor_schema,omitempty"`
+	xxx_hidden_ConstructorPayload []byte                 `protobuf:"bytes,4,opt,name=constructor_payload,json=constructorPayload,proto3" json:"constructor_payload,omitempty"`
+	xxx_hidden_BuilderMethods     *[]*BuilderMethod      `protobuf:"bytes,5,rep,name=builder_methods,json=builderMethods,proto3" json:"builder_methods,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *JavaClassLookupPayload) Reset() {
@@ -430,71 +411,73 @@ func (x *JavaClassLookupPayload) ProtoReflect() protoreflect.Message {
 
 func (x *JavaClassLookupPayload) GetClassName() string {
 	if x != nil {
-		return x.ClassName
+		return x.xxx_hidden_ClassName
 	}
 	return ""
 }
 
 func (x *JavaClassLookupPayload) GetConstructorMethod() string {
 	if x != nil {
-		return x.ConstructorMethod
+		return x.xxx_hidden_ConstructorMethod
 	}
 	return ""
 }
 
 func (x *JavaClassLookupPayload) GetConstructorSchema() *Schema {
 	if x != nil {
-		return x.ConstructorSchema
+		return x.xxx_hidden_ConstructorSchema
 	}
 	return nil
 }
 
 func (x *JavaClassLookupPayload) GetConstructorPayload() []byte {
 	if x != nil {
-		return x.ConstructorPayload
+		return x.xxx_hidden_ConstructorPayload
 	}
 	return nil
 }
 
 func (x *JavaClassLookupPayload) GetBuilderMethods() []*BuilderMethod {
 	if x != nil {
-		return x.BuilderMethods
+		if x.xxx_hidden_BuilderMethods != nil {
+			return *x.xxx_hidden_BuilderMethods
+		}
 	}
 	return nil
 }
 
 func (x *JavaClassLookupPayload) SetClassName(v string) {
-	x.ClassName = v
+	x.xxx_hidden_ClassName = v
 }
 
 func (x *JavaClassLookupPayload) SetConstructorMethod(v string) {
-	x.ConstructorMethod = v
+	x.xxx_hidden_ConstructorMethod = v
 }
 
 func (x *JavaClassLookupPayload) SetConstructorSchema(v *Schema) {
-	x.ConstructorSchema = v
+	x.xxx_hidden_ConstructorSchema = v
 }
 
 func (x *JavaClassLookupPayload) SetConstructorPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.ConstructorPayload = v
+	x.xxx_hidden_ConstructorPayload = v
 }
 
 func (x *JavaClassLookupPayload) SetBuilderMethods(v []*BuilderMethod) {
-	x.BuilderMethods = v
+	x.xxx_hidden_BuilderMethods = &v
 }
 
 func (x *JavaClassLookupPayload) HasConstructorSchema() bool {
 	if x == nil {
 		return false
 	}
-	return x.ConstructorSchema != nil
+	return x.xxx_hidden_ConstructorSchema != nil
 }
 
 func (x *JavaClassLookupPayload) ClearConstructorSchema() {
-	x.ConstructorSchema = nil
+	x.xxx_hidden_ConstructorSchema = nil
 }
 
 type JavaClassLookupPayload_builder struct {
@@ -527,11 +510,11 @@ func (b0 JavaClassLookupPayload_builder) Build() *JavaClassLookupPayload {
 	m0 := &JavaClassLookupPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ClassName = b.ClassName
-	x.ConstructorMethod = b.ConstructorMethod
-	x.ConstructorSchema = b.ConstructorSchema
-	x.ConstructorPayload = b.ConstructorPayload
-	x.BuilderMethods = b.BuilderMethods
+	x.xxx_hidden_ClassName = b.ClassName
+	x.xxx_hidden_ConstructorMethod = b.ConstructorMethod
+	x.xxx_hidden_ConstructorSchema = b.ConstructorSchema
+	x.xxx_hidden_ConstructorPayload = b.ConstructorPayload
+	x.xxx_hidden_BuilderMethods = &b.BuilderMethods
 	return m0
 }
 
@@ -540,21 +523,12 @@ func (b0 JavaClassLookupPayload_builder) Build() *JavaClassLookupPayload {
 // Each builder method may take one or more parameters and has to return an
 // instance of the transform object.
 type BuilderMethod struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Name of the builder method
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The top level fields of the schema represent the method parameters in
-	// order.
-	// If able, top level field names are also verified against the method
-	// parameters for a match.
-	// Any field names in the form 'ignore[0-9]+' will not be used for validation
-	// hence that format can be used to represent arbitrary field names.
-	Schema *Schema `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
-	// A payload which can be decoded using beam:coder:row:v1 and the builder
-	// method schema.
-	Payload       []byte `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name    string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_Schema  *Schema                `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
+	xxx_hidden_Payload []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *BuilderMethod) Reset() {
@@ -584,49 +558,49 @@ func (x *BuilderMethod) ProtoReflect() protoreflect.Message {
 
 func (x *BuilderMethod) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *BuilderMethod) GetSchema() *Schema {
 	if x != nil {
-		return x.Schema
+		return x.xxx_hidden_Schema
 	}
 	return nil
 }
 
 func (x *BuilderMethod) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *BuilderMethod) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *BuilderMethod) SetSchema(v *Schema) {
-	x.Schema = v
+	x.xxx_hidden_Schema = v
 }
 
 func (x *BuilderMethod) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 func (x *BuilderMethod) HasSchema() bool {
 	if x == nil {
 		return false
 	}
-	return x.Schema != nil
+	return x.xxx_hidden_Schema != nil
 }
 
 func (x *BuilderMethod) ClearSchema() {
-	x.Schema = nil
+	x.xxx_hidden_Schema = nil
 }
 
 type BuilderMethod_builder struct {
@@ -650,14 +624,14 @@ func (b0 BuilderMethod_builder) Build() *BuilderMethod {
 	m0 := &BuilderMethod{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.Schema = b.Schema
-	x.Payload = b.Payload
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Schema = b.Schema
+	x.xxx_hidden_Payload = b.Payload
 	return m0
 }
 
 type Annotations struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -704,18 +678,12 @@ func (b0 Annotations_builder) Build() *Annotations {
 // and is configured using Beam Schema-compatible parameters.
 // The information available in the payload can be used to instantiate the schema-aware transform.
 type SchemaTransformPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// The identifier of the SchemaTransform (typically a URN).
-	Identifier string `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	// The configuration schema of the SchemaTransform.
-	ConfigurationSchema *Schema `protobuf:"bytes,2,opt,name=configuration_schema,json=configurationSchema,proto3" json:"configuration_schema,omitempty"`
-	// The configuration of the SchemaTransform.
-	// Should be decodable via beam:coder:row:v1.
-	// The schema of the Row should be compatible with the schema of the
-	// SchemaTransform.
-	ConfigurationRow []byte `protobuf:"bytes,3,opt,name=configuration_row,json=configurationRow,proto3" json:"configuration_row,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                          protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Identifier          string                 `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	xxx_hidden_ConfigurationSchema *Schema                `protobuf:"bytes,2,opt,name=configuration_schema,json=configurationSchema,proto3" json:"configuration_schema,omitempty"`
+	xxx_hidden_ConfigurationRow    []byte                 `protobuf:"bytes,3,opt,name=configuration_row,json=configurationRow,proto3" json:"configuration_row,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *SchemaTransformPayload) Reset() {
@@ -745,49 +713,49 @@ func (x *SchemaTransformPayload) ProtoReflect() protoreflect.Message {
 
 func (x *SchemaTransformPayload) GetIdentifier() string {
 	if x != nil {
-		return x.Identifier
+		return x.xxx_hidden_Identifier
 	}
 	return ""
 }
 
 func (x *SchemaTransformPayload) GetConfigurationSchema() *Schema {
 	if x != nil {
-		return x.ConfigurationSchema
+		return x.xxx_hidden_ConfigurationSchema
 	}
 	return nil
 }
 
 func (x *SchemaTransformPayload) GetConfigurationRow() []byte {
 	if x != nil {
-		return x.ConfigurationRow
+		return x.xxx_hidden_ConfigurationRow
 	}
 	return nil
 }
 
 func (x *SchemaTransformPayload) SetIdentifier(v string) {
-	x.Identifier = v
+	x.xxx_hidden_Identifier = v
 }
 
 func (x *SchemaTransformPayload) SetConfigurationSchema(v *Schema) {
-	x.ConfigurationSchema = v
+	x.xxx_hidden_ConfigurationSchema = v
 }
 
 func (x *SchemaTransformPayload) SetConfigurationRow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.ConfigurationRow = v
+	x.xxx_hidden_ConfigurationRow = v
 }
 
 func (x *SchemaTransformPayload) HasConfigurationSchema() bool {
 	if x == nil {
 		return false
 	}
-	return x.ConfigurationSchema != nil
+	return x.xxx_hidden_ConfigurationSchema != nil
 }
 
 func (x *SchemaTransformPayload) ClearConfigurationSchema() {
-	x.ConfigurationSchema = nil
+	x.xxx_hidden_ConfigurationSchema = nil
 }
 
 type SchemaTransformPayload_builder struct {
@@ -808,9 +776,9 @@ func (b0 SchemaTransformPayload_builder) Build() *SchemaTransformPayload {
 	m0 := &SchemaTransformPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Identifier = b.Identifier
-	x.ConfigurationSchema = b.ConfigurationSchema
-	x.ConfigurationRow = b.ConfigurationRow
+	x.xxx_hidden_Identifier = b.Identifier
+	x.xxx_hidden_ConfigurationSchema = b.ConfigurationSchema
+	x.xxx_hidden_ConfigurationRow = b.ConfigurationRow
 	return m0
 }
 

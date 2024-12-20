@@ -24,7 +24,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/pipeline/v1/metrics.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package pipeline_v1
 
@@ -458,23 +458,13 @@ func (x MonitoringInfoTypeUrns_Enum) Number() protoreflect.EnumNumber {
 //
 // All specifications are uniquely identified by the urn.
 type MonitoringInfoSpec struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Defines the semantic meaning of the metric or monitored state.
-	//
-	// See MonitoringInfoSpecs.Enum for the set of well known metrics/monitored
-	// state.
-	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	// Defines the required encoding and aggregation method for the payload.
-	//
-	// See MonitoringInfoTypeUrns.Enum for the set of well known types.
-	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	// The list of required labels for the specified urn and type.
-	RequiredLabels []string `protobuf:"bytes,3,rep,name=required_labels,json=requiredLabels,proto3" json:"required_labels,omitempty"`
-	// Extra non functional parts of the spec for descriptive purposes.
-	// i.e. description, units, etc.
-	Annotations   []*Annotation `protobuf:"bytes,4,rep,name=annotations,proto3" json:"annotations,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Urn            string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Type           string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	xxx_hidden_RequiredLabels []string               `protobuf:"bytes,3,rep,name=required_labels,json=requiredLabels,proto3" json:"required_labels,omitempty"`
+	xxx_hidden_Annotations    *[]*Annotation         `protobuf:"bytes,4,rep,name=annotations,proto3" json:"annotations,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *MonitoringInfoSpec) Reset() {
@@ -504,46 +494,48 @@ func (x *MonitoringInfoSpec) ProtoReflect() protoreflect.Message {
 
 func (x *MonitoringInfoSpec) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *MonitoringInfoSpec) GetType() string {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return ""
 }
 
 func (x *MonitoringInfoSpec) GetRequiredLabels() []string {
 	if x != nil {
-		return x.RequiredLabels
+		return x.xxx_hidden_RequiredLabels
 	}
 	return nil
 }
 
 func (x *MonitoringInfoSpec) GetAnnotations() []*Annotation {
 	if x != nil {
-		return x.Annotations
+		if x.xxx_hidden_Annotations != nil {
+			return *x.xxx_hidden_Annotations
+		}
 	}
 	return nil
 }
 
 func (x *MonitoringInfoSpec) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *MonitoringInfoSpec) SetType(v string) {
-	x.Type = v
+	x.xxx_hidden_Type = v
 }
 
 func (x *MonitoringInfoSpec) SetRequiredLabels(v []string) {
-	x.RequiredLabels = v
+	x.xxx_hidden_RequiredLabels = v
 }
 
 func (x *MonitoringInfoSpec) SetAnnotations(v []*Annotation) {
-	x.Annotations = v
+	x.xxx_hidden_Annotations = &v
 }
 
 type MonitoringInfoSpec_builder struct {
@@ -569,20 +561,20 @@ func (b0 MonitoringInfoSpec_builder) Build() *MonitoringInfoSpec {
 	m0 := &MonitoringInfoSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Type = b.Type
-	x.RequiredLabels = b.RequiredLabels
-	x.Annotations = b.Annotations
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_RequiredLabels = b.RequiredLabels
+	x.xxx_hidden_Annotations = &b.Annotations
 	return m0
 }
 
 // The key name and value string of MonitoringInfo annotations.
 type Annotation struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Key   string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	xxx_hidden_Value string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Annotation) Reset() {
@@ -612,24 +604,24 @@ func (x *Annotation) ProtoReflect() protoreflect.Message {
 
 func (x *Annotation) GetKey() string {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return ""
 }
 
 func (x *Annotation) GetValue() string {
 	if x != nil {
-		return x.Value
+		return x.xxx_hidden_Value
 	}
 	return ""
 }
 
 func (x *Annotation) SetKey(v string) {
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 func (x *Annotation) SetValue(v string) {
-	x.Value = v
+	x.xxx_hidden_Value = v
 }
 
 type Annotation_builder struct {
@@ -643,14 +635,14 @@ func (b0 Annotation_builder) Build() *Annotation {
 	m0 := &Annotation{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Key = b.Key
-	x.Value = b.Value
+	x.xxx_hidden_Key = b.Key
+	x.xxx_hidden_Value = b.Value
 	return m0
 }
 
 // A set of well known MonitoringInfo specifications.
 type MonitoringInfoSpecs struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -695,11 +687,10 @@ func (b0 MonitoringInfoSpecs_builder) Build() *MonitoringInfoSpecs {
 // A set of properties for the MonitoringInfoLabel, this is useful to obtain
 // the proper label string for the MonitoringInfoLabel.
 type MonitoringInfoLabelProps struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// The label key to use in the MonitoringInfo labels map.
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *MonitoringInfoLabelProps) Reset() {
@@ -729,13 +720,13 @@ func (x *MonitoringInfoLabelProps) ProtoReflect() protoreflect.Message {
 
 func (x *MonitoringInfoLabelProps) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *MonitoringInfoLabelProps) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 type MonitoringInfoLabelProps_builder struct {
@@ -749,50 +740,19 @@ func (b0 MonitoringInfoLabelProps_builder) Build() *MonitoringInfoLabelProps {
 	m0 := &MonitoringInfoLabelProps{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
+	x.xxx_hidden_Name = b.Name
 	return m0
 }
 
 type MonitoringInfo struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Defines the semantic meaning of the metric or monitored state.
-	//
-	// See MonitoringInfoSpecs.Enum for the set of well known metrics/monitored
-	// state.
-	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	// (Required) Defines the encoding and aggregation method for the payload.
-	//
-	// See MonitoringInfoTypeUrns.Enum for the set of well known types.
-	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	// (Required) The metric or monitored state encoded as per the specification
-	// defined by the type.
-	Payload []byte `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
-	// A set of key and value labels which define the scope of the metric. For
-	// well known URNs, the set of required labels is provided by the associated
-	// MonitoringInfoSpec.
-	//
-	// Either a well defined entity id for matching the enum names in
-	// the MonitoringInfoLabels enum or any arbitrary label
-	// set by a custom metric or user metric.
-	//
-	// A monitoring system is expected to be able to aggregate the metrics
-	// together for all updates having the same URN and labels. Some systems such
-	// as Stackdriver will be able to aggregate the metrics using a subset of the
-	// provided labels
-	Labels map[string]string `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// This indicates the start of the time range over which this value was
-	// measured.
-	// This is needed by some external metric aggregation services
-	// to indicate when the reporter of the metric first began collecting the
-	// cumulative value for the timeseries.
-	// If the SDK Harness restarts, it should reset the start_time, and reset
-	// the collection of cumulative metrics (i.e. start to count again from 0).
-	// HarnessMonitoringInfos should set this start_time once, when the
-	// MonitoringInfo is first reported.
-	// ProcessBundle MonitoringInfos should set a start_time for each bundle.
-	StartTime     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Urn       string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Type      string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	xxx_hidden_Payload   []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	xxx_hidden_Labels    map[string]string      `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_StartTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *MonitoringInfo) Reset() {
@@ -822,71 +782,71 @@ func (x *MonitoringInfo) ProtoReflect() protoreflect.Message {
 
 func (x *MonitoringInfo) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *MonitoringInfo) GetType() string {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return ""
 }
 
 func (x *MonitoringInfo) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *MonitoringInfo) GetLabels() map[string]string {
 	if x != nil {
-		return x.Labels
+		return x.xxx_hidden_Labels
 	}
 	return nil
 }
 
 func (x *MonitoringInfo) GetStartTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.StartTime
+		return x.xxx_hidden_StartTime
 	}
 	return nil
 }
 
 func (x *MonitoringInfo) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *MonitoringInfo) SetType(v string) {
-	x.Type = v
+	x.xxx_hidden_Type = v
 }
 
 func (x *MonitoringInfo) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 func (x *MonitoringInfo) SetLabels(v map[string]string) {
-	x.Labels = v
+	x.xxx_hidden_Labels = v
 }
 
 func (x *MonitoringInfo) SetStartTime(v *timestamppb.Timestamp) {
-	x.StartTime = v
+	x.xxx_hidden_StartTime = v
 }
 
 func (x *MonitoringInfo) HasStartTime() bool {
 	if x == nil {
 		return false
 	}
-	return x.StartTime != nil
+	return x.xxx_hidden_StartTime != nil
 }
 
 func (x *MonitoringInfo) ClearStartTime() {
-	x.StartTime = nil
+	x.xxx_hidden_StartTime = nil
 }
 
 type MonitoringInfo_builder struct {
@@ -934,17 +894,17 @@ func (b0 MonitoringInfo_builder) Build() *MonitoringInfo {
 	m0 := &MonitoringInfo{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Type = b.Type
-	x.Payload = b.Payload
-	x.Labels = b.Labels
-	x.StartTime = b.StartTime
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Payload = b.Payload
+	x.xxx_hidden_Labels = b.Labels
+	x.xxx_hidden_StartTime = b.StartTime
 	return m0
 }
 
 // A set of well known URNs that specify the encoding and aggregation method.
 type MonitoringInfoTypeUrns struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -988,14 +948,11 @@ func (b0 MonitoringInfoTypeUrns_builder) Build() *MonitoringInfoTypeUrns {
 
 // A single node in a BoundedTrie.
 type BoundedTrieNode struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Whether this node has been truncated.
-	// A truncated leaf represents possibly many children with the same prefix.
-	Truncated bool `protobuf:"varint,1,opt,name=truncated,proto3" json:"truncated,omitempty"`
-	// Children of this node.  Must be empty if truncated is true.
-	Children      map[string]*BoundedTrieNode `protobuf:"bytes,2,rep,name=children,proto3" json:"children,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState      `protogen:"opaque.v1"`
+	xxx_hidden_Truncated bool                        `protobuf:"varint,1,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	xxx_hidden_Children  map[string]*BoundedTrieNode `protobuf:"bytes,2,rep,name=children,proto3" json:"children,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BoundedTrieNode) Reset() {
@@ -1025,24 +982,24 @@ func (x *BoundedTrieNode) ProtoReflect() protoreflect.Message {
 
 func (x *BoundedTrieNode) GetTruncated() bool {
 	if x != nil {
-		return x.Truncated
+		return x.xxx_hidden_Truncated
 	}
 	return false
 }
 
 func (x *BoundedTrieNode) GetChildren() map[string]*BoundedTrieNode {
 	if x != nil {
-		return x.Children
+		return x.xxx_hidden_Children
 	}
 	return nil
 }
 
 func (x *BoundedTrieNode) SetTruncated(v bool) {
-	x.Truncated = v
+	x.xxx_hidden_Truncated = v
 }
 
 func (x *BoundedTrieNode) SetChildren(v map[string]*BoundedTrieNode) {
-	x.Children = v
+	x.xxx_hidden_Children = v
 }
 
 type BoundedTrieNode_builder struct {
@@ -1059,22 +1016,19 @@ func (b0 BoundedTrieNode_builder) Build() *BoundedTrieNode {
 	m0 := &BoundedTrieNode{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Truncated = b.Truncated
-	x.Children = b.Children
+	x.xxx_hidden_Truncated = b.Truncated
+	x.xxx_hidden_Children = b.Children
 	return m0
 }
 
 // The message type used for encoding metrics of type bounded trie.
 type BoundedTrie struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// The maximum number of elements to store before truncation.
-	Bound int32 `protobuf:"varint,1,opt,name=bound,proto3" json:"bound,omitempty"`
-	// A compact representation of all the elements in this trie.
-	Root *BoundedTrieNode `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`
-	// A more efficient representation for metrics consisting of a single value.
-	Singleton     []string `protobuf:"bytes,3,rep,name=singleton,proto3" json:"singleton,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Bound     int32                  `protobuf:"varint,1,opt,name=bound,proto3" json:"bound,omitempty"`
+	xxx_hidden_Root      *BoundedTrieNode       `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`
+	xxx_hidden_Singleton []string               `protobuf:"bytes,3,rep,name=singleton,proto3" json:"singleton,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BoundedTrie) Reset() {
@@ -1104,46 +1058,46 @@ func (x *BoundedTrie) ProtoReflect() protoreflect.Message {
 
 func (x *BoundedTrie) GetBound() int32 {
 	if x != nil {
-		return x.Bound
+		return x.xxx_hidden_Bound
 	}
 	return 0
 }
 
 func (x *BoundedTrie) GetRoot() *BoundedTrieNode {
 	if x != nil {
-		return x.Root
+		return x.xxx_hidden_Root
 	}
 	return nil
 }
 
 func (x *BoundedTrie) GetSingleton() []string {
 	if x != nil {
-		return x.Singleton
+		return x.xxx_hidden_Singleton
 	}
 	return nil
 }
 
 func (x *BoundedTrie) SetBound(v int32) {
-	x.Bound = v
+	x.xxx_hidden_Bound = v
 }
 
 func (x *BoundedTrie) SetRoot(v *BoundedTrieNode) {
-	x.Root = v
+	x.xxx_hidden_Root = v
 }
 
 func (x *BoundedTrie) SetSingleton(v []string) {
-	x.Singleton = v
+	x.xxx_hidden_Singleton = v
 }
 
 func (x *BoundedTrie) HasRoot() bool {
 	if x == nil {
 		return false
 	}
-	return x.Root != nil
+	return x.xxx_hidden_Root != nil
 }
 
 func (x *BoundedTrie) ClearRoot() {
-	x.Root = nil
+	x.xxx_hidden_Root = nil
 }
 
 type BoundedTrie_builder struct {
@@ -1161,9 +1115,9 @@ func (b0 BoundedTrie_builder) Build() *BoundedTrie {
 	m0 := &BoundedTrie{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Bound = b.Bound
-	x.Root = b.Root
-	x.Singleton = b.Singleton
+	x.xxx_hidden_Bound = b.Bound
+	x.xxx_hidden_Root = b.Root
+	x.xxx_hidden_Singleton = b.Singleton
 	return m0
 }
 

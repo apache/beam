@@ -33,7 +33,7 @@
 // TODO: Consider consolidating common components in another package
 // and language namespaces for re-use with Runner Api.
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package fnexecution_v1
 
@@ -202,7 +202,7 @@ func (x LogEntry_Severity_Enum) Number() protoreflect.EnumNumber {
 // Describes transforms necessary to execute Beam over the FnAPI but are
 // implementation details rather than part of the core model.
 type FnApiTransforms struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -249,15 +249,11 @@ func (b0 FnApiTransforms_builder) Build() *FnApiTransforms {
 // runner and the SDK).
 // Stable
 type RemoteGrpcPort struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) An API descriptor which describes where to
-	// connect to including any authentication that is required.
-	ApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,1,opt,name=api_service_descriptor,json=apiServiceDescriptor,proto3" json:"api_service_descriptor,omitempty"`
-	// (Required) The ID of the Coder that will be used to encode and decode data
-	// sent over this port.
-	CoderId       string `protobuf:"bytes,2,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                           protoimpl.MessageState            `protogen:"opaque.v1"`
+	xxx_hidden_ApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,1,opt,name=api_service_descriptor,json=apiServiceDescriptor,proto3" json:"api_service_descriptor,omitempty"`
+	xxx_hidden_CoderId              string                            `protobuf:"bytes,2,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *RemoteGrpcPort) Reset() {
@@ -287,35 +283,35 @@ func (x *RemoteGrpcPort) ProtoReflect() protoreflect.Message {
 
 func (x *RemoteGrpcPort) GetApiServiceDescriptor() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ApiServiceDescriptor
+		return x.xxx_hidden_ApiServiceDescriptor
 	}
 	return nil
 }
 
 func (x *RemoteGrpcPort) GetCoderId() string {
 	if x != nil {
-		return x.CoderId
+		return x.xxx_hidden_CoderId
 	}
 	return ""
 }
 
 func (x *RemoteGrpcPort) SetApiServiceDescriptor(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ApiServiceDescriptor = v
+	x.xxx_hidden_ApiServiceDescriptor = v
 }
 
 func (x *RemoteGrpcPort) SetCoderId(v string) {
-	x.CoderId = v
+	x.xxx_hidden_CoderId = v
 }
 
 func (x *RemoteGrpcPort) HasApiServiceDescriptor() bool {
 	if x == nil {
 		return false
 	}
-	return x.ApiServiceDescriptor != nil
+	return x.xxx_hidden_ApiServiceDescriptor != nil
 }
 
 func (x *RemoteGrpcPort) ClearApiServiceDescriptor() {
-	x.ApiServiceDescriptor = nil
+	x.xxx_hidden_ApiServiceDescriptor = nil
 }
 
 type RemoteGrpcPort_builder struct {
@@ -333,17 +329,17 @@ func (b0 RemoteGrpcPort_builder) Build() *RemoteGrpcPort {
 	m0 := &RemoteGrpcPort{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ApiServiceDescriptor = b.ApiServiceDescriptor
-	x.CoderId = b.CoderId
+	x.xxx_hidden_ApiServiceDescriptor = b.ApiServiceDescriptor
+	x.xxx_hidden_CoderId = b.CoderId
 	return m0
 }
 
 // Requests the ProcessBundleDescriptor with the given id.
 type GetProcessBundleDescriptorRequest struct {
-	state                     protoimpl.MessageState `protogen:"hybrid.v1"`
-	ProcessBundleDescriptorId string                 `protobuf:"bytes,1,opt,name=process_bundle_descriptor_id,json=processBundleDescriptorId,proto3" json:"process_bundle_descriptor_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	state                                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ProcessBundleDescriptorId string                 `protobuf:"bytes,1,opt,name=process_bundle_descriptor_id,json=processBundleDescriptorId,proto3" json:"process_bundle_descriptor_id,omitempty"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
 }
 
 func (x *GetProcessBundleDescriptorRequest) Reset() {
@@ -373,13 +369,13 @@ func (x *GetProcessBundleDescriptorRequest) ProtoReflect() protoreflect.Message 
 
 func (x *GetProcessBundleDescriptorRequest) GetProcessBundleDescriptorId() string {
 	if x != nil {
-		return x.ProcessBundleDescriptorId
+		return x.xxx_hidden_ProcessBundleDescriptorId
 	}
 	return ""
 }
 
 func (x *GetProcessBundleDescriptorRequest) SetProcessBundleDescriptorId(v string) {
-	x.ProcessBundleDescriptorId = v
+	x.xxx_hidden_ProcessBundleDescriptorId = v
 }
 
 type GetProcessBundleDescriptorRequest_builder struct {
@@ -392,7 +388,7 @@ func (b0 GetProcessBundleDescriptorRequest_builder) Build() *GetProcessBundleDes
 	m0 := &GetProcessBundleDescriptorRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ProcessBundleDescriptorId = b.ProcessBundleDescriptorId
+	x.xxx_hidden_ProcessBundleDescriptorId = b.ProcessBundleDescriptorId
 	return m0
 }
 
@@ -401,25 +397,11 @@ func (b0 GetProcessBundleDescriptorRequest_builder) Build() *GetProcessBundleDes
 // matching instruction id.
 // Stable
 type InstructionRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A unique identifier provided by the runner which represents
-	// this requests execution. The InstructionResponse MUST have the matching id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Required) A request that the SDK Harness needs to interpret.
-	//
-	// Types that are valid to be assigned to Request:
-	//
-	//	*InstructionRequest_ProcessBundle
-	//	*InstructionRequest_ProcessBundleProgress
-	//	*InstructionRequest_ProcessBundleSplit
-	//	*InstructionRequest_FinalizeBundle
-	//	*InstructionRequest_MonitoringInfos
-	//	*InstructionRequest_HarnessMonitoringInfos
-	//	*InstructionRequest_SampleData
-	//	*InstructionRequest_Register
-	Request       isInstructionRequest_Request `protobuf_oneof:"request"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState       `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                       `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_Request       isInstructionRequest_Request `protobuf_oneof:"request"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *InstructionRequest) Reset() {
@@ -449,21 +431,14 @@ func (x *InstructionRequest) ProtoReflect() protoreflect.Message {
 
 func (x *InstructionRequest) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
-func (x *InstructionRequest) GetRequest() isInstructionRequest_Request {
-	if x != nil {
-		return x.Request
-	}
-	return nil
-}
-
 func (x *InstructionRequest) GetProcessBundle() *ProcessBundleRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_ProcessBundle); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundle); ok {
 			return x.ProcessBundle
 		}
 	}
@@ -472,7 +447,7 @@ func (x *InstructionRequest) GetProcessBundle() *ProcessBundleRequest {
 
 func (x *InstructionRequest) GetProcessBundleProgress() *ProcessBundleProgressRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_ProcessBundleProgress); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundleProgress); ok {
 			return x.ProcessBundleProgress
 		}
 	}
@@ -481,7 +456,7 @@ func (x *InstructionRequest) GetProcessBundleProgress() *ProcessBundleProgressRe
 
 func (x *InstructionRequest) GetProcessBundleSplit() *ProcessBundleSplitRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_ProcessBundleSplit); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundleSplit); ok {
 			return x.ProcessBundleSplit
 		}
 	}
@@ -490,7 +465,7 @@ func (x *InstructionRequest) GetProcessBundleSplit() *ProcessBundleSplitRequest 
 
 func (x *InstructionRequest) GetFinalizeBundle() *FinalizeBundleRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_FinalizeBundle); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_FinalizeBundle); ok {
 			return x.FinalizeBundle
 		}
 	}
@@ -499,7 +474,7 @@ func (x *InstructionRequest) GetFinalizeBundle() *FinalizeBundleRequest {
 
 func (x *InstructionRequest) GetMonitoringInfos() *MonitoringInfosMetadataRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_MonitoringInfos); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_MonitoringInfos); ok {
 			return x.MonitoringInfos
 		}
 	}
@@ -508,7 +483,7 @@ func (x *InstructionRequest) GetMonitoringInfos() *MonitoringInfosMetadataReques
 
 func (x *InstructionRequest) GetHarnessMonitoringInfos() *HarnessMonitoringInfosRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_HarnessMonitoringInfos); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_HarnessMonitoringInfos); ok {
 			return x.HarnessMonitoringInfos
 		}
 	}
@@ -517,7 +492,7 @@ func (x *InstructionRequest) GetHarnessMonitoringInfos() *HarnessMonitoringInfos
 
 func (x *InstructionRequest) GetSampleData() *SampleDataRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_SampleData); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_SampleData); ok {
 			return x.SampleData
 		}
 	}
@@ -526,7 +501,7 @@ func (x *InstructionRequest) GetSampleData() *SampleDataRequest {
 
 func (x *InstructionRequest) GetRegister() *RegisterRequest {
 	if x != nil {
-		if x, ok := x.Request.(*InstructionRequest_Register); ok {
+		if x, ok := x.xxx_hidden_Request.(*instructionRequest_Register); ok {
 			return x.Register
 		}
 	}
@@ -534,85 +509,85 @@ func (x *InstructionRequest) GetRegister() *RegisterRequest {
 }
 
 func (x *InstructionRequest) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *InstructionRequest) SetProcessBundle(v *ProcessBundleRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_ProcessBundle{v}
+	x.xxx_hidden_Request = &instructionRequest_ProcessBundle{v}
 }
 
 func (x *InstructionRequest) SetProcessBundleProgress(v *ProcessBundleProgressRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_ProcessBundleProgress{v}
+	x.xxx_hidden_Request = &instructionRequest_ProcessBundleProgress{v}
 }
 
 func (x *InstructionRequest) SetProcessBundleSplit(v *ProcessBundleSplitRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_ProcessBundleSplit{v}
+	x.xxx_hidden_Request = &instructionRequest_ProcessBundleSplit{v}
 }
 
 func (x *InstructionRequest) SetFinalizeBundle(v *FinalizeBundleRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_FinalizeBundle{v}
+	x.xxx_hidden_Request = &instructionRequest_FinalizeBundle{v}
 }
 
 func (x *InstructionRequest) SetMonitoringInfos(v *MonitoringInfosMetadataRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_MonitoringInfos{v}
+	x.xxx_hidden_Request = &instructionRequest_MonitoringInfos{v}
 }
 
 func (x *InstructionRequest) SetHarnessMonitoringInfos(v *HarnessMonitoringInfosRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_HarnessMonitoringInfos{v}
+	x.xxx_hidden_Request = &instructionRequest_HarnessMonitoringInfos{v}
 }
 
 func (x *InstructionRequest) SetSampleData(v *SampleDataRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_SampleData{v}
+	x.xxx_hidden_Request = &instructionRequest_SampleData{v}
 }
 
 func (x *InstructionRequest) SetRegister(v *RegisterRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &InstructionRequest_Register{v}
+	x.xxx_hidden_Request = &instructionRequest_Register{v}
 }
 
 func (x *InstructionRequest) HasRequest() bool {
 	if x == nil {
 		return false
 	}
-	return x.Request != nil
+	return x.xxx_hidden_Request != nil
 }
 
 func (x *InstructionRequest) HasProcessBundle() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_ProcessBundle)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundle)
 	return ok
 }
 
@@ -620,7 +595,7 @@ func (x *InstructionRequest) HasProcessBundleProgress() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_ProcessBundleProgress)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundleProgress)
 	return ok
 }
 
@@ -628,7 +603,7 @@ func (x *InstructionRequest) HasProcessBundleSplit() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_ProcessBundleSplit)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundleSplit)
 	return ok
 }
 
@@ -636,7 +611,7 @@ func (x *InstructionRequest) HasFinalizeBundle() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_FinalizeBundle)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_FinalizeBundle)
 	return ok
 }
 
@@ -644,7 +619,7 @@ func (x *InstructionRequest) HasMonitoringInfos() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_MonitoringInfos)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_MonitoringInfos)
 	return ok
 }
 
@@ -652,7 +627,7 @@ func (x *InstructionRequest) HasHarnessMonitoringInfos() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_HarnessMonitoringInfos)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_HarnessMonitoringInfos)
 	return ok
 }
 
@@ -660,7 +635,7 @@ func (x *InstructionRequest) HasSampleData() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_SampleData)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_SampleData)
 	return ok
 }
 
@@ -668,59 +643,59 @@ func (x *InstructionRequest) HasRegister() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*InstructionRequest_Register)
+	_, ok := x.xxx_hidden_Request.(*instructionRequest_Register)
 	return ok
 }
 
 func (x *InstructionRequest) ClearRequest() {
-	x.Request = nil
+	x.xxx_hidden_Request = nil
 }
 
 func (x *InstructionRequest) ClearProcessBundle() {
-	if _, ok := x.Request.(*InstructionRequest_ProcessBundle); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundle); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearProcessBundleProgress() {
-	if _, ok := x.Request.(*InstructionRequest_ProcessBundleProgress); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundleProgress); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearProcessBundleSplit() {
-	if _, ok := x.Request.(*InstructionRequest_ProcessBundleSplit); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_ProcessBundleSplit); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearFinalizeBundle() {
-	if _, ok := x.Request.(*InstructionRequest_FinalizeBundle); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_FinalizeBundle); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearMonitoringInfos() {
-	if _, ok := x.Request.(*InstructionRequest_MonitoringInfos); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_MonitoringInfos); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearHarnessMonitoringInfos() {
-	if _, ok := x.Request.(*InstructionRequest_HarnessMonitoringInfos); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_HarnessMonitoringInfos); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearSampleData() {
-	if _, ok := x.Request.(*InstructionRequest_SampleData); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_SampleData); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *InstructionRequest) ClearRegister() {
-	if _, ok := x.Request.(*InstructionRequest_Register); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*instructionRequest_Register); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
@@ -738,22 +713,22 @@ func (x *InstructionRequest) WhichRequest() case_InstructionRequest_Request {
 	if x == nil {
 		return InstructionRequest_Request_not_set_case
 	}
-	switch x.Request.(type) {
-	case *InstructionRequest_ProcessBundle:
+	switch x.xxx_hidden_Request.(type) {
+	case *instructionRequest_ProcessBundle:
 		return InstructionRequest_ProcessBundle_case
-	case *InstructionRequest_ProcessBundleProgress:
+	case *instructionRequest_ProcessBundleProgress:
 		return InstructionRequest_ProcessBundleProgress_case
-	case *InstructionRequest_ProcessBundleSplit:
+	case *instructionRequest_ProcessBundleSplit:
 		return InstructionRequest_ProcessBundleSplit_case
-	case *InstructionRequest_FinalizeBundle:
+	case *instructionRequest_FinalizeBundle:
 		return InstructionRequest_FinalizeBundle_case
-	case *InstructionRequest_MonitoringInfos:
+	case *instructionRequest_MonitoringInfos:
 		return InstructionRequest_MonitoringInfos_case
-	case *InstructionRequest_HarnessMonitoringInfos:
+	case *instructionRequest_HarnessMonitoringInfos:
 		return InstructionRequest_HarnessMonitoringInfos_case
-	case *InstructionRequest_SampleData:
+	case *instructionRequest_SampleData:
 		return InstructionRequest_SampleData_case
-	case *InstructionRequest_Register:
+	case *instructionRequest_Register:
 		return InstructionRequest_Register_case
 	default:
 		return InstructionRequest_Request_not_set_case
@@ -768,7 +743,7 @@ type InstructionRequest_builder struct {
 	InstructionId string
 	// (Required) A request that the SDK Harness needs to interpret.
 
-	// Fields of oneof Request:
+	// Fields of oneof xxx_hidden_Request:
 	ProcessBundle          *ProcessBundleRequest
 	ProcessBundleProgress  *ProcessBundleProgressRequest
 	ProcessBundleSplit     *ProcessBundleSplitRequest
@@ -778,37 +753,37 @@ type InstructionRequest_builder struct {
 	SampleData             *SampleDataRequest
 	// DEPRECATED
 	Register *RegisterRequest
-	// -- end of Request
+	// -- end of xxx_hidden_Request
 }
 
 func (b0 InstructionRequest_builder) Build() *InstructionRequest {
 	m0 := &InstructionRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
+	x.xxx_hidden_InstructionId = b.InstructionId
 	if b.ProcessBundle != nil {
-		x.Request = &InstructionRequest_ProcessBundle{b.ProcessBundle}
+		x.xxx_hidden_Request = &instructionRequest_ProcessBundle{b.ProcessBundle}
 	}
 	if b.ProcessBundleProgress != nil {
-		x.Request = &InstructionRequest_ProcessBundleProgress{b.ProcessBundleProgress}
+		x.xxx_hidden_Request = &instructionRequest_ProcessBundleProgress{b.ProcessBundleProgress}
 	}
 	if b.ProcessBundleSplit != nil {
-		x.Request = &InstructionRequest_ProcessBundleSplit{b.ProcessBundleSplit}
+		x.xxx_hidden_Request = &instructionRequest_ProcessBundleSplit{b.ProcessBundleSplit}
 	}
 	if b.FinalizeBundle != nil {
-		x.Request = &InstructionRequest_FinalizeBundle{b.FinalizeBundle}
+		x.xxx_hidden_Request = &instructionRequest_FinalizeBundle{b.FinalizeBundle}
 	}
 	if b.MonitoringInfos != nil {
-		x.Request = &InstructionRequest_MonitoringInfos{b.MonitoringInfos}
+		x.xxx_hidden_Request = &instructionRequest_MonitoringInfos{b.MonitoringInfos}
 	}
 	if b.HarnessMonitoringInfos != nil {
-		x.Request = &InstructionRequest_HarnessMonitoringInfos{b.HarnessMonitoringInfos}
+		x.xxx_hidden_Request = &instructionRequest_HarnessMonitoringInfos{b.HarnessMonitoringInfos}
 	}
 	if b.SampleData != nil {
-		x.Request = &InstructionRequest_SampleData{b.SampleData}
+		x.xxx_hidden_Request = &instructionRequest_SampleData{b.SampleData}
 	}
 	if b.Register != nil {
-		x.Request = &InstructionRequest_Register{b.Register}
+		x.xxx_hidden_Request = &instructionRequest_Register{b.Register}
 	}
 	return m0
 }
@@ -827,83 +802,64 @@ type isInstructionRequest_Request interface {
 	isInstructionRequest_Request()
 }
 
-type InstructionRequest_ProcessBundle struct {
+type instructionRequest_ProcessBundle struct {
 	ProcessBundle *ProcessBundleRequest `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
 }
 
-type InstructionRequest_ProcessBundleProgress struct {
+type instructionRequest_ProcessBundleProgress struct {
 	ProcessBundleProgress *ProcessBundleProgressRequest `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
 }
 
-type InstructionRequest_ProcessBundleSplit struct {
+type instructionRequest_ProcessBundleSplit struct {
 	ProcessBundleSplit *ProcessBundleSplitRequest `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
 }
 
-type InstructionRequest_FinalizeBundle struct {
+type instructionRequest_FinalizeBundle struct {
 	FinalizeBundle *FinalizeBundleRequest `protobuf:"bytes,1004,opt,name=finalize_bundle,json=finalizeBundle,proto3,oneof"`
 }
 
-type InstructionRequest_MonitoringInfos struct {
+type instructionRequest_MonitoringInfos struct {
 	MonitoringInfos *MonitoringInfosMetadataRequest `protobuf:"bytes,1005,opt,name=monitoring_infos,json=monitoringInfos,proto3,oneof"`
 }
 
-type InstructionRequest_HarnessMonitoringInfos struct {
+type instructionRequest_HarnessMonitoringInfos struct {
 	HarnessMonitoringInfos *HarnessMonitoringInfosRequest `protobuf:"bytes,1006,opt,name=harness_monitoring_infos,json=harnessMonitoringInfos,proto3,oneof"`
 }
 
-type InstructionRequest_SampleData struct {
+type instructionRequest_SampleData struct {
 	SampleData *SampleDataRequest `protobuf:"bytes,1007,opt,name=sample_data,json=sampleData,proto3,oneof"`
 }
 
-type InstructionRequest_Register struct {
+type instructionRequest_Register struct {
 	// DEPRECATED
 	Register *RegisterRequest `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
 }
 
-func (*InstructionRequest_ProcessBundle) isInstructionRequest_Request() {}
+func (*instructionRequest_ProcessBundle) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_ProcessBundleProgress) isInstructionRequest_Request() {}
+func (*instructionRequest_ProcessBundleProgress) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_ProcessBundleSplit) isInstructionRequest_Request() {}
+func (*instructionRequest_ProcessBundleSplit) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_FinalizeBundle) isInstructionRequest_Request() {}
+func (*instructionRequest_FinalizeBundle) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_MonitoringInfos) isInstructionRequest_Request() {}
+func (*instructionRequest_MonitoringInfos) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_HarnessMonitoringInfos) isInstructionRequest_Request() {}
+func (*instructionRequest_HarnessMonitoringInfos) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_SampleData) isInstructionRequest_Request() {}
+func (*instructionRequest_SampleData) isInstructionRequest_Request() {}
 
-func (*InstructionRequest_Register) isInstructionRequest_Request() {}
+func (*instructionRequest_Register) isInstructionRequest_Request() {}
 
 // The response for an associated request the SDK had been asked to fulfill.
 // Stable
 type InstructionResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference provided by the runner which represents a requests
-	// execution. The InstructionResponse MUST have the matching id when
-	// responding to the runner.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// If this is specified, then this instruction has failed.
-	// A human readable string representing the reason as to why processing has
-	// failed.
-	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	// If the instruction did not fail, it is required to return an equivalent
-	// response type depending on the request this matches.
-	//
-	// Types that are valid to be assigned to Response:
-	//
-	//	*InstructionResponse_ProcessBundle
-	//	*InstructionResponse_ProcessBundleProgress
-	//	*InstructionResponse_ProcessBundleSplit
-	//	*InstructionResponse_FinalizeBundle
-	//	*InstructionResponse_MonitoringInfos
-	//	*InstructionResponse_HarnessMonitoringInfos
-	//	*InstructionResponse_SampleData
-	//	*InstructionResponse_Register
-	Response      isInstructionResponse_Response `protobuf_oneof:"response"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState         `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                         `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_Error         string                         `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	xxx_hidden_Response      isInstructionResponse_Response `protobuf_oneof:"response"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *InstructionResponse) Reset() {
@@ -933,28 +889,21 @@ func (x *InstructionResponse) ProtoReflect() protoreflect.Message {
 
 func (x *InstructionResponse) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *InstructionResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
-func (x *InstructionResponse) GetResponse() isInstructionResponse_Response {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
 func (x *InstructionResponse) GetProcessBundle() *ProcessBundleResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_ProcessBundle); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundle); ok {
 			return x.ProcessBundle
 		}
 	}
@@ -963,7 +912,7 @@ func (x *InstructionResponse) GetProcessBundle() *ProcessBundleResponse {
 
 func (x *InstructionResponse) GetProcessBundleProgress() *ProcessBundleProgressResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_ProcessBundleProgress); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundleProgress); ok {
 			return x.ProcessBundleProgress
 		}
 	}
@@ -972,7 +921,7 @@ func (x *InstructionResponse) GetProcessBundleProgress() *ProcessBundleProgressR
 
 func (x *InstructionResponse) GetProcessBundleSplit() *ProcessBundleSplitResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_ProcessBundleSplit); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundleSplit); ok {
 			return x.ProcessBundleSplit
 		}
 	}
@@ -981,7 +930,7 @@ func (x *InstructionResponse) GetProcessBundleSplit() *ProcessBundleSplitRespons
 
 func (x *InstructionResponse) GetFinalizeBundle() *FinalizeBundleResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_FinalizeBundle); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_FinalizeBundle); ok {
 			return x.FinalizeBundle
 		}
 	}
@@ -990,7 +939,7 @@ func (x *InstructionResponse) GetFinalizeBundle() *FinalizeBundleResponse {
 
 func (x *InstructionResponse) GetMonitoringInfos() *MonitoringInfosMetadataResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_MonitoringInfos); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_MonitoringInfos); ok {
 			return x.MonitoringInfos
 		}
 	}
@@ -999,7 +948,7 @@ func (x *InstructionResponse) GetMonitoringInfos() *MonitoringInfosMetadataRespo
 
 func (x *InstructionResponse) GetHarnessMonitoringInfos() *HarnessMonitoringInfosResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_HarnessMonitoringInfos); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_HarnessMonitoringInfos); ok {
 			return x.HarnessMonitoringInfos
 		}
 	}
@@ -1008,7 +957,7 @@ func (x *InstructionResponse) GetHarnessMonitoringInfos() *HarnessMonitoringInfo
 
 func (x *InstructionResponse) GetSampleData() *SampleDataResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_SampleData); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_SampleData); ok {
 			return x.SampleData
 		}
 	}
@@ -1017,7 +966,7 @@ func (x *InstructionResponse) GetSampleData() *SampleDataResponse {
 
 func (x *InstructionResponse) GetRegister() *RegisterResponse {
 	if x != nil {
-		if x, ok := x.Response.(*InstructionResponse_Register); ok {
+		if x, ok := x.xxx_hidden_Response.(*instructionResponse_Register); ok {
 			return x.Register
 		}
 	}
@@ -1025,89 +974,89 @@ func (x *InstructionResponse) GetRegister() *RegisterResponse {
 }
 
 func (x *InstructionResponse) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *InstructionResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 func (x *InstructionResponse) SetProcessBundle(v *ProcessBundleResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_ProcessBundle{v}
+	x.xxx_hidden_Response = &instructionResponse_ProcessBundle{v}
 }
 
 func (x *InstructionResponse) SetProcessBundleProgress(v *ProcessBundleProgressResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_ProcessBundleProgress{v}
+	x.xxx_hidden_Response = &instructionResponse_ProcessBundleProgress{v}
 }
 
 func (x *InstructionResponse) SetProcessBundleSplit(v *ProcessBundleSplitResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_ProcessBundleSplit{v}
+	x.xxx_hidden_Response = &instructionResponse_ProcessBundleSplit{v}
 }
 
 func (x *InstructionResponse) SetFinalizeBundle(v *FinalizeBundleResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_FinalizeBundle{v}
+	x.xxx_hidden_Response = &instructionResponse_FinalizeBundle{v}
 }
 
 func (x *InstructionResponse) SetMonitoringInfos(v *MonitoringInfosMetadataResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_MonitoringInfos{v}
+	x.xxx_hidden_Response = &instructionResponse_MonitoringInfos{v}
 }
 
 func (x *InstructionResponse) SetHarnessMonitoringInfos(v *HarnessMonitoringInfosResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_HarnessMonitoringInfos{v}
+	x.xxx_hidden_Response = &instructionResponse_HarnessMonitoringInfos{v}
 }
 
 func (x *InstructionResponse) SetSampleData(v *SampleDataResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_SampleData{v}
+	x.xxx_hidden_Response = &instructionResponse_SampleData{v}
 }
 
 func (x *InstructionResponse) SetRegister(v *RegisterResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &InstructionResponse_Register{v}
+	x.xxx_hidden_Response = &instructionResponse_Register{v}
 }
 
 func (x *InstructionResponse) HasResponse() bool {
 	if x == nil {
 		return false
 	}
-	return x.Response != nil
+	return x.xxx_hidden_Response != nil
 }
 
 func (x *InstructionResponse) HasProcessBundle() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_ProcessBundle)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundle)
 	return ok
 }
 
@@ -1115,7 +1064,7 @@ func (x *InstructionResponse) HasProcessBundleProgress() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_ProcessBundleProgress)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundleProgress)
 	return ok
 }
 
@@ -1123,7 +1072,7 @@ func (x *InstructionResponse) HasProcessBundleSplit() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_ProcessBundleSplit)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundleSplit)
 	return ok
 }
 
@@ -1131,7 +1080,7 @@ func (x *InstructionResponse) HasFinalizeBundle() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_FinalizeBundle)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_FinalizeBundle)
 	return ok
 }
 
@@ -1139,7 +1088,7 @@ func (x *InstructionResponse) HasMonitoringInfos() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_MonitoringInfos)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_MonitoringInfos)
 	return ok
 }
 
@@ -1147,7 +1096,7 @@ func (x *InstructionResponse) HasHarnessMonitoringInfos() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_HarnessMonitoringInfos)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_HarnessMonitoringInfos)
 	return ok
 }
 
@@ -1155,7 +1104,7 @@ func (x *InstructionResponse) HasSampleData() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_SampleData)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_SampleData)
 	return ok
 }
 
@@ -1163,59 +1112,59 @@ func (x *InstructionResponse) HasRegister() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*InstructionResponse_Register)
+	_, ok := x.xxx_hidden_Response.(*instructionResponse_Register)
 	return ok
 }
 
 func (x *InstructionResponse) ClearResponse() {
-	x.Response = nil
+	x.xxx_hidden_Response = nil
 }
 
 func (x *InstructionResponse) ClearProcessBundle() {
-	if _, ok := x.Response.(*InstructionResponse_ProcessBundle); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundle); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearProcessBundleProgress() {
-	if _, ok := x.Response.(*InstructionResponse_ProcessBundleProgress); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundleProgress); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearProcessBundleSplit() {
-	if _, ok := x.Response.(*InstructionResponse_ProcessBundleSplit); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_ProcessBundleSplit); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearFinalizeBundle() {
-	if _, ok := x.Response.(*InstructionResponse_FinalizeBundle); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_FinalizeBundle); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearMonitoringInfos() {
-	if _, ok := x.Response.(*InstructionResponse_MonitoringInfos); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_MonitoringInfos); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearHarnessMonitoringInfos() {
-	if _, ok := x.Response.(*InstructionResponse_HarnessMonitoringInfos); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_HarnessMonitoringInfos); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearSampleData() {
-	if _, ok := x.Response.(*InstructionResponse_SampleData); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_SampleData); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *InstructionResponse) ClearRegister() {
-	if _, ok := x.Response.(*InstructionResponse_Register); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*instructionResponse_Register); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
@@ -1233,22 +1182,22 @@ func (x *InstructionResponse) WhichResponse() case_InstructionResponse_Response 
 	if x == nil {
 		return InstructionResponse_Response_not_set_case
 	}
-	switch x.Response.(type) {
-	case *InstructionResponse_ProcessBundle:
+	switch x.xxx_hidden_Response.(type) {
+	case *instructionResponse_ProcessBundle:
 		return InstructionResponse_ProcessBundle_case
-	case *InstructionResponse_ProcessBundleProgress:
+	case *instructionResponse_ProcessBundleProgress:
 		return InstructionResponse_ProcessBundleProgress_case
-	case *InstructionResponse_ProcessBundleSplit:
+	case *instructionResponse_ProcessBundleSplit:
 		return InstructionResponse_ProcessBundleSplit_case
-	case *InstructionResponse_FinalizeBundle:
+	case *instructionResponse_FinalizeBundle:
 		return InstructionResponse_FinalizeBundle_case
-	case *InstructionResponse_MonitoringInfos:
+	case *instructionResponse_MonitoringInfos:
 		return InstructionResponse_MonitoringInfos_case
-	case *InstructionResponse_HarnessMonitoringInfos:
+	case *instructionResponse_HarnessMonitoringInfos:
 		return InstructionResponse_HarnessMonitoringInfos_case
-	case *InstructionResponse_SampleData:
+	case *instructionResponse_SampleData:
 		return InstructionResponse_SampleData_case
-	case *InstructionResponse_Register:
+	case *instructionResponse_Register:
 		return InstructionResponse_Register_case
 	default:
 		return InstructionResponse_Response_not_set_case
@@ -1269,7 +1218,7 @@ type InstructionResponse_builder struct {
 	// If the instruction did not fail, it is required to return an equivalent
 	// response type depending on the request this matches.
 
-	// Fields of oneof Response:
+	// Fields of oneof xxx_hidden_Response:
 	ProcessBundle          *ProcessBundleResponse
 	ProcessBundleProgress  *ProcessBundleProgressResponse
 	ProcessBundleSplit     *ProcessBundleSplitResponse
@@ -1279,38 +1228,38 @@ type InstructionResponse_builder struct {
 	SampleData             *SampleDataResponse
 	// DEPRECATED
 	Register *RegisterResponse
-	// -- end of Response
+	// -- end of xxx_hidden_Response
 }
 
 func (b0 InstructionResponse_builder) Build() *InstructionResponse {
 	m0 := &InstructionResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
-	x.Error = b.Error
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_Error = b.Error
 	if b.ProcessBundle != nil {
-		x.Response = &InstructionResponse_ProcessBundle{b.ProcessBundle}
+		x.xxx_hidden_Response = &instructionResponse_ProcessBundle{b.ProcessBundle}
 	}
 	if b.ProcessBundleProgress != nil {
-		x.Response = &InstructionResponse_ProcessBundleProgress{b.ProcessBundleProgress}
+		x.xxx_hidden_Response = &instructionResponse_ProcessBundleProgress{b.ProcessBundleProgress}
 	}
 	if b.ProcessBundleSplit != nil {
-		x.Response = &InstructionResponse_ProcessBundleSplit{b.ProcessBundleSplit}
+		x.xxx_hidden_Response = &instructionResponse_ProcessBundleSplit{b.ProcessBundleSplit}
 	}
 	if b.FinalizeBundle != nil {
-		x.Response = &InstructionResponse_FinalizeBundle{b.FinalizeBundle}
+		x.xxx_hidden_Response = &instructionResponse_FinalizeBundle{b.FinalizeBundle}
 	}
 	if b.MonitoringInfos != nil {
-		x.Response = &InstructionResponse_MonitoringInfos{b.MonitoringInfos}
+		x.xxx_hidden_Response = &instructionResponse_MonitoringInfos{b.MonitoringInfos}
 	}
 	if b.HarnessMonitoringInfos != nil {
-		x.Response = &InstructionResponse_HarnessMonitoringInfos{b.HarnessMonitoringInfos}
+		x.xxx_hidden_Response = &instructionResponse_HarnessMonitoringInfos{b.HarnessMonitoringInfos}
 	}
 	if b.SampleData != nil {
-		x.Response = &InstructionResponse_SampleData{b.SampleData}
+		x.xxx_hidden_Response = &instructionResponse_SampleData{b.SampleData}
 	}
 	if b.Register != nil {
-		x.Response = &InstructionResponse_Register{b.Register}
+		x.xxx_hidden_Response = &instructionResponse_Register{b.Register}
 	}
 	return m0
 }
@@ -1329,65 +1278,64 @@ type isInstructionResponse_Response interface {
 	isInstructionResponse_Response()
 }
 
-type InstructionResponse_ProcessBundle struct {
+type instructionResponse_ProcessBundle struct {
 	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,proto3,oneof"`
 }
 
-type InstructionResponse_ProcessBundleProgress struct {
+type instructionResponse_ProcessBundleProgress struct {
 	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,proto3,oneof"`
 }
 
-type InstructionResponse_ProcessBundleSplit struct {
+type instructionResponse_ProcessBundleSplit struct {
 	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,proto3,oneof"`
 }
 
-type InstructionResponse_FinalizeBundle struct {
+type instructionResponse_FinalizeBundle struct {
 	FinalizeBundle *FinalizeBundleResponse `protobuf:"bytes,1004,opt,name=finalize_bundle,json=finalizeBundle,proto3,oneof"`
 }
 
-type InstructionResponse_MonitoringInfos struct {
+type instructionResponse_MonitoringInfos struct {
 	MonitoringInfos *MonitoringInfosMetadataResponse `protobuf:"bytes,1005,opt,name=monitoring_infos,json=monitoringInfos,proto3,oneof"`
 }
 
-type InstructionResponse_HarnessMonitoringInfos struct {
+type instructionResponse_HarnessMonitoringInfos struct {
 	HarnessMonitoringInfos *HarnessMonitoringInfosResponse `protobuf:"bytes,1006,opt,name=harness_monitoring_infos,json=harnessMonitoringInfos,proto3,oneof"`
 }
 
-type InstructionResponse_SampleData struct {
+type instructionResponse_SampleData struct {
 	SampleData *SampleDataResponse `protobuf:"bytes,1007,opt,name=sample_data,json=sampleData,proto3,oneof"`
 }
 
-type InstructionResponse_Register struct {
+type instructionResponse_Register struct {
 	// DEPRECATED
 	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,proto3,oneof"`
 }
 
-func (*InstructionResponse_ProcessBundle) isInstructionResponse_Response() {}
+func (*instructionResponse_ProcessBundle) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_ProcessBundleProgress) isInstructionResponse_Response() {}
+func (*instructionResponse_ProcessBundleProgress) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_ProcessBundleSplit) isInstructionResponse_Response() {}
+func (*instructionResponse_ProcessBundleSplit) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_FinalizeBundle) isInstructionResponse_Response() {}
+func (*instructionResponse_FinalizeBundle) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_MonitoringInfos) isInstructionResponse_Response() {}
+func (*instructionResponse_MonitoringInfos) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_HarnessMonitoringInfos) isInstructionResponse_Response() {}
+func (*instructionResponse_HarnessMonitoringInfos) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_SampleData) isInstructionResponse_Response() {}
+func (*instructionResponse_SampleData) isInstructionResponse_Response() {}
 
-func (*InstructionResponse_Register) isInstructionResponse_Response() {}
+func (*instructionResponse_Register) isInstructionResponse_Response() {}
 
 // If supported, the `SampleDataRequest` will respond with a
 // `SampleDataResponse`. The SDK being queried must have the
 // "beam:protocol:data_sampling:v1" capability. Samples are taken only from the
 // specified PCollection ids. An empty list will return everything.
 type SampleDataRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) The PCollection ids to filter for.
-	PcollectionIds []string `protobuf:"bytes,1,rep,name=pcollection_ids,json=pcollectionIds,proto3" json:"pcollection_ids,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_PcollectionIds []string               `protobuf:"bytes,1,rep,name=pcollection_ids,json=pcollectionIds,proto3" json:"pcollection_ids,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *SampleDataRequest) Reset() {
@@ -1417,13 +1365,13 @@ func (x *SampleDataRequest) ProtoReflect() protoreflect.Message {
 
 func (x *SampleDataRequest) GetPcollectionIds() []string {
 	if x != nil {
-		return x.PcollectionIds
+		return x.xxx_hidden_PcollectionIds
 	}
 	return nil
 }
 
 func (x *SampleDataRequest) SetPcollectionIds(v []string) {
-	x.PcollectionIds = v
+	x.xxx_hidden_PcollectionIds = v
 }
 
 type SampleDataRequest_builder struct {
@@ -1437,24 +1385,19 @@ func (b0 SampleDataRequest_builder) Build() *SampleDataRequest {
 	m0 := &SampleDataRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.PcollectionIds = b.PcollectionIds
+	x.xxx_hidden_PcollectionIds = b.PcollectionIds
 	return m0
 }
 
 // An element sampled when the SDK is processing a bundle. This is a proto
 // message to allow for additional per-element metadata.
 type SampledElement struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Sampled raw bytes for an element. This is a
-	// single encoded element in the nested context.
-	Element []byte `protobuf:"bytes,1,opt,name=element,proto3" json:"element,omitempty"`
-	// (Required) Timestamp of when the sample was taken.
-	SampleTimestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=sample_timestamp,json=sampleTimestamp,proto3" json:"sample_timestamp,omitempty"`
-	// (Optional) This will be set if this element was sampled because of a user
-	// exception.
-	Exception     *SampledElement_Exception `protobuf:"bytes,3,opt,name=exception,proto3" json:"exception,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                      protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_Element         []byte                    `protobuf:"bytes,1,opt,name=element,proto3" json:"element,omitempty"`
+	xxx_hidden_SampleTimestamp *timestamppb.Timestamp    `protobuf:"bytes,2,opt,name=sample_timestamp,json=sampleTimestamp,proto3" json:"sample_timestamp,omitempty"`
+	xxx_hidden_Exception       *SampledElement_Exception `protobuf:"bytes,3,opt,name=exception,proto3" json:"exception,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *SampledElement) Reset() {
@@ -1484,21 +1427,21 @@ func (x *SampledElement) ProtoReflect() protoreflect.Message {
 
 func (x *SampledElement) GetElement() []byte {
 	if x != nil {
-		return x.Element
+		return x.xxx_hidden_Element
 	}
 	return nil
 }
 
 func (x *SampledElement) GetSampleTimestamp() *timestamppb.Timestamp {
 	if x != nil {
-		return x.SampleTimestamp
+		return x.xxx_hidden_SampleTimestamp
 	}
 	return nil
 }
 
 func (x *SampledElement) GetException() *SampledElement_Exception {
 	if x != nil {
-		return x.Exception
+		return x.xxx_hidden_Exception
 	}
 	return nil
 }
@@ -1507,37 +1450,37 @@ func (x *SampledElement) SetElement(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Element = v
+	x.xxx_hidden_Element = v
 }
 
 func (x *SampledElement) SetSampleTimestamp(v *timestamppb.Timestamp) {
-	x.SampleTimestamp = v
+	x.xxx_hidden_SampleTimestamp = v
 }
 
 func (x *SampledElement) SetException(v *SampledElement_Exception) {
-	x.Exception = v
+	x.xxx_hidden_Exception = v
 }
 
 func (x *SampledElement) HasSampleTimestamp() bool {
 	if x == nil {
 		return false
 	}
-	return x.SampleTimestamp != nil
+	return x.xxx_hidden_SampleTimestamp != nil
 }
 
 func (x *SampledElement) HasException() bool {
 	if x == nil {
 		return false
 	}
-	return x.Exception != nil
+	return x.xxx_hidden_Exception != nil
 }
 
 func (x *SampledElement) ClearSampleTimestamp() {
-	x.SampleTimestamp = nil
+	x.xxx_hidden_SampleTimestamp = nil
 }
 
 func (x *SampledElement) ClearException() {
-	x.Exception = nil
+	x.xxx_hidden_Exception = nil
 }
 
 type SampledElement_builder struct {
@@ -1557,20 +1500,19 @@ func (b0 SampledElement_builder) Build() *SampledElement {
 	m0 := &SampledElement{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Element = b.Element
-	x.SampleTimestamp = b.SampleTimestamp
-	x.Exception = b.Exception
+	x.xxx_hidden_Element = b.Element
+	x.xxx_hidden_SampleTimestamp = b.SampleTimestamp
+	x.xxx_hidden_Exception = b.Exception
 	return m0
 }
 
 // If supported, the `SampleDataResponse` will contain samples from PCollections
 // based upon the filters specified in the request.
 type SampleDataResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Map from PCollection id to sampled elements.
-	ElementSamples map[string]*SampleDataResponse_ElementList `protobuf:"bytes,1,rep,name=element_samples,json=elementSamples,proto3" json:"element_samples,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState                     `protogen:"opaque.v1"`
+	xxx_hidden_ElementSamples map[string]*SampleDataResponse_ElementList `protobuf:"bytes,1,rep,name=element_samples,json=elementSamples,proto3" json:"element_samples,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *SampleDataResponse) Reset() {
@@ -1600,13 +1542,13 @@ func (x *SampleDataResponse) ProtoReflect() protoreflect.Message {
 
 func (x *SampleDataResponse) GetElementSamples() map[string]*SampleDataResponse_ElementList {
 	if x != nil {
-		return x.ElementSamples
+		return x.xxx_hidden_ElementSamples
 	}
 	return nil
 }
 
 func (x *SampleDataResponse) SetElementSamples(v map[string]*SampleDataResponse_ElementList) {
-	x.ElementSamples = v
+	x.xxx_hidden_ElementSamples = v
 }
 
 type SampleDataResponse_builder struct {
@@ -1620,7 +1562,7 @@ func (b0 SampleDataResponse_builder) Build() *SampleDataResponse {
 	m0 := &SampleDataResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementSamples = b.ElementSamples
+	x.xxx_hidden_ElementSamples = b.ElementSamples
 	return m0
 }
 
@@ -1637,7 +1579,7 @@ func (b0 SampleDataResponse_builder) Build() *SampleDataResponse {
 // as the MonitoringInfo could be reconstructed fully by overwriting its
 // payload field with the bytes specified here.
 type HarnessMonitoringInfosRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1680,22 +1622,10 @@ func (b0 HarnessMonitoringInfosRequest_builder) Build() *HarnessMonitoringInfosR
 }
 
 type HarnessMonitoringInfosResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// An identifier to MonitoringInfo.payload mapping containing
-	// Metrics associated with the SDK harness, not a specific bundle.
-	//
-	// An SDK can report metrics using an identifier that only contains the
-	// associated payload. A runner who wants to receive the full metrics
-	// information can request all the monitoring metadata via a
-	// MonitoringInfosMetadataRequest providing a list of ids as necessary.
-	//
-	// The SDK is allowed to reuse the identifiers
-	// for the lifetime of the associated control connection as long
-	// as the MonitoringInfo could be reconstructed fully by overwriting its
-	// payload field with the bytes specified here.
-	MonitoringData map[string][]byte `protobuf:"bytes,1,rep,name=monitoring_data,json=monitoringData,proto3" json:"monitoring_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_MonitoringData map[string][]byte      `protobuf:"bytes,1,rep,name=monitoring_data,json=monitoringData,proto3" json:"monitoring_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *HarnessMonitoringInfosResponse) Reset() {
@@ -1725,13 +1655,13 @@ func (x *HarnessMonitoringInfosResponse) ProtoReflect() protoreflect.Message {
 
 func (x *HarnessMonitoringInfosResponse) GetMonitoringData() map[string][]byte {
 	if x != nil {
-		return x.MonitoringData
+		return x.xxx_hidden_MonitoringData
 	}
 	return nil
 }
 
 func (x *HarnessMonitoringInfosResponse) SetMonitoringData(v map[string][]byte) {
-	x.MonitoringData = v
+	x.xxx_hidden_MonitoringData = v
 }
 
 type HarnessMonitoringInfosResponse_builder struct {
@@ -1756,7 +1686,7 @@ func (b0 HarnessMonitoringInfosResponse_builder) Build() *HarnessMonitoringInfos
 	m0 := &HarnessMonitoringInfosResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.MonitoringData = b.MonitoringData
+	x.xxx_hidden_MonitoringData = b.MonitoringData
 	return m0
 }
 
@@ -1764,11 +1694,10 @@ func (b0 HarnessMonitoringInfosResponse_builder) Build() *HarnessMonitoringInfos
 // future requests.
 // Stable
 type RegisterRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) The set of descriptors used to process bundles.
-	ProcessBundleDescriptor []*ProcessBundleDescriptor `protobuf:"bytes,1,rep,name=process_bundle_descriptor,json=processBundleDescriptor,proto3" json:"process_bundle_descriptor,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                              protoimpl.MessageState      `protogen:"opaque.v1"`
+	xxx_hidden_ProcessBundleDescriptor *[]*ProcessBundleDescriptor `protobuf:"bytes,1,rep,name=process_bundle_descriptor,json=processBundleDescriptor,proto3" json:"process_bundle_descriptor,omitempty"`
+	unknownFields                      protoimpl.UnknownFields
+	sizeCache                          protoimpl.SizeCache
 }
 
 func (x *RegisterRequest) Reset() {
@@ -1798,13 +1727,15 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 
 func (x *RegisterRequest) GetProcessBundleDescriptor() []*ProcessBundleDescriptor {
 	if x != nil {
-		return x.ProcessBundleDescriptor
+		if x.xxx_hidden_ProcessBundleDescriptor != nil {
+			return *x.xxx_hidden_ProcessBundleDescriptor
+		}
 	}
 	return nil
 }
 
 func (x *RegisterRequest) SetProcessBundleDescriptor(v []*ProcessBundleDescriptor) {
-	x.ProcessBundleDescriptor = v
+	x.xxx_hidden_ProcessBundleDescriptor = &v
 }
 
 type RegisterRequest_builder struct {
@@ -1818,13 +1749,13 @@ func (b0 RegisterRequest_builder) Build() *RegisterRequest {
 	m0 := &RegisterRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ProcessBundleDescriptor = b.ProcessBundleDescriptor
+	x.xxx_hidden_ProcessBundleDescriptor = &b.ProcessBundleDescriptor
 	return m0
 }
 
 // Stable
 type RegisterResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1868,29 +1799,17 @@ func (b0 RegisterResponse_builder) Build() *RegisterResponse {
 
 // Definitions that should be used to construct the bundle processing graph.
 type ProcessBundleDescriptor struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A pipeline level unique id which can be used as a reference to
-	// refer to this.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// (Required) A map from pipeline-scoped id to PTransform.
-	Transforms map[string]*pipeline_v1.PTransform `protobuf:"bytes,2,rep,name=transforms,proto3" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to PCollection.
-	Pcollections map[string]*pipeline_v1.PCollection `protobuf:"bytes,3,rep,name=pcollections,proto3" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to WindowingStrategy.
-	WindowingStrategies map[string]*pipeline_v1.WindowingStrategy `protobuf:"bytes,4,rep,name=windowing_strategies,json=windowingStrategies,proto3" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to Coder.
-	Coders map[string]*pipeline_v1.Coder `protobuf:"bytes,5,rep,name=coders,proto3" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to Environment.
-	Environments map[string]*pipeline_v1.Environment `protobuf:"bytes,6,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// A descriptor describing the end point to use for State API
-	// calls. Required if the Runner intends to send remote references over the
-	// data plane or if any of the transforms rely on user state or side inputs.
-	StateApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,7,opt,name=state_api_service_descriptor,json=stateApiServiceDescriptor,proto3" json:"state_api_service_descriptor,omitempty"`
-	// A descriptor describing the end point to use for Data API for user timers.
-	// Required if the ProcessBundleDescriptor contains any transforms that have user timers.
-	TimerApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,8,opt,name=timer_api_service_descriptor,json=timerApiServiceDescriptor,proto3" json:"timer_api_service_descriptor,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	state                                protoimpl.MessageState                    `protogen:"opaque.v1"`
+	xxx_hidden_Id                        string                                    `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	xxx_hidden_Transforms                map[string]*pipeline_v1.PTransform        `protobuf:"bytes,2,rep,name=transforms,proto3" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Pcollections              map[string]*pipeline_v1.PCollection       `protobuf:"bytes,3,rep,name=pcollections,proto3" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_WindowingStrategies       map[string]*pipeline_v1.WindowingStrategy `protobuf:"bytes,4,rep,name=windowing_strategies,json=windowingStrategies,proto3" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Coders                    map[string]*pipeline_v1.Coder             `protobuf:"bytes,5,rep,name=coders,proto3" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Environments              map[string]*pipeline_v1.Environment       `protobuf:"bytes,6,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_StateApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor         `protobuf:"bytes,7,opt,name=state_api_service_descriptor,json=stateApiServiceDescriptor,proto3" json:"state_api_service_descriptor,omitempty"`
+	xxx_hidden_TimerApiServiceDescriptor *pipeline_v1.ApiServiceDescriptor         `protobuf:"bytes,8,opt,name=timer_api_service_descriptor,json=timerApiServiceDescriptor,proto3" json:"timer_api_service_descriptor,omitempty"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
 }
 
 func (x *ProcessBundleDescriptor) Reset() {
@@ -1920,112 +1839,112 @@ func (x *ProcessBundleDescriptor) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleDescriptor) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *ProcessBundleDescriptor) GetTransforms() map[string]*pipeline_v1.PTransform {
 	if x != nil {
-		return x.Transforms
+		return x.xxx_hidden_Transforms
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) GetPcollections() map[string]*pipeline_v1.PCollection {
 	if x != nil {
-		return x.Pcollections
+		return x.xxx_hidden_Pcollections
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) GetWindowingStrategies() map[string]*pipeline_v1.WindowingStrategy {
 	if x != nil {
-		return x.WindowingStrategies
+		return x.xxx_hidden_WindowingStrategies
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) GetCoders() map[string]*pipeline_v1.Coder {
 	if x != nil {
-		return x.Coders
+		return x.xxx_hidden_Coders
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) GetEnvironments() map[string]*pipeline_v1.Environment {
 	if x != nil {
-		return x.Environments
+		return x.xxx_hidden_Environments
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) GetStateApiServiceDescriptor() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.StateApiServiceDescriptor
+		return x.xxx_hidden_StateApiServiceDescriptor
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) GetTimerApiServiceDescriptor() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.TimerApiServiceDescriptor
+		return x.xxx_hidden_TimerApiServiceDescriptor
 	}
 	return nil
 }
 
 func (x *ProcessBundleDescriptor) SetId(v string) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 func (x *ProcessBundleDescriptor) SetTransforms(v map[string]*pipeline_v1.PTransform) {
-	x.Transforms = v
+	x.xxx_hidden_Transforms = v
 }
 
 func (x *ProcessBundleDescriptor) SetPcollections(v map[string]*pipeline_v1.PCollection) {
-	x.Pcollections = v
+	x.xxx_hidden_Pcollections = v
 }
 
 func (x *ProcessBundleDescriptor) SetWindowingStrategies(v map[string]*pipeline_v1.WindowingStrategy) {
-	x.WindowingStrategies = v
+	x.xxx_hidden_WindowingStrategies = v
 }
 
 func (x *ProcessBundleDescriptor) SetCoders(v map[string]*pipeline_v1.Coder) {
-	x.Coders = v
+	x.xxx_hidden_Coders = v
 }
 
 func (x *ProcessBundleDescriptor) SetEnvironments(v map[string]*pipeline_v1.Environment) {
-	x.Environments = v
+	x.xxx_hidden_Environments = v
 }
 
 func (x *ProcessBundleDescriptor) SetStateApiServiceDescriptor(v *pipeline_v1.ApiServiceDescriptor) {
-	x.StateApiServiceDescriptor = v
+	x.xxx_hidden_StateApiServiceDescriptor = v
 }
 
 func (x *ProcessBundleDescriptor) SetTimerApiServiceDescriptor(v *pipeline_v1.ApiServiceDescriptor) {
-	x.TimerApiServiceDescriptor = v
+	x.xxx_hidden_TimerApiServiceDescriptor = v
 }
 
 func (x *ProcessBundleDescriptor) HasStateApiServiceDescriptor() bool {
 	if x == nil {
 		return false
 	}
-	return x.StateApiServiceDescriptor != nil
+	return x.xxx_hidden_StateApiServiceDescriptor != nil
 }
 
 func (x *ProcessBundleDescriptor) HasTimerApiServiceDescriptor() bool {
 	if x == nil {
 		return false
 	}
-	return x.TimerApiServiceDescriptor != nil
+	return x.xxx_hidden_TimerApiServiceDescriptor != nil
 }
 
 func (x *ProcessBundleDescriptor) ClearStateApiServiceDescriptor() {
-	x.StateApiServiceDescriptor = nil
+	x.xxx_hidden_StateApiServiceDescriptor = nil
 }
 
 func (x *ProcessBundleDescriptor) ClearTimerApiServiceDescriptor() {
-	x.TimerApiServiceDescriptor = nil
+	x.xxx_hidden_TimerApiServiceDescriptor = nil
 }
 
 type ProcessBundleDescriptor_builder struct {
@@ -2057,14 +1976,14 @@ func (b0 ProcessBundleDescriptor_builder) Build() *ProcessBundleDescriptor {
 	m0 := &ProcessBundleDescriptor{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Id = b.Id
-	x.Transforms = b.Transforms
-	x.Pcollections = b.Pcollections
-	x.WindowingStrategies = b.WindowingStrategies
-	x.Coders = b.Coders
-	x.Environments = b.Environments
-	x.StateApiServiceDescriptor = b.StateApiServiceDescriptor
-	x.TimerApiServiceDescriptor = b.TimerApiServiceDescriptor
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_Transforms = b.Transforms
+	x.xxx_hidden_Pcollections = b.Pcollections
+	x.xxx_hidden_WindowingStrategies = b.WindowingStrategies
+	x.xxx_hidden_Coders = b.Coders
+	x.xxx_hidden_Environments = b.Environments
+	x.xxx_hidden_StateApiServiceDescriptor = b.StateApiServiceDescriptor
+	x.xxx_hidden_TimerApiServiceDescriptor = b.TimerApiServiceDescriptor
 	return m0
 }
 
@@ -2073,27 +1992,14 @@ func (b0 ProcessBundleDescriptor_builder) Build() *ProcessBundleDescriptor {
 // https://docs.google.com/document/d/1tUDb45sStdR8u7-jBkGdw3OGFK7aa2-V7eo86zYSE_4/edit#heading=h.9g3g5weg2u9
 // for further details.
 type BundleApplication struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The transform to which to pass the element
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) Name of the transform's input to which to pass the element.
-	InputId string `protobuf:"bytes,2,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
-	// (Required) The encoded element to pass to the transform.
-	Element []byte `protobuf:"bytes,3,opt,name=element,proto3" json:"element,omitempty"`
-	// The map is keyed by the local output name of the PTransform. Each
-	// value represents a lower bound on the timestamps of elements that
-	// are produced by this PTransform into each of its output PCollections
-	// when invoked with this application.
-	//
-	// If there is no watermark reported from RestrictionTracker, the runner will
-	// use MIN_TIMESTAMP by default.
-	OutputWatermarks map[string]*timestamppb.Timestamp `protobuf:"bytes,4,rep,name=output_watermarks,json=outputWatermarks,proto3" json:"output_watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Whether this application potentially produces an unbounded
-	// amount of data. Note that this should only be set to BOUNDED if and
-	// only if the application is known to produce a finite amount of output.
-	IsBounded     pipeline_v1.IsBounded_Enum `protobuf:"varint,5,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                       protoimpl.MessageState            `protogen:"opaque.v1"`
+	xxx_hidden_TransformId      string                            `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_InputId          string                            `protobuf:"bytes,2,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
+	xxx_hidden_Element          []byte                            `protobuf:"bytes,3,opt,name=element,proto3" json:"element,omitempty"`
+	xxx_hidden_OutputWatermarks map[string]*timestamppb.Timestamp `protobuf:"bytes,4,rep,name=output_watermarks,json=outputWatermarks,proto3" json:"output_watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_IsBounded        pipeline_v1.IsBounded_Enum        `protobuf:"varint,5,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *BundleApplication) Reset() {
@@ -2123,60 +2029,60 @@ func (x *BundleApplication) ProtoReflect() protoreflect.Message {
 
 func (x *BundleApplication) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *BundleApplication) GetInputId() string {
 	if x != nil {
-		return x.InputId
+		return x.xxx_hidden_InputId
 	}
 	return ""
 }
 
 func (x *BundleApplication) GetElement() []byte {
 	if x != nil {
-		return x.Element
+		return x.xxx_hidden_Element
 	}
 	return nil
 }
 
 func (x *BundleApplication) GetOutputWatermarks() map[string]*timestamppb.Timestamp {
 	if x != nil {
-		return x.OutputWatermarks
+		return x.xxx_hidden_OutputWatermarks
 	}
 	return nil
 }
 
 func (x *BundleApplication) GetIsBounded() pipeline_v1.IsBounded_Enum {
 	if x != nil {
-		return x.IsBounded
+		return x.xxx_hidden_IsBounded
 	}
 	return pipeline_v1.IsBounded_Enum(0)
 }
 
 func (x *BundleApplication) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *BundleApplication) SetInputId(v string) {
-	x.InputId = v
+	x.xxx_hidden_InputId = v
 }
 
 func (x *BundleApplication) SetElement(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Element = v
+	x.xxx_hidden_Element = v
 }
 
 func (x *BundleApplication) SetOutputWatermarks(v map[string]*timestamppb.Timestamp) {
-	x.OutputWatermarks = v
+	x.xxx_hidden_OutputWatermarks = v
 }
 
 func (x *BundleApplication) SetIsBounded(v pipeline_v1.IsBounded_Enum) {
-	x.IsBounded = v
+	x.xxx_hidden_IsBounded = v
 }
 
 type BundleApplication_builder struct {
@@ -2206,11 +2112,11 @@ func (b0 BundleApplication_builder) Build() *BundleApplication {
 	m0 := &BundleApplication{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.InputId = b.InputId
-	x.Element = b.Element
-	x.OutputWatermarks = b.OutputWatermarks
-	x.IsBounded = b.IsBounded
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_InputId = b.InputId
+	x.xxx_hidden_Element = b.Element
+	x.xxx_hidden_OutputWatermarks = b.OutputWatermarks
+	x.xxx_hidden_IsBounded = b.IsBounded
 	return m0
 }
 
@@ -2218,15 +2124,11 @@ func (b0 BundleApplication_builder) Build() *BundleApplication {
 // Either an absolute timestamp or a relative timestamp can represent a
 // scheduled execution time.
 type DelayedBundleApplication struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The application that should be scheduled.
-	Application *BundleApplication `protobuf:"bytes,1,opt,name=application,proto3" json:"application,omitempty"`
-	// Recommended time delay at which the application should be scheduled to
-	// execute by the runner. Time delay that equals 0 may be scheduled to execute
-	// immediately. The unit of time delay should be microsecond.
-	RequestedTimeDelay *durationpb.Duration `protobuf:"bytes,2,opt,name=requested_time_delay,json=requestedTimeDelay,proto3" json:"requested_time_delay,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Application        *BundleApplication     `protobuf:"bytes,1,opt,name=application,proto3" json:"application,omitempty"`
+	xxx_hidden_RequestedTimeDelay *durationpb.Duration   `protobuf:"bytes,2,opt,name=requested_time_delay,json=requestedTimeDelay,proto3" json:"requested_time_delay,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *DelayedBundleApplication) Reset() {
@@ -2256,46 +2158,46 @@ func (x *DelayedBundleApplication) ProtoReflect() protoreflect.Message {
 
 func (x *DelayedBundleApplication) GetApplication() *BundleApplication {
 	if x != nil {
-		return x.Application
+		return x.xxx_hidden_Application
 	}
 	return nil
 }
 
 func (x *DelayedBundleApplication) GetRequestedTimeDelay() *durationpb.Duration {
 	if x != nil {
-		return x.RequestedTimeDelay
+		return x.xxx_hidden_RequestedTimeDelay
 	}
 	return nil
 }
 
 func (x *DelayedBundleApplication) SetApplication(v *BundleApplication) {
-	x.Application = v
+	x.xxx_hidden_Application = v
 }
 
 func (x *DelayedBundleApplication) SetRequestedTimeDelay(v *durationpb.Duration) {
-	x.RequestedTimeDelay = v
+	x.xxx_hidden_RequestedTimeDelay = v
 }
 
 func (x *DelayedBundleApplication) HasApplication() bool {
 	if x == nil {
 		return false
 	}
-	return x.Application != nil
+	return x.xxx_hidden_Application != nil
 }
 
 func (x *DelayedBundleApplication) HasRequestedTimeDelay() bool {
 	if x == nil {
 		return false
 	}
-	return x.RequestedTimeDelay != nil
+	return x.xxx_hidden_RequestedTimeDelay != nil
 }
 
 func (x *DelayedBundleApplication) ClearApplication() {
-	x.Application = nil
+	x.xxx_hidden_Application = nil
 }
 
 func (x *DelayedBundleApplication) ClearRequestedTimeDelay() {
-	x.RequestedTimeDelay = nil
+	x.xxx_hidden_RequestedTimeDelay = nil
 }
 
 type DelayedBundleApplication_builder struct {
@@ -2313,39 +2215,20 @@ func (b0 DelayedBundleApplication_builder) Build() *DelayedBundleApplication {
 	m0 := &DelayedBundleApplication{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Application = b.Application
-	x.RequestedTimeDelay = b.RequestedTimeDelay
+	x.xxx_hidden_Application = b.Application
+	x.xxx_hidden_RequestedTimeDelay = b.RequestedTimeDelay
 	return m0
 }
 
 // A request to process a given bundle.
 // Stable
 type ProcessBundleRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference to the process bundle descriptor that must be
-	// instantiated and executed by the SDK harness.
-	ProcessBundleDescriptorId string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_id,json=processBundleDescriptorId,proto3" json:"process_bundle_descriptor_id,omitempty"`
-	// (Optional) A list of cache tokens that can be used by an SDK to reuse
-	// cached data returned by the State API across multiple bundles.
-	//
-	// Note that SDKs that can efficiently consume this field should declare
-	// the beam:protocol:state_caching:v1 capability enabling runners to reduce
-	// the amount of memory used.
-	//
-	// See https://s.apache.org/beam-fn-state-api-and-bundle-processing#heading=h.7ghoih5aig5m
-	// for additional details on how to use the cache token with the State API
-	// to cache data across bundle boundaries.
-	CacheTokens []*ProcessBundleRequest_CacheToken `protobuf:"bytes,2,rep,name=cache_tokens,json=cacheTokens,proto3" json:"cache_tokens,omitempty"`
-	// (Optional) Elements to be processed with the bundle. Either all or
-	// none of the bundle elements should be included in the ProcessBundleRequest.
-	// This embedding is to achieve better efficiency for bundles that contain
-	// only small amounts of data and are cheap to be processed on the SDK harness
-	// side. This field can be set only if the SDK declares that it supports the
-	// beam:protocol:control_request_elements_embedding:v1 capability. See more
-	// at https://s.apache.org/beam-fn-api-control-data-embedding.
-	Elements      *Elements `protobuf:"bytes,3,opt,name=elements,proto3" json:"elements,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                                protoimpl.MessageState              `protogen:"opaque.v1"`
+	xxx_hidden_ProcessBundleDescriptorId string                              `protobuf:"bytes,1,opt,name=process_bundle_descriptor_id,json=processBundleDescriptorId,proto3" json:"process_bundle_descriptor_id,omitempty"`
+	xxx_hidden_CacheTokens               *[]*ProcessBundleRequest_CacheToken `protobuf:"bytes,2,rep,name=cache_tokens,json=cacheTokens,proto3" json:"cache_tokens,omitempty"`
+	xxx_hidden_Elements                  *Elements                           `protobuf:"bytes,3,opt,name=elements,proto3" json:"elements,omitempty"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
 }
 
 func (x *ProcessBundleRequest) Reset() {
@@ -2375,46 +2258,48 @@ func (x *ProcessBundleRequest) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleRequest) GetProcessBundleDescriptorId() string {
 	if x != nil {
-		return x.ProcessBundleDescriptorId
+		return x.xxx_hidden_ProcessBundleDescriptorId
 	}
 	return ""
 }
 
 func (x *ProcessBundleRequest) GetCacheTokens() []*ProcessBundleRequest_CacheToken {
 	if x != nil {
-		return x.CacheTokens
+		if x.xxx_hidden_CacheTokens != nil {
+			return *x.xxx_hidden_CacheTokens
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleRequest) GetElements() *Elements {
 	if x != nil {
-		return x.Elements
+		return x.xxx_hidden_Elements
 	}
 	return nil
 }
 
 func (x *ProcessBundleRequest) SetProcessBundleDescriptorId(v string) {
-	x.ProcessBundleDescriptorId = v
+	x.xxx_hidden_ProcessBundleDescriptorId = v
 }
 
 func (x *ProcessBundleRequest) SetCacheTokens(v []*ProcessBundleRequest_CacheToken) {
-	x.CacheTokens = v
+	x.xxx_hidden_CacheTokens = &v
 }
 
 func (x *ProcessBundleRequest) SetElements(v *Elements) {
-	x.Elements = v
+	x.xxx_hidden_Elements = v
 }
 
 func (x *ProcessBundleRequest) HasElements() bool {
 	if x == nil {
 		return false
 	}
-	return x.Elements != nil
+	return x.xxx_hidden_Elements != nil
 }
 
 func (x *ProcessBundleRequest) ClearElements() {
-	x.Elements = nil
+	x.xxx_hidden_Elements = nil
 }
 
 type ProcessBundleRequest_builder struct {
@@ -2448,51 +2333,21 @@ func (b0 ProcessBundleRequest_builder) Build() *ProcessBundleRequest {
 	m0 := &ProcessBundleRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ProcessBundleDescriptorId = b.ProcessBundleDescriptorId
-	x.CacheTokens = b.CacheTokens
-	x.Elements = b.Elements
+	x.xxx_hidden_ProcessBundleDescriptorId = b.ProcessBundleDescriptorId
+	x.xxx_hidden_CacheTokens = &b.CacheTokens
+	x.xxx_hidden_Elements = b.Elements
 	return m0
 }
 
 type ProcessBundleResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) Specifies that the bundle has not been completed and the
-	// following applications need to be scheduled and executed in the future.
-	// A runner that does not yet support residual roots MUST still check that
-	// this is empty for correctness.
-	//
-	// Note that these residual roots must not have been returned as part of a
-	// prior split for this bundle.
-	ResidualRoots []*DelayedBundleApplication `protobuf:"bytes,2,rep,name=residual_roots,json=residualRoots,proto3" json:"residual_roots,omitempty"`
-	// DEPRECATED (Required) The list of metrics or other MonitoredState
-	// collected while processing this bundle.
-	MonitoringInfos []*pipeline_v1.MonitoringInfo `protobuf:"bytes,3,rep,name=monitoring_infos,json=monitoringInfos,proto3" json:"monitoring_infos,omitempty"`
-	// (Optional) Specifies that the runner must callback to this worker
-	// once the output of the bundle is committed. The Runner must send a
-	// FinalizeBundleRequest with the instruction id of the ProcessBundleRequest
-	// that is related to this ProcessBundleResponse.
-	RequiresFinalization bool `protobuf:"varint,4,opt,name=requires_finalization,json=requiresFinalization,proto3" json:"requires_finalization,omitempty"`
-	// An identifier to MonitoringInfo.payload mapping.
-	//
-	// An SDK can report metrics using an identifier that only contains the
-	// associated payload. A runner who wants to receive the full metrics
-	// information can request all the monitoring metadata via a
-	// MonitoringInfosMetadataRequest providing a list of ids as necessary.
-	//
-	// The SDK is allowed to reuse the identifiers across multiple bundles as long
-	// as the MonitoringInfo could be reconstructed fully by overwriting its
-	// payload field with the bytes specified here.
-	MonitoringData map[string][]byte `protobuf:"bytes,5,rep,name=monitoring_data,json=monitoringData,proto3" json:"monitoring_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Optional) Output elements of the processed bundle. Either all or
-	// none of the bundle elements should be included in the ProcessBundleResponse.
-	// This embedding is to achieve better efficiency for bundles that only
-	// contain small amounts of data. his field can be set only if the runner
-	// declares that it supports the
-	// beam:protocol:control_request_elements_embedding:v1 capability. See more at
-	// https://s.apache.org/beam-fn-api-control-data-embedding.
-	Elements      *Elements `protobuf:"bytes,6,opt,name=elements,proto3" json:"elements,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                           protoimpl.MessageState         `protogen:"opaque.v1"`
+	xxx_hidden_ResidualRoots        *[]*DelayedBundleApplication   `protobuf:"bytes,2,rep,name=residual_roots,json=residualRoots,proto3" json:"residual_roots,omitempty"`
+	xxx_hidden_MonitoringInfos      *[]*pipeline_v1.MonitoringInfo `protobuf:"bytes,3,rep,name=monitoring_infos,json=monitoringInfos,proto3" json:"monitoring_infos,omitempty"`
+	xxx_hidden_RequiresFinalization bool                           `protobuf:"varint,4,opt,name=requires_finalization,json=requiresFinalization,proto3" json:"requires_finalization,omitempty"`
+	xxx_hidden_MonitoringData       map[string][]byte              `protobuf:"bytes,5,rep,name=monitoring_data,json=monitoringData,proto3" json:"monitoring_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Elements             *Elements                      `protobuf:"bytes,6,opt,name=elements,proto3" json:"elements,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *ProcessBundleResponse) Reset() {
@@ -2522,68 +2377,72 @@ func (x *ProcessBundleResponse) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleResponse) GetResidualRoots() []*DelayedBundleApplication {
 	if x != nil {
-		return x.ResidualRoots
+		if x.xxx_hidden_ResidualRoots != nil {
+			return *x.xxx_hidden_ResidualRoots
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleResponse) GetMonitoringInfos() []*pipeline_v1.MonitoringInfo {
 	if x != nil {
-		return x.MonitoringInfos
+		if x.xxx_hidden_MonitoringInfos != nil {
+			return *x.xxx_hidden_MonitoringInfos
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleResponse) GetRequiresFinalization() bool {
 	if x != nil {
-		return x.RequiresFinalization
+		return x.xxx_hidden_RequiresFinalization
 	}
 	return false
 }
 
 func (x *ProcessBundleResponse) GetMonitoringData() map[string][]byte {
 	if x != nil {
-		return x.MonitoringData
+		return x.xxx_hidden_MonitoringData
 	}
 	return nil
 }
 
 func (x *ProcessBundleResponse) GetElements() *Elements {
 	if x != nil {
-		return x.Elements
+		return x.xxx_hidden_Elements
 	}
 	return nil
 }
 
 func (x *ProcessBundleResponse) SetResidualRoots(v []*DelayedBundleApplication) {
-	x.ResidualRoots = v
+	x.xxx_hidden_ResidualRoots = &v
 }
 
 func (x *ProcessBundleResponse) SetMonitoringInfos(v []*pipeline_v1.MonitoringInfo) {
-	x.MonitoringInfos = v
+	x.xxx_hidden_MonitoringInfos = &v
 }
 
 func (x *ProcessBundleResponse) SetRequiresFinalization(v bool) {
-	x.RequiresFinalization = v
+	x.xxx_hidden_RequiresFinalization = v
 }
 
 func (x *ProcessBundleResponse) SetMonitoringData(v map[string][]byte) {
-	x.MonitoringData = v
+	x.xxx_hidden_MonitoringData = v
 }
 
 func (x *ProcessBundleResponse) SetElements(v *Elements) {
-	x.Elements = v
+	x.xxx_hidden_Elements = v
 }
 
 func (x *ProcessBundleResponse) HasElements() bool {
 	if x == nil {
 		return false
 	}
-	return x.Elements != nil
+	return x.xxx_hidden_Elements != nil
 }
 
 func (x *ProcessBundleResponse) ClearElements() {
-	x.Elements = nil
+	x.xxx_hidden_Elements = nil
 }
 
 type ProcessBundleResponse_builder struct {
@@ -2630,11 +2489,11 @@ func (b0 ProcessBundleResponse_builder) Build() *ProcessBundleResponse {
 	m0 := &ProcessBundleResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ResidualRoots = b.ResidualRoots
-	x.MonitoringInfos = b.MonitoringInfos
-	x.RequiresFinalization = b.RequiresFinalization
-	x.MonitoringData = b.MonitoringData
-	x.Elements = b.Elements
+	x.xxx_hidden_ResidualRoots = &b.ResidualRoots
+	x.xxx_hidden_MonitoringInfos = &b.MonitoringInfos
+	x.xxx_hidden_RequiresFinalization = b.RequiresFinalization
+	x.xxx_hidden_MonitoringData = b.MonitoringData
+	x.xxx_hidden_Elements = b.Elements
 	return m0
 }
 
@@ -2642,12 +2501,10 @@ func (b0 ProcessBundleResponse_builder) Build() *ProcessBundleResponse {
 // This is an optional request to be handled and is used to support advanced
 // SDK features such as SplittableDoFn, user level metrics etc.
 type ProcessBundleProgressRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference to an active process bundle request with the given
-	// instruction id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ProcessBundleProgressRequest) Reset() {
@@ -2677,13 +2534,13 @@ func (x *ProcessBundleProgressRequest) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleProgressRequest) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *ProcessBundleProgressRequest) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 type ProcessBundleProgressRequest_builder struct {
@@ -2698,7 +2555,7 @@ func (b0 ProcessBundleProgressRequest_builder) Build() *ProcessBundleProgressReq
 	m0 := &ProcessBundleProgressRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
+	x.xxx_hidden_InstructionId = b.InstructionId
 	return m0
 }
 
@@ -2714,11 +2571,10 @@ func (b0 ProcessBundleProgressRequest_builder) Build() *ProcessBundleProgressReq
 // reconstructed fully by overwriting its payload field with the bytes specified
 // here.
 type MonitoringInfosMetadataRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A list of ids for which the full MonitoringInfo is requested for.
-	MonitoringInfoId []string `protobuf:"bytes,1,rep,name=monitoring_info_id,json=monitoringInfoId,proto3" json:"monitoring_info_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_MonitoringInfoId []string               `protobuf:"bytes,1,rep,name=monitoring_info_id,json=monitoringInfoId,proto3" json:"monitoring_info_id,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *MonitoringInfosMetadataRequest) Reset() {
@@ -2748,13 +2604,13 @@ func (x *MonitoringInfosMetadataRequest) ProtoReflect() protoreflect.Message {
 
 func (x *MonitoringInfosMetadataRequest) GetMonitoringInfoId() []string {
 	if x != nil {
-		return x.MonitoringInfoId
+		return x.xxx_hidden_MonitoringInfoId
 	}
 	return nil
 }
 
 func (x *MonitoringInfosMetadataRequest) SetMonitoringInfoId(v []string) {
-	x.MonitoringInfoId = v
+	x.xxx_hidden_MonitoringInfoId = v
 }
 
 type MonitoringInfosMetadataRequest_builder struct {
@@ -2768,34 +2624,19 @@ func (b0 MonitoringInfosMetadataRequest_builder) Build() *MonitoringInfosMetadat
 	m0 := &MonitoringInfosMetadataRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.MonitoringInfoId = b.MonitoringInfoId
+	x.xxx_hidden_MonitoringInfoId = b.MonitoringInfoId
 	return m0
 }
 
 type ProcessBundleProgressResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// DEPRECATED (Required) The list of metrics or other MonitoredState
-	// collected while processing this bundle.
-	MonitoringInfos []*pipeline_v1.MonitoringInfo `protobuf:"bytes,3,rep,name=monitoring_infos,json=monitoringInfos,proto3" json:"monitoring_infos,omitempty"`
-	// An identifier to MonitoringInfo.payload mapping.
-	//
-	// An SDK can report metrics using an identifier that only contains the
-	// associated payload. A runner who wants to receive the full metrics
-	// information can request all the monitoring metadata via a
-	// MonitoringInfosMetadataRequest providing a list of ids as necessary.
-	//
-	// The SDK is allowed to reuse the identifiers
-	// for the lifetime of the associated control connection as long
-	// as the MonitoringInfo could be reconstructed fully by overwriting its
-	// payload field with the bytes specified here.
-	MonitoringData map[string][]byte `protobuf:"bytes,5,rep,name=monitoring_data,json=monitoringData,proto3" json:"monitoring_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Indicates that the SDK is still busy consuming the data that as already
-	// been received on the data channel. If this is set, a runner may abstain
-	// from sending further data on the data channel until this field becomes
-	// unset. This field is currently used during shuffle reads on large elements.
-	ConsumingReceivedData *bool `protobuf:"varint,6,opt,name=consuming_received_data,json=consumingReceivedData,proto3,oneof" json:"consuming_received_data,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state                            protoimpl.MessageState         `protogen:"opaque.v1"`
+	xxx_hidden_MonitoringInfos       *[]*pipeline_v1.MonitoringInfo `protobuf:"bytes,3,rep,name=monitoring_infos,json=monitoringInfos,proto3" json:"monitoring_infos,omitempty"`
+	xxx_hidden_MonitoringData        map[string][]byte              `protobuf:"bytes,5,rep,name=monitoring_data,json=monitoringData,proto3" json:"monitoring_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_ConsumingReceivedData bool                           `protobuf:"varint,6,opt,name=consuming_received_data,json=consumingReceivedData,proto3,oneof" json:"consuming_received_data,omitempty"`
+	XXX_raceDetectHookData           protoimpl.RaceDetectHookData
+	XXX_presence                     [1]uint32
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *ProcessBundleProgressResponse) Reset() {
@@ -2825,46 +2666,50 @@ func (x *ProcessBundleProgressResponse) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleProgressResponse) GetMonitoringInfos() []*pipeline_v1.MonitoringInfo {
 	if x != nil {
-		return x.MonitoringInfos
+		if x.xxx_hidden_MonitoringInfos != nil {
+			return *x.xxx_hidden_MonitoringInfos
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleProgressResponse) GetMonitoringData() map[string][]byte {
 	if x != nil {
-		return x.MonitoringData
+		return x.xxx_hidden_MonitoringData
 	}
 	return nil
 }
 
 func (x *ProcessBundleProgressResponse) GetConsumingReceivedData() bool {
-	if x != nil && x.ConsumingReceivedData != nil {
-		return *x.ConsumingReceivedData
+	if x != nil {
+		return x.xxx_hidden_ConsumingReceivedData
 	}
 	return false
 }
 
 func (x *ProcessBundleProgressResponse) SetMonitoringInfos(v []*pipeline_v1.MonitoringInfo) {
-	x.MonitoringInfos = v
+	x.xxx_hidden_MonitoringInfos = &v
 }
 
 func (x *ProcessBundleProgressResponse) SetMonitoringData(v map[string][]byte) {
-	x.MonitoringData = v
+	x.xxx_hidden_MonitoringData = v
 }
 
 func (x *ProcessBundleProgressResponse) SetConsumingReceivedData(v bool) {
-	x.ConsumingReceivedData = &v
+	x.xxx_hidden_ConsumingReceivedData = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
 }
 
 func (x *ProcessBundleProgressResponse) HasConsumingReceivedData() bool {
 	if x == nil {
 		return false
 	}
-	return x.ConsumingReceivedData != nil
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
 }
 
 func (x *ProcessBundleProgressResponse) ClearConsumingReceivedData() {
-	x.ConsumingReceivedData = nil
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_ConsumingReceivedData = false
 }
 
 type ProcessBundleProgressResponse_builder struct {
@@ -2896,9 +2741,12 @@ func (b0 ProcessBundleProgressResponse_builder) Build() *ProcessBundleProgressRe
 	m0 := &ProcessBundleProgressResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.MonitoringInfos = b.MonitoringInfos
-	x.MonitoringData = b.MonitoringData
-	x.ConsumingReceivedData = b.ConsumingReceivedData
+	x.xxx_hidden_MonitoringInfos = &b.MonitoringInfos
+	x.xxx_hidden_MonitoringData = b.MonitoringData
+	if b.ConsumingReceivedData != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		x.xxx_hidden_ConsumingReceivedData = *b.ConsumingReceivedData
+	}
 	return m0
 }
 
@@ -2915,11 +2763,10 @@ func (b0 ProcessBundleProgressResponse_builder) Build() *ProcessBundleProgressRe
 // as the MonitoringInfo could be reconstructed fully by overwriting its
 // payload field with the bytes specified here.
 type MonitoringInfosMetadataResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A mapping from an identifier to the full metrics information.
-	MonitoringInfo map[string]*pipeline_v1.MonitoringInfo `protobuf:"bytes,1,rep,name=monitoring_info,json=monitoringInfo,proto3" json:"monitoring_info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState                 `protogen:"opaque.v1"`
+	xxx_hidden_MonitoringInfo map[string]*pipeline_v1.MonitoringInfo `protobuf:"bytes,1,rep,name=monitoring_info,json=monitoringInfo,proto3" json:"monitoring_info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *MonitoringInfosMetadataResponse) Reset() {
@@ -2949,13 +2796,13 @@ func (x *MonitoringInfosMetadataResponse) ProtoReflect() protoreflect.Message {
 
 func (x *MonitoringInfosMetadataResponse) GetMonitoringInfo() map[string]*pipeline_v1.MonitoringInfo {
 	if x != nil {
-		return x.MonitoringInfo
+		return x.xxx_hidden_MonitoringInfo
 	}
 	return nil
 }
 
 func (x *MonitoringInfosMetadataResponse) SetMonitoringInfo(v map[string]*pipeline_v1.MonitoringInfo) {
-	x.MonitoringInfo = v
+	x.xxx_hidden_MonitoringInfo = v
 }
 
 type MonitoringInfosMetadataResponse_builder struct {
@@ -2969,24 +2816,17 @@ func (b0 MonitoringInfosMetadataResponse_builder) Build() *MonitoringInfosMetada
 	m0 := &MonitoringInfosMetadataResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.MonitoringInfo = b.MonitoringInfo
+	x.xxx_hidden_MonitoringInfo = b.MonitoringInfo
 	return m0
 }
 
 // Represents a request to the SDK to split a currently active bundle.
 type ProcessBundleSplitRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference to an active process bundle request with the given
-	// instruction id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Required) Specifies the desired split for each transform.
-	//
-	// Currently only splits at gRPC read operations are supported.
-	// This may, of course, limit the amount of work downstream operations
-	// receive.
-	DesiredSplits map[string]*ProcessBundleSplitRequest_DesiredSplit `protobuf:"bytes,3,rep,name=desired_splits,json=desiredSplits,proto3" json:"desired_splits,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState                             `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                                             `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_DesiredSplits map[string]*ProcessBundleSplitRequest_DesiredSplit `protobuf:"bytes,3,rep,name=desired_splits,json=desiredSplits,proto3" json:"desired_splits,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ProcessBundleSplitRequest) Reset() {
@@ -3016,24 +2856,24 @@ func (x *ProcessBundleSplitRequest) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleSplitRequest) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *ProcessBundleSplitRequest) GetDesiredSplits() map[string]*ProcessBundleSplitRequest_DesiredSplit {
 	if x != nil {
-		return x.DesiredSplits
+		return x.xxx_hidden_DesiredSplits
 	}
 	return nil
 }
 
 func (x *ProcessBundleSplitRequest) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *ProcessBundleSplitRequest) SetDesiredSplits(v map[string]*ProcessBundleSplitRequest_DesiredSplit) {
-	x.DesiredSplits = v
+	x.xxx_hidden_DesiredSplits = v
 }
 
 type ProcessBundleSplitRequest_builder struct {
@@ -3054,8 +2894,8 @@ func (b0 ProcessBundleSplitRequest_builder) Build() *ProcessBundleSplitRequest {
 	m0 := &ProcessBundleSplitRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
-	x.DesiredSplits = b.DesiredSplits
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_DesiredSplits = b.DesiredSplits
 	return m0
 }
 
@@ -3122,36 +2962,12 @@ func (b0 ProcessBundleSplitRequest_builder) Build() *ProcessBundleSplitRequest {
 //
 // For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
 type ProcessBundleSplitResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) Root applications that should replace the current bundle.
-	//
-	// Note that primary roots can only be specified if a channel split's
-	// last_primary_element + 1 < first_residual_element
-	//
-	// Note that there must be a corresponding residual root contained within
-	// residual_roots representing the remainder of processing for the original
-	// element this this primary root represents a fraction of.
-	PrimaryRoots []*BundleApplication `protobuf:"bytes,1,rep,name=primary_roots,json=primaryRoots,proto3" json:"primary_roots,omitempty"`
-	// (Optional) Root applications that have been removed from the current bundle and
-	// have to be executed in a separate bundle (e.g. in parallel on a different
-	// worker, or after the current bundle completes, etc.)
-	//
-	// Note that residual roots can only be specified if a channel split's
-	// last_primary_element + 1 < first_residual_element
-	//
-	// Note that there must be a corresponding primary root contained within
-	// primary_roots representing the remainder of processing for the original
-	// element this this residual root represents a fraction of.
-	//
-	// Note that subsequent splits must not return prior residual roots.
-	ResidualRoots []*DelayedBundleApplication `protobuf:"bytes,2,rep,name=residual_roots,json=residualRoots,proto3" json:"residual_roots,omitempty"`
-	// (Required) Partitions of input data channels into primary and residual
-	// elements, if any. Must not include any elements represented in the bundle
-	// applications roots above of the current split or any prior split of the
-	// same bundle.
-	ChannelSplits []*ProcessBundleSplitResponse_ChannelSplit `protobuf:"bytes,3,rep,name=channel_splits,json=channelSplits,proto3" json:"channel_splits,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState                      `protogen:"opaque.v1"`
+	xxx_hidden_PrimaryRoots  *[]*BundleApplication                       `protobuf:"bytes,1,rep,name=primary_roots,json=primaryRoots,proto3" json:"primary_roots,omitempty"`
+	xxx_hidden_ResidualRoots *[]*DelayedBundleApplication                `protobuf:"bytes,2,rep,name=residual_roots,json=residualRoots,proto3" json:"residual_roots,omitempty"`
+	xxx_hidden_ChannelSplits *[]*ProcessBundleSplitResponse_ChannelSplit `protobuf:"bytes,3,rep,name=channel_splits,json=channelSplits,proto3" json:"channel_splits,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ProcessBundleSplitResponse) Reset() {
@@ -3181,35 +2997,41 @@ func (x *ProcessBundleSplitResponse) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessBundleSplitResponse) GetPrimaryRoots() []*BundleApplication {
 	if x != nil {
-		return x.PrimaryRoots
+		if x.xxx_hidden_PrimaryRoots != nil {
+			return *x.xxx_hidden_PrimaryRoots
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleSplitResponse) GetResidualRoots() []*DelayedBundleApplication {
 	if x != nil {
-		return x.ResidualRoots
+		if x.xxx_hidden_ResidualRoots != nil {
+			return *x.xxx_hidden_ResidualRoots
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleSplitResponse) GetChannelSplits() []*ProcessBundleSplitResponse_ChannelSplit {
 	if x != nil {
-		return x.ChannelSplits
+		if x.xxx_hidden_ChannelSplits != nil {
+			return *x.xxx_hidden_ChannelSplits
+		}
 	}
 	return nil
 }
 
 func (x *ProcessBundleSplitResponse) SetPrimaryRoots(v []*BundleApplication) {
-	x.PrimaryRoots = v
+	x.xxx_hidden_PrimaryRoots = &v
 }
 
 func (x *ProcessBundleSplitResponse) SetResidualRoots(v []*DelayedBundleApplication) {
-	x.ResidualRoots = v
+	x.xxx_hidden_ResidualRoots = &v
 }
 
 func (x *ProcessBundleSplitResponse) SetChannelSplits(v []*ProcessBundleSplitResponse_ChannelSplit) {
-	x.ChannelSplits = v
+	x.xxx_hidden_ChannelSplits = &v
 }
 
 type ProcessBundleSplitResponse_builder struct {
@@ -3248,19 +3070,17 @@ func (b0 ProcessBundleSplitResponse_builder) Build() *ProcessBundleSplitResponse
 	m0 := &ProcessBundleSplitResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.PrimaryRoots = b.PrimaryRoots
-	x.ResidualRoots = b.ResidualRoots
-	x.ChannelSplits = b.ChannelSplits
+	x.xxx_hidden_PrimaryRoots = &b.PrimaryRoots
+	x.xxx_hidden_ResidualRoots = &b.ResidualRoots
+	x.xxx_hidden_ChannelSplits = &b.ChannelSplits
 	return m0
 }
 
 type FinalizeBundleRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference to a completed process bundle request with the given
-	// instruction id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *FinalizeBundleRequest) Reset() {
@@ -3290,13 +3110,13 @@ func (x *FinalizeBundleRequest) ProtoReflect() protoreflect.Message {
 
 func (x *FinalizeBundleRequest) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *FinalizeBundleRequest) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 type FinalizeBundleRequest_builder struct {
@@ -3311,12 +3131,12 @@ func (b0 FinalizeBundleRequest_builder) Build() *FinalizeBundleRequest {
 	m0 := &FinalizeBundleRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
+	x.xxx_hidden_InstructionId = b.InstructionId
 	return m0
 }
 
 type FinalizeBundleResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3361,13 +3181,11 @@ func (b0 FinalizeBundleResponse_builder) Build() *FinalizeBundleResponse {
 // Messages used to represent logical byte streams.
 // Stable
 type Elements struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) A list containing parts of logical byte streams.
-	Data []*Elements_Data `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty"`
-	// (Optional)  A list of timer byte streams.
-	Timers        []*Elements_Timers `protobuf:"bytes,2,rep,name=timers,proto3" json:"timers,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Data   *[]*Elements_Data      `protobuf:"bytes,1,rep,name=data,proto3" json:"data,omitempty"`
+	xxx_hidden_Timers *[]*Elements_Timers    `protobuf:"bytes,2,rep,name=timers,proto3" json:"timers,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Elements) Reset() {
@@ -3397,24 +3215,28 @@ func (x *Elements) ProtoReflect() protoreflect.Message {
 
 func (x *Elements) GetData() []*Elements_Data {
 	if x != nil {
-		return x.Data
+		if x.xxx_hidden_Data != nil {
+			return *x.xxx_hidden_Data
+		}
 	}
 	return nil
 }
 
 func (x *Elements) GetTimers() []*Elements_Timers {
 	if x != nil {
-		return x.Timers
+		if x.xxx_hidden_Timers != nil {
+			return *x.xxx_hidden_Timers
+		}
 	}
 	return nil
 }
 
 func (x *Elements) SetData(v []*Elements_Data) {
-	x.Data = v
+	x.xxx_hidden_Data = &v
 }
 
 func (x *Elements) SetTimers(v []*Elements_Timers) {
-	x.Timers = v
+	x.xxx_hidden_Timers = &v
 }
 
 type Elements_builder struct {
@@ -3430,33 +3252,19 @@ func (b0 Elements_builder) Build() *Elements {
 	m0 := &Elements{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Data = b.Data
-	x.Timers = b.Timers
+	x.xxx_hidden_Data = &b.Data
+	x.xxx_hidden_Timers = &b.Timers
 	return m0
 }
 
 type StateRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A unique identifier provided by the SDK which represents this
-	// requests execution. The StateResponse corresponding with this request
-	// will have the matching id.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// (Required) The associated instruction id of the work that is currently
-	// being processed. This allows for the runner to associate any modifications
-	// to state to be committed with the appropriate work execution.
-	InstructionId string `protobuf:"bytes,2,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Required) The state key this request is for.
-	StateKey *StateKey `protobuf:"bytes,3,opt,name=state_key,json=stateKey,proto3" json:"state_key,omitempty"`
-	// (Required) The action to take on this request.
-	//
-	// Types that are valid to be assigned to Request:
-	//
-	//	*StateRequest_Get
-	//	*StateRequest_Append
-	//	*StateRequest_Clear
-	Request       isStateRequest_Request `protobuf_oneof:"request"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,2,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_StateKey      *StateKey              `protobuf:"bytes,3,opt,name=state_key,json=stateKey,proto3" json:"state_key,omitempty"`
+	xxx_hidden_Request       isStateRequest_Request `protobuf_oneof:"request"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *StateRequest) Reset() {
@@ -3486,35 +3294,28 @@ func (x *StateRequest) ProtoReflect() protoreflect.Message {
 
 func (x *StateRequest) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *StateRequest) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *StateRequest) GetStateKey() *StateKey {
 	if x != nil {
-		return x.StateKey
-	}
-	return nil
-}
-
-func (x *StateRequest) GetRequest() isStateRequest_Request {
-	if x != nil {
-		return x.Request
+		return x.xxx_hidden_StateKey
 	}
 	return nil
 }
 
 func (x *StateRequest) GetGet() *StateGetRequest {
 	if x != nil {
-		if x, ok := x.Request.(*StateRequest_Get); ok {
+		if x, ok := x.xxx_hidden_Request.(*stateRequest_Get); ok {
 			return x.Get
 		}
 	}
@@ -3523,7 +3324,7 @@ func (x *StateRequest) GetGet() *StateGetRequest {
 
 func (x *StateRequest) GetAppend() *StateAppendRequest {
 	if x != nil {
-		if x, ok := x.Request.(*StateRequest_Append); ok {
+		if x, ok := x.xxx_hidden_Request.(*stateRequest_Append); ok {
 			return x.Append
 		}
 	}
@@ -3532,7 +3333,7 @@ func (x *StateRequest) GetAppend() *StateAppendRequest {
 
 func (x *StateRequest) GetClear() *StateClearRequest {
 	if x != nil {
-		if x, ok := x.Request.(*StateRequest_Clear); ok {
+		if x, ok := x.xxx_hidden_Request.(*stateRequest_Clear); ok {
 			return x.Clear
 		}
 	}
@@ -3540,60 +3341,60 @@ func (x *StateRequest) GetClear() *StateClearRequest {
 }
 
 func (x *StateRequest) SetId(v string) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 func (x *StateRequest) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *StateRequest) SetStateKey(v *StateKey) {
-	x.StateKey = v
+	x.xxx_hidden_StateKey = v
 }
 
 func (x *StateRequest) SetGet(v *StateGetRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &StateRequest_Get{v}
+	x.xxx_hidden_Request = &stateRequest_Get{v}
 }
 
 func (x *StateRequest) SetAppend(v *StateAppendRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &StateRequest_Append{v}
+	x.xxx_hidden_Request = &stateRequest_Append{v}
 }
 
 func (x *StateRequest) SetClear(v *StateClearRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &StateRequest_Clear{v}
+	x.xxx_hidden_Request = &stateRequest_Clear{v}
 }
 
 func (x *StateRequest) HasStateKey() bool {
 	if x == nil {
 		return false
 	}
-	return x.StateKey != nil
+	return x.xxx_hidden_StateKey != nil
 }
 
 func (x *StateRequest) HasRequest() bool {
 	if x == nil {
 		return false
 	}
-	return x.Request != nil
+	return x.xxx_hidden_Request != nil
 }
 
 func (x *StateRequest) HasGet() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*StateRequest_Get)
+	_, ok := x.xxx_hidden_Request.(*stateRequest_Get)
 	return ok
 }
 
@@ -3601,7 +3402,7 @@ func (x *StateRequest) HasAppend() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*StateRequest_Append)
+	_, ok := x.xxx_hidden_Request.(*stateRequest_Append)
 	return ok
 }
 
@@ -3609,33 +3410,33 @@ func (x *StateRequest) HasClear() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*StateRequest_Clear)
+	_, ok := x.xxx_hidden_Request.(*stateRequest_Clear)
 	return ok
 }
 
 func (x *StateRequest) ClearStateKey() {
-	x.StateKey = nil
+	x.xxx_hidden_StateKey = nil
 }
 
 func (x *StateRequest) ClearRequest() {
-	x.Request = nil
+	x.xxx_hidden_Request = nil
 }
 
 func (x *StateRequest) ClearGet() {
-	if _, ok := x.Request.(*StateRequest_Get); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*stateRequest_Get); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *StateRequest) ClearAppend() {
-	if _, ok := x.Request.(*StateRequest_Append); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*stateRequest_Append); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *StateRequest) ClearClear() {
-	if _, ok := x.Request.(*StateRequest_Clear); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*stateRequest_Clear); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
@@ -3648,12 +3449,12 @@ func (x *StateRequest) WhichRequest() case_StateRequest_Request {
 	if x == nil {
 		return StateRequest_Request_not_set_case
 	}
-	switch x.Request.(type) {
-	case *StateRequest_Get:
+	switch x.xxx_hidden_Request.(type) {
+	case *stateRequest_Get:
 		return StateRequest_Get_case
-	case *StateRequest_Append:
+	case *stateRequest_Append:
 		return StateRequest_Append_case
-	case *StateRequest_Clear:
+	case *stateRequest_Clear:
 		return StateRequest_Clear_case
 	default:
 		return StateRequest_Request_not_set_case
@@ -3675,31 +3476,31 @@ type StateRequest_builder struct {
 	StateKey *StateKey
 	// (Required) The action to take on this request.
 
-	// Fields of oneof Request:
+	// Fields of oneof xxx_hidden_Request:
 	// A request to get state.
 	Get *StateGetRequest
 	// A request to append to state.
 	Append *StateAppendRequest
 	// A request to clear state.
 	Clear *StateClearRequest
-	// -- end of Request
+	// -- end of xxx_hidden_Request
 }
 
 func (b0 StateRequest_builder) Build() *StateRequest {
 	m0 := &StateRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Id = b.Id
-	x.InstructionId = b.InstructionId
-	x.StateKey = b.StateKey
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_StateKey = b.StateKey
 	if b.Get != nil {
-		x.Request = &StateRequest_Get{b.Get}
+		x.xxx_hidden_Request = &stateRequest_Get{b.Get}
 	}
 	if b.Append != nil {
-		x.Request = &StateRequest_Append{b.Append}
+		x.xxx_hidden_Request = &stateRequest_Append{b.Append}
 	}
 	if b.Clear != nil {
-		x.Request = &StateRequest_Clear{b.Clear}
+		x.xxx_hidden_Request = &stateRequest_Clear{b.Clear}
 	}
 	return m0
 }
@@ -3718,47 +3519,34 @@ type isStateRequest_Request interface {
 	isStateRequest_Request()
 }
 
-type StateRequest_Get struct {
+type stateRequest_Get struct {
 	// A request to get state.
 	Get *StateGetRequest `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
 }
 
-type StateRequest_Append struct {
+type stateRequest_Append struct {
 	// A request to append to state.
 	Append *StateAppendRequest `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
 }
 
-type StateRequest_Clear struct {
+type stateRequest_Clear struct {
 	// A request to clear state.
 	Clear *StateClearRequest `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
 }
 
-func (*StateRequest_Get) isStateRequest_Request() {}
+func (*stateRequest_Get) isStateRequest_Request() {}
 
-func (*StateRequest_Append) isStateRequest_Request() {}
+func (*stateRequest_Append) isStateRequest_Request() {}
 
-func (*StateRequest_Clear) isStateRequest_Request() {}
+func (*stateRequest_Clear) isStateRequest_Request() {}
 
 type StateResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference provided by the SDK which represents a requests
-	// execution. The StateResponse must have the matching id when responding
-	// to the SDK.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// (Optional) If this is specified, then the state request has failed.
-	// A human readable string representing the reason as to why the request
-	// failed.
-	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	// A corresponding response matching the request will be populated.
-	//
-	// Types that are valid to be assigned to Response:
-	//
-	//	*StateResponse_Get
-	//	*StateResponse_Append
-	//	*StateResponse_Clear
-	Response      isStateResponse_Response `protobuf_oneof:"response"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState   `protogen:"opaque.v1"`
+	xxx_hidden_Id       string                   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	xxx_hidden_Error    string                   `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	xxx_hidden_Response isStateResponse_Response `protobuf_oneof:"response"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StateResponse) Reset() {
@@ -3788,28 +3576,21 @@ func (x *StateResponse) ProtoReflect() protoreflect.Message {
 
 func (x *StateResponse) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *StateResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
-func (x *StateResponse) GetResponse() isStateResponse_Response {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
 func (x *StateResponse) GetGet() *StateGetResponse {
 	if x != nil {
-		if x, ok := x.Response.(*StateResponse_Get); ok {
+		if x, ok := x.xxx_hidden_Response.(*stateResponse_Get); ok {
 			return x.Get
 		}
 	}
@@ -3818,7 +3599,7 @@ func (x *StateResponse) GetGet() *StateGetResponse {
 
 func (x *StateResponse) GetAppend() *StateAppendResponse {
 	if x != nil {
-		if x, ok := x.Response.(*StateResponse_Append); ok {
+		if x, ok := x.xxx_hidden_Response.(*stateResponse_Append); ok {
 			return x.Append
 		}
 	}
@@ -3827,7 +3608,7 @@ func (x *StateResponse) GetAppend() *StateAppendResponse {
 
 func (x *StateResponse) GetClear() *StateClearResponse {
 	if x != nil {
-		if x, ok := x.Response.(*StateResponse_Clear); ok {
+		if x, ok := x.xxx_hidden_Response.(*stateResponse_Clear); ok {
 			return x.Clear
 		}
 	}
@@ -3835,49 +3616,49 @@ func (x *StateResponse) GetClear() *StateClearResponse {
 }
 
 func (x *StateResponse) SetId(v string) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 func (x *StateResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 func (x *StateResponse) SetGet(v *StateGetResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &StateResponse_Get{v}
+	x.xxx_hidden_Response = &stateResponse_Get{v}
 }
 
 func (x *StateResponse) SetAppend(v *StateAppendResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &StateResponse_Append{v}
+	x.xxx_hidden_Response = &stateResponse_Append{v}
 }
 
 func (x *StateResponse) SetClear(v *StateClearResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &StateResponse_Clear{v}
+	x.xxx_hidden_Response = &stateResponse_Clear{v}
 }
 
 func (x *StateResponse) HasResponse() bool {
 	if x == nil {
 		return false
 	}
-	return x.Response != nil
+	return x.xxx_hidden_Response != nil
 }
 
 func (x *StateResponse) HasGet() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*StateResponse_Get)
+	_, ok := x.xxx_hidden_Response.(*stateResponse_Get)
 	return ok
 }
 
@@ -3885,7 +3666,7 @@ func (x *StateResponse) HasAppend() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*StateResponse_Append)
+	_, ok := x.xxx_hidden_Response.(*stateResponse_Append)
 	return ok
 }
 
@@ -3893,29 +3674,29 @@ func (x *StateResponse) HasClear() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*StateResponse_Clear)
+	_, ok := x.xxx_hidden_Response.(*stateResponse_Clear)
 	return ok
 }
 
 func (x *StateResponse) ClearResponse() {
-	x.Response = nil
+	x.xxx_hidden_Response = nil
 }
 
 func (x *StateResponse) ClearGet() {
-	if _, ok := x.Response.(*StateResponse_Get); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*stateResponse_Get); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *StateResponse) ClearAppend() {
-	if _, ok := x.Response.(*StateResponse_Append); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*stateResponse_Append); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *StateResponse) ClearClear() {
-	if _, ok := x.Response.(*StateResponse_Clear); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*stateResponse_Clear); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
@@ -3928,12 +3709,12 @@ func (x *StateResponse) WhichResponse() case_StateResponse_Response {
 	if x == nil {
 		return StateResponse_Response_not_set_case
 	}
-	switch x.Response.(type) {
-	case *StateResponse_Get:
+	switch x.xxx_hidden_Response.(type) {
+	case *stateResponse_Get:
 		return StateResponse_Get_case
-	case *StateResponse_Append:
+	case *stateResponse_Append:
 		return StateResponse_Append_case
-	case *StateResponse_Clear:
+	case *stateResponse_Clear:
 		return StateResponse_Clear_case
 	default:
 		return StateResponse_Response_not_set_case
@@ -3953,30 +3734,30 @@ type StateResponse_builder struct {
 	Error string
 	// A corresponding response matching the request will be populated.
 
-	// Fields of oneof Response:
+	// Fields of oneof xxx_hidden_Response:
 	// A response to getting state.
 	Get *StateGetResponse
 	// A response to appending to state.
 	Append *StateAppendResponse
 	// A response to clearing state.
 	Clear *StateClearResponse
-	// -- end of Response
+	// -- end of xxx_hidden_Response
 }
 
 func (b0 StateResponse_builder) Build() *StateResponse {
 	m0 := &StateResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Id = b.Id
-	x.Error = b.Error
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_Error = b.Error
 	if b.Get != nil {
-		x.Response = &StateResponse_Get{b.Get}
+		x.xxx_hidden_Response = &stateResponse_Get{b.Get}
 	}
 	if b.Append != nil {
-		x.Response = &StateResponse_Append{b.Append}
+		x.xxx_hidden_Response = &stateResponse_Append{b.Append}
 	}
 	if b.Clear != nil {
-		x.Response = &StateResponse_Clear{b.Clear}
+		x.xxx_hidden_Response = &stateResponse_Clear{b.Clear}
 	}
 	return m0
 }
@@ -3995,45 +3776,32 @@ type isStateResponse_Response interface {
 	isStateResponse_Response()
 }
 
-type StateResponse_Get struct {
+type stateResponse_Get struct {
 	// A response to getting state.
 	Get *StateGetResponse `protobuf:"bytes,1000,opt,name=get,proto3,oneof"`
 }
 
-type StateResponse_Append struct {
+type stateResponse_Append struct {
 	// A response to appending to state.
 	Append *StateAppendResponse `protobuf:"bytes,1001,opt,name=append,proto3,oneof"`
 }
 
-type StateResponse_Clear struct {
+type stateResponse_Clear struct {
 	// A response to clearing state.
 	Clear *StateClearResponse `protobuf:"bytes,1002,opt,name=clear,proto3,oneof"`
 }
 
-func (*StateResponse_Get) isStateResponse_Response() {}
+func (*stateResponse_Get) isStateResponse_Response() {}
 
-func (*StateResponse_Append) isStateResponse_Response() {}
+func (*stateResponse_Append) isStateResponse_Response() {}
 
-func (*StateResponse_Clear) isStateResponse_Response() {}
+func (*stateResponse_Clear) isStateResponse_Response() {}
 
 type StateKey struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) One of the following state keys must be set.
-	//
-	// Types that are valid to be assigned to Type:
-	//
-	//	*StateKey_Runner_
-	//	*StateKey_MultimapSideInput_
-	//	*StateKey_BagUserState_
-	//	*StateKey_IterableSideInput_
-	//	*StateKey_MultimapKeysSideInput_
-	//	*StateKey_MultimapKeysValuesSideInput_
-	//	*StateKey_MultimapKeysUserState_
-	//	*StateKey_MultimapUserState_
-	//	*StateKey_OrderedListUserState_
-	Type          isStateKey_Type `protobuf_oneof:"type"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Type isStateKey_Type        `protobuf_oneof:"type"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StateKey) Reset() {
@@ -4061,16 +3829,9 @@ func (x *StateKey) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *StateKey) GetType() isStateKey_Type {
-	if x != nil {
-		return x.Type
-	}
-	return nil
-}
-
 func (x *StateKey) GetRunner() *StateKey_Runner {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_Runner_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_Runner_); ok {
 			return x.Runner
 		}
 	}
@@ -4079,7 +3840,7 @@ func (x *StateKey) GetRunner() *StateKey_Runner {
 
 func (x *StateKey) GetMultimapSideInput() *StateKey_MultimapSideInput {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_MultimapSideInput_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_MultimapSideInput_); ok {
 			return x.MultimapSideInput
 		}
 	}
@@ -4088,7 +3849,7 @@ func (x *StateKey) GetMultimapSideInput() *StateKey_MultimapSideInput {
 
 func (x *StateKey) GetBagUserState() *StateKey_BagUserState {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_BagUserState_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_BagUserState_); ok {
 			return x.BagUserState
 		}
 	}
@@ -4097,7 +3858,7 @@ func (x *StateKey) GetBagUserState() *StateKey_BagUserState {
 
 func (x *StateKey) GetIterableSideInput() *StateKey_IterableSideInput {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_IterableSideInput_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_IterableSideInput_); ok {
 			return x.IterableSideInput
 		}
 	}
@@ -4106,7 +3867,7 @@ func (x *StateKey) GetIterableSideInput() *StateKey_IterableSideInput {
 
 func (x *StateKey) GetMultimapKeysSideInput() *StateKey_MultimapKeysSideInput {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_MultimapKeysSideInput_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysSideInput_); ok {
 			return x.MultimapKeysSideInput
 		}
 	}
@@ -4115,7 +3876,7 @@ func (x *StateKey) GetMultimapKeysSideInput() *StateKey_MultimapKeysSideInput {
 
 func (x *StateKey) GetMultimapKeysValuesSideInput() *StateKey_MultimapKeysValuesSideInput {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_MultimapKeysValuesSideInput_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysValuesSideInput_); ok {
 			return x.MultimapKeysValuesSideInput
 		}
 	}
@@ -4124,7 +3885,7 @@ func (x *StateKey) GetMultimapKeysValuesSideInput() *StateKey_MultimapKeysValues
 
 func (x *StateKey) GetMultimapKeysUserState() *StateKey_MultimapKeysUserState {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_MultimapKeysUserState_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysUserState_); ok {
 			return x.MultimapKeysUserState
 		}
 	}
@@ -4133,7 +3894,7 @@ func (x *StateKey) GetMultimapKeysUserState() *StateKey_MultimapKeysUserState {
 
 func (x *StateKey) GetMultimapUserState() *StateKey_MultimapUserState {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_MultimapUserState_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_MultimapUserState_); ok {
 			return x.MultimapUserState
 		}
 	}
@@ -4142,7 +3903,7 @@ func (x *StateKey) GetMultimapUserState() *StateKey_MultimapUserState {
 
 func (x *StateKey) GetOrderedListUserState() *StateKey_OrderedListUserState {
 	if x != nil {
-		if x, ok := x.Type.(*StateKey_OrderedListUserState_); ok {
+		if x, ok := x.xxx_hidden_Type.(*stateKey_OrderedListUserState_); ok {
 			return x.OrderedListUserState
 		}
 	}
@@ -4151,88 +3912,88 @@ func (x *StateKey) GetOrderedListUserState() *StateKey_OrderedListUserState {
 
 func (x *StateKey) SetRunner(v *StateKey_Runner) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_Runner_{v}
+	x.xxx_hidden_Type = &stateKey_Runner_{v}
 }
 
 func (x *StateKey) SetMultimapSideInput(v *StateKey_MultimapSideInput) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_MultimapSideInput_{v}
+	x.xxx_hidden_Type = &stateKey_MultimapSideInput_{v}
 }
 
 func (x *StateKey) SetBagUserState(v *StateKey_BagUserState) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_BagUserState_{v}
+	x.xxx_hidden_Type = &stateKey_BagUserState_{v}
 }
 
 func (x *StateKey) SetIterableSideInput(v *StateKey_IterableSideInput) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_IterableSideInput_{v}
+	x.xxx_hidden_Type = &stateKey_IterableSideInput_{v}
 }
 
 func (x *StateKey) SetMultimapKeysSideInput(v *StateKey_MultimapKeysSideInput) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_MultimapKeysSideInput_{v}
+	x.xxx_hidden_Type = &stateKey_MultimapKeysSideInput_{v}
 }
 
 func (x *StateKey) SetMultimapKeysValuesSideInput(v *StateKey_MultimapKeysValuesSideInput) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_MultimapKeysValuesSideInput_{v}
+	x.xxx_hidden_Type = &stateKey_MultimapKeysValuesSideInput_{v}
 }
 
 func (x *StateKey) SetMultimapKeysUserState(v *StateKey_MultimapKeysUserState) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_MultimapKeysUserState_{v}
+	x.xxx_hidden_Type = &stateKey_MultimapKeysUserState_{v}
 }
 
 func (x *StateKey) SetMultimapUserState(v *StateKey_MultimapUserState) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_MultimapUserState_{v}
+	x.xxx_hidden_Type = &stateKey_MultimapUserState_{v}
 }
 
 func (x *StateKey) SetOrderedListUserState(v *StateKey_OrderedListUserState) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &StateKey_OrderedListUserState_{v}
+	x.xxx_hidden_Type = &stateKey_OrderedListUserState_{v}
 }
 
 func (x *StateKey) HasType() bool {
 	if x == nil {
 		return false
 	}
-	return x.Type != nil
+	return x.xxx_hidden_Type != nil
 }
 
 func (x *StateKey) HasRunner() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_Runner_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_Runner_)
 	return ok
 }
 
@@ -4240,7 +4001,7 @@ func (x *StateKey) HasMultimapSideInput() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_MultimapSideInput_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_MultimapSideInput_)
 	return ok
 }
 
@@ -4248,7 +4009,7 @@ func (x *StateKey) HasBagUserState() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_BagUserState_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_BagUserState_)
 	return ok
 }
 
@@ -4256,7 +4017,7 @@ func (x *StateKey) HasIterableSideInput() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_IterableSideInput_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_IterableSideInput_)
 	return ok
 }
 
@@ -4264,7 +4025,7 @@ func (x *StateKey) HasMultimapKeysSideInput() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_MultimapKeysSideInput_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysSideInput_)
 	return ok
 }
 
@@ -4272,7 +4033,7 @@ func (x *StateKey) HasMultimapKeysValuesSideInput() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_MultimapKeysValuesSideInput_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysValuesSideInput_)
 	return ok
 }
 
@@ -4280,7 +4041,7 @@ func (x *StateKey) HasMultimapKeysUserState() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_MultimapKeysUserState_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysUserState_)
 	return ok
 }
 
@@ -4288,7 +4049,7 @@ func (x *StateKey) HasMultimapUserState() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_MultimapUserState_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_MultimapUserState_)
 	return ok
 }
 
@@ -4296,65 +4057,65 @@ func (x *StateKey) HasOrderedListUserState() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*StateKey_OrderedListUserState_)
+	_, ok := x.xxx_hidden_Type.(*stateKey_OrderedListUserState_)
 	return ok
 }
 
 func (x *StateKey) ClearType() {
-	x.Type = nil
+	x.xxx_hidden_Type = nil
 }
 
 func (x *StateKey) ClearRunner() {
-	if _, ok := x.Type.(*StateKey_Runner_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_Runner_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearMultimapSideInput() {
-	if _, ok := x.Type.(*StateKey_MultimapSideInput_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_MultimapSideInput_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearBagUserState() {
-	if _, ok := x.Type.(*StateKey_BagUserState_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_BagUserState_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearIterableSideInput() {
-	if _, ok := x.Type.(*StateKey_IterableSideInput_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_IterableSideInput_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearMultimapKeysSideInput() {
-	if _, ok := x.Type.(*StateKey_MultimapKeysSideInput_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysSideInput_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearMultimapKeysValuesSideInput() {
-	if _, ok := x.Type.(*StateKey_MultimapKeysValuesSideInput_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysValuesSideInput_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearMultimapKeysUserState() {
-	if _, ok := x.Type.(*StateKey_MultimapKeysUserState_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_MultimapKeysUserState_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearMultimapUserState() {
-	if _, ok := x.Type.(*StateKey_MultimapUserState_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_MultimapUserState_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *StateKey) ClearOrderedListUserState() {
-	if _, ok := x.Type.(*StateKey_OrderedListUserState_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*stateKey_OrderedListUserState_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
@@ -4373,24 +4134,24 @@ func (x *StateKey) WhichType() case_StateKey_Type {
 	if x == nil {
 		return StateKey_Type_not_set_case
 	}
-	switch x.Type.(type) {
-	case *StateKey_Runner_:
+	switch x.xxx_hidden_Type.(type) {
+	case *stateKey_Runner_:
 		return StateKey_Runner_case
-	case *StateKey_MultimapSideInput_:
+	case *stateKey_MultimapSideInput_:
 		return StateKey_MultimapSideInput_case
-	case *StateKey_BagUserState_:
+	case *stateKey_BagUserState_:
 		return StateKey_BagUserState_case
-	case *StateKey_IterableSideInput_:
+	case *stateKey_IterableSideInput_:
 		return StateKey_IterableSideInput_case
-	case *StateKey_MultimapKeysSideInput_:
+	case *stateKey_MultimapKeysSideInput_:
 		return StateKey_MultimapKeysSideInput_case
-	case *StateKey_MultimapKeysValuesSideInput_:
+	case *stateKey_MultimapKeysValuesSideInput_:
 		return StateKey_MultimapKeysValuesSideInput_case
-	case *StateKey_MultimapKeysUserState_:
+	case *stateKey_MultimapKeysUserState_:
 		return StateKey_MultimapKeysUserState_case
-	case *StateKey_MultimapUserState_:
+	case *stateKey_MultimapUserState_:
 		return StateKey_MultimapUserState_case
-	case *StateKey_OrderedListUserState_:
+	case *stateKey_OrderedListUserState_:
 		return StateKey_OrderedListUserState_case
 	default:
 		return StateKey_Type_not_set_case
@@ -4402,7 +4163,7 @@ type StateKey_builder struct {
 
 	// (Required) One of the following state keys must be set.
 
-	// Fields of oneof Type:
+	// Fields of oneof xxx_hidden_Type:
 	Runner                      *StateKey_Runner
 	MultimapSideInput           *StateKey_MultimapSideInput
 	BagUserState                *StateKey_BagUserState
@@ -4412,7 +4173,7 @@ type StateKey_builder struct {
 	MultimapKeysUserState       *StateKey_MultimapKeysUserState
 	MultimapUserState           *StateKey_MultimapUserState
 	OrderedListUserState        *StateKey_OrderedListUserState
-	// -- end of Type
+	// -- end of xxx_hidden_Type
 }
 
 func (b0 StateKey_builder) Build() *StateKey {
@@ -4420,31 +4181,31 @@ func (b0 StateKey_builder) Build() *StateKey {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Runner != nil {
-		x.Type = &StateKey_Runner_{b.Runner}
+		x.xxx_hidden_Type = &stateKey_Runner_{b.Runner}
 	}
 	if b.MultimapSideInput != nil {
-		x.Type = &StateKey_MultimapSideInput_{b.MultimapSideInput}
+		x.xxx_hidden_Type = &stateKey_MultimapSideInput_{b.MultimapSideInput}
 	}
 	if b.BagUserState != nil {
-		x.Type = &StateKey_BagUserState_{b.BagUserState}
+		x.xxx_hidden_Type = &stateKey_BagUserState_{b.BagUserState}
 	}
 	if b.IterableSideInput != nil {
-		x.Type = &StateKey_IterableSideInput_{b.IterableSideInput}
+		x.xxx_hidden_Type = &stateKey_IterableSideInput_{b.IterableSideInput}
 	}
 	if b.MultimapKeysSideInput != nil {
-		x.Type = &StateKey_MultimapKeysSideInput_{b.MultimapKeysSideInput}
+		x.xxx_hidden_Type = &stateKey_MultimapKeysSideInput_{b.MultimapKeysSideInput}
 	}
 	if b.MultimapKeysValuesSideInput != nil {
-		x.Type = &StateKey_MultimapKeysValuesSideInput_{b.MultimapKeysValuesSideInput}
+		x.xxx_hidden_Type = &stateKey_MultimapKeysValuesSideInput_{b.MultimapKeysValuesSideInput}
 	}
 	if b.MultimapKeysUserState != nil {
-		x.Type = &StateKey_MultimapKeysUserState_{b.MultimapKeysUserState}
+		x.xxx_hidden_Type = &stateKey_MultimapKeysUserState_{b.MultimapKeysUserState}
 	}
 	if b.MultimapUserState != nil {
-		x.Type = &StateKey_MultimapUserState_{b.MultimapUserState}
+		x.xxx_hidden_Type = &stateKey_MultimapUserState_{b.MultimapUserState}
 	}
 	if b.OrderedListUserState != nil {
-		x.Type = &StateKey_OrderedListUserState_{b.OrderedListUserState}
+		x.xxx_hidden_Type = &stateKey_OrderedListUserState_{b.OrderedListUserState}
 	}
 	return m0
 }
@@ -4463,71 +4224,66 @@ type isStateKey_Type interface {
 	isStateKey_Type()
 }
 
-type StateKey_Runner_ struct {
+type stateKey_Runner_ struct {
 	Runner *StateKey_Runner `protobuf:"bytes,1,opt,name=runner,proto3,oneof"`
 }
 
-type StateKey_MultimapSideInput_ struct {
+type stateKey_MultimapSideInput_ struct {
 	MultimapSideInput *StateKey_MultimapSideInput `protobuf:"bytes,2,opt,name=multimap_side_input,json=multimapSideInput,proto3,oneof"`
 }
 
-type StateKey_BagUserState_ struct {
+type stateKey_BagUserState_ struct {
 	BagUserState *StateKey_BagUserState `protobuf:"bytes,3,opt,name=bag_user_state,json=bagUserState,proto3,oneof"`
 }
 
-type StateKey_IterableSideInput_ struct {
+type stateKey_IterableSideInput_ struct {
 	IterableSideInput *StateKey_IterableSideInput `protobuf:"bytes,4,opt,name=iterable_side_input,json=iterableSideInput,proto3,oneof"`
 }
 
-type StateKey_MultimapKeysSideInput_ struct {
+type stateKey_MultimapKeysSideInput_ struct {
 	MultimapKeysSideInput *StateKey_MultimapKeysSideInput `protobuf:"bytes,5,opt,name=multimap_keys_side_input,json=multimapKeysSideInput,proto3,oneof"`
 }
 
-type StateKey_MultimapKeysValuesSideInput_ struct {
+type stateKey_MultimapKeysValuesSideInput_ struct {
 	MultimapKeysValuesSideInput *StateKey_MultimapKeysValuesSideInput `protobuf:"bytes,8,opt,name=multimap_keys_values_side_input,json=multimapKeysValuesSideInput,proto3,oneof"`
 }
 
-type StateKey_MultimapKeysUserState_ struct {
+type stateKey_MultimapKeysUserState_ struct {
 	MultimapKeysUserState *StateKey_MultimapKeysUserState `protobuf:"bytes,6,opt,name=multimap_keys_user_state,json=multimapKeysUserState,proto3,oneof"`
 }
 
-type StateKey_MultimapUserState_ struct {
+type stateKey_MultimapUserState_ struct {
 	MultimapUserState *StateKey_MultimapUserState `protobuf:"bytes,7,opt,name=multimap_user_state,json=multimapUserState,proto3,oneof"`
 }
 
-type StateKey_OrderedListUserState_ struct {
+type stateKey_OrderedListUserState_ struct {
 	OrderedListUserState *StateKey_OrderedListUserState `protobuf:"bytes,9,opt,name=ordered_list_user_state,json=orderedListUserState,proto3,oneof"`
 }
 
-func (*StateKey_Runner_) isStateKey_Type() {}
+func (*stateKey_Runner_) isStateKey_Type() {}
 
-func (*StateKey_MultimapSideInput_) isStateKey_Type() {}
+func (*stateKey_MultimapSideInput_) isStateKey_Type() {}
 
-func (*StateKey_BagUserState_) isStateKey_Type() {}
+func (*stateKey_BagUserState_) isStateKey_Type() {}
 
-func (*StateKey_IterableSideInput_) isStateKey_Type() {}
+func (*stateKey_IterableSideInput_) isStateKey_Type() {}
 
-func (*StateKey_MultimapKeysSideInput_) isStateKey_Type() {}
+func (*stateKey_MultimapKeysSideInput_) isStateKey_Type() {}
 
-func (*StateKey_MultimapKeysValuesSideInput_) isStateKey_Type() {}
+func (*stateKey_MultimapKeysValuesSideInput_) isStateKey_Type() {}
 
-func (*StateKey_MultimapKeysUserState_) isStateKey_Type() {}
+func (*stateKey_MultimapKeysUserState_) isStateKey_Type() {}
 
-func (*StateKey_MultimapUserState_) isStateKey_Type() {}
+func (*stateKey_MultimapUserState_) isStateKey_Type() {}
 
-func (*StateKey_OrderedListUserState_) isStateKey_Type() {}
+func (*stateKey_OrderedListUserState_) isStateKey_Type() {}
 
 // A request to get state.
 type StateGetRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) If specified, signals to the runner that the response
-	// should resume from the following continuation token.
-	//
-	// If unspecified, signals to the runner that the response should start
-	// from the beginning of the logical continuable stream.
-	ContinuationToken []byte `protobuf:"bytes,1,opt,name=continuation_token,json=continuationToken,proto3" json:"continuation_token,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ContinuationToken []byte                 `protobuf:"bytes,1,opt,name=continuation_token,json=continuationToken,proto3" json:"continuation_token,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *StateGetRequest) Reset() {
@@ -4557,7 +4313,7 @@ func (x *StateGetRequest) ProtoReflect() protoreflect.Message {
 
 func (x *StateGetRequest) GetContinuationToken() []byte {
 	if x != nil {
-		return x.ContinuationToken
+		return x.xxx_hidden_ContinuationToken
 	}
 	return nil
 }
@@ -4566,7 +4322,7 @@ func (x *StateGetRequest) SetContinuationToken(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.ContinuationToken = v
+	x.xxx_hidden_ContinuationToken = v
 }
 
 type StateGetRequest_builder struct {
@@ -4584,26 +4340,18 @@ func (b0 StateGetRequest_builder) Build() *StateGetRequest {
 	m0 := &StateGetRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ContinuationToken = b.ContinuationToken
+	x.xxx_hidden_ContinuationToken = b.ContinuationToken
 	return m0
 }
 
 // A response to get state representing a logical byte stream which can be
 // continued using the state API.
 type StateGetResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) If specified, represents a token which can be used with the
-	// state API to get the next chunk of this logical byte stream. The end of
-	// the logical byte stream is signalled by this field being unset.
-	ContinuationToken []byte `protobuf:"bytes,1,opt,name=continuation_token,json=continuationToken,proto3" json:"continuation_token,omitempty"`
-	// Represents a part of a logical byte stream. Elements within
-	// the logical byte stream are encoded in the nested context and
-	// concatenated together.
-	//
-	// See also the note about OrderedListState in StateAppendRequest.
-	Data          []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ContinuationToken []byte                 `protobuf:"bytes,1,opt,name=continuation_token,json=continuationToken,proto3" json:"continuation_token,omitempty"`
+	xxx_hidden_Data              []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *StateGetResponse) Reset() {
@@ -4633,14 +4381,14 @@ func (x *StateGetResponse) ProtoReflect() protoreflect.Message {
 
 func (x *StateGetResponse) GetContinuationToken() []byte {
 	if x != nil {
-		return x.ContinuationToken
+		return x.xxx_hidden_ContinuationToken
 	}
 	return nil
 }
 
 func (x *StateGetResponse) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
@@ -4649,14 +4397,14 @@ func (x *StateGetResponse) SetContinuationToken(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.ContinuationToken = v
+	x.xxx_hidden_ContinuationToken = v
 }
 
 func (x *StateGetResponse) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 type StateGetResponse_builder struct {
@@ -4678,25 +4426,17 @@ func (b0 StateGetResponse_builder) Build() *StateGetResponse {
 	m0 := &StateGetResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ContinuationToken = b.ContinuationToken
-	x.Data = b.Data
+	x.xxx_hidden_ContinuationToken = b.ContinuationToken
+	x.xxx_hidden_Data = b.Data
 	return m0
 }
 
 // A request to append state.
 type StateAppendRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Represents a part of a logical byte stream. Elements within
-	// the logical byte stream are encoded in the nested context and
-	// multiple append requests are concatenated together.
-	//
-	// For OrderedListState, elements of should be encoded with the
-	// beam:coder:kv:v1 coder, where the first (key) component must be a
-	// beam:coder:varint:v1 and the second (value) component must be encoded
-	// with a beam:coder:length_prefix:v1 coder.
-	Data          []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StateAppendRequest) Reset() {
@@ -4726,7 +4466,7 @@ func (x *StateAppendRequest) ProtoReflect() protoreflect.Message {
 
 func (x *StateAppendRequest) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
@@ -4735,7 +4475,7 @@ func (x *StateAppendRequest) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 type StateAppendRequest_builder struct {
@@ -4756,13 +4496,13 @@ func (b0 StateAppendRequest_builder) Build() *StateAppendRequest {
 	m0 := &StateAppendRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Data = b.Data
+	x.xxx_hidden_Data = b.Data
 	return m0
 }
 
 // A response to append state.
 type StateAppendResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4806,7 +4546,7 @@ func (b0 StateAppendResponse_builder) Build() *StateAppendResponse {
 
 // A request to clear state.
 type StateClearRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4850,7 +4590,7 @@ func (b0 StateClearRequest_builder) Build() *StateClearRequest {
 
 // A response to clear state.
 type StateClearResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4894,11 +4634,11 @@ func (b0 StateClearResponse_builder) Build() *StateClearResponse {
 
 // A message describes a sort key range [start, end).
 type OrderedListRange struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Start         int64                  `protobuf:"varint,1,opt,name=start,proto3" json:"start,omitempty"`
-	End           int64                  `protobuf:"varint,2,opt,name=end,proto3" json:"end,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Start int64                  `protobuf:"varint,1,opt,name=start,proto3" json:"start,omitempty"`
+	xxx_hidden_End   int64                  `protobuf:"varint,2,opt,name=end,proto3" json:"end,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *OrderedListRange) Reset() {
@@ -4928,24 +4668,24 @@ func (x *OrderedListRange) ProtoReflect() protoreflect.Message {
 
 func (x *OrderedListRange) GetStart() int64 {
 	if x != nil {
-		return x.Start
+		return x.xxx_hidden_Start
 	}
 	return 0
 }
 
 func (x *OrderedListRange) GetEnd() int64 {
 	if x != nil {
-		return x.End
+		return x.xxx_hidden_End
 	}
 	return 0
 }
 
 func (x *OrderedListRange) SetStart(v int64) {
-	x.Start = v
+	x.xxx_hidden_Start = v
 }
 
 func (x *OrderedListRange) SetEnd(v int64) {
-	x.End = v
+	x.xxx_hidden_End = v
 }
 
 type OrderedListRange_builder struct {
@@ -4959,45 +4699,25 @@ func (b0 OrderedListRange_builder) Build() *OrderedListRange {
 	m0 := &OrderedListRange{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Start = b.Start
-	x.End = b.End
+	x.xxx_hidden_Start = b.Start
+	x.xxx_hidden_End = b.End
 	return m0
 }
 
 // A log entry
 type LogEntry struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The severity of the log statement.
-	Severity LogEntry_Severity_Enum `protobuf:"varint,1,opt,name=severity,proto3,enum=org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum" json:"severity,omitempty"`
-	// (Required) The time at which this log statement occurred.
-	Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// (Required) A human readable message.
-	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	// (Optional) An optional trace of the functions involved. For example, in
-	// Java this can include multiple causes and multiple suppressed exceptions.
-	Trace string `protobuf:"bytes,4,opt,name=trace,proto3" json:"trace,omitempty"`
-	// (Optional) A reference to the instruction this log statement is associated
-	// with.
-	InstructionId string `protobuf:"bytes,5,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Optional) A reference to the transform this log statement is
-	// associated with.
-	TransformId string `protobuf:"bytes,6,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Optional) Human-readable name of the function or method being invoked,
-	// with optional context such as the class or package name. The format can
-	// vary by language. For example:
-	//
-	//	qual.if.ied.Class.method (Java)
-	//	dir/package.func (Go)
-	//	module.function (Python)
-	//	file.cc:382 (C++)
-	LogLocation string `protobuf:"bytes,7,opt,name=log_location,json=logLocation,proto3" json:"log_location,omitempty"`
-	// (Optional) The name of the thread this log statement is associated with.
-	Thread string `protobuf:"bytes,8,opt,name=thread,proto3" json:"thread,omitempty"`
-	// (Optional) Additional structured data to log.
-	// Keys are limited to these characters: [a-zA-Z_-]
-	CustomData    *structpb.Struct `protobuf:"bytes,9,opt,name=custom_data,json=customData,proto3" json:"custom_data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Severity      LogEntry_Severity_Enum `protobuf:"varint,1,opt,name=severity,proto3,enum=org.apache.beam.model.fn_execution.v1.LogEntry_Severity_Enum" json:"severity,omitempty"`
+	xxx_hidden_Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	xxx_hidden_Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	xxx_hidden_Trace         string                 `protobuf:"bytes,4,opt,name=trace,proto3" json:"trace,omitempty"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,5,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_TransformId   string                 `protobuf:"bytes,6,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_LogLocation   string                 `protobuf:"bytes,7,opt,name=log_location,json=logLocation,proto3" json:"log_location,omitempty"`
+	xxx_hidden_Thread        string                 `protobuf:"bytes,8,opt,name=thread,proto3" json:"thread,omitempty"`
+	xxx_hidden_CustomData    *structpb.Struct       `protobuf:"bytes,9,opt,name=custom_data,json=customData,proto3" json:"custom_data,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *LogEntry) Reset() {
@@ -5027,123 +4747,123 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 func (x *LogEntry) GetSeverity() LogEntry_Severity_Enum {
 	if x != nil {
-		return x.Severity
+		return x.xxx_hidden_Severity
 	}
 	return LogEntry_Severity_UNSPECIFIED
 }
 
 func (x *LogEntry) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Timestamp
+		return x.xxx_hidden_Timestamp
 	}
 	return nil
 }
 
 func (x *LogEntry) GetMessage() string {
 	if x != nil {
-		return x.Message
+		return x.xxx_hidden_Message
 	}
 	return ""
 }
 
 func (x *LogEntry) GetTrace() string {
 	if x != nil {
-		return x.Trace
+		return x.xxx_hidden_Trace
 	}
 	return ""
 }
 
 func (x *LogEntry) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *LogEntry) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *LogEntry) GetLogLocation() string {
 	if x != nil {
-		return x.LogLocation
+		return x.xxx_hidden_LogLocation
 	}
 	return ""
 }
 
 func (x *LogEntry) GetThread() string {
 	if x != nil {
-		return x.Thread
+		return x.xxx_hidden_Thread
 	}
 	return ""
 }
 
 func (x *LogEntry) GetCustomData() *structpb.Struct {
 	if x != nil {
-		return x.CustomData
+		return x.xxx_hidden_CustomData
 	}
 	return nil
 }
 
 func (x *LogEntry) SetSeverity(v LogEntry_Severity_Enum) {
-	x.Severity = v
+	x.xxx_hidden_Severity = v
 }
 
 func (x *LogEntry) SetTimestamp(v *timestamppb.Timestamp) {
-	x.Timestamp = v
+	x.xxx_hidden_Timestamp = v
 }
 
 func (x *LogEntry) SetMessage(v string) {
-	x.Message = v
+	x.xxx_hidden_Message = v
 }
 
 func (x *LogEntry) SetTrace(v string) {
-	x.Trace = v
+	x.xxx_hidden_Trace = v
 }
 
 func (x *LogEntry) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *LogEntry) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *LogEntry) SetLogLocation(v string) {
-	x.LogLocation = v
+	x.xxx_hidden_LogLocation = v
 }
 
 func (x *LogEntry) SetThread(v string) {
-	x.Thread = v
+	x.xxx_hidden_Thread = v
 }
 
 func (x *LogEntry) SetCustomData(v *structpb.Struct) {
-	x.CustomData = v
+	x.xxx_hidden_CustomData = v
 }
 
 func (x *LogEntry) HasTimestamp() bool {
 	if x == nil {
 		return false
 	}
-	return x.Timestamp != nil
+	return x.xxx_hidden_Timestamp != nil
 }
 
 func (x *LogEntry) HasCustomData() bool {
 	if x == nil {
 		return false
 	}
-	return x.CustomData != nil
+	return x.xxx_hidden_CustomData != nil
 }
 
 func (x *LogEntry) ClearTimestamp() {
-	x.Timestamp = nil
+	x.xxx_hidden_Timestamp = nil
 }
 
 func (x *LogEntry) ClearCustomData() {
-	x.CustomData = nil
+	x.xxx_hidden_CustomData = nil
 }
 
 type LogEntry_builder struct {
@@ -5184,20 +4904,20 @@ func (b0 LogEntry_builder) Build() *LogEntry {
 	m0 := &LogEntry{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Severity = b.Severity
-	x.Timestamp = b.Timestamp
-	x.Message = b.Message
-	x.Trace = b.Trace
-	x.InstructionId = b.InstructionId
-	x.TransformId = b.TransformId
-	x.LogLocation = b.LogLocation
-	x.Thread = b.Thread
-	x.CustomData = b.CustomData
+	x.xxx_hidden_Severity = b.Severity
+	x.xxx_hidden_Timestamp = b.Timestamp
+	x.xxx_hidden_Message = b.Message
+	x.xxx_hidden_Trace = b.Trace
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_LogLocation = b.LogLocation
+	x.xxx_hidden_Thread = b.Thread
+	x.xxx_hidden_CustomData = b.CustomData
 	return m0
 }
 
 type LogControl struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5240,15 +4960,15 @@ func (b0 LogControl_builder) Build() *LogControl {
 }
 
 type StartWorkerRequest struct {
-	state             protoimpl.MessageState            `protogen:"hybrid.v1"`
-	WorkerId          string                            `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	ControlEndpoint   *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=control_endpoint,json=controlEndpoint,proto3" json:"control_endpoint,omitempty"`
-	LoggingEndpoint   *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,3,opt,name=logging_endpoint,json=loggingEndpoint,proto3" json:"logging_endpoint,omitempty"`
-	ArtifactEndpoint  *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,4,opt,name=artifact_endpoint,json=artifactEndpoint,proto3" json:"artifact_endpoint,omitempty"`
-	ProvisionEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,5,opt,name=provision_endpoint,json=provisionEndpoint,proto3" json:"provision_endpoint,omitempty"`
-	Params            map[string]string                 `protobuf:"bytes,10,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                        protoimpl.MessageState            `protogen:"opaque.v1"`
+	xxx_hidden_WorkerId          string                            `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	xxx_hidden_ControlEndpoint   *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=control_endpoint,json=controlEndpoint,proto3" json:"control_endpoint,omitempty"`
+	xxx_hidden_LoggingEndpoint   *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,3,opt,name=logging_endpoint,json=loggingEndpoint,proto3" json:"logging_endpoint,omitempty"`
+	xxx_hidden_ArtifactEndpoint  *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,4,opt,name=artifact_endpoint,json=artifactEndpoint,proto3" json:"artifact_endpoint,omitempty"`
+	xxx_hidden_ProvisionEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,5,opt,name=provision_endpoint,json=provisionEndpoint,proto3" json:"provision_endpoint,omitempty"`
+	xxx_hidden_Params            map[string]string                 `protobuf:"bytes,10,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *StartWorkerRequest) Reset() {
@@ -5278,112 +4998,112 @@ func (x *StartWorkerRequest) ProtoReflect() protoreflect.Message {
 
 func (x *StartWorkerRequest) GetWorkerId() string {
 	if x != nil {
-		return x.WorkerId
+		return x.xxx_hidden_WorkerId
 	}
 	return ""
 }
 
 func (x *StartWorkerRequest) GetControlEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ControlEndpoint
+		return x.xxx_hidden_ControlEndpoint
 	}
 	return nil
 }
 
 func (x *StartWorkerRequest) GetLoggingEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.LoggingEndpoint
+		return x.xxx_hidden_LoggingEndpoint
 	}
 	return nil
 }
 
 func (x *StartWorkerRequest) GetArtifactEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ArtifactEndpoint
+		return x.xxx_hidden_ArtifactEndpoint
 	}
 	return nil
 }
 
 func (x *StartWorkerRequest) GetProvisionEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ProvisionEndpoint
+		return x.xxx_hidden_ProvisionEndpoint
 	}
 	return nil
 }
 
 func (x *StartWorkerRequest) GetParams() map[string]string {
 	if x != nil {
-		return x.Params
+		return x.xxx_hidden_Params
 	}
 	return nil
 }
 
 func (x *StartWorkerRequest) SetWorkerId(v string) {
-	x.WorkerId = v
+	x.xxx_hidden_WorkerId = v
 }
 
 func (x *StartWorkerRequest) SetControlEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ControlEndpoint = v
+	x.xxx_hidden_ControlEndpoint = v
 }
 
 func (x *StartWorkerRequest) SetLoggingEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.LoggingEndpoint = v
+	x.xxx_hidden_LoggingEndpoint = v
 }
 
 func (x *StartWorkerRequest) SetArtifactEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ArtifactEndpoint = v
+	x.xxx_hidden_ArtifactEndpoint = v
 }
 
 func (x *StartWorkerRequest) SetProvisionEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ProvisionEndpoint = v
+	x.xxx_hidden_ProvisionEndpoint = v
 }
 
 func (x *StartWorkerRequest) SetParams(v map[string]string) {
-	x.Params = v
+	x.xxx_hidden_Params = v
 }
 
 func (x *StartWorkerRequest) HasControlEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.ControlEndpoint != nil
+	return x.xxx_hidden_ControlEndpoint != nil
 }
 
 func (x *StartWorkerRequest) HasLoggingEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.LoggingEndpoint != nil
+	return x.xxx_hidden_LoggingEndpoint != nil
 }
 
 func (x *StartWorkerRequest) HasArtifactEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.ArtifactEndpoint != nil
+	return x.xxx_hidden_ArtifactEndpoint != nil
 }
 
 func (x *StartWorkerRequest) HasProvisionEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.ProvisionEndpoint != nil
+	return x.xxx_hidden_ProvisionEndpoint != nil
 }
 
 func (x *StartWorkerRequest) ClearControlEndpoint() {
-	x.ControlEndpoint = nil
+	x.xxx_hidden_ControlEndpoint = nil
 }
 
 func (x *StartWorkerRequest) ClearLoggingEndpoint() {
-	x.LoggingEndpoint = nil
+	x.xxx_hidden_LoggingEndpoint = nil
 }
 
 func (x *StartWorkerRequest) ClearArtifactEndpoint() {
-	x.ArtifactEndpoint = nil
+	x.xxx_hidden_ArtifactEndpoint = nil
 }
 
 func (x *StartWorkerRequest) ClearProvisionEndpoint() {
-	x.ProvisionEndpoint = nil
+	x.xxx_hidden_ProvisionEndpoint = nil
 }
 
 type StartWorkerRequest_builder struct {
@@ -5401,20 +5121,20 @@ func (b0 StartWorkerRequest_builder) Build() *StartWorkerRequest {
 	m0 := &StartWorkerRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.WorkerId = b.WorkerId
-	x.ControlEndpoint = b.ControlEndpoint
-	x.LoggingEndpoint = b.LoggingEndpoint
-	x.ArtifactEndpoint = b.ArtifactEndpoint
-	x.ProvisionEndpoint = b.ProvisionEndpoint
-	x.Params = b.Params
+	x.xxx_hidden_WorkerId = b.WorkerId
+	x.xxx_hidden_ControlEndpoint = b.ControlEndpoint
+	x.xxx_hidden_LoggingEndpoint = b.LoggingEndpoint
+	x.xxx_hidden_ArtifactEndpoint = b.ArtifactEndpoint
+	x.xxx_hidden_ProvisionEndpoint = b.ProvisionEndpoint
+	x.xxx_hidden_Params = b.Params
 	return m0
 }
 
 type StartWorkerResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Error string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *StartWorkerResponse) Reset() {
@@ -5444,13 +5164,13 @@ func (x *StartWorkerResponse) ProtoReflect() protoreflect.Message {
 
 func (x *StartWorkerResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
 func (x *StartWorkerResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 type StartWorkerResponse_builder struct {
@@ -5463,15 +5183,15 @@ func (b0 StartWorkerResponse_builder) Build() *StartWorkerResponse {
 	m0 := &StartWorkerResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Error = b.Error
+	x.xxx_hidden_Error = b.Error
 	return m0
 }
 
 type StopWorkerRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StopWorkerRequest) Reset() {
@@ -5501,13 +5221,13 @@ func (x *StopWorkerRequest) ProtoReflect() protoreflect.Message {
 
 func (x *StopWorkerRequest) GetWorkerId() string {
 	if x != nil {
-		return x.WorkerId
+		return x.xxx_hidden_WorkerId
 	}
 	return ""
 }
 
 func (x *StopWorkerRequest) SetWorkerId(v string) {
-	x.WorkerId = v
+	x.xxx_hidden_WorkerId = v
 }
 
 type StopWorkerRequest_builder struct {
@@ -5520,15 +5240,15 @@ func (b0 StopWorkerRequest_builder) Build() *StopWorkerRequest {
 	m0 := &StopWorkerRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.WorkerId = b.WorkerId
+	x.xxx_hidden_WorkerId = b.WorkerId
 	return m0
 }
 
 type StopWorkerResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Error string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *StopWorkerResponse) Reset() {
@@ -5558,13 +5278,13 @@ func (x *StopWorkerResponse) ProtoReflect() protoreflect.Message {
 
 func (x *StopWorkerResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
 func (x *StopWorkerResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 type StopWorkerResponse_builder struct {
@@ -5577,16 +5297,15 @@ func (b0 StopWorkerResponse_builder) Build() *StopWorkerResponse {
 	m0 := &StopWorkerResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Error = b.Error
+	x.xxx_hidden_Error = b.Error
 	return m0
 }
 
 // Request from runner to SDK Harness asking for its status. For more details see
 // https://s.apache.org/beam-fn-api-harness-status
 type WorkerStatusRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Unique ID identifying this request.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5618,13 +5337,13 @@ func (x *WorkerStatusRequest) ProtoReflect() protoreflect.Message {
 
 func (x *WorkerStatusRequest) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *WorkerStatusRequest) SetId(v string) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 type WorkerStatusRequest_builder struct {
@@ -5638,25 +5357,18 @@ func (b0 WorkerStatusRequest_builder) Build() *WorkerStatusRequest {
 	m0 := &WorkerStatusRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Id = b.Id
+	x.xxx_hidden_Id = b.Id
 	return m0
 }
 
 // Response from SDK Harness to runner containing the debug related status info.
 type WorkerStatusResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Unique ID from the original request.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// (Optional) Error message if exception encountered generating the status response.
-	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	// (Optional) Status debugging info reported by SDK harness worker. Content and
-	// format is not strongly enforced but should be print-friendly and
-	// appropriate as an HTTP response body for end user. For details of the preferred
-	// info to include in the message see
-	// https://s.apache.org/beam-fn-api-harness-status
-	StatusInfo    string `protobuf:"bytes,3,opt,name=status_info,json=statusInfo,proto3" json:"status_info,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	xxx_hidden_Error      string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	xxx_hidden_StatusInfo string                 `protobuf:"bytes,3,opt,name=status_info,json=statusInfo,proto3" json:"status_info,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *WorkerStatusResponse) Reset() {
@@ -5686,35 +5398,35 @@ func (x *WorkerStatusResponse) ProtoReflect() protoreflect.Message {
 
 func (x *WorkerStatusResponse) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *WorkerStatusResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
 func (x *WorkerStatusResponse) GetStatusInfo() string {
 	if x != nil {
-		return x.StatusInfo
+		return x.xxx_hidden_StatusInfo
 	}
 	return ""
 }
 
 func (x *WorkerStatusResponse) SetId(v string) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 func (x *WorkerStatusResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 func (x *WorkerStatusResponse) SetStatusInfo(v string) {
-	x.StatusInfo = v
+	x.xxx_hidden_StatusInfo = v
 }
 
 type WorkerStatusResponse_builder struct {
@@ -5736,24 +5448,19 @@ func (b0 WorkerStatusResponse_builder) Build() *WorkerStatusResponse {
 	m0 := &WorkerStatusResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Id = b.Id
-	x.Error = b.Error
-	x.StatusInfo = b.StatusInfo
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_Error = b.Error
+	x.xxx_hidden_StatusInfo = b.StatusInfo
 	return m0
 }
 
 type SampledElement_Exception struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The instruction ID of the associated ProcessBundleRequest.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Required) The transform ID of the executing PTransform during the
-	// exception.
-	TransformId string `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The error message to be displayed to the user. Can use the
-	// other fields to query for contextual logs.
-	Error         string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_TransformId   string                 `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *SampledElement_Exception) Reset() {
@@ -5783,35 +5490,35 @@ func (x *SampledElement_Exception) ProtoReflect() protoreflect.Message {
 
 func (x *SampledElement_Exception) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *SampledElement_Exception) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *SampledElement_Exception) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
 func (x *SampledElement_Exception) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *SampledElement_Exception) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *SampledElement_Exception) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 type SampledElement_Exception_builder struct {
@@ -5831,18 +5538,17 @@ func (b0 SampledElement_Exception_builder) Build() *SampledElement_Exception {
 	m0 := &SampledElement_Exception{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
-	x.TransformId = b.TransformId
-	x.Error = b.Error
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_Error = b.Error
 	return m0
 }
 
 type SampleDataResponse_ElementList struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Required. The individual elements sampled from a PCollection.
-	Elements      []*SampledElement `protobuf:"bytes,1,rep,name=elements,proto3" json:"elements,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Elements *[]*SampledElement     `protobuf:"bytes,1,rep,name=elements,proto3" json:"elements,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SampleDataResponse_ElementList) Reset() {
@@ -5872,13 +5578,15 @@ func (x *SampleDataResponse_ElementList) ProtoReflect() protoreflect.Message {
 
 func (x *SampleDataResponse_ElementList) GetElements() []*SampledElement {
 	if x != nil {
-		return x.Elements
+		if x.xxx_hidden_Elements != nil {
+			return *x.xxx_hidden_Elements
+		}
 	}
 	return nil
 }
 
 func (x *SampleDataResponse_ElementList) SetElements(v []*SampledElement) {
-	x.Elements = v
+	x.xxx_hidden_Elements = &v
 }
 
 type SampleDataResponse_ElementList_builder struct {
@@ -5892,7 +5600,7 @@ func (b0 SampleDataResponse_ElementList_builder) Build() *SampleDataResponse_Ele
 	m0 := &SampleDataResponse_ElementList{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Elements = b.Elements
+	x.xxx_hidden_Elements = &b.Elements
 	return m0
 }
 
@@ -5902,19 +5610,11 @@ func (b0 SampleDataResponse_ElementList_builder) Build() *SampleDataResponse_Ele
 // for additional details on how to use the cache token with the State API
 // to cache data across bundle boundaries.
 type ProcessBundleRequest_CacheToken struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// The scope of a cache token.
-	//
-	// Types that are valid to be assigned to Type:
-	//
-	//	*ProcessBundleRequest_CacheToken_UserState_
-	//	*ProcessBundleRequest_CacheToken_SideInput_
-	Type isProcessBundleRequest_CacheToken_Type `protobuf_oneof:"type"`
-	// An opaque token used with the StateKey to create a globally unique
-	// identifier.
-	Token         []byte `protobuf:"bytes,10,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState                 `protogen:"opaque.v1"`
+	xxx_hidden_Type  isProcessBundleRequest_CacheToken_Type `protobuf_oneof:"type"`
+	xxx_hidden_Token []byte                                 `protobuf:"bytes,10,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProcessBundleRequest_CacheToken) Reset() {
@@ -5942,16 +5642,9 @@ func (x *ProcessBundleRequest_CacheToken) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *ProcessBundleRequest_CacheToken) GetType() isProcessBundleRequest_CacheToken_Type {
-	if x != nil {
-		return x.Type
-	}
-	return nil
-}
-
 func (x *ProcessBundleRequest_CacheToken) GetUserState() *ProcessBundleRequest_CacheToken_UserState {
 	if x != nil {
-		if x, ok := x.Type.(*ProcessBundleRequest_CacheToken_UserState_); ok {
+		if x, ok := x.xxx_hidden_Type.(*processBundleRequest_CacheToken_UserState_); ok {
 			return x.UserState
 		}
 	}
@@ -5960,7 +5653,7 @@ func (x *ProcessBundleRequest_CacheToken) GetUserState() *ProcessBundleRequest_C
 
 func (x *ProcessBundleRequest_CacheToken) GetSideInput() *ProcessBundleRequest_CacheToken_SideInput {
 	if x != nil {
-		if x, ok := x.Type.(*ProcessBundleRequest_CacheToken_SideInput_); ok {
+		if x, ok := x.xxx_hidden_Type.(*processBundleRequest_CacheToken_SideInput_); ok {
 			return x.SideInput
 		}
 	}
@@ -5969,46 +5662,46 @@ func (x *ProcessBundleRequest_CacheToken) GetSideInput() *ProcessBundleRequest_C
 
 func (x *ProcessBundleRequest_CacheToken) GetToken() []byte {
 	if x != nil {
-		return x.Token
+		return x.xxx_hidden_Token
 	}
 	return nil
 }
 
 func (x *ProcessBundleRequest_CacheToken) SetUserState(v *ProcessBundleRequest_CacheToken_UserState) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &ProcessBundleRequest_CacheToken_UserState_{v}
+	x.xxx_hidden_Type = &processBundleRequest_CacheToken_UserState_{v}
 }
 
 func (x *ProcessBundleRequest_CacheToken) SetSideInput(v *ProcessBundleRequest_CacheToken_SideInput) {
 	if v == nil {
-		x.Type = nil
+		x.xxx_hidden_Type = nil
 		return
 	}
-	x.Type = &ProcessBundleRequest_CacheToken_SideInput_{v}
+	x.xxx_hidden_Type = &processBundleRequest_CacheToken_SideInput_{v}
 }
 
 func (x *ProcessBundleRequest_CacheToken) SetToken(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Token = v
+	x.xxx_hidden_Token = v
 }
 
 func (x *ProcessBundleRequest_CacheToken) HasType() bool {
 	if x == nil {
 		return false
 	}
-	return x.Type != nil
+	return x.xxx_hidden_Type != nil
 }
 
 func (x *ProcessBundleRequest_CacheToken) HasUserState() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*ProcessBundleRequest_CacheToken_UserState_)
+	_, ok := x.xxx_hidden_Type.(*processBundleRequest_CacheToken_UserState_)
 	return ok
 }
 
@@ -6016,23 +5709,23 @@ func (x *ProcessBundleRequest_CacheToken) HasSideInput() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Type.(*ProcessBundleRequest_CacheToken_SideInput_)
+	_, ok := x.xxx_hidden_Type.(*processBundleRequest_CacheToken_SideInput_)
 	return ok
 }
 
 func (x *ProcessBundleRequest_CacheToken) ClearType() {
-	x.Type = nil
+	x.xxx_hidden_Type = nil
 }
 
 func (x *ProcessBundleRequest_CacheToken) ClearUserState() {
-	if _, ok := x.Type.(*ProcessBundleRequest_CacheToken_UserState_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*processBundleRequest_CacheToken_UserState_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
 func (x *ProcessBundleRequest_CacheToken) ClearSideInput() {
-	if _, ok := x.Type.(*ProcessBundleRequest_CacheToken_SideInput_); ok {
-		x.Type = nil
+	if _, ok := x.xxx_hidden_Type.(*processBundleRequest_CacheToken_SideInput_); ok {
+		x.xxx_hidden_Type = nil
 	}
 }
 
@@ -6044,10 +5737,10 @@ func (x *ProcessBundleRequest_CacheToken) WhichType() case_ProcessBundleRequest_
 	if x == nil {
 		return ProcessBundleRequest_CacheToken_Type_not_set_case
 	}
-	switch x.Type.(type) {
-	case *ProcessBundleRequest_CacheToken_UserState_:
+	switch x.xxx_hidden_Type.(type) {
+	case *processBundleRequest_CacheToken_UserState_:
 		return ProcessBundleRequest_CacheToken_UserState_case
-	case *ProcessBundleRequest_CacheToken_SideInput_:
+	case *processBundleRequest_CacheToken_SideInput_:
 		return ProcessBundleRequest_CacheToken_SideInput_case
 	default:
 		return ProcessBundleRequest_CacheToken_Type_not_set_case
@@ -6059,10 +5752,10 @@ type ProcessBundleRequest_CacheToken_builder struct {
 
 	// The scope of a cache token.
 
-	// Fields of oneof Type:
+	// Fields of oneof xxx_hidden_Type:
 	UserState *ProcessBundleRequest_CacheToken_UserState
 	SideInput *ProcessBundleRequest_CacheToken_SideInput
-	// -- end of Type
+	// -- end of xxx_hidden_Type
 	// An opaque token used with the StateKey to create a globally unique
 	// identifier.
 	Token []byte
@@ -6073,12 +5766,12 @@ func (b0 ProcessBundleRequest_CacheToken_builder) Build() *ProcessBundleRequest_
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.UserState != nil {
-		x.Type = &ProcessBundleRequest_CacheToken_UserState_{b.UserState}
+		x.xxx_hidden_Type = &processBundleRequest_CacheToken_UserState_{b.UserState}
 	}
 	if b.SideInput != nil {
-		x.Type = &ProcessBundleRequest_CacheToken_SideInput_{b.SideInput}
+		x.xxx_hidden_Type = &processBundleRequest_CacheToken_SideInput_{b.SideInput}
 	}
-	x.Token = b.Token
+	x.xxx_hidden_Token = b.Token
 	return m0
 }
 
@@ -6096,21 +5789,21 @@ type isProcessBundleRequest_CacheToken_Type interface {
 	isProcessBundleRequest_CacheToken_Type()
 }
 
-type ProcessBundleRequest_CacheToken_UserState_ struct {
+type processBundleRequest_CacheToken_UserState_ struct {
 	UserState *ProcessBundleRequest_CacheToken_UserState `protobuf:"bytes,1,opt,name=user_state,json=userState,proto3,oneof"`
 }
 
-type ProcessBundleRequest_CacheToken_SideInput_ struct {
+type processBundleRequest_CacheToken_SideInput_ struct {
 	SideInput *ProcessBundleRequest_CacheToken_SideInput `protobuf:"bytes,2,opt,name=side_input,json=sideInput,proto3,oneof"`
 }
 
-func (*ProcessBundleRequest_CacheToken_UserState_) isProcessBundleRequest_CacheToken_Type() {}
+func (*processBundleRequest_CacheToken_UserState_) isProcessBundleRequest_CacheToken_Type() {}
 
-func (*ProcessBundleRequest_CacheToken_SideInput_) isProcessBundleRequest_CacheToken_Type() {}
+func (*processBundleRequest_CacheToken_SideInput_) isProcessBundleRequest_CacheToken_Type() {}
 
 // A flag to indicate a cache token is valid for all user state.
 type ProcessBundleRequest_CacheToken_UserState struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6154,13 +5847,11 @@ func (b0 ProcessBundleRequest_CacheToken_UserState_builder) Build() *ProcessBund
 
 // A flag to indicate a cache token is valid for a side input.
 type ProcessBundleRequest_CacheToken_SideInput struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing a side input.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the side input.
-	SideInputId   string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_SideInputId string                 `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ProcessBundleRequest_CacheToken_SideInput) Reset() {
@@ -6190,24 +5881,24 @@ func (x *ProcessBundleRequest_CacheToken_SideInput) ProtoReflect() protoreflect.
 
 func (x *ProcessBundleRequest_CacheToken_SideInput) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *ProcessBundleRequest_CacheToken_SideInput) GetSideInputId() string {
 	if x != nil {
-		return x.SideInputId
+		return x.xxx_hidden_SideInputId
 	}
 	return ""
 }
 
 func (x *ProcessBundleRequest_CacheToken_SideInput) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *ProcessBundleRequest_CacheToken_SideInput) SetSideInputId(v string) {
-	x.SideInputId = v
+	x.xxx_hidden_SideInputId = v
 }
 
 type ProcessBundleRequest_CacheToken_SideInput_builder struct {
@@ -6223,29 +5914,19 @@ func (b0 ProcessBundleRequest_CacheToken_SideInput_builder) Build() *ProcessBund
 	m0 := &ProcessBundleRequest_CacheToken_SideInput{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.SideInputId = b.SideInputId
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_SideInputId = b.SideInputId
 	return m0
 }
 
 // A message specifying the desired split for a single transform.
 type ProcessBundleSplitRequest_DesiredSplit struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The fraction of known work remaining in this bundle
-	// for this transform that should be kept by the SDK after this split.
-	//
-	// Set to 0 to "checkpoint" as soon as possible (keeping as little work as
-	// possible and returning the remainder).
-	FractionOfRemainder float64 `protobuf:"fixed64,1,opt,name=fraction_of_remainder,json=fractionOfRemainder,proto3" json:"fraction_of_remainder,omitempty"`
-	// (Optional) A set of allowed element indices where the SDK may split. When
-	// this is empty, there are no constraints on where to split.
-	AllowedSplitPoints []int64 `protobuf:"varint,3,rep,packed,name=allowed_split_points,json=allowedSplitPoints,proto3" json:"allowed_split_points,omitempty"`
-	// (Required for gRPC Read operation transforms) Number of total elements
-	// expected to be sent to this GrpcRead operation, required to correctly
-	// account for unreceived data when determining where to split.
-	EstimatedInputElements int64 `protobuf:"varint,2,opt,name=estimated_input_elements,json=estimatedInputElements,proto3" json:"estimated_input_elements,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_FractionOfRemainder    float64                `protobuf:"fixed64,1,opt,name=fraction_of_remainder,json=fractionOfRemainder,proto3" json:"fraction_of_remainder,omitempty"`
+	xxx_hidden_AllowedSplitPoints     []int64                `protobuf:"varint,3,rep,packed,name=allowed_split_points,json=allowedSplitPoints,proto3" json:"allowed_split_points,omitempty"`
+	xxx_hidden_EstimatedInputElements int64                  `protobuf:"varint,2,opt,name=estimated_input_elements,json=estimatedInputElements,proto3" json:"estimated_input_elements,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) Reset() {
@@ -6275,35 +5956,35 @@ func (x *ProcessBundleSplitRequest_DesiredSplit) ProtoReflect() protoreflect.Mes
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) GetFractionOfRemainder() float64 {
 	if x != nil {
-		return x.FractionOfRemainder
+		return x.xxx_hidden_FractionOfRemainder
 	}
 	return 0
 }
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) GetAllowedSplitPoints() []int64 {
 	if x != nil {
-		return x.AllowedSplitPoints
+		return x.xxx_hidden_AllowedSplitPoints
 	}
 	return nil
 }
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) GetEstimatedInputElements() int64 {
 	if x != nil {
-		return x.EstimatedInputElements
+		return x.xxx_hidden_EstimatedInputElements
 	}
 	return 0
 }
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) SetFractionOfRemainder(v float64) {
-	x.FractionOfRemainder = v
+	x.xxx_hidden_FractionOfRemainder = v
 }
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) SetAllowedSplitPoints(v []int64) {
-	x.AllowedSplitPoints = v
+	x.xxx_hidden_AllowedSplitPoints = v
 }
 
 func (x *ProcessBundleSplitRequest_DesiredSplit) SetEstimatedInputElements(v int64) {
-	x.EstimatedInputElements = v
+	x.xxx_hidden_EstimatedInputElements = v
 }
 
 type ProcessBundleSplitRequest_DesiredSplit_builder struct {
@@ -6328,9 +6009,9 @@ func (b0 ProcessBundleSplitRequest_DesiredSplit_builder) Build() *ProcessBundleS
 	m0 := &ProcessBundleSplitRequest_DesiredSplit{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.FractionOfRemainder = b.FractionOfRemainder
-	x.AllowedSplitPoints = b.AllowedSplitPoints
-	x.EstimatedInputElements = b.EstimatedInputElements
+	x.xxx_hidden_FractionOfRemainder = b.FractionOfRemainder
+	x.xxx_hidden_AllowedSplitPoints = b.AllowedSplitPoints
+	x.xxx_hidden_EstimatedInputElements = b.EstimatedInputElements
 	return m0
 }
 
@@ -6358,19 +6039,12 @@ func (b0 ProcessBundleSplitRequest_DesiredSplit_builder) Build() *ProcessBundleS
 //   - the first_residual_element does not decrease if there were residual
 //     or primary roots returned in a prior split.
 type ProcessBundleSplitResponse_ChannelSplit struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The grpc read transform reading this channel.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The last element of the input channel that should be entirely
-	// considered part of the primary, identified by its absolute zero-based
-	// index in the (ordered) channel.
-	LastPrimaryElement int64 `protobuf:"varint,2,opt,name=last_primary_element,json=lastPrimaryElement,proto3" json:"last_primary_element,omitempty"`
-	// (Required) The first element of the input channel that should be entirely
-	// considered part of the residual, identified by its absolute zero-based
-	// index in the (ordered) channel.
-	FirstResidualElement int64 `protobuf:"varint,3,opt,name=first_residual_element,json=firstResidualElement,proto3" json:"first_residual_element,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId          string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_LastPrimaryElement   int64                  `protobuf:"varint,2,opt,name=last_primary_element,json=lastPrimaryElement,proto3" json:"last_primary_element,omitempty"`
+	xxx_hidden_FirstResidualElement int64                  `protobuf:"varint,3,opt,name=first_residual_element,json=firstResidualElement,proto3" json:"first_residual_element,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) Reset() {
@@ -6400,35 +6074,35 @@ func (x *ProcessBundleSplitResponse_ChannelSplit) ProtoReflect() protoreflect.Me
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) GetLastPrimaryElement() int64 {
 	if x != nil {
-		return x.LastPrimaryElement
+		return x.xxx_hidden_LastPrimaryElement
 	}
 	return 0
 }
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) GetFirstResidualElement() int64 {
 	if x != nil {
-		return x.FirstResidualElement
+		return x.xxx_hidden_FirstResidualElement
 	}
 	return 0
 }
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) SetLastPrimaryElement(v int64) {
-	x.LastPrimaryElement = v
+	x.xxx_hidden_LastPrimaryElement = v
 }
 
 func (x *ProcessBundleSplitResponse_ChannelSplit) SetFirstResidualElement(v int64) {
-	x.FirstResidualElement = v
+	x.xxx_hidden_FirstResidualElement = v
 }
 
 type ProcessBundleSplitResponse_ChannelSplit_builder struct {
@@ -6450,37 +6124,22 @@ func (b0 ProcessBundleSplitResponse_ChannelSplit_builder) Build() *ProcessBundle
 	m0 := &ProcessBundleSplitResponse_ChannelSplit{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.LastPrimaryElement = b.LastPrimaryElement
-	x.FirstResidualElement = b.FirstResidualElement
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_LastPrimaryElement = b.LastPrimaryElement
+	x.xxx_hidden_FirstResidualElement = b.FirstResidualElement
 	return m0
 }
 
 // Represents multiple encoded elements in nested context for a given named
 // instruction and transform.
 type Elements_Data struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference to an active instruction request with the given
-	// instruction id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Required) A definition representing a consumer or producer of this data.
-	// If received by a harness, this represents the consumer within that
-	// harness that should consume these bytes. If sent by a harness, this
-	// represents the producer of these bytes.
-	//
-	// Note that a single element may span multiple Data messages.
-	//
-	// Note that a sending/receiving pair should share the same identifier.
-	TransformId string `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Optional) Represents a part of a logical byte stream. Elements within
-	// the logical byte stream are encoded in the nested context and
-	// concatenated together.
-	Data []byte `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	// (Optional) Set this bit to indicate the this is the last data block
-	// for the given instruction and transform, ending the stream.
-	IsLast        bool `protobuf:"varint,4,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_TransformId   string                 `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	xxx_hidden_IsLast        bool                   `protobuf:"varint,4,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Elements_Data) Reset() {
@@ -6510,49 +6169,49 @@ func (x *Elements_Data) ProtoReflect() protoreflect.Message {
 
 func (x *Elements_Data) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *Elements_Data) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *Elements_Data) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
 
 func (x *Elements_Data) GetIsLast() bool {
 	if x != nil {
-		return x.IsLast
+		return x.xxx_hidden_IsLast
 	}
 	return false
 }
 
 func (x *Elements_Data) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *Elements_Data) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *Elements_Data) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 func (x *Elements_Data) SetIsLast(v bool) {
-	x.IsLast = v
+	x.xxx_hidden_IsLast = v
 }
 
 type Elements_Data_builder struct {
@@ -6583,36 +6242,24 @@ func (b0 Elements_Data_builder) Build() *Elements_Data {
 	m0 := &Elements_Data{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
-	x.TransformId = b.TransformId
-	x.Data = b.Data
-	x.IsLast = b.IsLast
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_Data = b.Data
+	x.xxx_hidden_IsLast = b.IsLast
 	return m0
 }
 
 // Represent the encoded user timer for a given instruction, transform and
 // timer id.
 type Elements_Timers struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A reference to an active instruction request with the given
-	// instruction id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
-	// (Required) A definition representing a consumer or producer of this data.
-	// If received by a harness, this represents the consumer within that
-	// harness that should consume these timers. If sent by a harness, this
-	// represents the producer of these timers.
-	TransformId string `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The local timer family name used to identify the associated
-	// timer family specification
-	TimerFamilyId string `protobuf:"bytes,3,opt,name=timer_family_id,json=timerFamilyId,proto3" json:"timer_family_id,omitempty"`
-	// (Optional) Represents a logical byte stream of timers. Encoded according
-	// to the coder in the timer spec.
-	Timers []byte `protobuf:"bytes,4,opt,name=timers,proto3" json:"timers,omitempty"`
-	// (Optional) Set this bit to indicate the this is the last data block
-	// for the given instruction and transform, ending the stream.
-	IsLast        bool `protobuf:"varint,5,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_InstructionId string                 `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId,proto3" json:"instruction_id,omitempty"`
+	xxx_hidden_TransformId   string                 `protobuf:"bytes,2,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_TimerFamilyId string                 `protobuf:"bytes,3,opt,name=timer_family_id,json=timerFamilyId,proto3" json:"timer_family_id,omitempty"`
+	xxx_hidden_Timers        []byte                 `protobuf:"bytes,4,opt,name=timers,proto3" json:"timers,omitempty"`
+	xxx_hidden_IsLast        bool                   `protobuf:"varint,5,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Elements_Timers) Reset() {
@@ -6642,60 +6289,60 @@ func (x *Elements_Timers) ProtoReflect() protoreflect.Message {
 
 func (x *Elements_Timers) GetInstructionId() string {
 	if x != nil {
-		return x.InstructionId
+		return x.xxx_hidden_InstructionId
 	}
 	return ""
 }
 
 func (x *Elements_Timers) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *Elements_Timers) GetTimerFamilyId() string {
 	if x != nil {
-		return x.TimerFamilyId
+		return x.xxx_hidden_TimerFamilyId
 	}
 	return ""
 }
 
 func (x *Elements_Timers) GetTimers() []byte {
 	if x != nil {
-		return x.Timers
+		return x.xxx_hidden_Timers
 	}
 	return nil
 }
 
 func (x *Elements_Timers) GetIsLast() bool {
 	if x != nil {
-		return x.IsLast
+		return x.xxx_hidden_IsLast
 	}
 	return false
 }
 
 func (x *Elements_Timers) SetInstructionId(v string) {
-	x.InstructionId = v
+	x.xxx_hidden_InstructionId = v
 }
 
 func (x *Elements_Timers) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *Elements_Timers) SetTimerFamilyId(v string) {
-	x.TimerFamilyId = v
+	x.xxx_hidden_TimerFamilyId = v
 }
 
 func (x *Elements_Timers) SetTimers(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Timers = v
+	x.xxx_hidden_Timers = v
 }
 
 func (x *Elements_Timers) SetIsLast(v bool) {
-	x.IsLast = v
+	x.xxx_hidden_IsLast = v
 }
 
 type Elements_Timers_builder struct {
@@ -6724,26 +6371,19 @@ func (b0 Elements_Timers_builder) Build() *Elements_Timers {
 	m0 := &Elements_Timers{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.InstructionId = b.InstructionId
-	x.TransformId = b.TransformId
-	x.TimerFamilyId = b.TimerFamilyId
-	x.Timers = b.Timers
-	x.IsLast = b.IsLast
+	x.xxx_hidden_InstructionId = b.InstructionId
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_TimerFamilyId = b.TimerFamilyId
+	x.xxx_hidden_Timers = b.Timers
+	x.xxx_hidden_IsLast = b.IsLast
 	return m0
 }
 
 type StateKey_Runner struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Opaque information supplied by the runner. Used to support
-	// remote references.
-	// https://s.apache.org/beam-fn-api-send-and-receive-data
-	//
-	// Used by state backed iterable. And in this use case, request type can
-	// only be of type get. Details see:
-	// https://s.apache.org/beam-fn-api-state-backed-iterables
-	Key           []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Key []byte                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StateKey_Runner) Reset() {
@@ -6773,7 +6413,7 @@ func (x *StateKey_Runner) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_Runner) GetKey() []byte {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
@@ -6782,7 +6422,7 @@ func (x *StateKey_Runner) SetKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 type StateKey_Runner_builder struct {
@@ -6802,7 +6442,7 @@ func (b0 StateKey_Runner_builder) Build() *StateKey_Runner {
 	m0 := &StateKey_Runner{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Key = b.Key
+	x.xxx_hidden_Key = b.Key
 	return m0
 }
 
@@ -6818,16 +6458,12 @@ func (b0 StateKey_Runner_builder) Build() *StateKey_Runner {
 // of all V's. See https://s.apache.org/beam-fn-api-send-and-receive-data
 // for further details.
 type StateKey_IterableSideInput struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing a side input.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the side input.
-	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
-	// (Required) The window (after mapping the currently executing elements
-	// window into the side input windows domain) encoded in a nested context.
-	Window        []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_SideInputId string                 `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_IterableSideInput) Reset() {
@@ -6857,38 +6493,38 @@ func (x *StateKey_IterableSideInput) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_IterableSideInput) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_IterableSideInput) GetSideInputId() string {
 	if x != nil {
-		return x.SideInputId
+		return x.xxx_hidden_SideInputId
 	}
 	return ""
 }
 
 func (x *StateKey_IterableSideInput) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_IterableSideInput) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_IterableSideInput) SetSideInputId(v string) {
-	x.SideInputId = v
+	x.xxx_hidden_SideInputId = v
 }
 
 func (x *StateKey_IterableSideInput) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 type StateKey_IterableSideInput_builder struct {
@@ -6907,9 +6543,9 @@ func (b0 StateKey_IterableSideInput_builder) Build() *StateKey_IterableSideInput
 	m0 := &StateKey_IterableSideInput{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.SideInputId = b.SideInputId
-	x.Window = b.Window
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_SideInputId = b.SideInputId
+	x.xxx_hidden_Window = b.Window
 	return m0
 }
 
@@ -6926,18 +6562,13 @@ func (b0 StateKey_IterableSideInput_builder) Build() *StateKey_IterableSideInput
 // https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_MultimapSideInput struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing a side input.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the side input.
-	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
-	// (Required) The window (after mapping the currently executing elements
-	// window into the side input windows domain) encoded in a nested context.
-	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	// (Required) The key encoded in a nested context.
-	Key           []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_SideInputId string                 `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	xxx_hidden_Key         []byte                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_MultimapSideInput) Reset() {
@@ -6967,52 +6598,52 @@ func (x *StateKey_MultimapSideInput) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_MultimapSideInput) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapSideInput) GetSideInputId() string {
 	if x != nil {
-		return x.SideInputId
+		return x.xxx_hidden_SideInputId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapSideInput) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapSideInput) GetKey() []byte {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapSideInput) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_MultimapSideInput) SetSideInputId(v string) {
-	x.SideInputId = v
+	x.xxx_hidden_SideInputId = v
 }
 
 func (x *StateKey_MultimapSideInput) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 func (x *StateKey_MultimapSideInput) SetKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 type StateKey_MultimapSideInput_builder struct {
@@ -7033,10 +6664,10 @@ func (b0 StateKey_MultimapSideInput_builder) Build() *StateKey_MultimapSideInput
 	m0 := &StateKey_MultimapSideInput{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.SideInputId = b.SideInputId
-	x.Window = b.Window
-	x.Key = b.Key
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_SideInputId = b.SideInputId
+	x.xxx_hidden_Window = b.Window
+	x.xxx_hidden_Key = b.Key
 	return m0
 }
 
@@ -7052,16 +6683,12 @@ func (b0 StateKey_MultimapSideInput_builder) Build() *StateKey_MultimapSideInput
 // https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_MultimapKeysSideInput struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing a side input.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the side input.
-	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
-	// (Required) The window (after mapping the currently executing elements
-	// window into the side input windows domain) encoded in a nested context.
-	Window        []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_SideInputId string                 `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_MultimapKeysSideInput) Reset() {
@@ -7091,38 +6718,38 @@ func (x *StateKey_MultimapKeysSideInput) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_MultimapKeysSideInput) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapKeysSideInput) GetSideInputId() string {
 	if x != nil {
-		return x.SideInputId
+		return x.xxx_hidden_SideInputId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapKeysSideInput) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapKeysSideInput) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_MultimapKeysSideInput) SetSideInputId(v string) {
-	x.SideInputId = v
+	x.xxx_hidden_SideInputId = v
 }
 
 func (x *StateKey_MultimapKeysSideInput) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 type StateKey_MultimapKeysSideInput_builder struct {
@@ -7141,9 +6768,9 @@ func (b0 StateKey_MultimapKeysSideInput_builder) Build() *StateKey_MultimapKeysS
 	m0 := &StateKey_MultimapKeysSideInput{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.SideInputId = b.SideInputId
-	x.Window = b.Window
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_SideInputId = b.SideInputId
+	x.xxx_hidden_Window = b.Window
 	return m0
 }
 
@@ -7167,16 +6794,12 @@ func (b0 StateKey_MultimapKeysSideInput_builder) Build() *StateKey_MultimapKeysS
 // https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_MultimapKeysValuesSideInput struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing a side input.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the side input.
-	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
-	// (Required) The window (after mapping the currently executing elements
-	// window into the side input windows domain) encoded in a nested context.
-	Window        []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_SideInputId string                 `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId,proto3" json:"side_input_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_MultimapKeysValuesSideInput) Reset() {
@@ -7206,38 +6829,38 @@ func (x *StateKey_MultimapKeysValuesSideInput) ProtoReflect() protoreflect.Messa
 
 func (x *StateKey_MultimapKeysValuesSideInput) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapKeysValuesSideInput) GetSideInputId() string {
 	if x != nil {
-		return x.SideInputId
+		return x.xxx_hidden_SideInputId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapKeysValuesSideInput) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapKeysValuesSideInput) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_MultimapKeysValuesSideInput) SetSideInputId(v string) {
-	x.SideInputId = v
+	x.xxx_hidden_SideInputId = v
 }
 
 func (x *StateKey_MultimapKeysValuesSideInput) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 type StateKey_MultimapKeysValuesSideInput_builder struct {
@@ -7256,9 +6879,9 @@ func (b0 StateKey_MultimapKeysValuesSideInput_builder) Build() *StateKey_Multima
 	m0 := &StateKey_MultimapKeysValuesSideInput{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.SideInputId = b.SideInputId
-	x.Window = b.Window
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_SideInputId = b.SideInputId
+	x.xxx_hidden_Window = b.Window
 	return m0
 }
 
@@ -7272,18 +6895,13 @@ func (b0 StateKey_MultimapKeysValuesSideInput_builder) Build() *StateKey_Multima
 // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_BagUserState struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing user state.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the user state.
-	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
-	// (Required) The window encoded in a nested context.
-	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	// (Required) The key of the currently executing element encoded in a
-	// nested context.
-	Key           []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_UserStateId string                 `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	xxx_hidden_Key         []byte                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_BagUserState) Reset() {
@@ -7313,52 +6931,52 @@ func (x *StateKey_BagUserState) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_BagUserState) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_BagUserState) GetUserStateId() string {
 	if x != nil {
-		return x.UserStateId
+		return x.xxx_hidden_UserStateId
 	}
 	return ""
 }
 
 func (x *StateKey_BagUserState) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_BagUserState) GetKey() []byte {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
 
 func (x *StateKey_BagUserState) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_BagUserState) SetUserStateId(v string) {
-	x.UserStateId = v
+	x.xxx_hidden_UserStateId = v
 }
 
 func (x *StateKey_BagUserState) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 func (x *StateKey_BagUserState) SetKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 type StateKey_BagUserState_builder struct {
@@ -7379,10 +6997,10 @@ func (b0 StateKey_BagUserState_builder) Build() *StateKey_BagUserState {
 	m0 := &StateKey_BagUserState{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.UserStateId = b.UserStateId
-	x.Window = b.Window
-	x.Key = b.Key
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_UserStateId = b.UserStateId
+	x.xxx_hidden_Window = b.Window
+	x.xxx_hidden_Key = b.Key
 	return m0
 }
 
@@ -7399,18 +7017,13 @@ func (b0 StateKey_BagUserState_builder) Build() *StateKey_BagUserState {
 // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_MultimapKeysUserState struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing user state.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the user state.
-	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
-	// (Required) The window encoded in a nested context.
-	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	// (Required) The key of the currently executing element encoded in a
-	// nested context.
-	Key           []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_UserStateId string                 `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	xxx_hidden_Key         []byte                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_MultimapKeysUserState) Reset() {
@@ -7440,52 +7053,52 @@ func (x *StateKey_MultimapKeysUserState) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_MultimapKeysUserState) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapKeysUserState) GetUserStateId() string {
 	if x != nil {
-		return x.UserStateId
+		return x.xxx_hidden_UserStateId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapKeysUserState) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapKeysUserState) GetKey() []byte {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapKeysUserState) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_MultimapKeysUserState) SetUserStateId(v string) {
-	x.UserStateId = v
+	x.xxx_hidden_UserStateId = v
 }
 
 func (x *StateKey_MultimapKeysUserState) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 func (x *StateKey_MultimapKeysUserState) SetKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 type StateKey_MultimapKeysUserState_builder struct {
@@ -7506,10 +7119,10 @@ func (b0 StateKey_MultimapKeysUserState_builder) Build() *StateKey_MultimapKeysU
 	m0 := &StateKey_MultimapKeysUserState{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.UserStateId = b.UserStateId
-	x.Window = b.Window
-	x.Key = b.Key
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_UserStateId = b.UserStateId
+	x.xxx_hidden_Window = b.Window
+	x.xxx_hidden_Key = b.Key
 	return m0
 }
 
@@ -7523,20 +7136,14 @@ func (b0 StateKey_MultimapKeysUserState_builder) Build() *StateKey_MultimapKeysU
 // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_MultimapUserState struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing user state.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the user state.
-	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
-	// (Required) The window encoded in a nested context.
-	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	// (Required) The key of the currently executing element encoded in a
-	// nested context.
-	Key []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	// (Required) The map key encoded in a nested context.
-	MapKey        []byte `protobuf:"bytes,5,opt,name=map_key,json=mapKey,proto3" json:"map_key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_UserStateId string                 `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	xxx_hidden_Key         []byte                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	xxx_hidden_MapKey      []byte                 `protobuf:"bytes,5,opt,name=map_key,json=mapKey,proto3" json:"map_key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_MultimapUserState) Reset() {
@@ -7566,66 +7173,66 @@ func (x *StateKey_MultimapUserState) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_MultimapUserState) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapUserState) GetUserStateId() string {
 	if x != nil {
-		return x.UserStateId
+		return x.xxx_hidden_UserStateId
 	}
 	return ""
 }
 
 func (x *StateKey_MultimapUserState) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapUserState) GetKey() []byte {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapUserState) GetMapKey() []byte {
 	if x != nil {
-		return x.MapKey
+		return x.xxx_hidden_MapKey
 	}
 	return nil
 }
 
 func (x *StateKey_MultimapUserState) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_MultimapUserState) SetUserStateId(v string) {
-	x.UserStateId = v
+	x.xxx_hidden_UserStateId = v
 }
 
 func (x *StateKey_MultimapUserState) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 func (x *StateKey_MultimapUserState) SetKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 func (x *StateKey_MultimapUserState) SetMapKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.MapKey = v
+	x.xxx_hidden_MapKey = v
 }
 
 type StateKey_MultimapUserState_builder struct {
@@ -7648,11 +7255,11 @@ func (b0 StateKey_MultimapUserState_builder) Build() *StateKey_MultimapUserState
 	m0 := &StateKey_MultimapUserState{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.UserStateId = b.UserStateId
-	x.Window = b.Window
-	x.Key = b.Key
-	x.MapKey = b.MapKey
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_UserStateId = b.UserStateId
+	x.xxx_hidden_Window = b.Window
+	x.xxx_hidden_Key = b.Key
+	x.xxx_hidden_MapKey = b.MapKey
 	return m0
 }
 
@@ -7666,20 +7273,14 @@ func (b0 StateKey_MultimapUserState_builder) Build() *StateKey_MultimapUserState
 // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
 // details.
 type StateKey_OrderedListUserState struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform containing user state.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The id of the user state.
-	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
-	// (Required) The window encoded in a nested context.
-	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	// (Required) The key of the currently executing element encoded in a
-	// nested context.
-	Key []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	// (Required) The sort range encoded in a nested context.
-	Range         *OrderedListRange `protobuf:"bytes,5,opt,name=range,proto3" json:"range,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_UserStateId string                 `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId,proto3" json:"user_state_id,omitempty"`
+	xxx_hidden_Window      []byte                 `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	xxx_hidden_Key         []byte                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	xxx_hidden_Range       *OrderedListRange      `protobuf:"bytes,5,opt,name=range,proto3" json:"range,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StateKey_OrderedListUserState) Reset() {
@@ -7709,74 +7310,74 @@ func (x *StateKey_OrderedListUserState) ProtoReflect() protoreflect.Message {
 
 func (x *StateKey_OrderedListUserState) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *StateKey_OrderedListUserState) GetUserStateId() string {
 	if x != nil {
-		return x.UserStateId
+		return x.xxx_hidden_UserStateId
 	}
 	return ""
 }
 
 func (x *StateKey_OrderedListUserState) GetWindow() []byte {
 	if x != nil {
-		return x.Window
+		return x.xxx_hidden_Window
 	}
 	return nil
 }
 
 func (x *StateKey_OrderedListUserState) GetKey() []byte {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
 
 func (x *StateKey_OrderedListUserState) GetRange() *OrderedListRange {
 	if x != nil {
-		return x.Range
+		return x.xxx_hidden_Range
 	}
 	return nil
 }
 
 func (x *StateKey_OrderedListUserState) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *StateKey_OrderedListUserState) SetUserStateId(v string) {
-	x.UserStateId = v
+	x.xxx_hidden_UserStateId = v
 }
 
 func (x *StateKey_OrderedListUserState) SetWindow(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Window = v
+	x.xxx_hidden_Window = v
 }
 
 func (x *StateKey_OrderedListUserState) SetKey(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 func (x *StateKey_OrderedListUserState) SetRange(v *OrderedListRange) {
-	x.Range = v
+	x.xxx_hidden_Range = v
 }
 
 func (x *StateKey_OrderedListUserState) HasRange() bool {
 	if x == nil {
 		return false
 	}
-	return x.Range != nil
+	return x.xxx_hidden_Range != nil
 }
 
 func (x *StateKey_OrderedListUserState) ClearRange() {
-	x.Range = nil
+	x.xxx_hidden_Range = nil
 }
 
 type StateKey_OrderedListUserState_builder struct {
@@ -7799,22 +7400,21 @@ func (b0 StateKey_OrderedListUserState_builder) Build() *StateKey_OrderedListUse
 	m0 := &StateKey_OrderedListUserState{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.UserStateId = b.UserStateId
-	x.Window = b.Window
-	x.Key = b.Key
-	x.Range = b.Range
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_UserStateId = b.UserStateId
+	x.xxx_hidden_Window = b.Window
+	x.xxx_hidden_Key = b.Key
+	x.xxx_hidden_Range = b.Range
 	return m0
 }
 
 // A list of log entries, enables buffering and batching of multiple
 // log messages using the logging API.
 type LogEntry_List struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) One or or more log messages.
-	LogEntries    []*LogEntry `protobuf:"bytes,1,rep,name=log_entries,json=logEntries,proto3" json:"log_entries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_LogEntries *[]*LogEntry           `protobuf:"bytes,1,rep,name=log_entries,json=logEntries,proto3" json:"log_entries,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *LogEntry_List) Reset() {
@@ -7844,13 +7444,15 @@ func (x *LogEntry_List) ProtoReflect() protoreflect.Message {
 
 func (x *LogEntry_List) GetLogEntries() []*LogEntry {
 	if x != nil {
-		return x.LogEntries
+		if x.xxx_hidden_LogEntries != nil {
+			return *x.xxx_hidden_LogEntries
+		}
 	}
 	return nil
 }
 
 func (x *LogEntry_List) SetLogEntries(v []*LogEntry) {
-	x.LogEntries = v
+	x.xxx_hidden_LogEntries = &v
 }
 
 type LogEntry_List_builder struct {
@@ -7864,7 +7466,7 @@ func (b0 LogEntry_List_builder) Build() *LogEntry_List {
 	m0 := &LogEntry_List{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.LogEntries = b.LogEntries
+	x.xxx_hidden_LogEntries = &b.LogEntries
 	return m0
 }
 
@@ -7882,7 +7484,7 @@ func (b0 LogEntry_List_builder) Build() *LogEntry_List {
 // can provide filtering and searching across log types. Users of the API are
 // free not to use all severity levels in their log messages.
 type LogEntry_Severity struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9124,50 +8726,50 @@ func file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_init() {
 		return
 	}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[3].OneofWrappers = []any{
-		(*InstructionRequest_ProcessBundle)(nil),
-		(*InstructionRequest_ProcessBundleProgress)(nil),
-		(*InstructionRequest_ProcessBundleSplit)(nil),
-		(*InstructionRequest_FinalizeBundle)(nil),
-		(*InstructionRequest_MonitoringInfos)(nil),
-		(*InstructionRequest_HarnessMonitoringInfos)(nil),
-		(*InstructionRequest_SampleData)(nil),
-		(*InstructionRequest_Register)(nil),
+		(*instructionRequest_ProcessBundle)(nil),
+		(*instructionRequest_ProcessBundleProgress)(nil),
+		(*instructionRequest_ProcessBundleSplit)(nil),
+		(*instructionRequest_FinalizeBundle)(nil),
+		(*instructionRequest_MonitoringInfos)(nil),
+		(*instructionRequest_HarnessMonitoringInfos)(nil),
+		(*instructionRequest_SampleData)(nil),
+		(*instructionRequest_Register)(nil),
 	}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[4].OneofWrappers = []any{
-		(*InstructionResponse_ProcessBundle)(nil),
-		(*InstructionResponse_ProcessBundleProgress)(nil),
-		(*InstructionResponse_ProcessBundleSplit)(nil),
-		(*InstructionResponse_FinalizeBundle)(nil),
-		(*InstructionResponse_MonitoringInfos)(nil),
-		(*InstructionResponse_HarnessMonitoringInfos)(nil),
-		(*InstructionResponse_SampleData)(nil),
-		(*InstructionResponse_Register)(nil),
+		(*instructionResponse_ProcessBundle)(nil),
+		(*instructionResponse_ProcessBundleProgress)(nil),
+		(*instructionResponse_ProcessBundleSplit)(nil),
+		(*instructionResponse_FinalizeBundle)(nil),
+		(*instructionResponse_MonitoringInfos)(nil),
+		(*instructionResponse_HarnessMonitoringInfos)(nil),
+		(*instructionResponse_SampleData)(nil),
+		(*instructionResponse_Register)(nil),
 	}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[19].OneofWrappers = []any{}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[26].OneofWrappers = []any{
-		(*StateRequest_Get)(nil),
-		(*StateRequest_Append)(nil),
-		(*StateRequest_Clear)(nil),
+		(*stateRequest_Get)(nil),
+		(*stateRequest_Append)(nil),
+		(*stateRequest_Clear)(nil),
 	}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[27].OneofWrappers = []any{
-		(*StateResponse_Get)(nil),
-		(*StateResponse_Append)(nil),
-		(*StateResponse_Clear)(nil),
+		(*stateResponse_Get)(nil),
+		(*stateResponse_Append)(nil),
+		(*stateResponse_Clear)(nil),
 	}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[28].OneofWrappers = []any{
-		(*StateKey_Runner_)(nil),
-		(*StateKey_MultimapSideInput_)(nil),
-		(*StateKey_BagUserState_)(nil),
-		(*StateKey_IterableSideInput_)(nil),
-		(*StateKey_MultimapKeysSideInput_)(nil),
-		(*StateKey_MultimapKeysValuesSideInput_)(nil),
-		(*StateKey_MultimapKeysUserState_)(nil),
-		(*StateKey_MultimapUserState_)(nil),
-		(*StateKey_OrderedListUserState_)(nil),
+		(*stateKey_Runner_)(nil),
+		(*stateKey_MultimapSideInput_)(nil),
+		(*stateKey_BagUserState_)(nil),
+		(*stateKey_IterableSideInput_)(nil),
+		(*stateKey_MultimapKeysSideInput_)(nil),
+		(*stateKey_MultimapKeysValuesSideInput_)(nil),
+		(*stateKey_MultimapKeysUserState_)(nil),
+		(*stateKey_MultimapUserState_)(nil),
+		(*stateKey_OrderedListUserState_)(nil),
 	}
 	file_org_apache_beam_model_fn_execution_v1_beam_fn_api_proto_msgTypes[54].OneofWrappers = []any{
-		(*ProcessBundleRequest_CacheToken_UserState_)(nil),
-		(*ProcessBundleRequest_CacheToken_SideInput_)(nil),
+		(*processBundleRequest_CacheToken_UserState_)(nil),
+		(*processBundleRequest_CacheToken_SideInput_)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
