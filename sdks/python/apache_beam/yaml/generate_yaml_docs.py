@@ -200,9 +200,9 @@ def io_grouping_key(transform_name):
 # Exclude providers
 SKIP = {}
 
+
 def normalize_beam_version(desc):
-  return desc.replace(
-      'BEAM_VERSION', 'current' if '.dev' in beam_version else beam_version)
+  return desc.replace('BEAM_VERSION', beam_version)
 
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
