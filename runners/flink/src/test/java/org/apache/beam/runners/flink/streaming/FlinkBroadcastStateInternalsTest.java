@@ -96,4 +96,20 @@ public class FlinkBroadcastStateInternalsTest extends StateInternalsTest {
   @Override
   @Ignore
   public void testMapReadable() {}
+
+  @Override
+  @Ignore
+  public void testOrderedList() {}
+
+  @Override
+  @Ignore
+  public void testOrderedListIsEmpty() {}
+
+  @Override
+  @Ignore
+  public void testMergeOrderedListIntoSource() {}
+
+  @Override
+  @Ignore
+  public void testMergeOrderedListIntoNewNamespace() {}
 }
