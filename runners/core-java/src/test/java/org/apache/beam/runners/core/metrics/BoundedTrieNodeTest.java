@@ -18,6 +18,8 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -537,5 +539,254 @@ public class BoundedTrieNodeTest {
     for (List<String> seg : dedupedSegments) {
       assertTrue(mainTrie.contains(seg));
     }
+  }
+
+  @Test
+  public void testTrim() {
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "b", "d"),
+                Arrays.asList("a", "e"))));
+    assertEquals(3, root.getSize());
+    assertEquals(-1, root.trim());
+    assertEquals(2, root.getSize());
+    List<List<String>> flattened = root.flattened();
+    assertEquals(2, flattened.size());
+    assertFalse(root.isTruncated());
+    assertEquals(
+        flattened,
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", BoundedTrieNode.TRUNCATED_TRUE),
+                Arrays.asList("a", "e", BoundedTrieNode.TRUNCATED_FALSE))));
+  }
+
+  @Test
+  public void testMerge() {
+    BoundedTrieNode root1 = new BoundedTrieNode();
+    root1.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "b", "d"),
+                Arrays.asList("a", "e"))));
+
+    BoundedTrieNode root2 = new BoundedTrieNode();
+    root2.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "f"),
+                Arrays.asList("a", "g"),
+                Collections.singletonList("h"))));
+
+    assertEquals(3, root1.merge(root2));
+    assertEquals(6, root1.getSize());
+  }
+
+  @Test
+  public void testMergeWithTruncatedNode() {
+    BoundedTrieNode root1 = new BoundedTrieNode();
+    root1.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "b", "d"),
+                Arrays.asList("a", "e"))));
+
+    BoundedTrieNode root2 = new BoundedTrieNode();
+    root2.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "f"),
+                Arrays.asList("a", "g"),
+                Collections.singletonList("h"))));
+    root2.trim();
+    List<List<String>> expected =
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", BoundedTrieNode.TRUNCATED_TRUE),
+                Arrays.asList("h", BoundedTrieNode.TRUNCATED_FALSE)));
+    assertEquals(expected, root2.flattened());
+
+    assertEquals(-1, root1.merge(root2));
+    assertEquals(2, root1.getSize());
+    assertEquals(expected, root1.flattened());
+  }
+
+  @Test
+  public void testMergeWithEmptyNode() {
+    BoundedTrieNode root1 = new BoundedTrieNode();
+    root1.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "b", "d"),
+                Arrays.asList("a", "e"))));
+
+    BoundedTrieNode root2 = new BoundedTrieNode();
+
+    assertEquals(0, root1.merge(root2));
+    assertEquals(3, root1.getSize());
+    assertFalse(root1.isTruncated());
+  }
+
+  @Test
+  public void testMergeOnEmptyNode() {
+    BoundedTrieNode root1 = new BoundedTrieNode();
+    BoundedTrieNode root2 = new BoundedTrieNode();
+    root2.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "b", "d"),
+                Arrays.asList("a", "e"))));
+
+    assertEquals(2, root1.merge(root2));
+    assertEquals(3, root1.getSize());
+    assertFalse(root1.isTruncated());
+  }
+
+  @Test
+  public void testFlattenedWithTruncatedNode() {
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+    root.trim();
+    List<List<String>> expected =
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", BoundedTrieNode.TRUNCATED_TRUE),
+                Arrays.asList("a", "e", BoundedTrieNode.TRUNCATED_FALSE)));
+    assertEquals(expected, root.flattened());
+  }
+
+  @Test
+  public void testContains() {
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+    assertTrue(root.contains(Arrays.asList("a", "b", "c")));
+    assertTrue(root.contains(Collections.singletonList("a")));
+    assertFalse(root.contains(Arrays.asList("a", "b", "f")));
+    assertFalse(root.contains(Collections.singletonList("z")));
+  }
+
+  @Test
+  public void testDeepCopy() {
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+    BoundedTrieNode copy = root.deepCopy();
+    assertEquals(root, copy);
+
+    // Modify the original and ensure the copy is not affected
+    root.add(Arrays.asList("a", "f"));
+    assertNotEquals(root, copy);
+  }
+
+  @Test
+  public void testToProto() {
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+    org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrieNode proto = root.toProto();
+    BoundedTrieNode fromProto = BoundedTrieNode.fromProto(proto);
+    assertEquals(root, fromProto);
+  }
+
+  @Test
+  public void testFromProto() {
+    org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrieNode.Builder builder =
+        org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrieNode.newBuilder();
+    builder.putChildren(
+        "a",
+        org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrieNode.newBuilder()
+            .putChildren(
+                "b",
+                org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrieNode.newBuilder()
+                    .putChildren(
+                        "c",
+                        org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrieNode.newBuilder()
+                            .build())
+                    .build())
+            .build());
+    BoundedTrieNode root = BoundedTrieNode.fromProto(builder.build());
+    assertEquals(1, root.getSize());
+    assertTrue(root.contains(Arrays.asList("a", "b", "c")));
+    assertFalse(root.isTruncated());
+  }
+
+  @Test
+  public void testEquals() {
+    BoundedTrieNode root1 = new BoundedTrieNode();
+    root1.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+
+    BoundedTrieNode root2 = new BoundedTrieNode();
+    root2.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+
+    assertEquals(root1, root2);
+  }
+
+  @Test
+  public void testHashCode() {
+    BoundedTrieNode root1 = new BoundedTrieNode();
+    root1.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+
+    BoundedTrieNode root2 = new BoundedTrieNode();
+    root2.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+
+    assertEquals(root1.hashCode(), root2.hashCode());
+  }
+
+  @Test
+  public void testToString() {
+    BoundedTrieNode root = new BoundedTrieNode();
+    root.addAll(
+        new ArrayList<>(
+            Arrays.asList(
+                Arrays.asList("a", "b", "c"),
+                Arrays.asList("a", "e"),
+                Arrays.asList("a", "b", "d"))));
+    String expected = "{'abcfalse', 'abdfalse', 'aefalse'}";
+    assertEquals(expected, root.toString());
   }
 }

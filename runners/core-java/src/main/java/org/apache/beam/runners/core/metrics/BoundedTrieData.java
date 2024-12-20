@@ -51,6 +51,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * their usage needs synchronization then the client should do it.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class BoundedTrieData implements Serializable {
 
   private static final int DEFAULT_BOUND = 100; // Default maximum size of the trie
@@ -404,7 +407,6 @@ public class BoundedTrieData implements Serializable {
      * @param other The node to merge.
      * @return The change in the size of the subtree rooted at this node.
      */
-    // TODO: merge has  bug where size is incorrect when a mege is done on empty node
     int merge(BoundedTrieNode other) {
       if (truncated) {
         return 0;
@@ -420,9 +422,8 @@ public class BoundedTrieData implements Serializable {
         return 0;
       }
       if (children.isEmpty()) {
-        children = new HashMap<>();
         children.putAll(other.children);
-        int delta = this.size - other.size;
+        int delta = other.size - this.size;
         size += delta;
         return delta;
       }
