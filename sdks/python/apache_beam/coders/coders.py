@@ -53,6 +53,7 @@ from typing import Type
 from typing import TypeVar
 from typing import overload
 
+from google.protobuf import message
 import google.protobuf.wrappers_pb2
 import proto
 
@@ -65,7 +66,6 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
-  from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.coders.typecoders import CoderRegistry
   from apache_beam.runners.pipeline_context import PipelineContext
 
