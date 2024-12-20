@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.function.Function;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
@@ -53,8 +55,12 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -149,8 +155,7 @@ public class SparkStateInternals<K> implements StateInternals {
     @Override
     public <T> OrderedListState<T> bindOrderedList(
         String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
-      throw new UnsupportedOperationException(
-          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+      return new SparkOrderedListState<>(namespace, id, elemCoder);
     }
 
     @Override
@@ -620,6 +625,84 @@ public class SparkStateInternals<K> implements StateInternals {
           return stateTable.get(namespace.stringKey(), id) == null;
         }
       };
+    }
+  }
+
+  private final class SparkOrderedListState<T> extends AbstractState<List<TimestampedValue<T>>>
+      implements OrderedListState<T> {
+
+    private SparkOrderedListState(StateNamespace namespace, String id, Coder<T> coder) {
+      super(namespace, id, ListCoder.of(TimestampedValue.TimestampedValueCoder.of(coder)));
+    }
+
+    private SortedMap<Instant, TimestampedValue<T>> readAsMap() {
+      final List<TimestampedValue<T>> listValues =
+          MoreObjects.firstNonNull(this.readValue(), Lists.newArrayList());
+      final SortedMap<Instant, TimestampedValue<T>> sortedMap = Maps.newTreeMap();
+      for (TimestampedValue<T> value : listValues) {
+        sortedMap.put(value.getTimestamp(), value);
+      }
+      return sortedMap;
+    }
+
+    @Override
+    public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
+      return this.readAsMap().subMap(minTimestamp, limitTimestamp).values();
+    }
+
+    @Override
+    public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
+      final SortedMap<Instant, TimestampedValue<T>> sortedMap = this.readAsMap();
+      sortedMap.subMap(minTimestamp, limitTimestamp).clear();
+      this.writeValue(Lists.newArrayList(sortedMap.values()));
+    }
+
+    @Override
+    public OrderedListState<T> readRangeLater(Instant minTimestamp, Instant limitTimestamp) {
+      return this;
+    }
+
+    @Override
+    public void add(TimestampedValue<T> value) {
+      final List<TimestampedValue<T>> listValue =
+          MoreObjects.firstNonNull(this.readValue(), Lists.newArrayList());
+      listValue.add(value);
+      this.writeValue(listValue);
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          final List<TimestampedValue<T>> listValue = readValue();
+          return listValue == null || listValue.isEmpty();
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public Iterable<TimestampedValue<T>> read() {
+      return this.readAsMap().values();
+    }
+
+    @Override
+    public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>> readLater() {
+      return this;
+    }
+
+    @Override
+    public void clear() {
+      final List<TimestampedValue<T>> listValue = this.readValue();
+      if (listValue != null) {
+        listValue.clear();
+        this.writeValue(listValue);
+      }
     }
   }
 }
