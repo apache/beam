@@ -120,7 +120,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withClientConfiguration(
                   ClientConfiguration.builder()
                       .credentialsProvider(provider)
-                      .region(Regions.fromName(configuration.region))
+                      .region(Region.of(configuration.region))
                       .endpoint(endpoint)
                       .build())
               .withPartitioner(p -> configuration.partitionKey)
@@ -230,7 +230,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withClientConfiguration(
                   ClientConfiguration.builder()
                       .credentialsProvider(provider)
-                      .region(Regions.fromName(configuration.region))
+                      .region(Region.of(configuration.region))
                       .endpoint(endpoint)
                       .build());
 
