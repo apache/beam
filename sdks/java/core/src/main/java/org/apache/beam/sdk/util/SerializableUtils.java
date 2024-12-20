@@ -63,7 +63,7 @@ public class SerializableUtils {
       try {
         throw new IllegalArgumentException("unable to serialize " + ow.writeValueAsString(value), exn);
       } catch (JsonProcessingException ex) {
-        IllegalArgumentException("unable to jsonify " + value, exn);
+        throw new IllegalArgumentException("unable to jsonify " + value, exn);
       }
     }
   }
