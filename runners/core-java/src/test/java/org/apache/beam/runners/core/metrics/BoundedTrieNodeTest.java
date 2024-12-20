@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -36,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.runners.core.metrics.BoundedTrieData.BoundedTrieNode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -736,7 +738,7 @@ public class BoundedTrieNodeTest {
   }
 
   @Test
-  public void testEquals() {
+  public void testBoundedTrieNodeEquals() {
     BoundedTrieNode root1 = new BoundedTrieNode();
     root1.addAll(
         new ArrayList<>(
@@ -757,7 +759,7 @@ public class BoundedTrieNodeTest {
   }
 
   @Test
-  public void testHashCode() {
+  public void testBoundedTrieNodeHashCode() {
     BoundedTrieNode root1 = new BoundedTrieNode();
     root1.addAll(
         new ArrayList<>(
@@ -778,7 +780,7 @@ public class BoundedTrieNodeTest {
   }
 
   @Test
-  public void testToString() {
+  public void testBoundedTrieNodeToString() {
     BoundedTrieNode root = new BoundedTrieNode();
     root.addAll(
         new ArrayList<>(
@@ -788,5 +790,207 @@ public class BoundedTrieNodeTest {
                 Arrays.asList("a", "b", "d"))));
     String expected = "{'abcfalse', 'abdfalse', 'aefalse'}";
     assertEquals(expected, root.toString());
+  }
+
+  @Test
+  public void testEmptyTrie() {
+    BoundedTrieData trie = new BoundedTrieData();
+    assertEquals(0, trie.size());
+    assertTrue(trie.getResult().isEmpty());
+  }
+
+  @Test
+  public void testSingleton() {
+    List<String> path = ImmutableList.of("a", "b", "c");
+    BoundedTrieData trie = new BoundedTrieData(path);
+    assertEquals(1, trie.size());
+    assertEquals(ImmutableSet.of(ImmutableList.of("a", "b", "c", "false")), trie.getResult());
+    assertTrue(trie.contains(path));
+    assertFalse(trie.contains(ImmutableList.of("a", "b")));
+  }
+
+  @Test
+  public void testAddSingletonToTrie() {
+    BoundedTrieData trie = new BoundedTrieData(ImmutableList.of("a", "b"));
+    trie.add(ImmutableList.of("a", "c"));
+    assertEquals(2, trie.size());
+    assertEquals(
+        ImmutableSet.of(ImmutableList.of("a", "b", "false"), ImmutableList.of("a", "c", "false")),
+        trie.getResult());
+  }
+
+  @Test
+  public void testCombineEmptyTrie() {
+    BoundedTrieData trie1 = new BoundedTrieData();
+    BoundedTrieData trie2 = new BoundedTrieData();
+    trie2.add(ImmutableList.of("a", "b"));
+    trie1.combine(trie2);
+    assertEquals(1, trie1.size());
+    assertEquals(ImmutableSet.of(ImmutableList.of("a", "b", "false")), trie1.getResult());
+  }
+
+  @Test
+  public void testCombineWithSingleton() {
+    BoundedTrieData trie1 = new BoundedTrieData();
+    trie1.add(ImmutableList.of("a", "b"));
+
+    BoundedTrieData trie2 = new BoundedTrieData(ImmutableList.of("c", "d"));
+
+    trie1.combine(trie2);
+    assertEquals(2, trie1.size());
+    assertEquals(
+        ImmutableSet.of(ImmutableList.of("a", "b", "false"), ImmutableList.of("c", "d", "false")),
+        trie1.getResult());
+  }
+
+  @Test
+  public void testCombineWithItself() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(ImmutableList.of("a", "b"));
+    trie.combine(trie);
+    assertEquals(1, trie.size());
+    assertEquals(ImmutableSet.of(ImmutableList.of("a", "b", "false")), trie.getResult());
+  }
+
+  @Test
+  public void testClear() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(ImmutableList.of("a", "b"));
+    trie.clear();
+    assertEquals(0, trie.size());
+    assertTrue(trie.getResult().isEmpty());
+  }
+
+  @Test
+  public void testBoundedTrieDataContains() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(ImmutableList.of("a", "b"));
+    assertTrue(trie.contains(ImmutableList.of("a", "b")));
+    assertTrue(trie.contains(ImmutableList.of("a")));
+    assertFalse(trie.contains(ImmutableList.of("a", "c")));
+  }
+
+  @Test
+  public void testEquals() {
+    BoundedTrieData trie1 = new BoundedTrieData();
+    trie1.add(ImmutableList.of("a", "b"));
+    BoundedTrieData trie2 = new BoundedTrieData();
+    trie2.add(ImmutableList.of("a", "b"));
+    assertEquals(trie1, trie2);
+  }
+
+  @Test
+  public void testHashCode() {
+    BoundedTrieData trie1 = new BoundedTrieData();
+    trie1.add(ImmutableList.of("a", "b"));
+    BoundedTrieData trie2 = new BoundedTrieData();
+    trie2.add(ImmutableList.of("a", "b"));
+    assertEquals(trie1.hashCode(), trie2.hashCode());
+  }
+
+  @Test
+  public void testToString() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(ImmutableList.of("a", "b"));
+    assertTrue(trie.toString().contains("BoundedTrieData"));
+  }
+
+  @Test
+  public void testToProtoFromProtoEmpty() {
+    BoundedTrieData trie = new BoundedTrieData();
+    BoundedTrie proto = trie.toProto();
+    BoundedTrieData trieFromProto = BoundedTrieData.fromProto(proto);
+    assertEquals(trieFromProto, trie);
+  }
+
+  @Test
+  public void testToProtoFromProtoSingleton() {
+    BoundedTrieData trie = new BoundedTrieData(ImmutableList.of("a", "b"));
+    BoundedTrie proto = trie.toProto();
+    BoundedTrieData trieFromProto = BoundedTrieData.fromProto(proto);
+    assertEquals(trieFromProto, trie);
+  }
+
+  @Test
+  public void testToProtoFromProtoWithData() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(ImmutableList.of("a", "b"));
+    trie.add(ImmutableList.of("a", "c"));
+    BoundedTrie proto = trie.toProto();
+    BoundedTrieData trieFromProto = BoundedTrieData.fromProto(proto);
+    assertEquals(trieFromProto, trie);
+  }
+
+  @Test
+  public void testConstructorInvalidInput() {
+    assertThrows(
+        AssertionError.class,
+        () -> new BoundedTrieData(ImmutableList.of("a"), new BoundedTrieNode(), 100));
+  }
+
+  @Test
+  public void testGetResultEmptyTrie() {
+    BoundedTrieData trie = new BoundedTrieData();
+    Set<List<String>> result = trie.getResult();
+    assertEquals(result, ImmutableSet.of());
+  }
+
+  @Test
+  public void testGetResultSingleton() {
+    List<String> singletonList = ImmutableList.of("a", "b");
+    BoundedTrieData trie = new BoundedTrieData(singletonList);
+    Set<List<String>> result = trie.getResult();
+    assertEquals(result, ImmutableSet.of(ImmutableList.of("a", "b", "false")));
+  }
+
+  @Test
+  public void testGetCumulativeEmptyTrie() {
+    BoundedTrieData trie = new BoundedTrieData();
+    BoundedTrieData cumulativeTrie = trie.getCumulative();
+    assertEquals(cumulativeTrie, trie);
+    assertEquals(0, cumulativeTrie.size());
+  }
+
+  @Test
+  public void testGetCumulativeSingleton() {
+    List<String> singletonList = ImmutableList.of("a", "b");
+    BoundedTrieData trie = new BoundedTrieData(singletonList);
+    BoundedTrieData cumulativeTrie = trie.getCumulative();
+    assertEquals(cumulativeTrie, trie);
+    assertNotSame(cumulativeTrie, trie);
+    // assert that the data in them are different
+    cumulativeTrie.add(ImmutableList.of("g", "h"));
+    assertTrue(cumulativeTrie.contains(ImmutableList.of("g", "h")));
+    assertFalse(trie.contains(ImmutableList.of("g", "h")));
+    assertEquals(1, trie.size());
+  }
+
+  @Test
+  public void testGetCumulativeWithRoot() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(ImmutableList.of("a", "b"));
+    trie.add(ImmutableList.of("d", "e"));
+    BoundedTrieData cumulativeTrie = trie.getCumulative();
+    assertEquals(cumulativeTrie, trie);
+    assertNotSame(cumulativeTrie, trie);
+    // assert that the data in them are different
+    trie.add(ImmutableList.of("g", "h"));
+    assertTrue(trie.contains(ImmutableList.of("g", "h")));
+    assertFalse(cumulativeTrie.contains(ImmutableList.of("g", "h")));
+  }
+
+  @Test
+  public void testAddEmptyPath() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(Collections.emptyList());
+    assertEquals(1, trie.size());
+    assertTrue(trie.getResult().contains(ImmutableList.of("false")));
+  }
+
+  @Test
+  public void testContainsEmptyPath() {
+    BoundedTrieData trie = new BoundedTrieData();
+    trie.add(Collections.emptyList());
+    assertTrue(trie.contains(Collections.emptyList()));
   }
 }

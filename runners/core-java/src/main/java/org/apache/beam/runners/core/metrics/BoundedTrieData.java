@@ -116,9 +116,12 @@ public class BoundedTrieData implements Serializable {
 
   /** Creates a {@link BoundedTrieData} instance from its proto {@link BoundedTrie}. */
   public static BoundedTrieData fromProto(BoundedTrie proto) {
-    List<String> singleton = proto.getSingletonList();
-    BoundedTrieNode root = proto.hasRoot() ? BoundedTrieNode.fromProto(proto.getRoot()) : null;
-    return new BoundedTrieData(singleton, root, proto.getBound());
+    if (proto.hasRoot()) {
+      return new BoundedTrieData(
+          null, BoundedTrieNode.fromProto(proto.getRoot()), proto.getBound());
+    } else {
+      return new BoundedTrieData(proto.getSingletonList(), null, proto.getBound());
+    }
   }
 
   /** Returns this {@link BoundedTrieData} as a {@link BoundedTrieNode}. */
