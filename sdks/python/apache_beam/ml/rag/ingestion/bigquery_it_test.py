@@ -196,10 +196,10 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
                 "key": "a", "value": "b"
             }]), ("2", "bar", [0.3, 0.4], [{
                 "key": "c", "value": "d"
-            }]), ("3", "bar", [0.5, 0.6], [{
+            }]), ("3", "foo", [0.5, 0.6], [{
                 "key": "e", "value": "f"
             }]), ("4", "bar", [0.7, 0.8], [{
-                "key": "c", "value": "d"
+                "key": "g", "value": "h"
             }])])
     ]
     args = self.test_pipeline.get_full_options_as_args(
