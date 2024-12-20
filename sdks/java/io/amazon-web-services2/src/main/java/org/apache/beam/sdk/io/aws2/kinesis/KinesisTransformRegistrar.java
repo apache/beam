@@ -104,14 +104,14 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
           AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
       SerializableFunction<byte[], byte[]> serializer = v -> v;
-      @Nullable URI endpoint;
+      @Nullable URI endpoint = null;
       if (configuration.serviceEndpoint != null) {
         try {
-          endpoint = configuration.serviceEndpoint;
+          endpoint = new URI(configuration.serviceEndpoint);
         }
         catch (URISyntaxException ex) {
           throw new RuntimeException(
-              String.format("Service endpoint must be URI format, got: %s", serviceEndpoint));
+              String.format("Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
         }
       }
       KinesisIO.Write<byte[]> writeTransform =
@@ -214,14 +214,14 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       AwsBasicCredentials creds =
           AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
-      @Nullable URI endpoint;
+      @Nullable URI endpoint = null;
       if (configuration.serviceEndpoint != null) {
         try {
-          endpoint = configuration.serviceEndpoint;
+          endpoint = new URI(configuration.serviceEndpoint);
         }
         catch (URISyntaxException ex) {
           throw new RuntimeException(
-              String.format("Service endpoint must be URI format, got: %s", serviceEndpoint));
+              String.format("Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
         }
       }
       KinesisIO.Read readTransform =
