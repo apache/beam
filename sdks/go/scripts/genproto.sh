@@ -78,18 +78,6 @@ GEN_DIR=$PWD
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.0
 
-# function insert_license_header() {
-#   local depth="$1"
-#   # protoc-gen-go-grpc does not yet output comments from the original
-#   # proto file so we need to manually add the license header.
-#   while IFS= read -d $'\0' -r file ; do
-#     tmp_file=$(mktemp)
-#     echo "$LICENSE" > $tmp_file
-#     cat $file >> $tmp_file
-#     mv $tmp_file $file
-#   done < <(find $GEN_DIR $depth -iname "*grpc.pb.go" -print0)
-# }
-
 function gen_go_sdk_protos() {
   LIBRARY_PATH="${PWD##${SDK_PATH}/}"
   PROTOS="$LIBRARY_PATH/*.proto"
