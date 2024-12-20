@@ -104,6 +104,7 @@
 * Support OnWindowExpiration in Prism ([#32211](https://github.com/apache/beam/issues/32211)).
   * This enables initial Java GroupIntoBatches support.
 * Support OrderedListState in Prism ([#32929](https://github.com/apache/beam/issues/32929)).
+* Added OrderedList state support in SparkRunner ([#33211](https://github.com/apache/beam/issues/33211)).
 
 ## Breaking Changes
 
