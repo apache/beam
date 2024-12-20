@@ -61,7 +61,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String streamName;
     String awsAccessKey;
     String awsSecretKey;
-    Region region;
+    String region;
     @Nullable String serviceEndpoint;
 
     public void setStreamName(String streamName) {
@@ -77,7 +77,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     public void setRegion(String region) {
-      this.region = Region.of(region);
+      this.region = region;
     }
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
@@ -120,7 +120,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withClientConfiguration(
                   ClientConfiguration.builder()
                       .credentialsProvider(provider)
-                      .region(configuration.region)
+                      .region(Regions.fromName(configuration.region))
                       .endpoint(endpoint)
                       .build())
               .withPartitioner(p -> configuration.partitionKey)
@@ -230,7 +230,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withClientConfiguration(
                   ClientConfiguration.builder()
                       .credentialsProvider(provider)
-                      .region(configuration.region)
+                      .region(Regions.fromName(configuration.region))
                       .endpoint(endpoint)
                       .build());
 
