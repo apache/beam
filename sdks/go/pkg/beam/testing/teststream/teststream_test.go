@@ -32,7 +32,7 @@ func TestNewConfig(t *testing.T) {
 	if len(con.events) != 0 {
 		t.Errorf("config has too many elements, expected 0, got %v", len(con.events))
 	}
-	if con.endpoint.Url != "" {
+	if con.endpoint.GetUrl() != "" {
 		t.Errorf("config has URL endpoint when it should be empty")
 	}
 }
@@ -46,7 +46,7 @@ func TestAdvanceWatermark(t *testing.T) {
 	if len(con.events) != 1 {
 		t.Fatalf("want only 1 event in config, got %v", len(con.events))
 	}
-	if eventWatermark := con.events[0].GetWatermarkEvent().NewWatermark; eventWatermark != 500 {
+	if eventWatermark := con.events[0].GetWatermarkEvent().GetNewWatermark(); eventWatermark != 500 {
 		t.Errorf("want watermark in event to be 500, got %v", eventWatermark)
 	}
 }

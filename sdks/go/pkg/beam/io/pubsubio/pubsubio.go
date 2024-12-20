@@ -64,16 +64,16 @@ type ReadOptions struct {
 func Read(s beam.Scope, project, topic string, opts *ReadOptions) beam.PCollection {
 	s = s.Scope("pubsubio.Read")
 
-	payload := &pipepb.PubSubReadPayload{
+	payload := pipepb.PubSubReadPayload_builder{
 		Topic: pubsubx.MakeQualifiedTopicName(project, topic),
-	}
+	}.Build()
 	if opts != nil {
-		payload.IdAttribute = opts.IDAttribute
-		payload.TimestampAttribute = opts.TimestampAttribute
+		payload.SetIdAttribute(opts.IDAttribute)
+		payload.SetTimestampAttribute(opts.TimestampAttribute)
 		if opts.Subscription != "" {
-			payload.Subscription = pubsubx.MakeQualifiedSubscriptionName(project, opts.Subscription)
+			payload.SetSubscription(pubsubx.MakeQualifiedSubscriptionName(project, opts.Subscription))
 		}
-		payload.WithAttributes = opts.WithAttributes
+		payload.SetWithAttributes(opts.WithAttributes)
 	}
 
 	out := beam.External(s, readURN, protox.MustEncode(payload), nil, []beam.FullType{typex.New(reflectx.ByteSlice)}, false)
@@ -118,9 +118,9 @@ var pubSubMessageT = reflect.TypeOf((*pb.PubsubMessage)(nil))
 func Write(s beam.Scope, project, topic string, col beam.PCollection) {
 	s = s.Scope("pubsubio.Write")
 
-	payload := &pipepb.PubSubWritePayload{
+	payload := pipepb.PubSubWritePayload_builder{
 		Topic: pubsubx.MakeQualifiedTopicName(project, topic),
-	}
+	}.Build()
 
 	out := col
 	if col.Type().Type() == reflectx.ByteSlice {

@@ -43,13 +43,11 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 				slog.Group("dep",
 					slog.String("urn", dep.GetTypeUrn()),
 					slog.String("payload", string(dep.GetTypePayload()))))
-			stream.Send(&jobpb.ArtifactRequestWrapper{
-				Request: &jobpb.ArtifactRequestWrapper_GetArtifact{
-					GetArtifact: &jobpb.GetArtifactRequest{
-						Artifact: dep,
-					},
-				},
-			})
+			stream.Send(jobpb.ArtifactRequestWrapper_builder{
+				GetArtifact: jobpb.GetArtifactRequest_builder{
+					Artifact: dep,
+				}.Build(),
+			}.Build())
 			var buf bytes.Buffer
 			for {
 				in, err := stream.Recv()
@@ -71,12 +69,12 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 				}
 				// Here's where we go through each environment's artifacts.
 				// We do nothing with them.
-				switch req := in.GetResponse().(type) {
-				case *jobpb.ArtifactResponseWrapper_GetArtifactResponse:
-					buf.Write(req.GetArtifactResponse.GetData())
+				switch in.WhichResponse() {
+				case jobpb.ArtifactResponseWrapper_GetArtifactResponse_case:
+					buf.Write(in.GetGetArtifactResponse().GetData())
 
-				case *jobpb.ArtifactResponseWrapper_ResolveArtifactResponse:
-					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
+				case jobpb.ArtifactResponseWrapper_ResolveArtifactResponse_case:
+					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.WhichResponse())
 					slog.Error("GetArtifact failure", slog.Any("error", err))
 					return err
 				}
@@ -91,9 +89,9 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 }
 
 func (s *Server) ResolveArtifacts(_ context.Context, req *jobpb.ResolveArtifactsRequest) (*jobpb.ResolveArtifactsResponse, error) {
-	return &jobpb.ResolveArtifactsResponse{
+	return jobpb.ResolveArtifactsResponse_builder{
 		Replacements: req.GetArtifacts(),
-	}, nil
+	}.Build(), nil
 }
 
 func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.ArtifactRetrievalService_GetArtifactServer) error {
@@ -107,13 +105,13 @@ func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.Artifac
 	chunk := 128 * 1024 * 1024 // 128 MB
 	var i int
 	for i+chunk < len(buf) {
-		stream.Send(&jobpb.GetArtifactResponse{
+		stream.Send(jobpb.GetArtifactResponse_builder{
 			Data: buf[i : i+chunk],
-		})
+		}.Build())
 		i += chunk
 	}
-	stream.Send(&jobpb.GetArtifactResponse{
+	stream.Send(jobpb.GetArtifactResponse_builder{
 		Data: buf[i:],
-	})
+	}.Build())
 	return nil
 }

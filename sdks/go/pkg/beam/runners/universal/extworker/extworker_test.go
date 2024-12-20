@@ -24,15 +24,15 @@ import (
 )
 
 func TestLoopback(t *testing.T) {
-	endpoint := &pipepb.ApiServiceDescriptor{
+	endpoint := pipepb.ApiServiceDescriptor_builder{
 		Url: "localhost:0",
-	}
-	secureEndpoint := &pipepb.ApiServiceDescriptor{
+	}.Build()
+	secureEndpoint := pipepb.ApiServiceDescriptor_builder{
 		Url: "localhost:0",
-		Authentication: &pipepb.AuthenticationSpec{
+		Authentication: pipepb.AuthenticationSpec_builder{
 			Urn: "beam:authentication:oauth2_client_credentials_grant:v1",
-		},
-	}
+		}.Build(),
+	}.Build()
 
 	ctx := context.Background()
 	server, err := StartLoopback(ctx, 0)
@@ -45,60 +45,60 @@ func TestLoopback(t *testing.T) {
 		errExpected bool
 	}{
 		{
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "Worker1",
 				ControlEndpoint: endpoint,
 				LoggingEndpoint: endpoint,
-			},
+			}.Build(),
 		}, {
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "Worker2",
 				ControlEndpoint: endpoint,
 				LoggingEndpoint: endpoint,
-			},
+			}.Build(),
 		}, {
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "Worker1",
 				ControlEndpoint: endpoint,
 				LoggingEndpoint: endpoint,
-			},
+			}.Build(),
 			errExpected: true, // Repeated start
 		}, {
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "missingControl",
 				LoggingEndpoint: endpoint,
-			},
+			}.Build(),
 			errExpected: true,
 		}, {
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "missingLogging",
 				ControlEndpoint: endpoint,
-			},
+			}.Build(),
 			errExpected: true,
 		}, {
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "secureLogging",
 				LoggingEndpoint: secureEndpoint,
 				ControlEndpoint: endpoint,
-			},
+			}.Build(),
 			errExpected: true,
 		}, {
-			req: &fnpb.StartWorkerRequest{
+			req: fnpb.StartWorkerRequest_builder{
 				WorkerId:        "secureControl",
 				LoggingEndpoint: endpoint,
 				ControlEndpoint: secureEndpoint,
-			},
+			}.Build(),
 			errExpected: true,
 		},
 	}
 	for _, test := range startTests {
 		resp, err := server.StartWorker(ctx, test.req)
 		if test.errExpected {
-			if err != nil || resp.Error == "" {
+			if err != nil || resp.GetError() == "" {
 				t.Errorf("Expected error starting %v: err: %v, resp: %v", test.req.GetWorkerId(), err, resp)
 			}
 		} else {
-			if err != nil || resp.Error != "" {
+			if err != nil || resp.GetError() != "" {
 				t.Errorf("Unexpected error starting %v: err: %v, resp: %v", test.req.GetWorkerId(), err, resp)
 			}
 		}
@@ -108,29 +108,29 @@ func TestLoopback(t *testing.T) {
 		errExpected bool
 	}{
 		{
-			req: &fnpb.StopWorkerRequest{
+			req: fnpb.StopWorkerRequest_builder{
 				WorkerId: "Worker1",
-			},
+			}.Build(),
 		}, {
-			req: &fnpb.StopWorkerRequest{
+			req: fnpb.StopWorkerRequest_builder{
 				WorkerId: "Worker1",
-			},
+			}.Build(),
 			errExpected: true,
 		}, {
-			req: &fnpb.StopWorkerRequest{
+			req: fnpb.StopWorkerRequest_builder{
 				WorkerId: "NonExistent",
-			},
+			}.Build(),
 			errExpected: true,
 		},
 	}
 	for _, test := range stopTests {
 		resp, err := server.StopWorker(ctx, test.req)
 		if test.errExpected {
-			if err != nil || resp.Error == "" {
+			if err != nil || resp.GetError() == "" {
 				t.Errorf("Expected error starting %v: err: %v, resp: %v", test.req.GetWorkerId(), err, resp)
 			}
 		} else {
-			if err != nil || resp.Error != "" {
+			if err != nil || resp.GetError() != "" {
 				t.Errorf("Unexpected error starting %v: err: %v, resp: %v", test.req.GetWorkerId(), err, resp)
 			}
 		}

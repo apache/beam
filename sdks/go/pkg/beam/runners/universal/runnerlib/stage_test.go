@@ -104,21 +104,19 @@ func (das *dummyArtifactServer) ReverseArtifactRetrievalService(stream jobpb.Art
 
 	// Check artifact Resolve Requests.
 	wantArts := []*pipepb.ArtifactInformation{
-		{
+		pipepb.ArtifactInformation_builder{
 			TypeUrn:     "dummy",
 			TypePayload: []byte("dummy"),
 			RoleUrn:     "dummy",
 			RolePayload: []byte("dummy"),
-		},
+		}.Build(),
 	}
 
-	if err := stream.Send(&jobpb.ArtifactRequestWrapper{
-		Request: &jobpb.ArtifactRequestWrapper_ResolveArtifact{
-			ResolveArtifact: &jobpb.ResolveArtifactsRequest{
-				Artifacts: wantArts,
-			},
-		},
-	}); err != nil {
+	if err := stream.Send(jobpb.ArtifactRequestWrapper_builder{
+		ResolveArtifact: jobpb.ResolveArtifactsRequest_builder{
+			Artifacts: wantArts,
+		}.Build(),
+	}.Build()); err != nil {
 		das.t.Fatalf("unexpected err on artifact resolve request Send: %v", err)
 	}
 
@@ -135,21 +133,19 @@ func (das *dummyArtifactServer) ReverseArtifactRetrievalService(stream jobpb.Art
 		das.t.Errorf("diff on artifact resolve response (-want, +got):\n%v", d)
 	}
 
-	typePl := protox.MustEncode(&pipepb.ArtifactFilePayload{
+	typePl := protox.MustEncode(pipepb.ArtifactFilePayload_builder{
 		Path: das.reqFile,
-	})
+	}.Build())
 
 	// Check file upload requests
-	if err := stream.Send(&jobpb.ArtifactRequestWrapper{
-		Request: &jobpb.ArtifactRequestWrapper_GetArtifact{
-			GetArtifact: &jobpb.GetArtifactRequest{
-				Artifact: &pipepb.ArtifactInformation{
-					TypeUrn:     graphx.URNArtifactFileType,
-					TypePayload: typePl,
-				},
-			},
-		},
-	}); err != nil {
+	if err := stream.Send(jobpb.ArtifactRequestWrapper_builder{
+		GetArtifact: jobpb.GetArtifactRequest_builder{
+			Artifact: pipepb.ArtifactInformation_builder{
+				TypeUrn:     graphx.URNArtifactFileType,
+				TypePayload: typePl,
+			}.Build(),
+		}.Build(),
+	}.Build()); err != nil {
 		das.t.Fatalf("unexpected err on get artifact request Send: %v", err)
 	}
 

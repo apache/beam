@@ -25,7 +25,7 @@ import (
 // Bounded returns true iff all PCollections are bounded.
 func Bounded(p *pipepb.Pipeline) bool {
 	for _, col := range p.GetComponents().GetPcollections() {
-		if col.IsBounded == pipepb.IsBounded_UNBOUNDED {
+		if col.GetIsBounded() == pipepb.IsBounded_UNBOUNDED {
 			return false
 		}
 	}
@@ -41,7 +41,7 @@ func ContainerImages(p *pipepb.Pipeline) []string {
 	for _, t := range p.GetComponents().GetEnvironments() {
 		var payload pipepb.DockerPayload
 		proto.Unmarshal(t.GetPayload(), &payload)
-		ret = append(ret, payload.ContainerImage)
+		ret = append(ret, payload.GetContainerImage())
 	}
 	return ret
 }
@@ -75,7 +75,7 @@ func newVisiter(xforms map[string]*pipepb.PTransform, ids []string) *visiter {
 		next:   make(map[string][]string),
 	}
 	for _, id := range ids {
-		for _, in := range xforms[id].Inputs {
+		for _, in := range xforms[id].GetInputs() {
 			ret.next[in] = append(ret.next[in], id)
 		}
 	}
@@ -91,8 +91,8 @@ func (v *visiter) visit(xforms map[string]*pipepb.PTransform, id string) {
 	}
 	v.seen[id] = true
 	// Deterministically iterate through the output keys.
-	outputKeys := make([]string, 0, len(xforms[id].Outputs))
-	for _, k := range xforms[id].Outputs {
+	outputKeys := make([]string, 0, len(xforms[id].GetOutputs()))
+	for _, k := range xforms[id].GetOutputs() {
 		outputKeys = append(outputKeys, k)
 	}
 	sort.Strings(outputKeys)

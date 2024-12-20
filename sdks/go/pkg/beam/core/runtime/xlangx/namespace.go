@@ -27,27 +27,27 @@ func addCoderID(c *pipepb.Components, idMap map[string]string, cid string, newID
 		return idMap[cid]
 	}
 
-	coder, exists := c.Coders[cid]
+	coder, exists := c.GetCoders()[cid]
 	if !exists {
-		panic(errors.Errorf("attempted to add namespace to missing coder id: %v not in %v", cid, c.Coders))
+		panic(errors.Errorf("attempted to add namespace to missing coder id: %v not in %v", cid, c.GetCoders()))
 	}
 
 	// Updating ComponentCoderIDs of Coder
 	if coder.GetComponentCoderIds() != nil {
 		var updatedComponentCoderIDs []string
-		updatedComponentCoderIDs = append(updatedComponentCoderIDs, coder.ComponentCoderIds...)
+		updatedComponentCoderIDs = append(updatedComponentCoderIDs, coder.GetComponentCoderIds()...)
 
-		for i, ccid := range coder.ComponentCoderIds {
+		for i, ccid := range coder.GetComponentCoderIds() {
 			updatedComponentCoderIDs[i] = addCoderID(c, idMap, ccid, newID)
 		}
-		coder.ComponentCoderIds = updatedComponentCoderIDs
+		coder.SetComponentCoderIds(updatedComponentCoderIDs)
 	}
 
 	idMap[cid] = newID(cid)
 
 	// Updating Coders map
-	c.Coders[idMap[cid]] = coder
-	delete(c.Coders, cid)
+	c.GetCoders()[idMap[cid]] = coder
+	delete(c.GetCoders(), cid)
 
 	return idMap[cid]
 }
@@ -57,21 +57,21 @@ func addWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid s
 		return idMap[wid]
 	}
 
-	windowingStrategy, exists := c.WindowingStrategies[wid]
+	windowingStrategy, exists := c.GetWindowingStrategies()[wid]
 	if !exists {
-		panic(errors.Errorf("attempted to add namespace to missing windowing strategy id: %v not in %v", wid, c.WindowingStrategies))
+		panic(errors.Errorf("attempted to add namespace to missing windowing strategy id: %v not in %v", wid, c.GetWindowingStrategies()))
 	}
 
 	// Updating WindowCoderID of WindowingStrategy
-	if windowingStrategy.WindowCoderId != "" {
-		windowingStrategy.WindowCoderId = addCoderID(c, idMap, windowingStrategy.WindowCoderId, newID)
+	if windowingStrategy.GetWindowCoderId() != "" {
+		windowingStrategy.SetWindowCoderId(addCoderID(c, idMap, windowingStrategy.GetWindowCoderId(), newID))
 	}
 
 	idMap[wid] = newID(wid)
 
 	// Updating WindowingStrategies map
-	c.WindowingStrategies[idMap[wid]] = windowingStrategy
-	delete(c.WindowingStrategies, wid)
+	c.GetWindowingStrategies()[idMap[wid]] = windowingStrategy
+	delete(c.GetWindowingStrategies(), wid)
 
 	return idMap[wid]
 }
@@ -88,14 +88,14 @@ func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 	// environment. If multiple Go SDK environments become possible, then
 	// namespacing of non-default environments should happen here.
 
-	for _, pcolsMap := range []map[string]string{t.Inputs, t.Outputs} {
+	for _, pcolsMap := range []map[string]string{t.GetInputs(), t.GetOutputs()} {
 		for _, pid := range pcolsMap {
-			if pcol, exists := c.Pcollections[pid]; exists {
+			if pcol, exists := c.GetPcollections()[pid]; exists {
 				// Update Coder ID of PCollection
-				pcol.CoderId = addCoderID(c, idMap, pcol.CoderId, newID)
+				pcol.SetCoderId(addCoderID(c, idMap, pcol.GetCoderId(), newID))
 
 				// Update WindowingStrategyID of PCollection
-				pcol.WindowingStrategyId = addWindowingStrategyID(c, idMap, pcol.WindowingStrategyId, newID)
+				pcol.SetWindowingStrategyId(addWindowingStrategyID(c, idMap, pcol.GetWindowingStrategyId(), newID))
 			}
 		}
 	}
@@ -106,32 +106,32 @@ func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 			continue
 		}
 		var updatedComponentCoderIDs []string
-		updatedComponentCoderIDs = append(updatedComponentCoderIDs, coder.ComponentCoderIds...)
+		updatedComponentCoderIDs = append(updatedComponentCoderIDs, coder.GetComponentCoderIds()...)
 		for i, ccid := range coder.GetComponentCoderIds() {
 			if _, exists := idMap[ccid]; exists {
 				updatedComponentCoderIDs[i] = idMap[ccid]
 			}
 		}
-		coder.ComponentCoderIds = updatedComponentCoderIDs
+		coder.SetComponentCoderIds(updatedComponentCoderIDs)
 	}
 
-	sourceName := t.UniqueName
-	for _, t := range c.Transforms {
-		if t.UniqueName != sourceName {
-			if id, exists := idMap[t.EnvironmentId]; exists {
-				t.EnvironmentId = id
+	sourceName := t.GetUniqueName()
+	for _, t := range c.GetTransforms() {
+		if t.GetUniqueName() != sourceName {
+			if id, exists := idMap[t.GetEnvironmentId()]; exists {
+				t.SetEnvironmentId(id)
 			}
-			for _, pcolsMap := range []map[string]string{t.Inputs, t.Outputs} {
+			for _, pcolsMap := range []map[string]string{t.GetInputs(), t.GetOutputs()} {
 				for _, pid := range pcolsMap {
-					if pcol, exists := c.Pcollections[pid]; exists {
+					if pcol, exists := c.GetPcollections()[pid]; exists {
 						// Update Coder ID of PCollection
-						if id, exists := idMap[pcol.CoderId]; exists {
-							pcol.CoderId = id
+						if id, exists := idMap[pcol.GetCoderId()]; exists {
+							pcol.SetCoderId(id)
 						}
 
 						// Update WindowingStrategyID of PCollection
-						if id, exists := idMap[pcol.WindowingStrategyId]; exists {
-							pcol.WindowingStrategyId = id
+						if id, exists := idMap[pcol.GetWindowingStrategyId()]; exists {
+							pcol.SetWindowingStrategyId(id)
 						}
 					}
 				}

@@ -75,7 +75,7 @@ func NewRetrievalServer(md *jobpb.ProxyManifest) (*RetrievalServer, error) {
 
 // GetManifest returns the manifest for all artifacts.
 func (s *RetrievalServer) GetManifest(ctx context.Context, req *jobpb.GetManifestRequest) (*jobpb.GetManifestResponse, error) {
-	return &jobpb.GetManifestResponse{Manifest: s.md}, nil
+	return jobpb.GetManifestResponse_builder{Manifest: s.md}.Build(), nil
 }
 
 // GetArtifact returns a given artifact.
@@ -105,7 +105,7 @@ func (s *RetrievalServer) GetArtifact(req *jobpb.LegacyGetArtifactRequest, strea
 	for {
 		n, err := r.Read(data)
 		if n > 0 {
-			if err := stream.Send(&jobpb.ArtifactChunk{Data: data[:n]}); err != nil {
+			if err := stream.Send(jobpb.ArtifactChunk_builder{Data: data[:n]}.Build()); err != nil {
 				return errors.Wrap(err, "chunk send failed")
 			}
 		}
@@ -122,20 +122,20 @@ func (s *RetrievalServer) GetArtifact(req *jobpb.LegacyGetArtifactRequest, strea
 func validate(md *jobpb.ProxyManifest) error {
 	keys := make(map[string]bool)
 	for _, a := range md.GetManifest().GetArtifact() {
-		if _, seen := keys[a.Name]; seen {
-			return errors.Errorf("multiple artifact with name %v", a.Name)
+		if _, seen := keys[a.GetName()]; seen {
+			return errors.Errorf("multiple artifact with name %v", a.GetName())
 		}
-		keys[a.Name] = true
+		keys[a.GetName()] = true
 	}
 	for _, l := range md.GetLocation() {
-		fresh, seen := keys[l.Name]
+		fresh, seen := keys[l.GetName()]
 		if !seen {
-			return errors.Errorf("no artifact named %v for location %v", l.Name, l.Uri)
+			return errors.Errorf("no artifact named %v for location %v", l.GetName(), l.GetUri())
 		}
 		if !fresh {
-			return errors.Errorf("multiple locations for %v:%v", l.Name, l.Uri)
+			return errors.Errorf("multiple locations for %v:%v", l.GetName(), l.GetUri())
 		}
-		keys[l.Name] = false
+		keys[l.GetName()] = false
 	}
 
 	for key, fresh := range keys {

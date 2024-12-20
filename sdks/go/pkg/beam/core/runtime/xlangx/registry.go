@@ -78,7 +78,7 @@ type HandlerParams struct {
 // CoderMarshaller returns a coder marshaller initialized with the request's namespace.
 func (p *HandlerParams) CoderMarshaller() *graphx.CoderMarshaller {
 	cm := graphx.NewCoderMarshaller()
-	cm.Namespace = p.Req.Namespace
+	cm.Namespace = p.Req.GetNamespace()
 	return cm
 }
 
@@ -134,7 +134,7 @@ func makePCol(node *graph.Node, index int, local, namespace string) PCol {
 func (p *HandlerParams) Outputs() []PCol {
 	out := make([]PCol, 0, len(p.ext.OutputsMap))
 	for local, i := range p.ext.OutputsMap {
-		out = append(out, makePCol(p.edge.Output[i].To, i, local, p.Req.Namespace))
+		out = append(out, makePCol(p.edge.Output[i].To, i, local, p.Req.GetNamespace()))
 	}
 	return out
 }
@@ -144,7 +144,7 @@ func (p *HandlerParams) Outputs() []PCol {
 func (p *HandlerParams) Inputs() []PCol {
 	out := make([]PCol, 0, len(p.ext.InputsMap))
 	for local, i := range p.ext.InputsMap {
-		out = append(out, makePCol(p.edge.Input[i].From, i, local, p.Req.Namespace))
+		out = append(out, makePCol(p.edge.Input[i].From, i, local, p.Req.GetNamespace()))
 	}
 	return out
 }

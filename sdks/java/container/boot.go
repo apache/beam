@@ -125,8 +125,8 @@ func main() {
 	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (pipepb.ApiServiceDescriptor_builder{Url: *loggingEndpoint}.Build()).String())
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (pipepb.ApiServiceDescriptor_builder{Url: *controlEndpoint}.Build()).String())
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 
 	if info.GetStatusEndpoint() != nil {

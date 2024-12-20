@@ -36,11 +36,11 @@ import (
 // modified.
 func Update(p *pipepb.Pipeline, values *pipepb.Components) (*pipepb.Pipeline, error) {
 	ret := shallowClonePipeline(p)
-	reflectx.UpdateMap(ret.Components.Transforms, values.Transforms)
-	reflectx.UpdateMap(ret.Components.Pcollections, values.Pcollections)
-	reflectx.UpdateMap(ret.Components.WindowingStrategies, values.WindowingStrategies)
-	reflectx.UpdateMap(ret.Components.Coders, values.Coders)
-	reflectx.UpdateMap(ret.Components.Environments, values.Environments)
+	reflectx.UpdateMap(ret.GetComponents().GetTransforms(), values.GetTransforms())
+	reflectx.UpdateMap(ret.GetComponents().GetPcollections(), values.GetPcollections())
+	reflectx.UpdateMap(ret.GetComponents().GetWindowingStrategies(), values.GetWindowingStrategies())
+	reflectx.UpdateMap(ret.GetComponents().GetCoders(), values.GetCoders())
+	reflectx.UpdateMap(ret.GetComponents().GetEnvironments(), values.GetEnvironments())
 	return Normalize(ret)
 }
 
@@ -60,12 +60,12 @@ func Normalize(p *pipepb.Pipeline) (*pipepb.Pipeline, error) {
 
 	ret := shallowClonePipeline(p)
 	if IdempotentNormalize {
-		ret.Components.Transforms = ensureUniqueNames(ret.Components.Transforms)
+		ret.GetComponents().SetTransforms(ensureUniqueNames(ret.GetComponents().GetTransforms()))
 	} else {
-		ret.Components.Transforms = ensureUniqueNamesLegacy(ret.Components.Transforms)
+		ret.GetComponents().SetTransforms(ensureUniqueNamesLegacy(ret.GetComponents().GetTransforms()))
 	}
-	ret.Components.Transforms = computeCompositeInputOutput(ret.Components.Transforms)
-	ret.RootTransformIds = computeRoots(ret.Components.Transforms)
+	ret.GetComponents().SetTransforms(computeCompositeInputOutput(ret.GetComponents().GetTransforms()))
+	ret.SetRootTransformIds(computeRoots(ret.GetComponents().GetTransforms()))
 	return ret, nil
 }
 
@@ -85,7 +85,7 @@ func walkCoders(coders, accum map[string]*pipepb.Coder, id string) {
 
 	c := coders[id]
 	accum[id] = c
-	for _, sub := range c.ComponentCoderIds {
+	for _, sub := range c.GetComponentCoderIds() {
 		walkCoders(coders, accum, sub)
 	}
 }
@@ -106,7 +106,7 @@ func computeRoots(xforms map[string]*pipepb.PTransform) []string {
 func makeParentMap(xforms map[string]*pipepb.PTransform) map[string]string {
 	parent := make(map[string]string)
 	for id, t := range xforms {
-		for _, key := range t.Subtransforms {
+		for _, key := range t.GetSubtransforms() {
 			parent[key] = id
 		}
 	}
@@ -138,7 +138,7 @@ func computeCompositeInputOutput(xforms map[string]*pipepb.PTransform) map[strin
 // maps of composite transforms. Update the transform map.
 func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool, primitiveXformsForInput map[string][]string) {
 	t := ret[id]
-	if seen[id] || len(t.Subtransforms) == 0 {
+	if seen[id] || len(t.GetSubtransforms()) == 0 {
 		return
 	}
 
@@ -150,7 +150,7 @@ func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool, pr
 	in := make(map[string]bool)
 	out := make(map[string]bool)
 	local := map[string]bool{id: true}
-	for _, sid := range t.Subtransforms {
+	for _, sid := range t.GetSubtransforms() {
 		walk(sid, ret, seen, primitiveXformsForInput)
 		inout(ret[sid], in, out)
 		local[sid] = true
@@ -164,9 +164,9 @@ func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool, pr
 	externalIns(local, primitiveXformsForInput, extIn, out)
 
 	upd := ShallowClonePTransform(t)
-	upd.Inputs = diff(in, out)
-	upd.Outputs = diffAndMerge(out, in, extIn)
-	upd.Subtransforms = TopologicalSort(ret, upd.Subtransforms)
+	upd.SetInputs(diff(in, out))
+	upd.SetOutputs(diffAndMerge(out, in, extIn))
+	upd.SetSubtransforms(TopologicalSort(ret, upd.GetSubtransforms()))
 
 	ret[id] = upd
 	seen[id] = true
@@ -312,9 +312,9 @@ func ensureUniqueNames(xforms map[string]*pipepb.PTransform) map[string]*pipepb.
 		name := findFreeName(seen, base)
 		seen[name] = true
 
-		if name != t.UniqueName {
+		if name != t.GetUniqueName() {
 			upd := ShallowClonePTransform(t)
-			upd.UniqueName = name
+			upd.SetUniqueName(name)
 			ret[id] = upd
 		}
 		return name
@@ -373,12 +373,12 @@ func ensureUniqueNamesLegacy(xforms map[string]*pipepb.PTransform) map[string]*p
 	seen := make(map[string]bool)
 	for _, id := range ordering {
 		t := xforms[id]
-		name := findFreeName(seen, t.UniqueName)
+		name := findFreeName(seen, t.GetUniqueName())
 		seen[name] = true
 
-		if name != t.UniqueName {
+		if name != t.GetUniqueName() {
 			upd := ShallowClonePTransform(t)
-			upd.UniqueName = name
+			upd.SetUniqueName(name)
 			ret[id] = upd
 		}
 	}
@@ -426,12 +426,12 @@ func ApplySdkImageOverrides(p *pipepb.Pipeline, patterns map[string]string) erro
 		for re, replacement := range regexes {
 			newImg := re.ReplaceAllLiteralString(oldImg, replacement)
 			if newImg != oldImg {
-				payload.ContainerImage = newImg
+				payload.SetContainerImage(newImg)
 				pl, err := proto.Marshal(&payload)
 				if err != nil {
 					return err
 				}
-				env.Payload = pl
+				env.SetPayload(pl)
 				break // Apply at most one override to each environment.
 			}
 		}

@@ -37,94 +37,94 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 	}{
 		{
 			name: "noPreparer",
-			input: &pipepb.Components{
+			input: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"e1": {
+					"e1": pipepb.PTransform_builder{
 						UniqueName: "e1",
-						Spec: &pipepb.FunctionSpec{
+						Spec: pipepb.FunctionSpec_builder{
 							Urn: "defaultUrn",
-						},
-					},
+						}.Build(),
+					}.Build(),
 				},
-			},
+			}.Build(),
 
 			wantStages: []*stage{{transforms: []string{"e1"}}},
-			wantComponents: &pipepb.Components{
+			wantComponents: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"e1": {
+					"e1": pipepb.PTransform_builder{
 						UniqueName: "e1",
-						Spec: &pipepb.FunctionSpec{
+						Spec: pipepb.FunctionSpec_builder{
 							Urn: "defaultUrn",
-						},
-					},
+						}.Build(),
+					}.Build(),
 				},
-			},
+			}.Build(),
 		}, {
 			name:        "preparer",
 			forcedRoots: []string{"e1_early", "e1_late"},
-			input: &pipepb.Components{
+			input: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"e1": {
+					"e1": pipepb.PTransform_builder{
 						UniqueName: "e1",
-						Spec: &pipepb.FunctionSpec{
+						Spec: pipepb.FunctionSpec_builder{
 							Urn: "test_urn",
-						},
-					},
+						}.Build(),
+					}.Build(),
 				},
 				// Initialize maps because they always are by proto unmarshallers.
 				Pcollections:        map[string]*pipepb.PCollection{},
 				WindowingStrategies: map[string]*pipepb.WindowingStrategy{},
 				Coders:              map[string]*pipepb.Coder{},
 				Environments:        map[string]*pipepb.Environment{},
-			},
+			}.Build(),
 
 			wantStages: []*stage{
 				{transforms: []string{"e1_early"}, envID: "env1",
 					outputs: []link{{Transform: "e1_early", Local: "i0", Global: "pcol1"}}},
 				{transforms: []string{"e1_late"}, envID: "env1", primaryInput: "pcol1"}},
-			wantComponents: &pipepb.Components{
+			wantComponents: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
 					// Original is always kept
-					"e1": {
+					"e1": pipepb.PTransform_builder{
 						UniqueName: "e1",
-						Spec: &pipepb.FunctionSpec{
+						Spec: pipepb.FunctionSpec_builder{
 							Urn: "test_urn",
-						},
-					},
-					"e1_early": {
+						}.Build(),
+					}.Build(),
+					"e1_early": pipepb.PTransform_builder{
 						UniqueName: "e1_early",
-						Spec: &pipepb.FunctionSpec{
+						Spec: pipepb.FunctionSpec_builder{
 							Urn: "defaultUrn",
-						},
+						}.Build(),
 						Outputs:       map[string]string{"i0": "pcol1"},
 						EnvironmentId: "env1",
-					},
-					"e1_late": {
+					}.Build(),
+					"e1_late": pipepb.PTransform_builder{
 						UniqueName: "e1_late",
-						Spec: &pipepb.FunctionSpec{
+						Spec: pipepb.FunctionSpec_builder{
 							Urn: "defaultUrn",
-						},
+						}.Build(),
 						Inputs:        map[string]string{"i0": "pcol1"},
 						EnvironmentId: "env1",
-					},
+					}.Build(),
 				},
 				Pcollections: map[string]*pipepb.PCollection{
-					"pcol1": {
+					"pcol1": pipepb.PCollection_builder{
 						UniqueName:          "pcol1",
 						CoderId:             "coder1",
 						WindowingStrategyId: "ws1",
-					},
+					}.Build(),
 				},
 				Coders: map[string]*pipepb.Coder{
-					"coder1": {Spec: &pipepb.FunctionSpec{Urn: "coder1"}},
+					"coder1": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: "coder1"}.Build()}.Build(),
 				},
 				WindowingStrategies: map[string]*pipepb.WindowingStrategy{
-					"ws1": {WindowCoderId: "global"},
+					"ws1": pipepb.WindowingStrategy_builder{WindowCoderId: "global"}.Build(),
 				},
 				Environments: map[string]*pipepb.Environment{
-					"env1": {Urn: "env1"},
+					"env1": pipepb.Environment_builder{Urn: "env1"}.Build(),
 				},
-			},
+			}.Build(),
 		},
 	}
 	for _, test := range tests {
@@ -160,54 +160,54 @@ func (p *testPreparer) PrepareUrns() []string {
 func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
 	return prepareResult{
 		ForcedRoots: p.ForcedRoots,
-		SubbedComps: &pipepb.Components{
+		SubbedComps: pipepb.Components_builder{
 			Transforms: map[string]*pipepb.PTransform{
-				"e1_early": {
+				"e1_early": pipepb.PTransform_builder{
 					UniqueName: "e1_early",
-					Spec: &pipepb.FunctionSpec{
+					Spec: pipepb.FunctionSpec_builder{
 						Urn: "defaultUrn",
-					},
+					}.Build(),
 					Outputs:       map[string]string{"i0": "pcol1"},
 					EnvironmentId: "env1",
-				},
-				"e1_late": {
+				}.Build(),
+				"e1_late": pipepb.PTransform_builder{
 					UniqueName: "e1_late",
-					Spec: &pipepb.FunctionSpec{
+					Spec: pipepb.FunctionSpec_builder{
 						Urn: "defaultUrn",
-					},
+					}.Build(),
 					Inputs:        map[string]string{"i0": "pcol1"},
 					EnvironmentId: "env1",
-				},
+				}.Build(),
 			},
 			Pcollections: map[string]*pipepb.PCollection{
-				"pcol1": {
+				"pcol1": pipepb.PCollection_builder{
 					UniqueName:          "pcol1",
 					CoderId:             "coder1",
 					WindowingStrategyId: "ws1",
-				},
+				}.Build(),
 			},
 			Coders: map[string]*pipepb.Coder{
-				"coder1": {Spec: &pipepb.FunctionSpec{Urn: "coder1"}},
+				"coder1": pipepb.Coder_builder{Spec: pipepb.FunctionSpec_builder{Urn: "coder1"}.Build()}.Build(),
 			},
 			WindowingStrategies: map[string]*pipepb.WindowingStrategy{
-				"ws1": {WindowCoderId: "global"},
+				"ws1": pipepb.WindowingStrategy_builder{WindowCoderId: "global"}.Build(),
 			},
 			Environments: map[string]*pipepb.Environment{
-				"env1": {Urn: "env1"},
+				"env1": pipepb.Environment_builder{Urn: "env1"}.Build(),
 			},
-		},
+		}.Build(),
 		RemovedLeaves: []string{"e1"},
 	}
 }
 
 func TestComputeFacts(t *testing.T) {
 	sideInputSpec := func(sis map[string]*pipepb.SideInput) *pipepb.FunctionSpec {
-		return &pipepb.FunctionSpec{
+		return pipepb.FunctionSpec_builder{
 			Urn: urns.TransformParDo,
-			Payload: protox.MustEncode(&pipepb.ParDoPayload{
+			Payload: protox.MustEncode(pipepb.ParDoPayload_builder{
 				SideInputs: sis,
-			}),
-		}
+			}.Build()),
+		}.Build()
 	}
 
 	tests := []struct {
@@ -220,14 +220,14 @@ func TestComputeFacts(t *testing.T) {
 		{
 			name:        "single_transform",
 			topological: []string{"t1"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{},
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers:   map[string]link{},
 				PcolConsumers:   map[string][]link{},
@@ -242,18 +242,18 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "t2_consumes_n1_as_primary",
 			topological: []string{"t1", "t2"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"t2": {
+					}.Build(),
+					"t2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1"},
 						Outputs: map[string]string{},
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
@@ -274,21 +274,21 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "t2_consumes_n1_as_side",
 			topological: []string{"t1", "t2"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"t2": {
+					}.Build(),
+					"t2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i0": {},
 						}),
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
@@ -311,25 +311,25 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "t2_consumes_n2_as_side_n1_as_primary_produces_n2",
 			topological: []string{"t1", "t2", "t3"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"t2": {
+					}.Build(),
+					"t2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1"},
 						Outputs: map[string]string{"o0": "n2"},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i0": {},
 						}),
-					},
-					"t3": {
+					}.Build(),
+					"t3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n2"},
 						Outputs: map[string]string{},
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
@@ -356,25 +356,25 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "t3_consumes_n1_as_side_n2_as_primary",
 			topological: []string{"t1", "t2", "t3"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"t2": {
+					}.Build(),
+					"t2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n2"},
-					},
-					"t3": {
+					}.Build(),
+					"t3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n2", "i1": "n1"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
@@ -401,25 +401,25 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "t3_consumes_n2_as_side",
 			topological: []string{"t1", "t2", "t3"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"t2": {
+					}.Build(),
+					"t2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1"},
 						Outputs: map[string]string{"o0": "n2"},
-					},
-					"t3": {
+					}.Build(),
+					"t3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i1": "n2"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
@@ -446,32 +446,32 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "criss_cross",
 			topological: []string{"t1", "t2", "t3", "t4"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"t1": {
+					"t1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"t2": {
+					}.Build(),
+					"t2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n2"},
-					},
-					"t3": {
+					}.Build(),
+					"t3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1", "i1": "n2"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
-					"t4": {
+					}.Build(),
+					"t4": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n2", "i1": "n1"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
@@ -501,48 +501,48 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "long_criss_cross_tail_cross",
 			topological: []string{"r1", "r2", "r3", "l1", "l2", "l3", "r4", "l4"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"r1": {
+					"r1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"r2": {
+					}.Build(),
+					"r2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1"},
 						Outputs: map[string]string{"o0": "n2"},
-					},
-					"r3": {
+					}.Build(),
+					"r3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n2"},
 						Outputs: map[string]string{"o0": "n3"},
-					},
-					"l1": {
+					}.Build(),
+					"l1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n4"},
-					},
-					"l2": {
+					}.Build(),
+					"l2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n4"},
 						Outputs: map[string]string{"o0": "n5"},
-					},
-					"l3": {
+					}.Build(),
+					"l3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n5"},
 						Outputs: map[string]string{"o0": "n6"},
-					},
-					"r4": {
+					}.Build(),
+					"r4": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n3", "i1": "n6"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
-					"l4": {
+					}.Build(),
+					"l4": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n6", "i1": "n3"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "r1", Local: "o0", Global: "n1"},
@@ -588,48 +588,48 @@ func TestComputeFacts(t *testing.T) {
 		}, {
 			name:        "long_criss_cross_head_cross",
 			topological: []string{"r1", "r2", "r3", "l1", "l2", "l3", "r4", "l4"},
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
-					"r1": {
+					"r1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n1"},
-					},
-					"r2": {
+					}.Build(),
+					"r2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n1"},
 						Outputs: map[string]string{"o0": "n2"},
-					},
-					"r3": {
+					}.Build(),
+					"r3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n2"},
 						Outputs: map[string]string{"o0": "n3"},
-					},
-					"l1": {
+					}.Build(),
+					"l1": pipepb.PTransform_builder{
 						Inputs:  map[string]string{},
 						Outputs: map[string]string{"o0": "n4"},
-					},
-					"l2": {
+					}.Build(),
+					"l2": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n4"},
 						Outputs: map[string]string{"o0": "n5"},
-					},
-					"l3": {
+					}.Build(),
+					"l3": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n5"},
 						Outputs: map[string]string{"o0": "n6"},
-					},
-					"r4": {
+					}.Build(),
+					"r4": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n3", "i1": "n4"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
-					"l4": {
+					}.Build(),
+					"l4": pipepb.PTransform_builder{
 						Inputs:  map[string]string{"i0": "n6", "i1": "n1"},
 						Outputs: map[string]string{},
 						Spec: sideInputSpec(map[string]*pipepb.SideInput{
 							"i1": {},
 						}),
-					},
+					}.Build(),
 				},
-			},
+			}.Build(),
 			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "r1", Local: "o0", Global: "n1"},

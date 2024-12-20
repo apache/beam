@@ -84,7 +84,7 @@ func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, sha2
 	rcl := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 
 	for i, key := range keys {
-		stream, err := rcl.GetArtifact(ctx, &jobpb.LegacyGetArtifactRequest{Name: key, RetrievalToken: rt})
+		stream, err := rcl.GetArtifact(ctx, jobpb.LegacyGetArtifactRequest_builder{Name: key, RetrievalToken: rt}.Build())
 		if err != nil {
 			t.Fatalf("failed to get artifact for %v: %v", key, err)
 		}

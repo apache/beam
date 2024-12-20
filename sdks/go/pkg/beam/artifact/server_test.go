@@ -85,7 +85,7 @@ func (s *server) PutArtifact(ps jobpb.LegacyArtifactStagingService_PutArtifactSe
 	if header.GetMetadata() == nil {
 		return errors.Errorf("expected header as first message: %v", header)
 	}
-	key := header.GetMetadata().GetMetadata().Name
+	key := header.GetMetadata().GetMetadata().GetName()
 	if header.GetMetadata().GetStagingSessionToken() == "" {
 		return errors.New("missing staging session token")
 	}
@@ -138,19 +138,19 @@ func (s *server) CommitManifest(ctx context.Context, req *jobpb.CommitManifestRe
 
 	artifacts := req.GetManifest().GetArtifact()
 	for _, md := range artifacts {
-		if _, ok := m.m[md.Name]; !ok {
-			return nil, errors.Errorf("artifact %v not staged", md.Name)
+		if _, ok := m.m[md.GetName()]; !ok {
+			return nil, errors.Errorf("artifact %v not staged", md.GetName())
 		}
 	}
 
 	// Update commit. Only one manifest can exist for each staging id.
 
 	for _, md := range artifacts {
-		m.m[md.Name].md = md
+		m.m[md.GetName()].md = md
 	}
 	m.md = req.GetManifest()
 
-	return &jobpb.CommitManifestResponse{RetrievalToken: token}, nil
+	return jobpb.CommitManifestResponse_builder{RetrievalToken: token}.Build(), nil
 }
 
 func (s *server) GetManifest(ctx context.Context, req *jobpb.GetManifestRequest) (*jobpb.GetManifestResponse, error) {
@@ -166,7 +166,7 @@ func (s *server) GetManifest(ctx context.Context, req *jobpb.GetManifestRequest)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return &jobpb.GetManifestResponse{Manifest: m.md}, nil
+	return jobpb.GetManifestResponse_builder{Manifest: m.md}.Build(), nil
 }
 
 func (s *server) GetArtifact(req *jobpb.LegacyGetArtifactRequest, stream jobpb.LegacyArtifactRetrievalService_GetArtifactServer) error {
@@ -195,7 +195,7 @@ func (s *server) GetArtifact(req *jobpb.LegacyGetArtifactRequest, stream jobpb.L
 	// Send chunks exactly as we received them.
 
 	for _, chunk := range chunks {
-		if err := stream.Send(&jobpb.ArtifactChunk{Data: chunk}); err != nil {
+		if err := stream.Send(jobpb.ArtifactChunk_builder{Data: chunk}.Build()); err != nil {
 			return err
 		}
 	}

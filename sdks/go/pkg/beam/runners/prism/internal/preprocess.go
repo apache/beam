@@ -279,7 +279,7 @@ func defaultFusion(topological []string, comps *pipepb.Components, facts fusionF
 			transforms: []string{tid},
 		}
 		// TODO validate that fused stages have the same environment.
-		stg.envID = comps.GetTransforms()[tid].EnvironmentId
+		stg.envID = comps.GetTransforms()[tid].GetEnvironmentId()
 
 		stages = append(stages, stg)
 
@@ -445,7 +445,7 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
 				}
-				stg.finalize = pardo.RequestsFinalization
+				stg.finalize = pardo.GetRequestsFinalization()
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
 				}

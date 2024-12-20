@@ -31,55 +31,49 @@ import (
 )
 
 func atomicSchemaField(name string, typ pipepb.AtomicType) *pipepb.Field {
-	return &pipepb.Field{
+	return pipepb.Field_builder{
 		Name: name,
-		Type: &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_AtomicType{
-				AtomicType: typ,
-			},
-		},
-	}
+		Type: pipepb.FieldType_builder{
+			AtomicType: typ.Enum(),
+		}.Build(),
+	}.Build()
 }
 
 func rowSchemaField(name string, typ *pipepb.Schema) *pipepb.Field {
-	return &pipepb.Field{
+	return pipepb.Field_builder{
 		Name: name,
-		Type: &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_RowType{
-				RowType: &pipepb.RowType{
-					Schema: typ,
-				},
-			},
-		},
-	}
+		Type: pipepb.FieldType_builder{
+			RowType: pipepb.RowType_builder{
+				Schema: typ,
+			}.Build(),
+		}.Build(),
+	}.Build()
 }
 
 func listSchemaField(name string, typ *pipepb.Field) *pipepb.Field {
-	return &pipepb.Field{
+	return pipepb.Field_builder{
 		Name: name,
-		Type: &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_ArrayType{
-				ArrayType: &pipepb.ArrayType{
-					ElementType: typ.GetType(),
-				},
-			},
-		},
-	}
+		Type: pipepb.FieldType_builder{
+			ArrayType: pipepb.ArrayType_builder{
+				ElementType: typ.GetType(),
+			}.Build(),
+		}.Build(),
+	}.Build()
 }
 
 func nillable(f *pipepb.Field) *pipepb.Field {
-	f.Type.Nullable = true
+	f.GetType().SetNullable(true)
 	return f
 }
 
 func TestSchemaTypes(t *testing.T) {
-	transactionSchema := &pipepb.Schema{
+	transactionSchema := pipepb.Schema_builder{
 		Fields: []*pipepb.Field{
 			atomicSchemaField("bank", pipepb.AtomicType_STRING),
 			atomicSchemaField("purchaseAmount", pipepb.AtomicType_DOUBLE),
 		},
-	}
-	shippingAddressSchema := &pipepb.Schema{
+	}.Build()
+	shippingAddressSchema := pipepb.Schema_builder{
 		Fields: []*pipepb.Field{
 			atomicSchemaField("streetAddress", pipepb.AtomicType_STRING),
 			atomicSchemaField("city", pipepb.AtomicType_STRING),
@@ -87,7 +81,7 @@ func TestSchemaTypes(t *testing.T) {
 			atomicSchemaField("country", pipepb.AtomicType_STRING),
 			atomicSchemaField("postCode", pipepb.AtomicType_STRING),
 		},
-	}
+	}.Build()
 
 	tests := []struct {
 		rt     reflect.Type
@@ -101,7 +95,7 @@ func TestSchemaTypes(t *testing.T) {
 		st: shippingAddressSchema,
 	}, {
 		rt: reflect.TypeOf(Purchase{}),
-		st: &pipepb.Schema{
+		st: pipepb.Schema_builder{
 			Fields: []*pipepb.Field{
 				atomicSchemaField("userId", pipepb.AtomicType_STRING),
 				atomicSchemaField("itemId", pipepb.AtomicType_INT64),
@@ -110,15 +104,15 @@ func TestSchemaTypes(t *testing.T) {
 				listSchemaField("transactions",
 					rowSchemaField("n/a", transactionSchema)),
 			},
-		},
+		}.Build(),
 	}, {
 		rt: tnType,
-		st: &pipepb.Schema{
+		st: pipepb.Schema_builder{
 			Fields: []*pipepb.Field{
 				atomicSchemaField("seconds", pipepb.AtomicType_INT64),
 				atomicSchemaField("nanos", pipepb.AtomicType_INT32),
 			},
-		},
+		}.Build(),
 		preReg: func(reg *schema.Registry) {
 			reg.RegisterLogicalType(schema.ToLogicalType(tnType.Name(), tnType, tnStorageType))
 		},
