@@ -46,12 +46,12 @@ func TestFromMonitoringInfos_Counters(t *testing.T) {
 		"NAME":       "customCounter",
 	}
 
-	mInfo := &pipepb.MonitoringInfo{
+	mInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(UrnUserSumInt64),
 		Type:    UrnToType(UrnUserSumInt64),
 		Labels:  labels,
 		Payload: payload,
-	}
+	}.Build()
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
@@ -111,30 +111,30 @@ func TestFromMonitoringInfos_Msec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to encode Int64Counter: %v", err)
 	}
-	mStartBundleInfo := &pipepb.MonitoringInfo{
+	mStartBundleInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(ExecutionMsecUrn(0)),
 		Type:    UrnToType(ExecutionMsecUrn(0)),
 		Labels:  labels,
 		Payload: startValue,
-	}
-	mProcessBundleInfo := &pipepb.MonitoringInfo{
+	}.Build()
+	mProcessBundleInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(ExecutionMsecUrn(1)),
 		Type:    UrnToType(ExecutionMsecUrn(1)),
 		Labels:  labels,
 		Payload: processValue,
-	}
-	mFinishBundleInfo := &pipepb.MonitoringInfo{
+	}.Build()
+	mFinishBundleInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(ExecutionMsecUrn(2)),
 		Type:    UrnToType(ExecutionMsecUrn(2)),
 		Labels:  labels,
 		Payload: finishValue,
-	}
-	mTotalTimeInfo := &pipepb.MonitoringInfo{
+	}.Build()
+	mTotalTimeInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(ExecutionMsecUrn(3)),
 		Type:    UrnToType(ExecutionMsecUrn(3)),
 		Labels:  labels,
 		Payload: totalValue,
-	}
+	}.Build()
 
 	attempted := []*pipepb.MonitoringInfo{mStartBundleInfo, mProcessBundleInfo, mFinishBundleInfo, mTotalTimeInfo}
 	committed := []*pipepb.MonitoringInfo{}
@@ -174,12 +174,12 @@ func TestFromMonitoringInfos_PColCounters(t *testing.T) {
 		"NAME":       "customCounter",
 	}
 
-	mInfo := &pipepb.MonitoringInfo{
+	mInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(UrnElementCount),
 		Type:    UrnToType(UrnElementCount),
 		Labels:  labels,
 		Payload: payload,
-	}
+	}.Build()
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
@@ -224,12 +224,12 @@ func TestFromMonitoringInfos_SampledByteSize(t *testing.T) {
 		"NAME":       "customCounter",
 	}
 
-	mInfo := &pipepb.MonitoringInfo{
+	mInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(UrnSampledByteSize),
 		Type:    UrnToType(UrnSampledByteSize),
 		Labels:  labels,
 		Payload: payload,
-	}
+	}.Build()
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
@@ -274,12 +274,12 @@ func TestFromMonitoringInfos_Distributions(t *testing.T) {
 		"NAME":       "customDist",
 	}
 
-	mInfo := &pipepb.MonitoringInfo{
+	mInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(UrnUserDistInt64),
 		Type:    UrnToType(UrnUserDistInt64),
 		Labels:  labels,
 		Payload: payload,
-	}
+	}.Build()
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
@@ -324,12 +324,12 @@ func TestFromMonitoringInfos_Gauges(t *testing.T) {
 		"NAME":       "customGauge",
 	}
 
-	mInfo := &pipepb.MonitoringInfo{
+	mInfo := pipepb.MonitoringInfo_builder{
 		Urn:     UrnToString(UrnUserLatestMsInt64),
 		Type:    UrnToType(UrnUserLatestMsInt64),
 		Labels:  labels,
 		Payload: payload,
-	}
+	}.Build()
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}

@@ -87,7 +87,7 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 
 func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
 	if !h.config.SDKFlatten {
-		t.EnvironmentId = ""         // force the flatten to be a runner transform due to configuration.
+		t.SetEnvironmentId("")       // force the flatten to be a runner transform due to configuration.
 		forcedRoots := []string{tid} // Have runner side transforms be roots.
 
 		// Force runner flatten consumers to be roots.
@@ -111,20 +111,20 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 		coderSubs := map[string]*pipepb.Coder{}
 		for _, p := range t.GetInputs() {
 			inPCol := comps.GetPcollections()[p]
-			if inPCol.CoderId != outPCol.CoderId {
-				coderSubs[inPCol.CoderId] = outCoder
+			if inPCol.GetCoderId() != outPCol.GetCoderId() {
+				coderSubs[inPCol.GetCoderId()] = outCoder
 			}
 		}
 
 		// Return the new components which is the transforms consumer
 		return prepareResult{
 			// We sub this flatten with itself, to not drop it.
-			SubbedComps: &pipepb.Components{
+			SubbedComps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
 					tid: t,
 				},
 				Coders: coderSubs,
-			},
+			}.Build(),
 			RemovedLeaves: nil,
 			ForcedRoots:   forcedRoots,
 		}

@@ -279,7 +279,7 @@ func defaultFusion(topological []string, comps *pipepb.Components, facts fusionF
 			transforms: []string{tid},
 		}
 		// TODO validate that fused stages have the same environment.
-		stg.envID = comps.GetTransforms()[tid].EnvironmentId
+		stg.envID = comps.GetTransforms()[tid].GetEnvironmentId()
 
 		stages = append(stages, stg)
 

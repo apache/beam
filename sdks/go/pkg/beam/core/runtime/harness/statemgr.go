@@ -228,16 +228,14 @@ type stateKeyWriter struct {
 }
 
 func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, k, w []byte) *stateKeyReader {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_MultimapSideInput_{
-			MultimapSideInput: &fnpb.StateKey_MultimapSideInput{
-				TransformId: id.PtransformID,
-				SideInputId: sideInputID,
-				Window:      w,
-				Key:         k,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		MultimapSideInput: fnpb.StateKey_MultimapSideInput_builder{
+			TransformId: id.PtransformID,
+			SideInputId: sideInputID,
+			Window:      w,
+			Key:         k,
+		}.Build(),
+	}.Build()
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,
@@ -246,15 +244,13 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 }
 
 func newIterableSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, w []byte) *stateKeyReader {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_IterableSideInput_{
-			IterableSideInput: &fnpb.StateKey_IterableSideInput{
-				TransformId: id.PtransformID,
-				SideInputId: sideInputID,
-				Window:      w,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		IterableSideInput: fnpb.StateKey_IterableSideInput_builder{
+			TransformId: id.PtransformID,
+			SideInputId: sideInputID,
+			Window:      w,
+		}.Build(),
+	}.Build()
 
 	return &stateKeyReader{
 		instID: instID,
@@ -264,13 +260,11 @@ func newIterableSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID 
 }
 
 func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKeyReader {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_Runner_{
-			Runner: &fnpb.StateKey_Runner{
-				Key: k,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		Runner: fnpb.StateKey_Runner_builder{
+			Key: k,
+		}.Build(),
+	}.Build()
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,
@@ -279,16 +273,14 @@ func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKey
 }
 
 func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyReader {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_BagUserState_{
-			BagUserState: &fnpb.StateKey_BagUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		BagUserState: fnpb.StateKey_BagUserState_builder{
+			TransformId: id.PtransformID,
+			UserStateId: userStateID,
+			Window:      w,
+			Key:         k,
+		}.Build(),
+	}.Build()
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,
@@ -297,16 +289,14 @@ func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructio
 }
 
 func newBagUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_BagUserState_{
-			BagUserState: &fnpb.StateKey_BagUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		BagUserState: fnpb.StateKey_BagUserState_builder{
+			TransformId: id.PtransformID,
+			UserStateId: userStateID,
+			Window:      w,
+			Key:         k,
+		}.Build(),
+	}.Build()
 	return &stateKeyWriter{
 		instID:    instID,
 		key:       key,
@@ -316,17 +306,15 @@ func newBagUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructio
 }
 
 func newMultimapUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, mk []byte) *stateKeyReader {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_MultimapUserState_{
-			MultimapUserState: &fnpb.StateKey_MultimapUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-				MapKey:      mk,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		MultimapUserState: fnpb.StateKey_MultimapUserState_builder{
+			TransformId: id.PtransformID,
+			UserStateId: userStateID,
+			Window:      w,
+			Key:         k,
+			MapKey:      mk,
+		}.Build(),
+	}.Build()
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,
@@ -335,17 +323,15 @@ func newMultimapUserStateReader(ch *StateChannel, id exec.StreamID, instID instr
 }
 
 func newMultimapUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, mk []byte, wt writeTypeEnum) *stateKeyWriter {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_MultimapUserState_{
-			MultimapUserState: &fnpb.StateKey_MultimapUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-				MapKey:      mk,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		MultimapUserState: fnpb.StateKey_MultimapUserState_builder{
+			TransformId: id.PtransformID,
+			UserStateId: userStateID,
+			Window:      w,
+			Key:         k,
+			MapKey:      mk,
+		}.Build(),
+	}.Build()
 	return &stateKeyWriter{
 		instID:    instID,
 		key:       key,
@@ -355,16 +341,14 @@ func newMultimapUserStateWriter(ch *StateChannel, id exec.StreamID, instID instr
 }
 
 func newMultimapKeysUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyReader {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_MultimapKeysUserState_{
-			MultimapKeysUserState: &fnpb.StateKey_MultimapKeysUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		MultimapKeysUserState: fnpb.StateKey_MultimapKeysUserState_builder{
+			TransformId: id.PtransformID,
+			UserStateId: userStateID,
+			Window:      w,
+			Key:         k,
+		}.Build(),
+	}.Build()
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,
@@ -373,16 +357,14 @@ func newMultimapKeysUserStateReader(ch *StateChannel, id exec.StreamID, instID i
 }
 
 func newMultimapKeysUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
-	key := &fnpb.StateKey{
-		Type: &fnpb.StateKey_MultimapKeysUserState_{
-			MultimapKeysUserState: &fnpb.StateKey_MultimapKeysUserState{
-				TransformId: id.PtransformID,
-				UserStateId: userStateID,
-				Window:      w,
-				Key:         k,
-			},
-		},
-	}
+	key := fnpb.StateKey_builder{
+		MultimapKeysUserState: fnpb.StateKey_MultimapKeysUserState_builder{
+			TransformId: id.PtransformID,
+			UserStateId: userStateID,
+			Window:      w,
+			Key:         k,
+		}.Build(),
+	}.Build()
 	return &stateKeyWriter{
 		instID:    instID,
 		key:       key,
@@ -407,16 +389,14 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		localChannel := r.ch
 		r.mu.Unlock()
 
-		req := &fnpb.StateRequest{
+		req := fnpb.StateRequest_builder{
 			// Id: set by StateChannel
 			InstructionId: string(r.instID),
 			StateKey:      r.key,
-			Request: &fnpb.StateRequest_Get{
-				Get: &fnpb.StateGetRequest{
-					ContinuationToken: r.token,
-				},
-			},
-		}
+			Get: fnpb.StateGetRequest_builder{
+				ContinuationToken: r.token,
+			}.Build(),
+		}.Build()
 		resp, err := localChannel.Send(req)
 		if err != nil {
 			r.Close()
@@ -477,25 +457,21 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	var req *fnpb.StateRequest
 	switch r.writeType {
 	case writeTypeAppend:
-		req = &fnpb.StateRequest{
+		req = fnpb.StateRequest_builder{
 			// Id: set by StateChannel
 			InstructionId: string(r.instID),
 			StateKey:      r.key,
-			Request: &fnpb.StateRequest_Append{
-				Append: &fnpb.StateAppendRequest{
-					Data: toSend,
-				},
-			},
-		}
+			Append: fnpb.StateAppendRequest_builder{
+				Data: toSend,
+			}.Build(),
+		}.Build()
 	case writeTypeClear:
-		req = &fnpb.StateRequest{
+		req = fnpb.StateRequest_builder{
 			// ID: set by StateChannel
 			InstructionId: string(r.instID),
 			StateKey:      r.key,
-			Request: &fnpb.StateRequest_Clear{
-				Clear: &fnpb.StateClearRequest{},
-			},
-		}
+			Clear:         &fnpb.StateClearRequest{},
+		}.Build()
 	default:
 		return 0, errors.Errorf("Unknown write type %v", r.writeType)
 	}
@@ -631,8 +607,8 @@ func (c *StateChannel) read(ctx context.Context) {
 		}
 
 		c.mu.Lock()
-		ch, ok := c.responses[msg.Id]
-		delete(c.responses, msg.Id)
+		ch, ok := c.responses[msg.GetId()]
+		delete(c.responses, msg.GetId())
 		c.mu.Unlock()
 		if !ok {
 			// This can happen if Send returns an error that write handles, but
@@ -662,7 +638,7 @@ func (c *StateChannel) write(ctx context.Context) {
 		}
 		err = c.client.Send(req)
 		if err != nil {
-			id = req.Id
+			id = req.GetId()
 			break // non-nil errors mean the stream is broken and can't be re-used.
 		}
 	}
@@ -688,14 +664,14 @@ func (c *StateChannel) write(ctx context.Context) {
 	c.terminateStreamOnError(err)
 
 	if ok {
-		ch <- &fnpb.StateResponse{Id: id, Error: fmt.Sprintf("StateChannel[%v].write failed to send: %v", c.id, err)}
+		ch <- fnpb.StateResponse_builder{Id: id, Error: fmt.Sprintf("StateChannel[%v].write failed to send: %v", c.id, err)}.Build()
 	}
 }
 
 // Send sends a state request and returns the response.
 func (c *StateChannel) Send(req *fnpb.StateRequest) (*fnpb.StateResponse, error) {
 	id := fmt.Sprintf("r%v", atomic.AddInt32(&c.nextRequestNo, 1))
-	req.Id = id
+	req.SetId(id)
 
 	ch := make(chan *fnpb.StateResponse, 1)
 	c.mu.Lock()
@@ -716,8 +692,8 @@ func (c *StateChannel) Send(req *fnpb.StateRequest) (*fnpb.StateResponse, error)
 		defer c.mu.Unlock()
 		return nil, errors.Wrapf(c.closedErr, "StateChannel[%v].Send(%v): context canceled", c.id, id)
 	}
-	if resp.Error != "" {
-		return nil, errors.New(resp.Error)
+	if resp.GetError() != "" {
+		return nil, errors.New(resp.GetError())
 	}
 	return resp, nil
 }

@@ -26,11 +26,11 @@ import (
 func TestShallowClonePTransform(t *testing.T) {
 	tests := []*pipepb.PTransform{
 		{},
-		{UniqueName: "a"},
-		{Spec: &pipepb.FunctionSpec{Urn: "foo"}},
-		{Subtransforms: []string{"a", "b"}},
-		{Inputs: map[string]string{"a": "b"}},
-		{Outputs: map[string]string{"a": "b"}},
+		pipepb.PTransform_builder{UniqueName: "a"}.Build(),
+		pipepb.PTransform_builder{Spec: pipepb.FunctionSpec_builder{Urn: "foo"}.Build()}.Build(),
+		pipepb.PTransform_builder{Subtransforms: []string{"a", "b"}}.Build(),
+		pipepb.PTransform_builder{Inputs: map[string]string{"a": "b"}}.Build(),
+		pipepb.PTransform_builder{Outputs: map[string]string{"a": "b"}}.Build(),
 	}
 
 	for _, test := range tests {
