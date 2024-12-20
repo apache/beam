@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.util.CoderUtils.decodeFromByteArray;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.fasterxml.jackson.databind.ObjectMapper; 
+import com.fasterxml.jackson.databind.ObjectWriter; 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -56,7 +58,8 @@ public class SerializableUtils {
       }
       return buffer.toByteArray();
     } catch (IOException exn) {
-      throw new IllegalArgumentException("unable to serialize " + value, exn);
+      ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+      throw new IllegalArgumentException("unable to serialize " + ow.writeValueAsString(object), exn);
     }
   }
 
