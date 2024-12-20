@@ -108,10 +108,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.serviceEndpoint != null) {
         try {
           endpoint = new URI(configuration.serviceEndpoint);
-        }
-        catch (URISyntaxException ex) {
+        } catch (URISyntaxException ex) {
           throw new RuntimeException(
-              String.format("Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
+              String.format(
+                  "Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
         }
       }
       KinesisIO.Write<byte[]> writeTransform =
@@ -218,10 +218,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.serviceEndpoint != null) {
         try {
           endpoint = new URI(configuration.serviceEndpoint);
-        }
-        catch (URISyntaxException ex) {
+        } catch (URISyntaxException ex) {
           throw new RuntimeException(
-              String.format("Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
+              String.format(
+                  "Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
         }
       }
       KinesisIO.Read readTransform =
