@@ -1039,10 +1039,12 @@ class ProtoCoder(FastCoder):
 
   @classmethod
   def from_type_hint(cls, typehint, unused_registry):
-    # The typehint must be a subclass of google.protobuf.message.Message.
-    # ProtoCoder cannot work with message.Message itself, as required APIs are
-    # not implemented in the base class. If this occurs, an error is raised
-    # and the system defaults to other fallback coders.
+    # The typehint must be a strict subclass of google.protobuf.message.Message.
+    # ProtoCoder cannot work with message.Message itself, as deserialization of
+    # a serialized proto requires knowledge of the desired concrete proto
+    # subclass which is not stored in the encoded bytes themselves. If this
+    # occurs, an error is raised and the system defaults to other fallback
+    # coders.
     if (issubclass(typehint, proto_utils.message_types) and
         typehint != message.Message):
       return cls(typehint)

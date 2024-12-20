@@ -98,7 +98,7 @@ class ProtoCoderTest(unittest.TestCase):
 
     coder = coders_registry.get_coder(message.Message)
     # For messages of google.protobuf.message.Message, the fallback coder will
-    # be FastPrimitiveCoder other than ProtoCoder.
+    # be FastPrimitivesCoder rather than ProtoCoder.
     # See the comment on ProtoCoder.from_type_hint() for further details.
     self.assertEqual(coder, coders.FastPrimitivesCoder())
 
