@@ -415,7 +415,7 @@ public class FnHarness {
       if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
         CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
       } else {
-        CompletableFuture.allOf(control.terminationFuture(), logging.terminationFuture()).get();
+        control.terminationFuture().get();
       }
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();
