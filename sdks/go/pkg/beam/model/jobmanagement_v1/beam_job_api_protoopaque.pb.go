@@ -25,7 +25,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/job_management/v1/beam_job_api.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package jobmanagement_v1
 
@@ -240,12 +240,12 @@ func (x PipelineOptionType_Enum) Number() protoreflect.EnumNumber {
 // Throws error ALREADY_EXISTS if the jobName is reused. Runners are permitted to deduplicate based on the name of the job.
 // Throws error UNKNOWN for all other issues
 type PrepareJobRequest struct {
-	state           protoimpl.MessageState `protogen:"hybrid.v1"`
-	Pipeline        *pipeline_v1.Pipeline  `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`                                      // (required)
-	PipelineOptions *structpb.Struct       `protobuf:"bytes,2,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"` // (required)
-	JobName         string                 `protobuf:"bytes,3,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"`                         // (required)
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Pipeline        *pipeline_v1.Pipeline  `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	xxx_hidden_PipelineOptions *structpb.Struct       `protobuf:"bytes,2,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
+	xxx_hidden_JobName         string                 `protobuf:"bytes,3,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *PrepareJobRequest) Reset() {
@@ -275,57 +275,57 @@ func (x *PrepareJobRequest) ProtoReflect() protoreflect.Message {
 
 func (x *PrepareJobRequest) GetPipeline() *pipeline_v1.Pipeline {
 	if x != nil {
-		return x.Pipeline
+		return x.xxx_hidden_Pipeline
 	}
 	return nil
 }
 
 func (x *PrepareJobRequest) GetPipelineOptions() *structpb.Struct {
 	if x != nil {
-		return x.PipelineOptions
+		return x.xxx_hidden_PipelineOptions
 	}
 	return nil
 }
 
 func (x *PrepareJobRequest) GetJobName() string {
 	if x != nil {
-		return x.JobName
+		return x.xxx_hidden_JobName
 	}
 	return ""
 }
 
 func (x *PrepareJobRequest) SetPipeline(v *pipeline_v1.Pipeline) {
-	x.Pipeline = v
+	x.xxx_hidden_Pipeline = v
 }
 
 func (x *PrepareJobRequest) SetPipelineOptions(v *structpb.Struct) {
-	x.PipelineOptions = v
+	x.xxx_hidden_PipelineOptions = v
 }
 
 func (x *PrepareJobRequest) SetJobName(v string) {
-	x.JobName = v
+	x.xxx_hidden_JobName = v
 }
 
 func (x *PrepareJobRequest) HasPipeline() bool {
 	if x == nil {
 		return false
 	}
-	return x.Pipeline != nil
+	return x.xxx_hidden_Pipeline != nil
 }
 
 func (x *PrepareJobRequest) HasPipelineOptions() bool {
 	if x == nil {
 		return false
 	}
-	return x.PipelineOptions != nil
+	return x.xxx_hidden_PipelineOptions != nil
 }
 
 func (x *PrepareJobRequest) ClearPipeline() {
-	x.Pipeline = nil
+	x.xxx_hidden_Pipeline = nil
 }
 
 func (x *PrepareJobRequest) ClearPipelineOptions() {
-	x.PipelineOptions = nil
+	x.xxx_hidden_PipelineOptions = nil
 }
 
 type PrepareJobRequest_builder struct {
@@ -340,25 +340,19 @@ func (b0 PrepareJobRequest_builder) Build() *PrepareJobRequest {
 	m0 := &PrepareJobRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Pipeline = b.Pipeline
-	x.PipelineOptions = b.PipelineOptions
-	x.JobName = b.JobName
+	x.xxx_hidden_Pipeline = b.Pipeline
+	x.xxx_hidden_PipelineOptions = b.PipelineOptions
+	x.xxx_hidden_JobName = b.JobName
 	return m0
 }
 
 type PrepareJobResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (required) The ID used to associate calls made while preparing the job. preparationId is used
-	// to run the job.
-	PreparationId string `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId,proto3" json:"preparation_id,omitempty"`
-	// An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
-	// staged to this endpoint, and will be available during job execution.
-	ArtifactStagingEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=artifact_staging_endpoint,json=artifactStagingEndpoint,proto3" json:"artifact_staging_endpoint,omitempty"`
-	// (required) Token for the artifact staging. This token also represent an artifact
-	// staging session with the artifact staging service.
-	StagingSessionToken string `protobuf:"bytes,3,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                              protoimpl.MessageState            `protogen:"opaque.v1"`
+	xxx_hidden_PreparationId           string                            `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId,proto3" json:"preparation_id,omitempty"`
+	xxx_hidden_ArtifactStagingEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,2,opt,name=artifact_staging_endpoint,json=artifactStagingEndpoint,proto3" json:"artifact_staging_endpoint,omitempty"`
+	xxx_hidden_StagingSessionToken     string                            `protobuf:"bytes,3,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
+	unknownFields                      protoimpl.UnknownFields
+	sizeCache                          protoimpl.SizeCache
 }
 
 func (x *PrepareJobResponse) Reset() {
@@ -388,46 +382,46 @@ func (x *PrepareJobResponse) ProtoReflect() protoreflect.Message {
 
 func (x *PrepareJobResponse) GetPreparationId() string {
 	if x != nil {
-		return x.PreparationId
+		return x.xxx_hidden_PreparationId
 	}
 	return ""
 }
 
 func (x *PrepareJobResponse) GetArtifactStagingEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ArtifactStagingEndpoint
+		return x.xxx_hidden_ArtifactStagingEndpoint
 	}
 	return nil
 }
 
 func (x *PrepareJobResponse) GetStagingSessionToken() string {
 	if x != nil {
-		return x.StagingSessionToken
+		return x.xxx_hidden_StagingSessionToken
 	}
 	return ""
 }
 
 func (x *PrepareJobResponse) SetPreparationId(v string) {
-	x.PreparationId = v
+	x.xxx_hidden_PreparationId = v
 }
 
 func (x *PrepareJobResponse) SetArtifactStagingEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ArtifactStagingEndpoint = v
+	x.xxx_hidden_ArtifactStagingEndpoint = v
 }
 
 func (x *PrepareJobResponse) SetStagingSessionToken(v string) {
-	x.StagingSessionToken = v
+	x.xxx_hidden_StagingSessionToken = v
 }
 
 func (x *PrepareJobResponse) HasArtifactStagingEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.ArtifactStagingEndpoint != nil
+	return x.xxx_hidden_ArtifactStagingEndpoint != nil
 }
 
 func (x *PrepareJobResponse) ClearArtifactStagingEndpoint() {
-	x.ArtifactStagingEndpoint = nil
+	x.xxx_hidden_ArtifactStagingEndpoint = nil
 }
 
 type PrepareJobResponse_builder struct {
@@ -448,9 +442,9 @@ func (b0 PrepareJobResponse_builder) Build() *PrepareJobResponse {
 	m0 := &PrepareJobResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.PreparationId = b.PreparationId
-	x.ArtifactStagingEndpoint = b.ArtifactStagingEndpoint
-	x.StagingSessionToken = b.StagingSessionToken
+	x.xxx_hidden_PreparationId = b.PreparationId
+	x.xxx_hidden_ArtifactStagingEndpoint = b.ArtifactStagingEndpoint
+	x.xxx_hidden_StagingSessionToken = b.StagingSessionToken
 	return m0
 }
 
@@ -459,15 +453,11 @@ func (b0 PrepareJobResponse_builder) Build() *PrepareJobResponse {
 // Throws error NOT_FOUND if the preparation ID does not exist
 // Throws error UNKNOWN for all other issues
 type RunJobRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
-	// must have been completed.
-	PreparationId string `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId,proto3" json:"preparation_id,omitempty"`
-	// (optional) If any artifacts have been staged for this job, contains the retrieval_token returned
-	// from the CommitManifestResponse.
-	RetrievalToken string `protobuf:"bytes,2,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_PreparationId  string                 `protobuf:"bytes,1,opt,name=preparation_id,json=preparationId,proto3" json:"preparation_id,omitempty"`
+	xxx_hidden_RetrievalToken string                 `protobuf:"bytes,2,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *RunJobRequest) Reset() {
@@ -497,24 +487,24 @@ func (x *RunJobRequest) ProtoReflect() protoreflect.Message {
 
 func (x *RunJobRequest) GetPreparationId() string {
 	if x != nil {
-		return x.PreparationId
+		return x.xxx_hidden_PreparationId
 	}
 	return ""
 }
 
 func (x *RunJobRequest) GetRetrievalToken() string {
 	if x != nil {
-		return x.RetrievalToken
+		return x.xxx_hidden_RetrievalToken
 	}
 	return ""
 }
 
 func (x *RunJobRequest) SetPreparationId(v string) {
-	x.PreparationId = v
+	x.xxx_hidden_PreparationId = v
 }
 
 func (x *RunJobRequest) SetRetrievalToken(v string) {
-	x.RetrievalToken = v
+	x.xxx_hidden_RetrievalToken = v
 }
 
 type RunJobRequest_builder struct {
@@ -532,16 +522,16 @@ func (b0 RunJobRequest_builder) Build() *RunJobRequest {
 	m0 := &RunJobRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.PreparationId = b.PreparationId
-	x.RetrievalToken = b.RetrievalToken
+	x.xxx_hidden_PreparationId = b.PreparationId
+	x.xxx_hidden_RetrievalToken = b.RetrievalToken
 	return m0
 }
 
 type RunJobResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required) The ID for the executing job
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RunJobResponse) Reset() {
@@ -571,13 +561,13 @@ func (x *RunJobResponse) ProtoReflect() protoreflect.Message {
 
 func (x *RunJobResponse) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *RunJobResponse) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type RunJobResponse_builder struct {
@@ -590,7 +580,7 @@ func (b0 RunJobResponse_builder) Build() *RunJobResponse {
 	m0 := &RunJobResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
@@ -598,10 +588,10 @@ func (b0 RunJobResponse_builder) Build() *RunJobResponse {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 type CancelJobRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CancelJobRequest) Reset() {
@@ -631,13 +621,13 @@ func (x *CancelJobRequest) ProtoReflect() protoreflect.Message {
 
 func (x *CancelJobRequest) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *CancelJobRequest) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type CancelJobRequest_builder struct {
@@ -650,16 +640,16 @@ func (b0 CancelJobRequest_builder) Build() *CancelJobRequest {
 	m0 := &CancelJobRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
 // Valid responses include any terminal state or CANCELLING
 type CancelJobResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	State         JobState_Enum          `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_State JobState_Enum          `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CancelJobResponse) Reset() {
@@ -689,13 +679,13 @@ func (x *CancelJobResponse) ProtoReflect() protoreflect.Message {
 
 func (x *CancelJobResponse) GetState() JobState_Enum {
 	if x != nil {
-		return x.State
+		return x.xxx_hidden_State
 	}
 	return JobState_UNSPECIFIED
 }
 
 func (x *CancelJobResponse) SetState(v JobState_Enum) {
-	x.State = v
+	x.xxx_hidden_State = v
 }
 
 type CancelJobResponse_builder struct {
@@ -708,7 +698,7 @@ func (b0 CancelJobResponse_builder) Build() *CancelJobResponse {
 	m0 := &CancelJobResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.State = b.State
+	x.xxx_hidden_State = b.State
 	return m0
 }
 
@@ -717,10 +707,10 @@ func (b0 CancelJobResponse_builder) Build() *CancelJobResponse {
 // - process remaining data in the pipeline
 // - truncate Splittable DoFns
 type DrainJobRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *DrainJobRequest) Reset() {
@@ -750,13 +740,13 @@ func (x *DrainJobRequest) ProtoReflect() protoreflect.Message {
 
 func (x *DrainJobRequest) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *DrainJobRequest) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type DrainJobRequest_builder struct {
@@ -769,16 +759,16 @@ func (b0 DrainJobRequest_builder) Build() *DrainJobRequest {
 	m0 := &DrainJobRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
 // Valid responses include any terminal state or DRAINING
 type DrainJobResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	State         JobState_Enum          `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_State JobState_Enum          `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *DrainJobResponse) Reset() {
@@ -808,13 +798,13 @@ func (x *DrainJobResponse) ProtoReflect() protoreflect.Message {
 
 func (x *DrainJobResponse) GetState() JobState_Enum {
 	if x != nil {
-		return x.State
+		return x.xxx_hidden_State
 	}
 	return JobState_UNSPECIFIED
 }
 
 func (x *DrainJobResponse) SetState(v JobState_Enum) {
-	x.State = v
+	x.xxx_hidden_State = v
 }
 
 type DrainJobResponse_builder struct {
@@ -827,19 +817,19 @@ func (b0 DrainJobResponse_builder) Build() *DrainJobResponse {
 	m0 := &DrainJobResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.State = b.State
+	x.xxx_hidden_State = b.State
 	return m0
 }
 
 // A subset of info provided by ProvisionApi.ProvisionInfo
 type JobInfo struct {
-	state           protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId           string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`                                                // (required)
-	JobName         string                 `protobuf:"bytes,2,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"`                                          // (required)
-	PipelineOptions *structpb.Struct       `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`                  // (required)
-	State           JobState_Enum          `protobuf:"varint,4,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"` // (required)
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId           string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	xxx_hidden_JobName         string                 `protobuf:"bytes,2,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"`
+	xxx_hidden_PipelineOptions *structpb.Struct       `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
+	xxx_hidden_State           JobState_Enum          `protobuf:"varint,4,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *JobInfo) Reset() {
@@ -869,57 +859,57 @@ func (x *JobInfo) ProtoReflect() protoreflect.Message {
 
 func (x *JobInfo) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *JobInfo) GetJobName() string {
 	if x != nil {
-		return x.JobName
+		return x.xxx_hidden_JobName
 	}
 	return ""
 }
 
 func (x *JobInfo) GetPipelineOptions() *structpb.Struct {
 	if x != nil {
-		return x.PipelineOptions
+		return x.xxx_hidden_PipelineOptions
 	}
 	return nil
 }
 
 func (x *JobInfo) GetState() JobState_Enum {
 	if x != nil {
-		return x.State
+		return x.xxx_hidden_State
 	}
 	return JobState_UNSPECIFIED
 }
 
 func (x *JobInfo) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 func (x *JobInfo) SetJobName(v string) {
-	x.JobName = v
+	x.xxx_hidden_JobName = v
 }
 
 func (x *JobInfo) SetPipelineOptions(v *structpb.Struct) {
-	x.PipelineOptions = v
+	x.xxx_hidden_PipelineOptions = v
 }
 
 func (x *JobInfo) SetState(v JobState_Enum) {
-	x.State = v
+	x.xxx_hidden_State = v
 }
 
 func (x *JobInfo) HasPipelineOptions() bool {
 	if x == nil {
 		return false
 	}
-	return x.PipelineOptions != nil
+	return x.xxx_hidden_PipelineOptions != nil
 }
 
 func (x *JobInfo) ClearPipelineOptions() {
-	x.PipelineOptions = nil
+	x.xxx_hidden_PipelineOptions = nil
 }
 
 type JobInfo_builder struct {
@@ -935,17 +925,17 @@ func (b0 JobInfo_builder) Build() *JobInfo {
 	m0 := &JobInfo{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
-	x.JobName = b.JobName
-	x.PipelineOptions = b.PipelineOptions
-	x.State = b.State
+	x.xxx_hidden_JobId = b.JobId
+	x.xxx_hidden_JobName = b.JobName
+	x.xxx_hidden_PipelineOptions = b.PipelineOptions
+	x.xxx_hidden_State = b.State
 	return m0
 }
 
 // GetJobs is a synchronus request that returns a list of invoked jobs back
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 type GetJobsRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -988,10 +978,10 @@ func (b0 GetJobsRequest_builder) Build() *GetJobsRequest {
 }
 
 type GetJobsResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobInfo       []*JobInfo             `protobuf:"bytes,1,rep,name=job_info,json=jobInfo,proto3" json:"job_info,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobInfo *[]*JobInfo            `protobuf:"bytes,1,rep,name=job_info,json=jobInfo,proto3" json:"job_info,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetJobsResponse) Reset() {
@@ -1021,13 +1011,15 @@ func (x *GetJobsResponse) ProtoReflect() protoreflect.Message {
 
 func (x *GetJobsResponse) GetJobInfo() []*JobInfo {
 	if x != nil {
-		return x.JobInfo
+		if x.xxx_hidden_JobInfo != nil {
+			return *x.xxx_hidden_JobInfo
+		}
 	}
 	return nil
 }
 
 func (x *GetJobsResponse) SetJobInfo(v []*JobInfo) {
-	x.JobInfo = v
+	x.xxx_hidden_JobInfo = &v
 }
 
 type GetJobsResponse_builder struct {
@@ -1040,7 +1032,7 @@ func (b0 GetJobsResponse_builder) Build() *GetJobsResponse {
 	m0 := &GetJobsResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobInfo = b.JobInfo
+	x.xxx_hidden_JobInfo = &b.JobInfo
 	return m0
 }
 
@@ -1048,10 +1040,10 @@ func (b0 GetJobsResponse_builder) Build() *GetJobsResponse {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 type GetJobStateRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetJobStateRequest) Reset() {
@@ -1081,13 +1073,13 @@ func (x *GetJobStateRequest) ProtoReflect() protoreflect.Message {
 
 func (x *GetJobStateRequest) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *GetJobStateRequest) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type GetJobStateRequest_builder struct {
@@ -1100,16 +1092,16 @@ func (b0 GetJobStateRequest_builder) Build() *GetJobStateRequest {
 	m0 := &GetJobStateRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
 type JobStateEvent struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	State         JobState_Enum          `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"` // (required)
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                                                     // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_State     JobState_Enum          `protobuf:"varint,1,opt,name=state,proto3,enum=org.apache.beam.model.job_management.v1.JobState_Enum" json:"state,omitempty"`
+	xxx_hidden_Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *JobStateEvent) Reset() {
@@ -1139,35 +1131,35 @@ func (x *JobStateEvent) ProtoReflect() protoreflect.Message {
 
 func (x *JobStateEvent) GetState() JobState_Enum {
 	if x != nil {
-		return x.State
+		return x.xxx_hidden_State
 	}
 	return JobState_UNSPECIFIED
 }
 
 func (x *JobStateEvent) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Timestamp
+		return x.xxx_hidden_Timestamp
 	}
 	return nil
 }
 
 func (x *JobStateEvent) SetState(v JobState_Enum) {
-	x.State = v
+	x.xxx_hidden_State = v
 }
 
 func (x *JobStateEvent) SetTimestamp(v *timestamppb.Timestamp) {
-	x.Timestamp = v
+	x.xxx_hidden_Timestamp = v
 }
 
 func (x *JobStateEvent) HasTimestamp() bool {
 	if x == nil {
 		return false
 	}
-	return x.Timestamp != nil
+	return x.xxx_hidden_Timestamp != nil
 }
 
 func (x *JobStateEvent) ClearTimestamp() {
-	x.Timestamp = nil
+	x.xxx_hidden_Timestamp = nil
 }
 
 type JobStateEvent_builder struct {
@@ -1181,8 +1173,8 @@ func (b0 JobStateEvent_builder) Build() *JobStateEvent {
 	m0 := &JobStateEvent{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.State = b.State
-	x.Timestamp = b.Timestamp
+	x.xxx_hidden_State = b.State
+	x.xxx_hidden_Timestamp = b.Timestamp
 	return m0
 }
 
@@ -1190,10 +1182,10 @@ func (b0 JobStateEvent_builder) Build() *JobStateEvent {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 type GetJobPipelineRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetJobPipelineRequest) Reset() {
@@ -1223,13 +1215,13 @@ func (x *GetJobPipelineRequest) ProtoReflect() protoreflect.Message {
 
 func (x *GetJobPipelineRequest) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *GetJobPipelineRequest) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type GetJobPipelineRequest_builder struct {
@@ -1242,15 +1234,15 @@ func (b0 GetJobPipelineRequest_builder) Build() *GetJobPipelineRequest {
 	m0 := &GetJobPipelineRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
 type GetJobPipelineResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Pipeline      *pipeline_v1.Pipeline  `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Pipeline *pipeline_v1.Pipeline  `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetJobPipelineResponse) Reset() {
@@ -1280,24 +1272,24 @@ func (x *GetJobPipelineResponse) ProtoReflect() protoreflect.Message {
 
 func (x *GetJobPipelineResponse) GetPipeline() *pipeline_v1.Pipeline {
 	if x != nil {
-		return x.Pipeline
+		return x.xxx_hidden_Pipeline
 	}
 	return nil
 }
 
 func (x *GetJobPipelineResponse) SetPipeline(v *pipeline_v1.Pipeline) {
-	x.Pipeline = v
+	x.xxx_hidden_Pipeline = v
 }
 
 func (x *GetJobPipelineResponse) HasPipeline() bool {
 	if x == nil {
 		return false
 	}
-	return x.Pipeline != nil
+	return x.xxx_hidden_Pipeline != nil
 }
 
 func (x *GetJobPipelineResponse) ClearPipeline() {
-	x.Pipeline = nil
+	x.xxx_hidden_Pipeline = nil
 }
 
 type GetJobPipelineResponse_builder struct {
@@ -1310,7 +1302,7 @@ func (b0 GetJobPipelineResponse_builder) Build() *GetJobPipelineResponse {
 	m0 := &GetJobPipelineResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Pipeline = b.Pipeline
+	x.xxx_hidden_Pipeline = b.Pipeline
 	return m0
 }
 
@@ -1319,10 +1311,10 @@ func (b0 GetJobPipelineResponse_builder) Build() *GetJobPipelineResponse {
 // and job messages back; one is used for logging and the other for detecting
 // the job ended.
 type JobMessagesRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *JobMessagesRequest) Reset() {
@@ -1352,13 +1344,13 @@ func (x *JobMessagesRequest) ProtoReflect() protoreflect.Message {
 
 func (x *JobMessagesRequest) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *JobMessagesRequest) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type JobMessagesRequest_builder struct {
@@ -1371,18 +1363,18 @@ func (b0 JobMessagesRequest_builder) Build() *JobMessagesRequest {
 	m0 := &JobMessagesRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
 type JobMessage struct {
-	state         protoimpl.MessageState       `protogen:"hybrid.v1"`
-	MessageId     string                       `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	Time          string                       `protobuf:"bytes,2,opt,name=time,proto3" json:"time,omitempty"`
-	Importance    JobMessage_MessageImportance `protobuf:"varint,3,opt,name=importance,proto3,enum=org.apache.beam.model.job_management.v1.JobMessage_MessageImportance" json:"importance,omitempty"`
-	MessageText   string                       `protobuf:"bytes,4,opt,name=message_text,json=messageText,proto3" json:"message_text,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState       `protogen:"opaque.v1"`
+	xxx_hidden_MessageId   string                       `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	xxx_hidden_Time        string                       `protobuf:"bytes,2,opt,name=time,proto3" json:"time,omitempty"`
+	xxx_hidden_Importance  JobMessage_MessageImportance `protobuf:"varint,3,opt,name=importance,proto3,enum=org.apache.beam.model.job_management.v1.JobMessage_MessageImportance" json:"importance,omitempty"`
+	xxx_hidden_MessageText string                       `protobuf:"bytes,4,opt,name=message_text,json=messageText,proto3" json:"message_text,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *JobMessage) Reset() {
@@ -1412,46 +1404,46 @@ func (x *JobMessage) ProtoReflect() protoreflect.Message {
 
 func (x *JobMessage) GetMessageId() string {
 	if x != nil {
-		return x.MessageId
+		return x.xxx_hidden_MessageId
 	}
 	return ""
 }
 
 func (x *JobMessage) GetTime() string {
 	if x != nil {
-		return x.Time
+		return x.xxx_hidden_Time
 	}
 	return ""
 }
 
 func (x *JobMessage) GetImportance() JobMessage_MessageImportance {
 	if x != nil {
-		return x.Importance
+		return x.xxx_hidden_Importance
 	}
 	return JobMessage_MESSAGE_IMPORTANCE_UNSPECIFIED
 }
 
 func (x *JobMessage) GetMessageText() string {
 	if x != nil {
-		return x.MessageText
+		return x.xxx_hidden_MessageText
 	}
 	return ""
 }
 
 func (x *JobMessage) SetMessageId(v string) {
-	x.MessageId = v
+	x.xxx_hidden_MessageId = v
 }
 
 func (x *JobMessage) SetTime(v string) {
-	x.Time = v
+	x.xxx_hidden_Time = v
 }
 
 func (x *JobMessage) SetImportance(v JobMessage_MessageImportance) {
-	x.Importance = v
+	x.xxx_hidden_Importance = v
 }
 
 func (x *JobMessage) SetMessageText(v string) {
-	x.MessageText = v
+	x.xxx_hidden_MessageText = v
 }
 
 type JobMessage_builder struct {
@@ -1467,22 +1459,18 @@ func (b0 JobMessage_builder) Build() *JobMessage {
 	m0 := &JobMessage{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.MessageId = b.MessageId
-	x.Time = b.Time
-	x.Importance = b.Importance
-	x.MessageText = b.MessageText
+	x.xxx_hidden_MessageId = b.MessageId
+	x.xxx_hidden_Time = b.Time
+	x.xxx_hidden_Importance = b.Importance
+	x.xxx_hidden_MessageText = b.MessageText
 	return m0
 }
 
 type JobMessagesResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Types that are valid to be assigned to Response:
-	//
-	//	*JobMessagesResponse_MessageResponse
-	//	*JobMessagesResponse_StateResponse
-	Response      isJobMessagesResponse_Response `protobuf_oneof:"response"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState         `protogen:"opaque.v1"`
+	xxx_hidden_Response isJobMessagesResponse_Response `protobuf_oneof:"response"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *JobMessagesResponse) Reset() {
@@ -1510,16 +1498,9 @@ func (x *JobMessagesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *JobMessagesResponse) GetResponse() isJobMessagesResponse_Response {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
 func (x *JobMessagesResponse) GetMessageResponse() *JobMessage {
 	if x != nil {
-		if x, ok := x.Response.(*JobMessagesResponse_MessageResponse); ok {
+		if x, ok := x.xxx_hidden_Response.(*jobMessagesResponse_MessageResponse); ok {
 			return x.MessageResponse
 		}
 	}
@@ -1528,7 +1509,7 @@ func (x *JobMessagesResponse) GetMessageResponse() *JobMessage {
 
 func (x *JobMessagesResponse) GetStateResponse() *JobStateEvent {
 	if x != nil {
-		if x, ok := x.Response.(*JobMessagesResponse_StateResponse); ok {
+		if x, ok := x.xxx_hidden_Response.(*jobMessagesResponse_StateResponse); ok {
 			return x.StateResponse
 		}
 	}
@@ -1537,32 +1518,32 @@ func (x *JobMessagesResponse) GetStateResponse() *JobStateEvent {
 
 func (x *JobMessagesResponse) SetMessageResponse(v *JobMessage) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &JobMessagesResponse_MessageResponse{v}
+	x.xxx_hidden_Response = &jobMessagesResponse_MessageResponse{v}
 }
 
 func (x *JobMessagesResponse) SetStateResponse(v *JobStateEvent) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &JobMessagesResponse_StateResponse{v}
+	x.xxx_hidden_Response = &jobMessagesResponse_StateResponse{v}
 }
 
 func (x *JobMessagesResponse) HasResponse() bool {
 	if x == nil {
 		return false
 	}
-	return x.Response != nil
+	return x.xxx_hidden_Response != nil
 }
 
 func (x *JobMessagesResponse) HasMessageResponse() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*JobMessagesResponse_MessageResponse)
+	_, ok := x.xxx_hidden_Response.(*jobMessagesResponse_MessageResponse)
 	return ok
 }
 
@@ -1570,23 +1551,23 @@ func (x *JobMessagesResponse) HasStateResponse() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*JobMessagesResponse_StateResponse)
+	_, ok := x.xxx_hidden_Response.(*jobMessagesResponse_StateResponse)
 	return ok
 }
 
 func (x *JobMessagesResponse) ClearResponse() {
-	x.Response = nil
+	x.xxx_hidden_Response = nil
 }
 
 func (x *JobMessagesResponse) ClearMessageResponse() {
-	if _, ok := x.Response.(*JobMessagesResponse_MessageResponse); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*jobMessagesResponse_MessageResponse); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *JobMessagesResponse) ClearStateResponse() {
-	if _, ok := x.Response.(*JobMessagesResponse_StateResponse); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*jobMessagesResponse_StateResponse); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
@@ -1598,10 +1579,10 @@ func (x *JobMessagesResponse) WhichResponse() case_JobMessagesResponse_Response 
 	if x == nil {
 		return JobMessagesResponse_Response_not_set_case
 	}
-	switch x.Response.(type) {
-	case *JobMessagesResponse_MessageResponse:
+	switch x.xxx_hidden_Response.(type) {
+	case *jobMessagesResponse_MessageResponse:
 		return JobMessagesResponse_MessageResponse_case
-	case *JobMessagesResponse_StateResponse:
+	case *jobMessagesResponse_StateResponse:
 		return JobMessagesResponse_StateResponse_case
 	default:
 		return JobMessagesResponse_Response_not_set_case
@@ -1611,10 +1592,10 @@ func (x *JobMessagesResponse) WhichResponse() case_JobMessagesResponse_Response 
 type JobMessagesResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// Fields of oneof Response:
+	// Fields of oneof xxx_hidden_Response:
 	MessageResponse *JobMessage
 	StateResponse   *JobStateEvent
-	// -- end of Response
+	// -- end of xxx_hidden_Response
 }
 
 func (b0 JobMessagesResponse_builder) Build() *JobMessagesResponse {
@@ -1622,10 +1603,10 @@ func (b0 JobMessagesResponse_builder) Build() *JobMessagesResponse {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.MessageResponse != nil {
-		x.Response = &JobMessagesResponse_MessageResponse{b.MessageResponse}
+		x.xxx_hidden_Response = &jobMessagesResponse_MessageResponse{b.MessageResponse}
 	}
 	if b.StateResponse != nil {
-		x.Response = &JobMessagesResponse_StateResponse{b.StateResponse}
+		x.xxx_hidden_Response = &jobMessagesResponse_StateResponse{b.StateResponse}
 	}
 	return m0
 }
@@ -1644,17 +1625,17 @@ type isJobMessagesResponse_Response interface {
 	isJobMessagesResponse_Response()
 }
 
-type JobMessagesResponse_MessageResponse struct {
+type jobMessagesResponse_MessageResponse struct {
 	MessageResponse *JobMessage `protobuf:"bytes,1,opt,name=message_response,json=messageResponse,proto3,oneof"`
 }
 
-type JobMessagesResponse_StateResponse struct {
+type jobMessagesResponse_StateResponse struct {
 	StateResponse *JobStateEvent `protobuf:"bytes,2,opt,name=state_response,json=stateResponse,proto3,oneof"`
 }
 
-func (*JobMessagesResponse_MessageResponse) isJobMessagesResponse_Response() {}
+func (*jobMessagesResponse_MessageResponse) isJobMessagesResponse_Response() {}
 
-func (*JobMessagesResponse_StateResponse) isJobMessagesResponse_Response() {}
+func (*jobMessagesResponse_StateResponse) isJobMessagesResponse_Response() {}
 
 // Enumeration of all JobStates
 //
@@ -1669,7 +1650,7 @@ func (*JobMessagesResponse_StateResponse) isJobMessagesResponse_Response() {}
 // Transitions are optional such that a job may go from STOPPED to RUNNING
 // without needing to pass through STARTING.
 type JobState struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1712,10 +1693,10 @@ func (b0 JobState_builder) Build() *JobState {
 }
 
 type GetJobMetricsRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"` // (required)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetJobMetricsRequest) Reset() {
@@ -1745,13 +1726,13 @@ func (x *GetJobMetricsRequest) ProtoReflect() protoreflect.Message {
 
 func (x *GetJobMetricsRequest) GetJobId() string {
 	if x != nil {
-		return x.JobId
+		return x.xxx_hidden_JobId
 	}
 	return ""
 }
 
 func (x *GetJobMetricsRequest) SetJobId(v string) {
-	x.JobId = v
+	x.xxx_hidden_JobId = v
 }
 
 type GetJobMetricsRequest_builder struct {
@@ -1764,15 +1745,15 @@ func (b0 GetJobMetricsRequest_builder) Build() *GetJobMetricsRequest {
 	m0 := &GetJobMetricsRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.JobId = b.JobId
+	x.xxx_hidden_JobId = b.JobId
 	return m0
 }
 
 type GetJobMetricsResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Metrics       *MetricResults         `protobuf:"bytes,1,opt,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Metrics *MetricResults         `protobuf:"bytes,1,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetJobMetricsResponse) Reset() {
@@ -1802,24 +1783,24 @@ func (x *GetJobMetricsResponse) ProtoReflect() protoreflect.Message {
 
 func (x *GetJobMetricsResponse) GetMetrics() *MetricResults {
 	if x != nil {
-		return x.Metrics
+		return x.xxx_hidden_Metrics
 	}
 	return nil
 }
 
 func (x *GetJobMetricsResponse) SetMetrics(v *MetricResults) {
-	x.Metrics = v
+	x.xxx_hidden_Metrics = v
 }
 
 func (x *GetJobMetricsResponse) HasMetrics() bool {
 	if x == nil {
 		return false
 	}
-	return x.Metrics != nil
+	return x.xxx_hidden_Metrics != nil
 }
 
 func (x *GetJobMetricsResponse) ClearMetrics() {
-	x.Metrics = nil
+	x.xxx_hidden_Metrics = nil
 }
 
 type GetJobMetricsResponse_builder struct {
@@ -1832,17 +1813,17 @@ func (b0 GetJobMetricsResponse_builder) Build() *GetJobMetricsResponse {
 	m0 := &GetJobMetricsResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Metrics = b.Metrics
+	x.xxx_hidden_Metrics = b.Metrics
 	return m0
 }
 
 // All metrics for a given job.  Runners may support one or the other or both.
 type MetricResults struct {
-	state         protoimpl.MessageState        `protogen:"hybrid.v1"`
-	Attempted     []*pipeline_v1.MonitoringInfo `protobuf:"bytes,1,rep,name=attempted,proto3" json:"attempted,omitempty"`
-	Committed     []*pipeline_v1.MonitoringInfo `protobuf:"bytes,2,rep,name=committed,proto3" json:"committed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState         `protogen:"opaque.v1"`
+	xxx_hidden_Attempted *[]*pipeline_v1.MonitoringInfo `protobuf:"bytes,1,rep,name=attempted,proto3" json:"attempted,omitempty"`
+	xxx_hidden_Committed *[]*pipeline_v1.MonitoringInfo `protobuf:"bytes,2,rep,name=committed,proto3" json:"committed,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *MetricResults) Reset() {
@@ -1872,24 +1853,28 @@ func (x *MetricResults) ProtoReflect() protoreflect.Message {
 
 func (x *MetricResults) GetAttempted() []*pipeline_v1.MonitoringInfo {
 	if x != nil {
-		return x.Attempted
+		if x.xxx_hidden_Attempted != nil {
+			return *x.xxx_hidden_Attempted
+		}
 	}
 	return nil
 }
 
 func (x *MetricResults) GetCommitted() []*pipeline_v1.MonitoringInfo {
 	if x != nil {
-		return x.Committed
+		if x.xxx_hidden_Committed != nil {
+			return *x.xxx_hidden_Committed
+		}
 	}
 	return nil
 }
 
 func (x *MetricResults) SetAttempted(v []*pipeline_v1.MonitoringInfo) {
-	x.Attempted = v
+	x.xxx_hidden_Attempted = &v
 }
 
 func (x *MetricResults) SetCommitted(v []*pipeline_v1.MonitoringInfo) {
-	x.Committed = v
+	x.xxx_hidden_Committed = &v
 }
 
 type MetricResults_builder struct {
@@ -1903,8 +1888,8 @@ func (b0 MetricResults_builder) Build() *MetricResults {
 	m0 := &MetricResults{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Attempted = b.Attempted
-	x.Committed = b.Committed
+	x.xxx_hidden_Attempted = &b.Attempted
+	x.xxx_hidden_Committed = &b.Committed
 	return m0
 }
 
@@ -1913,7 +1898,7 @@ func (b0 MetricResults_builder) Build() *MetricResults {
 // list available options to the user.
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 type DescribePipelineOptionsRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1958,7 +1943,7 @@ func (b0 DescribePipelineOptionsRequest_builder) Build() *DescribePipelineOption
 // Type for pipeline options.
 // Types mirror those of JSON, since that's how pipeline options are serialized.
 type PipelineOptionType struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2002,19 +1987,14 @@ func (b0 PipelineOptionType_builder) Build() *PipelineOptionType {
 
 // Metadata for a pipeline option.
 type PipelineOptionDescriptor struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The option name.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// (Required) Type of option.
-	Type PipelineOptionType_Enum `protobuf:"varint,2,opt,name=type,proto3,enum=org.apache.beam.model.job_management.v1.PipelineOptionType_Enum" json:"type,omitempty"`
-	// (Optional) Description suitable for display / help text.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// (Optional) Default value.
-	DefaultValue string `protobuf:"bytes,4,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
-	// (Required) The group this option belongs to.
-	Group         string `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Name         string                  `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_Type         PipelineOptionType_Enum `protobuf:"varint,2,opt,name=type,proto3,enum=org.apache.beam.model.job_management.v1.PipelineOptionType_Enum" json:"type,omitempty"`
+	xxx_hidden_Description  string                  `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	xxx_hidden_DefaultValue string                  `protobuf:"bytes,4,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
+	xxx_hidden_Group        string                  `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *PipelineOptionDescriptor) Reset() {
@@ -2044,57 +2024,57 @@ func (x *PipelineOptionDescriptor) ProtoReflect() protoreflect.Message {
 
 func (x *PipelineOptionDescriptor) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *PipelineOptionDescriptor) GetType() PipelineOptionType_Enum {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return PipelineOptionType_STRING
 }
 
 func (x *PipelineOptionDescriptor) GetDescription() string {
 	if x != nil {
-		return x.Description
+		return x.xxx_hidden_Description
 	}
 	return ""
 }
 
 func (x *PipelineOptionDescriptor) GetDefaultValue() string {
 	if x != nil {
-		return x.DefaultValue
+		return x.xxx_hidden_DefaultValue
 	}
 	return ""
 }
 
 func (x *PipelineOptionDescriptor) GetGroup() string {
 	if x != nil {
-		return x.Group
+		return x.xxx_hidden_Group
 	}
 	return ""
 }
 
 func (x *PipelineOptionDescriptor) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *PipelineOptionDescriptor) SetType(v PipelineOptionType_Enum) {
-	x.Type = v
+	x.xxx_hidden_Type = v
 }
 
 func (x *PipelineOptionDescriptor) SetDescription(v string) {
-	x.Description = v
+	x.xxx_hidden_Description = v
 }
 
 func (x *PipelineOptionDescriptor) SetDefaultValue(v string) {
-	x.DefaultValue = v
+	x.xxx_hidden_DefaultValue = v
 }
 
 func (x *PipelineOptionDescriptor) SetGroup(v string) {
-	x.Group = v
+	x.xxx_hidden_Group = v
 }
 
 type PipelineOptionDescriptor_builder struct {
@@ -2116,20 +2096,19 @@ func (b0 PipelineOptionDescriptor_builder) Build() *PipelineOptionDescriptor {
 	m0 := &PipelineOptionDescriptor{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.Type = b.Type
-	x.Description = b.Description
-	x.DefaultValue = b.DefaultValue
-	x.Group = b.Group
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Description = b.Description
+	x.xxx_hidden_DefaultValue = b.DefaultValue
+	x.xxx_hidden_Group = b.Group
 	return m0
 }
 
 type DescribePipelineOptionsResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// List of pipeline option descriptors.
-	Options       []*PipelineOptionDescriptor `protobuf:"bytes,1,rep,name=options,proto3" json:"options,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState       `protogen:"opaque.v1"`
+	xxx_hidden_Options *[]*PipelineOptionDescriptor `protobuf:"bytes,1,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DescribePipelineOptionsResponse) Reset() {
@@ -2159,13 +2138,15 @@ func (x *DescribePipelineOptionsResponse) ProtoReflect() protoreflect.Message {
 
 func (x *DescribePipelineOptionsResponse) GetOptions() []*PipelineOptionDescriptor {
 	if x != nil {
-		return x.Options
+		if x.xxx_hidden_Options != nil {
+			return *x.xxx_hidden_Options
+		}
 	}
 	return nil
 }
 
 func (x *DescribePipelineOptionsResponse) SetOptions(v []*PipelineOptionDescriptor) {
-	x.Options = v
+	x.xxx_hidden_Options = &v
 }
 
 type DescribePipelineOptionsResponse_builder struct {
@@ -2179,7 +2160,7 @@ func (b0 DescribePipelineOptionsResponse_builder) Build() *DescribePipelineOptio
 	m0 := &DescribePipelineOptionsResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Options = b.Options
+	x.xxx_hidden_Options = &b.Options
 	return m0
 }
 
@@ -2605,8 +2586,8 @@ func file_org_apache_beam_model_job_management_v1_beam_job_api_proto_init() {
 		return
 	}
 	file_org_apache_beam_model_job_management_v1_beam_job_api_proto_msgTypes[17].OneofWrappers = []any{
-		(*JobMessagesResponse_MessageResponse)(nil),
-		(*JobMessagesResponse_StateResponse)(nil),
+		(*jobMessagesResponse_MessageResponse)(nil),
+		(*jobMessagesResponse_StateResponse)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

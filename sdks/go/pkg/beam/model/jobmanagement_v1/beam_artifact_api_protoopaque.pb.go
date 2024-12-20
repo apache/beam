@@ -25,7 +25,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/job_management/v1/beam_artifact_api.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package jobmanagement_v1
 
@@ -84,16 +84,11 @@ func (x CommitManifestResponse_Constants) Number() protoreflect.EnumNumber {
 
 // A request for artifact resolution.
 type ResolveArtifactsRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// An (ordered) set of artifacts to (jointly) resolve.
-	Artifacts []*pipeline_v1.ArtifactInformation `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
-	// A set of artifact type urns that are understood by the requester.
-	// An attempt should be made to resolve the artifacts in terms of these URNs,
-	// but other URNs may be used as well with the understanding that they must
-	// be fetch-able as bytes via GetArtifact.
-	PreferredUrns []string `protobuf:"bytes,2,rep,name=preferred_urns,json=preferredUrns,proto3" json:"preferred_urns,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState              `protogen:"opaque.v1"`
+	xxx_hidden_Artifacts     *[]*pipeline_v1.ArtifactInformation `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	xxx_hidden_PreferredUrns []string                            `protobuf:"bytes,2,rep,name=preferred_urns,json=preferredUrns,proto3" json:"preferred_urns,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ResolveArtifactsRequest) Reset() {
@@ -123,24 +118,26 @@ func (x *ResolveArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 func (x *ResolveArtifactsRequest) GetArtifacts() []*pipeline_v1.ArtifactInformation {
 	if x != nil {
-		return x.Artifacts
+		if x.xxx_hidden_Artifacts != nil {
+			return *x.xxx_hidden_Artifacts
+		}
 	}
 	return nil
 }
 
 func (x *ResolveArtifactsRequest) GetPreferredUrns() []string {
 	if x != nil {
-		return x.PreferredUrns
+		return x.xxx_hidden_PreferredUrns
 	}
 	return nil
 }
 
 func (x *ResolveArtifactsRequest) SetArtifacts(v []*pipeline_v1.ArtifactInformation) {
-	x.Artifacts = v
+	x.xxx_hidden_Artifacts = &v
 }
 
 func (x *ResolveArtifactsRequest) SetPreferredUrns(v []string) {
-	x.PreferredUrns = v
+	x.xxx_hidden_PreferredUrns = v
 }
 
 type ResolveArtifactsRequest_builder struct {
@@ -159,20 +156,17 @@ func (b0 ResolveArtifactsRequest_builder) Build() *ResolveArtifactsRequest {
 	m0 := &ResolveArtifactsRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Artifacts = b.Artifacts
-	x.PreferredUrns = b.PreferredUrns
+	x.xxx_hidden_Artifacts = &b.Artifacts
+	x.xxx_hidden_PreferredUrns = b.PreferredUrns
 	return m0
 }
 
 // A response for artifact resolution.
 type ResolveArtifactsResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A full (ordered) set of replacements for the set of requested artifacts,
-	// preferably in terms of the requested type URNs.  If there is no better
-	// resolution, the original list is returned.
-	Replacements  []*pipeline_v1.ArtifactInformation `protobuf:"bytes,1,rep,name=replacements,proto3" json:"replacements,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState              `protogen:"opaque.v1"`
+	xxx_hidden_Replacements *[]*pipeline_v1.ArtifactInformation `protobuf:"bytes,1,rep,name=replacements,proto3" json:"replacements,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ResolveArtifactsResponse) Reset() {
@@ -202,13 +196,15 @@ func (x *ResolveArtifactsResponse) ProtoReflect() protoreflect.Message {
 
 func (x *ResolveArtifactsResponse) GetReplacements() []*pipeline_v1.ArtifactInformation {
 	if x != nil {
-		return x.Replacements
+		if x.xxx_hidden_Replacements != nil {
+			return *x.xxx_hidden_Replacements
+		}
 	}
 	return nil
 }
 
 func (x *ResolveArtifactsResponse) SetReplacements(v []*pipeline_v1.ArtifactInformation) {
-	x.Replacements = v
+	x.xxx_hidden_Replacements = &v
 }
 
 type ResolveArtifactsResponse_builder struct {
@@ -224,16 +220,16 @@ func (b0 ResolveArtifactsResponse_builder) Build() *ResolveArtifactsResponse {
 	m0 := &ResolveArtifactsResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Replacements = b.Replacements
+	x.xxx_hidden_Replacements = &b.Replacements
 	return m0
 }
 
 // A request to get an artifact.
 type GetArtifactRequest struct {
-	state         protoimpl.MessageState           `protogen:"hybrid.v1"`
-	Artifact      *pipeline_v1.ArtifactInformation `protobuf:"bytes,1,opt,name=artifact,proto3" json:"artifact,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState           `protogen:"opaque.v1"`
+	xxx_hidden_Artifact *pipeline_v1.ArtifactInformation `protobuf:"bytes,1,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetArtifactRequest) Reset() {
@@ -263,24 +259,24 @@ func (x *GetArtifactRequest) ProtoReflect() protoreflect.Message {
 
 func (x *GetArtifactRequest) GetArtifact() *pipeline_v1.ArtifactInformation {
 	if x != nil {
-		return x.Artifact
+		return x.xxx_hidden_Artifact
 	}
 	return nil
 }
 
 func (x *GetArtifactRequest) SetArtifact(v *pipeline_v1.ArtifactInformation) {
-	x.Artifact = v
+	x.xxx_hidden_Artifact = v
 }
 
 func (x *GetArtifactRequest) HasArtifact() bool {
 	if x == nil {
 		return false
 	}
-	return x.Artifact != nil
+	return x.xxx_hidden_Artifact != nil
 }
 
 func (x *GetArtifactRequest) ClearArtifact() {
-	x.Artifact = nil
+	x.xxx_hidden_Artifact = nil
 }
 
 type GetArtifactRequest_builder struct {
@@ -293,16 +289,16 @@ func (b0 GetArtifactRequest_builder) Build() *GetArtifactRequest {
 	m0 := &GetArtifactRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Artifact = b.Artifact
+	x.xxx_hidden_Artifact = b.Artifact
 	return m0
 }
 
 // Part of a response to getting an artifact.
 type GetArtifactResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetArtifactResponse) Reset() {
@@ -332,7 +328,7 @@ func (x *GetArtifactResponse) ProtoReflect() protoreflect.Message {
 
 func (x *GetArtifactResponse) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
@@ -341,7 +337,7 @@ func (x *GetArtifactResponse) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 type GetArtifactResponse_builder struct {
@@ -354,20 +350,16 @@ func (b0 GetArtifactResponse_builder) Build() *GetArtifactResponse {
 	m0 := &GetArtifactResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Data = b.Data
+	x.xxx_hidden_Data = b.Data
 	return m0
 }
 
 // Wraps an ArtifactRetrievalService request for use in ReverseArtifactRetrievalService.
 type ArtifactRequestWrapper struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Types that are valid to be assigned to Request:
-	//
-	//	*ArtifactRequestWrapper_ResolveArtifact
-	//	*ArtifactRequestWrapper_GetArtifact
-	Request       isArtifactRequestWrapper_Request `protobuf_oneof:"request"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState           `protogen:"opaque.v1"`
+	xxx_hidden_Request isArtifactRequestWrapper_Request `protobuf_oneof:"request"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ArtifactRequestWrapper) Reset() {
@@ -395,16 +387,9 @@ func (x *ArtifactRequestWrapper) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *ArtifactRequestWrapper) GetRequest() isArtifactRequestWrapper_Request {
-	if x != nil {
-		return x.Request
-	}
-	return nil
-}
-
 func (x *ArtifactRequestWrapper) GetResolveArtifact() *ResolveArtifactsRequest {
 	if x != nil {
-		if x, ok := x.Request.(*ArtifactRequestWrapper_ResolveArtifact); ok {
+		if x, ok := x.xxx_hidden_Request.(*artifactRequestWrapper_ResolveArtifact); ok {
 			return x.ResolveArtifact
 		}
 	}
@@ -413,7 +398,7 @@ func (x *ArtifactRequestWrapper) GetResolveArtifact() *ResolveArtifactsRequest {
 
 func (x *ArtifactRequestWrapper) GetGetArtifact() *GetArtifactRequest {
 	if x != nil {
-		if x, ok := x.Request.(*ArtifactRequestWrapper_GetArtifact); ok {
+		if x, ok := x.xxx_hidden_Request.(*artifactRequestWrapper_GetArtifact); ok {
 			return x.GetArtifact
 		}
 	}
@@ -422,32 +407,32 @@ func (x *ArtifactRequestWrapper) GetGetArtifact() *GetArtifactRequest {
 
 func (x *ArtifactRequestWrapper) SetResolveArtifact(v *ResolveArtifactsRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &ArtifactRequestWrapper_ResolveArtifact{v}
+	x.xxx_hidden_Request = &artifactRequestWrapper_ResolveArtifact{v}
 }
 
 func (x *ArtifactRequestWrapper) SetGetArtifact(v *GetArtifactRequest) {
 	if v == nil {
-		x.Request = nil
+		x.xxx_hidden_Request = nil
 		return
 	}
-	x.Request = &ArtifactRequestWrapper_GetArtifact{v}
+	x.xxx_hidden_Request = &artifactRequestWrapper_GetArtifact{v}
 }
 
 func (x *ArtifactRequestWrapper) HasRequest() bool {
 	if x == nil {
 		return false
 	}
-	return x.Request != nil
+	return x.xxx_hidden_Request != nil
 }
 
 func (x *ArtifactRequestWrapper) HasResolveArtifact() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*ArtifactRequestWrapper_ResolveArtifact)
+	_, ok := x.xxx_hidden_Request.(*artifactRequestWrapper_ResolveArtifact)
 	return ok
 }
 
@@ -455,23 +440,23 @@ func (x *ArtifactRequestWrapper) HasGetArtifact() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Request.(*ArtifactRequestWrapper_GetArtifact)
+	_, ok := x.xxx_hidden_Request.(*artifactRequestWrapper_GetArtifact)
 	return ok
 }
 
 func (x *ArtifactRequestWrapper) ClearRequest() {
-	x.Request = nil
+	x.xxx_hidden_Request = nil
 }
 
 func (x *ArtifactRequestWrapper) ClearResolveArtifact() {
-	if _, ok := x.Request.(*ArtifactRequestWrapper_ResolveArtifact); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*artifactRequestWrapper_ResolveArtifact); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
 func (x *ArtifactRequestWrapper) ClearGetArtifact() {
-	if _, ok := x.Request.(*ArtifactRequestWrapper_GetArtifact); ok {
-		x.Request = nil
+	if _, ok := x.xxx_hidden_Request.(*artifactRequestWrapper_GetArtifact); ok {
+		x.xxx_hidden_Request = nil
 	}
 }
 
@@ -483,10 +468,10 @@ func (x *ArtifactRequestWrapper) WhichRequest() case_ArtifactRequestWrapper_Requ
 	if x == nil {
 		return ArtifactRequestWrapper_Request_not_set_case
 	}
-	switch x.Request.(type) {
-	case *ArtifactRequestWrapper_ResolveArtifact:
+	switch x.xxx_hidden_Request.(type) {
+	case *artifactRequestWrapper_ResolveArtifact:
 		return ArtifactRequestWrapper_ResolveArtifact_case
-	case *ArtifactRequestWrapper_GetArtifact:
+	case *artifactRequestWrapper_GetArtifact:
 		return ArtifactRequestWrapper_GetArtifact_case
 	default:
 		return ArtifactRequestWrapper_Request_not_set_case
@@ -496,10 +481,10 @@ func (x *ArtifactRequestWrapper) WhichRequest() case_ArtifactRequestWrapper_Requ
 type ArtifactRequestWrapper_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// Fields of oneof Request:
+	// Fields of oneof xxx_hidden_Request:
 	ResolveArtifact *ResolveArtifactsRequest
 	GetArtifact     *GetArtifactRequest
-	// -- end of Request
+	// -- end of xxx_hidden_Request
 }
 
 func (b0 ArtifactRequestWrapper_builder) Build() *ArtifactRequestWrapper {
@@ -507,10 +492,10 @@ func (b0 ArtifactRequestWrapper_builder) Build() *ArtifactRequestWrapper {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.ResolveArtifact != nil {
-		x.Request = &ArtifactRequestWrapper_ResolveArtifact{b.ResolveArtifact}
+		x.xxx_hidden_Request = &artifactRequestWrapper_ResolveArtifact{b.ResolveArtifact}
 	}
 	if b.GetArtifact != nil {
-		x.Request = &ArtifactRequestWrapper_GetArtifact{b.GetArtifact}
+		x.xxx_hidden_Request = &artifactRequestWrapper_GetArtifact{b.GetArtifact}
 	}
 	return m0
 }
@@ -529,35 +514,26 @@ type isArtifactRequestWrapper_Request interface {
 	isArtifactRequestWrapper_Request()
 }
 
-type ArtifactRequestWrapper_ResolveArtifact struct {
+type artifactRequestWrapper_ResolveArtifact struct {
 	ResolveArtifact *ResolveArtifactsRequest `protobuf:"bytes,1000,opt,name=resolve_artifact,json=resolveArtifact,proto3,oneof"`
 }
 
-type ArtifactRequestWrapper_GetArtifact struct {
+type artifactRequestWrapper_GetArtifact struct {
 	GetArtifact *GetArtifactRequest `protobuf:"bytes,1001,opt,name=get_artifact,json=getArtifact,proto3,oneof"`
 }
 
-func (*ArtifactRequestWrapper_ResolveArtifact) isArtifactRequestWrapper_Request() {}
+func (*artifactRequestWrapper_ResolveArtifact) isArtifactRequestWrapper_Request() {}
 
-func (*ArtifactRequestWrapper_GetArtifact) isArtifactRequestWrapper_Request() {}
+func (*artifactRequestWrapper_GetArtifact) isArtifactRequestWrapper_Request() {}
 
 // Wraps an ArtifactRetrievalService response for use in ReverseArtifactRetrievalService.
 type ArtifactResponseWrapper struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A token indicating which job these artifacts are being staged for.
-	StagingToken string `protobuf:"bytes,1,opt,name=staging_token,json=stagingToken,proto3" json:"staging_token,omitempty"`
-	// Whether this is the last response for this request (for those responses that
-	// would typically be terminated by the end of the response stream.)
-	IsLast bool `protobuf:"varint,2,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
-	// The response itself.
-	//
-	// Types that are valid to be assigned to Response:
-	//
-	//	*ArtifactResponseWrapper_ResolveArtifactResponse
-	//	*ArtifactResponseWrapper_GetArtifactResponse
-	Response      isArtifactResponseWrapper_Response `protobuf_oneof:"response"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState             `protogen:"opaque.v1"`
+	xxx_hidden_StagingToken string                             `protobuf:"bytes,1,opt,name=staging_token,json=stagingToken,proto3" json:"staging_token,omitempty"`
+	xxx_hidden_IsLast       bool                               `protobuf:"varint,2,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
+	xxx_hidden_Response     isArtifactResponseWrapper_Response `protobuf_oneof:"response"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ArtifactResponseWrapper) Reset() {
@@ -587,28 +563,21 @@ func (x *ArtifactResponseWrapper) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactResponseWrapper) GetStagingToken() string {
 	if x != nil {
-		return x.StagingToken
+		return x.xxx_hidden_StagingToken
 	}
 	return ""
 }
 
 func (x *ArtifactResponseWrapper) GetIsLast() bool {
 	if x != nil {
-		return x.IsLast
+		return x.xxx_hidden_IsLast
 	}
 	return false
 }
 
-func (x *ArtifactResponseWrapper) GetResponse() isArtifactResponseWrapper_Response {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
 func (x *ArtifactResponseWrapper) GetResolveArtifactResponse() *ResolveArtifactsResponse {
 	if x != nil {
-		if x, ok := x.Response.(*ArtifactResponseWrapper_ResolveArtifactResponse); ok {
+		if x, ok := x.xxx_hidden_Response.(*artifactResponseWrapper_ResolveArtifactResponse); ok {
 			return x.ResolveArtifactResponse
 		}
 	}
@@ -617,7 +586,7 @@ func (x *ArtifactResponseWrapper) GetResolveArtifactResponse() *ResolveArtifacts
 
 func (x *ArtifactResponseWrapper) GetGetArtifactResponse() *GetArtifactResponse {
 	if x != nil {
-		if x, ok := x.Response.(*ArtifactResponseWrapper_GetArtifactResponse); ok {
+		if x, ok := x.xxx_hidden_Response.(*artifactResponseWrapper_GetArtifactResponse); ok {
 			return x.GetArtifactResponse
 		}
 	}
@@ -625,41 +594,41 @@ func (x *ArtifactResponseWrapper) GetGetArtifactResponse() *GetArtifactResponse 
 }
 
 func (x *ArtifactResponseWrapper) SetStagingToken(v string) {
-	x.StagingToken = v
+	x.xxx_hidden_StagingToken = v
 }
 
 func (x *ArtifactResponseWrapper) SetIsLast(v bool) {
-	x.IsLast = v
+	x.xxx_hidden_IsLast = v
 }
 
 func (x *ArtifactResponseWrapper) SetResolveArtifactResponse(v *ResolveArtifactsResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &ArtifactResponseWrapper_ResolveArtifactResponse{v}
+	x.xxx_hidden_Response = &artifactResponseWrapper_ResolveArtifactResponse{v}
 }
 
 func (x *ArtifactResponseWrapper) SetGetArtifactResponse(v *GetArtifactResponse) {
 	if v == nil {
-		x.Response = nil
+		x.xxx_hidden_Response = nil
 		return
 	}
-	x.Response = &ArtifactResponseWrapper_GetArtifactResponse{v}
+	x.xxx_hidden_Response = &artifactResponseWrapper_GetArtifactResponse{v}
 }
 
 func (x *ArtifactResponseWrapper) HasResponse() bool {
 	if x == nil {
 		return false
 	}
-	return x.Response != nil
+	return x.xxx_hidden_Response != nil
 }
 
 func (x *ArtifactResponseWrapper) HasResolveArtifactResponse() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*ArtifactResponseWrapper_ResolveArtifactResponse)
+	_, ok := x.xxx_hidden_Response.(*artifactResponseWrapper_ResolveArtifactResponse)
 	return ok
 }
 
@@ -667,23 +636,23 @@ func (x *ArtifactResponseWrapper) HasGetArtifactResponse() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Response.(*ArtifactResponseWrapper_GetArtifactResponse)
+	_, ok := x.xxx_hidden_Response.(*artifactResponseWrapper_GetArtifactResponse)
 	return ok
 }
 
 func (x *ArtifactResponseWrapper) ClearResponse() {
-	x.Response = nil
+	x.xxx_hidden_Response = nil
 }
 
 func (x *ArtifactResponseWrapper) ClearResolveArtifactResponse() {
-	if _, ok := x.Response.(*ArtifactResponseWrapper_ResolveArtifactResponse); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*artifactResponseWrapper_ResolveArtifactResponse); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
 func (x *ArtifactResponseWrapper) ClearGetArtifactResponse() {
-	if _, ok := x.Response.(*ArtifactResponseWrapper_GetArtifactResponse); ok {
-		x.Response = nil
+	if _, ok := x.xxx_hidden_Response.(*artifactResponseWrapper_GetArtifactResponse); ok {
+		x.xxx_hidden_Response = nil
 	}
 }
 
@@ -695,10 +664,10 @@ func (x *ArtifactResponseWrapper) WhichResponse() case_ArtifactResponseWrapper_R
 	if x == nil {
 		return ArtifactResponseWrapper_Response_not_set_case
 	}
-	switch x.Response.(type) {
-	case *ArtifactResponseWrapper_ResolveArtifactResponse:
+	switch x.xxx_hidden_Response.(type) {
+	case *artifactResponseWrapper_ResolveArtifactResponse:
 		return ArtifactResponseWrapper_ResolveArtifactResponse_case
-	case *ArtifactResponseWrapper_GetArtifactResponse:
+	case *artifactResponseWrapper_GetArtifactResponse:
 		return ArtifactResponseWrapper_GetArtifactResponse_case
 	default:
 		return ArtifactResponseWrapper_Response_not_set_case
@@ -715,23 +684,23 @@ type ArtifactResponseWrapper_builder struct {
 	IsLast bool
 	// The response itself.
 
-	// Fields of oneof Response:
+	// Fields of oneof xxx_hidden_Response:
 	ResolveArtifactResponse *ResolveArtifactsResponse
 	GetArtifactResponse     *GetArtifactResponse
-	// -- end of Response
+	// -- end of xxx_hidden_Response
 }
 
 func (b0 ArtifactResponseWrapper_builder) Build() *ArtifactResponseWrapper {
 	m0 := &ArtifactResponseWrapper{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.StagingToken = b.StagingToken
-	x.IsLast = b.IsLast
+	x.xxx_hidden_StagingToken = b.StagingToken
+	x.xxx_hidden_IsLast = b.IsLast
 	if b.ResolveArtifactResponse != nil {
-		x.Response = &ArtifactResponseWrapper_ResolveArtifactResponse{b.ResolveArtifactResponse}
+		x.xxx_hidden_Response = &artifactResponseWrapper_ResolveArtifactResponse{b.ResolveArtifactResponse}
 	}
 	if b.GetArtifactResponse != nil {
-		x.Response = &ArtifactResponseWrapper_GetArtifactResponse{b.GetArtifactResponse}
+		x.xxx_hidden_Response = &artifactResponseWrapper_GetArtifactResponse{b.GetArtifactResponse}
 	}
 	return m0
 }
@@ -750,30 +719,26 @@ type isArtifactResponseWrapper_Response interface {
 	isArtifactResponseWrapper_Response()
 }
 
-type ArtifactResponseWrapper_ResolveArtifactResponse struct {
+type artifactResponseWrapper_ResolveArtifactResponse struct {
 	ResolveArtifactResponse *ResolveArtifactsResponse `protobuf:"bytes,1000,opt,name=resolve_artifact_response,json=resolveArtifactResponse,proto3,oneof"`
 }
 
-type ArtifactResponseWrapper_GetArtifactResponse struct {
+type artifactResponseWrapper_GetArtifactResponse struct {
 	GetArtifactResponse *GetArtifactResponse `protobuf:"bytes,1001,opt,name=get_artifact_response,json=getArtifactResponse,proto3,oneof"`
 }
 
-func (*ArtifactResponseWrapper_ResolveArtifactResponse) isArtifactResponseWrapper_Response() {}
+func (*artifactResponseWrapper_ResolveArtifactResponse) isArtifactResponseWrapper_Response() {}
 
-func (*ArtifactResponseWrapper_GetArtifactResponse) isArtifactResponseWrapper_Response() {}
+func (*artifactResponseWrapper_GetArtifactResponse) isArtifactResponseWrapper_Response() {}
 
 // An artifact identifier and associated metadata.
 type ArtifactMetadata struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The name of the artifact.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// (Optional) The Unix-like permissions of the artifact
-	Permissions uint32 `protobuf:"varint,2,opt,name=permissions,proto3" json:"permissions,omitempty"`
-	// (Optional) The hex-encoded sha256 checksum of the artifact. Used, among other things, by
-	// harness boot code to validate the integrity of the artifact.
-	Sha256        string `protobuf:"bytes,4,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name        string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_Permissions uint32                 `protobuf:"varint,2,opt,name=permissions,proto3" json:"permissions,omitempty"`
+	xxx_hidden_Sha256      string                 `protobuf:"bytes,4,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ArtifactMetadata) Reset() {
@@ -803,35 +768,35 @@ func (x *ArtifactMetadata) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactMetadata) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *ArtifactMetadata) GetPermissions() uint32 {
 	if x != nil {
-		return x.Permissions
+		return x.xxx_hidden_Permissions
 	}
 	return 0
 }
 
 func (x *ArtifactMetadata) GetSha256() string {
 	if x != nil {
-		return x.Sha256
+		return x.xxx_hidden_Sha256
 	}
 	return ""
 }
 
 func (x *ArtifactMetadata) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *ArtifactMetadata) SetPermissions(v uint32) {
-	x.Permissions = v
+	x.xxx_hidden_Permissions = v
 }
 
 func (x *ArtifactMetadata) SetSha256(v string) {
-	x.Sha256 = v
+	x.xxx_hidden_Sha256 = v
 }
 
 type ArtifactMetadata_builder struct {
@@ -850,18 +815,18 @@ func (b0 ArtifactMetadata_builder) Build() *ArtifactMetadata {
 	m0 := &ArtifactMetadata{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.Permissions = b.Permissions
-	x.Sha256 = b.Sha256
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Permissions = b.Permissions
+	x.xxx_hidden_Sha256 = b.Sha256
 	return m0
 }
 
 // A collection of artifacts.
 type Manifest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Artifact      []*ArtifactMetadata    `protobuf:"bytes,1,rep,name=artifact,proto3" json:"artifact,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Artifact *[]*ArtifactMetadata   `protobuf:"bytes,1,rep,name=artifact,proto3" json:"artifact,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Manifest) Reset() {
@@ -891,13 +856,15 @@ func (x *Manifest) ProtoReflect() protoreflect.Message {
 
 func (x *Manifest) GetArtifact() []*ArtifactMetadata {
 	if x != nil {
-		return x.Artifact
+		if x.xxx_hidden_Artifact != nil {
+			return *x.xxx_hidden_Artifact
+		}
 	}
 	return nil
 }
 
 func (x *Manifest) SetArtifact(v []*ArtifactMetadata) {
-	x.Artifact = v
+	x.xxx_hidden_Artifact = &v
 }
 
 type Manifest_builder struct {
@@ -910,17 +877,17 @@ func (b0 Manifest_builder) Build() *Manifest {
 	m0 := &Manifest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Artifact = b.Artifact
+	x.xxx_hidden_Artifact = &b.Artifact
 	return m0
 }
 
 // A manifest with location information.
 type ProxyManifest struct {
-	state         protoimpl.MessageState    `protogen:"hybrid.v1"`
-	Manifest      *Manifest                 `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
-	Location      []*ProxyManifest_Location `protobuf:"bytes,2,rep,name=location,proto3" json:"location,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState     `protogen:"opaque.v1"`
+	xxx_hidden_Manifest *Manifest                  `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	xxx_hidden_Location *[]*ProxyManifest_Location `protobuf:"bytes,2,rep,name=location,proto3" json:"location,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ProxyManifest) Reset() {
@@ -950,35 +917,37 @@ func (x *ProxyManifest) ProtoReflect() protoreflect.Message {
 
 func (x *ProxyManifest) GetManifest() *Manifest {
 	if x != nil {
-		return x.Manifest
+		return x.xxx_hidden_Manifest
 	}
 	return nil
 }
 
 func (x *ProxyManifest) GetLocation() []*ProxyManifest_Location {
 	if x != nil {
-		return x.Location
+		if x.xxx_hidden_Location != nil {
+			return *x.xxx_hidden_Location
+		}
 	}
 	return nil
 }
 
 func (x *ProxyManifest) SetManifest(v *Manifest) {
-	x.Manifest = v
+	x.xxx_hidden_Manifest = v
 }
 
 func (x *ProxyManifest) SetLocation(v []*ProxyManifest_Location) {
-	x.Location = v
+	x.xxx_hidden_Location = &v
 }
 
 func (x *ProxyManifest) HasManifest() bool {
 	if x == nil {
 		return false
 	}
-	return x.Manifest != nil
+	return x.xxx_hidden_Manifest != nil
 }
 
 func (x *ProxyManifest) ClearManifest() {
-	x.Manifest = nil
+	x.xxx_hidden_Manifest = nil
 }
 
 type ProxyManifest_builder struct {
@@ -992,19 +961,17 @@ func (b0 ProxyManifest_builder) Build() *ProxyManifest {
 	m0 := &ProxyManifest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Manifest = b.Manifest
-	x.Location = b.Location
+	x.xxx_hidden_Manifest = b.Manifest
+	x.xxx_hidden_Location = &b.Location
 	return m0
 }
 
 // A request to get the manifest of a Job.
 type GetManifestRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) An opaque token representing the entirety of the staged artifacts.
-	// Returned in CommitManifestResponse.
-	RetrievalToken string `protobuf:"bytes,1,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_RetrievalToken string                 `protobuf:"bytes,1,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *GetManifestRequest) Reset() {
@@ -1034,13 +1001,13 @@ func (x *GetManifestRequest) ProtoReflect() protoreflect.Message {
 
 func (x *GetManifestRequest) GetRetrievalToken() string {
 	if x != nil {
-		return x.RetrievalToken
+		return x.xxx_hidden_RetrievalToken
 	}
 	return ""
 }
 
 func (x *GetManifestRequest) SetRetrievalToken(v string) {
-	x.RetrievalToken = v
+	x.xxx_hidden_RetrievalToken = v
 }
 
 type GetManifestRequest_builder struct {
@@ -1055,16 +1022,16 @@ func (b0 GetManifestRequest_builder) Build() *GetManifestRequest {
 	m0 := &GetManifestRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.RetrievalToken = b.RetrievalToken
+	x.xxx_hidden_RetrievalToken = b.RetrievalToken
 	return m0
 }
 
 // A response containing a job manifest.
 type GetManifestResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Manifest      *Manifest              `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Manifest *Manifest              `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetManifestResponse) Reset() {
@@ -1094,24 +1061,24 @@ func (x *GetManifestResponse) ProtoReflect() protoreflect.Message {
 
 func (x *GetManifestResponse) GetManifest() *Manifest {
 	if x != nil {
-		return x.Manifest
+		return x.xxx_hidden_Manifest
 	}
 	return nil
 }
 
 func (x *GetManifestResponse) SetManifest(v *Manifest) {
-	x.Manifest = v
+	x.xxx_hidden_Manifest = v
 }
 
 func (x *GetManifestResponse) HasManifest() bool {
 	if x == nil {
 		return false
 	}
-	return x.Manifest != nil
+	return x.xxx_hidden_Manifest != nil
 }
 
 func (x *GetManifestResponse) ClearManifest() {
-	x.Manifest = nil
+	x.xxx_hidden_Manifest = nil
 }
 
 type GetManifestResponse_builder struct {
@@ -1124,20 +1091,17 @@ func (b0 GetManifestResponse_builder) Build() *GetManifestResponse {
 	m0 := &GetManifestResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Manifest = b.Manifest
+	x.xxx_hidden_Manifest = b.Manifest
 	return m0
 }
 
 // A request to get an artifact. The artifact must be present in the manifest for the job.
 type LegacyGetArtifactRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The name of the artifact to retrieve.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// (Required) An opaque token representing the entirety of the staged artifacts.
-	// Returned in CommitManifestResponse.
-	RetrievalToken string `protobuf:"bytes,2,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_RetrievalToken string                 `protobuf:"bytes,2,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *LegacyGetArtifactRequest) Reset() {
@@ -1167,24 +1131,24 @@ func (x *LegacyGetArtifactRequest) ProtoReflect() protoreflect.Message {
 
 func (x *LegacyGetArtifactRequest) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *LegacyGetArtifactRequest) GetRetrievalToken() string {
 	if x != nil {
-		return x.RetrievalToken
+		return x.xxx_hidden_RetrievalToken
 	}
 	return ""
 }
 
 func (x *LegacyGetArtifactRequest) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *LegacyGetArtifactRequest) SetRetrievalToken(v string) {
-	x.RetrievalToken = v
+	x.xxx_hidden_RetrievalToken = v
 }
 
 type LegacyGetArtifactRequest_builder struct {
@@ -1201,17 +1165,17 @@ func (b0 LegacyGetArtifactRequest_builder) Build() *LegacyGetArtifactRequest {
 	m0 := &LegacyGetArtifactRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.RetrievalToken = b.RetrievalToken
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_RetrievalToken = b.RetrievalToken
 	return m0
 }
 
 // Part of an artifact.
 type ArtifactChunk struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ArtifactChunk) Reset() {
@@ -1241,7 +1205,7 @@ func (x *ArtifactChunk) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactChunk) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
@@ -1250,7 +1214,7 @@ func (x *ArtifactChunk) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 type ArtifactChunk_builder struct {
@@ -1263,19 +1227,16 @@ func (b0 ArtifactChunk_builder) Build() *ArtifactChunk {
 	m0 := &ArtifactChunk{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Data = b.Data
+	x.xxx_hidden_Data = b.Data
 	return m0
 }
 
 type PutArtifactMetadata struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A token for artifact staging session. This token can be obtained
-	// from PrepareJob request in JobService
-	StagingSessionToken string `protobuf:"bytes,1,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
-	// (Required) The Artifact metadata.
-	Metadata      *ArtifactMetadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                          protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_StagingSessionToken string                 `protobuf:"bytes,1,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
+	xxx_hidden_Metadata            *ArtifactMetadata      `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *PutArtifactMetadata) Reset() {
@@ -1305,35 +1266,35 @@ func (x *PutArtifactMetadata) ProtoReflect() protoreflect.Message {
 
 func (x *PutArtifactMetadata) GetStagingSessionToken() string {
 	if x != nil {
-		return x.StagingSessionToken
+		return x.xxx_hidden_StagingSessionToken
 	}
 	return ""
 }
 
 func (x *PutArtifactMetadata) GetMetadata() *ArtifactMetadata {
 	if x != nil {
-		return x.Metadata
+		return x.xxx_hidden_Metadata
 	}
 	return nil
 }
 
 func (x *PutArtifactMetadata) SetStagingSessionToken(v string) {
-	x.StagingSessionToken = v
+	x.xxx_hidden_StagingSessionToken = v
 }
 
 func (x *PutArtifactMetadata) SetMetadata(v *ArtifactMetadata) {
-	x.Metadata = v
+	x.xxx_hidden_Metadata = v
 }
 
 func (x *PutArtifactMetadata) HasMetadata() bool {
 	if x == nil {
 		return false
 	}
-	return x.Metadata != nil
+	return x.xxx_hidden_Metadata != nil
 }
 
 func (x *PutArtifactMetadata) ClearMetadata() {
-	x.Metadata = nil
+	x.xxx_hidden_Metadata = nil
 }
 
 type PutArtifactMetadata_builder struct {
@@ -1350,23 +1311,17 @@ func (b0 PutArtifactMetadata_builder) Build() *PutArtifactMetadata {
 	m0 := &PutArtifactMetadata{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.StagingSessionToken = b.StagingSessionToken
-	x.Metadata = b.Metadata
+	x.xxx_hidden_StagingSessionToken = b.StagingSessionToken
+	x.xxx_hidden_Metadata = b.Metadata
 	return m0
 }
 
 // A request to stage an artifact.
 type PutArtifactRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required)
-	//
-	// Types that are valid to be assigned to Content:
-	//
-	//	*PutArtifactRequest_Metadata
-	//	*PutArtifactRequest_Data
-	Content       isPutArtifactRequest_Content `protobuf_oneof:"content"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState       `protogen:"opaque.v1"`
+	xxx_hidden_Content isPutArtifactRequest_Content `protobuf_oneof:"content"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PutArtifactRequest) Reset() {
@@ -1394,16 +1349,9 @@ func (x *PutArtifactRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *PutArtifactRequest) GetContent() isPutArtifactRequest_Content {
-	if x != nil {
-		return x.Content
-	}
-	return nil
-}
-
 func (x *PutArtifactRequest) GetMetadata() *PutArtifactMetadata {
 	if x != nil {
-		if x, ok := x.Content.(*PutArtifactRequest_Metadata); ok {
+		if x, ok := x.xxx_hidden_Content.(*putArtifactRequest_Metadata); ok {
 			return x.Metadata
 		}
 	}
@@ -1412,7 +1360,7 @@ func (x *PutArtifactRequest) GetMetadata() *PutArtifactMetadata {
 
 func (x *PutArtifactRequest) GetData() *ArtifactChunk {
 	if x != nil {
-		if x, ok := x.Content.(*PutArtifactRequest_Data); ok {
+		if x, ok := x.xxx_hidden_Content.(*putArtifactRequest_Data); ok {
 			return x.Data
 		}
 	}
@@ -1421,32 +1369,32 @@ func (x *PutArtifactRequest) GetData() *ArtifactChunk {
 
 func (x *PutArtifactRequest) SetMetadata(v *PutArtifactMetadata) {
 	if v == nil {
-		x.Content = nil
+		x.xxx_hidden_Content = nil
 		return
 	}
-	x.Content = &PutArtifactRequest_Metadata{v}
+	x.xxx_hidden_Content = &putArtifactRequest_Metadata{v}
 }
 
 func (x *PutArtifactRequest) SetData(v *ArtifactChunk) {
 	if v == nil {
-		x.Content = nil
+		x.xxx_hidden_Content = nil
 		return
 	}
-	x.Content = &PutArtifactRequest_Data{v}
+	x.xxx_hidden_Content = &putArtifactRequest_Data{v}
 }
 
 func (x *PutArtifactRequest) HasContent() bool {
 	if x == nil {
 		return false
 	}
-	return x.Content != nil
+	return x.xxx_hidden_Content != nil
 }
 
 func (x *PutArtifactRequest) HasMetadata() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Content.(*PutArtifactRequest_Metadata)
+	_, ok := x.xxx_hidden_Content.(*putArtifactRequest_Metadata)
 	return ok
 }
 
@@ -1454,23 +1402,23 @@ func (x *PutArtifactRequest) HasData() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Content.(*PutArtifactRequest_Data)
+	_, ok := x.xxx_hidden_Content.(*putArtifactRequest_Data)
 	return ok
 }
 
 func (x *PutArtifactRequest) ClearContent() {
-	x.Content = nil
+	x.xxx_hidden_Content = nil
 }
 
 func (x *PutArtifactRequest) ClearMetadata() {
-	if _, ok := x.Content.(*PutArtifactRequest_Metadata); ok {
-		x.Content = nil
+	if _, ok := x.xxx_hidden_Content.(*putArtifactRequest_Metadata); ok {
+		x.xxx_hidden_Content = nil
 	}
 }
 
 func (x *PutArtifactRequest) ClearData() {
-	if _, ok := x.Content.(*PutArtifactRequest_Data); ok {
-		x.Content = nil
+	if _, ok := x.xxx_hidden_Content.(*putArtifactRequest_Data); ok {
+		x.xxx_hidden_Content = nil
 	}
 }
 
@@ -1482,10 +1430,10 @@ func (x *PutArtifactRequest) WhichContent() case_PutArtifactRequest_Content {
 	if x == nil {
 		return PutArtifactRequest_Content_not_set_case
 	}
-	switch x.Content.(type) {
-	case *PutArtifactRequest_Metadata:
+	switch x.xxx_hidden_Content.(type) {
+	case *putArtifactRequest_Metadata:
 		return PutArtifactRequest_Metadata_case
-	case *PutArtifactRequest_Data:
+	case *putArtifactRequest_Data:
 		return PutArtifactRequest_Data_case
 	default:
 		return PutArtifactRequest_Content_not_set_case
@@ -1497,13 +1445,13 @@ type PutArtifactRequest_builder struct {
 
 	// (Required)
 
-	// Fields of oneof Content:
+	// Fields of oneof xxx_hidden_Content:
 	// The first message in a PutArtifact call must contain this field.
 	Metadata *PutArtifactMetadata
 	// A chunk of the artifact. All messages after the first in a PutArtifact call must contain a
 	// chunk.
 	Data *ArtifactChunk
-	// -- end of Content
+	// -- end of xxx_hidden_Content
 }
 
 func (b0 PutArtifactRequest_builder) Build() *PutArtifactRequest {
@@ -1511,10 +1459,10 @@ func (b0 PutArtifactRequest_builder) Build() *PutArtifactRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Metadata != nil {
-		x.Content = &PutArtifactRequest_Metadata{b.Metadata}
+		x.xxx_hidden_Content = &putArtifactRequest_Metadata{b.Metadata}
 	}
 	if b.Data != nil {
-		x.Content = &PutArtifactRequest_Data{b.Data}
+		x.xxx_hidden_Content = &putArtifactRequest_Data{b.Data}
 	}
 	return m0
 }
@@ -1533,23 +1481,23 @@ type isPutArtifactRequest_Content interface {
 	isPutArtifactRequest_Content()
 }
 
-type PutArtifactRequest_Metadata struct {
+type putArtifactRequest_Metadata struct {
 	// The first message in a PutArtifact call must contain this field.
 	Metadata *PutArtifactMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof"`
 }
 
-type PutArtifactRequest_Data struct {
+type putArtifactRequest_Data struct {
 	// A chunk of the artifact. All messages after the first in a PutArtifact call must contain a
 	// chunk.
 	Data *ArtifactChunk `protobuf:"bytes,2,opt,name=data,proto3,oneof"`
 }
 
-func (*PutArtifactRequest_Metadata) isPutArtifactRequest_Content() {}
+func (*putArtifactRequest_Metadata) isPutArtifactRequest_Content() {}
 
-func (*PutArtifactRequest_Data) isPutArtifactRequest_Content() {}
+func (*putArtifactRequest_Data) isPutArtifactRequest_Content() {}
 
 type PutArtifactResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1594,14 +1542,11 @@ func (b0 PutArtifactResponse_builder) Build() *PutArtifactResponse {
 // A request to commit the manifest for a Job. All artifacts must have been successfully uploaded
 // before this call is made.
 type CommitManifestRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The manifest to commit.
-	Manifest *Manifest `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
-	// (Required) A token for artifact staging session. This token can be obtained
-	// from PrepareJob request in JobService
-	StagingSessionToken string `protobuf:"bytes,2,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                          protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Manifest            *Manifest              `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	xxx_hidden_StagingSessionToken string                 `protobuf:"bytes,2,opt,name=staging_session_token,json=stagingSessionToken,proto3" json:"staging_session_token,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *CommitManifestRequest) Reset() {
@@ -1631,35 +1576,35 @@ func (x *CommitManifestRequest) ProtoReflect() protoreflect.Message {
 
 func (x *CommitManifestRequest) GetManifest() *Manifest {
 	if x != nil {
-		return x.Manifest
+		return x.xxx_hidden_Manifest
 	}
 	return nil
 }
 
 func (x *CommitManifestRequest) GetStagingSessionToken() string {
 	if x != nil {
-		return x.StagingSessionToken
+		return x.xxx_hidden_StagingSessionToken
 	}
 	return ""
 }
 
 func (x *CommitManifestRequest) SetManifest(v *Manifest) {
-	x.Manifest = v
+	x.xxx_hidden_Manifest = v
 }
 
 func (x *CommitManifestRequest) SetStagingSessionToken(v string) {
-	x.StagingSessionToken = v
+	x.xxx_hidden_StagingSessionToken = v
 }
 
 func (x *CommitManifestRequest) HasManifest() bool {
 	if x == nil {
 		return false
 	}
-	return x.Manifest != nil
+	return x.xxx_hidden_Manifest != nil
 }
 
 func (x *CommitManifestRequest) ClearManifest() {
-	x.Manifest = nil
+	x.xxx_hidden_Manifest = nil
 }
 
 type CommitManifestRequest_builder struct {
@@ -1676,20 +1621,17 @@ func (b0 CommitManifestRequest_builder) Build() *CommitManifestRequest {
 	m0 := &CommitManifestRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Manifest = b.Manifest
-	x.StagingSessionToken = b.StagingSessionToken
+	x.xxx_hidden_Manifest = b.Manifest
+	x.xxx_hidden_StagingSessionToken = b.StagingSessionToken
 	return m0
 }
 
 // The result of committing a manifest.
 type CommitManifestResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) An opaque token representing the entirety of the staged artifacts.
-	// This can be used to retrieve the manifest and artifacts from an associated
-	// LegacyArtifactRetrievalService.
-	RetrievalToken string `protobuf:"bytes,1,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_RetrievalToken string                 `protobuf:"bytes,1,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *CommitManifestResponse) Reset() {
@@ -1719,13 +1661,13 @@ func (x *CommitManifestResponse) ProtoReflect() protoreflect.Message {
 
 func (x *CommitManifestResponse) GetRetrievalToken() string {
 	if x != nil {
-		return x.RetrievalToken
+		return x.xxx_hidden_RetrievalToken
 	}
 	return ""
 }
 
 func (x *CommitManifestResponse) SetRetrievalToken(v string) {
-	x.RetrievalToken = v
+	x.xxx_hidden_RetrievalToken = v
 }
 
 type CommitManifestResponse_builder struct {
@@ -1741,16 +1683,16 @@ func (b0 CommitManifestResponse_builder) Build() *CommitManifestResponse {
 	m0 := &CommitManifestResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.RetrievalToken = b.RetrievalToken
+	x.xxx_hidden_RetrievalToken = b.RetrievalToken
 	return m0
 }
 
 type ProxyManifest_Location struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_Uri  string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ProxyManifest_Location) Reset() {
@@ -1780,24 +1722,24 @@ func (x *ProxyManifest_Location) ProtoReflect() protoreflect.Message {
 
 func (x *ProxyManifest_Location) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *ProxyManifest_Location) GetUri() string {
 	if x != nil {
-		return x.Uri
+		return x.xxx_hidden_Uri
 	}
 	return ""
 }
 
 func (x *ProxyManifest_Location) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *ProxyManifest_Location) SetUri(v string) {
-	x.Uri = v
+	x.xxx_hidden_Uri = v
 }
 
 type ProxyManifest_Location_builder struct {
@@ -1811,8 +1753,8 @@ func (b0 ProxyManifest_Location_builder) Build() *ProxyManifest_Location {
 	m0 := &ProxyManifest_Location{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.Uri = b.Uri
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Uri = b.Uri
 	return m0
 }
 
@@ -2134,16 +2076,16 @@ func file_org_apache_beam_model_job_management_v1_beam_artifact_api_proto_init()
 		return
 	}
 	file_org_apache_beam_model_job_management_v1_beam_artifact_api_proto_msgTypes[4].OneofWrappers = []any{
-		(*ArtifactRequestWrapper_ResolveArtifact)(nil),
-		(*ArtifactRequestWrapper_GetArtifact)(nil),
+		(*artifactRequestWrapper_ResolveArtifact)(nil),
+		(*artifactRequestWrapper_GetArtifact)(nil),
 	}
 	file_org_apache_beam_model_job_management_v1_beam_artifact_api_proto_msgTypes[5].OneofWrappers = []any{
-		(*ArtifactResponseWrapper_ResolveArtifactResponse)(nil),
-		(*ArtifactResponseWrapper_GetArtifactResponse)(nil),
+		(*artifactResponseWrapper_ResolveArtifactResponse)(nil),
+		(*artifactResponseWrapper_GetArtifactResponse)(nil),
 	}
 	file_org_apache_beam_model_job_management_v1_beam_artifact_api_proto_msgTypes[14].OneofWrappers = []any{
-		(*PutArtifactRequest_Metadata)(nil),
-		(*PutArtifactRequest_Data)(nil),
+		(*putArtifactRequest_Metadata)(nil),
+		(*putArtifactRequest_Data)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

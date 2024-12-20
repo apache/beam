@@ -27,7 +27,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/pipeline/v1/schema.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package pipeline_v1
 
@@ -205,16 +205,13 @@ func (x LogicalTypes_Enum) Number() protoreflect.EnumNumber {
 }
 
 type Schema struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// List of fields for this schema. Two fields may not share a name.
-	Fields []*Field `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
-	// REQUIRED. An RFC 4122 UUID.
-	Id      string    `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	Options []*Option `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
-	// Indicates that encoding positions have been overridden.
-	EncodingPositionsSet bool `protobuf:"varint,4,opt,name=encoding_positions_set,json=encodingPositionsSet,proto3" json:"encoding_positions_set,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Fields               *[]*Field              `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
+	xxx_hidden_Id                   string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	xxx_hidden_Options              *[]*Option             `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
+	xxx_hidden_EncodingPositionsSet bool                   `protobuf:"varint,4,opt,name=encoding_positions_set,json=encodingPositionsSet,proto3" json:"encoding_positions_set,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *Schema) Reset() {
@@ -244,46 +241,50 @@ func (x *Schema) ProtoReflect() protoreflect.Message {
 
 func (x *Schema) GetFields() []*Field {
 	if x != nil {
-		return x.Fields
+		if x.xxx_hidden_Fields != nil {
+			return *x.xxx_hidden_Fields
+		}
 	}
 	return nil
 }
 
 func (x *Schema) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *Schema) GetOptions() []*Option {
 	if x != nil {
-		return x.Options
+		if x.xxx_hidden_Options != nil {
+			return *x.xxx_hidden_Options
+		}
 	}
 	return nil
 }
 
 func (x *Schema) GetEncodingPositionsSet() bool {
 	if x != nil {
-		return x.EncodingPositionsSet
+		return x.xxx_hidden_EncodingPositionsSet
 	}
 	return false
 }
 
 func (x *Schema) SetFields(v []*Field) {
-	x.Fields = v
+	x.xxx_hidden_Fields = &v
 }
 
 func (x *Schema) SetId(v string) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 func (x *Schema) SetOptions(v []*Option) {
-	x.Options = v
+	x.xxx_hidden_Options = &v
 }
 
 func (x *Schema) SetEncodingPositionsSet(v bool) {
-	x.EncodingPositionsSet = v
+	x.xxx_hidden_EncodingPositionsSet = v
 }
 
 type Schema_builder struct {
@@ -302,32 +303,23 @@ func (b0 Schema_builder) Build() *Schema {
 	m0 := &Schema{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Fields = b.Fields
-	x.Id = b.Id
-	x.Options = b.Options
-	x.EncodingPositionsSet = b.EncodingPositionsSet
+	x.xxx_hidden_Fields = &b.Fields
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_Options = &b.Options
+	x.xxx_hidden_EncodingPositionsSet = b.EncodingPositionsSet
 	return m0
 }
 
 type Field struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// REQUIRED. Name of this field within the schema.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// OPTIONAL. Human readable description of this field, such as the query that generated it.
-	Description string     `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Type        *FieldType `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	Id          int32      `protobuf:"varint,4,opt,name=id,proto3" json:"id,omitempty"`
-	// OPTIONAL. The position of this field's data when encoded, e.g. with beam:coder:row:v1.
-	// Either no fields in a given row are have encoding position populated,
-	// or all of them are. Used to support backwards compatibility with schema
-	// changes.
-	// If no fields have encoding position populated the order of encoding is the same as the order in the Schema.
-	// If this Field is part of a Schema where encoding_positions_set is True then encoding_position must be
-	// defined, otherwise this field is ignored.
-	EncodingPosition int32     `protobuf:"varint,5,opt,name=encoding_position,json=encodingPosition,proto3" json:"encoding_position,omitempty"`
-	Options          []*Option `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_Description      string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	xxx_hidden_Type             *FieldType             `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	xxx_hidden_Id               int32                  `protobuf:"varint,4,opt,name=id,proto3" json:"id,omitempty"`
+	xxx_hidden_EncodingPosition int32                  `protobuf:"varint,5,opt,name=encoding_position,json=encodingPosition,proto3" json:"encoding_position,omitempty"`
+	xxx_hidden_Options          *[]*Option             `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *Field) Reset() {
@@ -357,79 +349,81 @@ func (x *Field) ProtoReflect() protoreflect.Message {
 
 func (x *Field) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *Field) GetDescription() string {
 	if x != nil {
-		return x.Description
+		return x.xxx_hidden_Description
 	}
 	return ""
 }
 
 func (x *Field) GetType() *FieldType {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return nil
 }
 
 func (x *Field) GetId() int32 {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return 0
 }
 
 func (x *Field) GetEncodingPosition() int32 {
 	if x != nil {
-		return x.EncodingPosition
+		return x.xxx_hidden_EncodingPosition
 	}
 	return 0
 }
 
 func (x *Field) GetOptions() []*Option {
 	if x != nil {
-		return x.Options
+		if x.xxx_hidden_Options != nil {
+			return *x.xxx_hidden_Options
+		}
 	}
 	return nil
 }
 
 func (x *Field) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *Field) SetDescription(v string) {
-	x.Description = v
+	x.xxx_hidden_Description = v
 }
 
 func (x *Field) SetType(v *FieldType) {
-	x.Type = v
+	x.xxx_hidden_Type = v
 }
 
 func (x *Field) SetId(v int32) {
-	x.Id = v
+	x.xxx_hidden_Id = v
 }
 
 func (x *Field) SetEncodingPosition(v int32) {
-	x.EncodingPosition = v
+	x.xxx_hidden_EncodingPosition = v
 }
 
 func (x *Field) SetOptions(v []*Option) {
-	x.Options = v
+	x.xxx_hidden_Options = &v
 }
 
 func (x *Field) HasType() bool {
 	if x == nil {
 		return false
 	}
-	return x.Type != nil
+	return x.xxx_hidden_Type != nil
 }
 
 func (x *Field) ClearType() {
-	x.Type = nil
+	x.xxx_hidden_Type = nil
 }
 
 type Field_builder struct {
@@ -456,29 +450,21 @@ func (b0 Field_builder) Build() *Field {
 	m0 := &Field{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.Description = b.Description
-	x.Type = b.Type
-	x.Id = b.Id
-	x.EncodingPosition = b.EncodingPosition
-	x.Options = b.Options
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Description = b.Description
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_EncodingPosition = b.EncodingPosition
+	x.xxx_hidden_Options = &b.Options
 	return m0
 }
 
 type FieldType struct {
-	state    protoimpl.MessageState `protogen:"hybrid.v1"`
-	Nullable bool                   `protobuf:"varint,1,opt,name=nullable,proto3" json:"nullable,omitempty"`
-	// Types that are valid to be assigned to TypeInfo:
-	//
-	//	*FieldType_AtomicType
-	//	*FieldType_ArrayType
-	//	*FieldType_IterableType
-	//	*FieldType_MapType
-	//	*FieldType_RowType
-	//	*FieldType_LogicalType
-	TypeInfo      isFieldType_TypeInfo `protobuf_oneof:"type_info"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Nullable bool                   `protobuf:"varint,1,opt,name=nullable,proto3" json:"nullable,omitempty"`
+	xxx_hidden_TypeInfo isFieldType_TypeInfo   `protobuf_oneof:"type_info"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *FieldType) Reset() {
@@ -508,21 +494,14 @@ func (x *FieldType) ProtoReflect() protoreflect.Message {
 
 func (x *FieldType) GetNullable() bool {
 	if x != nil {
-		return x.Nullable
+		return x.xxx_hidden_Nullable
 	}
 	return false
 }
 
-func (x *FieldType) GetTypeInfo() isFieldType_TypeInfo {
-	if x != nil {
-		return x.TypeInfo
-	}
-	return nil
-}
-
 func (x *FieldType) GetAtomicType() AtomicType {
 	if x != nil {
-		if x, ok := x.TypeInfo.(*FieldType_AtomicType); ok {
+		if x, ok := x.xxx_hidden_TypeInfo.(*fieldType_AtomicType); ok {
 			return x.AtomicType
 		}
 	}
@@ -531,7 +510,7 @@ func (x *FieldType) GetAtomicType() AtomicType {
 
 func (x *FieldType) GetArrayType() *ArrayType {
 	if x != nil {
-		if x, ok := x.TypeInfo.(*FieldType_ArrayType); ok {
+		if x, ok := x.xxx_hidden_TypeInfo.(*fieldType_ArrayType); ok {
 			return x.ArrayType
 		}
 	}
@@ -540,7 +519,7 @@ func (x *FieldType) GetArrayType() *ArrayType {
 
 func (x *FieldType) GetIterableType() *IterableType {
 	if x != nil {
-		if x, ok := x.TypeInfo.(*FieldType_IterableType); ok {
+		if x, ok := x.xxx_hidden_TypeInfo.(*fieldType_IterableType); ok {
 			return x.IterableType
 		}
 	}
@@ -549,7 +528,7 @@ func (x *FieldType) GetIterableType() *IterableType {
 
 func (x *FieldType) GetMapType() *MapType {
 	if x != nil {
-		if x, ok := x.TypeInfo.(*FieldType_MapType); ok {
+		if x, ok := x.xxx_hidden_TypeInfo.(*fieldType_MapType); ok {
 			return x.MapType
 		}
 	}
@@ -558,7 +537,7 @@ func (x *FieldType) GetMapType() *MapType {
 
 func (x *FieldType) GetRowType() *RowType {
 	if x != nil {
-		if x, ok := x.TypeInfo.(*FieldType_RowType); ok {
+		if x, ok := x.xxx_hidden_TypeInfo.(*fieldType_RowType); ok {
 			return x.RowType
 		}
 	}
@@ -567,7 +546,7 @@ func (x *FieldType) GetRowType() *RowType {
 
 func (x *FieldType) GetLogicalType() *LogicalType {
 	if x != nil {
-		if x, ok := x.TypeInfo.(*FieldType_LogicalType); ok {
+		if x, ok := x.xxx_hidden_TypeInfo.(*fieldType_LogicalType); ok {
 			return x.LogicalType
 		}
 	}
@@ -575,65 +554,65 @@ func (x *FieldType) GetLogicalType() *LogicalType {
 }
 
 func (x *FieldType) SetNullable(v bool) {
-	x.Nullable = v
+	x.xxx_hidden_Nullable = v
 }
 
 func (x *FieldType) SetAtomicType(v AtomicType) {
-	x.TypeInfo = &FieldType_AtomicType{v}
+	x.xxx_hidden_TypeInfo = &fieldType_AtomicType{v}
 }
 
 func (x *FieldType) SetArrayType(v *ArrayType) {
 	if v == nil {
-		x.TypeInfo = nil
+		x.xxx_hidden_TypeInfo = nil
 		return
 	}
-	x.TypeInfo = &FieldType_ArrayType{v}
+	x.xxx_hidden_TypeInfo = &fieldType_ArrayType{v}
 }
 
 func (x *FieldType) SetIterableType(v *IterableType) {
 	if v == nil {
-		x.TypeInfo = nil
+		x.xxx_hidden_TypeInfo = nil
 		return
 	}
-	x.TypeInfo = &FieldType_IterableType{v}
+	x.xxx_hidden_TypeInfo = &fieldType_IterableType{v}
 }
 
 func (x *FieldType) SetMapType(v *MapType) {
 	if v == nil {
-		x.TypeInfo = nil
+		x.xxx_hidden_TypeInfo = nil
 		return
 	}
-	x.TypeInfo = &FieldType_MapType{v}
+	x.xxx_hidden_TypeInfo = &fieldType_MapType{v}
 }
 
 func (x *FieldType) SetRowType(v *RowType) {
 	if v == nil {
-		x.TypeInfo = nil
+		x.xxx_hidden_TypeInfo = nil
 		return
 	}
-	x.TypeInfo = &FieldType_RowType{v}
+	x.xxx_hidden_TypeInfo = &fieldType_RowType{v}
 }
 
 func (x *FieldType) SetLogicalType(v *LogicalType) {
 	if v == nil {
-		x.TypeInfo = nil
+		x.xxx_hidden_TypeInfo = nil
 		return
 	}
-	x.TypeInfo = &FieldType_LogicalType{v}
+	x.xxx_hidden_TypeInfo = &fieldType_LogicalType{v}
 }
 
 func (x *FieldType) HasTypeInfo() bool {
 	if x == nil {
 		return false
 	}
-	return x.TypeInfo != nil
+	return x.xxx_hidden_TypeInfo != nil
 }
 
 func (x *FieldType) HasAtomicType() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TypeInfo.(*FieldType_AtomicType)
+	_, ok := x.xxx_hidden_TypeInfo.(*fieldType_AtomicType)
 	return ok
 }
 
@@ -641,7 +620,7 @@ func (x *FieldType) HasArrayType() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TypeInfo.(*FieldType_ArrayType)
+	_, ok := x.xxx_hidden_TypeInfo.(*fieldType_ArrayType)
 	return ok
 }
 
@@ -649,7 +628,7 @@ func (x *FieldType) HasIterableType() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TypeInfo.(*FieldType_IterableType)
+	_, ok := x.xxx_hidden_TypeInfo.(*fieldType_IterableType)
 	return ok
 }
 
@@ -657,7 +636,7 @@ func (x *FieldType) HasMapType() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TypeInfo.(*FieldType_MapType)
+	_, ok := x.xxx_hidden_TypeInfo.(*fieldType_MapType)
 	return ok
 }
 
@@ -665,7 +644,7 @@ func (x *FieldType) HasRowType() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TypeInfo.(*FieldType_RowType)
+	_, ok := x.xxx_hidden_TypeInfo.(*fieldType_RowType)
 	return ok
 }
 
@@ -673,47 +652,47 @@ func (x *FieldType) HasLogicalType() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TypeInfo.(*FieldType_LogicalType)
+	_, ok := x.xxx_hidden_TypeInfo.(*fieldType_LogicalType)
 	return ok
 }
 
 func (x *FieldType) ClearTypeInfo() {
-	x.TypeInfo = nil
+	x.xxx_hidden_TypeInfo = nil
 }
 
 func (x *FieldType) ClearAtomicType() {
-	if _, ok := x.TypeInfo.(*FieldType_AtomicType); ok {
-		x.TypeInfo = nil
+	if _, ok := x.xxx_hidden_TypeInfo.(*fieldType_AtomicType); ok {
+		x.xxx_hidden_TypeInfo = nil
 	}
 }
 
 func (x *FieldType) ClearArrayType() {
-	if _, ok := x.TypeInfo.(*FieldType_ArrayType); ok {
-		x.TypeInfo = nil
+	if _, ok := x.xxx_hidden_TypeInfo.(*fieldType_ArrayType); ok {
+		x.xxx_hidden_TypeInfo = nil
 	}
 }
 
 func (x *FieldType) ClearIterableType() {
-	if _, ok := x.TypeInfo.(*FieldType_IterableType); ok {
-		x.TypeInfo = nil
+	if _, ok := x.xxx_hidden_TypeInfo.(*fieldType_IterableType); ok {
+		x.xxx_hidden_TypeInfo = nil
 	}
 }
 
 func (x *FieldType) ClearMapType() {
-	if _, ok := x.TypeInfo.(*FieldType_MapType); ok {
-		x.TypeInfo = nil
+	if _, ok := x.xxx_hidden_TypeInfo.(*fieldType_MapType); ok {
+		x.xxx_hidden_TypeInfo = nil
 	}
 }
 
 func (x *FieldType) ClearRowType() {
-	if _, ok := x.TypeInfo.(*FieldType_RowType); ok {
-		x.TypeInfo = nil
+	if _, ok := x.xxx_hidden_TypeInfo.(*fieldType_RowType); ok {
+		x.xxx_hidden_TypeInfo = nil
 	}
 }
 
 func (x *FieldType) ClearLogicalType() {
-	if _, ok := x.TypeInfo.(*FieldType_LogicalType); ok {
-		x.TypeInfo = nil
+	if _, ok := x.xxx_hidden_TypeInfo.(*fieldType_LogicalType); ok {
+		x.xxx_hidden_TypeInfo = nil
 	}
 }
 
@@ -729,18 +708,18 @@ func (x *FieldType) WhichTypeInfo() case_FieldType_TypeInfo {
 	if x == nil {
 		return FieldType_TypeInfo_not_set_case
 	}
-	switch x.TypeInfo.(type) {
-	case *FieldType_AtomicType:
+	switch x.xxx_hidden_TypeInfo.(type) {
+	case *fieldType_AtomicType:
 		return FieldType_AtomicType_case
-	case *FieldType_ArrayType:
+	case *fieldType_ArrayType:
 		return FieldType_ArrayType_case
-	case *FieldType_IterableType:
+	case *fieldType_IterableType:
 		return FieldType_IterableType_case
-	case *FieldType_MapType:
+	case *fieldType_MapType:
 		return FieldType_MapType_case
-	case *FieldType_RowType:
+	case *fieldType_RowType:
 		return FieldType_RowType_case
-	case *FieldType_LogicalType:
+	case *fieldType_LogicalType:
 		return FieldType_LogicalType_case
 	default:
 		return FieldType_TypeInfo_not_set_case
@@ -751,38 +730,38 @@ type FieldType_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Nullable bool
-	// Fields of oneof TypeInfo:
+	// Fields of oneof xxx_hidden_TypeInfo:
 	AtomicType   *AtomicType
 	ArrayType    *ArrayType
 	IterableType *IterableType
 	MapType      *MapType
 	RowType      *RowType
 	LogicalType  *LogicalType
-	// -- end of TypeInfo
+	// -- end of xxx_hidden_TypeInfo
 }
 
 func (b0 FieldType_builder) Build() *FieldType {
 	m0 := &FieldType{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Nullable = b.Nullable
+	x.xxx_hidden_Nullable = b.Nullable
 	if b.AtomicType != nil {
-		x.TypeInfo = &FieldType_AtomicType{*b.AtomicType}
+		x.xxx_hidden_TypeInfo = &fieldType_AtomicType{*b.AtomicType}
 	}
 	if b.ArrayType != nil {
-		x.TypeInfo = &FieldType_ArrayType{b.ArrayType}
+		x.xxx_hidden_TypeInfo = &fieldType_ArrayType{b.ArrayType}
 	}
 	if b.IterableType != nil {
-		x.TypeInfo = &FieldType_IterableType{b.IterableType}
+		x.xxx_hidden_TypeInfo = &fieldType_IterableType{b.IterableType}
 	}
 	if b.MapType != nil {
-		x.TypeInfo = &FieldType_MapType{b.MapType}
+		x.xxx_hidden_TypeInfo = &fieldType_MapType{b.MapType}
 	}
 	if b.RowType != nil {
-		x.TypeInfo = &FieldType_RowType{b.RowType}
+		x.xxx_hidden_TypeInfo = &fieldType_RowType{b.RowType}
 	}
 	if b.LogicalType != nil {
-		x.TypeInfo = &FieldType_LogicalType{b.LogicalType}
+		x.xxx_hidden_TypeInfo = &fieldType_LogicalType{b.LogicalType}
 	}
 	return m0
 }
@@ -801,47 +780,47 @@ type isFieldType_TypeInfo interface {
 	isFieldType_TypeInfo()
 }
 
-type FieldType_AtomicType struct {
+type fieldType_AtomicType struct {
 	AtomicType AtomicType `protobuf:"varint,2,opt,name=atomic_type,json=atomicType,proto3,enum=org.apache.beam.model.pipeline.v1.AtomicType,oneof"`
 }
 
-type FieldType_ArrayType struct {
+type fieldType_ArrayType struct {
 	ArrayType *ArrayType `protobuf:"bytes,3,opt,name=array_type,json=arrayType,proto3,oneof"`
 }
 
-type FieldType_IterableType struct {
+type fieldType_IterableType struct {
 	IterableType *IterableType `protobuf:"bytes,4,opt,name=iterable_type,json=iterableType,proto3,oneof"`
 }
 
-type FieldType_MapType struct {
+type fieldType_MapType struct {
 	MapType *MapType `protobuf:"bytes,5,opt,name=map_type,json=mapType,proto3,oneof"`
 }
 
-type FieldType_RowType struct {
+type fieldType_RowType struct {
 	RowType *RowType `protobuf:"bytes,6,opt,name=row_type,json=rowType,proto3,oneof"`
 }
 
-type FieldType_LogicalType struct {
+type fieldType_LogicalType struct {
 	LogicalType *LogicalType `protobuf:"bytes,7,opt,name=logical_type,json=logicalType,proto3,oneof"`
 }
 
-func (*FieldType_AtomicType) isFieldType_TypeInfo() {}
+func (*fieldType_AtomicType) isFieldType_TypeInfo() {}
 
-func (*FieldType_ArrayType) isFieldType_TypeInfo() {}
+func (*fieldType_ArrayType) isFieldType_TypeInfo() {}
 
-func (*FieldType_IterableType) isFieldType_TypeInfo() {}
+func (*fieldType_IterableType) isFieldType_TypeInfo() {}
 
-func (*FieldType_MapType) isFieldType_TypeInfo() {}
+func (*fieldType_MapType) isFieldType_TypeInfo() {}
 
-func (*FieldType_RowType) isFieldType_TypeInfo() {}
+func (*fieldType_RowType) isFieldType_TypeInfo() {}
 
-func (*FieldType_LogicalType) isFieldType_TypeInfo() {}
+func (*fieldType_LogicalType) isFieldType_TypeInfo() {}
 
 type ArrayType struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	ElementType   *FieldType             `protobuf:"bytes,1,opt,name=element_type,json=elementType,proto3" json:"element_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ElementType *FieldType             `protobuf:"bytes,1,opt,name=element_type,json=elementType,proto3" json:"element_type,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ArrayType) Reset() {
@@ -871,24 +850,24 @@ func (x *ArrayType) ProtoReflect() protoreflect.Message {
 
 func (x *ArrayType) GetElementType() *FieldType {
 	if x != nil {
-		return x.ElementType
+		return x.xxx_hidden_ElementType
 	}
 	return nil
 }
 
 func (x *ArrayType) SetElementType(v *FieldType) {
-	x.ElementType = v
+	x.xxx_hidden_ElementType = v
 }
 
 func (x *ArrayType) HasElementType() bool {
 	if x == nil {
 		return false
 	}
-	return x.ElementType != nil
+	return x.xxx_hidden_ElementType != nil
 }
 
 func (x *ArrayType) ClearElementType() {
-	x.ElementType = nil
+	x.xxx_hidden_ElementType = nil
 }
 
 type ArrayType_builder struct {
@@ -901,15 +880,15 @@ func (b0 ArrayType_builder) Build() *ArrayType {
 	m0 := &ArrayType{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementType = b.ElementType
+	x.xxx_hidden_ElementType = b.ElementType
 	return m0
 }
 
 type IterableType struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	ElementType   *FieldType             `protobuf:"bytes,1,opt,name=element_type,json=elementType,proto3" json:"element_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ElementType *FieldType             `protobuf:"bytes,1,opt,name=element_type,json=elementType,proto3" json:"element_type,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *IterableType) Reset() {
@@ -939,24 +918,24 @@ func (x *IterableType) ProtoReflect() protoreflect.Message {
 
 func (x *IterableType) GetElementType() *FieldType {
 	if x != nil {
-		return x.ElementType
+		return x.xxx_hidden_ElementType
 	}
 	return nil
 }
 
 func (x *IterableType) SetElementType(v *FieldType) {
-	x.ElementType = v
+	x.xxx_hidden_ElementType = v
 }
 
 func (x *IterableType) HasElementType() bool {
 	if x == nil {
 		return false
 	}
-	return x.ElementType != nil
+	return x.xxx_hidden_ElementType != nil
 }
 
 func (x *IterableType) ClearElementType() {
-	x.ElementType = nil
+	x.xxx_hidden_ElementType = nil
 }
 
 type IterableType_builder struct {
@@ -969,16 +948,16 @@ func (b0 IterableType_builder) Build() *IterableType {
 	m0 := &IterableType{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementType = b.ElementType
+	x.xxx_hidden_ElementType = b.ElementType
 	return m0
 }
 
 type MapType struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	KeyType       *FieldType             `protobuf:"bytes,1,opt,name=key_type,json=keyType,proto3" json:"key_type,omitempty"`
-	ValueType     *FieldType             `protobuf:"bytes,2,opt,name=value_type,json=valueType,proto3" json:"value_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_KeyType   *FieldType             `protobuf:"bytes,1,opt,name=key_type,json=keyType,proto3" json:"key_type,omitempty"`
+	xxx_hidden_ValueType *FieldType             `protobuf:"bytes,2,opt,name=value_type,json=valueType,proto3" json:"value_type,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *MapType) Reset() {
@@ -1008,46 +987,46 @@ func (x *MapType) ProtoReflect() protoreflect.Message {
 
 func (x *MapType) GetKeyType() *FieldType {
 	if x != nil {
-		return x.KeyType
+		return x.xxx_hidden_KeyType
 	}
 	return nil
 }
 
 func (x *MapType) GetValueType() *FieldType {
 	if x != nil {
-		return x.ValueType
+		return x.xxx_hidden_ValueType
 	}
 	return nil
 }
 
 func (x *MapType) SetKeyType(v *FieldType) {
-	x.KeyType = v
+	x.xxx_hidden_KeyType = v
 }
 
 func (x *MapType) SetValueType(v *FieldType) {
-	x.ValueType = v
+	x.xxx_hidden_ValueType = v
 }
 
 func (x *MapType) HasKeyType() bool {
 	if x == nil {
 		return false
 	}
-	return x.KeyType != nil
+	return x.xxx_hidden_KeyType != nil
 }
 
 func (x *MapType) HasValueType() bool {
 	if x == nil {
 		return false
 	}
-	return x.ValueType != nil
+	return x.xxx_hidden_ValueType != nil
 }
 
 func (x *MapType) ClearKeyType() {
-	x.KeyType = nil
+	x.xxx_hidden_KeyType = nil
 }
 
 func (x *MapType) ClearValueType() {
-	x.ValueType = nil
+	x.xxx_hidden_ValueType = nil
 }
 
 type MapType_builder struct {
@@ -1061,16 +1040,16 @@ func (b0 MapType_builder) Build() *MapType {
 	m0 := &MapType{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.KeyType = b.KeyType
-	x.ValueType = b.ValueType
+	x.xxx_hidden_KeyType = b.KeyType
+	x.xxx_hidden_ValueType = b.ValueType
 	return m0
 }
 
 type RowType struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Schema        *Schema                `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Schema *Schema                `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RowType) Reset() {
@@ -1100,24 +1079,24 @@ func (x *RowType) ProtoReflect() protoreflect.Message {
 
 func (x *RowType) GetSchema() *Schema {
 	if x != nil {
-		return x.Schema
+		return x.xxx_hidden_Schema
 	}
 	return nil
 }
 
 func (x *RowType) SetSchema(v *Schema) {
-	x.Schema = v
+	x.xxx_hidden_Schema = v
 }
 
 func (x *RowType) HasSchema() bool {
 	if x == nil {
 		return false
 	}
-	return x.Schema != nil
+	return x.xxx_hidden_Schema != nil
 }
 
 func (x *RowType) ClearSchema() {
-	x.Schema = nil
+	x.xxx_hidden_Schema = nil
 }
 
 type RowType_builder struct {
@@ -1130,19 +1109,19 @@ func (b0 RowType_builder) Build() *RowType {
 	m0 := &RowType{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Schema = b.Schema
+	x.xxx_hidden_Schema = b.Schema
 	return m0
 }
 
 type LogicalType struct {
-	state          protoimpl.MessageState `protogen:"hybrid.v1"`
-	Urn            string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	Payload        []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	Representation *FieldType             `protobuf:"bytes,3,opt,name=representation,proto3" json:"representation,omitempty"`
-	ArgumentType   *FieldType             `protobuf:"bytes,4,opt,name=argument_type,json=argumentType,proto3" json:"argument_type,omitempty"`
-	Argument       *FieldValue            `protobuf:"bytes,5,opt,name=argument,proto3" json:"argument,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Urn            string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Payload        []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	xxx_hidden_Representation *FieldType             `protobuf:"bytes,3,opt,name=representation,proto3" json:"representation,omitempty"`
+	xxx_hidden_ArgumentType   *FieldType             `protobuf:"bytes,4,opt,name=argument_type,json=argumentType,proto3" json:"argument_type,omitempty"`
+	xxx_hidden_Argument       *FieldValue            `protobuf:"bytes,5,opt,name=argument,proto3" json:"argument,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *LogicalType) Reset() {
@@ -1172,93 +1151,93 @@ func (x *LogicalType) ProtoReflect() protoreflect.Message {
 
 func (x *LogicalType) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *LogicalType) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *LogicalType) GetRepresentation() *FieldType {
 	if x != nil {
-		return x.Representation
+		return x.xxx_hidden_Representation
 	}
 	return nil
 }
 
 func (x *LogicalType) GetArgumentType() *FieldType {
 	if x != nil {
-		return x.ArgumentType
+		return x.xxx_hidden_ArgumentType
 	}
 	return nil
 }
 
 func (x *LogicalType) GetArgument() *FieldValue {
 	if x != nil {
-		return x.Argument
+		return x.xxx_hidden_Argument
 	}
 	return nil
 }
 
 func (x *LogicalType) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *LogicalType) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 func (x *LogicalType) SetRepresentation(v *FieldType) {
-	x.Representation = v
+	x.xxx_hidden_Representation = v
 }
 
 func (x *LogicalType) SetArgumentType(v *FieldType) {
-	x.ArgumentType = v
+	x.xxx_hidden_ArgumentType = v
 }
 
 func (x *LogicalType) SetArgument(v *FieldValue) {
-	x.Argument = v
+	x.xxx_hidden_Argument = v
 }
 
 func (x *LogicalType) HasRepresentation() bool {
 	if x == nil {
 		return false
 	}
-	return x.Representation != nil
+	return x.xxx_hidden_Representation != nil
 }
 
 func (x *LogicalType) HasArgumentType() bool {
 	if x == nil {
 		return false
 	}
-	return x.ArgumentType != nil
+	return x.xxx_hidden_ArgumentType != nil
 }
 
 func (x *LogicalType) HasArgument() bool {
 	if x == nil {
 		return false
 	}
-	return x.Argument != nil
+	return x.xxx_hidden_Argument != nil
 }
 
 func (x *LogicalType) ClearRepresentation() {
-	x.Representation = nil
+	x.xxx_hidden_Representation = nil
 }
 
 func (x *LogicalType) ClearArgumentType() {
-	x.ArgumentType = nil
+	x.xxx_hidden_ArgumentType = nil
 }
 
 func (x *LogicalType) ClearArgument() {
-	x.Argument = nil
+	x.xxx_hidden_Argument = nil
 }
 
 type LogicalType_builder struct {
@@ -1275,18 +1254,18 @@ func (b0 LogicalType_builder) Build() *LogicalType {
 	m0 := &LogicalType{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Payload = b.Payload
-	x.Representation = b.Representation
-	x.ArgumentType = b.ArgumentType
-	x.Argument = b.Argument
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Payload = b.Payload
+	x.xxx_hidden_Representation = b.Representation
+	x.xxx_hidden_ArgumentType = b.ArgumentType
+	x.xxx_hidden_Argument = b.Argument
 	return m0
 }
 
 // Universally defined Logical types for Row schemas.
 // These logical types are supposed to be understood by all SDKs.
 type LogicalTypes struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1329,16 +1308,12 @@ func (b0 LogicalTypes_builder) Build() *LogicalTypes {
 }
 
 type Option struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// REQUIRED. Identifier for the option.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// REQUIRED. Type specifier for the structure of value.
-	// Conventionally, options that don't require additional configuration should
-	// use a boolean type, with the value set to true.
-	Type          *FieldType  `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Value         *FieldValue `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	xxx_hidden_Type  *FieldType             `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	xxx_hidden_Value *FieldValue            `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Option) Reset() {
@@ -1368,57 +1343,57 @@ func (x *Option) ProtoReflect() protoreflect.Message {
 
 func (x *Option) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *Option) GetType() *FieldType {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return nil
 }
 
 func (x *Option) GetValue() *FieldValue {
 	if x != nil {
-		return x.Value
+		return x.xxx_hidden_Value
 	}
 	return nil
 }
 
 func (x *Option) SetName(v string) {
-	x.Name = v
+	x.xxx_hidden_Name = v
 }
 
 func (x *Option) SetType(v *FieldType) {
-	x.Type = v
+	x.xxx_hidden_Type = v
 }
 
 func (x *Option) SetValue(v *FieldValue) {
-	x.Value = v
+	x.xxx_hidden_Value = v
 }
 
 func (x *Option) HasType() bool {
 	if x == nil {
 		return false
 	}
-	return x.Type != nil
+	return x.xxx_hidden_Type != nil
 }
 
 func (x *Option) HasValue() bool {
 	if x == nil {
 		return false
 	}
-	return x.Value != nil
+	return x.xxx_hidden_Value != nil
 }
 
 func (x *Option) ClearType() {
-	x.Type = nil
+	x.xxx_hidden_Type = nil
 }
 
 func (x *Option) ClearValue() {
-	x.Value = nil
+	x.xxx_hidden_Value = nil
 }
 
 type Option_builder struct {
@@ -1437,17 +1412,17 @@ func (b0 Option_builder) Build() *Option {
 	m0 := &Option{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Name = b.Name
-	x.Type = b.Type
-	x.Value = b.Value
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Value = b.Value
 	return m0
 }
 
 type Row struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Values        []*FieldValue          `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Values *[]*FieldValue         `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Row) Reset() {
@@ -1477,13 +1452,15 @@ func (x *Row) ProtoReflect() protoreflect.Message {
 
 func (x *Row) GetValues() []*FieldValue {
 	if x != nil {
-		return x.Values
+		if x.xxx_hidden_Values != nil {
+			return *x.xxx_hidden_Values
+		}
 	}
 	return nil
 }
 
 func (x *Row) SetValues(v []*FieldValue) {
-	x.Values = v
+	x.xxx_hidden_Values = &v
 }
 
 type Row_builder struct {
@@ -1496,25 +1473,15 @@ func (b0 Row_builder) Build() *Row {
 	m0 := &Row{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Values = b.Values
+	x.xxx_hidden_Values = &b.Values
 	return m0
 }
 
 type FieldValue struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// If none of these are set, value is considered null.
-	//
-	// Types that are valid to be assigned to FieldValue:
-	//
-	//	*FieldValue_AtomicValue
-	//	*FieldValue_ArrayValue
-	//	*FieldValue_IterableValue
-	//	*FieldValue_MapValue
-	//	*FieldValue_RowValue
-	//	*FieldValue_LogicalTypeValue
-	FieldValue    isFieldValue_FieldValue `protobuf_oneof:"field_value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_FieldValue isFieldValue_FieldValue `protobuf_oneof:"field_value"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *FieldValue) Reset() {
@@ -1542,16 +1509,9 @@ func (x *FieldValue) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *FieldValue) GetFieldValue() isFieldValue_FieldValue {
-	if x != nil {
-		return x.FieldValue
-	}
-	return nil
-}
-
 func (x *FieldValue) GetAtomicValue() *AtomicTypeValue {
 	if x != nil {
-		if x, ok := x.FieldValue.(*FieldValue_AtomicValue); ok {
+		if x, ok := x.xxx_hidden_FieldValue.(*fieldValue_AtomicValue); ok {
 			return x.AtomicValue
 		}
 	}
@@ -1560,7 +1520,7 @@ func (x *FieldValue) GetAtomicValue() *AtomicTypeValue {
 
 func (x *FieldValue) GetArrayValue() *ArrayTypeValue {
 	if x != nil {
-		if x, ok := x.FieldValue.(*FieldValue_ArrayValue); ok {
+		if x, ok := x.xxx_hidden_FieldValue.(*fieldValue_ArrayValue); ok {
 			return x.ArrayValue
 		}
 	}
@@ -1569,7 +1529,7 @@ func (x *FieldValue) GetArrayValue() *ArrayTypeValue {
 
 func (x *FieldValue) GetIterableValue() *IterableTypeValue {
 	if x != nil {
-		if x, ok := x.FieldValue.(*FieldValue_IterableValue); ok {
+		if x, ok := x.xxx_hidden_FieldValue.(*fieldValue_IterableValue); ok {
 			return x.IterableValue
 		}
 	}
@@ -1578,7 +1538,7 @@ func (x *FieldValue) GetIterableValue() *IterableTypeValue {
 
 func (x *FieldValue) GetMapValue() *MapTypeValue {
 	if x != nil {
-		if x, ok := x.FieldValue.(*FieldValue_MapValue); ok {
+		if x, ok := x.xxx_hidden_FieldValue.(*fieldValue_MapValue); ok {
 			return x.MapValue
 		}
 	}
@@ -1587,7 +1547,7 @@ func (x *FieldValue) GetMapValue() *MapTypeValue {
 
 func (x *FieldValue) GetRowValue() *Row {
 	if x != nil {
-		if x, ok := x.FieldValue.(*FieldValue_RowValue); ok {
+		if x, ok := x.xxx_hidden_FieldValue.(*fieldValue_RowValue); ok {
 			return x.RowValue
 		}
 	}
@@ -1596,7 +1556,7 @@ func (x *FieldValue) GetRowValue() *Row {
 
 func (x *FieldValue) GetLogicalTypeValue() *LogicalTypeValue {
 	if x != nil {
-		if x, ok := x.FieldValue.(*FieldValue_LogicalTypeValue); ok {
+		if x, ok := x.xxx_hidden_FieldValue.(*fieldValue_LogicalTypeValue); ok {
 			return x.LogicalTypeValue
 		}
 	}
@@ -1605,64 +1565,64 @@ func (x *FieldValue) GetLogicalTypeValue() *LogicalTypeValue {
 
 func (x *FieldValue) SetAtomicValue(v *AtomicTypeValue) {
 	if v == nil {
-		x.FieldValue = nil
+		x.xxx_hidden_FieldValue = nil
 		return
 	}
-	x.FieldValue = &FieldValue_AtomicValue{v}
+	x.xxx_hidden_FieldValue = &fieldValue_AtomicValue{v}
 }
 
 func (x *FieldValue) SetArrayValue(v *ArrayTypeValue) {
 	if v == nil {
-		x.FieldValue = nil
+		x.xxx_hidden_FieldValue = nil
 		return
 	}
-	x.FieldValue = &FieldValue_ArrayValue{v}
+	x.xxx_hidden_FieldValue = &fieldValue_ArrayValue{v}
 }
 
 func (x *FieldValue) SetIterableValue(v *IterableTypeValue) {
 	if v == nil {
-		x.FieldValue = nil
+		x.xxx_hidden_FieldValue = nil
 		return
 	}
-	x.FieldValue = &FieldValue_IterableValue{v}
+	x.xxx_hidden_FieldValue = &fieldValue_IterableValue{v}
 }
 
 func (x *FieldValue) SetMapValue(v *MapTypeValue) {
 	if v == nil {
-		x.FieldValue = nil
+		x.xxx_hidden_FieldValue = nil
 		return
 	}
-	x.FieldValue = &FieldValue_MapValue{v}
+	x.xxx_hidden_FieldValue = &fieldValue_MapValue{v}
 }
 
 func (x *FieldValue) SetRowValue(v *Row) {
 	if v == nil {
-		x.FieldValue = nil
+		x.xxx_hidden_FieldValue = nil
 		return
 	}
-	x.FieldValue = &FieldValue_RowValue{v}
+	x.xxx_hidden_FieldValue = &fieldValue_RowValue{v}
 }
 
 func (x *FieldValue) SetLogicalTypeValue(v *LogicalTypeValue) {
 	if v == nil {
-		x.FieldValue = nil
+		x.xxx_hidden_FieldValue = nil
 		return
 	}
-	x.FieldValue = &FieldValue_LogicalTypeValue{v}
+	x.xxx_hidden_FieldValue = &fieldValue_LogicalTypeValue{v}
 }
 
 func (x *FieldValue) HasFieldValue() bool {
 	if x == nil {
 		return false
 	}
-	return x.FieldValue != nil
+	return x.xxx_hidden_FieldValue != nil
 }
 
 func (x *FieldValue) HasAtomicValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.FieldValue.(*FieldValue_AtomicValue)
+	_, ok := x.xxx_hidden_FieldValue.(*fieldValue_AtomicValue)
 	return ok
 }
 
@@ -1670,7 +1630,7 @@ func (x *FieldValue) HasArrayValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.FieldValue.(*FieldValue_ArrayValue)
+	_, ok := x.xxx_hidden_FieldValue.(*fieldValue_ArrayValue)
 	return ok
 }
 
@@ -1678,7 +1638,7 @@ func (x *FieldValue) HasIterableValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.FieldValue.(*FieldValue_IterableValue)
+	_, ok := x.xxx_hidden_FieldValue.(*fieldValue_IterableValue)
 	return ok
 }
 
@@ -1686,7 +1646,7 @@ func (x *FieldValue) HasMapValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.FieldValue.(*FieldValue_MapValue)
+	_, ok := x.xxx_hidden_FieldValue.(*fieldValue_MapValue)
 	return ok
 }
 
@@ -1694,7 +1654,7 @@ func (x *FieldValue) HasRowValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.FieldValue.(*FieldValue_RowValue)
+	_, ok := x.xxx_hidden_FieldValue.(*fieldValue_RowValue)
 	return ok
 }
 
@@ -1702,47 +1662,47 @@ func (x *FieldValue) HasLogicalTypeValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.FieldValue.(*FieldValue_LogicalTypeValue)
+	_, ok := x.xxx_hidden_FieldValue.(*fieldValue_LogicalTypeValue)
 	return ok
 }
 
 func (x *FieldValue) ClearFieldValue() {
-	x.FieldValue = nil
+	x.xxx_hidden_FieldValue = nil
 }
 
 func (x *FieldValue) ClearAtomicValue() {
-	if _, ok := x.FieldValue.(*FieldValue_AtomicValue); ok {
-		x.FieldValue = nil
+	if _, ok := x.xxx_hidden_FieldValue.(*fieldValue_AtomicValue); ok {
+		x.xxx_hidden_FieldValue = nil
 	}
 }
 
 func (x *FieldValue) ClearArrayValue() {
-	if _, ok := x.FieldValue.(*FieldValue_ArrayValue); ok {
-		x.FieldValue = nil
+	if _, ok := x.xxx_hidden_FieldValue.(*fieldValue_ArrayValue); ok {
+		x.xxx_hidden_FieldValue = nil
 	}
 }
 
 func (x *FieldValue) ClearIterableValue() {
-	if _, ok := x.FieldValue.(*FieldValue_IterableValue); ok {
-		x.FieldValue = nil
+	if _, ok := x.xxx_hidden_FieldValue.(*fieldValue_IterableValue); ok {
+		x.xxx_hidden_FieldValue = nil
 	}
 }
 
 func (x *FieldValue) ClearMapValue() {
-	if _, ok := x.FieldValue.(*FieldValue_MapValue); ok {
-		x.FieldValue = nil
+	if _, ok := x.xxx_hidden_FieldValue.(*fieldValue_MapValue); ok {
+		x.xxx_hidden_FieldValue = nil
 	}
 }
 
 func (x *FieldValue) ClearRowValue() {
-	if _, ok := x.FieldValue.(*FieldValue_RowValue); ok {
-		x.FieldValue = nil
+	if _, ok := x.xxx_hidden_FieldValue.(*fieldValue_RowValue); ok {
+		x.xxx_hidden_FieldValue = nil
 	}
 }
 
 func (x *FieldValue) ClearLogicalTypeValue() {
-	if _, ok := x.FieldValue.(*FieldValue_LogicalTypeValue); ok {
-		x.FieldValue = nil
+	if _, ok := x.xxx_hidden_FieldValue.(*fieldValue_LogicalTypeValue); ok {
+		x.xxx_hidden_FieldValue = nil
 	}
 }
 
@@ -1758,18 +1718,18 @@ func (x *FieldValue) WhichFieldValue() case_FieldValue_FieldValue {
 	if x == nil {
 		return FieldValue_FieldValue_not_set_case
 	}
-	switch x.FieldValue.(type) {
-	case *FieldValue_AtomicValue:
+	switch x.xxx_hidden_FieldValue.(type) {
+	case *fieldValue_AtomicValue:
 		return FieldValue_AtomicValue_case
-	case *FieldValue_ArrayValue:
+	case *fieldValue_ArrayValue:
 		return FieldValue_ArrayValue_case
-	case *FieldValue_IterableValue:
+	case *fieldValue_IterableValue:
 		return FieldValue_IterableValue_case
-	case *FieldValue_MapValue:
+	case *fieldValue_MapValue:
 		return FieldValue_MapValue_case
-	case *FieldValue_RowValue:
+	case *fieldValue_RowValue:
 		return FieldValue_RowValue_case
-	case *FieldValue_LogicalTypeValue:
+	case *fieldValue_LogicalTypeValue:
 		return FieldValue_LogicalTypeValue_case
 	default:
 		return FieldValue_FieldValue_not_set_case
@@ -1781,14 +1741,14 @@ type FieldValue_builder struct {
 
 	// If none of these are set, value is considered null.
 
-	// Fields of oneof FieldValue:
+	// Fields of oneof xxx_hidden_FieldValue:
 	AtomicValue      *AtomicTypeValue
 	ArrayValue       *ArrayTypeValue
 	IterableValue    *IterableTypeValue
 	MapValue         *MapTypeValue
 	RowValue         *Row
 	LogicalTypeValue *LogicalTypeValue
-	// -- end of FieldValue
+	// -- end of xxx_hidden_FieldValue
 }
 
 func (b0 FieldValue_builder) Build() *FieldValue {
@@ -1796,22 +1756,22 @@ func (b0 FieldValue_builder) Build() *FieldValue {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.AtomicValue != nil {
-		x.FieldValue = &FieldValue_AtomicValue{b.AtomicValue}
+		x.xxx_hidden_FieldValue = &fieldValue_AtomicValue{b.AtomicValue}
 	}
 	if b.ArrayValue != nil {
-		x.FieldValue = &FieldValue_ArrayValue{b.ArrayValue}
+		x.xxx_hidden_FieldValue = &fieldValue_ArrayValue{b.ArrayValue}
 	}
 	if b.IterableValue != nil {
-		x.FieldValue = &FieldValue_IterableValue{b.IterableValue}
+		x.xxx_hidden_FieldValue = &fieldValue_IterableValue{b.IterableValue}
 	}
 	if b.MapValue != nil {
-		x.FieldValue = &FieldValue_MapValue{b.MapValue}
+		x.xxx_hidden_FieldValue = &fieldValue_MapValue{b.MapValue}
 	}
 	if b.RowValue != nil {
-		x.FieldValue = &FieldValue_RowValue{b.RowValue}
+		x.xxx_hidden_FieldValue = &fieldValue_RowValue{b.RowValue}
 	}
 	if b.LogicalTypeValue != nil {
-		x.FieldValue = &FieldValue_LogicalTypeValue{b.LogicalTypeValue}
+		x.xxx_hidden_FieldValue = &fieldValue_LogicalTypeValue{b.LogicalTypeValue}
 	}
 	return m0
 }
@@ -1830,58 +1790,47 @@ type isFieldValue_FieldValue interface {
 	isFieldValue_FieldValue()
 }
 
-type FieldValue_AtomicValue struct {
+type fieldValue_AtomicValue struct {
 	AtomicValue *AtomicTypeValue `protobuf:"bytes,1,opt,name=atomic_value,json=atomicValue,proto3,oneof"`
 }
 
-type FieldValue_ArrayValue struct {
+type fieldValue_ArrayValue struct {
 	ArrayValue *ArrayTypeValue `protobuf:"bytes,2,opt,name=array_value,json=arrayValue,proto3,oneof"`
 }
 
-type FieldValue_IterableValue struct {
+type fieldValue_IterableValue struct {
 	IterableValue *IterableTypeValue `protobuf:"bytes,3,opt,name=iterable_value,json=iterableValue,proto3,oneof"`
 }
 
-type FieldValue_MapValue struct {
+type fieldValue_MapValue struct {
 	MapValue *MapTypeValue `protobuf:"bytes,4,opt,name=map_value,json=mapValue,proto3,oneof"`
 }
 
-type FieldValue_RowValue struct {
+type fieldValue_RowValue struct {
 	RowValue *Row `protobuf:"bytes,5,opt,name=row_value,json=rowValue,proto3,oneof"`
 }
 
-type FieldValue_LogicalTypeValue struct {
+type fieldValue_LogicalTypeValue struct {
 	LogicalTypeValue *LogicalTypeValue `protobuf:"bytes,6,opt,name=logical_type_value,json=logicalTypeValue,proto3,oneof"`
 }
 
-func (*FieldValue_AtomicValue) isFieldValue_FieldValue() {}
+func (*fieldValue_AtomicValue) isFieldValue_FieldValue() {}
 
-func (*FieldValue_ArrayValue) isFieldValue_FieldValue() {}
+func (*fieldValue_ArrayValue) isFieldValue_FieldValue() {}
 
-func (*FieldValue_IterableValue) isFieldValue_FieldValue() {}
+func (*fieldValue_IterableValue) isFieldValue_FieldValue() {}
 
-func (*FieldValue_MapValue) isFieldValue_FieldValue() {}
+func (*fieldValue_MapValue) isFieldValue_FieldValue() {}
 
-func (*FieldValue_RowValue) isFieldValue_FieldValue() {}
+func (*fieldValue_RowValue) isFieldValue_FieldValue() {}
 
-func (*FieldValue_LogicalTypeValue) isFieldValue_FieldValue() {}
+func (*fieldValue_LogicalTypeValue) isFieldValue_FieldValue() {}
 
 type AtomicTypeValue struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Types that are valid to be assigned to Value:
-	//
-	//	*AtomicTypeValue_Byte
-	//	*AtomicTypeValue_Int16
-	//	*AtomicTypeValue_Int32
-	//	*AtomicTypeValue_Int64
-	//	*AtomicTypeValue_Float
-	//	*AtomicTypeValue_Double
-	//	*AtomicTypeValue_String_
-	//	*AtomicTypeValue_Boolean
-	//	*AtomicTypeValue_Bytes
-	Value         isAtomicTypeValue_Value `protobuf_oneof:"value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Value isAtomicTypeValue_Value `protobuf_oneof:"value"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AtomicTypeValue) Reset() {
@@ -1909,16 +1858,9 @@ func (x *AtomicTypeValue) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *AtomicTypeValue) GetValue() isAtomicTypeValue_Value {
-	if x != nil {
-		return x.Value
-	}
-	return nil
-}
-
 func (x *AtomicTypeValue) GetByte() int32 {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Byte); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Byte); ok {
 			return x.Byte
 		}
 	}
@@ -1927,7 +1869,7 @@ func (x *AtomicTypeValue) GetByte() int32 {
 
 func (x *AtomicTypeValue) GetInt16() int32 {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Int16); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int16); ok {
 			return x.Int16
 		}
 	}
@@ -1936,7 +1878,7 @@ func (x *AtomicTypeValue) GetInt16() int32 {
 
 func (x *AtomicTypeValue) GetInt32() int32 {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Int32); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int32); ok {
 			return x.Int32
 		}
 	}
@@ -1945,7 +1887,7 @@ func (x *AtomicTypeValue) GetInt32() int32 {
 
 func (x *AtomicTypeValue) GetInt64() int64 {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Int64); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int64); ok {
 			return x.Int64
 		}
 	}
@@ -1954,7 +1896,7 @@ func (x *AtomicTypeValue) GetInt64() int64 {
 
 func (x *AtomicTypeValue) GetFloat() float32 {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Float); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Float); ok {
 			return x.Float
 		}
 	}
@@ -1963,7 +1905,7 @@ func (x *AtomicTypeValue) GetFloat() float32 {
 
 func (x *AtomicTypeValue) GetDouble() float64 {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Double); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Double); ok {
 			return x.Double
 		}
 	}
@@ -1972,21 +1914,16 @@ func (x *AtomicTypeValue) GetDouble() float64 {
 
 func (x *AtomicTypeValue) GetString() string {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_String_); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_String_); ok {
 			return x.String_
 		}
 	}
 	return ""
 }
 
-// Deprecated: Use GetString instead.
-func (x *AtomicTypeValue) GetString_() string {
-	return x.GetString()
-}
-
 func (x *AtomicTypeValue) GetBoolean() bool {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Boolean); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Boolean); ok {
 			return x.Boolean
 		}
 	}
@@ -1995,7 +1932,7 @@ func (x *AtomicTypeValue) GetBoolean() bool {
 
 func (x *AtomicTypeValue) GetBytes() []byte {
 	if x != nil {
-		if x, ok := x.Value.(*AtomicTypeValue_Bytes); ok {
+		if x, ok := x.xxx_hidden_Value.(*atomicTypeValue_Bytes); ok {
 			return x.Bytes
 		}
 	}
@@ -2003,56 +1940,56 @@ func (x *AtomicTypeValue) GetBytes() []byte {
 }
 
 func (x *AtomicTypeValue) SetByte(v int32) {
-	x.Value = &AtomicTypeValue_Byte{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Byte{v}
 }
 
 func (x *AtomicTypeValue) SetInt16(v int32) {
-	x.Value = &AtomicTypeValue_Int16{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Int16{v}
 }
 
 func (x *AtomicTypeValue) SetInt32(v int32) {
-	x.Value = &AtomicTypeValue_Int32{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Int32{v}
 }
 
 func (x *AtomicTypeValue) SetInt64(v int64) {
-	x.Value = &AtomicTypeValue_Int64{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Int64{v}
 }
 
 func (x *AtomicTypeValue) SetFloat(v float32) {
-	x.Value = &AtomicTypeValue_Float{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Float{v}
 }
 
 func (x *AtomicTypeValue) SetDouble(v float64) {
-	x.Value = &AtomicTypeValue_Double{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Double{v}
 }
 
 func (x *AtomicTypeValue) SetString(v string) {
-	x.Value = &AtomicTypeValue_String_{v}
+	x.xxx_hidden_Value = &atomicTypeValue_String_{v}
 }
 
 func (x *AtomicTypeValue) SetBoolean(v bool) {
-	x.Value = &AtomicTypeValue_Boolean{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Boolean{v}
 }
 
 func (x *AtomicTypeValue) SetBytes(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Value = &AtomicTypeValue_Bytes{v}
+	x.xxx_hidden_Value = &atomicTypeValue_Bytes{v}
 }
 
 func (x *AtomicTypeValue) HasValue() bool {
 	if x == nil {
 		return false
 	}
-	return x.Value != nil
+	return x.xxx_hidden_Value != nil
 }
 
 func (x *AtomicTypeValue) HasByte() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Byte)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Byte)
 	return ok
 }
 
@@ -2060,7 +1997,7 @@ func (x *AtomicTypeValue) HasInt16() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Int16)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int16)
 	return ok
 }
 
@@ -2068,7 +2005,7 @@ func (x *AtomicTypeValue) HasInt32() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Int32)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int32)
 	return ok
 }
 
@@ -2076,7 +2013,7 @@ func (x *AtomicTypeValue) HasInt64() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Int64)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int64)
 	return ok
 }
 
@@ -2084,7 +2021,7 @@ func (x *AtomicTypeValue) HasFloat() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Float)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Float)
 	return ok
 }
 
@@ -2092,7 +2029,7 @@ func (x *AtomicTypeValue) HasDouble() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Double)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Double)
 	return ok
 }
 
@@ -2100,7 +2037,7 @@ func (x *AtomicTypeValue) HasString() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_String_)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_String_)
 	return ok
 }
 
@@ -2108,7 +2045,7 @@ func (x *AtomicTypeValue) HasBoolean() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Boolean)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Boolean)
 	return ok
 }
 
@@ -2116,65 +2053,65 @@ func (x *AtomicTypeValue) HasBytes() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*AtomicTypeValue_Bytes)
+	_, ok := x.xxx_hidden_Value.(*atomicTypeValue_Bytes)
 	return ok
 }
 
 func (x *AtomicTypeValue) ClearValue() {
-	x.Value = nil
+	x.xxx_hidden_Value = nil
 }
 
 func (x *AtomicTypeValue) ClearByte() {
-	if _, ok := x.Value.(*AtomicTypeValue_Byte); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Byte); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearInt16() {
-	if _, ok := x.Value.(*AtomicTypeValue_Int16); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int16); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearInt32() {
-	if _, ok := x.Value.(*AtomicTypeValue_Int32); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int32); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearInt64() {
-	if _, ok := x.Value.(*AtomicTypeValue_Int64); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Int64); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearFloat() {
-	if _, ok := x.Value.(*AtomicTypeValue_Float); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Float); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearDouble() {
-	if _, ok := x.Value.(*AtomicTypeValue_Double); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Double); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearString() {
-	if _, ok := x.Value.(*AtomicTypeValue_String_); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_String_); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearBoolean() {
-	if _, ok := x.Value.(*AtomicTypeValue_Boolean); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Boolean); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *AtomicTypeValue) ClearBytes() {
-	if _, ok := x.Value.(*AtomicTypeValue_Bytes); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*atomicTypeValue_Bytes); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
@@ -2193,24 +2130,24 @@ func (x *AtomicTypeValue) WhichValue() case_AtomicTypeValue_Value {
 	if x == nil {
 		return AtomicTypeValue_Value_not_set_case
 	}
-	switch x.Value.(type) {
-	case *AtomicTypeValue_Byte:
+	switch x.xxx_hidden_Value.(type) {
+	case *atomicTypeValue_Byte:
 		return AtomicTypeValue_Byte_case
-	case *AtomicTypeValue_Int16:
+	case *atomicTypeValue_Int16:
 		return AtomicTypeValue_Int16_case
-	case *AtomicTypeValue_Int32:
+	case *atomicTypeValue_Int32:
 		return AtomicTypeValue_Int32_case
-	case *AtomicTypeValue_Int64:
+	case *atomicTypeValue_Int64:
 		return AtomicTypeValue_Int64_case
-	case *AtomicTypeValue_Float:
+	case *atomicTypeValue_Float:
 		return AtomicTypeValue_Float_case
-	case *AtomicTypeValue_Double:
+	case *atomicTypeValue_Double:
 		return AtomicTypeValue_Double_case
-	case *AtomicTypeValue_String_:
+	case *atomicTypeValue_String_:
 		return AtomicTypeValue_String__case
-	case *AtomicTypeValue_Boolean:
+	case *atomicTypeValue_Boolean:
 		return AtomicTypeValue_Boolean_case
-	case *AtomicTypeValue_Bytes:
+	case *atomicTypeValue_Bytes:
 		return AtomicTypeValue_Bytes_case
 	default:
 		return AtomicTypeValue_Value_not_set_case
@@ -2220,7 +2157,7 @@ func (x *AtomicTypeValue) WhichValue() case_AtomicTypeValue_Value {
 type AtomicTypeValue_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// Fields of oneof Value:
+	// Fields of oneof xxx_hidden_Value:
 	Byte    *int32
 	Int16   *int32
 	Int32   *int32
@@ -2230,7 +2167,7 @@ type AtomicTypeValue_builder struct {
 	String  *string
 	Boolean *bool
 	Bytes   []byte
-	// -- end of Value
+	// -- end of xxx_hidden_Value
 }
 
 func (b0 AtomicTypeValue_builder) Build() *AtomicTypeValue {
@@ -2238,31 +2175,31 @@ func (b0 AtomicTypeValue_builder) Build() *AtomicTypeValue {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Byte != nil {
-		x.Value = &AtomicTypeValue_Byte{*b.Byte}
+		x.xxx_hidden_Value = &atomicTypeValue_Byte{*b.Byte}
 	}
 	if b.Int16 != nil {
-		x.Value = &AtomicTypeValue_Int16{*b.Int16}
+		x.xxx_hidden_Value = &atomicTypeValue_Int16{*b.Int16}
 	}
 	if b.Int32 != nil {
-		x.Value = &AtomicTypeValue_Int32{*b.Int32}
+		x.xxx_hidden_Value = &atomicTypeValue_Int32{*b.Int32}
 	}
 	if b.Int64 != nil {
-		x.Value = &AtomicTypeValue_Int64{*b.Int64}
+		x.xxx_hidden_Value = &atomicTypeValue_Int64{*b.Int64}
 	}
 	if b.Float != nil {
-		x.Value = &AtomicTypeValue_Float{*b.Float}
+		x.xxx_hidden_Value = &atomicTypeValue_Float{*b.Float}
 	}
 	if b.Double != nil {
-		x.Value = &AtomicTypeValue_Double{*b.Double}
+		x.xxx_hidden_Value = &atomicTypeValue_Double{*b.Double}
 	}
 	if b.String != nil {
-		x.Value = &AtomicTypeValue_String_{*b.String}
+		x.xxx_hidden_Value = &atomicTypeValue_String_{*b.String}
 	}
 	if b.Boolean != nil {
-		x.Value = &AtomicTypeValue_Boolean{*b.Boolean}
+		x.xxx_hidden_Value = &atomicTypeValue_Boolean{*b.Boolean}
 	}
 	if b.Bytes != nil {
-		x.Value = &AtomicTypeValue_Bytes{b.Bytes}
+		x.xxx_hidden_Value = &atomicTypeValue_Bytes{b.Bytes}
 	}
 	return m0
 }
@@ -2281,65 +2218,65 @@ type isAtomicTypeValue_Value interface {
 	isAtomicTypeValue_Value()
 }
 
-type AtomicTypeValue_Byte struct {
+type atomicTypeValue_Byte struct {
 	Byte int32 `protobuf:"varint,1,opt,name=byte,proto3,oneof"`
 }
 
-type AtomicTypeValue_Int16 struct {
+type atomicTypeValue_Int16 struct {
 	Int16 int32 `protobuf:"varint,2,opt,name=int16,proto3,oneof"`
 }
 
-type AtomicTypeValue_Int32 struct {
+type atomicTypeValue_Int32 struct {
 	Int32 int32 `protobuf:"varint,3,opt,name=int32,proto3,oneof"`
 }
 
-type AtomicTypeValue_Int64 struct {
+type atomicTypeValue_Int64 struct {
 	Int64 int64 `protobuf:"varint,4,opt,name=int64,proto3,oneof"`
 }
 
-type AtomicTypeValue_Float struct {
+type atomicTypeValue_Float struct {
 	Float float32 `protobuf:"fixed32,5,opt,name=float,proto3,oneof"`
 }
 
-type AtomicTypeValue_Double struct {
+type atomicTypeValue_Double struct {
 	Double float64 `protobuf:"fixed64,6,opt,name=double,proto3,oneof"`
 }
 
-type AtomicTypeValue_String_ struct {
+type atomicTypeValue_String_ struct {
 	String_ string `protobuf:"bytes,7,opt,name=string,proto3,oneof"`
 }
 
-type AtomicTypeValue_Boolean struct {
+type atomicTypeValue_Boolean struct {
 	Boolean bool `protobuf:"varint,8,opt,name=boolean,proto3,oneof"`
 }
 
-type AtomicTypeValue_Bytes struct {
+type atomicTypeValue_Bytes struct {
 	Bytes []byte `protobuf:"bytes,9,opt,name=bytes,proto3,oneof"`
 }
 
-func (*AtomicTypeValue_Byte) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Byte) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Int16) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Int16) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Int32) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Int32) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Int64) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Int64) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Float) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Float) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Double) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Double) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_String_) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_String_) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Boolean) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Boolean) isAtomicTypeValue_Value() {}
 
-func (*AtomicTypeValue_Bytes) isAtomicTypeValue_Value() {}
+func (*atomicTypeValue_Bytes) isAtomicTypeValue_Value() {}
 
 type ArrayTypeValue struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Element       []*FieldValue          `protobuf:"bytes,1,rep,name=element,proto3" json:"element,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Element *[]*FieldValue         `protobuf:"bytes,1,rep,name=element,proto3" json:"element,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ArrayTypeValue) Reset() {
@@ -2369,13 +2306,15 @@ func (x *ArrayTypeValue) ProtoReflect() protoreflect.Message {
 
 func (x *ArrayTypeValue) GetElement() []*FieldValue {
 	if x != nil {
-		return x.Element
+		if x.xxx_hidden_Element != nil {
+			return *x.xxx_hidden_Element
+		}
 	}
 	return nil
 }
 
 func (x *ArrayTypeValue) SetElement(v []*FieldValue) {
-	x.Element = v
+	x.xxx_hidden_Element = &v
 }
 
 type ArrayTypeValue_builder struct {
@@ -2388,15 +2327,15 @@ func (b0 ArrayTypeValue_builder) Build() *ArrayTypeValue {
 	m0 := &ArrayTypeValue{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Element = b.Element
+	x.xxx_hidden_Element = &b.Element
 	return m0
 }
 
 type IterableTypeValue struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Element       []*FieldValue          `protobuf:"bytes,1,rep,name=element,proto3" json:"element,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Element *[]*FieldValue         `protobuf:"bytes,1,rep,name=element,proto3" json:"element,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *IterableTypeValue) Reset() {
@@ -2426,13 +2365,15 @@ func (x *IterableTypeValue) ProtoReflect() protoreflect.Message {
 
 func (x *IterableTypeValue) GetElement() []*FieldValue {
 	if x != nil {
-		return x.Element
+		if x.xxx_hidden_Element != nil {
+			return *x.xxx_hidden_Element
+		}
 	}
 	return nil
 }
 
 func (x *IterableTypeValue) SetElement(v []*FieldValue) {
-	x.Element = v
+	x.xxx_hidden_Element = &v
 }
 
 type IterableTypeValue_builder struct {
@@ -2445,15 +2386,15 @@ func (b0 IterableTypeValue_builder) Build() *IterableTypeValue {
 	m0 := &IterableTypeValue{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Element = b.Element
+	x.xxx_hidden_Element = &b.Element
 	return m0
 }
 
 type MapTypeValue struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Entries       []*MapTypeEntry        `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Entries *[]*MapTypeEntry       `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *MapTypeValue) Reset() {
@@ -2483,13 +2424,15 @@ func (x *MapTypeValue) ProtoReflect() protoreflect.Message {
 
 func (x *MapTypeValue) GetEntries() []*MapTypeEntry {
 	if x != nil {
-		return x.Entries
+		if x.xxx_hidden_Entries != nil {
+			return *x.xxx_hidden_Entries
+		}
 	}
 	return nil
 }
 
 func (x *MapTypeValue) SetEntries(v []*MapTypeEntry) {
-	x.Entries = v
+	x.xxx_hidden_Entries = &v
 }
 
 type MapTypeValue_builder struct {
@@ -2502,16 +2445,16 @@ func (b0 MapTypeValue_builder) Build() *MapTypeValue {
 	m0 := &MapTypeValue{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Entries = b.Entries
+	x.xxx_hidden_Entries = &b.Entries
 	return m0
 }
 
 type MapTypeEntry struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Key           *FieldValue            `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Value         *FieldValue            `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Key   *FieldValue            `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	xxx_hidden_Value *FieldValue            `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MapTypeEntry) Reset() {
@@ -2541,46 +2484,46 @@ func (x *MapTypeEntry) ProtoReflect() protoreflect.Message {
 
 func (x *MapTypeEntry) GetKey() *FieldValue {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return nil
 }
 
 func (x *MapTypeEntry) GetValue() *FieldValue {
 	if x != nil {
-		return x.Value
+		return x.xxx_hidden_Value
 	}
 	return nil
 }
 
 func (x *MapTypeEntry) SetKey(v *FieldValue) {
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 func (x *MapTypeEntry) SetValue(v *FieldValue) {
-	x.Value = v
+	x.xxx_hidden_Value = v
 }
 
 func (x *MapTypeEntry) HasKey() bool {
 	if x == nil {
 		return false
 	}
-	return x.Key != nil
+	return x.xxx_hidden_Key != nil
 }
 
 func (x *MapTypeEntry) HasValue() bool {
 	if x == nil {
 		return false
 	}
-	return x.Value != nil
+	return x.xxx_hidden_Value != nil
 }
 
 func (x *MapTypeEntry) ClearKey() {
-	x.Key = nil
+	x.xxx_hidden_Key = nil
 }
 
 func (x *MapTypeEntry) ClearValue() {
-	x.Value = nil
+	x.xxx_hidden_Value = nil
 }
 
 type MapTypeEntry_builder struct {
@@ -2594,16 +2537,16 @@ func (b0 MapTypeEntry_builder) Build() *MapTypeEntry {
 	m0 := &MapTypeEntry{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Key = b.Key
-	x.Value = b.Value
+	x.xxx_hidden_Key = b.Key
+	x.xxx_hidden_Value = b.Value
 	return m0
 }
 
 type LogicalTypeValue struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Value         *FieldValue            `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Value *FieldValue            `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *LogicalTypeValue) Reset() {
@@ -2633,24 +2576,24 @@ func (x *LogicalTypeValue) ProtoReflect() protoreflect.Message {
 
 func (x *LogicalTypeValue) GetValue() *FieldValue {
 	if x != nil {
-		return x.Value
+		return x.xxx_hidden_Value
 	}
 	return nil
 }
 
 func (x *LogicalTypeValue) SetValue(v *FieldValue) {
-	x.Value = v
+	x.xxx_hidden_Value = v
 }
 
 func (x *LogicalTypeValue) HasValue() bool {
 	if x == nil {
 		return false
 	}
-	return x.Value != nil
+	return x.xxx_hidden_Value != nil
 }
 
 func (x *LogicalTypeValue) ClearValue() {
-	x.Value = nil
+	x.xxx_hidden_Value = nil
 }
 
 type LogicalTypeValue_builder struct {
@@ -2663,7 +2606,7 @@ func (b0 LogicalTypeValue_builder) Build() *LogicalTypeValue {
 	m0 := &LogicalTypeValue{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Value = b.Value
+	x.xxx_hidden_Value = b.Value
 	return m0
 }
 
@@ -3007,31 +2950,31 @@ func file_org_apache_beam_model_pipeline_v1_schema_proto_init() {
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_init()
 	file_org_apache_beam_model_pipeline_v1_schema_proto_msgTypes[2].OneofWrappers = []any{
-		(*FieldType_AtomicType)(nil),
-		(*FieldType_ArrayType)(nil),
-		(*FieldType_IterableType)(nil),
-		(*FieldType_MapType)(nil),
-		(*FieldType_RowType)(nil),
-		(*FieldType_LogicalType)(nil),
+		(*fieldType_AtomicType)(nil),
+		(*fieldType_ArrayType)(nil),
+		(*fieldType_IterableType)(nil),
+		(*fieldType_MapType)(nil),
+		(*fieldType_RowType)(nil),
+		(*fieldType_LogicalType)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_schema_proto_msgTypes[11].OneofWrappers = []any{
-		(*FieldValue_AtomicValue)(nil),
-		(*FieldValue_ArrayValue)(nil),
-		(*FieldValue_IterableValue)(nil),
-		(*FieldValue_MapValue)(nil),
-		(*FieldValue_RowValue)(nil),
-		(*FieldValue_LogicalTypeValue)(nil),
+		(*fieldValue_AtomicValue)(nil),
+		(*fieldValue_ArrayValue)(nil),
+		(*fieldValue_IterableValue)(nil),
+		(*fieldValue_MapValue)(nil),
+		(*fieldValue_RowValue)(nil),
+		(*fieldValue_LogicalTypeValue)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_schema_proto_msgTypes[12].OneofWrappers = []any{
-		(*AtomicTypeValue_Byte)(nil),
-		(*AtomicTypeValue_Int16)(nil),
-		(*AtomicTypeValue_Int32)(nil),
-		(*AtomicTypeValue_Int64)(nil),
-		(*AtomicTypeValue_Float)(nil),
-		(*AtomicTypeValue_Double)(nil),
-		(*AtomicTypeValue_String_)(nil),
-		(*AtomicTypeValue_Boolean)(nil),
-		(*AtomicTypeValue_Bytes)(nil),
+		(*atomicTypeValue_Byte)(nil),
+		(*atomicTypeValue_Int16)(nil),
+		(*atomicTypeValue_Int32)(nil),
+		(*atomicTypeValue_Int64)(nil),
+		(*atomicTypeValue_Float)(nil),
+		(*atomicTypeValue_Double)(nil),
+		(*atomicTypeValue_String_)(nil),
+		(*atomicTypeValue_Boolean)(nil),
+		(*atomicTypeValue_Bytes)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -25,7 +25,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/pipeline/v1/standard_window_fns.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package pipeline_v1
 
@@ -202,7 +202,7 @@ func (x SessionWindowsPayload_Enum) Number() protoreflect.EnumNumber {
 // See https://beam.apache.org/documentation/programming-guide/#single-global-window
 // for additional details.
 type GlobalWindowsPayload struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -250,14 +250,11 @@ func (b0 GlobalWindowsPayload_builder) Build() *GlobalWindowsPayload {
 // See https://beam.apache.org/documentation/programming-guide/#fixed-time-windows
 // for additional details.
 type FixedWindowsPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Represents the size of the window.
-	Size *durationpb.Duration `protobuf:"bytes,1,opt,name=size,proto3" json:"size,omitempty"`
-	// (Required) Represents the timestamp of when the first window begins.
-	// Window N will start at offset + N * size.
-	Offset        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=offset,proto3" json:"offset,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Size   *durationpb.Duration   `protobuf:"bytes,1,opt,name=size,proto3" json:"size,omitempty"`
+	xxx_hidden_Offset *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *FixedWindowsPayload) Reset() {
@@ -287,46 +284,46 @@ func (x *FixedWindowsPayload) ProtoReflect() protoreflect.Message {
 
 func (x *FixedWindowsPayload) GetSize() *durationpb.Duration {
 	if x != nil {
-		return x.Size
+		return x.xxx_hidden_Size
 	}
 	return nil
 }
 
 func (x *FixedWindowsPayload) GetOffset() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Offset
+		return x.xxx_hidden_Offset
 	}
 	return nil
 }
 
 func (x *FixedWindowsPayload) SetSize(v *durationpb.Duration) {
-	x.Size = v
+	x.xxx_hidden_Size = v
 }
 
 func (x *FixedWindowsPayload) SetOffset(v *timestamppb.Timestamp) {
-	x.Offset = v
+	x.xxx_hidden_Offset = v
 }
 
 func (x *FixedWindowsPayload) HasSize() bool {
 	if x == nil {
 		return false
 	}
-	return x.Size != nil
+	return x.xxx_hidden_Size != nil
 }
 
 func (x *FixedWindowsPayload) HasOffset() bool {
 	if x == nil {
 		return false
 	}
-	return x.Offset != nil
+	return x.xxx_hidden_Offset != nil
 }
 
 func (x *FixedWindowsPayload) ClearSize() {
-	x.Size = nil
+	x.xxx_hidden_Size = nil
 }
 
 func (x *FixedWindowsPayload) ClearOffset() {
-	x.Offset = nil
+	x.xxx_hidden_Offset = nil
 }
 
 type FixedWindowsPayload_builder struct {
@@ -343,8 +340,8 @@ func (b0 FixedWindowsPayload_builder) Build() *FixedWindowsPayload {
 	m0 := &FixedWindowsPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Size = b.Size
-	x.Offset = b.Offset
+	x.xxx_hidden_Size = b.Size
+	x.xxx_hidden_Offset = b.Offset
 	return m0
 }
 
@@ -363,16 +360,12 @@ func (b0 FixedWindowsPayload_builder) Build() *FixedWindowsPayload {
 // See https://beam.apache.org/documentation/programming-guide/#sliding-time-windows
 // for additional details.
 type SlidingWindowsPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Represents the size of the window.
-	Size *durationpb.Duration `protobuf:"bytes,1,opt,name=size,proto3" json:"size,omitempty"`
-	// (Required) Represents the timestamp of when the first window begins.
-	// Window N will start at offset + N * period.
-	Offset *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=offset,proto3" json:"offset,omitempty"`
-	// (Required) Represents the amount of time between each start of a window.
-	Period        *durationpb.Duration `protobuf:"bytes,3,opt,name=period,proto3" json:"period,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Size   *durationpb.Duration   `protobuf:"bytes,1,opt,name=size,proto3" json:"size,omitempty"`
+	xxx_hidden_Offset *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	xxx_hidden_Period *durationpb.Duration   `protobuf:"bytes,3,opt,name=period,proto3" json:"period,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SlidingWindowsPayload) Reset() {
@@ -402,68 +395,68 @@ func (x *SlidingWindowsPayload) ProtoReflect() protoreflect.Message {
 
 func (x *SlidingWindowsPayload) GetSize() *durationpb.Duration {
 	if x != nil {
-		return x.Size
+		return x.xxx_hidden_Size
 	}
 	return nil
 }
 
 func (x *SlidingWindowsPayload) GetOffset() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Offset
+		return x.xxx_hidden_Offset
 	}
 	return nil
 }
 
 func (x *SlidingWindowsPayload) GetPeriod() *durationpb.Duration {
 	if x != nil {
-		return x.Period
+		return x.xxx_hidden_Period
 	}
 	return nil
 }
 
 func (x *SlidingWindowsPayload) SetSize(v *durationpb.Duration) {
-	x.Size = v
+	x.xxx_hidden_Size = v
 }
 
 func (x *SlidingWindowsPayload) SetOffset(v *timestamppb.Timestamp) {
-	x.Offset = v
+	x.xxx_hidden_Offset = v
 }
 
 func (x *SlidingWindowsPayload) SetPeriod(v *durationpb.Duration) {
-	x.Period = v
+	x.xxx_hidden_Period = v
 }
 
 func (x *SlidingWindowsPayload) HasSize() bool {
 	if x == nil {
 		return false
 	}
-	return x.Size != nil
+	return x.xxx_hidden_Size != nil
 }
 
 func (x *SlidingWindowsPayload) HasOffset() bool {
 	if x == nil {
 		return false
 	}
-	return x.Offset != nil
+	return x.xxx_hidden_Offset != nil
 }
 
 func (x *SlidingWindowsPayload) HasPeriod() bool {
 	if x == nil {
 		return false
 	}
-	return x.Period != nil
+	return x.xxx_hidden_Period != nil
 }
 
 func (x *SlidingWindowsPayload) ClearSize() {
-	x.Size = nil
+	x.xxx_hidden_Size = nil
 }
 
 func (x *SlidingWindowsPayload) ClearOffset() {
-	x.Offset = nil
+	x.xxx_hidden_Offset = nil
 }
 
 func (x *SlidingWindowsPayload) ClearPeriod() {
-	x.Period = nil
+	x.xxx_hidden_Period = nil
 }
 
 type SlidingWindowsPayload_builder struct {
@@ -482,9 +475,9 @@ func (b0 SlidingWindowsPayload_builder) Build() *SlidingWindowsPayload {
 	m0 := &SlidingWindowsPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Size = b.Size
-	x.Offset = b.Offset
-	x.Period = b.Period
+	x.xxx_hidden_Size = b.Size
+	x.xxx_hidden_Offset = b.Offset
+	x.xxx_hidden_Period = b.Period
 	return m0
 }
 
@@ -499,11 +492,10 @@ func (b0 SlidingWindowsPayload_builder) Build() *SlidingWindowsPayload {
 // See https://beam.apache.org/documentation/programming-guide/#session-windows
 // for additional details.
 type SessionWindowsPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Minimum duration of gaps between sessions.
-	GapSize       *durationpb.Duration `protobuf:"bytes,1,opt,name=gap_size,json=gapSize,proto3" json:"gap_size,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_GapSize *durationpb.Duration   `protobuf:"bytes,1,opt,name=gap_size,json=gapSize,proto3" json:"gap_size,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SessionWindowsPayload) Reset() {
@@ -533,24 +525,24 @@ func (x *SessionWindowsPayload) ProtoReflect() protoreflect.Message {
 
 func (x *SessionWindowsPayload) GetGapSize() *durationpb.Duration {
 	if x != nil {
-		return x.GapSize
+		return x.xxx_hidden_GapSize
 	}
 	return nil
 }
 
 func (x *SessionWindowsPayload) SetGapSize(v *durationpb.Duration) {
-	x.GapSize = v
+	x.xxx_hidden_GapSize = v
 }
 
 func (x *SessionWindowsPayload) HasGapSize() bool {
 	if x == nil {
 		return false
 	}
-	return x.GapSize != nil
+	return x.xxx_hidden_GapSize != nil
 }
 
 func (x *SessionWindowsPayload) ClearGapSize() {
-	x.GapSize = nil
+	x.xxx_hidden_GapSize = nil
 }
 
 type SessionWindowsPayload_builder struct {
@@ -564,7 +556,7 @@ func (b0 SessionWindowsPayload_builder) Build() *SessionWindowsPayload {
 	m0 := &SessionWindowsPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.GapSize = b.GapSize
+	x.xxx_hidden_GapSize = b.GapSize
 	return m0
 }
 

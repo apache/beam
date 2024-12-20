@@ -24,7 +24,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/pipeline/v1/endpoints.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package pipeline_v1
 
@@ -43,15 +43,11 @@ const (
 
 // A description of how to connect to a Beam API endpoint.
 type ApiServiceDescriptor struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The URL to connect to.
-	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	// (Optional) The method for authentication. If unspecified, access to the
-	// url is already being performed in a trusted context (e.g. localhost,
-	// private network).
-	Authentication *AuthenticationSpec `protobuf:"bytes,2,opt,name=authentication,proto3" json:"authentication,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Url            string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	xxx_hidden_Authentication *AuthenticationSpec    `protobuf:"bytes,2,opt,name=authentication,proto3" json:"authentication,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ApiServiceDescriptor) Reset() {
@@ -81,35 +77,35 @@ func (x *ApiServiceDescriptor) ProtoReflect() protoreflect.Message {
 
 func (x *ApiServiceDescriptor) GetUrl() string {
 	if x != nil {
-		return x.Url
+		return x.xxx_hidden_Url
 	}
 	return ""
 }
 
 func (x *ApiServiceDescriptor) GetAuthentication() *AuthenticationSpec {
 	if x != nil {
-		return x.Authentication
+		return x.xxx_hidden_Authentication
 	}
 	return nil
 }
 
 func (x *ApiServiceDescriptor) SetUrl(v string) {
-	x.Url = v
+	x.xxx_hidden_Url = v
 }
 
 func (x *ApiServiceDescriptor) SetAuthentication(v *AuthenticationSpec) {
-	x.Authentication = v
+	x.xxx_hidden_Authentication = v
 }
 
 func (x *ApiServiceDescriptor) HasAuthentication() bool {
 	if x == nil {
 		return false
 	}
-	return x.Authentication != nil
+	return x.xxx_hidden_Authentication != nil
 }
 
 func (x *ApiServiceDescriptor) ClearAuthentication() {
-	x.Authentication = nil
+	x.xxx_hidden_Authentication = nil
 }
 
 type ApiServiceDescriptor_builder struct {
@@ -127,23 +123,17 @@ func (b0 ApiServiceDescriptor_builder) Build() *ApiServiceDescriptor {
 	m0 := &ApiServiceDescriptor{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Url = b.Url
-	x.Authentication = b.Authentication
+	x.xxx_hidden_Url = b.Url
+	x.xxx_hidden_Authentication = b.Authentication
 	return m0
 }
 
 type AuthenticationSpec struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A URN that describes the accompanying payload.
-	// For any URN that is not recognized (by whomever is inspecting
-	// it) the parameter payload should be treated as opaque and
-	// passed as-is.
-	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	// (Optional) The data specifying any parameters to the URN. If
-	// the URN does not require any arguments, this may be omitted.
-	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Urn     string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Payload []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *AuthenticationSpec) Reset() {
@@ -173,27 +163,27 @@ func (x *AuthenticationSpec) ProtoReflect() protoreflect.Message {
 
 func (x *AuthenticationSpec) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *AuthenticationSpec) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *AuthenticationSpec) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *AuthenticationSpec) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 type AuthenticationSpec_builder struct {
@@ -213,8 +203,8 @@ func (b0 AuthenticationSpec_builder) Build() *AuthenticationSpec {
 	m0 := &AuthenticationSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Payload = b.Payload
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Payload = b.Payload
 	return m0
 }
 

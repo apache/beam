@@ -25,7 +25,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/job_management/v1/beam_expansion_api.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package jobmanagement_v1
 
@@ -45,32 +45,15 @@ const (
 )
 
 type ExpansionRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Set of components needed to interpret the transform, or which
-	// may be useful for its expansion.  This includes the input
-	// PCollections (if any) to the to-be-expanded transform, along
-	// with their coders and windowing strategies.
-	Components *pipeline_v1.Components `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
-	// The actual PTransform to be expaneded according to its spec.
-	// Its input should be set, but its subtransforms and outputs
-	// should not be.
-	Transform *pipeline_v1.PTransform `protobuf:"bytes,2,opt,name=transform,proto3" json:"transform,omitempty"`
-	// A namespace (prefix) to use for the id of any newly created
-	// components.
-	Namespace string `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	// (Optional) Map from a local output tag to a coder id.
-	// If it is set, asks the expansion service to use the given
-	// coders for the output PCollections. Note that the request
-	// may not be fulfilled.
-	OutputCoderRequests map[string]string `protobuf:"bytes,4,rep,name=output_coder_requests,json=outputCoderRequests,proto3" json:"output_coder_requests,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// A set of requirements that must be used by the expansion service to
-	// interpret the components provided with this request.
-	Requirements []string `protobuf:"bytes,5,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	// (Optional) A set of Pipeline Options that should be used
-	// when expanding this transform.
-	PipelineOptions *structpb.Struct `protobuf:"bytes,6,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                          protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Components          *pipeline_v1.Components `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
+	xxx_hidden_Transform           *pipeline_v1.PTransform `protobuf:"bytes,2,opt,name=transform,proto3" json:"transform,omitempty"`
+	xxx_hidden_Namespace           string                  `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	xxx_hidden_OutputCoderRequests map[string]string       `protobuf:"bytes,4,rep,name=output_coder_requests,json=outputCoderRequests,proto3" json:"output_coder_requests,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Requirements        []string                `protobuf:"bytes,5,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	xxx_hidden_PipelineOptions     *structpb.Struct        `protobuf:"bytes,6,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *ExpansionRequest) Reset() {
@@ -100,101 +83,101 @@ func (x *ExpansionRequest) ProtoReflect() protoreflect.Message {
 
 func (x *ExpansionRequest) GetComponents() *pipeline_v1.Components {
 	if x != nil {
-		return x.Components
+		return x.xxx_hidden_Components
 	}
 	return nil
 }
 
 func (x *ExpansionRequest) GetTransform() *pipeline_v1.PTransform {
 	if x != nil {
-		return x.Transform
+		return x.xxx_hidden_Transform
 	}
 	return nil
 }
 
 func (x *ExpansionRequest) GetNamespace() string {
 	if x != nil {
-		return x.Namespace
+		return x.xxx_hidden_Namespace
 	}
 	return ""
 }
 
 func (x *ExpansionRequest) GetOutputCoderRequests() map[string]string {
 	if x != nil {
-		return x.OutputCoderRequests
+		return x.xxx_hidden_OutputCoderRequests
 	}
 	return nil
 }
 
 func (x *ExpansionRequest) GetRequirements() []string {
 	if x != nil {
-		return x.Requirements
+		return x.xxx_hidden_Requirements
 	}
 	return nil
 }
 
 func (x *ExpansionRequest) GetPipelineOptions() *structpb.Struct {
 	if x != nil {
-		return x.PipelineOptions
+		return x.xxx_hidden_PipelineOptions
 	}
 	return nil
 }
 
 func (x *ExpansionRequest) SetComponents(v *pipeline_v1.Components) {
-	x.Components = v
+	x.xxx_hidden_Components = v
 }
 
 func (x *ExpansionRequest) SetTransform(v *pipeline_v1.PTransform) {
-	x.Transform = v
+	x.xxx_hidden_Transform = v
 }
 
 func (x *ExpansionRequest) SetNamespace(v string) {
-	x.Namespace = v
+	x.xxx_hidden_Namespace = v
 }
 
 func (x *ExpansionRequest) SetOutputCoderRequests(v map[string]string) {
-	x.OutputCoderRequests = v
+	x.xxx_hidden_OutputCoderRequests = v
 }
 
 func (x *ExpansionRequest) SetRequirements(v []string) {
-	x.Requirements = v
+	x.xxx_hidden_Requirements = v
 }
 
 func (x *ExpansionRequest) SetPipelineOptions(v *structpb.Struct) {
-	x.PipelineOptions = v
+	x.xxx_hidden_PipelineOptions = v
 }
 
 func (x *ExpansionRequest) HasComponents() bool {
 	if x == nil {
 		return false
 	}
-	return x.Components != nil
+	return x.xxx_hidden_Components != nil
 }
 
 func (x *ExpansionRequest) HasTransform() bool {
 	if x == nil {
 		return false
 	}
-	return x.Transform != nil
+	return x.xxx_hidden_Transform != nil
 }
 
 func (x *ExpansionRequest) HasPipelineOptions() bool {
 	if x == nil {
 		return false
 	}
-	return x.PipelineOptions != nil
+	return x.xxx_hidden_PipelineOptions != nil
 }
 
 func (x *ExpansionRequest) ClearComponents() {
-	x.Components = nil
+	x.xxx_hidden_Components = nil
 }
 
 func (x *ExpansionRequest) ClearTransform() {
-	x.Transform = nil
+	x.xxx_hidden_Transform = nil
 }
 
 func (x *ExpansionRequest) ClearPipelineOptions() {
-	x.PipelineOptions = nil
+	x.xxx_hidden_PipelineOptions = nil
 }
 
 type ExpansionRequest_builder struct {
@@ -229,31 +212,23 @@ func (b0 ExpansionRequest_builder) Build() *ExpansionRequest {
 	m0 := &ExpansionRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Components = b.Components
-	x.Transform = b.Transform
-	x.Namespace = b.Namespace
-	x.OutputCoderRequests = b.OutputCoderRequests
-	x.Requirements = b.Requirements
-	x.PipelineOptions = b.PipelineOptions
+	x.xxx_hidden_Components = b.Components
+	x.xxx_hidden_Transform = b.Transform
+	x.xxx_hidden_Namespace = b.Namespace
+	x.xxx_hidden_OutputCoderRequests = b.OutputCoderRequests
+	x.xxx_hidden_Requirements = b.Requirements
+	x.xxx_hidden_PipelineOptions = b.PipelineOptions
 	return m0
 }
 
 type ExpansionResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Set of components needed to execute the expanded transform,
-	// including the (original) inputs, outputs, and subtransforms.
-	Components *pipeline_v1.Components `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
-	// The expanded transform itself, with references to its outputs
-	// and subtransforms.
-	Transform *pipeline_v1.PTransform `protobuf:"bytes,2,opt,name=transform,proto3" json:"transform,omitempty"`
-	// A set of requirements that must be appended to this pipeline's
-	// requirements.
-	Requirements []string `protobuf:"bytes,3,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	// (Optional) An string representation of any error encountered while
-	// attempting to expand this transform.
-	Error         string `protobuf:"bytes,10,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Components   *pipeline_v1.Components `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
+	xxx_hidden_Transform    *pipeline_v1.PTransform `protobuf:"bytes,2,opt,name=transform,proto3" json:"transform,omitempty"`
+	xxx_hidden_Requirements []string                `protobuf:"bytes,3,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	xxx_hidden_Error        string                  `protobuf:"bytes,10,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ExpansionResponse) Reset() {
@@ -283,68 +258,68 @@ func (x *ExpansionResponse) ProtoReflect() protoreflect.Message {
 
 func (x *ExpansionResponse) GetComponents() *pipeline_v1.Components {
 	if x != nil {
-		return x.Components
+		return x.xxx_hidden_Components
 	}
 	return nil
 }
 
 func (x *ExpansionResponse) GetTransform() *pipeline_v1.PTransform {
 	if x != nil {
-		return x.Transform
+		return x.xxx_hidden_Transform
 	}
 	return nil
 }
 
 func (x *ExpansionResponse) GetRequirements() []string {
 	if x != nil {
-		return x.Requirements
+		return x.xxx_hidden_Requirements
 	}
 	return nil
 }
 
 func (x *ExpansionResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
 func (x *ExpansionResponse) SetComponents(v *pipeline_v1.Components) {
-	x.Components = v
+	x.xxx_hidden_Components = v
 }
 
 func (x *ExpansionResponse) SetTransform(v *pipeline_v1.PTransform) {
-	x.Transform = v
+	x.xxx_hidden_Transform = v
 }
 
 func (x *ExpansionResponse) SetRequirements(v []string) {
-	x.Requirements = v
+	x.xxx_hidden_Requirements = v
 }
 
 func (x *ExpansionResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 func (x *ExpansionResponse) HasComponents() bool {
 	if x == nil {
 		return false
 	}
-	return x.Components != nil
+	return x.xxx_hidden_Components != nil
 }
 
 func (x *ExpansionResponse) HasTransform() bool {
 	if x == nil {
 		return false
 	}
-	return x.Transform != nil
+	return x.xxx_hidden_Transform != nil
 }
 
 func (x *ExpansionResponse) ClearComponents() {
-	x.Components = nil
+	x.xxx_hidden_Components = nil
 }
 
 func (x *ExpansionResponse) ClearTransform() {
-	x.Transform = nil
+	x.xxx_hidden_Transform = nil
 }
 
 type ExpansionResponse_builder struct {
@@ -368,15 +343,15 @@ func (b0 ExpansionResponse_builder) Build() *ExpansionResponse {
 	m0 := &ExpansionResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Components = b.Components
-	x.Transform = b.Transform
-	x.Requirements = b.Requirements
-	x.Error = b.Error
+	x.xxx_hidden_Components = b.Components
+	x.xxx_hidden_Transform = b.Transform
+	x.xxx_hidden_Requirements = b.Requirements
+	x.xxx_hidden_Error = b.Error
 	return m0
 }
 
 type DiscoverSchemaTransformRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -419,20 +394,13 @@ func (b0 DiscoverSchemaTransformRequest_builder) Build() *DiscoverSchemaTransfor
 }
 
 type SchemaTransformConfig struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Config schema of the SchemaTransform
-	ConfigSchema *pipeline_v1.Schema `protobuf:"bytes,1,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
-	// Names of input PCollections
-	InputPcollectionNames []string `protobuf:"bytes,2,rep,name=input_pcollection_names,json=inputPcollectionNames,proto3" json:"input_pcollection_names,omitempty"`
-	// Names of output PCollections
-	OutputPcollectionNames []string `protobuf:"bytes,3,rep,name=output_pcollection_names,json=outputPcollectionNames,proto3" json:"output_pcollection_names,omitempty"`
-	// Description of this transform and usage used for documentation.
-	// May be markdown formatted.
-	// Note that configuration parameters may also have documentation attached
-	// as part of the config_schema.
-	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ConfigSchema           *pipeline_v1.Schema    `protobuf:"bytes,1,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
+	xxx_hidden_InputPcollectionNames  []string               `protobuf:"bytes,2,rep,name=input_pcollection_names,json=inputPcollectionNames,proto3" json:"input_pcollection_names,omitempty"`
+	xxx_hidden_OutputPcollectionNames []string               `protobuf:"bytes,3,rep,name=output_pcollection_names,json=outputPcollectionNames,proto3" json:"output_pcollection_names,omitempty"`
+	xxx_hidden_Description            string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *SchemaTransformConfig) Reset() {
@@ -462,57 +430,57 @@ func (x *SchemaTransformConfig) ProtoReflect() protoreflect.Message {
 
 func (x *SchemaTransformConfig) GetConfigSchema() *pipeline_v1.Schema {
 	if x != nil {
-		return x.ConfigSchema
+		return x.xxx_hidden_ConfigSchema
 	}
 	return nil
 }
 
 func (x *SchemaTransformConfig) GetInputPcollectionNames() []string {
 	if x != nil {
-		return x.InputPcollectionNames
+		return x.xxx_hidden_InputPcollectionNames
 	}
 	return nil
 }
 
 func (x *SchemaTransformConfig) GetOutputPcollectionNames() []string {
 	if x != nil {
-		return x.OutputPcollectionNames
+		return x.xxx_hidden_OutputPcollectionNames
 	}
 	return nil
 }
 
 func (x *SchemaTransformConfig) GetDescription() string {
 	if x != nil {
-		return x.Description
+		return x.xxx_hidden_Description
 	}
 	return ""
 }
 
 func (x *SchemaTransformConfig) SetConfigSchema(v *pipeline_v1.Schema) {
-	x.ConfigSchema = v
+	x.xxx_hidden_ConfigSchema = v
 }
 
 func (x *SchemaTransformConfig) SetInputPcollectionNames(v []string) {
-	x.InputPcollectionNames = v
+	x.xxx_hidden_InputPcollectionNames = v
 }
 
 func (x *SchemaTransformConfig) SetOutputPcollectionNames(v []string) {
-	x.OutputPcollectionNames = v
+	x.xxx_hidden_OutputPcollectionNames = v
 }
 
 func (x *SchemaTransformConfig) SetDescription(v string) {
-	x.Description = v
+	x.xxx_hidden_Description = v
 }
 
 func (x *SchemaTransformConfig) HasConfigSchema() bool {
 	if x == nil {
 		return false
 	}
-	return x.ConfigSchema != nil
+	return x.xxx_hidden_ConfigSchema != nil
 }
 
 func (x *SchemaTransformConfig) ClearConfigSchema() {
-	x.ConfigSchema = nil
+	x.xxx_hidden_ConfigSchema = nil
 }
 
 type SchemaTransformConfig_builder struct {
@@ -535,22 +503,19 @@ func (b0 SchemaTransformConfig_builder) Build() *SchemaTransformConfig {
 	m0 := &SchemaTransformConfig{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ConfigSchema = b.ConfigSchema
-	x.InputPcollectionNames = b.InputPcollectionNames
-	x.OutputPcollectionNames = b.OutputPcollectionNames
-	x.Description = b.Description
+	x.xxx_hidden_ConfigSchema = b.ConfigSchema
+	x.xxx_hidden_InputPcollectionNames = b.InputPcollectionNames
+	x.xxx_hidden_OutputPcollectionNames = b.OutputPcollectionNames
+	x.xxx_hidden_Description = b.Description
 	return m0
 }
 
 type DiscoverSchemaTransformResponse struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A mapping from SchemaTransform ID to schema transform config of discovered
-	// SchemaTransforms
-	SchemaTransformConfigs map[string]*SchemaTransformConfig `protobuf:"bytes,1,rep,name=schema_transform_configs,json=schemaTransformConfigs,proto3" json:"schema_transform_configs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// If list of identifies are empty, this may contain an error.
-	Error         string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                             protoimpl.MessageState            `protogen:"opaque.v1"`
+	xxx_hidden_SchemaTransformConfigs map[string]*SchemaTransformConfig `protobuf:"bytes,1,rep,name=schema_transform_configs,json=schemaTransformConfigs,proto3" json:"schema_transform_configs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Error                  string                            `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *DiscoverSchemaTransformResponse) Reset() {
@@ -580,24 +545,24 @@ func (x *DiscoverSchemaTransformResponse) ProtoReflect() protoreflect.Message {
 
 func (x *DiscoverSchemaTransformResponse) GetSchemaTransformConfigs() map[string]*SchemaTransformConfig {
 	if x != nil {
-		return x.SchemaTransformConfigs
+		return x.xxx_hidden_SchemaTransformConfigs
 	}
 	return nil
 }
 
 func (x *DiscoverSchemaTransformResponse) GetError() string {
 	if x != nil {
-		return x.Error
+		return x.xxx_hidden_Error
 	}
 	return ""
 }
 
 func (x *DiscoverSchemaTransformResponse) SetSchemaTransformConfigs(v map[string]*SchemaTransformConfig) {
-	x.SchemaTransformConfigs = v
+	x.xxx_hidden_SchemaTransformConfigs = v
 }
 
 func (x *DiscoverSchemaTransformResponse) SetError(v string) {
-	x.Error = v
+	x.xxx_hidden_Error = v
 }
 
 type DiscoverSchemaTransformResponse_builder struct {
@@ -614,8 +579,8 @@ func (b0 DiscoverSchemaTransformResponse_builder) Build() *DiscoverSchemaTransfo
 	m0 := &DiscoverSchemaTransformResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.SchemaTransformConfigs = b.SchemaTransformConfigs
-	x.Error = b.Error
+	x.xxx_hidden_SchemaTransformConfigs = b.SchemaTransformConfigs
+	x.xxx_hidden_Error = b.Error
 	return m0
 }
 

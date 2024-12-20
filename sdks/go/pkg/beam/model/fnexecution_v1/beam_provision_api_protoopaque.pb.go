@@ -25,7 +25,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/fn_execution/v1/beam_provision_api.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package fnexecution_v1
 
@@ -46,7 +46,7 @@ const (
 
 // A request to get the provision info of a SDK harness worker instance.
 type GetProvisionInfoRequest struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,10 +90,10 @@ func (b0 GetProvisionInfoRequest_builder) Build() *GetProvisionInfoRequest {
 
 // A response containing the provision info of a SDK harness worker instance.
 type GetProvisionInfoResponse struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Info          *ProvisionInfo         `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Info *ProvisionInfo         `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetProvisionInfoResponse) Reset() {
@@ -123,24 +123,24 @@ func (x *GetProvisionInfoResponse) ProtoReflect() protoreflect.Message {
 
 func (x *GetProvisionInfoResponse) GetInfo() *ProvisionInfo {
 	if x != nil {
-		return x.Info
+		return x.xxx_hidden_Info
 	}
 	return nil
 }
 
 func (x *GetProvisionInfoResponse) SetInfo(v *ProvisionInfo) {
-	x.Info = v
+	x.xxx_hidden_Info = v
 }
 
 func (x *GetProvisionInfoResponse) HasInfo() bool {
 	if x == nil {
 		return false
 	}
-	return x.Info != nil
+	return x.xxx_hidden_Info != nil
 }
 
 func (x *GetProvisionInfoResponse) ClearInfo() {
-	x.Info = nil
+	x.xxx_hidden_Info = nil
 }
 
 type GetProvisionInfoResponse_builder struct {
@@ -153,45 +153,26 @@ func (b0 GetProvisionInfoResponse_builder) Build() *GetProvisionInfoResponse {
 	m0 := &GetProvisionInfoResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Info = b.Info
+	x.xxx_hidden_Info = b.Info
 	return m0
 }
 
 // Runtime provisioning information for a SDK harness worker instance,
 // such as pipeline options, resource constraints and other job metadata
 type ProvisionInfo struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (required) Pipeline options. For non-template jobs, the options are
-	// identical to what is passed to job submission.
-	PipelineOptions *structpb.Struct `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
-	// (required) The artifact retrieval token produced by
-	// LegacyArtifactStagingService.CommitManifestResponse.
-	RetrievalToken string `protobuf:"bytes,6,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
-	// (optional) The endpoint that the runner is hosting for the SDK to submit
-	// status reports to during pipeline execution. This field will only be
-	// populated if the runner supports SDK status reports. For more details see
-	// https://s.apache.org/beam-fn-api-harness-status
-	StatusEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,7,opt,name=status_endpoint,json=statusEndpoint,proto3" json:"status_endpoint,omitempty"`
-	// (optional) The logging endpoint this SDK should use.
-	LoggingEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,8,opt,name=logging_endpoint,json=loggingEndpoint,proto3" json:"logging_endpoint,omitempty"`
-	// (optional) The artifact retrieval endpoint this SDK should use.
-	ArtifactEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,9,opt,name=artifact_endpoint,json=artifactEndpoint,proto3" json:"artifact_endpoint,omitempty"`
-	// (optional) The control endpoint this SDK should use.
-	ControlEndpoint *pipeline_v1.ApiServiceDescriptor `protobuf:"bytes,10,opt,name=control_endpoint,json=controlEndpoint,proto3" json:"control_endpoint,omitempty"`
-	// The set of dependencies that should be staged into this environment.
-	Dependencies []*pipeline_v1.ArtifactInformation `protobuf:"bytes,11,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
-	// (optional) A set of capabilities that this SDK is allowed to use in its
-	// interactions with this runner.
-	RunnerCapabilities []string `protobuf:"bytes,12,rep,name=runner_capabilities,json=runnerCapabilities,proto3" json:"runner_capabilities,omitempty"`
-	// (optional) Runtime environment metadata that are static throughout the
-	// pipeline execution.
-	Metadata map[string]string `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (optional) If this environment supports SIBLING_WORKERS, used to indicate
-	// the ids of sibling workers, if any, that should be started in addition
-	// to this worker (which already has its own worker id).
-	SiblingWorkerIds []string `protobuf:"bytes,14,rep,name=sibling_worker_ids,json=siblingWorkerIds,proto3" json:"sibling_worker_ids,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                         protoimpl.MessageState              `protogen:"opaque.v1"`
+	xxx_hidden_PipelineOptions    *structpb.Struct                    `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
+	xxx_hidden_RetrievalToken     string                              `protobuf:"bytes,6,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
+	xxx_hidden_StatusEndpoint     *pipeline_v1.ApiServiceDescriptor   `protobuf:"bytes,7,opt,name=status_endpoint,json=statusEndpoint,proto3" json:"status_endpoint,omitempty"`
+	xxx_hidden_LoggingEndpoint    *pipeline_v1.ApiServiceDescriptor   `protobuf:"bytes,8,opt,name=logging_endpoint,json=loggingEndpoint,proto3" json:"logging_endpoint,omitempty"`
+	xxx_hidden_ArtifactEndpoint   *pipeline_v1.ApiServiceDescriptor   `protobuf:"bytes,9,opt,name=artifact_endpoint,json=artifactEndpoint,proto3" json:"artifact_endpoint,omitempty"`
+	xxx_hidden_ControlEndpoint    *pipeline_v1.ApiServiceDescriptor   `protobuf:"bytes,10,opt,name=control_endpoint,json=controlEndpoint,proto3" json:"control_endpoint,omitempty"`
+	xxx_hidden_Dependencies       *[]*pipeline_v1.ArtifactInformation `protobuf:"bytes,11,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	xxx_hidden_RunnerCapabilities []string                            `protobuf:"bytes,12,rep,name=runner_capabilities,json=runnerCapabilities,proto3" json:"runner_capabilities,omitempty"`
+	xxx_hidden_Metadata           map[string]string                   `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_SiblingWorkerIds   []string                            `protobuf:"bytes,14,rep,name=sibling_worker_ids,json=siblingWorkerIds,proto3" json:"sibling_worker_ids,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *ProvisionInfo) Reset() {
@@ -221,167 +202,169 @@ func (x *ProvisionInfo) ProtoReflect() protoreflect.Message {
 
 func (x *ProvisionInfo) GetPipelineOptions() *structpb.Struct {
 	if x != nil {
-		return x.PipelineOptions
+		return x.xxx_hidden_PipelineOptions
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetRetrievalToken() string {
 	if x != nil {
-		return x.RetrievalToken
+		return x.xxx_hidden_RetrievalToken
 	}
 	return ""
 }
 
 func (x *ProvisionInfo) GetStatusEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.StatusEndpoint
+		return x.xxx_hidden_StatusEndpoint
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetLoggingEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.LoggingEndpoint
+		return x.xxx_hidden_LoggingEndpoint
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetArtifactEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ArtifactEndpoint
+		return x.xxx_hidden_ArtifactEndpoint
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetControlEndpoint() *pipeline_v1.ApiServiceDescriptor {
 	if x != nil {
-		return x.ControlEndpoint
+		return x.xxx_hidden_ControlEndpoint
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetDependencies() []*pipeline_v1.ArtifactInformation {
 	if x != nil {
-		return x.Dependencies
+		if x.xxx_hidden_Dependencies != nil {
+			return *x.xxx_hidden_Dependencies
+		}
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetRunnerCapabilities() []string {
 	if x != nil {
-		return x.RunnerCapabilities
+		return x.xxx_hidden_RunnerCapabilities
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetMetadata() map[string]string {
 	if x != nil {
-		return x.Metadata
+		return x.xxx_hidden_Metadata
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) GetSiblingWorkerIds() []string {
 	if x != nil {
-		return x.SiblingWorkerIds
+		return x.xxx_hidden_SiblingWorkerIds
 	}
 	return nil
 }
 
 func (x *ProvisionInfo) SetPipelineOptions(v *structpb.Struct) {
-	x.PipelineOptions = v
+	x.xxx_hidden_PipelineOptions = v
 }
 
 func (x *ProvisionInfo) SetRetrievalToken(v string) {
-	x.RetrievalToken = v
+	x.xxx_hidden_RetrievalToken = v
 }
 
 func (x *ProvisionInfo) SetStatusEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.StatusEndpoint = v
+	x.xxx_hidden_StatusEndpoint = v
 }
 
 func (x *ProvisionInfo) SetLoggingEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.LoggingEndpoint = v
+	x.xxx_hidden_LoggingEndpoint = v
 }
 
 func (x *ProvisionInfo) SetArtifactEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ArtifactEndpoint = v
+	x.xxx_hidden_ArtifactEndpoint = v
 }
 
 func (x *ProvisionInfo) SetControlEndpoint(v *pipeline_v1.ApiServiceDescriptor) {
-	x.ControlEndpoint = v
+	x.xxx_hidden_ControlEndpoint = v
 }
 
 func (x *ProvisionInfo) SetDependencies(v []*pipeline_v1.ArtifactInformation) {
-	x.Dependencies = v
+	x.xxx_hidden_Dependencies = &v
 }
 
 func (x *ProvisionInfo) SetRunnerCapabilities(v []string) {
-	x.RunnerCapabilities = v
+	x.xxx_hidden_RunnerCapabilities = v
 }
 
 func (x *ProvisionInfo) SetMetadata(v map[string]string) {
-	x.Metadata = v
+	x.xxx_hidden_Metadata = v
 }
 
 func (x *ProvisionInfo) SetSiblingWorkerIds(v []string) {
-	x.SiblingWorkerIds = v
+	x.xxx_hidden_SiblingWorkerIds = v
 }
 
 func (x *ProvisionInfo) HasPipelineOptions() bool {
 	if x == nil {
 		return false
 	}
-	return x.PipelineOptions != nil
+	return x.xxx_hidden_PipelineOptions != nil
 }
 
 func (x *ProvisionInfo) HasStatusEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.StatusEndpoint != nil
+	return x.xxx_hidden_StatusEndpoint != nil
 }
 
 func (x *ProvisionInfo) HasLoggingEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.LoggingEndpoint != nil
+	return x.xxx_hidden_LoggingEndpoint != nil
 }
 
 func (x *ProvisionInfo) HasArtifactEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.ArtifactEndpoint != nil
+	return x.xxx_hidden_ArtifactEndpoint != nil
 }
 
 func (x *ProvisionInfo) HasControlEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.ControlEndpoint != nil
+	return x.xxx_hidden_ControlEndpoint != nil
 }
 
 func (x *ProvisionInfo) ClearPipelineOptions() {
-	x.PipelineOptions = nil
+	x.xxx_hidden_PipelineOptions = nil
 }
 
 func (x *ProvisionInfo) ClearStatusEndpoint() {
-	x.StatusEndpoint = nil
+	x.xxx_hidden_StatusEndpoint = nil
 }
 
 func (x *ProvisionInfo) ClearLoggingEndpoint() {
-	x.LoggingEndpoint = nil
+	x.xxx_hidden_LoggingEndpoint = nil
 }
 
 func (x *ProvisionInfo) ClearArtifactEndpoint() {
-	x.ArtifactEndpoint = nil
+	x.xxx_hidden_ArtifactEndpoint = nil
 }
 
 func (x *ProvisionInfo) ClearControlEndpoint() {
-	x.ControlEndpoint = nil
+	x.xxx_hidden_ControlEndpoint = nil
 }
 
 type ProvisionInfo_builder struct {
@@ -422,16 +405,16 @@ func (b0 ProvisionInfo_builder) Build() *ProvisionInfo {
 	m0 := &ProvisionInfo{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.PipelineOptions = b.PipelineOptions
-	x.RetrievalToken = b.RetrievalToken
-	x.StatusEndpoint = b.StatusEndpoint
-	x.LoggingEndpoint = b.LoggingEndpoint
-	x.ArtifactEndpoint = b.ArtifactEndpoint
-	x.ControlEndpoint = b.ControlEndpoint
-	x.Dependencies = b.Dependencies
-	x.RunnerCapabilities = b.RunnerCapabilities
-	x.Metadata = b.Metadata
-	x.SiblingWorkerIds = b.SiblingWorkerIds
+	x.xxx_hidden_PipelineOptions = b.PipelineOptions
+	x.xxx_hidden_RetrievalToken = b.RetrievalToken
+	x.xxx_hidden_StatusEndpoint = b.StatusEndpoint
+	x.xxx_hidden_LoggingEndpoint = b.LoggingEndpoint
+	x.xxx_hidden_ArtifactEndpoint = b.ArtifactEndpoint
+	x.xxx_hidden_ControlEndpoint = b.ControlEndpoint
+	x.xxx_hidden_Dependencies = &b.Dependencies
+	x.xxx_hidden_RunnerCapabilities = b.RunnerCapabilities
+	x.xxx_hidden_Metadata = b.Metadata
+	x.xxx_hidden_SiblingWorkerIds = b.SiblingWorkerIds
 	return m0
 }
 

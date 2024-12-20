@@ -25,7 +25,7 @@
 // 	protoc        v5.27.3
 // source: org/apache/beam/model/pipeline/v1/beam_runner_api.proto
 
-//go:build !protoopaque
+//go:build protoopaque
 
 package pipeline_v1
 
@@ -1822,7 +1822,7 @@ func (x StandardResourceHints_Enum) Number() protoreflect.EnumNumber {
 }
 
 type BeamConstants struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1867,23 +1867,14 @@ func (b0 BeamConstants_builder) Build() *BeamConstants {
 // A set of mappings from id to message. This is included as an optional field
 // on any proto message that may contain references needing resolution.
 type Components struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A map from pipeline-scoped id to PTransform.
-	//
-	// Keys of the transforms map may be used by runners to identify pipeline
-	// steps. Hence it's recommended to use strings that are not too long that
-	// match regex '[A-Za-z0-9-_]+'.
-	Transforms map[string]*PTransform `protobuf:"bytes,1,rep,name=transforms,proto3" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to PCollection.
-	Pcollections map[string]*PCollection `protobuf:"bytes,2,rep,name=pcollections,proto3" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to WindowingStrategy.
-	WindowingStrategies map[string]*WindowingStrategy `protobuf:"bytes,3,rep,name=windowing_strategies,json=windowingStrategies,proto3" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to Coder.
-	Coders map[string]*Coder `protobuf:"bytes,4,rep,name=coders,proto3" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from pipeline-scoped id to Environment.
-	Environments  map[string]*Environment `protobuf:"bytes,5,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                          protoimpl.MessageState        `protogen:"opaque.v1"`
+	xxx_hidden_Transforms          map[string]*PTransform        `protobuf:"bytes,1,rep,name=transforms,proto3" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Pcollections        map[string]*PCollection       `protobuf:"bytes,2,rep,name=pcollections,proto3" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_WindowingStrategies map[string]*WindowingStrategy `protobuf:"bytes,3,rep,name=windowing_strategies,json=windowingStrategies,proto3" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Coders              map[string]*Coder             `protobuf:"bytes,4,rep,name=coders,proto3" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Environments        map[string]*Environment       `protobuf:"bytes,5,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *Components) Reset() {
@@ -1913,57 +1904,57 @@ func (x *Components) ProtoReflect() protoreflect.Message {
 
 func (x *Components) GetTransforms() map[string]*PTransform {
 	if x != nil {
-		return x.Transforms
+		return x.xxx_hidden_Transforms
 	}
 	return nil
 }
 
 func (x *Components) GetPcollections() map[string]*PCollection {
 	if x != nil {
-		return x.Pcollections
+		return x.xxx_hidden_Pcollections
 	}
 	return nil
 }
 
 func (x *Components) GetWindowingStrategies() map[string]*WindowingStrategy {
 	if x != nil {
-		return x.WindowingStrategies
+		return x.xxx_hidden_WindowingStrategies
 	}
 	return nil
 }
 
 func (x *Components) GetCoders() map[string]*Coder {
 	if x != nil {
-		return x.Coders
+		return x.xxx_hidden_Coders
 	}
 	return nil
 }
 
 func (x *Components) GetEnvironments() map[string]*Environment {
 	if x != nil {
-		return x.Environments
+		return x.xxx_hidden_Environments
 	}
 	return nil
 }
 
 func (x *Components) SetTransforms(v map[string]*PTransform) {
-	x.Transforms = v
+	x.xxx_hidden_Transforms = v
 }
 
 func (x *Components) SetPcollections(v map[string]*PCollection) {
-	x.Pcollections = v
+	x.xxx_hidden_Pcollections = v
 }
 
 func (x *Components) SetWindowingStrategies(v map[string]*WindowingStrategy) {
-	x.WindowingStrategies = v
+	x.xxx_hidden_WindowingStrategies = v
 }
 
 func (x *Components) SetCoders(v map[string]*Coder) {
-	x.Coders = v
+	x.xxx_hidden_Coders = v
 }
 
 func (x *Components) SetEnvironments(v map[string]*Environment) {
-	x.Environments = v
+	x.xxx_hidden_Environments = v
 }
 
 type Components_builder struct {
@@ -1989,11 +1980,11 @@ func (b0 Components_builder) Build() *Components {
 	m0 := &Components{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Transforms = b.Transforms
-	x.Pcollections = b.Pcollections
-	x.WindowingStrategies = b.WindowingStrategies
-	x.Coders = b.Coders
-	x.Environments = b.Environments
+	x.xxx_hidden_Transforms = b.Transforms
+	x.xxx_hidden_Pcollections = b.Pcollections
+	x.xxx_hidden_WindowingStrategies = b.WindowingStrategies
+	x.xxx_hidden_Coders = b.Coders
+	x.xxx_hidden_Environments = b.Environments
 	return m0
 }
 
@@ -2009,25 +2000,13 @@ func (b0 Components_builder) Build() *Components {
 // PCollections, SDK environments, coders, etc., for
 // supporting compact reuse and arbitrary graph structure.
 type Pipeline struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The coders, UDFs, graph nodes, etc, that make up
-	// this pipeline.
-	Components *Components `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
-	// (Required) The ids of all PTransforms that are not contained within another
-	// PTransform. These must be in shallow topological order, so that traversing
-	// them recursively in this order yields a recursively topological traversal.
-	RootTransformIds []string `protobuf:"bytes,2,rep,name=root_transform_ids,json=rootTransformIds,proto3" json:"root_transform_ids,omitempty"`
-	// (Optional) Static display data for the pipeline. If there is none,
-	// it may be omitted.
-	DisplayData []*DisplayData `protobuf:"bytes,3,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
-	// (Optional) A set of requirements that the runner MUST understand and be
-	// able to faithfully provide in order to execute this pipeline. These
-	// may indicate that a runner must inspect new fields on a component or
-	// provide additional guarantees when processing specific transforms.
-	// A runner should reject any pipelines with unknown requirements.
-	Requirements  []string `protobuf:"bytes,4,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Components       *Components            `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
+	xxx_hidden_RootTransformIds []string               `protobuf:"bytes,2,rep,name=root_transform_ids,json=rootTransformIds,proto3" json:"root_transform_ids,omitempty"`
+	xxx_hidden_DisplayData      *[]*DisplayData        `protobuf:"bytes,3,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
+	xxx_hidden_Requirements     []string               `protobuf:"bytes,4,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *Pipeline) Reset() {
@@ -2057,57 +2036,59 @@ func (x *Pipeline) ProtoReflect() protoreflect.Message {
 
 func (x *Pipeline) GetComponents() *Components {
 	if x != nil {
-		return x.Components
+		return x.xxx_hidden_Components
 	}
 	return nil
 }
 
 func (x *Pipeline) GetRootTransformIds() []string {
 	if x != nil {
-		return x.RootTransformIds
+		return x.xxx_hidden_RootTransformIds
 	}
 	return nil
 }
 
 func (x *Pipeline) GetDisplayData() []*DisplayData {
 	if x != nil {
-		return x.DisplayData
+		if x.xxx_hidden_DisplayData != nil {
+			return *x.xxx_hidden_DisplayData
+		}
 	}
 	return nil
 }
 
 func (x *Pipeline) GetRequirements() []string {
 	if x != nil {
-		return x.Requirements
+		return x.xxx_hidden_Requirements
 	}
 	return nil
 }
 
 func (x *Pipeline) SetComponents(v *Components) {
-	x.Components = v
+	x.xxx_hidden_Components = v
 }
 
 func (x *Pipeline) SetRootTransformIds(v []string) {
-	x.RootTransformIds = v
+	x.xxx_hidden_RootTransformIds = v
 }
 
 func (x *Pipeline) SetDisplayData(v []*DisplayData) {
-	x.DisplayData = v
+	x.xxx_hidden_DisplayData = &v
 }
 
 func (x *Pipeline) SetRequirements(v []string) {
-	x.Requirements = v
+	x.xxx_hidden_Requirements = v
 }
 
 func (x *Pipeline) HasComponents() bool {
 	if x == nil {
 		return false
 	}
-	return x.Components != nil
+	return x.xxx_hidden_Components != nil
 }
 
 func (x *Pipeline) ClearComponents() {
-	x.Components = nil
+	x.xxx_hidden_Components = nil
 }
 
 type Pipeline_builder struct {
@@ -2135,10 +2116,10 @@ func (b0 Pipeline_builder) Build() *Pipeline {
 	m0 := &Pipeline{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Components = b.Components
-	x.RootTransformIds = b.RootTransformIds
-	x.DisplayData = b.DisplayData
-	x.Requirements = b.Requirements
+	x.xxx_hidden_Components = b.Components
+	x.xxx_hidden_RootTransformIds = b.RootTransformIds
+	x.xxx_hidden_DisplayData = &b.DisplayData
+	x.xxx_hidden_Requirements = b.Requirements
 	return m0
 }
 
@@ -2160,77 +2141,17 @@ func (b0 Pipeline_builder) Build() *Pipeline {
 // collection. You can also define your own more complex composite transforms to
 // fit your pipeline’s exact use case.
 type PTransform struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A unique name for the application node.
-	//
-	// Ideally, this should be stable over multiple evolutions of a pipeline
-	// for the purposes of logging and associating pipeline state with a node,
-	// etc.
-	//
-	// If it is not stable, then the runner decides what will happen. But, most
-	// importantly, it must always be here and be unique, even if it is
-	// autogenerated.
-	UniqueName string `protobuf:"bytes,5,opt,name=unique_name,json=uniqueName,proto3" json:"unique_name,omitempty"`
-	// (Optional) A URN and payload that, together, fully defined the semantics
-	// of this transform.
-	//
-	// If absent, this must be an "anonymous" composite transform.
-	//
-	// For primitive transform in the Runner API, this is required, and the
-	// payloads are well-defined messages. When the URN indicates ParDo it
-	// is a ParDoPayload, and so on. For some special composite transforms,
-	// the payload is also officially defined. See StandardPTransforms for
-	// details.
-	Spec *FunctionSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
-	// (Optional) A list of the ids of transforms that it contains.
-	//
-	// Primitive transforms (see StandardPTransforms.Primitives) are not allowed
-	// to specify subtransforms.
-	//
-	// Note that a composite transform may have zero subtransforms as long as it
-	// only outputs PCollections that are in its inputs.
-	Subtransforms []string `protobuf:"bytes,2,rep,name=subtransforms,proto3" json:"subtransforms,omitempty"`
-	// (Required) A map from local names of inputs (unique only with this map, and
-	// likely embedded in the transform payload and serialized user code) to
-	// PCollection ids.
-	//
-	// The payload for this transform may clarify the relationship of these
-	// inputs. For example:
-	//
-	//   - for a Flatten transform they are merged
-	//   - for a ParDo transform, some may be side inputs
-	//
-	// All inputs are recorded here so that the topological ordering of
-	// the graph is consistent whether or not the payload is understood.
-	Inputs map[string]string `protobuf:"bytes,3,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Required) A map from local names of outputs (unique only within this map,
-	// and likely embedded in the transform payload and serialized user code)
-	// to PCollection ids.
-	//
-	// The URN or payload for this transform node may clarify the type and
-	// relationship of these outputs. For example:
-	//
-	//   - for a ParDo transform, these are tags on PCollections, which will be
-	//     embedded in the DoFn.
-	Outputs map[string]string `protobuf:"bytes,4,rep,name=outputs,proto3" json:"outputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Optional) Static display data for this PTransform application. If
-	// there is none, it may be omitted.
-	DisplayData []*DisplayData `protobuf:"bytes,6,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
-	// Environment where the current PTransform should be executed in.
-	//
-	// Transforms that are required to be implemented by a runner must omit this.
-	// All other transforms are required to specify this.
-	EnvironmentId string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	// (Optional) A map from URNs designating a type of annotation, to the
-	// annotation in binary format. For example, an annotation could indicate
-	// that this PTransform has specific privacy properties.
-	//
-	// A runner MAY ignore types of annotations it doesn't understand. Therefore
-	// annotations MUST NOT be used for metadata that can affect correct
-	// execution of the transform.
-	Annotations   map[string][]byte `protobuf:"bytes,8,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_UniqueName    string                 `protobuf:"bytes,5,opt,name=unique_name,json=uniqueName,proto3" json:"unique_name,omitempty"`
+	xxx_hidden_Spec          *FunctionSpec          `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	xxx_hidden_Subtransforms []string               `protobuf:"bytes,2,rep,name=subtransforms,proto3" json:"subtransforms,omitempty"`
+	xxx_hidden_Inputs        map[string]string      `protobuf:"bytes,3,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Outputs       map[string]string      `protobuf:"bytes,4,rep,name=outputs,proto3" json:"outputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_DisplayData   *[]*DisplayData        `protobuf:"bytes,6,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
+	xxx_hidden_EnvironmentId string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	xxx_hidden_Annotations   map[string][]byte      `protobuf:"bytes,8,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *PTransform) Reset() {
@@ -2260,101 +2181,103 @@ func (x *PTransform) ProtoReflect() protoreflect.Message {
 
 func (x *PTransform) GetUniqueName() string {
 	if x != nil {
-		return x.UniqueName
+		return x.xxx_hidden_UniqueName
 	}
 	return ""
 }
 
 func (x *PTransform) GetSpec() *FunctionSpec {
 	if x != nil {
-		return x.Spec
+		return x.xxx_hidden_Spec
 	}
 	return nil
 }
 
 func (x *PTransform) GetSubtransforms() []string {
 	if x != nil {
-		return x.Subtransforms
+		return x.xxx_hidden_Subtransforms
 	}
 	return nil
 }
 
 func (x *PTransform) GetInputs() map[string]string {
 	if x != nil {
-		return x.Inputs
+		return x.xxx_hidden_Inputs
 	}
 	return nil
 }
 
 func (x *PTransform) GetOutputs() map[string]string {
 	if x != nil {
-		return x.Outputs
+		return x.xxx_hidden_Outputs
 	}
 	return nil
 }
 
 func (x *PTransform) GetDisplayData() []*DisplayData {
 	if x != nil {
-		return x.DisplayData
+		if x.xxx_hidden_DisplayData != nil {
+			return *x.xxx_hidden_DisplayData
+		}
 	}
 	return nil
 }
 
 func (x *PTransform) GetEnvironmentId() string {
 	if x != nil {
-		return x.EnvironmentId
+		return x.xxx_hidden_EnvironmentId
 	}
 	return ""
 }
 
 func (x *PTransform) GetAnnotations() map[string][]byte {
 	if x != nil {
-		return x.Annotations
+		return x.xxx_hidden_Annotations
 	}
 	return nil
 }
 
 func (x *PTransform) SetUniqueName(v string) {
-	x.UniqueName = v
+	x.xxx_hidden_UniqueName = v
 }
 
 func (x *PTransform) SetSpec(v *FunctionSpec) {
-	x.Spec = v
+	x.xxx_hidden_Spec = v
 }
 
 func (x *PTransform) SetSubtransforms(v []string) {
-	x.Subtransforms = v
+	x.xxx_hidden_Subtransforms = v
 }
 
 func (x *PTransform) SetInputs(v map[string]string) {
-	x.Inputs = v
+	x.xxx_hidden_Inputs = v
 }
 
 func (x *PTransform) SetOutputs(v map[string]string) {
-	x.Outputs = v
+	x.xxx_hidden_Outputs = v
 }
 
 func (x *PTransform) SetDisplayData(v []*DisplayData) {
-	x.DisplayData = v
+	x.xxx_hidden_DisplayData = &v
 }
 
 func (x *PTransform) SetEnvironmentId(v string) {
-	x.EnvironmentId = v
+	x.xxx_hidden_EnvironmentId = v
 }
 
 func (x *PTransform) SetAnnotations(v map[string][]byte) {
-	x.Annotations = v
+	x.xxx_hidden_Annotations = v
 }
 
 func (x *PTransform) HasSpec() bool {
 	if x == nil {
 		return false
 	}
-	return x.Spec != nil
+	return x.xxx_hidden_Spec != nil
 }
 
 func (x *PTransform) ClearSpec() {
-	x.Spec = nil
+	x.xxx_hidden_Spec = nil
 }
 
 type PTransform_builder struct {
@@ -2434,19 +2357,19 @@ func (b0 PTransform_builder) Build() *PTransform {
 	m0 := &PTransform{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.UniqueName = b.UniqueName
-	x.Spec = b.Spec
-	x.Subtransforms = b.Subtransforms
-	x.Inputs = b.Inputs
-	x.Outputs = b.Outputs
-	x.DisplayData = b.DisplayData
-	x.EnvironmentId = b.EnvironmentId
-	x.Annotations = b.Annotations
+	x.xxx_hidden_UniqueName = b.UniqueName
+	x.xxx_hidden_Spec = b.Spec
+	x.xxx_hidden_Subtransforms = b.Subtransforms
+	x.xxx_hidden_Inputs = b.Inputs
+	x.xxx_hidden_Outputs = b.Outputs
+	x.xxx_hidden_DisplayData = &b.DisplayData
+	x.xxx_hidden_EnvironmentId = b.EnvironmentId
+	x.xxx_hidden_Annotations = b.Annotations
 	return m0
 }
 
 type StandardPTransforms struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2489,7 +2412,7 @@ func (b0 StandardPTransforms_builder) Build() *StandardPTransforms {
 }
 
 type StandardSideInputTypes struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2532,7 +2455,7 @@ func (b0 StandardSideInputTypes_builder) Build() *StandardSideInputTypes {
 }
 
 type StandardUserStateTypes struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2576,27 +2499,14 @@ func (b0 StandardUserStateTypes_builder) Build() *StandardUserStateTypes {
 
 // A PCollection!
 type PCollection struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A unique name for the PCollection.
-	//
-	// Ideally, this should be stable over multiple evolutions of a pipeline
-	// for the purposes of logging and associating pipeline state with a node,
-	// etc.
-	//
-	// If it is not stable, then the runner decides what will happen. But, most
-	// importantly, it must always be here, even if it is autogenerated.
-	UniqueName string `protobuf:"bytes,1,opt,name=unique_name,json=uniqueName,proto3" json:"unique_name,omitempty"`
-	// (Required) The id of the Coder for this PCollection.
-	CoderId string `protobuf:"bytes,2,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
-	// (Required) Whether this PCollection is bounded or unbounded
-	IsBounded IsBounded_Enum `protobuf:"varint,3,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
-	// (Required) The id of the windowing strategy for this PCollection.
-	WindowingStrategyId string `protobuf:"bytes,4,opt,name=windowing_strategy_id,json=windowingStrategyId,proto3" json:"windowing_strategy_id,omitempty"`
-	// (Optional) Static display data for the PCollection. If there is none,
-	// it may be omitted.
-	DisplayData   []*DisplayData `protobuf:"bytes,5,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                          protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_UniqueName          string                 `protobuf:"bytes,1,opt,name=unique_name,json=uniqueName,proto3" json:"unique_name,omitempty"`
+	xxx_hidden_CoderId             string                 `protobuf:"bytes,2,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
+	xxx_hidden_IsBounded           IsBounded_Enum         `protobuf:"varint,3,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
+	xxx_hidden_WindowingStrategyId string                 `protobuf:"bytes,4,opt,name=windowing_strategy_id,json=windowingStrategyId,proto3" json:"windowing_strategy_id,omitempty"`
+	xxx_hidden_DisplayData         *[]*DisplayData        `protobuf:"bytes,5,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *PCollection) Reset() {
@@ -2626,57 +2536,59 @@ func (x *PCollection) ProtoReflect() protoreflect.Message {
 
 func (x *PCollection) GetUniqueName() string {
 	if x != nil {
-		return x.UniqueName
+		return x.xxx_hidden_UniqueName
 	}
 	return ""
 }
 
 func (x *PCollection) GetCoderId() string {
 	if x != nil {
-		return x.CoderId
+		return x.xxx_hidden_CoderId
 	}
 	return ""
 }
 
 func (x *PCollection) GetIsBounded() IsBounded_Enum {
 	if x != nil {
-		return x.IsBounded
+		return x.xxx_hidden_IsBounded
 	}
 	return IsBounded_UNSPECIFIED
 }
 
 func (x *PCollection) GetWindowingStrategyId() string {
 	if x != nil {
-		return x.WindowingStrategyId
+		return x.xxx_hidden_WindowingStrategyId
 	}
 	return ""
 }
 
 func (x *PCollection) GetDisplayData() []*DisplayData {
 	if x != nil {
-		return x.DisplayData
+		if x.xxx_hidden_DisplayData != nil {
+			return *x.xxx_hidden_DisplayData
+		}
 	}
 	return nil
 }
 
 func (x *PCollection) SetUniqueName(v string) {
-	x.UniqueName = v
+	x.xxx_hidden_UniqueName = v
 }
 
 func (x *PCollection) SetCoderId(v string) {
-	x.CoderId = v
+	x.xxx_hidden_CoderId = v
 }
 
 func (x *PCollection) SetIsBounded(v IsBounded_Enum) {
-	x.IsBounded = v
+	x.xxx_hidden_IsBounded = v
 }
 
 func (x *PCollection) SetWindowingStrategyId(v string) {
-	x.WindowingStrategyId = v
+	x.xxx_hidden_WindowingStrategyId = v
 }
 
 func (x *PCollection) SetDisplayData(v []*DisplayData) {
-	x.DisplayData = v
+	x.xxx_hidden_DisplayData = &v
 }
 
 type PCollection_builder struct {
@@ -2706,53 +2618,28 @@ func (b0 PCollection_builder) Build() *PCollection {
 	m0 := &PCollection{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.UniqueName = b.UniqueName
-	x.CoderId = b.CoderId
-	x.IsBounded = b.IsBounded
-	x.WindowingStrategyId = b.WindowingStrategyId
-	x.DisplayData = b.DisplayData
+	x.xxx_hidden_UniqueName = b.UniqueName
+	x.xxx_hidden_CoderId = b.CoderId
+	x.xxx_hidden_IsBounded = b.IsBounded
+	x.xxx_hidden_WindowingStrategyId = b.WindowingStrategyId
+	x.xxx_hidden_DisplayData = &b.DisplayData
 	return m0
 }
 
 // The payload for the primitive ParDo transform.
 type ParDoPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The FunctionSpec of the DoFn.
-	DoFn *FunctionSpec `protobuf:"bytes,1,opt,name=do_fn,json=doFn,proto3" json:"do_fn,omitempty"`
-	// (Optional) A mapping of local input names to side inputs, describing
-	// the expected access pattern.
-	SideInputs map[string]*SideInput `protobuf:"bytes,3,rep,name=side_inputs,json=sideInputs,proto3" json:"side_inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Optional) A mapping of local state names to state specifications.
-	// If this is set, the stateful processing requirement should also
-	// be placed in the pipeline requirements.
-	StateSpecs map[string]*StateSpec `protobuf:"bytes,4,rep,name=state_specs,json=stateSpecs,proto3" json:"state_specs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Optional) A mapping of local timer family names to timer family
-	// specifications. If this is set, the stateful processing requirement should
-	// also be placed in the pipeline requirements.
-	TimerFamilySpecs map[string]*TimerFamilySpec `protobuf:"bytes,9,rep,name=timer_family_specs,json=timerFamilySpecs,proto3" json:"timer_family_specs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// (Optional) Only set when this ParDo contains a splittable DoFn.
-	// If this is set, the corresponding standard requirement should also
-	// be placed in the pipeline requirements.
-	RestrictionCoderId string `protobuf:"bytes,7,opt,name=restriction_coder_id,json=restrictionCoderId,proto3" json:"restriction_coder_id,omitempty"`
-	// (Optional) Only set when this ParDo can request bundle finalization.
-	// If this is set, the corresponding standard requirement should also
-	// be placed in the pipeline requirements.
-	RequestsFinalization bool `protobuf:"varint,8,opt,name=requests_finalization,json=requestsFinalization,proto3" json:"requests_finalization,omitempty"`
-	// Whether this stage requires time sorted input.
-	// If this is set, the corresponding standard requirement should also
-	// be placed in the pipeline requirements.
-	RequiresTimeSortedInput bool `protobuf:"varint,10,opt,name=requires_time_sorted_input,json=requiresTimeSortedInput,proto3" json:"requires_time_sorted_input,omitempty"`
-	// Whether this stage requires stable input.
-	// If this is set, the corresponding standard requirement should also
-	// be placed in the pipeline requirements.
-	RequiresStableInput bool `protobuf:"varint,11,opt,name=requires_stable_input,json=requiresStableInput,proto3" json:"requires_stable_input,omitempty"`
-	// If populated, the name of the timer family spec which should be notified
-	// on each window expiry.
-	// If this is set, the corresponding standard requirement should also
-	// be placed in the pipeline requirements.
-	OnWindowExpirationTimerFamilySpec string `protobuf:"bytes,12,opt,name=on_window_expiration_timer_family_spec,json=onWindowExpirationTimerFamilySpec,proto3" json:"on_window_expiration_timer_family_spec,omitempty"`
-	unknownFields                     protoimpl.UnknownFields
-	sizeCache                         protoimpl.SizeCache
+	state                                        protoimpl.MessageState      `protogen:"opaque.v1"`
+	xxx_hidden_DoFn                              *FunctionSpec               `protobuf:"bytes,1,opt,name=do_fn,json=doFn,proto3" json:"do_fn,omitempty"`
+	xxx_hidden_SideInputs                        map[string]*SideInput       `protobuf:"bytes,3,rep,name=side_inputs,json=sideInputs,proto3" json:"side_inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_StateSpecs                        map[string]*StateSpec       `protobuf:"bytes,4,rep,name=state_specs,json=stateSpecs,proto3" json:"state_specs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_TimerFamilySpecs                  map[string]*TimerFamilySpec `protobuf:"bytes,9,rep,name=timer_family_specs,json=timerFamilySpecs,proto3" json:"timer_family_specs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_RestrictionCoderId                string                      `protobuf:"bytes,7,opt,name=restriction_coder_id,json=restrictionCoderId,proto3" json:"restriction_coder_id,omitempty"`
+	xxx_hidden_RequestsFinalization              bool                        `protobuf:"varint,8,opt,name=requests_finalization,json=requestsFinalization,proto3" json:"requests_finalization,omitempty"`
+	xxx_hidden_RequiresTimeSortedInput           bool                        `protobuf:"varint,10,opt,name=requires_time_sorted_input,json=requiresTimeSortedInput,proto3" json:"requires_time_sorted_input,omitempty"`
+	xxx_hidden_RequiresStableInput               bool                        `protobuf:"varint,11,opt,name=requires_stable_input,json=requiresStableInput,proto3" json:"requires_stable_input,omitempty"`
+	xxx_hidden_OnWindowExpirationTimerFamilySpec string                      `protobuf:"bytes,12,opt,name=on_window_expiration_timer_family_spec,json=onWindowExpirationTimerFamilySpec,proto3" json:"on_window_expiration_timer_family_spec,omitempty"`
+	unknownFields                                protoimpl.UnknownFields
+	sizeCache                                    protoimpl.SizeCache
 }
 
 func (x *ParDoPayload) Reset() {
@@ -2782,112 +2669,112 @@ func (x *ParDoPayload) ProtoReflect() protoreflect.Message {
 
 func (x *ParDoPayload) GetDoFn() *FunctionSpec {
 	if x != nil {
-		return x.DoFn
+		return x.xxx_hidden_DoFn
 	}
 	return nil
 }
 
 func (x *ParDoPayload) GetSideInputs() map[string]*SideInput {
 	if x != nil {
-		return x.SideInputs
+		return x.xxx_hidden_SideInputs
 	}
 	return nil
 }
 
 func (x *ParDoPayload) GetStateSpecs() map[string]*StateSpec {
 	if x != nil {
-		return x.StateSpecs
+		return x.xxx_hidden_StateSpecs
 	}
 	return nil
 }
 
 func (x *ParDoPayload) GetTimerFamilySpecs() map[string]*TimerFamilySpec {
 	if x != nil {
-		return x.TimerFamilySpecs
+		return x.xxx_hidden_TimerFamilySpecs
 	}
 	return nil
 }
 
 func (x *ParDoPayload) GetRestrictionCoderId() string {
 	if x != nil {
-		return x.RestrictionCoderId
+		return x.xxx_hidden_RestrictionCoderId
 	}
 	return ""
 }
 
 func (x *ParDoPayload) GetRequestsFinalization() bool {
 	if x != nil {
-		return x.RequestsFinalization
+		return x.xxx_hidden_RequestsFinalization
 	}
 	return false
 }
 
 func (x *ParDoPayload) GetRequiresTimeSortedInput() bool {
 	if x != nil {
-		return x.RequiresTimeSortedInput
+		return x.xxx_hidden_RequiresTimeSortedInput
 	}
 	return false
 }
 
 func (x *ParDoPayload) GetRequiresStableInput() bool {
 	if x != nil {
-		return x.RequiresStableInput
+		return x.xxx_hidden_RequiresStableInput
 	}
 	return false
 }
 
 func (x *ParDoPayload) GetOnWindowExpirationTimerFamilySpec() string {
 	if x != nil {
-		return x.OnWindowExpirationTimerFamilySpec
+		return x.xxx_hidden_OnWindowExpirationTimerFamilySpec
 	}
 	return ""
 }
 
 func (x *ParDoPayload) SetDoFn(v *FunctionSpec) {
-	x.DoFn = v
+	x.xxx_hidden_DoFn = v
 }
 
 func (x *ParDoPayload) SetSideInputs(v map[string]*SideInput) {
-	x.SideInputs = v
+	x.xxx_hidden_SideInputs = v
 }
 
 func (x *ParDoPayload) SetStateSpecs(v map[string]*StateSpec) {
-	x.StateSpecs = v
+	x.xxx_hidden_StateSpecs = v
 }
 
 func (x *ParDoPayload) SetTimerFamilySpecs(v map[string]*TimerFamilySpec) {
-	x.TimerFamilySpecs = v
+	x.xxx_hidden_TimerFamilySpecs = v
 }
 
 func (x *ParDoPayload) SetRestrictionCoderId(v string) {
-	x.RestrictionCoderId = v
+	x.xxx_hidden_RestrictionCoderId = v
 }
 
 func (x *ParDoPayload) SetRequestsFinalization(v bool) {
-	x.RequestsFinalization = v
+	x.xxx_hidden_RequestsFinalization = v
 }
 
 func (x *ParDoPayload) SetRequiresTimeSortedInput(v bool) {
-	x.RequiresTimeSortedInput = v
+	x.xxx_hidden_RequiresTimeSortedInput = v
 }
 
 func (x *ParDoPayload) SetRequiresStableInput(v bool) {
-	x.RequiresStableInput = v
+	x.xxx_hidden_RequiresStableInput = v
 }
 
 func (x *ParDoPayload) SetOnWindowExpirationTimerFamilySpec(v string) {
-	x.OnWindowExpirationTimerFamilySpec = v
+	x.xxx_hidden_OnWindowExpirationTimerFamilySpec = v
 }
 
 func (x *ParDoPayload) HasDoFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.DoFn != nil
+	return x.xxx_hidden_DoFn != nil
 }
 
 func (x *ParDoPayload) ClearDoFn() {
-	x.DoFn = nil
+	x.xxx_hidden_DoFn = nil
 }
 
 type ParDoPayload_builder struct {
@@ -2933,43 +2820,24 @@ func (b0 ParDoPayload_builder) Build() *ParDoPayload {
 	m0 := &ParDoPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.DoFn = b.DoFn
-	x.SideInputs = b.SideInputs
-	x.StateSpecs = b.StateSpecs
-	x.TimerFamilySpecs = b.TimerFamilySpecs
-	x.RestrictionCoderId = b.RestrictionCoderId
-	x.RequestsFinalization = b.RequestsFinalization
-	x.RequiresTimeSortedInput = b.RequiresTimeSortedInput
-	x.RequiresStableInput = b.RequiresStableInput
-	x.OnWindowExpirationTimerFamilySpec = b.OnWindowExpirationTimerFamilySpec
+	x.xxx_hidden_DoFn = b.DoFn
+	x.xxx_hidden_SideInputs = b.SideInputs
+	x.xxx_hidden_StateSpecs = b.StateSpecs
+	x.xxx_hidden_TimerFamilySpecs = b.TimerFamilySpecs
+	x.xxx_hidden_RestrictionCoderId = b.RestrictionCoderId
+	x.xxx_hidden_RequestsFinalization = b.RequestsFinalization
+	x.xxx_hidden_RequiresTimeSortedInput = b.RequiresTimeSortedInput
+	x.xxx_hidden_RequiresStableInput = b.RequiresStableInput
+	x.xxx_hidden_OnWindowExpirationTimerFamilySpec = b.OnWindowExpirationTimerFamilySpec
 	return m0
 }
 
 type StateSpec struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// TODO(BEAM-13930): Deprecate and remove these state specs
-	//
-	// Types that are valid to be assigned to Spec:
-	//
-	//	*StateSpec_ReadModifyWriteSpec
-	//	*StateSpec_BagSpec
-	//	*StateSpec_CombiningSpec
-	//	*StateSpec_MapSpec
-	//	*StateSpec_SetSpec
-	//	*StateSpec_OrderedListSpec
-	//	*StateSpec_MultimapSpec
-	Spec isStateSpec_Spec `protobuf_oneof:"spec"`
-	// (Required) URN of the protocol required by this state specification to present
-	// the desired SDK-specific interface to a UDF.
-	//
-	// This protocol defines the SDK harness <-> Runner Harness RPC
-	// interface for accessing and mutating user state.
-	//
-	// See StandardUserStateTypes for an enumeration of all user state types
-	// defined.
-	Protocol      *FunctionSpec `protobuf:"bytes,7,opt,name=protocol,proto3" json:"protocol,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Spec     isStateSpec_Spec       `protobuf_oneof:"spec"`
+	xxx_hidden_Protocol *FunctionSpec          `protobuf:"bytes,7,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StateSpec) Reset() {
@@ -2997,16 +2865,9 @@ func (x *StateSpec) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *StateSpec) GetSpec() isStateSpec_Spec {
-	if x != nil {
-		return x.Spec
-	}
-	return nil
-}
-
 func (x *StateSpec) GetReadModifyWriteSpec() *ReadModifyWriteStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_ReadModifyWriteSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_ReadModifyWriteSpec); ok {
 			return x.ReadModifyWriteSpec
 		}
 	}
@@ -3015,7 +2876,7 @@ func (x *StateSpec) GetReadModifyWriteSpec() *ReadModifyWriteStateSpec {
 
 func (x *StateSpec) GetBagSpec() *BagStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_BagSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_BagSpec); ok {
 			return x.BagSpec
 		}
 	}
@@ -3024,7 +2885,7 @@ func (x *StateSpec) GetBagSpec() *BagStateSpec {
 
 func (x *StateSpec) GetCombiningSpec() *CombiningStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_CombiningSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_CombiningSpec); ok {
 			return x.CombiningSpec
 		}
 	}
@@ -3033,7 +2894,7 @@ func (x *StateSpec) GetCombiningSpec() *CombiningStateSpec {
 
 func (x *StateSpec) GetMapSpec() *MapStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_MapSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_MapSpec); ok {
 			return x.MapSpec
 		}
 	}
@@ -3042,7 +2903,7 @@ func (x *StateSpec) GetMapSpec() *MapStateSpec {
 
 func (x *StateSpec) GetSetSpec() *SetStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_SetSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_SetSpec); ok {
 			return x.SetSpec
 		}
 	}
@@ -3051,7 +2912,7 @@ func (x *StateSpec) GetSetSpec() *SetStateSpec {
 
 func (x *StateSpec) GetOrderedListSpec() *OrderedListStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_OrderedListSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_OrderedListSpec); ok {
 			return x.OrderedListSpec
 		}
 	}
@@ -3060,7 +2921,7 @@ func (x *StateSpec) GetOrderedListSpec() *OrderedListStateSpec {
 
 func (x *StateSpec) GetMultimapSpec() *MultimapStateSpec {
 	if x != nil {
-		if x, ok := x.Spec.(*StateSpec_MultimapSpec); ok {
+		if x, ok := x.xxx_hidden_Spec.(*stateSpec_MultimapSpec); ok {
 			return x.MultimapSpec
 		}
 	}
@@ -3069,83 +2930,83 @@ func (x *StateSpec) GetMultimapSpec() *MultimapStateSpec {
 
 func (x *StateSpec) GetProtocol() *FunctionSpec {
 	if x != nil {
-		return x.Protocol
+		return x.xxx_hidden_Protocol
 	}
 	return nil
 }
 
 func (x *StateSpec) SetReadModifyWriteSpec(v *ReadModifyWriteStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_ReadModifyWriteSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_ReadModifyWriteSpec{v}
 }
 
 func (x *StateSpec) SetBagSpec(v *BagStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_BagSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_BagSpec{v}
 }
 
 func (x *StateSpec) SetCombiningSpec(v *CombiningStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_CombiningSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_CombiningSpec{v}
 }
 
 func (x *StateSpec) SetMapSpec(v *MapStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_MapSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_MapSpec{v}
 }
 
 func (x *StateSpec) SetSetSpec(v *SetStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_SetSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_SetSpec{v}
 }
 
 func (x *StateSpec) SetOrderedListSpec(v *OrderedListStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_OrderedListSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_OrderedListSpec{v}
 }
 
 func (x *StateSpec) SetMultimapSpec(v *MultimapStateSpec) {
 	if v == nil {
-		x.Spec = nil
+		x.xxx_hidden_Spec = nil
 		return
 	}
-	x.Spec = &StateSpec_MultimapSpec{v}
+	x.xxx_hidden_Spec = &stateSpec_MultimapSpec{v}
 }
 
 func (x *StateSpec) SetProtocol(v *FunctionSpec) {
-	x.Protocol = v
+	x.xxx_hidden_Protocol = v
 }
 
 func (x *StateSpec) HasSpec() bool {
 	if x == nil {
 		return false
 	}
-	return x.Spec != nil
+	return x.xxx_hidden_Spec != nil
 }
 
 func (x *StateSpec) HasReadModifyWriteSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_ReadModifyWriteSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_ReadModifyWriteSpec)
 	return ok
 }
 
@@ -3153,7 +3014,7 @@ func (x *StateSpec) HasBagSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_BagSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_BagSpec)
 	return ok
 }
 
@@ -3161,7 +3022,7 @@ func (x *StateSpec) HasCombiningSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_CombiningSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_CombiningSpec)
 	return ok
 }
 
@@ -3169,7 +3030,7 @@ func (x *StateSpec) HasMapSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_MapSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_MapSpec)
 	return ok
 }
 
@@ -3177,7 +3038,7 @@ func (x *StateSpec) HasSetSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_SetSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_SetSpec)
 	return ok
 }
 
@@ -3185,7 +3046,7 @@ func (x *StateSpec) HasOrderedListSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_OrderedListSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_OrderedListSpec)
 	return ok
 }
 
@@ -3193,7 +3054,7 @@ func (x *StateSpec) HasMultimapSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Spec.(*StateSpec_MultimapSpec)
+	_, ok := x.xxx_hidden_Spec.(*stateSpec_MultimapSpec)
 	return ok
 }
 
@@ -3201,57 +3062,57 @@ func (x *StateSpec) HasProtocol() bool {
 	if x == nil {
 		return false
 	}
-	return x.Protocol != nil
+	return x.xxx_hidden_Protocol != nil
 }
 
 func (x *StateSpec) ClearSpec() {
-	x.Spec = nil
+	x.xxx_hidden_Spec = nil
 }
 
 func (x *StateSpec) ClearReadModifyWriteSpec() {
-	if _, ok := x.Spec.(*StateSpec_ReadModifyWriteSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_ReadModifyWriteSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearBagSpec() {
-	if _, ok := x.Spec.(*StateSpec_BagSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_BagSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearCombiningSpec() {
-	if _, ok := x.Spec.(*StateSpec_CombiningSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_CombiningSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearMapSpec() {
-	if _, ok := x.Spec.(*StateSpec_MapSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_MapSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearSetSpec() {
-	if _, ok := x.Spec.(*StateSpec_SetSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_SetSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearOrderedListSpec() {
-	if _, ok := x.Spec.(*StateSpec_OrderedListSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_OrderedListSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearMultimapSpec() {
-	if _, ok := x.Spec.(*StateSpec_MultimapSpec); ok {
-		x.Spec = nil
+	if _, ok := x.xxx_hidden_Spec.(*stateSpec_MultimapSpec); ok {
+		x.xxx_hidden_Spec = nil
 	}
 }
 
 func (x *StateSpec) ClearProtocol() {
-	x.Protocol = nil
+	x.xxx_hidden_Protocol = nil
 }
 
 const StateSpec_Spec_not_set_case case_StateSpec_Spec = 0
@@ -3267,20 +3128,20 @@ func (x *StateSpec) WhichSpec() case_StateSpec_Spec {
 	if x == nil {
 		return StateSpec_Spec_not_set_case
 	}
-	switch x.Spec.(type) {
-	case *StateSpec_ReadModifyWriteSpec:
+	switch x.xxx_hidden_Spec.(type) {
+	case *stateSpec_ReadModifyWriteSpec:
 		return StateSpec_ReadModifyWriteSpec_case
-	case *StateSpec_BagSpec:
+	case *stateSpec_BagSpec:
 		return StateSpec_BagSpec_case
-	case *StateSpec_CombiningSpec:
+	case *stateSpec_CombiningSpec:
 		return StateSpec_CombiningSpec_case
-	case *StateSpec_MapSpec:
+	case *stateSpec_MapSpec:
 		return StateSpec_MapSpec_case
-	case *StateSpec_SetSpec:
+	case *stateSpec_SetSpec:
 		return StateSpec_SetSpec_case
-	case *StateSpec_OrderedListSpec:
+	case *stateSpec_OrderedListSpec:
 		return StateSpec_OrderedListSpec_case
-	case *StateSpec_MultimapSpec:
+	case *stateSpec_MultimapSpec:
 		return StateSpec_MultimapSpec_case
 	default:
 		return StateSpec_Spec_not_set_case
@@ -3292,7 +3153,7 @@ type StateSpec_builder struct {
 
 	// TODO(BEAM-13930): Deprecate and remove these state specs
 
-	// Fields of oneof Spec:
+	// Fields of oneof xxx_hidden_Spec:
 	ReadModifyWriteSpec *ReadModifyWriteStateSpec
 	BagSpec             *BagStateSpec
 	CombiningSpec       *CombiningStateSpec
@@ -3300,7 +3161,7 @@ type StateSpec_builder struct {
 	SetSpec             *SetStateSpec
 	OrderedListSpec     *OrderedListStateSpec
 	MultimapSpec        *MultimapStateSpec
-	// -- end of Spec
+	// -- end of xxx_hidden_Spec
 	// (Required) URN of the protocol required by this state specification to present
 	// the desired SDK-specific interface to a UDF.
 	//
@@ -3317,27 +3178,27 @@ func (b0 StateSpec_builder) Build() *StateSpec {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.ReadModifyWriteSpec != nil {
-		x.Spec = &StateSpec_ReadModifyWriteSpec{b.ReadModifyWriteSpec}
+		x.xxx_hidden_Spec = &stateSpec_ReadModifyWriteSpec{b.ReadModifyWriteSpec}
 	}
 	if b.BagSpec != nil {
-		x.Spec = &StateSpec_BagSpec{b.BagSpec}
+		x.xxx_hidden_Spec = &stateSpec_BagSpec{b.BagSpec}
 	}
 	if b.CombiningSpec != nil {
-		x.Spec = &StateSpec_CombiningSpec{b.CombiningSpec}
+		x.xxx_hidden_Spec = &stateSpec_CombiningSpec{b.CombiningSpec}
 	}
 	if b.MapSpec != nil {
-		x.Spec = &StateSpec_MapSpec{b.MapSpec}
+		x.xxx_hidden_Spec = &stateSpec_MapSpec{b.MapSpec}
 	}
 	if b.SetSpec != nil {
-		x.Spec = &StateSpec_SetSpec{b.SetSpec}
+		x.xxx_hidden_Spec = &stateSpec_SetSpec{b.SetSpec}
 	}
 	if b.OrderedListSpec != nil {
-		x.Spec = &StateSpec_OrderedListSpec{b.OrderedListSpec}
+		x.xxx_hidden_Spec = &stateSpec_OrderedListSpec{b.OrderedListSpec}
 	}
 	if b.MultimapSpec != nil {
-		x.Spec = &StateSpec_MultimapSpec{b.MultimapSpec}
+		x.xxx_hidden_Spec = &stateSpec_MultimapSpec{b.MultimapSpec}
 	}
-	x.Protocol = b.Protocol
+	x.xxx_hidden_Protocol = b.Protocol
 	return m0
 }
 
@@ -3355,53 +3216,53 @@ type isStateSpec_Spec interface {
 	isStateSpec_Spec()
 }
 
-type StateSpec_ReadModifyWriteSpec struct {
+type stateSpec_ReadModifyWriteSpec struct {
 	ReadModifyWriteSpec *ReadModifyWriteStateSpec `protobuf:"bytes,1,opt,name=read_modify_write_spec,json=readModifyWriteSpec,proto3,oneof"`
 }
 
-type StateSpec_BagSpec struct {
+type stateSpec_BagSpec struct {
 	BagSpec *BagStateSpec `protobuf:"bytes,2,opt,name=bag_spec,json=bagSpec,proto3,oneof"`
 }
 
-type StateSpec_CombiningSpec struct {
+type stateSpec_CombiningSpec struct {
 	CombiningSpec *CombiningStateSpec `protobuf:"bytes,3,opt,name=combining_spec,json=combiningSpec,proto3,oneof"`
 }
 
-type StateSpec_MapSpec struct {
+type stateSpec_MapSpec struct {
 	MapSpec *MapStateSpec `protobuf:"bytes,4,opt,name=map_spec,json=mapSpec,proto3,oneof"`
 }
 
-type StateSpec_SetSpec struct {
+type stateSpec_SetSpec struct {
 	SetSpec *SetStateSpec `protobuf:"bytes,5,opt,name=set_spec,json=setSpec,proto3,oneof"`
 }
 
-type StateSpec_OrderedListSpec struct {
+type stateSpec_OrderedListSpec struct {
 	OrderedListSpec *OrderedListStateSpec `protobuf:"bytes,6,opt,name=ordered_list_spec,json=orderedListSpec,proto3,oneof"`
 }
 
-type StateSpec_MultimapSpec struct {
+type stateSpec_MultimapSpec struct {
 	MultimapSpec *MultimapStateSpec `protobuf:"bytes,8,opt,name=multimap_spec,json=multimapSpec,proto3,oneof"`
 }
 
-func (*StateSpec_ReadModifyWriteSpec) isStateSpec_Spec() {}
+func (*stateSpec_ReadModifyWriteSpec) isStateSpec_Spec() {}
 
-func (*StateSpec_BagSpec) isStateSpec_Spec() {}
+func (*stateSpec_BagSpec) isStateSpec_Spec() {}
 
-func (*StateSpec_CombiningSpec) isStateSpec_Spec() {}
+func (*stateSpec_CombiningSpec) isStateSpec_Spec() {}
 
-func (*StateSpec_MapSpec) isStateSpec_Spec() {}
+func (*stateSpec_MapSpec) isStateSpec_Spec() {}
 
-func (*StateSpec_SetSpec) isStateSpec_Spec() {}
+func (*stateSpec_SetSpec) isStateSpec_Spec() {}
 
-func (*StateSpec_OrderedListSpec) isStateSpec_Spec() {}
+func (*stateSpec_OrderedListSpec) isStateSpec_Spec() {}
 
-func (*StateSpec_MultimapSpec) isStateSpec_Spec() {}
+func (*stateSpec_MultimapSpec) isStateSpec_Spec() {}
 
 type ReadModifyWriteStateSpec struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	CoderId       string                 `protobuf:"bytes,1,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_CoderId string                 `protobuf:"bytes,1,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ReadModifyWriteStateSpec) Reset() {
@@ -3431,13 +3292,13 @@ func (x *ReadModifyWriteStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *ReadModifyWriteStateSpec) GetCoderId() string {
 	if x != nil {
-		return x.CoderId
+		return x.xxx_hidden_CoderId
 	}
 	return ""
 }
 
 func (x *ReadModifyWriteStateSpec) SetCoderId(v string) {
-	x.CoderId = v
+	x.xxx_hidden_CoderId = v
 }
 
 type ReadModifyWriteStateSpec_builder struct {
@@ -3450,15 +3311,15 @@ func (b0 ReadModifyWriteStateSpec_builder) Build() *ReadModifyWriteStateSpec {
 	m0 := &ReadModifyWriteStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.CoderId = b.CoderId
+	x.xxx_hidden_CoderId = b.CoderId
 	return m0
 }
 
 type BagStateSpec struct {
-	state          protoimpl.MessageState `protogen:"hybrid.v1"`
-	ElementCoderId string                 `protobuf:"bytes,1,opt,name=element_coder_id,json=elementCoderId,proto3" json:"element_coder_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ElementCoderId string                 `protobuf:"bytes,1,opt,name=element_coder_id,json=elementCoderId,proto3" json:"element_coder_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *BagStateSpec) Reset() {
@@ -3488,13 +3349,13 @@ func (x *BagStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *BagStateSpec) GetElementCoderId() string {
 	if x != nil {
-		return x.ElementCoderId
+		return x.xxx_hidden_ElementCoderId
 	}
 	return ""
 }
 
 func (x *BagStateSpec) SetElementCoderId(v string) {
-	x.ElementCoderId = v
+	x.xxx_hidden_ElementCoderId = v
 }
 
 type BagStateSpec_builder struct {
@@ -3507,15 +3368,15 @@ func (b0 BagStateSpec_builder) Build() *BagStateSpec {
 	m0 := &BagStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementCoderId = b.ElementCoderId
+	x.xxx_hidden_ElementCoderId = b.ElementCoderId
 	return m0
 }
 
 type OrderedListStateSpec struct {
-	state          protoimpl.MessageState `protogen:"hybrid.v1"`
-	ElementCoderId string                 `protobuf:"bytes,1,opt,name=element_coder_id,json=elementCoderId,proto3" json:"element_coder_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ElementCoderId string                 `protobuf:"bytes,1,opt,name=element_coder_id,json=elementCoderId,proto3" json:"element_coder_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *OrderedListStateSpec) Reset() {
@@ -3545,13 +3406,13 @@ func (x *OrderedListStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *OrderedListStateSpec) GetElementCoderId() string {
 	if x != nil {
-		return x.ElementCoderId
+		return x.xxx_hidden_ElementCoderId
 	}
 	return ""
 }
 
 func (x *OrderedListStateSpec) SetElementCoderId(v string) {
-	x.ElementCoderId = v
+	x.xxx_hidden_ElementCoderId = v
 }
 
 type OrderedListStateSpec_builder struct {
@@ -3564,16 +3425,16 @@ func (b0 OrderedListStateSpec_builder) Build() *OrderedListStateSpec {
 	m0 := &OrderedListStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementCoderId = b.ElementCoderId
+	x.xxx_hidden_ElementCoderId = b.ElementCoderId
 	return m0
 }
 
 type CombiningStateSpec struct {
-	state              protoimpl.MessageState `protogen:"hybrid.v1"`
-	AccumulatorCoderId string                 `protobuf:"bytes,1,opt,name=accumulator_coder_id,json=accumulatorCoderId,proto3" json:"accumulator_coder_id,omitempty"`
-	CombineFn          *FunctionSpec          `protobuf:"bytes,2,opt,name=combine_fn,json=combineFn,proto3" json:"combine_fn,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_AccumulatorCoderId string                 `protobuf:"bytes,1,opt,name=accumulator_coder_id,json=accumulatorCoderId,proto3" json:"accumulator_coder_id,omitempty"`
+	xxx_hidden_CombineFn          *FunctionSpec          `protobuf:"bytes,2,opt,name=combine_fn,json=combineFn,proto3" json:"combine_fn,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *CombiningStateSpec) Reset() {
@@ -3603,35 +3464,35 @@ func (x *CombiningStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *CombiningStateSpec) GetAccumulatorCoderId() string {
 	if x != nil {
-		return x.AccumulatorCoderId
+		return x.xxx_hidden_AccumulatorCoderId
 	}
 	return ""
 }
 
 func (x *CombiningStateSpec) GetCombineFn() *FunctionSpec {
 	if x != nil {
-		return x.CombineFn
+		return x.xxx_hidden_CombineFn
 	}
 	return nil
 }
 
 func (x *CombiningStateSpec) SetAccumulatorCoderId(v string) {
-	x.AccumulatorCoderId = v
+	x.xxx_hidden_AccumulatorCoderId = v
 }
 
 func (x *CombiningStateSpec) SetCombineFn(v *FunctionSpec) {
-	x.CombineFn = v
+	x.xxx_hidden_CombineFn = v
 }
 
 func (x *CombiningStateSpec) HasCombineFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.CombineFn != nil
+	return x.xxx_hidden_CombineFn != nil
 }
 
 func (x *CombiningStateSpec) ClearCombineFn() {
-	x.CombineFn = nil
+	x.xxx_hidden_CombineFn = nil
 }
 
 type CombiningStateSpec_builder struct {
@@ -3645,17 +3506,17 @@ func (b0 CombiningStateSpec_builder) Build() *CombiningStateSpec {
 	m0 := &CombiningStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.AccumulatorCoderId = b.AccumulatorCoderId
-	x.CombineFn = b.CombineFn
+	x.xxx_hidden_AccumulatorCoderId = b.AccumulatorCoderId
+	x.xxx_hidden_CombineFn = b.CombineFn
 	return m0
 }
 
 type MapStateSpec struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	KeyCoderId    string                 `protobuf:"bytes,1,opt,name=key_coder_id,json=keyCoderId,proto3" json:"key_coder_id,omitempty"`
-	ValueCoderId  string                 `protobuf:"bytes,2,opt,name=value_coder_id,json=valueCoderId,proto3" json:"value_coder_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_KeyCoderId   string                 `protobuf:"bytes,1,opt,name=key_coder_id,json=keyCoderId,proto3" json:"key_coder_id,omitempty"`
+	xxx_hidden_ValueCoderId string                 `protobuf:"bytes,2,opt,name=value_coder_id,json=valueCoderId,proto3" json:"value_coder_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *MapStateSpec) Reset() {
@@ -3685,24 +3546,24 @@ func (x *MapStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *MapStateSpec) GetKeyCoderId() string {
 	if x != nil {
-		return x.KeyCoderId
+		return x.xxx_hidden_KeyCoderId
 	}
 	return ""
 }
 
 func (x *MapStateSpec) GetValueCoderId() string {
 	if x != nil {
-		return x.ValueCoderId
+		return x.xxx_hidden_ValueCoderId
 	}
 	return ""
 }
 
 func (x *MapStateSpec) SetKeyCoderId(v string) {
-	x.KeyCoderId = v
+	x.xxx_hidden_KeyCoderId = v
 }
 
 func (x *MapStateSpec) SetValueCoderId(v string) {
-	x.ValueCoderId = v
+	x.xxx_hidden_ValueCoderId = v
 }
 
 type MapStateSpec_builder struct {
@@ -3716,17 +3577,17 @@ func (b0 MapStateSpec_builder) Build() *MapStateSpec {
 	m0 := &MapStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.KeyCoderId = b.KeyCoderId
-	x.ValueCoderId = b.ValueCoderId
+	x.xxx_hidden_KeyCoderId = b.KeyCoderId
+	x.xxx_hidden_ValueCoderId = b.ValueCoderId
 	return m0
 }
 
 type MultimapStateSpec struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	KeyCoderId    string                 `protobuf:"bytes,1,opt,name=key_coder_id,json=keyCoderId,proto3" json:"key_coder_id,omitempty"`
-	ValueCoderId  string                 `protobuf:"bytes,2,opt,name=value_coder_id,json=valueCoderId,proto3" json:"value_coder_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_KeyCoderId   string                 `protobuf:"bytes,1,opt,name=key_coder_id,json=keyCoderId,proto3" json:"key_coder_id,omitempty"`
+	xxx_hidden_ValueCoderId string                 `protobuf:"bytes,2,opt,name=value_coder_id,json=valueCoderId,proto3" json:"value_coder_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *MultimapStateSpec) Reset() {
@@ -3756,24 +3617,24 @@ func (x *MultimapStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *MultimapStateSpec) GetKeyCoderId() string {
 	if x != nil {
-		return x.KeyCoderId
+		return x.xxx_hidden_KeyCoderId
 	}
 	return ""
 }
 
 func (x *MultimapStateSpec) GetValueCoderId() string {
 	if x != nil {
-		return x.ValueCoderId
+		return x.xxx_hidden_ValueCoderId
 	}
 	return ""
 }
 
 func (x *MultimapStateSpec) SetKeyCoderId(v string) {
-	x.KeyCoderId = v
+	x.xxx_hidden_KeyCoderId = v
 }
 
 func (x *MultimapStateSpec) SetValueCoderId(v string) {
-	x.ValueCoderId = v
+	x.xxx_hidden_ValueCoderId = v
 }
 
 type MultimapStateSpec_builder struct {
@@ -3787,16 +3648,16 @@ func (b0 MultimapStateSpec_builder) Build() *MultimapStateSpec {
 	m0 := &MultimapStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.KeyCoderId = b.KeyCoderId
-	x.ValueCoderId = b.ValueCoderId
+	x.xxx_hidden_KeyCoderId = b.KeyCoderId
+	x.xxx_hidden_ValueCoderId = b.ValueCoderId
 	return m0
 }
 
 type SetStateSpec struct {
-	state          protoimpl.MessageState `protogen:"hybrid.v1"`
-	ElementCoderId string                 `protobuf:"bytes,1,opt,name=element_coder_id,json=elementCoderId,proto3" json:"element_coder_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ElementCoderId string                 `protobuf:"bytes,1,opt,name=element_coder_id,json=elementCoderId,proto3" json:"element_coder_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *SetStateSpec) Reset() {
@@ -3826,13 +3687,13 @@ func (x *SetStateSpec) ProtoReflect() protoreflect.Message {
 
 func (x *SetStateSpec) GetElementCoderId() string {
 	if x != nil {
-		return x.ElementCoderId
+		return x.xxx_hidden_ElementCoderId
 	}
 	return ""
 }
 
 func (x *SetStateSpec) SetElementCoderId(v string) {
-	x.ElementCoderId = v
+	x.xxx_hidden_ElementCoderId = v
 }
 
 type SetStateSpec_builder struct {
@@ -3845,16 +3706,16 @@ func (b0 SetStateSpec_builder) Build() *SetStateSpec {
 	m0 := &SetStateSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementCoderId = b.ElementCoderId
+	x.xxx_hidden_ElementCoderId = b.ElementCoderId
 	return m0
 }
 
 type TimerFamilySpec struct {
-	state              protoimpl.MessageState `protogen:"hybrid.v1"`
-	TimeDomain         TimeDomain_Enum        `protobuf:"varint,1,opt,name=time_domain,json=timeDomain,proto3,enum=org.apache.beam.model.pipeline.v1.TimeDomain_Enum" json:"time_domain,omitempty"`
-	TimerFamilyCoderId string                 `protobuf:"bytes,2,opt,name=timer_family_coder_id,json=timerFamilyCoderId,proto3" json:"timer_family_coder_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TimeDomain         TimeDomain_Enum        `protobuf:"varint,1,opt,name=time_domain,json=timeDomain,proto3,enum=org.apache.beam.model.pipeline.v1.TimeDomain_Enum" json:"time_domain,omitempty"`
+	xxx_hidden_TimerFamilyCoderId string                 `protobuf:"bytes,2,opt,name=timer_family_coder_id,json=timerFamilyCoderId,proto3" json:"timer_family_coder_id,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *TimerFamilySpec) Reset() {
@@ -3884,24 +3745,24 @@ func (x *TimerFamilySpec) ProtoReflect() protoreflect.Message {
 
 func (x *TimerFamilySpec) GetTimeDomain() TimeDomain_Enum {
 	if x != nil {
-		return x.TimeDomain
+		return x.xxx_hidden_TimeDomain
 	}
 	return TimeDomain_UNSPECIFIED
 }
 
 func (x *TimerFamilySpec) GetTimerFamilyCoderId() string {
 	if x != nil {
-		return x.TimerFamilyCoderId
+		return x.xxx_hidden_TimerFamilyCoderId
 	}
 	return ""
 }
 
 func (x *TimerFamilySpec) SetTimeDomain(v TimeDomain_Enum) {
-	x.TimeDomain = v
+	x.xxx_hidden_TimeDomain = v
 }
 
 func (x *TimerFamilySpec) SetTimerFamilyCoderId(v string) {
-	x.TimerFamilyCoderId = v
+	x.xxx_hidden_TimerFamilyCoderId = v
 }
 
 type TimerFamilySpec_builder struct {
@@ -3915,13 +3776,13 @@ func (b0 TimerFamilySpec_builder) Build() *TimerFamilySpec {
 	m0 := &TimerFamilySpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TimeDomain = b.TimeDomain
-	x.TimerFamilyCoderId = b.TimerFamilyCoderId
+	x.xxx_hidden_TimeDomain = b.TimeDomain
+	x.xxx_hidden_TimerFamilyCoderId = b.TimerFamilyCoderId
 	return m0
 }
 
 type IsBounded struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3965,13 +3826,11 @@ func (b0 IsBounded_builder) Build() *IsBounded {
 
 // The payload for the primitive Read transform.
 type ReadPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The FunctionSpec of the source for this Read.
-	Source *FunctionSpec `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
-	// (Required) Whether the source is bounded or unbounded
-	IsBounded     IsBounded_Enum `protobuf:"varint,2,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Source    *FunctionSpec          `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	xxx_hidden_IsBounded IsBounded_Enum         `protobuf:"varint,2,opt,name=is_bounded,json=isBounded,proto3,enum=org.apache.beam.model.pipeline.v1.IsBounded_Enum" json:"is_bounded,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ReadPayload) Reset() {
@@ -4001,35 +3860,35 @@ func (x *ReadPayload) ProtoReflect() protoreflect.Message {
 
 func (x *ReadPayload) GetSource() *FunctionSpec {
 	if x != nil {
-		return x.Source
+		return x.xxx_hidden_Source
 	}
 	return nil
 }
 
 func (x *ReadPayload) GetIsBounded() IsBounded_Enum {
 	if x != nil {
-		return x.IsBounded
+		return x.xxx_hidden_IsBounded
 	}
 	return IsBounded_UNSPECIFIED
 }
 
 func (x *ReadPayload) SetSource(v *FunctionSpec) {
-	x.Source = v
+	x.xxx_hidden_Source = v
 }
 
 func (x *ReadPayload) SetIsBounded(v IsBounded_Enum) {
-	x.IsBounded = v
+	x.xxx_hidden_IsBounded = v
 }
 
 func (x *ReadPayload) HasSource() bool {
 	if x == nil {
 		return false
 	}
-	return x.Source != nil
+	return x.xxx_hidden_Source != nil
 }
 
 func (x *ReadPayload) ClearSource() {
-	x.Source = nil
+	x.xxx_hidden_Source = nil
 }
 
 type ReadPayload_builder struct {
@@ -4045,18 +3904,17 @@ func (b0 ReadPayload_builder) Build() *ReadPayload {
 	m0 := &ReadPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Source = b.Source
-	x.IsBounded = b.IsBounded
+	x.xxx_hidden_Source = b.Source
+	x.xxx_hidden_IsBounded = b.IsBounded
 	return m0
 }
 
 // The payload for the WindowInto transform.
 type WindowIntoPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The FunctionSpec of the WindowFn.
-	WindowFn      *FunctionSpec `protobuf:"bytes,1,opt,name=window_fn,json=windowFn,proto3" json:"window_fn,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_WindowFn *FunctionSpec          `protobuf:"bytes,1,opt,name=window_fn,json=windowFn,proto3" json:"window_fn,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *WindowIntoPayload) Reset() {
@@ -4086,24 +3944,24 @@ func (x *WindowIntoPayload) ProtoReflect() protoreflect.Message {
 
 func (x *WindowIntoPayload) GetWindowFn() *FunctionSpec {
 	if x != nil {
-		return x.WindowFn
+		return x.xxx_hidden_WindowFn
 	}
 	return nil
 }
 
 func (x *WindowIntoPayload) SetWindowFn(v *FunctionSpec) {
-	x.WindowFn = v
+	x.xxx_hidden_WindowFn = v
 }
 
 func (x *WindowIntoPayload) HasWindowFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.WindowFn != nil
+	return x.xxx_hidden_WindowFn != nil
 }
 
 func (x *WindowIntoPayload) ClearWindowFn() {
-	x.WindowFn = nil
+	x.xxx_hidden_WindowFn = nil
 }
 
 type WindowIntoPayload_builder struct {
@@ -4117,19 +3975,17 @@ func (b0 WindowIntoPayload_builder) Build() *WindowIntoPayload {
 	m0 := &WindowIntoPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.WindowFn = b.WindowFn
+	x.xxx_hidden_WindowFn = b.WindowFn
 	return m0
 }
 
 // The payload for the special-but-not-primitive Combine transform.
 type CombinePayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The FunctionSpec of the CombineFn.
-	CombineFn *FunctionSpec `protobuf:"bytes,1,opt,name=combine_fn,json=combineFn,proto3" json:"combine_fn,omitempty"`
-	// (Required) A reference to the Coder to use for accumulators of the CombineFn
-	AccumulatorCoderId string `protobuf:"bytes,2,opt,name=accumulator_coder_id,json=accumulatorCoderId,proto3" json:"accumulator_coder_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_CombineFn          *FunctionSpec          `protobuf:"bytes,1,opt,name=combine_fn,json=combineFn,proto3" json:"combine_fn,omitempty"`
+	xxx_hidden_AccumulatorCoderId string                 `protobuf:"bytes,2,opt,name=accumulator_coder_id,json=accumulatorCoderId,proto3" json:"accumulator_coder_id,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *CombinePayload) Reset() {
@@ -4159,35 +4015,35 @@ func (x *CombinePayload) ProtoReflect() protoreflect.Message {
 
 func (x *CombinePayload) GetCombineFn() *FunctionSpec {
 	if x != nil {
-		return x.CombineFn
+		return x.xxx_hidden_CombineFn
 	}
 	return nil
 }
 
 func (x *CombinePayload) GetAccumulatorCoderId() string {
 	if x != nil {
-		return x.AccumulatorCoderId
+		return x.xxx_hidden_AccumulatorCoderId
 	}
 	return ""
 }
 
 func (x *CombinePayload) SetCombineFn(v *FunctionSpec) {
-	x.CombineFn = v
+	x.xxx_hidden_CombineFn = v
 }
 
 func (x *CombinePayload) SetAccumulatorCoderId(v string) {
-	x.AccumulatorCoderId = v
+	x.xxx_hidden_AccumulatorCoderId = v
 }
 
 func (x *CombinePayload) HasCombineFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.CombineFn != nil
+	return x.xxx_hidden_CombineFn != nil
 }
 
 func (x *CombinePayload) ClearCombineFn() {
-	x.CombineFn = nil
+	x.xxx_hidden_CombineFn = nil
 }
 
 type CombinePayload_builder struct {
@@ -4203,23 +4059,19 @@ func (b0 CombinePayload_builder) Build() *CombinePayload {
 	m0 := &CombinePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.CombineFn = b.CombineFn
-	x.AccumulatorCoderId = b.AccumulatorCoderId
+	x.xxx_hidden_CombineFn = b.CombineFn
+	x.xxx_hidden_AccumulatorCoderId = b.AccumulatorCoderId
 	return m0
 }
 
 // The payload for the test-only primitive TestStream
 type TestStreamPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) the coder for elements in the TestStream events
-	CoderId string `protobuf:"bytes,1,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
-	// (Optional) If specified, the TestStream will replay these events.
-	Events []*TestStreamPayload_Event `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
-	// (Optional) If specified, points to a TestStreamService to be
-	// used to retrieve events.
-	Endpoint      *ApiServiceDescriptor `protobuf:"bytes,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState      `protogen:"opaque.v1"`
+	xxx_hidden_CoderId  string                      `protobuf:"bytes,1,opt,name=coder_id,json=coderId,proto3" json:"coder_id,omitempty"`
+	xxx_hidden_Events   *[]*TestStreamPayload_Event `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
+	xxx_hidden_Endpoint *ApiServiceDescriptor       `protobuf:"bytes,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *TestStreamPayload) Reset() {
@@ -4249,46 +4101,48 @@ func (x *TestStreamPayload) ProtoReflect() protoreflect.Message {
 
 func (x *TestStreamPayload) GetCoderId() string {
 	if x != nil {
-		return x.CoderId
+		return x.xxx_hidden_CoderId
 	}
 	return ""
 }
 
 func (x *TestStreamPayload) GetEvents() []*TestStreamPayload_Event {
 	if x != nil {
-		return x.Events
+		if x.xxx_hidden_Events != nil {
+			return *x.xxx_hidden_Events
+		}
 	}
 	return nil
 }
 
 func (x *TestStreamPayload) GetEndpoint() *ApiServiceDescriptor {
 	if x != nil {
-		return x.Endpoint
+		return x.xxx_hidden_Endpoint
 	}
 	return nil
 }
 
 func (x *TestStreamPayload) SetCoderId(v string) {
-	x.CoderId = v
+	x.xxx_hidden_CoderId = v
 }
 
 func (x *TestStreamPayload) SetEvents(v []*TestStreamPayload_Event) {
-	x.Events = v
+	x.xxx_hidden_Events = &v
 }
 
 func (x *TestStreamPayload) SetEndpoint(v *ApiServiceDescriptor) {
-	x.Endpoint = v
+	x.xxx_hidden_Endpoint = v
 }
 
 func (x *TestStreamPayload) HasEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.Endpoint != nil
+	return x.xxx_hidden_Endpoint != nil
 }
 
 func (x *TestStreamPayload) ClearEndpoint() {
-	x.Endpoint = nil
+	x.xxx_hidden_Endpoint = nil
 }
 
 type TestStreamPayload_builder struct {
@@ -4307,21 +4161,17 @@ func (b0 TestStreamPayload_builder) Build() *TestStreamPayload {
 	m0 := &TestStreamPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.CoderId = b.CoderId
-	x.Events = b.Events
-	x.Endpoint = b.Endpoint
+	x.xxx_hidden_CoderId = b.CoderId
+	x.xxx_hidden_Events = &b.Events
+	x.xxx_hidden_Endpoint = b.Endpoint
 	return m0
 }
 
 type EventsRequest struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// The set of PCollections to read from. These are the PTransform outputs
-	// local names. These are a subset of the TestStream's outputs. This allows
-	// Interactive Beam to cache many PCollections from a pipeline then replay a
-	// subset of them.
-	OutputIds     []string `protobuf:"bytes,1,rep,name=output_ids,json=outputIds,proto3" json:"output_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_OutputIds []string               `protobuf:"bytes,1,rep,name=output_ids,json=outputIds,proto3" json:"output_ids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *EventsRequest) Reset() {
@@ -4351,13 +4201,13 @@ func (x *EventsRequest) ProtoReflect() protoreflect.Message {
 
 func (x *EventsRequest) GetOutputIds() []string {
 	if x != nil {
-		return x.OutputIds
+		return x.xxx_hidden_OutputIds
 	}
 	return nil
 }
 
 func (x *EventsRequest) SetOutputIds(v []string) {
-	x.OutputIds = v
+	x.xxx_hidden_OutputIds = v
 }
 
 type EventsRequest_builder struct {
@@ -4374,25 +4224,21 @@ func (b0 EventsRequest_builder) Build() *EventsRequest {
 	m0 := &EventsRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.OutputIds = b.OutputIds
+	x.xxx_hidden_OutputIds = b.OutputIds
 	return m0
 }
 
 // The payload for the special-but-not-primitive WriteFiles transform.
 type WriteFilesPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The FunctionSpec of the FileBasedSink.
-	Sink *FunctionSpec `protobuf:"bytes,1,opt,name=sink,proto3" json:"sink,omitempty"`
-	// (Required) The format function.
-	FormatFunction           *FunctionSpec         `protobuf:"bytes,2,opt,name=format_function,json=formatFunction,proto3" json:"format_function,omitempty"`
-	WindowedWrites           bool                  `protobuf:"varint,3,opt,name=windowed_writes,json=windowedWrites,proto3" json:"windowed_writes,omitempty"`
-	RunnerDeterminedSharding bool                  `protobuf:"varint,4,opt,name=runner_determined_sharding,json=runnerDeterminedSharding,proto3" json:"runner_determined_sharding,omitempty"`
-	SideInputs               map[string]*SideInput `protobuf:"bytes,5,rep,name=side_inputs,json=sideInputs,proto3" json:"side_inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding
-	// is by the runner translator
-	AutoSharded   bool `protobuf:"varint,6,opt,name=auto_sharded,json=autoSharded,proto3" json:"auto_sharded,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Sink                     *FunctionSpec          `protobuf:"bytes,1,opt,name=sink,proto3" json:"sink,omitempty"`
+	xxx_hidden_FormatFunction           *FunctionSpec          `protobuf:"bytes,2,opt,name=format_function,json=formatFunction,proto3" json:"format_function,omitempty"`
+	xxx_hidden_WindowedWrites           bool                   `protobuf:"varint,3,opt,name=windowed_writes,json=windowedWrites,proto3" json:"windowed_writes,omitempty"`
+	xxx_hidden_RunnerDeterminedSharding bool                   `protobuf:"varint,4,opt,name=runner_determined_sharding,json=runnerDeterminedSharding,proto3" json:"runner_determined_sharding,omitempty"`
+	xxx_hidden_SideInputs               map[string]*SideInput  `protobuf:"bytes,5,rep,name=side_inputs,json=sideInputs,proto3" json:"side_inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_AutoSharded              bool                   `protobuf:"varint,6,opt,name=auto_sharded,json=autoSharded,proto3" json:"auto_sharded,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *WriteFilesPayload) Reset() {
@@ -4422,90 +4268,90 @@ func (x *WriteFilesPayload) ProtoReflect() protoreflect.Message {
 
 func (x *WriteFilesPayload) GetSink() *FunctionSpec {
 	if x != nil {
-		return x.Sink
+		return x.xxx_hidden_Sink
 	}
 	return nil
 }
 
 func (x *WriteFilesPayload) GetFormatFunction() *FunctionSpec {
 	if x != nil {
-		return x.FormatFunction
+		return x.xxx_hidden_FormatFunction
 	}
 	return nil
 }
 
 func (x *WriteFilesPayload) GetWindowedWrites() bool {
 	if x != nil {
-		return x.WindowedWrites
+		return x.xxx_hidden_WindowedWrites
 	}
 	return false
 }
 
 func (x *WriteFilesPayload) GetRunnerDeterminedSharding() bool {
 	if x != nil {
-		return x.RunnerDeterminedSharding
+		return x.xxx_hidden_RunnerDeterminedSharding
 	}
 	return false
 }
 
 func (x *WriteFilesPayload) GetSideInputs() map[string]*SideInput {
 	if x != nil {
-		return x.SideInputs
+		return x.xxx_hidden_SideInputs
 	}
 	return nil
 }
 
 func (x *WriteFilesPayload) GetAutoSharded() bool {
 	if x != nil {
-		return x.AutoSharded
+		return x.xxx_hidden_AutoSharded
 	}
 	return false
 }
 
 func (x *WriteFilesPayload) SetSink(v *FunctionSpec) {
-	x.Sink = v
+	x.xxx_hidden_Sink = v
 }
 
 func (x *WriteFilesPayload) SetFormatFunction(v *FunctionSpec) {
-	x.FormatFunction = v
+	x.xxx_hidden_FormatFunction = v
 }
 
 func (x *WriteFilesPayload) SetWindowedWrites(v bool) {
-	x.WindowedWrites = v
+	x.xxx_hidden_WindowedWrites = v
 }
 
 func (x *WriteFilesPayload) SetRunnerDeterminedSharding(v bool) {
-	x.RunnerDeterminedSharding = v
+	x.xxx_hidden_RunnerDeterminedSharding = v
 }
 
 func (x *WriteFilesPayload) SetSideInputs(v map[string]*SideInput) {
-	x.SideInputs = v
+	x.xxx_hidden_SideInputs = v
 }
 
 func (x *WriteFilesPayload) SetAutoSharded(v bool) {
-	x.AutoSharded = v
+	x.xxx_hidden_AutoSharded = v
 }
 
 func (x *WriteFilesPayload) HasSink() bool {
 	if x == nil {
 		return false
 	}
-	return x.Sink != nil
+	return x.xxx_hidden_Sink != nil
 }
 
 func (x *WriteFilesPayload) HasFormatFunction() bool {
 	if x == nil {
 		return false
 	}
-	return x.FormatFunction != nil
+	return x.xxx_hidden_FormatFunction != nil
 }
 
 func (x *WriteFilesPayload) ClearSink() {
-	x.Sink = nil
+	x.xxx_hidden_Sink = nil
 }
 
 func (x *WriteFilesPayload) ClearFormatFunction() {
-	x.FormatFunction = nil
+	x.xxx_hidden_FormatFunction = nil
 }
 
 type WriteFilesPayload_builder struct {
@@ -4527,12 +4373,12 @@ func (b0 WriteFilesPayload_builder) Build() *WriteFilesPayload {
 	m0 := &WriteFilesPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Sink = b.Sink
-	x.FormatFunction = b.FormatFunction
-	x.WindowedWrites = b.WindowedWrites
-	x.RunnerDeterminedSharding = b.RunnerDeterminedSharding
-	x.SideInputs = b.SideInputs
-	x.AutoSharded = b.AutoSharded
+	x.xxx_hidden_Sink = b.Sink
+	x.xxx_hidden_FormatFunction = b.FormatFunction
+	x.xxx_hidden_WindowedWrites = b.WindowedWrites
+	x.xxx_hidden_RunnerDeterminedSharding = b.RunnerDeterminedSharding
+	x.xxx_hidden_SideInputs = b.SideInputs
+	x.xxx_hidden_AutoSharded = b.AutoSharded
 	return m0
 }
 
@@ -4544,25 +4390,16 @@ func (b0 WriteFilesPayload_builder) Build() *WriteFilesPayload {
 // The output of PubSubReadPayload should be bytes of serialized PubsubMessage
 // proto if with_attributes == true. Otherwise, the bytes is the raw payload.
 type PubSubReadPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Topic to read from. Exactly one of topic or subscription should be set.
-	// Topic format is: /topics/project_id/subscription_name
-	Topic string `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
-	// Subscription to read from. Exactly one of topic or subscription should be set.
-	// Subscription format is: /subscriptions/project_id/subscription_name
-	Subscription string `protobuf:"bytes,2,opt,name=subscription,proto3" json:"subscription,omitempty"`
-	// Attribute that provides element timestamps.
-	TimestampAttribute string `protobuf:"bytes,3,opt,name=timestamp_attribute,json=timestampAttribute,proto3" json:"timestamp_attribute,omitempty"`
-	// Attribute to be used for uniquely identifying messages.
-	IdAttribute string `protobuf:"bytes,4,opt,name=id_attribute,json=idAttribute,proto3" json:"id_attribute,omitempty"`
-	// If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
-	WithAttributes bool `protobuf:"varint,5,opt,name=with_attributes,json=withAttributes,proto3" json:"with_attributes,omitempty"`
-	// If set, the topic is expected to be provided during runtime.
-	TopicRuntimeOverridden string `protobuf:"bytes,6,opt,name=topic_runtime_overridden,json=topicRuntimeOverridden,proto3" json:"topic_runtime_overridden,omitempty"`
-	// If set, the subscription that is expected to be provided during runtime.
-	SubscriptionRuntimeOverridden string `protobuf:"bytes,7,opt,name=subscription_runtime_overridden,json=subscriptionRuntimeOverridden,proto3" json:"subscription_runtime_overridden,omitempty"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
+	state                                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Topic                         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	xxx_hidden_Subscription                  string                 `protobuf:"bytes,2,opt,name=subscription,proto3" json:"subscription,omitempty"`
+	xxx_hidden_TimestampAttribute            string                 `protobuf:"bytes,3,opt,name=timestamp_attribute,json=timestampAttribute,proto3" json:"timestamp_attribute,omitempty"`
+	xxx_hidden_IdAttribute                   string                 `protobuf:"bytes,4,opt,name=id_attribute,json=idAttribute,proto3" json:"id_attribute,omitempty"`
+	xxx_hidden_WithAttributes                bool                   `protobuf:"varint,5,opt,name=with_attributes,json=withAttributes,proto3" json:"with_attributes,omitempty"`
+	xxx_hidden_TopicRuntimeOverridden        string                 `protobuf:"bytes,6,opt,name=topic_runtime_overridden,json=topicRuntimeOverridden,proto3" json:"topic_runtime_overridden,omitempty"`
+	xxx_hidden_SubscriptionRuntimeOverridden string                 `protobuf:"bytes,7,opt,name=subscription_runtime_overridden,json=subscriptionRuntimeOverridden,proto3" json:"subscription_runtime_overridden,omitempty"`
+	unknownFields                            protoimpl.UnknownFields
+	sizeCache                                protoimpl.SizeCache
 }
 
 func (x *PubSubReadPayload) Reset() {
@@ -4592,79 +4429,79 @@ func (x *PubSubReadPayload) ProtoReflect() protoreflect.Message {
 
 func (x *PubSubReadPayload) GetTopic() string {
 	if x != nil {
-		return x.Topic
+		return x.xxx_hidden_Topic
 	}
 	return ""
 }
 
 func (x *PubSubReadPayload) GetSubscription() string {
 	if x != nil {
-		return x.Subscription
+		return x.xxx_hidden_Subscription
 	}
 	return ""
 }
 
 func (x *PubSubReadPayload) GetTimestampAttribute() string {
 	if x != nil {
-		return x.TimestampAttribute
+		return x.xxx_hidden_TimestampAttribute
 	}
 	return ""
 }
 
 func (x *PubSubReadPayload) GetIdAttribute() string {
 	if x != nil {
-		return x.IdAttribute
+		return x.xxx_hidden_IdAttribute
 	}
 	return ""
 }
 
 func (x *PubSubReadPayload) GetWithAttributes() bool {
 	if x != nil {
-		return x.WithAttributes
+		return x.xxx_hidden_WithAttributes
 	}
 	return false
 }
 
 func (x *PubSubReadPayload) GetTopicRuntimeOverridden() string {
 	if x != nil {
-		return x.TopicRuntimeOverridden
+		return x.xxx_hidden_TopicRuntimeOverridden
 	}
 	return ""
 }
 
 func (x *PubSubReadPayload) GetSubscriptionRuntimeOverridden() string {
 	if x != nil {
-		return x.SubscriptionRuntimeOverridden
+		return x.xxx_hidden_SubscriptionRuntimeOverridden
 	}
 	return ""
 }
 
 func (x *PubSubReadPayload) SetTopic(v string) {
-	x.Topic = v
+	x.xxx_hidden_Topic = v
 }
 
 func (x *PubSubReadPayload) SetSubscription(v string) {
-	x.Subscription = v
+	x.xxx_hidden_Subscription = v
 }
 
 func (x *PubSubReadPayload) SetTimestampAttribute(v string) {
-	x.TimestampAttribute = v
+	x.xxx_hidden_TimestampAttribute = v
 }
 
 func (x *PubSubReadPayload) SetIdAttribute(v string) {
-	x.IdAttribute = v
+	x.xxx_hidden_IdAttribute = v
 }
 
 func (x *PubSubReadPayload) SetWithAttributes(v bool) {
-	x.WithAttributes = v
+	x.xxx_hidden_WithAttributes = v
 }
 
 func (x *PubSubReadPayload) SetTopicRuntimeOverridden(v string) {
-	x.TopicRuntimeOverridden = v
+	x.xxx_hidden_TopicRuntimeOverridden = v
 }
 
 func (x *PubSubReadPayload) SetSubscriptionRuntimeOverridden(v string) {
-	x.SubscriptionRuntimeOverridden = v
+	x.xxx_hidden_SubscriptionRuntimeOverridden = v
 }
 
 type PubSubReadPayload_builder struct {
@@ -4692,13 +4529,13 @@ func (b0 PubSubReadPayload_builder) Build() *PubSubReadPayload {
 	m0 := &PubSubReadPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Topic = b.Topic
-	x.Subscription = b.Subscription
-	x.TimestampAttribute = b.TimestampAttribute
-	x.IdAttribute = b.IdAttribute
-	x.WithAttributes = b.WithAttributes
-	x.TopicRuntimeOverridden = b.TopicRuntimeOverridden
-	x.SubscriptionRuntimeOverridden = b.SubscriptionRuntimeOverridden
+	x.xxx_hidden_Topic = b.Topic
+	x.xxx_hidden_Subscription = b.Subscription
+	x.xxx_hidden_TimestampAttribute = b.TimestampAttribute
+	x.xxx_hidden_IdAttribute = b.IdAttribute
+	x.xxx_hidden_WithAttributes = b.WithAttributes
+	x.xxx_hidden_TopicRuntimeOverridden = b.TopicRuntimeOverridden
+	x.xxx_hidden_SubscriptionRuntimeOverridden = b.SubscriptionRuntimeOverridden
 	return m0
 }
 
@@ -4710,18 +4547,13 @@ func (b0 PubSubReadPayload_builder) Build() *PubSubReadPayload {
 // The output of PubSubWritePayload should be bytes if serialized PubsubMessage
 // proto.
 type PubSubWritePayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Topic to write to.
-	// Topic format is: /topics/project_id/subscription_name
-	Topic string `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
-	// Attribute that provides element timestamps.
-	TimestampAttribute string `protobuf:"bytes,2,opt,name=timestamp_attribute,json=timestampAttribute,proto3" json:"timestamp_attribute,omitempty"`
-	// Attribute that uniquely identify messages.
-	IdAttribute string `protobuf:"bytes,3,opt,name=id_attribute,json=idAttribute,proto3" json:"id_attribute,omitempty"`
-	// If set, the topic is expected to be provided during runtime.
-	TopicRuntimeOverridden string `protobuf:"bytes,4,opt,name=topic_runtime_overridden,json=topicRuntimeOverridden,proto3" json:"topic_runtime_overridden,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Topic                  string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	xxx_hidden_TimestampAttribute     string                 `protobuf:"bytes,2,opt,name=timestamp_attribute,json=timestampAttribute,proto3" json:"timestamp_attribute,omitempty"`
+	xxx_hidden_IdAttribute            string                 `protobuf:"bytes,3,opt,name=id_attribute,json=idAttribute,proto3" json:"id_attribute,omitempty"`
+	xxx_hidden_TopicRuntimeOverridden string                 `protobuf:"bytes,4,opt,name=topic_runtime_overridden,json=topicRuntimeOverridden,proto3" json:"topic_runtime_overridden,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *PubSubWritePayload) Reset() {
@@ -4751,46 +4583,46 @@ func (x *PubSubWritePayload) ProtoReflect() protoreflect.Message {
 
 func (x *PubSubWritePayload) GetTopic() string {
 	if x != nil {
-		return x.Topic
+		return x.xxx_hidden_Topic
 	}
 	return ""
 }
 
 func (x *PubSubWritePayload) GetTimestampAttribute() string {
 	if x != nil {
-		return x.TimestampAttribute
+		return x.xxx_hidden_TimestampAttribute
 	}
 	return ""
 }
 
 func (x *PubSubWritePayload) GetIdAttribute() string {
 	if x != nil {
-		return x.IdAttribute
+		return x.xxx_hidden_IdAttribute
 	}
 	return ""
 }
 
 func (x *PubSubWritePayload) GetTopicRuntimeOverridden() string {
 	if x != nil {
-		return x.TopicRuntimeOverridden
+		return x.xxx_hidden_TopicRuntimeOverridden
 	}
 	return ""
 }
 
 func (x *PubSubWritePayload) SetTopic(v string) {
-	x.Topic = v
+	x.xxx_hidden_Topic = v
 }
 
 func (x *PubSubWritePayload) SetTimestampAttribute(v string) {
-	x.TimestampAttribute = v
+	x.xxx_hidden_TimestampAttribute = v
 }
 
 func (x *PubSubWritePayload) SetIdAttribute(v string) {
-	x.IdAttribute = v
+	x.xxx_hidden_IdAttribute = v
 }
 
 func (x *PubSubWritePayload) SetTopicRuntimeOverridden(v string) {
-	x.TopicRuntimeOverridden = v
+	x.xxx_hidden_TopicRuntimeOverridden = v
 }
 
 type PubSubWritePayload_builder struct {
@@ -4811,24 +4643,21 @@ func (b0 PubSubWritePayload_builder) Build() *PubSubWritePayload {
 	m0 := &PubSubWritePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Topic = b.Topic
-	x.TimestampAttribute = b.TimestampAttribute
-	x.IdAttribute = b.IdAttribute
-	x.TopicRuntimeOverridden = b.TopicRuntimeOverridden
+	x.xxx_hidden_Topic = b.Topic
+	x.xxx_hidden_TimestampAttribute = b.TimestampAttribute
+	x.xxx_hidden_IdAttribute = b.IdAttribute
+	x.xxx_hidden_TopicRuntimeOverridden = b.TopicRuntimeOverridden
 	return m0
 }
 
 // Payload for GroupIntoBatches composite transform.
 type GroupIntoBatchesPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Max size of a batch.
-	BatchSize int64 `protobuf:"varint,1,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
-	// Max byte size of a batch in element.
-	BatchSizeBytes int64 `protobuf:"varint,3,opt,name=batch_size_bytes,json=batchSizeBytes,proto3" json:"batch_size_bytes,omitempty"`
-	// (Optional) Max duration a batch is allowed to be cached in states.
-	MaxBufferingDurationMillis int64 `protobuf:"varint,2,opt,name=max_buffering_duration_millis,json=maxBufferingDurationMillis,proto3" json:"max_buffering_duration_millis,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	state                                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_BatchSize                  int64                  `protobuf:"varint,1,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
+	xxx_hidden_BatchSizeBytes             int64                  `protobuf:"varint,3,opt,name=batch_size_bytes,json=batchSizeBytes,proto3" json:"batch_size_bytes,omitempty"`
+	xxx_hidden_MaxBufferingDurationMillis int64                  `protobuf:"varint,2,opt,name=max_buffering_duration_millis,json=maxBufferingDurationMillis,proto3" json:"max_buffering_duration_millis,omitempty"`
+	unknownFields                         protoimpl.UnknownFields
+	sizeCache                             protoimpl.SizeCache
 }
 
 func (x *GroupIntoBatchesPayload) Reset() {
@@ -4858,35 +4687,35 @@ func (x *GroupIntoBatchesPayload) ProtoReflect() protoreflect.Message {
 
 func (x *GroupIntoBatchesPayload) GetBatchSize() int64 {
 	if x != nil {
-		return x.BatchSize
+		return x.xxx_hidden_BatchSize
 	}
 	return 0
 }
 
 func (x *GroupIntoBatchesPayload) GetBatchSizeBytes() int64 {
 	if x != nil {
-		return x.BatchSizeBytes
+		return x.xxx_hidden_BatchSizeBytes
 	}
 	return 0
 }
 
 func (x *GroupIntoBatchesPayload) GetMaxBufferingDurationMillis() int64 {
 	if x != nil {
-		return x.MaxBufferingDurationMillis
+		return x.xxx_hidden_MaxBufferingDurationMillis
 	}
 	return 0
 }
 
 func (x *GroupIntoBatchesPayload) SetBatchSize(v int64) {
-	x.BatchSize = v
+	x.xxx_hidden_BatchSize = v
 }
 
 func (x *GroupIntoBatchesPayload) SetBatchSizeBytes(v int64) {
-	x.BatchSizeBytes = v
+	x.xxx_hidden_BatchSizeBytes = v
 }
 
 func (x *GroupIntoBatchesPayload) SetMaxBufferingDurationMillis(v int64) {
-	x.MaxBufferingDurationMillis = v
+	x.xxx_hidden_MaxBufferingDurationMillis = v
 }
 
 type GroupIntoBatchesPayload_builder struct {
@@ -4904,17 +4733,17 @@ func (b0 GroupIntoBatchesPayload_builder) Build() *GroupIntoBatchesPayload {
 	m0 := &GroupIntoBatchesPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.BatchSize = b.BatchSize
-	x.BatchSizeBytes = b.BatchSizeBytes
-	x.MaxBufferingDurationMillis = b.MaxBufferingDurationMillis
+	x.xxx_hidden_BatchSize = b.BatchSize
+	x.xxx_hidden_BatchSizeBytes = b.BatchSizeBytes
+	x.xxx_hidden_MaxBufferingDurationMillis = b.MaxBufferingDurationMillis
 	return m0
 }
 
 type RedistributePayload struct {
-	state           protoimpl.MessageState `protogen:"hybrid.v1"`
-	AllowDuplicates bool                   `protobuf:"varint,1,opt,name=allow_duplicates,json=allowDuplicates,proto3" json:"allow_duplicates,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_AllowDuplicates bool                   `protobuf:"varint,1,opt,name=allow_duplicates,json=allowDuplicates,proto3" json:"allow_duplicates,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *RedistributePayload) Reset() {
@@ -4944,13 +4773,13 @@ func (x *RedistributePayload) ProtoReflect() protoreflect.Message {
 
 func (x *RedistributePayload) GetAllowDuplicates() bool {
 	if x != nil {
-		return x.AllowDuplicates
+		return x.xxx_hidden_AllowDuplicates
 	}
 	return false
 }
 
 func (x *RedistributePayload) SetAllowDuplicates(v bool) {
-	x.AllowDuplicates = v
+	x.xxx_hidden_AllowDuplicates = v
 }
 
 type RedistributePayload_builder struct {
@@ -4963,26 +4792,18 @@ func (b0 RedistributePayload_builder) Build() *RedistributePayload {
 	m0 := &RedistributePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.AllowDuplicates = b.AllowDuplicates
+	x.xxx_hidden_AllowDuplicates = b.AllowDuplicates
 	return m0
 }
 
 // A coder, the binary format for serialization and deserialization of data in
 // a pipeline.
 type Coder struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A specification for the coder, as a URN plus parameters. This
-	// may be a cross-language agreed-upon format, or it may be a "custom coder"
-	// that can only be used by a particular SDK. It does not include component
-	// coders, as it is beneficial for these to be comprehensible to a runner
-	// regardless of whether the binary format is agreed-upon.
-	Spec *FunctionSpec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
-	// (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
-	// this is a list of the components. In order for encodings to be identical,
-	// the FunctionSpec and all components must be identical, recursively.
-	ComponentCoderIds []string `protobuf:"bytes,2,rep,name=component_coder_ids,json=componentCoderIds,proto3" json:"component_coder_ids,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Spec              *FunctionSpec          `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	xxx_hidden_ComponentCoderIds []string               `protobuf:"bytes,2,rep,name=component_coder_ids,json=componentCoderIds,proto3" json:"component_coder_ids,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Coder) Reset() {
@@ -5012,35 +4833,35 @@ func (x *Coder) ProtoReflect() protoreflect.Message {
 
 func (x *Coder) GetSpec() *FunctionSpec {
 	if x != nil {
-		return x.Spec
+		return x.xxx_hidden_Spec
 	}
 	return nil
 }
 
 func (x *Coder) GetComponentCoderIds() []string {
 	if x != nil {
-		return x.ComponentCoderIds
+		return x.xxx_hidden_ComponentCoderIds
 	}
 	return nil
 }
 
 func (x *Coder) SetSpec(v *FunctionSpec) {
-	x.Spec = v
+	x.xxx_hidden_Spec = v
 }
 
 func (x *Coder) SetComponentCoderIds(v []string) {
-	x.ComponentCoderIds = v
+	x.xxx_hidden_ComponentCoderIds = v
 }
 
 func (x *Coder) HasSpec() bool {
 	if x == nil {
 		return false
 	}
-	return x.Spec != nil
+	return x.xxx_hidden_Spec != nil
 }
 
 func (x *Coder) ClearSpec() {
-	x.Spec = nil
+	x.xxx_hidden_Spec = nil
 }
 
 type Coder_builder struct {
@@ -5062,13 +4883,13 @@ func (b0 Coder_builder) Build() *Coder {
 	m0 := &Coder{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Spec = b.Spec
-	x.ComponentCoderIds = b.ComponentCoderIds
+	x.xxx_hidden_Spec = b.Spec
+	x.xxx_hidden_ComponentCoderIds = b.ComponentCoderIds
 	return m0
 }
 
 type StandardCoders struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5115,50 +4936,20 @@ func (b0 StandardCoders_builder) Build() *StandardCoders {
 //
 // TODO: consider inlining field on PCollection
 type WindowingStrategy struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The FunctionSpec of the UDF that assigns windows,
-	// merges windows, and shifts timestamps before they are
-	// combined according to the OutputTime.
-	WindowFn *FunctionSpec `protobuf:"bytes,1,opt,name=window_fn,json=windowFn,proto3" json:"window_fn,omitempty"`
-	// (Required) Whether or not the window fn is merging.
-	//
-	// This knowledge is required for many optimizations.
-	MergeStatus MergeStatus_Enum `protobuf:"varint,2,opt,name=merge_status,json=mergeStatus,proto3,enum=org.apache.beam.model.pipeline.v1.MergeStatus_Enum" json:"merge_status,omitempty"`
-	// (Required) The coder for the windows of this PCollection.
-	WindowCoderId string `protobuf:"bytes,3,opt,name=window_coder_id,json=windowCoderId,proto3" json:"window_coder_id,omitempty"`
-	// (Required) The trigger to use when grouping this PCollection.
-	Trigger *Trigger `protobuf:"bytes,4,opt,name=trigger,proto3" json:"trigger,omitempty"`
-	// (Required) The accumulation mode indicates whether new panes are a full
-	// replacement for prior panes or whether they are deltas to be combined
-	// with other panes (the combine should correspond to whatever the upstream
-	// grouping transform is).
-	AccumulationMode AccumulationMode_Enum `protobuf:"varint,5,opt,name=accumulation_mode,json=accumulationMode,proto3,enum=org.apache.beam.model.pipeline.v1.AccumulationMode_Enum" json:"accumulation_mode,omitempty"`
-	// (Required) The OutputTime specifies, for a grouping transform, how to
-	// compute the aggregate timestamp. The window_fn will first possibly shift
-	// it later, then the OutputTime takes the max, min, or ignores it and takes
-	// the end of window.
-	//
-	// This is actually only for input to grouping transforms, but since they
-	// may be introduced in runner-specific ways, it is carried along with the
-	// windowing strategy.
-	OutputTime OutputTime_Enum `protobuf:"varint,6,opt,name=output_time,json=outputTime,proto3,enum=org.apache.beam.model.pipeline.v1.OutputTime_Enum" json:"output_time,omitempty"`
-	// (Required) Indicate when output should be omitted upon window expiration.
-	ClosingBehavior ClosingBehavior_Enum `protobuf:"varint,7,opt,name=closing_behavior,json=closingBehavior,proto3,enum=org.apache.beam.model.pipeline.v1.ClosingBehavior_Enum" json:"closing_behavior,omitempty"`
-	// (Required) The duration, in milliseconds, beyond the end of a window at
-	// which the window becomes droppable.
-	AllowedLateness int64 `protobuf:"varint,8,opt,name=allowed_lateness,json=allowedLateness,proto3" json:"allowed_lateness,omitempty"`
-	// (Required) Indicate whether empty on-time panes should be omitted.
-	OnTimeBehavior OnTimeBehavior_Enum `protobuf:"varint,9,opt,name=on_time_behavior,json=onTimeBehavior,proto3,enum=org.apache.beam.model.pipeline.v1.OnTimeBehavior_Enum" json:"on_time_behavior,omitempty"`
-	// (Required) Whether or not the window fn assigns inputs to exactly one window
-	//
-	// This knowledge is required for some optimizations
-	AssignsToOneWindow bool `protobuf:"varint,10,opt,name=assigns_to_one_window,json=assignsToOneWindow,proto3" json:"assigns_to_one_window,omitempty"`
-	// (Optional) Environment where the current window_fn should be applied in.
-	// Runner that executes the pipeline may choose to override this if needed.
-	// If not specified, environment will be decided by the runner.
-	EnvironmentId string `protobuf:"bytes,11,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_WindowFn           *FunctionSpec          `protobuf:"bytes,1,opt,name=window_fn,json=windowFn,proto3" json:"window_fn,omitempty"`
+	xxx_hidden_MergeStatus        MergeStatus_Enum       `protobuf:"varint,2,opt,name=merge_status,json=mergeStatus,proto3,enum=org.apache.beam.model.pipeline.v1.MergeStatus_Enum" json:"merge_status,omitempty"`
+	xxx_hidden_WindowCoderId      string                 `protobuf:"bytes,3,opt,name=window_coder_id,json=windowCoderId,proto3" json:"window_coder_id,omitempty"`
+	xxx_hidden_Trigger            *Trigger               `protobuf:"bytes,4,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	xxx_hidden_AccumulationMode   AccumulationMode_Enum  `protobuf:"varint,5,opt,name=accumulation_mode,json=accumulationMode,proto3,enum=org.apache.beam.model.pipeline.v1.AccumulationMode_Enum" json:"accumulation_mode,omitempty"`
+	xxx_hidden_OutputTime         OutputTime_Enum        `protobuf:"varint,6,opt,name=output_time,json=outputTime,proto3,enum=org.apache.beam.model.pipeline.v1.OutputTime_Enum" json:"output_time,omitempty"`
+	xxx_hidden_ClosingBehavior    ClosingBehavior_Enum   `protobuf:"varint,7,opt,name=closing_behavior,json=closingBehavior,proto3,enum=org.apache.beam.model.pipeline.v1.ClosingBehavior_Enum" json:"closing_behavior,omitempty"`
+	xxx_hidden_AllowedLateness    int64                  `protobuf:"varint,8,opt,name=allowed_lateness,json=allowedLateness,proto3" json:"allowed_lateness,omitempty"`
+	xxx_hidden_OnTimeBehavior     OnTimeBehavior_Enum    `protobuf:"varint,9,opt,name=on_time_behavior,json=onTimeBehavior,proto3,enum=org.apache.beam.model.pipeline.v1.OnTimeBehavior_Enum" json:"on_time_behavior,omitempty"`
+	xxx_hidden_AssignsToOneWindow bool                   `protobuf:"varint,10,opt,name=assigns_to_one_window,json=assignsToOneWindow,proto3" json:"assigns_to_one_window,omitempty"`
+	xxx_hidden_EnvironmentId      string                 `protobuf:"bytes,11,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *WindowingStrategy) Reset() {
@@ -5188,145 +4979,145 @@ func (x *WindowingStrategy) ProtoReflect() protoreflect.Message {
 
 func (x *WindowingStrategy) GetWindowFn() *FunctionSpec {
 	if x != nil {
-		return x.WindowFn
+		return x.xxx_hidden_WindowFn
 	}
 	return nil
 }
 
 func (x *WindowingStrategy) GetMergeStatus() MergeStatus_Enum {
 	if x != nil {
-		return x.MergeStatus
+		return x.xxx_hidden_MergeStatus
 	}
 	return MergeStatus_UNSPECIFIED
 }
 
 func (x *WindowingStrategy) GetWindowCoderId() string {
 	if x != nil {
-		return x.WindowCoderId
+		return x.xxx_hidden_WindowCoderId
 	}
 	return ""
 }
 
 func (x *WindowingStrategy) GetTrigger() *Trigger {
 	if x != nil {
-		return x.Trigger
+		return x.xxx_hidden_Trigger
 	}
 	return nil
 }
 
 func (x *WindowingStrategy) GetAccumulationMode() AccumulationMode_Enum {
 	if x != nil {
-		return x.AccumulationMode
+		return x.xxx_hidden_AccumulationMode
 	}
 	return AccumulationMode_UNSPECIFIED
 }
 
 func (x *WindowingStrategy) GetOutputTime() OutputTime_Enum {
 	if x != nil {
-		return x.OutputTime
+		return x.xxx_hidden_OutputTime
 	}
 	return OutputTime_UNSPECIFIED
 }
 
 func (x *WindowingStrategy) GetClosingBehavior() ClosingBehavior_Enum {
 	if x != nil {
-		return x.ClosingBehavior
+		return x.xxx_hidden_ClosingBehavior
 	}
 	return ClosingBehavior_UNSPECIFIED
 }
 
 func (x *WindowingStrategy) GetAllowedLateness() int64 {
 	if x != nil {
-		return x.AllowedLateness
+		return x.xxx_hidden_AllowedLateness
 	}
 	return 0
 }
 
 func (x *WindowingStrategy) GetOnTimeBehavior() OnTimeBehavior_Enum {
 	if x != nil {
-		return x.OnTimeBehavior
+		return x.xxx_hidden_OnTimeBehavior
 	}
 	return OnTimeBehavior_UNSPECIFIED
 }
 
 func (x *WindowingStrategy) GetAssignsToOneWindow() bool {
 	if x != nil {
-		return x.AssignsToOneWindow
+		return x.xxx_hidden_AssignsToOneWindow
 	}
 	return false
 }
 
 func (x *WindowingStrategy) GetEnvironmentId() string {
 	if x != nil {
-		return x.EnvironmentId
+		return x.xxx_hidden_EnvironmentId
 	}
 	return ""
 }
 
 func (x *WindowingStrategy) SetWindowFn(v *FunctionSpec) {
-	x.WindowFn = v
+	x.xxx_hidden_WindowFn = v
 }
 
 func (x *WindowingStrategy) SetMergeStatus(v MergeStatus_Enum) {
-	x.MergeStatus = v
+	x.xxx_hidden_MergeStatus = v
 }
 
 func (x *WindowingStrategy) SetWindowCoderId(v string) {
-	x.WindowCoderId = v
+	x.xxx_hidden_WindowCoderId = v
 }
 
 func (x *WindowingStrategy) SetTrigger(v *Trigger) {
-	x.Trigger = v
+	x.xxx_hidden_Trigger = v
 }
 
 func (x *WindowingStrategy) SetAccumulationMode(v AccumulationMode_Enum) {
-	x.AccumulationMode = v
+	x.xxx_hidden_AccumulationMode = v
 }
 
 func (x *WindowingStrategy) SetOutputTime(v OutputTime_Enum) {
-	x.OutputTime = v
+	x.xxx_hidden_OutputTime = v
 }
 
 func (x *WindowingStrategy) SetClosingBehavior(v ClosingBehavior_Enum) {
-	x.ClosingBehavior = v
+	x.xxx_hidden_ClosingBehavior = v
 }
 
 func (x *WindowingStrategy) SetAllowedLateness(v int64) {
-	x.AllowedLateness = v
+	x.xxx_hidden_AllowedLateness = v
 }
 
 func (x *WindowingStrategy) SetOnTimeBehavior(v OnTimeBehavior_Enum) {
-	x.OnTimeBehavior = v
+	x.xxx_hidden_OnTimeBehavior = v
 }
 
 func (x *WindowingStrategy) SetAssignsToOneWindow(v bool) {
-	x.AssignsToOneWindow = v
+	x.xxx_hidden_AssignsToOneWindow = v
 }
 
 func (x *WindowingStrategy) SetEnvironmentId(v string) {
-	x.EnvironmentId = v
+	x.xxx_hidden_EnvironmentId = v
 }
 
 func (x *WindowingStrategy) HasWindowFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.WindowFn != nil
+	return x.xxx_hidden_WindowFn != nil
 }
 
 func (x *WindowingStrategy) HasTrigger() bool {
 	if x == nil {
 		return false
 	}
-	return x.Trigger != nil
+	return x.xxx_hidden_Trigger != nil
 }
 
 func (x *WindowingStrategy) ClearWindowFn() {
-	x.WindowFn = nil
+	x.xxx_hidden_WindowFn = nil
 }
 
 func (x *WindowingStrategy) ClearTrigger() {
-	x.Trigger = nil
+	x.xxx_hidden_Trigger = nil
 }
 
 type WindowingStrategy_builder struct {
@@ -5379,17 +5170,17 @@ func (b0 WindowingStrategy_builder) Build() *WindowingStrategy {
 	m0 := &WindowingStrategy{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.WindowFn = b.WindowFn
-	x.MergeStatus = b.MergeStatus
-	x.WindowCoderId = b.WindowCoderId
-	x.Trigger = b.Trigger
-	x.AccumulationMode = b.AccumulationMode
-	x.OutputTime = b.OutputTime
-	x.ClosingBehavior = b.ClosingBehavior
-	x.AllowedLateness = b.AllowedLateness
-	x.OnTimeBehavior = b.OnTimeBehavior
-	x.AssignsToOneWindow = b.AssignsToOneWindow
-	x.EnvironmentId = b.EnvironmentId
+	x.xxx_hidden_WindowFn = b.WindowFn
+	x.xxx_hidden_MergeStatus = b.MergeStatus
+	x.xxx_hidden_WindowCoderId = b.WindowCoderId
+	x.xxx_hidden_Trigger = b.Trigger
+	x.xxx_hidden_AccumulationMode = b.AccumulationMode
+	x.xxx_hidden_OutputTime = b.OutputTime
+	x.xxx_hidden_ClosingBehavior = b.ClosingBehavior
+	x.xxx_hidden_AllowedLateness = b.AllowedLateness
+	x.xxx_hidden_OnTimeBehavior = b.OnTimeBehavior
+	x.xxx_hidden_AssignsToOneWindow = b.AssignsToOneWindow
+	x.xxx_hidden_EnvironmentId = b.EnvironmentId
 	return m0
 }
 
@@ -5397,7 +5188,7 @@ func (b0 WindowingStrategy_builder) Build() *WindowingStrategy {
 // merging-but-already-merged, in which case a subsequent GroupByKey is almost
 // always going to do something the user does not want
 type MergeStatus struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5443,7 +5234,7 @@ func (b0 MergeStatus_builder) Build() *MergeStatus {
 // replacement values or just the aggregation of inputs received since
 // the prior output.
 type AccumulationMode struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5488,7 +5279,7 @@ func (b0 AccumulationMode_builder) Build() *AccumulationMode {
 // Controls whether or not an aggregating transform should output data
 // when a window expires.
 type ClosingBehavior struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5533,7 +5324,7 @@ func (b0 ClosingBehavior_builder) Build() *ClosingBehavior {
 // Controls whether or not an aggregating transform should output data
 // when an on-time pane is empty.
 type OnTimeBehavior struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5578,7 +5369,7 @@ func (b0 OnTimeBehavior_builder) Build() *OnTimeBehavior {
 // When a number of windowed, timestamped inputs are aggregated, the timestamp
 // for the resulting output.
 type OutputTime struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5622,7 +5413,7 @@ func (b0 OutputTime_builder) Build() *OutputTime {
 
 // The different time domains in the Beam model.
 type TimeDomain struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5669,26 +5460,10 @@ func (b0 TimeDomain_builder) Build() *TimeDomain {
 //
 // A trigger is described in terms of when it is _ready_ to permit output.
 type Trigger struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// The full disjoint union of possible triggers.
-	//
-	// Types that are valid to be assigned to Trigger:
-	//
-	//	*Trigger_AfterAll_
-	//	*Trigger_AfterAny_
-	//	*Trigger_AfterEach_
-	//	*Trigger_AfterEndOfWindow_
-	//	*Trigger_AfterProcessingTime_
-	//	*Trigger_AfterSynchronizedProcessingTime_
-	//	*Trigger_Always_
-	//	*Trigger_Default_
-	//	*Trigger_ElementCount_
-	//	*Trigger_Never_
-	//	*Trigger_OrFinally_
-	//	*Trigger_Repeat_
-	Trigger       isTrigger_Trigger `protobuf_oneof:"trigger"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Trigger isTrigger_Trigger      `protobuf_oneof:"trigger"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Trigger) Reset() {
@@ -5716,16 +5491,9 @@ func (x *Trigger) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *Trigger) GetTrigger() isTrigger_Trigger {
-	if x != nil {
-		return x.Trigger
-	}
-	return nil
-}
-
 func (x *Trigger) GetAfterAll() *Trigger_AfterAll {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_AfterAll_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_AfterAll_); ok {
 			return x.AfterAll
 		}
 	}
@@ -5734,7 +5502,7 @@ func (x *Trigger) GetAfterAll() *Trigger_AfterAll {
 
 func (x *Trigger) GetAfterAny() *Trigger_AfterAny {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_AfterAny_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_AfterAny_); ok {
 			return x.AfterAny
 		}
 	}
@@ -5743,7 +5511,7 @@ func (x *Trigger) GetAfterAny() *Trigger_AfterAny {
 
 func (x *Trigger) GetAfterEach() *Trigger_AfterEach {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_AfterEach_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_AfterEach_); ok {
 			return x.AfterEach
 		}
 	}
@@ -5752,7 +5520,7 @@ func (x *Trigger) GetAfterEach() *Trigger_AfterEach {
 
 func (x *Trigger) GetAfterEndOfWindow() *Trigger_AfterEndOfWindow {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_AfterEndOfWindow_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_AfterEndOfWindow_); ok {
 			return x.AfterEndOfWindow
 		}
 	}
@@ -5761,7 +5529,7 @@ func (x *Trigger) GetAfterEndOfWindow() *Trigger_AfterEndOfWindow {
 
 func (x *Trigger) GetAfterProcessingTime() *Trigger_AfterProcessingTime {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_AfterProcessingTime_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_AfterProcessingTime_); ok {
 			return x.AfterProcessingTime
 		}
 	}
@@ -5770,7 +5538,7 @@ func (x *Trigger) GetAfterProcessingTime() *Trigger_AfterProcessingTime {
 
 func (x *Trigger) GetAfterSynchronizedProcessingTime() *Trigger_AfterSynchronizedProcessingTime {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_AfterSynchronizedProcessingTime_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_AfterSynchronizedProcessingTime_); ok {
 			return x.AfterSynchronizedProcessingTime
 		}
 	}
@@ -5779,7 +5547,7 @@ func (x *Trigger) GetAfterSynchronizedProcessingTime() *Trigger_AfterSynchronize
 
 func (x *Trigger) GetAlways() *Trigger_Always {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_Always_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_Always_); ok {
 			return x.Always
 		}
 	}
@@ -5788,7 +5556,7 @@ func (x *Trigger) GetAlways() *Trigger_Always {
 
 func (x *Trigger) GetDefault() *Trigger_Default {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_Default_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_Default_); ok {
 			return x.Default
 		}
 	}
@@ -5797,7 +5565,7 @@ func (x *Trigger) GetDefault() *Trigger_Default {
 
 func (x *Trigger) GetElementCount() *Trigger_ElementCount {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_ElementCount_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_ElementCount_); ok {
 			return x.ElementCount
 		}
 	}
@@ -5806,7 +5574,7 @@ func (x *Trigger) GetElementCount() *Trigger_ElementCount {
 
 func (x *Trigger) GetNever() *Trigger_Never {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_Never_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_Never_); ok {
 			return x.Never
 		}
 	}
@@ -5815,7 +5583,7 @@ func (x *Trigger) GetNever() *Trigger_Never {
 
 func (x *Trigger) GetOrFinally() *Trigger_OrFinally {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_OrFinally_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_OrFinally_); ok {
 			return x.OrFinally
 		}
 	}
@@ -5824,7 +5592,7 @@ func (x *Trigger) GetOrFinally() *Trigger_OrFinally {
 
 func (x *Trigger) GetRepeat() *Trigger_Repeat {
 	if x != nil {
-		if x, ok := x.Trigger.(*Trigger_Repeat_); ok {
+		if x, ok := x.xxx_hidden_Trigger.(*trigger_Repeat_); ok {
 			return x.Repeat
 		}
 	}
@@ -5833,112 +5601,112 @@ func (x *Trigger) GetRepeat() *Trigger_Repeat {
 
 func (x *Trigger) SetAfterAll(v *Trigger_AfterAll) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_AfterAll_{v}
+	x.xxx_hidden_Trigger = &trigger_AfterAll_{v}
 }
 
 func (x *Trigger) SetAfterAny(v *Trigger_AfterAny) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_AfterAny_{v}
+	x.xxx_hidden_Trigger = &trigger_AfterAny_{v}
 }
 
 func (x *Trigger) SetAfterEach(v *Trigger_AfterEach) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_AfterEach_{v}
+	x.xxx_hidden_Trigger = &trigger_AfterEach_{v}
 }
 
 func (x *Trigger) SetAfterEndOfWindow(v *Trigger_AfterEndOfWindow) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_AfterEndOfWindow_{v}
+	x.xxx_hidden_Trigger = &trigger_AfterEndOfWindow_{v}
 }
 
 func (x *Trigger) SetAfterProcessingTime(v *Trigger_AfterProcessingTime) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_AfterProcessingTime_{v}
+	x.xxx_hidden_Trigger = &trigger_AfterProcessingTime_{v}
 }
 
 func (x *Trigger) SetAfterSynchronizedProcessingTime(v *Trigger_AfterSynchronizedProcessingTime) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_AfterSynchronizedProcessingTime_{v}
+	x.xxx_hidden_Trigger = &trigger_AfterSynchronizedProcessingTime_{v}
 }
 
 func (x *Trigger) SetAlways(v *Trigger_Always) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_Always_{v}
+	x.xxx_hidden_Trigger = &trigger_Always_{v}
 }
 
 func (x *Trigger) SetDefault(v *Trigger_Default) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_Default_{v}
+	x.xxx_hidden_Trigger = &trigger_Default_{v}
 }
 
 func (x *Trigger) SetElementCount(v *Trigger_ElementCount) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_ElementCount_{v}
+	x.xxx_hidden_Trigger = &trigger_ElementCount_{v}
 }
 
 func (x *Trigger) SetNever(v *Trigger_Never) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_Never_{v}
+	x.xxx_hidden_Trigger = &trigger_Never_{v}
 }
 
 func (x *Trigger) SetOrFinally(v *Trigger_OrFinally) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_OrFinally_{v}
+	x.xxx_hidden_Trigger = &trigger_OrFinally_{v}
 }
 
 func (x *Trigger) SetRepeat(v *Trigger_Repeat) {
 	if v == nil {
-		x.Trigger = nil
+		x.xxx_hidden_Trigger = nil
 		return
 	}
-	x.Trigger = &Trigger_Repeat_{v}
+	x.xxx_hidden_Trigger = &trigger_Repeat_{v}
 }
 
 func (x *Trigger) HasTrigger() bool {
 	if x == nil {
 		return false
 	}
-	return x.Trigger != nil
+	return x.xxx_hidden_Trigger != nil
 }
 
 func (x *Trigger) HasAfterAll() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_AfterAll_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_AfterAll_)
 	return ok
 }
 
@@ -5946,7 +5714,7 @@ func (x *Trigger) HasAfterAny() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_AfterAny_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_AfterAny_)
 	return ok
 }
 
@@ -5954,7 +5722,7 @@ func (x *Trigger) HasAfterEach() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_AfterEach_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_AfterEach_)
 	return ok
 }
 
@@ -5962,7 +5730,7 @@ func (x *Trigger) HasAfterEndOfWindow() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_AfterEndOfWindow_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_AfterEndOfWindow_)
 	return ok
 }
 
@@ -5970,7 +5738,7 @@ func (x *Trigger) HasAfterProcessingTime() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_AfterProcessingTime_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_AfterProcessingTime_)
 	return ok
 }
 
@@ -5978,7 +5746,7 @@ func (x *Trigger) HasAfterSynchronizedProcessingTime() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_AfterSynchronizedProcessingTime_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_AfterSynchronizedProcessingTime_)
 	return ok
 }
 
@@ -5986,7 +5754,7 @@ func (x *Trigger) HasAlways() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_Always_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_Always_)
 	return ok
 }
 
@@ -5994,7 +5762,7 @@ func (x *Trigger) HasDefault() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_Default_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_Default_)
 	return ok
 }
 
@@ -6002,7 +5770,7 @@ func (x *Trigger) HasElementCount() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_ElementCount_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_ElementCount_)
 	return ok
 }
 
@@ -6010,7 +5778,7 @@ func (x *Trigger) HasNever() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_Never_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_Never_)
 	return ok
 }
 
@@ -6018,7 +5786,7 @@ func (x *Trigger) HasOrFinally() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_OrFinally_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_OrFinally_)
 	return ok
 }
 
@@ -6026,83 +5794,83 @@ func (x *Trigger) HasRepeat() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Trigger.(*Trigger_Repeat_)
+	_, ok := x.xxx_hidden_Trigger.(*trigger_Repeat_)
 	return ok
 }
 
 func (x *Trigger) ClearTrigger() {
-	x.Trigger = nil
+	x.xxx_hidden_Trigger = nil
 }
 
 func (x *Trigger) ClearAfterAll() {
-	if _, ok := x.Trigger.(*Trigger_AfterAll_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_AfterAll_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearAfterAny() {
-	if _, ok := x.Trigger.(*Trigger_AfterAny_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_AfterAny_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearAfterEach() {
-	if _, ok := x.Trigger.(*Trigger_AfterEach_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_AfterEach_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearAfterEndOfWindow() {
-	if _, ok := x.Trigger.(*Trigger_AfterEndOfWindow_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_AfterEndOfWindow_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearAfterProcessingTime() {
-	if _, ok := x.Trigger.(*Trigger_AfterProcessingTime_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_AfterProcessingTime_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearAfterSynchronizedProcessingTime() {
-	if _, ok := x.Trigger.(*Trigger_AfterSynchronizedProcessingTime_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_AfterSynchronizedProcessingTime_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearAlways() {
-	if _, ok := x.Trigger.(*Trigger_Always_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_Always_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearDefault() {
-	if _, ok := x.Trigger.(*Trigger_Default_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_Default_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearElementCount() {
-	if _, ok := x.Trigger.(*Trigger_ElementCount_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_ElementCount_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearNever() {
-	if _, ok := x.Trigger.(*Trigger_Never_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_Never_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearOrFinally() {
-	if _, ok := x.Trigger.(*Trigger_OrFinally_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_OrFinally_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
 func (x *Trigger) ClearRepeat() {
-	if _, ok := x.Trigger.(*Trigger_Repeat_); ok {
-		x.Trigger = nil
+	if _, ok := x.xxx_hidden_Trigger.(*trigger_Repeat_); ok {
+		x.xxx_hidden_Trigger = nil
 	}
 }
 
@@ -6124,30 +5892,30 @@ func (x *Trigger) WhichTrigger() case_Trigger_Trigger {
 	if x == nil {
 		return Trigger_Trigger_not_set_case
 	}
-	switch x.Trigger.(type) {
-	case *Trigger_AfterAll_:
+	switch x.xxx_hidden_Trigger.(type) {
+	case *trigger_AfterAll_:
 		return Trigger_AfterAll_case
-	case *Trigger_AfterAny_:
+	case *trigger_AfterAny_:
 		return Trigger_AfterAny_case
-	case *Trigger_AfterEach_:
+	case *trigger_AfterEach_:
 		return Trigger_AfterEach_case
-	case *Trigger_AfterEndOfWindow_:
+	case *trigger_AfterEndOfWindow_:
 		return Trigger_AfterEndOfWindow_case
-	case *Trigger_AfterProcessingTime_:
+	case *trigger_AfterProcessingTime_:
 		return Trigger_AfterProcessingTime_case
-	case *Trigger_AfterSynchronizedProcessingTime_:
+	case *trigger_AfterSynchronizedProcessingTime_:
 		return Trigger_AfterSynchronizedProcessingTime_case
-	case *Trigger_Always_:
+	case *trigger_Always_:
 		return Trigger_Always_case
-	case *Trigger_Default_:
+	case *trigger_Default_:
 		return Trigger_Default_case
-	case *Trigger_ElementCount_:
+	case *trigger_ElementCount_:
 		return Trigger_ElementCount_case
-	case *Trigger_Never_:
+	case *trigger_Never_:
 		return Trigger_Never_case
-	case *Trigger_OrFinally_:
+	case *trigger_OrFinally_:
 		return Trigger_OrFinally_case
-	case *Trigger_Repeat_:
+	case *trigger_Repeat_:
 		return Trigger_Repeat_case
 	default:
 		return Trigger_Trigger_not_set_case
@@ -6159,7 +5927,7 @@ type Trigger_builder struct {
 
 	// The full disjoint union of possible triggers.
 
-	// Fields of oneof Trigger:
+	// Fields of oneof xxx_hidden_Trigger:
 	AfterAll                        *Trigger_AfterAll
 	AfterAny                        *Trigger_AfterAny
 	AfterEach                       *Trigger_AfterEach
@@ -6172,7 +5940,7 @@ type Trigger_builder struct {
 	Never                           *Trigger_Never
 	OrFinally                       *Trigger_OrFinally
 	Repeat                          *Trigger_Repeat
-	// -- end of Trigger
+	// -- end of xxx_hidden_Trigger
 }
 
 func (b0 Trigger_builder) Build() *Trigger {
@@ -6180,40 +5948,40 @@ func (b0 Trigger_builder) Build() *Trigger {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.AfterAll != nil {
-		x.Trigger = &Trigger_AfterAll_{b.AfterAll}
+		x.xxx_hidden_Trigger = &trigger_AfterAll_{b.AfterAll}
 	}
 	if b.AfterAny != nil {
-		x.Trigger = &Trigger_AfterAny_{b.AfterAny}
+		x.xxx_hidden_Trigger = &trigger_AfterAny_{b.AfterAny}
 	}
 	if b.AfterEach != nil {
-		x.Trigger = &Trigger_AfterEach_{b.AfterEach}
+		x.xxx_hidden_Trigger = &trigger_AfterEach_{b.AfterEach}
 	}
 	if b.AfterEndOfWindow != nil {
-		x.Trigger = &Trigger_AfterEndOfWindow_{b.AfterEndOfWindow}
+		x.xxx_hidden_Trigger = &trigger_AfterEndOfWindow_{b.AfterEndOfWindow}
 	}
 	if b.AfterProcessingTime != nil {
-		x.Trigger = &Trigger_AfterProcessingTime_{b.AfterProcessingTime}
+		x.xxx_hidden_Trigger = &trigger_AfterProcessingTime_{b.AfterProcessingTime}
 	}
 	if b.AfterSynchronizedProcessingTime != nil {
-		x.Trigger = &Trigger_AfterSynchronizedProcessingTime_{b.AfterSynchronizedProcessingTime}
+		x.xxx_hidden_Trigger = &trigger_AfterSynchronizedProcessingTime_{b.AfterSynchronizedProcessingTime}
 	}
 	if b.Always != nil {
-		x.Trigger = &Trigger_Always_{b.Always}
+		x.xxx_hidden_Trigger = &trigger_Always_{b.Always}
 	}
 	if b.Default != nil {
-		x.Trigger = &Trigger_Default_{b.Default}
+		x.xxx_hidden_Trigger = &trigger_Default_{b.Default}
 	}
 	if b.ElementCount != nil {
-		x.Trigger = &Trigger_ElementCount_{b.ElementCount}
+		x.xxx_hidden_Trigger = &trigger_ElementCount_{b.ElementCount}
 	}
 	if b.Never != nil {
-		x.Trigger = &Trigger_Never_{b.Never}
+		x.xxx_hidden_Trigger = &trigger_Never_{b.Never}
 	}
 	if b.OrFinally != nil {
-		x.Trigger = &Trigger_OrFinally_{b.OrFinally}
+		x.xxx_hidden_Trigger = &trigger_OrFinally_{b.OrFinally}
 	}
 	if b.Repeat != nil {
-		x.Trigger = &Trigger_Repeat_{b.Repeat}
+		x.xxx_hidden_Trigger = &trigger_Repeat_{b.Repeat}
 	}
 	return m0
 }
@@ -6232,91 +6000,87 @@ type isTrigger_Trigger interface {
 	isTrigger_Trigger()
 }
 
-type Trigger_AfterAll_ struct {
+type trigger_AfterAll_ struct {
 	AfterAll *Trigger_AfterAll `protobuf:"bytes,1,opt,name=after_all,json=afterAll,proto3,oneof"`
 }
 
-type Trigger_AfterAny_ struct {
+type trigger_AfterAny_ struct {
 	AfterAny *Trigger_AfterAny `protobuf:"bytes,2,opt,name=after_any,json=afterAny,proto3,oneof"`
 }
 
-type Trigger_AfterEach_ struct {
+type trigger_AfterEach_ struct {
 	AfterEach *Trigger_AfterEach `protobuf:"bytes,3,opt,name=after_each,json=afterEach,proto3,oneof"`
 }
 
-type Trigger_AfterEndOfWindow_ struct {
+type trigger_AfterEndOfWindow_ struct {
 	AfterEndOfWindow *Trigger_AfterEndOfWindow `protobuf:"bytes,4,opt,name=after_end_of_window,json=afterEndOfWindow,proto3,oneof"`
 }
 
-type Trigger_AfterProcessingTime_ struct {
+type trigger_AfterProcessingTime_ struct {
 	AfterProcessingTime *Trigger_AfterProcessingTime `protobuf:"bytes,5,opt,name=after_processing_time,json=afterProcessingTime,proto3,oneof"`
 }
 
-type Trigger_AfterSynchronizedProcessingTime_ struct {
+type trigger_AfterSynchronizedProcessingTime_ struct {
 	AfterSynchronizedProcessingTime *Trigger_AfterSynchronizedProcessingTime `protobuf:"bytes,6,opt,name=after_synchronized_processing_time,json=afterSynchronizedProcessingTime,proto3,oneof"`
 }
 
-type Trigger_Always_ struct {
+type trigger_Always_ struct {
 	Always *Trigger_Always `protobuf:"bytes,12,opt,name=always,proto3,oneof"`
 }
 
-type Trigger_Default_ struct {
+type trigger_Default_ struct {
 	Default *Trigger_Default `protobuf:"bytes,7,opt,name=default,proto3,oneof"`
 }
 
-type Trigger_ElementCount_ struct {
+type trigger_ElementCount_ struct {
 	ElementCount *Trigger_ElementCount `protobuf:"bytes,8,opt,name=element_count,json=elementCount,proto3,oneof"`
 }
 
-type Trigger_Never_ struct {
+type trigger_Never_ struct {
 	Never *Trigger_Never `protobuf:"bytes,9,opt,name=never,proto3,oneof"`
 }
 
-type Trigger_OrFinally_ struct {
+type trigger_OrFinally_ struct {
 	OrFinally *Trigger_OrFinally `protobuf:"bytes,10,opt,name=or_finally,json=orFinally,proto3,oneof"`
 }
 
-type Trigger_Repeat_ struct {
+type trigger_Repeat_ struct {
 	Repeat *Trigger_Repeat `protobuf:"bytes,11,opt,name=repeat,proto3,oneof"`
 }
 
-func (*Trigger_AfterAll_) isTrigger_Trigger() {}
+func (*trigger_AfterAll_) isTrigger_Trigger() {}
 
-func (*Trigger_AfterAny_) isTrigger_Trigger() {}
+func (*trigger_AfterAny_) isTrigger_Trigger() {}
 
-func (*Trigger_AfterEach_) isTrigger_Trigger() {}
+func (*trigger_AfterEach_) isTrigger_Trigger() {}
 
-func (*Trigger_AfterEndOfWindow_) isTrigger_Trigger() {}
+func (*trigger_AfterEndOfWindow_) isTrigger_Trigger() {}
 
-func (*Trigger_AfterProcessingTime_) isTrigger_Trigger() {}
+func (*trigger_AfterProcessingTime_) isTrigger_Trigger() {}
 
-func (*Trigger_AfterSynchronizedProcessingTime_) isTrigger_Trigger() {}
+func (*trigger_AfterSynchronizedProcessingTime_) isTrigger_Trigger() {}
 
-func (*Trigger_Always_) isTrigger_Trigger() {}
+func (*trigger_Always_) isTrigger_Trigger() {}
 
-func (*Trigger_Default_) isTrigger_Trigger() {}
+func (*trigger_Default_) isTrigger_Trigger() {}
 
-func (*Trigger_ElementCount_) isTrigger_Trigger() {}
+func (*trigger_ElementCount_) isTrigger_Trigger() {}
 
-func (*Trigger_Never_) isTrigger_Trigger() {}
+func (*trigger_Never_) isTrigger_Trigger() {}
 
-func (*Trigger_OrFinally_) isTrigger_Trigger() {}
+func (*trigger_OrFinally_) isTrigger_Trigger() {}
 
-func (*Trigger_Repeat_) isTrigger_Trigger() {}
+func (*trigger_Repeat_) isTrigger_Trigger() {}
 
 // A specification for a transformation on a timestamp.
 //
 // Primarily used by AfterProcessingTime triggers to transform
 // the arrival time of input to a target time for firing.
 type TimestampTransform struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Types that are valid to be assigned to TimestampTransform:
-	//
-	//	*TimestampTransform_Delay_
-	//	*TimestampTransform_AlignTo_
-	TimestampTransform isTimestampTransform_TimestampTransform `protobuf_oneof:"timestamp_transform"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                         protoimpl.MessageState                  `protogen:"opaque.v1"`
+	xxx_hidden_TimestampTransform isTimestampTransform_TimestampTransform `protobuf_oneof:"timestamp_transform"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *TimestampTransform) Reset() {
@@ -6344,16 +6108,9 @@ func (x *TimestampTransform) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *TimestampTransform) GetTimestampTransform() isTimestampTransform_TimestampTransform {
-	if x != nil {
-		return x.TimestampTransform
-	}
-	return nil
-}
-
 func (x *TimestampTransform) GetDelay() *TimestampTransform_Delay {
 	if x != nil {
-		if x, ok := x.TimestampTransform.(*TimestampTransform_Delay_); ok {
+		if x, ok := x.xxx_hidden_TimestampTransform.(*timestampTransform_Delay_); ok {
 			return x.Delay
 		}
 	}
@@ -6362,7 +6119,7 @@ func (x *TimestampTransform) GetDelay() *TimestampTransform_Delay {
 
 func (x *TimestampTransform) GetAlignTo() *TimestampTransform_AlignTo {
 	if x != nil {
-		if x, ok := x.TimestampTransform.(*TimestampTransform_AlignTo_); ok {
+		if x, ok := x.xxx_hidden_TimestampTransform.(*timestampTransform_AlignTo_); ok {
 			return x.AlignTo
 		}
 	}
@@ -6371,32 +6128,32 @@ func (x *TimestampTransform) GetAlignTo() *TimestampTransform_AlignTo {
 
 func (x *TimestampTransform) SetDelay(v *TimestampTransform_Delay) {
 	if v == nil {
-		x.TimestampTransform = nil
+		x.xxx_hidden_TimestampTransform = nil
 		return
 	}
-	x.TimestampTransform = &TimestampTransform_Delay_{v}
+	x.xxx_hidden_TimestampTransform = &timestampTransform_Delay_{v}
 }
 
 func (x *TimestampTransform) SetAlignTo(v *TimestampTransform_AlignTo) {
 	if v == nil {
-		x.TimestampTransform = nil
+		x.xxx_hidden_TimestampTransform = nil
 		return
 	}
-	x.TimestampTransform = &TimestampTransform_AlignTo_{v}
+	x.xxx_hidden_TimestampTransform = &timestampTransform_AlignTo_{v}
 }
 
 func (x *TimestampTransform) HasTimestampTransform() bool {
 	if x == nil {
 		return false
 	}
-	return x.TimestampTransform != nil
+	return x.xxx_hidden_TimestampTransform != nil
 }
 
 func (x *TimestampTransform) HasDelay() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TimestampTransform.(*TimestampTransform_Delay_)
+	_, ok := x.xxx_hidden_TimestampTransform.(*timestampTransform_Delay_)
 	return ok
 }
 
@@ -6404,23 +6161,23 @@ func (x *TimestampTransform) HasAlignTo() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.TimestampTransform.(*TimestampTransform_AlignTo_)
+	_, ok := x.xxx_hidden_TimestampTransform.(*timestampTransform_AlignTo_)
 	return ok
 }
 
 func (x *TimestampTransform) ClearTimestampTransform() {
-	x.TimestampTransform = nil
+	x.xxx_hidden_TimestampTransform = nil
 }
 
 func (x *TimestampTransform) ClearDelay() {
-	if _, ok := x.TimestampTransform.(*TimestampTransform_Delay_); ok {
-		x.TimestampTransform = nil
+	if _, ok := x.xxx_hidden_TimestampTransform.(*timestampTransform_Delay_); ok {
+		x.xxx_hidden_TimestampTransform = nil
 	}
 }
 
 func (x *TimestampTransform) ClearAlignTo() {
-	if _, ok := x.TimestampTransform.(*TimestampTransform_AlignTo_); ok {
-		x.TimestampTransform = nil
+	if _, ok := x.xxx_hidden_TimestampTransform.(*timestampTransform_AlignTo_); ok {
+		x.xxx_hidden_TimestampTransform = nil
 	}
 }
 
@@ -6432,10 +6189,10 @@ func (x *TimestampTransform) WhichTimestampTransform() case_TimestampTransform_T
 	if x == nil {
 		return TimestampTransform_TimestampTransform_not_set_case
 	}
-	switch x.TimestampTransform.(type) {
-	case *TimestampTransform_Delay_:
+	switch x.xxx_hidden_TimestampTransform.(type) {
+	case *timestampTransform_Delay_:
 		return TimestampTransform_Delay_case
-	case *TimestampTransform_AlignTo_:
+	case *timestampTransform_AlignTo_:
 		return TimestampTransform_AlignTo_case
 	default:
 		return TimestampTransform_TimestampTransform_not_set_case
@@ -6445,10 +6202,10 @@ func (x *TimestampTransform) WhichTimestampTransform() case_TimestampTransform_T
 type TimestampTransform_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// Fields of oneof TimestampTransform:
+	// Fields of oneof xxx_hidden_TimestampTransform:
 	Delay   *TimestampTransform_Delay
 	AlignTo *TimestampTransform_AlignTo
-	// -- end of TimestampTransform
+	// -- end of xxx_hidden_TimestampTransform
 }
 
 func (b0 TimestampTransform_builder) Build() *TimestampTransform {
@@ -6456,10 +6213,10 @@ func (b0 TimestampTransform_builder) Build() *TimestampTransform {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Delay != nil {
-		x.TimestampTransform = &TimestampTransform_Delay_{b.Delay}
+		x.xxx_hidden_TimestampTransform = &timestampTransform_Delay_{b.Delay}
 	}
 	if b.AlignTo != nil {
-		x.TimestampTransform = &TimestampTransform_AlignTo_{b.AlignTo}
+		x.xxx_hidden_TimestampTransform = &timestampTransform_AlignTo_{b.AlignTo}
 	}
 	return m0
 }
@@ -6478,45 +6235,26 @@ type isTimestampTransform_TimestampTransform interface {
 	isTimestampTransform_TimestampTransform()
 }
 
-type TimestampTransform_Delay_ struct {
+type timestampTransform_Delay_ struct {
 	Delay *TimestampTransform_Delay `protobuf:"bytes,1,opt,name=delay,proto3,oneof"`
 }
 
-type TimestampTransform_AlignTo_ struct {
+type timestampTransform_AlignTo_ struct {
 	AlignTo *TimestampTransform_AlignTo `protobuf:"bytes,2,opt,name=align_to,json=alignTo,proto3,oneof"`
 }
 
-func (*TimestampTransform_Delay_) isTimestampTransform_TimestampTransform() {}
+func (*timestampTransform_Delay_) isTimestampTransform_TimestampTransform() {}
 
-func (*TimestampTransform_AlignTo_) isTimestampTransform_TimestampTransform() {}
+func (*timestampTransform_AlignTo_) isTimestampTransform_TimestampTransform() {}
 
 // A specification for how to "side input" a PCollection.
 type SideInput struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) URN of the access pattern required by the `view_fn` to present
-	// the desired SDK-specific interface to a UDF.
-	//
-	// This access pattern defines the SDK harness <-> Runner Harness RPC
-	// interface for accessing a side input.
-	//
-	// See StandardSideInputTypes for an enumeration of all side input types
-	// defined.
-	AccessPattern *FunctionSpec `protobuf:"bytes,1,opt,name=access_pattern,json=accessPattern,proto3" json:"access_pattern,omitempty"`
-	// (Required) The FunctionSpec of the UDF that adapts a particular
-	// access_pattern to a user-facing view type.
-	//
-	// For example, View.asSingleton() may include a `view_fn` that adapts a
-	// specially-designed multimap to a single value per window.
-	ViewFn *FunctionSpec `protobuf:"bytes,2,opt,name=view_fn,json=viewFn,proto3" json:"view_fn,omitempty"`
-	// (Required) The FunctionSpec of the UDF that maps a main input window
-	// to a side input window.
-	//
-	// For example, when the main input is in fixed windows of one hour, this
-	// can specify that the side input should be accessed according to the day
-	// in which that hour falls.
-	WindowMappingFn *FunctionSpec `protobuf:"bytes,3,opt,name=window_mapping_fn,json=windowMappingFn,proto3" json:"window_mapping_fn,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_AccessPattern   *FunctionSpec          `protobuf:"bytes,1,opt,name=access_pattern,json=accessPattern,proto3" json:"access_pattern,omitempty"`
+	xxx_hidden_ViewFn          *FunctionSpec          `protobuf:"bytes,2,opt,name=view_fn,json=viewFn,proto3" json:"view_fn,omitempty"`
+	xxx_hidden_WindowMappingFn *FunctionSpec          `protobuf:"bytes,3,opt,name=window_mapping_fn,json=windowMappingFn,proto3" json:"window_mapping_fn,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *SideInput) Reset() {
@@ -6546,68 +6284,68 @@ func (x *SideInput) ProtoReflect() protoreflect.Message {
 
 func (x *SideInput) GetAccessPattern() *FunctionSpec {
 	if x != nil {
-		return x.AccessPattern
+		return x.xxx_hidden_AccessPattern
 	}
 	return nil
 }
 
 func (x *SideInput) GetViewFn() *FunctionSpec {
 	if x != nil {
-		return x.ViewFn
+		return x.xxx_hidden_ViewFn
 	}
 	return nil
 }
 
 func (x *SideInput) GetWindowMappingFn() *FunctionSpec {
 	if x != nil {
-		return x.WindowMappingFn
+		return x.xxx_hidden_WindowMappingFn
 	}
 	return nil
 }
 
 func (x *SideInput) SetAccessPattern(v *FunctionSpec) {
-	x.AccessPattern = v
+	x.xxx_hidden_AccessPattern = v
 }
 
 func (x *SideInput) SetViewFn(v *FunctionSpec) {
-	x.ViewFn = v
+	x.xxx_hidden_ViewFn = v
 }
 
 func (x *SideInput) SetWindowMappingFn(v *FunctionSpec) {
-	x.WindowMappingFn = v
+	x.xxx_hidden_WindowMappingFn = v
 }
 
 func (x *SideInput) HasAccessPattern() bool {
 	if x == nil {
 		return false
 	}
-	return x.AccessPattern != nil
+	return x.xxx_hidden_AccessPattern != nil
 }
 
 func (x *SideInput) HasViewFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.ViewFn != nil
+	return x.xxx_hidden_ViewFn != nil
 }
 
 func (x *SideInput) HasWindowMappingFn() bool {
 	if x == nil {
 		return false
 	}
-	return x.WindowMappingFn != nil
+	return x.xxx_hidden_WindowMappingFn != nil
 }
 
 func (x *SideInput) ClearAccessPattern() {
-	x.AccessPattern = nil
+	x.xxx_hidden_AccessPattern = nil
 }
 
 func (x *SideInput) ClearViewFn() {
-	x.ViewFn = nil
+	x.xxx_hidden_ViewFn = nil
 }
 
 func (x *SideInput) ClearWindowMappingFn() {
-	x.WindowMappingFn = nil
+	x.xxx_hidden_WindowMappingFn = nil
 }
 
 type SideInput_builder struct {
@@ -6641,14 +6379,14 @@ func (b0 SideInput_builder) Build() *SideInput {
 	m0 := &SideInput{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.AccessPattern = b.AccessPattern
-	x.ViewFn = b.ViewFn
-	x.WindowMappingFn = b.WindowMappingFn
+	x.xxx_hidden_AccessPattern = b.AccessPattern
+	x.xxx_hidden_ViewFn = b.ViewFn
+	x.xxx_hidden_WindowMappingFn = b.WindowMappingFn
 	return m0
 }
 
 type StandardArtifacts struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6691,13 +6429,11 @@ func (b0 StandardArtifacts_builder) Build() *StandardArtifacts {
 }
 
 type ArtifactFilePayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// a string for an artifact file path e.g. "/tmp/foo.jar"
-	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	// The hex-encoded sha256 checksum of the artifact.
-	Sha256        string `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Path   string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	xxx_hidden_Sha256 string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ArtifactFilePayload) Reset() {
@@ -6727,24 +6463,24 @@ func (x *ArtifactFilePayload) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactFilePayload) GetPath() string {
 	if x != nil {
-		return x.Path
+		return x.xxx_hidden_Path
 	}
 	return ""
 }
 
 func (x *ArtifactFilePayload) GetSha256() string {
 	if x != nil {
-		return x.Sha256
+		return x.xxx_hidden_Sha256
 	}
 	return ""
 }
 
 func (x *ArtifactFilePayload) SetPath(v string) {
-	x.Path = v
+	x.xxx_hidden_Path = v
 }
 
 func (x *ArtifactFilePayload) SetSha256(v string) {
-	x.Sha256 = v
+	x.xxx_hidden_Sha256 = v
 }
 
 type ArtifactFilePayload_builder struct {
@@ -6760,19 +6496,17 @@ func (b0 ArtifactFilePayload_builder) Build() *ArtifactFilePayload {
 	m0 := &ArtifactFilePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Path = b.Path
-	x.Sha256 = b.Sha256
+	x.xxx_hidden_Path = b.Path
+	x.xxx_hidden_Sha256 = b.Sha256
 	return m0
 }
 
 type ArtifactUrlPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
-	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	// (Optional) The hex-encoded sha256 checksum of the artifact if available.
-	Sha256        string `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Url    string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	xxx_hidden_Sha256 string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ArtifactUrlPayload) Reset() {
@@ -6802,24 +6536,24 @@ func (x *ArtifactUrlPayload) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactUrlPayload) GetUrl() string {
 	if x != nil {
-		return x.Url
+		return x.xxx_hidden_Url
 	}
 	return ""
 }
 
 func (x *ArtifactUrlPayload) GetSha256() string {
 	if x != nil {
-		return x.Sha256
+		return x.xxx_hidden_Sha256
 	}
 	return ""
 }
 
 func (x *ArtifactUrlPayload) SetUrl(v string) {
-	x.Url = v
+	x.xxx_hidden_Url = v
 }
 
 func (x *ArtifactUrlPayload) SetSha256(v string) {
-	x.Sha256 = v
+	x.xxx_hidden_Sha256 = v
 }
 
 type ArtifactUrlPayload_builder struct {
@@ -6835,17 +6569,16 @@ func (b0 ArtifactUrlPayload_builder) Build() *ArtifactUrlPayload {
 	m0 := &ArtifactUrlPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Url = b.Url
-	x.Sha256 = b.Sha256
+	x.xxx_hidden_Url = b.Url
+	x.xxx_hidden_Sha256 = b.Sha256
 	return m0
 }
 
 type EmbeddedFilePayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// raw data bytes for an embedded artifact
-	Data          []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EmbeddedFilePayload) Reset() {
@@ -6875,7 +6608,7 @@ func (x *EmbeddedFilePayload) ProtoReflect() protoreflect.Message {
 
 func (x *EmbeddedFilePayload) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
@@ -6884,7 +6617,7 @@ func (x *EmbeddedFilePayload) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 type EmbeddedFilePayload_builder struct {
@@ -6898,18 +6631,16 @@ func (b0 EmbeddedFilePayload_builder) Build() *EmbeddedFilePayload {
 	m0 := &EmbeddedFilePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Data = b.Data
+	x.xxx_hidden_Data = b.Data
 	return m0
 }
 
 type PyPIPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Pypi compatible artifact id e.g. "apache-beam"
-	ArtifactId string `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
-	// Pypi compatible version string.
-	Version       string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ArtifactId string                 `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	xxx_hidden_Version    string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *PyPIPayload) Reset() {
@@ -6939,24 +6670,24 @@ func (x *PyPIPayload) ProtoReflect() protoreflect.Message {
 
 func (x *PyPIPayload) GetArtifactId() string {
 	if x != nil {
-		return x.ArtifactId
+		return x.xxx_hidden_ArtifactId
 	}
 	return ""
 }
 
 func (x *PyPIPayload) GetVersion() string {
 	if x != nil {
-		return x.Version
+		return x.xxx_hidden_Version
 	}
 	return ""
 }
 
 func (x *PyPIPayload) SetArtifactId(v string) {
-	x.ArtifactId = v
+	x.xxx_hidden_ArtifactId = v
 }
 
 func (x *PyPIPayload) SetVersion(v string) {
-	x.Version = v
+	x.xxx_hidden_Version = v
 }
 
 type PyPIPayload_builder struct {
@@ -6972,20 +6703,17 @@ func (b0 PyPIPayload_builder) Build() *PyPIPayload {
 	m0 := &PyPIPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ArtifactId = b.ArtifactId
-	x.Version = b.Version
+	x.xxx_hidden_ArtifactId = b.ArtifactId
+	x.xxx_hidden_Version = b.Version
 	return m0
 }
 
 type MavenPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A string specifying Maven artifact.
-	// The standard format is "groupId:artifactId:version[:packaging[:classifier]]"
-	Artifact string `protobuf:"bytes,1,opt,name=artifact,proto3" json:"artifact,omitempty"`
-	// (Optional) Repository URL. If not specified, Maven central is used by default.
-	RepositoryUrl string `protobuf:"bytes,2,opt,name=repository_url,json=repositoryUrl,proto3" json:"repository_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Artifact      string                 `protobuf:"bytes,1,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	xxx_hidden_RepositoryUrl string                 `protobuf:"bytes,2,opt,name=repository_url,json=repositoryUrl,proto3" json:"repository_url,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *MavenPayload) Reset() {
@@ -7015,24 +6743,24 @@ func (x *MavenPayload) ProtoReflect() protoreflect.Message {
 
 func (x *MavenPayload) GetArtifact() string {
 	if x != nil {
-		return x.Artifact
+		return x.xxx_hidden_Artifact
 	}
 	return ""
 }
 
 func (x *MavenPayload) GetRepositoryUrl() string {
 	if x != nil {
-		return x.RepositoryUrl
+		return x.xxx_hidden_RepositoryUrl
 	}
 	return ""
 }
 
 func (x *MavenPayload) SetArtifact(v string) {
-	x.Artifact = v
+	x.xxx_hidden_Artifact = v
 }
 
 func (x *MavenPayload) SetRepositoryUrl(v string) {
-	x.RepositoryUrl = v
+	x.xxx_hidden_RepositoryUrl = v
 }
 
 type MavenPayload_builder struct {
@@ -7049,20 +6777,17 @@ func (b0 MavenPayload_builder) Build() *MavenPayload {
 	m0 := &MavenPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Artifact = b.Artifact
-	x.RepositoryUrl = b.RepositoryUrl
+	x.xxx_hidden_Artifact = b.Artifact
+	x.xxx_hidden_RepositoryUrl = b.RepositoryUrl
 	return m0
 }
 
 type DeferredArtifactPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
-	// whether they can parse the data.
-	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	// Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
-	Data          []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Key  string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeferredArtifactPayload) Reset() {
@@ -7092,27 +6817,27 @@ func (x *DeferredArtifactPayload) ProtoReflect() protoreflect.Message {
 
 func (x *DeferredArtifactPayload) GetKey() string {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return ""
 }
 
 func (x *DeferredArtifactPayload) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
 
 func (x *DeferredArtifactPayload) SetKey(v string) {
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 func (x *DeferredArtifactPayload) SetData(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Data = v
+	x.xxx_hidden_Data = v
 }
 
 type DeferredArtifactPayload_builder struct {
@@ -7129,17 +6854,16 @@ func (b0 DeferredArtifactPayload_builder) Build() *DeferredArtifactPayload {
 	m0 := &DeferredArtifactPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Key = b.Key
-	x.Data = b.Data
+	x.xxx_hidden_Key = b.Key
+	x.xxx_hidden_Data = b.Data
 	return m0
 }
 
 type ArtifactStagingToRolePayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A generated staged name (relative path under staging directory).
-	StagedName    string `protobuf:"bytes,1,opt,name=staged_name,json=stagedName,proto3" json:"staged_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_StagedName string                 `protobuf:"bytes,1,opt,name=staged_name,json=stagedName,proto3" json:"staged_name,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ArtifactStagingToRolePayload) Reset() {
@@ -7169,13 +6893,13 @@ func (x *ArtifactStagingToRolePayload) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactStagingToRolePayload) GetStagedName() string {
 	if x != nil {
-		return x.StagedName
+		return x.xxx_hidden_StagedName
 	}
 	return ""
 }
 
 func (x *ArtifactStagingToRolePayload) SetStagedName(v string) {
-	x.StagedName = v
+	x.xxx_hidden_StagedName = v
 }
 
 type ArtifactStagingToRolePayload_builder struct {
@@ -7189,20 +6913,18 @@ func (b0 ArtifactStagingToRolePayload_builder) Build() *ArtifactStagingToRolePay
 	m0 := &ArtifactStagingToRolePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.StagedName = b.StagedName
+	x.xxx_hidden_StagedName = b.StagedName
 	return m0
 }
 
 type ArtifactInformation struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A URN that describes the type of artifact
-	TypeUrn     string `protobuf:"bytes,1,opt,name=type_urn,json=typeUrn,proto3" json:"type_urn,omitempty"`
-	TypePayload []byte `protobuf:"bytes,2,opt,name=type_payload,json=typePayload,proto3" json:"type_payload,omitempty"`
-	// A URN that describes the role of artifact
-	RoleUrn       string `protobuf:"bytes,3,opt,name=role_urn,json=roleUrn,proto3" json:"role_urn,omitempty"`
-	RolePayload   []byte `protobuf:"bytes,4,opt,name=role_payload,json=rolePayload,proto3" json:"role_payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TypeUrn     string                 `protobuf:"bytes,1,opt,name=type_urn,json=typeUrn,proto3" json:"type_urn,omitempty"`
+	xxx_hidden_TypePayload []byte                 `protobuf:"bytes,2,opt,name=type_payload,json=typePayload,proto3" json:"type_payload,omitempty"`
+	xxx_hidden_RoleUrn     string                 `protobuf:"bytes,3,opt,name=role_urn,json=roleUrn,proto3" json:"role_urn,omitempty"`
+	xxx_hidden_RolePayload []byte                 `protobuf:"bytes,4,opt,name=role_payload,json=rolePayload,proto3" json:"role_payload,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ArtifactInformation) Reset() {
@@ -7232,52 +6954,52 @@ func (x *ArtifactInformation) ProtoReflect() protoreflect.Message {
 
 func (x *ArtifactInformation) GetTypeUrn() string {
 	if x != nil {
-		return x.TypeUrn
+		return x.xxx_hidden_TypeUrn
 	}
 	return ""
 }
 
 func (x *ArtifactInformation) GetTypePayload() []byte {
 	if x != nil {
-		return x.TypePayload
+		return x.xxx_hidden_TypePayload
 	}
 	return nil
 }
 
 func (x *ArtifactInformation) GetRoleUrn() string {
 	if x != nil {
-		return x.RoleUrn
+		return x.xxx_hidden_RoleUrn
 	}
 	return ""
 }
 
 func (x *ArtifactInformation) GetRolePayload() []byte {
 	if x != nil {
-		return x.RolePayload
+		return x.xxx_hidden_RolePayload
 	}
 	return nil
 }
 
 func (x *ArtifactInformation) SetTypeUrn(v string) {
-	x.TypeUrn = v
+	x.xxx_hidden_TypeUrn = v
 }
 
 func (x *ArtifactInformation) SetTypePayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.TypePayload = v
+	x.xxx_hidden_TypePayload = v
 }
 
 func (x *ArtifactInformation) SetRoleUrn(v string) {
-	x.RoleUrn = v
+	x.xxx_hidden_RoleUrn = v
 }
 
 func (x *ArtifactInformation) SetRolePayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.RolePayload = v
+	x.xxx_hidden_RolePayload = v
 }
 
 type ArtifactInformation_builder struct {
@@ -7295,39 +7017,25 @@ func (b0 ArtifactInformation_builder) Build() *ArtifactInformation {
 	m0 := &ArtifactInformation{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TypeUrn = b.TypeUrn
-	x.TypePayload = b.TypePayload
-	x.RoleUrn = b.RoleUrn
-	x.RolePayload = b.RolePayload
+	x.xxx_hidden_TypeUrn = b.TypeUrn
+	x.xxx_hidden_TypePayload = b.TypePayload
+	x.xxx_hidden_RoleUrn = b.RoleUrn
+	x.xxx_hidden_RolePayload = b.RolePayload
 	return m0
 }
 
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 type Environment struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The URN of the payload
-	Urn string `protobuf:"bytes,2,opt,name=urn,proto3" json:"urn,omitempty"`
-	// (Optional) The data specifying any parameters to the URN. If
-	// the URN does not require any arguments, this may be omitted.
-	Payload []byte `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
-	// (Optional) Static display data for the environment. If there is none,
-	// it may be omitted.
-	DisplayData []*DisplayData `protobuf:"bytes,4,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
-	// (Optional) A set of capabilities this environment supports. This is
-	// typically a list of common URNs designating coders, transforms, etc. that
-	// this environment understands (and a runner MAY use) despite not
-	// appearing in the pipeline proto. This may also be used to indicate
-	// support of optional protocols not tied to a concrete component.
-	Capabilities []string `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	// (Optional) artifact dependency information used for executing UDFs in this environment.
-	Dependencies []*ArtifactInformation `protobuf:"bytes,6,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
-	// (Optional) A mapping of resource URNs to requested values.  The encoding
-	// of the values is specified by the URN.  Resource hints are advisory;
-	// a runner is free to ignore resource hints that it does not understand.
-	ResourceHints map[string][]byte `protobuf:"bytes,7,rep,name=resource_hints,json=resourceHints,proto3" json:"resource_hints,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Urn           string                  `protobuf:"bytes,2,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Payload       []byte                  `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	xxx_hidden_DisplayData   *[]*DisplayData         `protobuf:"bytes,4,rep,name=display_data,json=displayData,proto3" json:"display_data,omitempty"`
+	xxx_hidden_Capabilities  []string                `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	xxx_hidden_Dependencies  *[]*ArtifactInformation `protobuf:"bytes,6,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	xxx_hidden_ResourceHints map[string][]byte       `protobuf:"bytes,7,rep,name=resource_hints,json=resourceHints,proto3" json:"resource_hints,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Environment) Reset() {
@@ -7357,71 +7065,75 @@ func (x *Environment) ProtoReflect() protoreflect.Message {
 
 func (x *Environment) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *Environment) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *Environment) GetDisplayData() []*DisplayData {
 	if x != nil {
-		return x.DisplayData
+		if x.xxx_hidden_DisplayData != nil {
+			return *x.xxx_hidden_DisplayData
+		}
 	}
 	return nil
 }
 
 func (x *Environment) GetCapabilities() []string {
 	if x != nil {
-		return x.Capabilities
+		return x.xxx_hidden_Capabilities
 	}
 	return nil
 }
 
 func (x *Environment) GetDependencies() []*ArtifactInformation {
 	if x != nil {
-		return x.Dependencies
+		if x.xxx_hidden_Dependencies != nil {
+			return *x.xxx_hidden_Dependencies
+		}
 	}
 	return nil
 }
 
 func (x *Environment) GetResourceHints() map[string][]byte {
 	if x != nil {
-		return x.ResourceHints
+		return x.xxx_hidden_ResourceHints
 	}
 	return nil
 }
 
 func (x *Environment) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *Environment) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 func (x *Environment) SetDisplayData(v []*DisplayData) {
-	x.DisplayData = v
+	x.xxx_hidden_DisplayData = &v
 }
 
 func (x *Environment) SetCapabilities(v []string) {
-	x.Capabilities = v
+	x.xxx_hidden_Capabilities = v
 }
 
 func (x *Environment) SetDependencies(v []*ArtifactInformation) {
-	x.Dependencies = v
+	x.xxx_hidden_Dependencies = &v
 }
 
 func (x *Environment) SetResourceHints(v map[string][]byte) {
-	x.ResourceHints = v
+	x.xxx_hidden_ResourceHints = v
 }
 
 type Environment_builder struct {
@@ -7453,17 +7165,17 @@ func (b0 Environment_builder) Build() *Environment {
 	m0 := &Environment{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Payload = b.Payload
-	x.DisplayData = b.DisplayData
-	x.Capabilities = b.Capabilities
-	x.Dependencies = b.Dependencies
-	x.ResourceHints = b.ResourceHints
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Payload = b.Payload
+	x.xxx_hidden_DisplayData = &b.DisplayData
+	x.xxx_hidden_Capabilities = b.Capabilities
+	x.xxx_hidden_Dependencies = &b.Dependencies
+	x.xxx_hidden_ResourceHints = b.ResourceHints
 	return m0
 }
 
 type StandardEnvironments struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7507,10 +7219,10 @@ func (b0 StandardEnvironments_builder) Build() *StandardEnvironments {
 
 // The payload of a Docker image
 type DockerPayload struct {
-	state          protoimpl.MessageState `protogen:"hybrid.v1"`
-	ContainerImage string                 `protobuf:"bytes,1,opt,name=container_image,json=containerImage,proto3" json:"container_image,omitempty"` // implicitly linux_amd64.
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ContainerImage string                 `protobuf:"bytes,1,opt,name=container_image,json=containerImage,proto3" json:"container_image,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *DockerPayload) Reset() {
@@ -7540,13 +7252,13 @@ func (x *DockerPayload) ProtoReflect() protoreflect.Message {
 
 func (x *DockerPayload) GetContainerImage() string {
 	if x != nil {
-		return x.ContainerImage
+		return x.xxx_hidden_ContainerImage
 	}
 	return ""
 }
 
 func (x *DockerPayload) SetContainerImage(v string) {
-	x.ContainerImage = v
+	x.xxx_hidden_ContainerImage = v
 }
 
 type DockerPayload_builder struct {
@@ -7559,18 +7271,18 @@ func (b0 DockerPayload_builder) Build() *DockerPayload {
 	m0 := &DockerPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ContainerImage = b.ContainerImage
+	x.xxx_hidden_ContainerImage = b.ContainerImage
 	return m0
 }
 
 type ProcessPayload struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Os            string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`                                                                             // "linux", "darwin", ..
-	Arch          string                 `protobuf:"bytes,2,opt,name=arch,proto3" json:"arch,omitempty"`                                                                         // "amd64", ..
-	Command       string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`                                                                   // process to execute
-	Env           map[string]string      `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Environment variables
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Os      string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
+	xxx_hidden_Arch    string                 `protobuf:"bytes,2,opt,name=arch,proto3" json:"arch,omitempty"`
+	xxx_hidden_Command string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
+	xxx_hidden_Env     map[string]string      `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProcessPayload) Reset() {
@@ -7600,46 +7312,46 @@ func (x *ProcessPayload) ProtoReflect() protoreflect.Message {
 
 func (x *ProcessPayload) GetOs() string {
 	if x != nil {
-		return x.Os
+		return x.xxx_hidden_Os
 	}
 	return ""
 }
 
 func (x *ProcessPayload) GetArch() string {
 	if x != nil {
-		return x.Arch
+		return x.xxx_hidden_Arch
 	}
 	return ""
 }
 
 func (x *ProcessPayload) GetCommand() string {
 	if x != nil {
-		return x.Command
+		return x.xxx_hidden_Command
 	}
 	return ""
 }
 
 func (x *ProcessPayload) GetEnv() map[string]string {
 	if x != nil {
-		return x.Env
+		return x.xxx_hidden_Env
 	}
 	return nil
 }
 
 func (x *ProcessPayload) SetOs(v string) {
-	x.Os = v
+	x.xxx_hidden_Os = v
 }
 
 func (x *ProcessPayload) SetArch(v string) {
-	x.Arch = v
+	x.xxx_hidden_Arch = v
 }
 
 func (x *ProcessPayload) SetCommand(v string) {
-	x.Command = v
+	x.xxx_hidden_Command = v
 }
 
 func (x *ProcessPayload) SetEnv(v map[string]string) {
-	x.Env = v
+	x.xxx_hidden_Env = v
 }
 
 type ProcessPayload_builder struct {
@@ -7655,19 +7367,19 @@ func (b0 ProcessPayload_builder) Build() *ProcessPayload {
 	m0 := &ProcessPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Os = b.Os
-	x.Arch = b.Arch
-	x.Command = b.Command
-	x.Env = b.Env
+	x.xxx_hidden_Os = b.Os
+	x.xxx_hidden_Arch = b.Arch
+	x.xxx_hidden_Command = b.Command
+	x.xxx_hidden_Env = b.Env
 	return m0
 }
 
 type ExternalPayload struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Endpoint      *ApiServiceDescriptor  `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`                                                                       // Serving BeamFnExternalWorkerPool API.
-	Params        map[string]string      `protobuf:"bytes,2,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Arbitrary extra parameters to pass
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Endpoint *ApiServiceDescriptor  `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	xxx_hidden_Params   map[string]string      `protobuf:"bytes,2,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ExternalPayload) Reset() {
@@ -7697,35 +7409,35 @@ func (x *ExternalPayload) ProtoReflect() protoreflect.Message {
 
 func (x *ExternalPayload) GetEndpoint() *ApiServiceDescriptor {
 	if x != nil {
-		return x.Endpoint
+		return x.xxx_hidden_Endpoint
 	}
 	return nil
 }
 
 func (x *ExternalPayload) GetParams() map[string]string {
 	if x != nil {
-		return x.Params
+		return x.xxx_hidden_Params
 	}
 	return nil
 }
 
 func (x *ExternalPayload) SetEndpoint(v *ApiServiceDescriptor) {
-	x.Endpoint = v
+	x.xxx_hidden_Endpoint = v
 }
 
 func (x *ExternalPayload) SetParams(v map[string]string) {
-	x.Params = v
+	x.xxx_hidden_Params = v
 }
 
 func (x *ExternalPayload) HasEndpoint() bool {
 	if x == nil {
 		return false
 	}
-	return x.Endpoint != nil
+	return x.xxx_hidden_Endpoint != nil
 }
 
 func (x *ExternalPayload) ClearEndpoint() {
-	x.Endpoint = nil
+	x.xxx_hidden_Endpoint = nil
 }
 
 type ExternalPayload_builder struct {
@@ -7739,17 +7451,16 @@ func (b0 ExternalPayload_builder) Build() *ExternalPayload {
 	m0 := &ExternalPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Endpoint = b.Endpoint
-	x.Params = b.Params
+	x.xxx_hidden_Endpoint = b.Endpoint
+	x.xxx_hidden_Params = b.Params
 	return m0
 }
 
 type AnyOfEnvironmentPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Each is fully contained (with their own dependencies, capabilities, etc.)
-	Environments  []*Environment `protobuf:"bytes,1,rep,name=environments,proto3" json:"environments,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Environments *[]*Environment        `protobuf:"bytes,1,rep,name=environments,proto3" json:"environments,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *AnyOfEnvironmentPayload) Reset() {
@@ -7779,13 +7490,15 @@ func (x *AnyOfEnvironmentPayload) ProtoReflect() protoreflect.Message {
 
 func (x *AnyOfEnvironmentPayload) GetEnvironments() []*Environment {
 	if x != nil {
-		return x.Environments
+		if x.xxx_hidden_Environments != nil {
+			return *x.xxx_hidden_Environments
+		}
 	}
 	return nil
 }
 
 func (x *AnyOfEnvironmentPayload) SetEnvironments(v []*Environment) {
-	x.Environments = v
+	x.xxx_hidden_Environments = &v
 }
 
 type AnyOfEnvironmentPayload_builder struct {
@@ -7799,7 +7512,7 @@ func (b0 AnyOfEnvironmentPayload_builder) Build() *AnyOfEnvironmentPayload {
 	m0 := &AnyOfEnvironmentPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Environments = b.Environments
+	x.xxx_hidden_Environments = &b.Environments
 	return m0
 }
 
@@ -7807,7 +7520,7 @@ func (b0 AnyOfEnvironmentPayload_builder) Build() *AnyOfEnvironmentPayload {
 // simply be expressed as a component (such as a Coder or PTransform) that this
 // environment understands.
 type StandardProtocols struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7852,7 +7565,7 @@ func (b0 StandardProtocols_builder) Build() *StandardProtocols {
 // These URNs are used to indicate capabilities of runner that an environment
 // may take advantage of when interacting with this runner.
 type StandardRunnerProtocols struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7900,7 +7613,7 @@ func (b0 StandardRunnerProtocols_builder) Build() *StandardRunnerProtocols {
 // of a transform must be inspected and respected (which allows new fields
 // to be added in a forwards-compatible way).
 type StandardRequirements struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7970,17 +7683,11 @@ func (b0 StandardRequirements_builder) Build() *StandardRequirements {
 //     then be an opaque message such as bytes in a
 //     language-specific serialization format.
 type FunctionSpec struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A URN that describes the accompanying payload.
-	// For any URN that is not recognized (by whomever is inspecting
-	// it) the parameter payload should be treated as opaque and
-	// passed as-is.
-	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	// (Optional) The data specifying any parameters to the URN. If
-	// the URN does not require any arguments, this may be omitted.
-	Payload       []byte `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Urn     string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Payload []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FunctionSpec) Reset() {
@@ -8010,27 +7717,27 @@ func (x *FunctionSpec) ProtoReflect() protoreflect.Message {
 
 func (x *FunctionSpec) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *FunctionSpec) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *FunctionSpec) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *FunctionSpec) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 type FunctionSpec_builder struct {
@@ -8050,8 +7757,8 @@ func (b0 FunctionSpec_builder) Build() *FunctionSpec {
 	m0 := &FunctionSpec{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Payload = b.Payload
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Payload = b.Payload
 	return m0
 }
 
@@ -8062,7 +7769,7 @@ func (b0 FunctionSpec_builder) Build() *FunctionSpec {
 // information about the pipeline in addition to an encoding while others only
 // specify the encoding itself.
 type StandardDisplayData struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8105,24 +7812,13 @@ func (b0 StandardDisplayData_builder) Build() *StandardDisplayData {
 }
 
 type LabelledPayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A human readable label for the value.
-	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
-	// (Required) A value which will be displayed to the user.
-	//
-	// Types that are valid to be assigned to Value:
-	//
-	//	*LabelledPayload_StringValue
-	//	*LabelledPayload_BoolValue
-	//	*LabelledPayload_DoubleValue
-	//	*LabelledPayload_IntValue
-	Value isLabelledPayload_Value `protobuf_oneof:"value"`
-	// (Required) The key identifies the actual content of the metadata.
-	Key string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
-	// (Required) The namespace describes the context that specified the key.
-	Namespace     string `protobuf:"bytes,7,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Label     string                  `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	xxx_hidden_Value     isLabelledPayload_Value `protobuf_oneof:"value"`
+	xxx_hidden_Key       string                  `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
+	xxx_hidden_Namespace string                  `protobuf:"bytes,7,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *LabelledPayload) Reset() {
@@ -8152,21 +7848,14 @@ func (x *LabelledPayload) ProtoReflect() protoreflect.Message {
 
 func (x *LabelledPayload) GetLabel() string {
 	if x != nil {
-		return x.Label
+		return x.xxx_hidden_Label
 	}
 	return ""
 }
 
-func (x *LabelledPayload) GetValue() isLabelledPayload_Value {
-	if x != nil {
-		return x.Value
-	}
-	return nil
-}
-
 func (x *LabelledPayload) GetStringValue() string {
 	if x != nil {
-		if x, ok := x.Value.(*LabelledPayload_StringValue); ok {
+		if x, ok := x.xxx_hidden_Value.(*labelledPayload_StringValue); ok {
 			return x.StringValue
 		}
 	}
@@ -8175,7 +7864,7 @@ func (x *LabelledPayload) GetStringValue() string {
 
 func (x *LabelledPayload) GetBoolValue() bool {
 	if x != nil {
-		if x, ok := x.Value.(*LabelledPayload_BoolValue); ok {
+		if x, ok := x.xxx_hidden_Value.(*labelledPayload_BoolValue); ok {
 			return x.BoolValue
 		}
 	}
@@ -8184,7 +7873,7 @@ func (x *LabelledPayload) GetBoolValue() bool {
 
 func (x *LabelledPayload) GetDoubleValue() float64 {
 	if x != nil {
-		if x, ok := x.Value.(*LabelledPayload_DoubleValue); ok {
+		if x, ok := x.xxx_hidden_Value.(*labelledPayload_DoubleValue); ok {
 			return x.DoubleValue
 		}
 	}
@@ -8193,7 +7882,7 @@ func (x *LabelledPayload) GetDoubleValue() float64 {
 
 func (x *LabelledPayload) GetIntValue() int64 {
 	if x != nil {
-		if x, ok := x.Value.(*LabelledPayload_IntValue); ok {
+		if x, ok := x.xxx_hidden_Value.(*labelledPayload_IntValue); ok {
 			return x.IntValue
 		}
 	}
@@ -8202,58 +7891,58 @@ func (x *LabelledPayload) GetIntValue() int64 {
 
 func (x *LabelledPayload) GetKey() string {
 	if x != nil {
-		return x.Key
+		return x.xxx_hidden_Key
 	}
 	return ""
 }
 
 func (x *LabelledPayload) GetNamespace() string {
 	if x != nil {
-		return x.Namespace
+		return x.xxx_hidden_Namespace
 	}
 	return ""
 }
 
 func (x *LabelledPayload) SetLabel(v string) {
-	x.Label = v
+	x.xxx_hidden_Label = v
 }
 
 func (x *LabelledPayload) SetStringValue(v string) {
-	x.Value = &LabelledPayload_StringValue{v}
+	x.xxx_hidden_Value = &labelledPayload_StringValue{v}
 }
 
 func (x *LabelledPayload) SetBoolValue(v bool) {
-	x.Value = &LabelledPayload_BoolValue{v}
+	x.xxx_hidden_Value = &labelledPayload_BoolValue{v}
 }
 
 func (x *LabelledPayload) SetDoubleValue(v float64) {
-	x.Value = &LabelledPayload_DoubleValue{v}
+	x.xxx_hidden_Value = &labelledPayload_DoubleValue{v}
 }
 
 func (x *LabelledPayload) SetIntValue(v int64) {
-	x.Value = &LabelledPayload_IntValue{v}
+	x.xxx_hidden_Value = &labelledPayload_IntValue{v}
 }
 
 func (x *LabelledPayload) SetKey(v string) {
-	x.Key = v
+	x.xxx_hidden_Key = v
 }
 
 func (x *LabelledPayload) SetNamespace(v string) {
-	x.Namespace = v
+	x.xxx_hidden_Namespace = v
 }
 
 func (x *LabelledPayload) HasValue() bool {
 	if x == nil {
 		return false
 	}
-	return x.Value != nil
+	return x.xxx_hidden_Value != nil
 }
 
 func (x *LabelledPayload) HasStringValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*LabelledPayload_StringValue)
+	_, ok := x.xxx_hidden_Value.(*labelledPayload_StringValue)
 	return ok
 }
 
@@ -8261,7 +7950,7 @@ func (x *LabelledPayload) HasBoolValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*LabelledPayload_BoolValue)
+	_, ok := x.xxx_hidden_Value.(*labelledPayload_BoolValue)
 	return ok
 }
 
@@ -8269,7 +7958,7 @@ func (x *LabelledPayload) HasDoubleValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*LabelledPayload_DoubleValue)
+	_, ok := x.xxx_hidden_Value.(*labelledPayload_DoubleValue)
 	return ok
 }
 
@@ -8277,35 +7966,35 @@ func (x *LabelledPayload) HasIntValue() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Value.(*LabelledPayload_IntValue)
+	_, ok := x.xxx_hidden_Value.(*labelledPayload_IntValue)
 	return ok
 }
 
 func (x *LabelledPayload) ClearValue() {
-	x.Value = nil
+	x.xxx_hidden_Value = nil
 }
 
 func (x *LabelledPayload) ClearStringValue() {
-	if _, ok := x.Value.(*LabelledPayload_StringValue); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*labelledPayload_StringValue); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *LabelledPayload) ClearBoolValue() {
-	if _, ok := x.Value.(*LabelledPayload_BoolValue); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*labelledPayload_BoolValue); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *LabelledPayload) ClearDoubleValue() {
-	if _, ok := x.Value.(*LabelledPayload_DoubleValue); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*labelledPayload_DoubleValue); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
 func (x *LabelledPayload) ClearIntValue() {
-	if _, ok := x.Value.(*LabelledPayload_IntValue); ok {
-		x.Value = nil
+	if _, ok := x.xxx_hidden_Value.(*labelledPayload_IntValue); ok {
+		x.xxx_hidden_Value = nil
 	}
 }
 
@@ -8319,14 +8008,14 @@ func (x *LabelledPayload) WhichValue() case_LabelledPayload_Value {
 	if x == nil {
 		return LabelledPayload_Value_not_set_case
 	}
-	switch x.Value.(type) {
-	case *LabelledPayload_StringValue:
+	switch x.xxx_hidden_Value.(type) {
+	case *labelledPayload_StringValue:
 		return LabelledPayload_StringValue_case
-	case *LabelledPayload_BoolValue:
+	case *labelledPayload_BoolValue:
 		return LabelledPayload_BoolValue_case
-	case *LabelledPayload_DoubleValue:
+	case *labelledPayload_DoubleValue:
 		return LabelledPayload_DoubleValue_case
-	case *LabelledPayload_IntValue:
+	case *labelledPayload_IntValue:
 		return LabelledPayload_IntValue_case
 	default:
 		return LabelledPayload_Value_not_set_case
@@ -8340,12 +8029,12 @@ type LabelledPayload_builder struct {
 	Label string
 	// (Required) A value which will be displayed to the user.
 
-	// Fields of oneof Value:
+	// Fields of oneof xxx_hidden_Value:
 	StringValue *string
 	BoolValue   *bool
 	DoubleValue *float64
 	IntValue    *int64
-	// -- end of Value
+	// -- end of xxx_hidden_Value
 	// (Required) The key identifies the actual content of the metadata.
 	Key string
 	// (Required) The namespace describes the context that specified the key.
@@ -8356,21 +8045,21 @@ func (b0 LabelledPayload_builder) Build() *LabelledPayload {
 	m0 := &LabelledPayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Label = b.Label
+	x.xxx_hidden_Label = b.Label
 	if b.StringValue != nil {
-		x.Value = &LabelledPayload_StringValue{*b.StringValue}
+		x.xxx_hidden_Value = &labelledPayload_StringValue{*b.StringValue}
 	}
 	if b.BoolValue != nil {
-		x.Value = &LabelledPayload_BoolValue{*b.BoolValue}
+		x.xxx_hidden_Value = &labelledPayload_BoolValue{*b.BoolValue}
 	}
 	if b.DoubleValue != nil {
-		x.Value = &LabelledPayload_DoubleValue{*b.DoubleValue}
+		x.xxx_hidden_Value = &labelledPayload_DoubleValue{*b.DoubleValue}
 	}
 	if b.IntValue != nil {
-		x.Value = &LabelledPayload_IntValue{*b.IntValue}
+		x.xxx_hidden_Value = &labelledPayload_IntValue{*b.IntValue}
 	}
-	x.Key = b.Key
-	x.Namespace = b.Namespace
+	x.xxx_hidden_Key = b.Key
+	x.xxx_hidden_Namespace = b.Namespace
 	return m0
 }
 
@@ -8388,44 +8077,39 @@ type isLabelledPayload_Value interface {
 	isLabelledPayload_Value()
 }
 
-type LabelledPayload_StringValue struct {
+type labelledPayload_StringValue struct {
 	StringValue string `protobuf:"bytes,2,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 
-type LabelledPayload_BoolValue struct {
+type labelledPayload_BoolValue struct {
 	BoolValue bool `protobuf:"varint,3,opt,name=bool_value,json=boolValue,proto3,oneof"`
 }
 
-type LabelledPayload_DoubleValue struct {
+type labelledPayload_DoubleValue struct {
 	DoubleValue float64 `protobuf:"fixed64,4,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
 
-type LabelledPayload_IntValue struct {
+type labelledPayload_IntValue struct {
 	IntValue int64 `protobuf:"varint,5,opt,name=int_value,json=intValue,proto3,oneof"`
 }
 
-func (*LabelledPayload_StringValue) isLabelledPayload_Value() {}
+func (*labelledPayload_StringValue) isLabelledPayload_Value() {}
 
-func (*LabelledPayload_BoolValue) isLabelledPayload_Value() {}
+func (*labelledPayload_BoolValue) isLabelledPayload_Value() {}
 
-func (*LabelledPayload_DoubleValue) isLabelledPayload_Value() {}
+func (*labelledPayload_DoubleValue) isLabelledPayload_Value() {}
 
-func (*LabelledPayload_IntValue) isLabelledPayload_Value() {}
+func (*labelledPayload_IntValue) isLabelledPayload_Value() {}
 
 // Static display data associated with a pipeline component. Display data is
 // useful for pipeline runners IOs and diagnostic dashboards to display details
 // about annotated components.
 type DisplayData struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// A key used to describe the type of display data. See StandardDisplayData
-	// for the set of well known urns describing how the payload is meant to be
-	// interpreted.
-	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	// (Optional) The data specifying any parameters to the URN. If
-	// the URN does not require any arguments, this may be omitted.
-	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Urn     string                 `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Payload []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DisplayData) Reset() {
@@ -8455,27 +8139,27 @@ func (x *DisplayData) ProtoReflect() protoreflect.Message {
 
 func (x *DisplayData) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *DisplayData) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *DisplayData) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *DisplayData) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 type DisplayData_builder struct {
@@ -8494,39 +8178,19 @@ func (b0 DisplayData_builder) Build() *DisplayData {
 	m0 := &DisplayData{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Payload = b.Payload
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Payload = b.Payload
 	return m0
 }
 
 // A disjoint union of all the things that may contain references
 // that require Components to resolve.
 type MessageWithComponents struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) The by-reference components of the root message,
-	// enabling a standalone message.
-	//
-	// If this is absent, it is expected that there are no
-	// references.
-	Components *Components `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
-	// (Required) The root message that may contain pointers
-	// that should be resolved by looking inside components.
-	//
-	// Types that are valid to be assigned to Root:
-	//
-	//	*MessageWithComponents_Coder
-	//	*MessageWithComponents_CombinePayload
-	//	*MessageWithComponents_FunctionSpec
-	//	*MessageWithComponents_ParDoPayload
-	//	*MessageWithComponents_Ptransform
-	//	*MessageWithComponents_Pcollection
-	//	*MessageWithComponents_ReadPayload
-	//	*MessageWithComponents_SideInput
-	//	*MessageWithComponents_WindowIntoPayload
-	//	*MessageWithComponents_WindowingStrategy
-	Root          isMessageWithComponents_Root `protobuf_oneof:"root"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState       `protogen:"opaque.v1"`
+	xxx_hidden_Components *Components                  `protobuf:"bytes,1,opt,name=components,proto3" json:"components,omitempty"`
+	xxx_hidden_Root       isMessageWithComponents_Root `protobuf_oneof:"root"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *MessageWithComponents) Reset() {
@@ -8556,21 +8220,14 @@ func (x *MessageWithComponents) ProtoReflect() protoreflect.Message {
 
 func (x *MessageWithComponents) GetComponents() *Components {
 	if x != nil {
-		return x.Components
-	}
-	return nil
-}
-
-func (x *MessageWithComponents) GetRoot() isMessageWithComponents_Root {
-	if x != nil {
-		return x.Root
+		return x.xxx_hidden_Components
 	}
 	return nil
 }
 
 func (x *MessageWithComponents) GetCoder() *Coder {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_Coder); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_Coder); ok {
 			return x.Coder
 		}
 	}
@@ -8579,7 +8236,7 @@ func (x *MessageWithComponents) GetCoder() *Coder {
 
 func (x *MessageWithComponents) GetCombinePayload() *CombinePayload {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_CombinePayload); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_CombinePayload); ok {
 			return x.CombinePayload
 		}
 	}
@@ -8588,7 +8245,7 @@ func (x *MessageWithComponents) GetCombinePayload() *CombinePayload {
 
 func (x *MessageWithComponents) GetFunctionSpec() *FunctionSpec {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_FunctionSpec); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_FunctionSpec); ok {
 			return x.FunctionSpec
 		}
 	}
@@ -8597,7 +8254,7 @@ func (x *MessageWithComponents) GetFunctionSpec() *FunctionSpec {
 
 func (x *MessageWithComponents) GetParDoPayload() *ParDoPayload {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_ParDoPayload); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_ParDoPayload); ok {
 			return x.ParDoPayload
 		}
 	}
@@ -8606,7 +8263,7 @@ func (x *MessageWithComponents) GetParDoPayload() *ParDoPayload {
 
 func (x *MessageWithComponents) GetPtransform() *PTransform {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_Ptransform); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_Ptransform); ok {
 			return x.Ptransform
 		}
 	}
@@ -8615,7 +8272,7 @@ func (x *MessageWithComponents) GetPtransform() *PTransform {
 
 func (x *MessageWithComponents) GetPcollection() *PCollection {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_Pcollection); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_Pcollection); ok {
 			return x.Pcollection
 		}
 	}
@@ -8624,7 +8281,7 @@ func (x *MessageWithComponents) GetPcollection() *PCollection {
 
 func (x *MessageWithComponents) GetReadPayload() *ReadPayload {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_ReadPayload); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_ReadPayload); ok {
 			return x.ReadPayload
 		}
 	}
@@ -8633,7 +8290,7 @@ func (x *MessageWithComponents) GetReadPayload() *ReadPayload {
 
 func (x *MessageWithComponents) GetSideInput() *SideInput {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_SideInput); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_SideInput); ok {
 			return x.SideInput
 		}
 	}
@@ -8642,7 +8299,7 @@ func (x *MessageWithComponents) GetSideInput() *SideInput {
 
 func (x *MessageWithComponents) GetWindowIntoPayload() *WindowIntoPayload {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_WindowIntoPayload); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_WindowIntoPayload); ok {
 			return x.WindowIntoPayload
 		}
 	}
@@ -8651,7 +8308,7 @@ func (x *MessageWithComponents) GetWindowIntoPayload() *WindowIntoPayload {
 
 func (x *MessageWithComponents) GetWindowingStrategy() *WindowingStrategy {
 	if x != nil {
-		if x, ok := x.Root.(*MessageWithComponents_WindowingStrategy); ok {
+		if x, ok := x.xxx_hidden_Root.(*messageWithComponents_WindowingStrategy); ok {
 			return x.WindowingStrategy
 		}
 	}
@@ -8659,108 +8316,108 @@ func (x *MessageWithComponents) GetWindowingStrategy() *WindowingStrategy {
 }
 
 func (x *MessageWithComponents) SetComponents(v *Components) {
-	x.Components = v
+	x.xxx_hidden_Components = v
 }
 
 func (x *MessageWithComponents) SetCoder(v *Coder) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_Coder{v}
+	x.xxx_hidden_Root = &messageWithComponents_Coder{v}
 }
 
 func (x *MessageWithComponents) SetCombinePayload(v *CombinePayload) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_CombinePayload{v}
+	x.xxx_hidden_Root = &messageWithComponents_CombinePayload{v}
 }
 
 func (x *MessageWithComponents) SetFunctionSpec(v *FunctionSpec) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_FunctionSpec{v}
+	x.xxx_hidden_Root = &messageWithComponents_FunctionSpec{v}
 }
 
 func (x *MessageWithComponents) SetParDoPayload(v *ParDoPayload) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_ParDoPayload{v}
+	x.xxx_hidden_Root = &messageWithComponents_ParDoPayload{v}
 }
 
 func (x *MessageWithComponents) SetPtransform(v *PTransform) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_Ptransform{v}
+	x.xxx_hidden_Root = &messageWithComponents_Ptransform{v}
 }
 
 func (x *MessageWithComponents) SetPcollection(v *PCollection) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_Pcollection{v}
+	x.xxx_hidden_Root = &messageWithComponents_Pcollection{v}
 }
 
 func (x *MessageWithComponents) SetReadPayload(v *ReadPayload) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_ReadPayload{v}
+	x.xxx_hidden_Root = &messageWithComponents_ReadPayload{v}
 }
 
 func (x *MessageWithComponents) SetSideInput(v *SideInput) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_SideInput{v}
+	x.xxx_hidden_Root = &messageWithComponents_SideInput{v}
 }
 
 func (x *MessageWithComponents) SetWindowIntoPayload(v *WindowIntoPayload) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_WindowIntoPayload{v}
+	x.xxx_hidden_Root = &messageWithComponents_WindowIntoPayload{v}
 }
 
 func (x *MessageWithComponents) SetWindowingStrategy(v *WindowingStrategy) {
 	if v == nil {
-		x.Root = nil
+		x.xxx_hidden_Root = nil
 		return
 	}
-	x.Root = &MessageWithComponents_WindowingStrategy{v}
+	x.xxx_hidden_Root = &messageWithComponents_WindowingStrategy{v}
 }
 
 func (x *MessageWithComponents) HasComponents() bool {
 	if x == nil {
 		return false
 	}
-	return x.Components != nil
+	return x.xxx_hidden_Components != nil
 }
 
 func (x *MessageWithComponents) HasRoot() bool {
 	if x == nil {
 		return false
 	}
-	return x.Root != nil
+	return x.xxx_hidden_Root != nil
 }
 
 func (x *MessageWithComponents) HasCoder() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_Coder)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_Coder)
 	return ok
 }
 
@@ -8768,7 +8425,7 @@ func (x *MessageWithComponents) HasCombinePayload() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_CombinePayload)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_CombinePayload)
 	return ok
 }
 
@@ -8776,7 +8433,7 @@ func (x *MessageWithComponents) HasFunctionSpec() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_FunctionSpec)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_FunctionSpec)
 	return ok
 }
 
@@ -8784,7 +8441,7 @@ func (x *MessageWithComponents) HasParDoPayload() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_ParDoPayload)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_ParDoPayload)
 	return ok
 }
 
@@ -8792,7 +8449,7 @@ func (x *MessageWithComponents) HasPtransform() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_Ptransform)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_Ptransform)
 	return ok
 }
 
@@ -8800,7 +8457,7 @@ func (x *MessageWithComponents) HasPcollection() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_Pcollection)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_Pcollection)
 	return ok
 }
 
@@ -8808,7 +8465,7 @@ func (x *MessageWithComponents) HasReadPayload() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_ReadPayload)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_ReadPayload)
 	return ok
 }
 
@@ -8816,7 +8473,7 @@ func (x *MessageWithComponents) HasSideInput() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_SideInput)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_SideInput)
 	return ok
 }
 
@@ -8824,7 +8481,7 @@ func (x *MessageWithComponents) HasWindowIntoPayload() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_WindowIntoPayload)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_WindowIntoPayload)
 	return ok
 }
 
@@ -8832,75 +8489,75 @@ func (x *MessageWithComponents) HasWindowingStrategy() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Root.(*MessageWithComponents_WindowingStrategy)
+	_, ok := x.xxx_hidden_Root.(*messageWithComponents_WindowingStrategy)
 	return ok
 }
 
 func (x *MessageWithComponents) ClearComponents() {
-	x.Components = nil
+	x.xxx_hidden_Components = nil
 }
 
 func (x *MessageWithComponents) ClearRoot() {
-	x.Root = nil
+	x.xxx_hidden_Root = nil
 }
 
 func (x *MessageWithComponents) ClearCoder() {
-	if _, ok := x.Root.(*MessageWithComponents_Coder); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_Coder); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearCombinePayload() {
-	if _, ok := x.Root.(*MessageWithComponents_CombinePayload); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_CombinePayload); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearFunctionSpec() {
-	if _, ok := x.Root.(*MessageWithComponents_FunctionSpec); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_FunctionSpec); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearParDoPayload() {
-	if _, ok := x.Root.(*MessageWithComponents_ParDoPayload); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_ParDoPayload); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearPtransform() {
-	if _, ok := x.Root.(*MessageWithComponents_Ptransform); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_Ptransform); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearPcollection() {
-	if _, ok := x.Root.(*MessageWithComponents_Pcollection); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_Pcollection); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearReadPayload() {
-	if _, ok := x.Root.(*MessageWithComponents_ReadPayload); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_ReadPayload); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearSideInput() {
-	if _, ok := x.Root.(*MessageWithComponents_SideInput); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_SideInput); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearWindowIntoPayload() {
-	if _, ok := x.Root.(*MessageWithComponents_WindowIntoPayload); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_WindowIntoPayload); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
 func (x *MessageWithComponents) ClearWindowingStrategy() {
-	if _, ok := x.Root.(*MessageWithComponents_WindowingStrategy); ok {
-		x.Root = nil
+	if _, ok := x.xxx_hidden_Root.(*messageWithComponents_WindowingStrategy); ok {
+		x.xxx_hidden_Root = nil
 	}
 }
 
@@ -8920,26 +8577,26 @@ func (x *MessageWithComponents) WhichRoot() case_MessageWithComponents_Root {
 	if x == nil {
 		return MessageWithComponents_Root_not_set_case
 	}
-	switch x.Root.(type) {
-	case *MessageWithComponents_Coder:
+	switch x.xxx_hidden_Root.(type) {
+	case *messageWithComponents_Coder:
 		return MessageWithComponents_Coder_case
-	case *MessageWithComponents_CombinePayload:
+	case *messageWithComponents_CombinePayload:
 		return MessageWithComponents_CombinePayload_case
-	case *MessageWithComponents_FunctionSpec:
+	case *messageWithComponents_FunctionSpec:
 		return MessageWithComponents_FunctionSpec_case
-	case *MessageWithComponents_ParDoPayload:
+	case *messageWithComponents_ParDoPayload:
 		return MessageWithComponents_ParDoPayload_case
-	case *MessageWithComponents_Ptransform:
+	case *messageWithComponents_Ptransform:
 		return MessageWithComponents_Ptransform_case
-	case *MessageWithComponents_Pcollection:
+	case *messageWithComponents_Pcollection:
 		return MessageWithComponents_Pcollection_case
-	case *MessageWithComponents_ReadPayload:
+	case *messageWithComponents_ReadPayload:
 		return MessageWithComponents_ReadPayload_case
-	case *MessageWithComponents_SideInput:
+	case *messageWithComponents_SideInput:
 		return MessageWithComponents_SideInput_case
-	case *MessageWithComponents_WindowIntoPayload:
+	case *messageWithComponents_WindowIntoPayload:
 		return MessageWithComponents_WindowIntoPayload_case
-	case *MessageWithComponents_WindowingStrategy:
+	case *messageWithComponents_WindowingStrategy:
 		return MessageWithComponents_WindowingStrategy_case
 	default:
 		return MessageWithComponents_Root_not_set_case
@@ -8958,7 +8615,7 @@ type MessageWithComponents_builder struct {
 	// (Required) The root message that may contain pointers
 	// that should be resolved by looking inside components.
 
-	// Fields of oneof Root:
+	// Fields of oneof xxx_hidden_Root:
 	Coder             *Coder
 	CombinePayload    *CombinePayload
 	FunctionSpec      *FunctionSpec
@@ -8969,43 +8626,43 @@ type MessageWithComponents_builder struct {
 	SideInput         *SideInput
 	WindowIntoPayload *WindowIntoPayload
 	WindowingStrategy *WindowingStrategy
-	// -- end of Root
+	// -- end of xxx_hidden_Root
 }
 
 func (b0 MessageWithComponents_builder) Build() *MessageWithComponents {
 	m0 := &MessageWithComponents{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Components = b.Components
+	x.xxx_hidden_Components = b.Components
 	if b.Coder != nil {
-		x.Root = &MessageWithComponents_Coder{b.Coder}
+		x.xxx_hidden_Root = &messageWithComponents_Coder{b.Coder}
 	}
 	if b.CombinePayload != nil {
-		x.Root = &MessageWithComponents_CombinePayload{b.CombinePayload}
+		x.xxx_hidden_Root = &messageWithComponents_CombinePayload{b.CombinePayload}
 	}
 	if b.FunctionSpec != nil {
-		x.Root = &MessageWithComponents_FunctionSpec{b.FunctionSpec}
+		x.xxx_hidden_Root = &messageWithComponents_FunctionSpec{b.FunctionSpec}
 	}
 	if b.ParDoPayload != nil {
-		x.Root = &MessageWithComponents_ParDoPayload{b.ParDoPayload}
+		x.xxx_hidden_Root = &messageWithComponents_ParDoPayload{b.ParDoPayload}
 	}
 	if b.Ptransform != nil {
-		x.Root = &MessageWithComponents_Ptransform{b.Ptransform}
+		x.xxx_hidden_Root = &messageWithComponents_Ptransform{b.Ptransform}
 	}
 	if b.Pcollection != nil {
-		x.Root = &MessageWithComponents_Pcollection{b.Pcollection}
+		x.xxx_hidden_Root = &messageWithComponents_Pcollection{b.Pcollection}
 	}
 	if b.ReadPayload != nil {
-		x.Root = &MessageWithComponents_ReadPayload{b.ReadPayload}
+		x.xxx_hidden_Root = &messageWithComponents_ReadPayload{b.ReadPayload}
 	}
 	if b.SideInput != nil {
-		x.Root = &MessageWithComponents_SideInput{b.SideInput}
+		x.xxx_hidden_Root = &messageWithComponents_SideInput{b.SideInput}
 	}
 	if b.WindowIntoPayload != nil {
-		x.Root = &MessageWithComponents_WindowIntoPayload{b.WindowIntoPayload}
+		x.xxx_hidden_Root = &messageWithComponents_WindowIntoPayload{b.WindowIntoPayload}
 	}
 	if b.WindowingStrategy != nil {
-		x.Root = &MessageWithComponents_WindowingStrategy{b.WindowingStrategy}
+		x.xxx_hidden_Root = &messageWithComponents_WindowingStrategy{b.WindowingStrategy}
 	}
 	return m0
 }
@@ -9024,103 +8681,82 @@ type isMessageWithComponents_Root interface {
 	isMessageWithComponents_Root()
 }
 
-type MessageWithComponents_Coder struct {
+type messageWithComponents_Coder struct {
 	Coder *Coder `protobuf:"bytes,2,opt,name=coder,proto3,oneof"`
 }
 
-type MessageWithComponents_CombinePayload struct {
+type messageWithComponents_CombinePayload struct {
 	CombinePayload *CombinePayload `protobuf:"bytes,3,opt,name=combine_payload,json=combinePayload,proto3,oneof"`
 }
 
-type MessageWithComponents_FunctionSpec struct {
+type messageWithComponents_FunctionSpec struct {
 	FunctionSpec *FunctionSpec `protobuf:"bytes,4,opt,name=function_spec,json=functionSpec,proto3,oneof"`
 }
 
-type MessageWithComponents_ParDoPayload struct {
+type messageWithComponents_ParDoPayload struct {
 	ParDoPayload *ParDoPayload `protobuf:"bytes,6,opt,name=par_do_payload,json=parDoPayload,proto3,oneof"`
 }
 
-type MessageWithComponents_Ptransform struct {
+type messageWithComponents_Ptransform struct {
 	Ptransform *PTransform `protobuf:"bytes,7,opt,name=ptransform,proto3,oneof"`
 }
 
-type MessageWithComponents_Pcollection struct {
+type messageWithComponents_Pcollection struct {
 	Pcollection *PCollection `protobuf:"bytes,8,opt,name=pcollection,proto3,oneof"`
 }
 
-type MessageWithComponents_ReadPayload struct {
+type messageWithComponents_ReadPayload struct {
 	ReadPayload *ReadPayload `protobuf:"bytes,9,opt,name=read_payload,json=readPayload,proto3,oneof"`
 }
 
-type MessageWithComponents_SideInput struct {
+type messageWithComponents_SideInput struct {
 	SideInput *SideInput `protobuf:"bytes,11,opt,name=side_input,json=sideInput,proto3,oneof"`
 }
 
-type MessageWithComponents_WindowIntoPayload struct {
+type messageWithComponents_WindowIntoPayload struct {
 	WindowIntoPayload *WindowIntoPayload `protobuf:"bytes,12,opt,name=window_into_payload,json=windowIntoPayload,proto3,oneof"`
 }
 
-type MessageWithComponents_WindowingStrategy struct {
+type messageWithComponents_WindowingStrategy struct {
 	WindowingStrategy *WindowingStrategy `protobuf:"bytes,13,opt,name=windowing_strategy,json=windowingStrategy,proto3,oneof"`
 }
 
-func (*MessageWithComponents_Coder) isMessageWithComponents_Root() {}
+func (*messageWithComponents_Coder) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_CombinePayload) isMessageWithComponents_Root() {}
+func (*messageWithComponents_CombinePayload) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_FunctionSpec) isMessageWithComponents_Root() {}
+func (*messageWithComponents_FunctionSpec) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_ParDoPayload) isMessageWithComponents_Root() {}
+func (*messageWithComponents_ParDoPayload) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_Ptransform) isMessageWithComponents_Root() {}
+func (*messageWithComponents_Ptransform) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_Pcollection) isMessageWithComponents_Root() {}
+func (*messageWithComponents_Pcollection) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_ReadPayload) isMessageWithComponents_Root() {}
+func (*messageWithComponents_ReadPayload) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_SideInput) isMessageWithComponents_Root() {}
+func (*messageWithComponents_SideInput) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_WindowIntoPayload) isMessageWithComponents_Root() {}
+func (*messageWithComponents_WindowIntoPayload) isMessageWithComponents_Root() {}
 
-func (*MessageWithComponents_WindowingStrategy) isMessageWithComponents_Root() {}
+func (*messageWithComponents_WindowingStrategy) isMessageWithComponents_Root() {}
 
 // The payload for an executable stage. This will eventually be passed to an SDK in the form of a
 // ProcessBundleDescriptor.
 type ExecutableStagePayload struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Environment in which this stage executes.
-	//
-	// We use an environment rather than environment id
-	// because ExecutableStages use environments directly. This may change in the future.
-	Environment *Environment `protobuf:"bytes,1,opt,name=environment,proto3" json:"environment,omitempty"`
-	// The wire coder settings of this executable stage
-	WireCoderSettings []*ExecutableStagePayload_WireCoderSetting `protobuf:"bytes,9,rep,name=wire_coder_settings,json=wireCoderSettings,proto3" json:"wire_coder_settings,omitempty"`
-	// (Required) Input PCollection id. This must be present as a value in the inputs of any
-	// PTransform the ExecutableStagePayload is the payload of.
-	Input string `protobuf:"bytes,2,opt,name=input,proto3" json:"input,omitempty"`
-	// The side inputs required for this executable stage. Each side input of each PTransform within
-	// this ExecutableStagePayload must be represented within this field.
-	SideInputs []*ExecutableStagePayload_SideInputId `protobuf:"bytes,3,rep,name=side_inputs,json=sideInputs,proto3" json:"side_inputs,omitempty"`
-	// PTransform ids contained within this executable stage. This must contain at least one
-	// PTransform id.
-	Transforms []string `protobuf:"bytes,4,rep,name=transforms,proto3" json:"transforms,omitempty"`
-	// Output PCollection ids. This must be equal to the values of the outputs of any
-	// PTransform the ExecutableStagePayload is the payload of.
-	Outputs []string `protobuf:"bytes,5,rep,name=outputs,proto3" json:"outputs,omitempty"`
-	// (Required) The components for the Executable Stage. This must contain all of the Transforms
-	// in transforms, and the closure of all of the components they recognize.
-	Components *Components `protobuf:"bytes,6,opt,name=components,proto3" json:"components,omitempty"`
-	// The user states required for this executable stage. Each user state of each PTransform within
-	// this ExecutableStagePayload must be represented within this field.
-	UserStates []*ExecutableStagePayload_UserStateId `protobuf:"bytes,7,rep,name=user_states,json=userStates,proto3" json:"user_states,omitempty"`
-	// The timers required for this executable stage. Each timer of each PTransform within
-	// this ExecutableStagePayload must be represented within this field.
-	Timers []*ExecutableStagePayload_TimerId `protobuf:"bytes,8,rep,name=timers,proto3" json:"timers,omitempty"`
-	// The timerfamilies required for this executable stage. Each timer familyof each PTransform within
-	// this ExecutableStagePayload must be represented within this field.
-	TimerFamilies []*ExecutableStagePayload_TimerFamilyId `protobuf:"bytes,10,rep,name=timerFamilies,proto3" json:"timerFamilies,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                        protoimpl.MessageState                      `protogen:"opaque.v1"`
+	xxx_hidden_Environment       *Environment                                `protobuf:"bytes,1,opt,name=environment,proto3" json:"environment,omitempty"`
+	xxx_hidden_WireCoderSettings *[]*ExecutableStagePayload_WireCoderSetting `protobuf:"bytes,9,rep,name=wire_coder_settings,json=wireCoderSettings,proto3" json:"wire_coder_settings,omitempty"`
+	xxx_hidden_Input             string                                      `protobuf:"bytes,2,opt,name=input,proto3" json:"input,omitempty"`
+	xxx_hidden_SideInputs        *[]*ExecutableStagePayload_SideInputId      `protobuf:"bytes,3,rep,name=side_inputs,json=sideInputs,proto3" json:"side_inputs,omitempty"`
+	xxx_hidden_Transforms        []string                                    `protobuf:"bytes,4,rep,name=transforms,proto3" json:"transforms,omitempty"`
+	xxx_hidden_Outputs           []string                                    `protobuf:"bytes,5,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	xxx_hidden_Components        *Components                                 `protobuf:"bytes,6,opt,name=components,proto3" json:"components,omitempty"`
+	xxx_hidden_UserStates        *[]*ExecutableStagePayload_UserStateId      `protobuf:"bytes,7,rep,name=user_states,json=userStates,proto3" json:"user_states,omitempty"`
+	xxx_hidden_Timers            *[]*ExecutableStagePayload_TimerId          `protobuf:"bytes,8,rep,name=timers,proto3" json:"timers,omitempty"`
+	xxx_hidden_TimerFamilies     *[]*ExecutableStagePayload_TimerFamilyId    `protobuf:"bytes,10,rep,name=timerFamilies,proto3" json:"timerFamilies,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *ExecutableStagePayload) Reset() {
@@ -9150,134 +8786,144 @@ func (x *ExecutableStagePayload) ProtoReflect() protoreflect.Message {
 
 func (x *ExecutableStagePayload) GetEnvironment() *Environment {
 	if x != nil {
-		return x.Environment
+		return x.xxx_hidden_Environment
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetWireCoderSettings() []*ExecutableStagePayload_WireCoderSetting {
 	if x != nil {
-		return x.WireCoderSettings
+		if x.xxx_hidden_WireCoderSettings != nil {
+			return *x.xxx_hidden_WireCoderSettings
+		}
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetInput() string {
 	if x != nil {
-		return x.Input
+		return x.xxx_hidden_Input
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload) GetSideInputs() []*ExecutableStagePayload_SideInputId {
 	if x != nil {
-		return x.SideInputs
+		if x.xxx_hidden_SideInputs != nil {
+			return *x.xxx_hidden_SideInputs
+		}
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetTransforms() []string {
 	if x != nil {
-		return x.Transforms
+		return x.xxx_hidden_Transforms
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetOutputs() []string {
 	if x != nil {
-		return x.Outputs
+		return x.xxx_hidden_Outputs
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetComponents() *Components {
 	if x != nil {
-		return x.Components
+		return x.xxx_hidden_Components
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetUserStates() []*ExecutableStagePayload_UserStateId {
 	if x != nil {
-		return x.UserStates
+		if x.xxx_hidden_UserStates != nil {
+			return *x.xxx_hidden_UserStates
+		}
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetTimers() []*ExecutableStagePayload_TimerId {
 	if x != nil {
-		return x.Timers
+		if x.xxx_hidden_Timers != nil {
+			return *x.xxx_hidden_Timers
+		}
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) GetTimerFamilies() []*ExecutableStagePayload_TimerFamilyId {
 	if x != nil {
-		return x.TimerFamilies
+		if x.xxx_hidden_TimerFamilies != nil {
+			return *x.xxx_hidden_TimerFamilies
+		}
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload) SetEnvironment(v *Environment) {
-	x.Environment = v
+	x.xxx_hidden_Environment = v
 }
 
 func (x *ExecutableStagePayload) SetWireCoderSettings(v []*ExecutableStagePayload_WireCoderSetting) {
-	x.WireCoderSettings = v
+	x.xxx_hidden_WireCoderSettings = &v
 }
 
 func (x *ExecutableStagePayload) SetInput(v string) {
-	x.Input = v
+	x.xxx_hidden_Input = v
 }
 
 func (x *ExecutableStagePayload) SetSideInputs(v []*ExecutableStagePayload_SideInputId) {
-	x.SideInputs = v
+	x.xxx_hidden_SideInputs = &v
 }
 
 func (x *ExecutableStagePayload) SetTransforms(v []string) {
-	x.Transforms = v
+	x.xxx_hidden_Transforms = v
 }
 
 func (x *ExecutableStagePayload) SetOutputs(v []string) {
-	x.Outputs = v
+	x.xxx_hidden_Outputs = v
 }
 
 func (x *ExecutableStagePayload) SetComponents(v *Components) {
-	x.Components = v
+	x.xxx_hidden_Components = v
 }
 
 func (x *ExecutableStagePayload) SetUserStates(v []*ExecutableStagePayload_UserStateId) {
-	x.UserStates = v
+	x.xxx_hidden_UserStates = &v
 }
 
 func (x *ExecutableStagePayload) SetTimers(v []*ExecutableStagePayload_TimerId) {
-	x.Timers = v
+	x.xxx_hidden_Timers = &v
 }
 
 func (x *ExecutableStagePayload) SetTimerFamilies(v []*ExecutableStagePayload_TimerFamilyId) {
-	x.TimerFamilies = v
+	x.xxx_hidden_TimerFamilies = &v
 }
 
 func (x *ExecutableStagePayload) HasEnvironment() bool {
 	if x == nil {
 		return false
 	}
-	return x.Environment != nil
+	return x.xxx_hidden_Environment != nil
 }
 
 func (x *ExecutableStagePayload) HasComponents() bool {
 	if x == nil {
 		return false
 	}
-	return x.Components != nil
+	return x.xxx_hidden_Components != nil
 }
 
 func (x *ExecutableStagePayload) ClearEnvironment() {
-	x.Environment = nil
+	x.xxx_hidden_Environment = nil
 }
 
 func (x *ExecutableStagePayload) ClearComponents() {
-	x.Components = nil
+	x.xxx_hidden_Components = nil
 }
 
 type ExecutableStagePayload_builder struct {
@@ -9320,23 +8966,23 @@ func (b0 ExecutableStagePayload_builder) Build() *ExecutableStagePayload {
 	m0 := &ExecutableStagePayload{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Environment = b.Environment
-	x.WireCoderSettings = b.WireCoderSettings
-	x.Input = b.Input
-	x.SideInputs = b.SideInputs
-	x.Transforms = b.Transforms
-	x.Outputs = b.Outputs
-	x.Components = b.Components
-	x.UserStates = b.UserStates
-	x.Timers = b.Timers
-	x.TimerFamilies = b.TimerFamilies
+	x.xxx_hidden_Environment = b.Environment
+	x.xxx_hidden_WireCoderSettings = &b.WireCoderSettings
+	x.xxx_hidden_Input = b.Input
+	x.xxx_hidden_SideInputs = &b.SideInputs
+	x.xxx_hidden_Transforms = b.Transforms
+	x.xxx_hidden_Outputs = b.Outputs
+	x.xxx_hidden_Components = b.Components
+	x.xxx_hidden_UserStates = &b.UserStates
+	x.xxx_hidden_Timers = &b.Timers
+	x.xxx_hidden_TimerFamilies = &b.TimerFamilies
 	return m0
 }
 
 // See https://beam.apache.org/documentation/runtime/resource-hints/ for additional documentation
 // on the behavior of StandardResourceHint.
 type StandardResourceHints struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9379,15 +9025,10 @@ func (b0 StandardResourceHints_builder) Build() *StandardResourceHints {
 }
 
 type TestStreamPayload_Event struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// Types that are valid to be assigned to Event:
-	//
-	//	*TestStreamPayload_Event_WatermarkEvent
-	//	*TestStreamPayload_Event_ProcessingTimeEvent
-	//	*TestStreamPayload_Event_ElementEvent
-	Event         isTestStreamPayload_Event_Event `protobuf_oneof:"event"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState          `protogen:"opaque.v1"`
+	xxx_hidden_Event isTestStreamPayload_Event_Event `protobuf_oneof:"event"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TestStreamPayload_Event) Reset() {
@@ -9415,16 +9056,9 @@ func (x *TestStreamPayload_Event) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *TestStreamPayload_Event) GetEvent() isTestStreamPayload_Event_Event {
-	if x != nil {
-		return x.Event
-	}
-	return nil
-}
-
 func (x *TestStreamPayload_Event) GetWatermarkEvent() *TestStreamPayload_Event_AdvanceWatermark {
 	if x != nil {
-		if x, ok := x.Event.(*TestStreamPayload_Event_WatermarkEvent); ok {
+		if x, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_WatermarkEvent); ok {
 			return x.WatermarkEvent
 		}
 	}
@@ -9433,7 +9067,7 @@ func (x *TestStreamPayload_Event) GetWatermarkEvent() *TestStreamPayload_Event_A
 
 func (x *TestStreamPayload_Event) GetProcessingTimeEvent() *TestStreamPayload_Event_AdvanceProcessingTime {
 	if x != nil {
-		if x, ok := x.Event.(*TestStreamPayload_Event_ProcessingTimeEvent); ok {
+		if x, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_ProcessingTimeEvent); ok {
 			return x.ProcessingTimeEvent
 		}
 	}
@@ -9442,7 +9076,7 @@ func (x *TestStreamPayload_Event) GetProcessingTimeEvent() *TestStreamPayload_Ev
 
 func (x *TestStreamPayload_Event) GetElementEvent() *TestStreamPayload_Event_AddElements {
 	if x != nil {
-		if x, ok := x.Event.(*TestStreamPayload_Event_ElementEvent); ok {
+		if x, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_ElementEvent); ok {
 			return x.ElementEvent
 		}
 	}
@@ -9451,40 +9085,40 @@ func (x *TestStreamPayload_Event) GetElementEvent() *TestStreamPayload_Event_Add
 
 func (x *TestStreamPayload_Event) SetWatermarkEvent(v *TestStreamPayload_Event_AdvanceWatermark) {
 	if v == nil {
-		x.Event = nil
+		x.xxx_hidden_Event = nil
 		return
 	}
-	x.Event = &TestStreamPayload_Event_WatermarkEvent{v}
+	x.xxx_hidden_Event = &testStreamPayload_Event_WatermarkEvent{v}
 }
 
 func (x *TestStreamPayload_Event) SetProcessingTimeEvent(v *TestStreamPayload_Event_AdvanceProcessingTime) {
 	if v == nil {
-		x.Event = nil
+		x.xxx_hidden_Event = nil
 		return
 	}
-	x.Event = &TestStreamPayload_Event_ProcessingTimeEvent{v}
+	x.xxx_hidden_Event = &testStreamPayload_Event_ProcessingTimeEvent{v}
 }
 
 func (x *TestStreamPayload_Event) SetElementEvent(v *TestStreamPayload_Event_AddElements) {
 	if v == nil {
-		x.Event = nil
+		x.xxx_hidden_Event = nil
 		return
 	}
-	x.Event = &TestStreamPayload_Event_ElementEvent{v}
+	x.xxx_hidden_Event = &testStreamPayload_Event_ElementEvent{v}
 }
 
 func (x *TestStreamPayload_Event) HasEvent() bool {
 	if x == nil {
 		return false
 	}
-	return x.Event != nil
+	return x.xxx_hidden_Event != nil
 }
 
 func (x *TestStreamPayload_Event) HasWatermarkEvent() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Event.(*TestStreamPayload_Event_WatermarkEvent)
+	_, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_WatermarkEvent)
 	return ok
 }
 
@@ -9492,7 +9126,7 @@ func (x *TestStreamPayload_Event) HasProcessingTimeEvent() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Event.(*TestStreamPayload_Event_ProcessingTimeEvent)
+	_, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_ProcessingTimeEvent)
 	return ok
 }
 
@@ -9500,29 +9134,29 @@ func (x *TestStreamPayload_Event) HasElementEvent() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Event.(*TestStreamPayload_Event_ElementEvent)
+	_, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_ElementEvent)
 	return ok
 }
 
 func (x *TestStreamPayload_Event) ClearEvent() {
-	x.Event = nil
+	x.xxx_hidden_Event = nil
 }
 
 func (x *TestStreamPayload_Event) ClearWatermarkEvent() {
-	if _, ok := x.Event.(*TestStreamPayload_Event_WatermarkEvent); ok {
-		x.Event = nil
+	if _, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_WatermarkEvent); ok {
+		x.xxx_hidden_Event = nil
 	}
 }
 
 func (x *TestStreamPayload_Event) ClearProcessingTimeEvent() {
-	if _, ok := x.Event.(*TestStreamPayload_Event_ProcessingTimeEvent); ok {
-		x.Event = nil
+	if _, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_ProcessingTimeEvent); ok {
+		x.xxx_hidden_Event = nil
 	}
 }
 
 func (x *TestStreamPayload_Event) ClearElementEvent() {
-	if _, ok := x.Event.(*TestStreamPayload_Event_ElementEvent); ok {
-		x.Event = nil
+	if _, ok := x.xxx_hidden_Event.(*testStreamPayload_Event_ElementEvent); ok {
+		x.xxx_hidden_Event = nil
 	}
 }
 
@@ -9535,12 +9169,12 @@ func (x *TestStreamPayload_Event) WhichEvent() case_TestStreamPayload_Event_Even
 	if x == nil {
 		return TestStreamPayload_Event_Event_not_set_case
 	}
-	switch x.Event.(type) {
-	case *TestStreamPayload_Event_WatermarkEvent:
+	switch x.xxx_hidden_Event.(type) {
+	case *testStreamPayload_Event_WatermarkEvent:
 		return TestStreamPayload_Event_WatermarkEvent_case
-	case *TestStreamPayload_Event_ProcessingTimeEvent:
+	case *testStreamPayload_Event_ProcessingTimeEvent:
 		return TestStreamPayload_Event_ProcessingTimeEvent_case
-	case *TestStreamPayload_Event_ElementEvent:
+	case *testStreamPayload_Event_ElementEvent:
 		return TestStreamPayload_Event_ElementEvent_case
 	default:
 		return TestStreamPayload_Event_Event_not_set_case
@@ -9550,11 +9184,11 @@ func (x *TestStreamPayload_Event) WhichEvent() case_TestStreamPayload_Event_Even
 type TestStreamPayload_Event_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// Fields of oneof Event:
+	// Fields of oneof xxx_hidden_Event:
 	WatermarkEvent      *TestStreamPayload_Event_AdvanceWatermark
 	ProcessingTimeEvent *TestStreamPayload_Event_AdvanceProcessingTime
 	ElementEvent        *TestStreamPayload_Event_AddElements
-	// -- end of Event
+	// -- end of xxx_hidden_Event
 }
 
 func (b0 TestStreamPayload_Event_builder) Build() *TestStreamPayload_Event {
@@ -9562,13 +9196,13 @@ func (b0 TestStreamPayload_Event_builder) Build() *TestStreamPayload_Event {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.WatermarkEvent != nil {
-		x.Event = &TestStreamPayload_Event_WatermarkEvent{b.WatermarkEvent}
+		x.xxx_hidden_Event = &testStreamPayload_Event_WatermarkEvent{b.WatermarkEvent}
 	}
 	if b.ProcessingTimeEvent != nil {
-		x.Event = &TestStreamPayload_Event_ProcessingTimeEvent{b.ProcessingTimeEvent}
+		x.xxx_hidden_Event = &testStreamPayload_Event_ProcessingTimeEvent{b.ProcessingTimeEvent}
 	}
 	if b.ElementEvent != nil {
-		x.Event = &TestStreamPayload_Event_ElementEvent{b.ElementEvent}
+		x.xxx_hidden_Event = &testStreamPayload_Event_ElementEvent{b.ElementEvent}
 	}
 	return m0
 }
@@ -9587,34 +9221,31 @@ type isTestStreamPayload_Event_Event interface {
 	isTestStreamPayload_Event_Event()
 }
 
-type TestStreamPayload_Event_WatermarkEvent struct {
+type testStreamPayload_Event_WatermarkEvent struct {
 	WatermarkEvent *TestStreamPayload_Event_AdvanceWatermark `protobuf:"bytes,1,opt,name=watermark_event,json=watermarkEvent,proto3,oneof"`
 }
 
-type TestStreamPayload_Event_ProcessingTimeEvent struct {
+type testStreamPayload_Event_ProcessingTimeEvent struct {
 	ProcessingTimeEvent *TestStreamPayload_Event_AdvanceProcessingTime `protobuf:"bytes,2,opt,name=processing_time_event,json=processingTimeEvent,proto3,oneof"`
 }
 
-type TestStreamPayload_Event_ElementEvent struct {
+type testStreamPayload_Event_ElementEvent struct {
 	ElementEvent *TestStreamPayload_Event_AddElements `protobuf:"bytes,3,opt,name=element_event,json=elementEvent,proto3,oneof"`
 }
 
-func (*TestStreamPayload_Event_WatermarkEvent) isTestStreamPayload_Event_Event() {}
+func (*testStreamPayload_Event_WatermarkEvent) isTestStreamPayload_Event_Event() {}
 
-func (*TestStreamPayload_Event_ProcessingTimeEvent) isTestStreamPayload_Event_Event() {}
+func (*testStreamPayload_Event_ProcessingTimeEvent) isTestStreamPayload_Event_Event() {}
 
-func (*TestStreamPayload_Event_ElementEvent) isTestStreamPayload_Event_Event() {}
+func (*testStreamPayload_Event_ElementEvent) isTestStreamPayload_Event_Event() {}
 
 // A single element inside of the TestStream.
 type TestStreamPayload_TimestampedElement struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The element encoded. Currently the TestStream only supports
-	// encoding primitives.
-	EncodedElement []byte `protobuf:"bytes,1,opt,name=encoded_element,json=encodedElement,proto3" json:"encoded_element,omitempty"`
-	// (Required) The event timestamp in millisecond of this element.
-	Timestamp     int64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_EncodedElement []byte                 `protobuf:"bytes,1,opt,name=encoded_element,json=encodedElement,proto3" json:"encoded_element,omitempty"`
+	xxx_hidden_Timestamp      int64                  `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *TestStreamPayload_TimestampedElement) Reset() {
@@ -9644,14 +9275,14 @@ func (x *TestStreamPayload_TimestampedElement) ProtoReflect() protoreflect.Messa
 
 func (x *TestStreamPayload_TimestampedElement) GetEncodedElement() []byte {
 	if x != nil {
-		return x.EncodedElement
+		return x.xxx_hidden_EncodedElement
 	}
 	return nil
 }
 
 func (x *TestStreamPayload_TimestampedElement) GetTimestamp() int64 {
 	if x != nil {
-		return x.Timestamp
+		return x.xxx_hidden_Timestamp
 	}
 	return 0
 }
@@ -9660,11 +9291,11 @@ func (x *TestStreamPayload_TimestampedElement) SetEncodedElement(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.EncodedElement = v
+	x.xxx_hidden_EncodedElement = v
 }
 
 func (x *TestStreamPayload_TimestampedElement) SetTimestamp(v int64) {
-	x.Timestamp = v
+	x.xxx_hidden_Timestamp = v
 }
 
 type TestStreamPayload_TimestampedElement_builder struct {
@@ -9681,22 +9312,18 @@ func (b0 TestStreamPayload_TimestampedElement_builder) Build() *TestStreamPayloa
 	m0 := &TestStreamPayload_TimestampedElement{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.EncodedElement = b.EncodedElement
-	x.Timestamp = b.Timestamp
+	x.xxx_hidden_EncodedElement = b.EncodedElement
+	x.xxx_hidden_Timestamp = b.Timestamp
 	return m0
 }
 
 // Advances the watermark to the specified timestamp.
 type TestStreamPayload_Event_AdvanceWatermark struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The watermark in millisecond to advance to.
-	NewWatermark int64 `protobuf:"varint,1,opt,name=new_watermark,json=newWatermark,proto3" json:"new_watermark,omitempty"`
-	// (Optional) The output watermark tag for a PCollection. If unspecified
-	// or with an empty string, this will default to the Main PCollection
-	// Output
-	Tag           string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_NewWatermark int64                  `protobuf:"varint,1,opt,name=new_watermark,json=newWatermark,proto3" json:"new_watermark,omitempty"`
+	xxx_hidden_Tag          string                 `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *TestStreamPayload_Event_AdvanceWatermark) Reset() {
@@ -9726,24 +9353,24 @@ func (x *TestStreamPayload_Event_AdvanceWatermark) ProtoReflect() protoreflect.M
 
 func (x *TestStreamPayload_Event_AdvanceWatermark) GetNewWatermark() int64 {
 	if x != nil {
-		return x.NewWatermark
+		return x.xxx_hidden_NewWatermark
 	}
 	return 0
 }
 
 func (x *TestStreamPayload_Event_AdvanceWatermark) GetTag() string {
 	if x != nil {
-		return x.Tag
+		return x.xxx_hidden_Tag
 	}
 	return ""
 }
 
 func (x *TestStreamPayload_Event_AdvanceWatermark) SetNewWatermark(v int64) {
-	x.NewWatermark = v
+	x.xxx_hidden_NewWatermark = v
 }
 
 func (x *TestStreamPayload_Event_AdvanceWatermark) SetTag(v string) {
-	x.Tag = v
+	x.xxx_hidden_Tag = v
 }
 
 type TestStreamPayload_Event_AdvanceWatermark_builder struct {
@@ -9761,18 +9388,17 @@ func (b0 TestStreamPayload_Event_AdvanceWatermark_builder) Build() *TestStreamPa
 	m0 := &TestStreamPayload_Event_AdvanceWatermark{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.NewWatermark = b.NewWatermark
-	x.Tag = b.Tag
+	x.xxx_hidden_NewWatermark = b.NewWatermark
+	x.xxx_hidden_Tag = b.Tag
 	return m0
 }
 
 // Advances the processing time clock by the specified amount.
 type TestStreamPayload_Event_AdvanceProcessingTime struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The duration in millisecond to advance by.
-	AdvanceDuration int64 `protobuf:"varint,1,opt,name=advance_duration,json=advanceDuration,proto3" json:"advance_duration,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_AdvanceDuration int64                  `protobuf:"varint,1,opt,name=advance_duration,json=advanceDuration,proto3" json:"advance_duration,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *TestStreamPayload_Event_AdvanceProcessingTime) Reset() {
@@ -9802,13 +9428,13 @@ func (x *TestStreamPayload_Event_AdvanceProcessingTime) ProtoReflect() protorefl
 
 func (x *TestStreamPayload_Event_AdvanceProcessingTime) GetAdvanceDuration() int64 {
 	if x != nil {
-		return x.AdvanceDuration
+		return x.xxx_hidden_AdvanceDuration
 	}
 	return 0
 }
 
 func (x *TestStreamPayload_Event_AdvanceProcessingTime) SetAdvanceDuration(v int64) {
-	x.AdvanceDuration = v
+	x.xxx_hidden_AdvanceDuration = v
 }
 
 type TestStreamPayload_Event_AdvanceProcessingTime_builder struct {
@@ -9822,21 +9448,17 @@ func (b0 TestStreamPayload_Event_AdvanceProcessingTime_builder) Build() *TestStr
 	m0 := &TestStreamPayload_Event_AdvanceProcessingTime{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.AdvanceDuration = b.AdvanceDuration
+	x.xxx_hidden_AdvanceDuration = b.AdvanceDuration
 	return m0
 }
 
 // Adds elements to the stream to be emitted.
 type TestStreamPayload_Event_AddElements struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The elements to add to the TestStream.
-	Elements []*TestStreamPayload_TimestampedElement `protobuf:"bytes,1,rep,name=elements,proto3" json:"elements,omitempty"`
-	// (Optional) The output PCollection tag to add these elements to. If
-	// unspecified or with an empty string, this will default to the Main
-	// PCollection Output.
-	Tag           string `protobuf:"bytes,3,opt,name=tag,proto3" json:"tag,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState                   `protogen:"opaque.v1"`
+	xxx_hidden_Elements *[]*TestStreamPayload_TimestampedElement `protobuf:"bytes,1,rep,name=elements,proto3" json:"elements,omitempty"`
+	xxx_hidden_Tag      string                                   `protobuf:"bytes,3,opt,name=tag,proto3" json:"tag,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *TestStreamPayload_Event_AddElements) Reset() {
@@ -9866,24 +9488,26 @@ func (x *TestStreamPayload_Event_AddElements) ProtoReflect() protoreflect.Messag
 
 func (x *TestStreamPayload_Event_AddElements) GetElements() []*TestStreamPayload_TimestampedElement {
 	if x != nil {
-		return x.Elements
+		if x.xxx_hidden_Elements != nil {
+			return *x.xxx_hidden_Elements
+		}
 	}
 	return nil
 }
 
 func (x *TestStreamPayload_Event_AddElements) GetTag() string {
 	if x != nil {
-		return x.Tag
+		return x.xxx_hidden_Tag
 	}
 	return ""
 }
 
 func (x *TestStreamPayload_Event_AddElements) SetElements(v []*TestStreamPayload_TimestampedElement) {
-	x.Elements = v
+	x.xxx_hidden_Elements = &v
 }
 
 func (x *TestStreamPayload_Event_AddElements) SetTag(v string) {
-	x.Tag = v
+	x.xxx_hidden_Tag = v
 }
 
 type TestStreamPayload_Event_AddElements_builder struct {
@@ -9901,17 +9525,17 @@ func (b0 TestStreamPayload_Event_AddElements_builder) Build() *TestStreamPayload
 	m0 := &TestStreamPayload_Event_AddElements{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Elements = b.Elements
-	x.Tag = b.Tag
+	x.xxx_hidden_Elements = &b.Elements
+	x.xxx_hidden_Tag = b.Tag
 	return m0
 }
 
 // Ready when all subtriggers are ready.
 type Trigger_AfterAll struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Subtriggers   []*Trigger             `protobuf:"bytes,1,rep,name=subtriggers,proto3" json:"subtriggers,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Subtriggers *[]*Trigger            `protobuf:"bytes,1,rep,name=subtriggers,proto3" json:"subtriggers,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Trigger_AfterAll) Reset() {
@@ -9941,13 +9565,15 @@ func (x *Trigger_AfterAll) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_AfterAll) GetSubtriggers() []*Trigger {
 	if x != nil {
-		return x.Subtriggers
+		if x.xxx_hidden_Subtriggers != nil {
+			return *x.xxx_hidden_Subtriggers
+		}
 	}
 	return nil
 }
 
 func (x *Trigger_AfterAll) SetSubtriggers(v []*Trigger) {
-	x.Subtriggers = v
+	x.xxx_hidden_Subtriggers = &v
 }
 
 type Trigger_AfterAll_builder struct {
@@ -9960,16 +9586,16 @@ func (b0 Trigger_AfterAll_builder) Build() *Trigger_AfterAll {
 	m0 := &Trigger_AfterAll{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Subtriggers = b.Subtriggers
+	x.xxx_hidden_Subtriggers = &b.Subtriggers
 	return m0
 }
 
 // Ready when any subtrigger is ready.
 type Trigger_AfterAny struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Subtriggers   []*Trigger             `protobuf:"bytes,1,rep,name=subtriggers,proto3" json:"subtriggers,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Subtriggers *[]*Trigger            `protobuf:"bytes,1,rep,name=subtriggers,proto3" json:"subtriggers,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Trigger_AfterAny) Reset() {
@@ -9999,13 +9625,15 @@ func (x *Trigger_AfterAny) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_AfterAny) GetSubtriggers() []*Trigger {
 	if x != nil {
-		return x.Subtriggers
+		if x.xxx_hidden_Subtriggers != nil {
+			return *x.xxx_hidden_Subtriggers
+		}
 	}
 	return nil
 }
 
 func (x *Trigger_AfterAny) SetSubtriggers(v []*Trigger) {
-	x.Subtriggers = v
+	x.xxx_hidden_Subtriggers = &v
 }
 
 type Trigger_AfterAny_builder struct {
@@ -10018,17 +9646,17 @@ func (b0 Trigger_AfterAny_builder) Build() *Trigger_AfterAny {
 	m0 := &Trigger_AfterAny{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Subtriggers = b.Subtriggers
+	x.xxx_hidden_Subtriggers = &b.Subtriggers
 	return m0
 }
 
 // Starting with the first subtrigger, ready when the _current_ subtrigger
 // is ready. After output, advances the current trigger by one.
 type Trigger_AfterEach struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	Subtriggers   []*Trigger             `protobuf:"bytes,1,rep,name=subtriggers,proto3" json:"subtriggers,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Subtriggers *[]*Trigger            `protobuf:"bytes,1,rep,name=subtriggers,proto3" json:"subtriggers,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Trigger_AfterEach) Reset() {
@@ -10058,13 +9686,15 @@ func (x *Trigger_AfterEach) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_AfterEach) GetSubtriggers() []*Trigger {
 	if x != nil {
-		return x.Subtriggers
+		if x.xxx_hidden_Subtriggers != nil {
+			return *x.xxx_hidden_Subtriggers
+		}
 	}
 	return nil
 }
 
 func (x *Trigger_AfterEach) SetSubtriggers(v []*Trigger) {
-	x.Subtriggers = v
+	x.xxx_hidden_Subtriggers = &v
 }
 
 type Trigger_AfterEach_builder struct {
@@ -10077,7 +9707,7 @@ func (b0 Trigger_AfterEach_builder) Build() *Trigger_AfterEach {
 	m0 := &Trigger_AfterEach{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Subtriggers = b.Subtriggers
+	x.xxx_hidden_Subtriggers = &b.Subtriggers
 	return m0
 }
 
@@ -10087,13 +9717,11 @@ func (b0 Trigger_AfterEach_builder) Build() *Trigger_AfterEach {
 // When the end of the window is reached, the trigger transitions between
 // the subtriggers.
 type Trigger_AfterEndOfWindow struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Optional) A trigger governing output prior to the end of the window.
-	EarlyFirings *Trigger `protobuf:"bytes,1,opt,name=early_firings,json=earlyFirings,proto3" json:"early_firings,omitempty"`
-	// (Optional) A trigger governing output after the end of the window.
-	LateFirings   *Trigger `protobuf:"bytes,2,opt,name=late_firings,json=lateFirings,proto3" json:"late_firings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_EarlyFirings *Trigger               `protobuf:"bytes,1,opt,name=early_firings,json=earlyFirings,proto3" json:"early_firings,omitempty"`
+	xxx_hidden_LateFirings  *Trigger               `protobuf:"bytes,2,opt,name=late_firings,json=lateFirings,proto3" json:"late_firings,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Trigger_AfterEndOfWindow) Reset() {
@@ -10123,46 +9751,46 @@ func (x *Trigger_AfterEndOfWindow) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_AfterEndOfWindow) GetEarlyFirings() *Trigger {
 	if x != nil {
-		return x.EarlyFirings
+		return x.xxx_hidden_EarlyFirings
 	}
 	return nil
 }
 
 func (x *Trigger_AfterEndOfWindow) GetLateFirings() *Trigger {
 	if x != nil {
-		return x.LateFirings
+		return x.xxx_hidden_LateFirings
 	}
 	return nil
 }
 
 func (x *Trigger_AfterEndOfWindow) SetEarlyFirings(v *Trigger) {
-	x.EarlyFirings = v
+	x.xxx_hidden_EarlyFirings = v
 }
 
 func (x *Trigger_AfterEndOfWindow) SetLateFirings(v *Trigger) {
-	x.LateFirings = v
+	x.xxx_hidden_LateFirings = v
 }
 
 func (x *Trigger_AfterEndOfWindow) HasEarlyFirings() bool {
 	if x == nil {
 		return false
 	}
-	return x.EarlyFirings != nil
+	return x.xxx_hidden_EarlyFirings != nil
 }
 
 func (x *Trigger_AfterEndOfWindow) HasLateFirings() bool {
 	if x == nil {
 		return false
 	}
-	return x.LateFirings != nil
+	return x.xxx_hidden_LateFirings != nil
 }
 
 func (x *Trigger_AfterEndOfWindow) ClearEarlyFirings() {
-	x.EarlyFirings = nil
+	x.xxx_hidden_EarlyFirings = nil
 }
 
 func (x *Trigger_AfterEndOfWindow) ClearLateFirings() {
-	x.LateFirings = nil
+	x.xxx_hidden_LateFirings = nil
 }
 
 type Trigger_AfterEndOfWindow_builder struct {
@@ -10178,19 +9806,17 @@ func (b0 Trigger_AfterEndOfWindow_builder) Build() *Trigger_AfterEndOfWindow {
 	m0 := &Trigger_AfterEndOfWindow{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.EarlyFirings = b.EarlyFirings
-	x.LateFirings = b.LateFirings
+	x.xxx_hidden_EarlyFirings = b.EarlyFirings
+	x.xxx_hidden_LateFirings = b.LateFirings
 	return m0
 }
 
 // After input arrives, ready when the specified delay has passed.
 type Trigger_AfterProcessingTime struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The transforms to apply to an arriving element's timestamp,
-	// in order
-	TimestampTransforms []*TimestampTransform `protobuf:"bytes,1,rep,name=timestamp_transforms,json=timestampTransforms,proto3" json:"timestamp_transforms,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                          protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TimestampTransforms *[]*TimestampTransform `protobuf:"bytes,1,rep,name=timestamp_transforms,json=timestampTransforms,proto3" json:"timestamp_transforms,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *Trigger_AfterProcessingTime) Reset() {
@@ -10220,13 +9846,15 @@ func (x *Trigger_AfterProcessingTime) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_AfterProcessingTime) GetTimestampTransforms() []*TimestampTransform {
 	if x != nil {
-		return x.TimestampTransforms
+		if x.xxx_hidden_TimestampTransforms != nil {
+			return *x.xxx_hidden_TimestampTransforms
+		}
 	}
 	return nil
 }
 
 func (x *Trigger_AfterProcessingTime) SetTimestampTransforms(v []*TimestampTransform) {
-	x.TimestampTransforms = v
+	x.xxx_hidden_TimestampTransforms = &v
 }
 
 type Trigger_AfterProcessingTime_builder struct {
@@ -10241,14 +9869,14 @@ func (b0 Trigger_AfterProcessingTime_builder) Build() *Trigger_AfterProcessingTi
 	m0 := &Trigger_AfterProcessingTime{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TimestampTransforms = b.TimestampTransforms
+	x.xxx_hidden_TimestampTransforms = &b.TimestampTransforms
 	return m0
 }
 
 // Ready whenever upstream processing time has all caught up with
 // the arrival time of an input element
 type Trigger_AfterSynchronizedProcessingTime struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10293,7 +9921,7 @@ func (b0 Trigger_AfterSynchronizedProcessingTime_builder) Build() *Trigger_After
 // The default trigger. Equivalent to Repeat { AfterEndOfWindow } but
 // specially denoted to indicate the user did not alter the triggering.
 type Trigger_Default struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10337,10 +9965,10 @@ func (b0 Trigger_Default_builder) Build() *Trigger_Default {
 
 // Ready whenever the requisite number of input elements have arrived
 type Trigger_ElementCount struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
-	ElementCount  int32                  `protobuf:"varint,1,opt,name=element_count,json=elementCount,proto3" json:"element_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ElementCount int32                  `protobuf:"varint,1,opt,name=element_count,json=elementCount,proto3" json:"element_count,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Trigger_ElementCount) Reset() {
@@ -10370,13 +9998,13 @@ func (x *Trigger_ElementCount) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_ElementCount) GetElementCount() int32 {
 	if x != nil {
-		return x.ElementCount
+		return x.xxx_hidden_ElementCount
 	}
 	return 0
 }
 
 func (x *Trigger_ElementCount) SetElementCount(v int32) {
-	x.ElementCount = v
+	x.xxx_hidden_ElementCount = v
 }
 
 type Trigger_ElementCount_builder struct {
@@ -10389,14 +10017,14 @@ func (b0 Trigger_ElementCount_builder) Build() *Trigger_ElementCount {
 	m0 := &Trigger_ElementCount{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.ElementCount = b.ElementCount
+	x.xxx_hidden_ElementCount = b.ElementCount
 	return m0
 }
 
 // Never ready. There will only be an ON_TIME output and a final
 // output at window expiration.
 type Trigger_Never struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10441,7 +10069,7 @@ func (b0 Trigger_Never_builder) Build() *Trigger_Never {
 // Always ready. This can also be expressed as ElementCount(1) but
 // is more explicit.
 type Trigger_Always struct {
-	state         protoimpl.MessageState `protogen:"hybrid.v1"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10486,13 +10114,11 @@ func (b0 Trigger_Always_builder) Build() *Trigger_Always {
 // Ready whenever either of its subtriggers are ready, but finishes output
 // when the finally subtrigger fires.
 type Trigger_OrFinally struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) Trigger governing main output; may fire repeatedly.
-	Main *Trigger `protobuf:"bytes,1,opt,name=main,proto3" json:"main,omitempty"`
-	// (Required) Trigger governing termination of output.
-	Finally       *Trigger `protobuf:"bytes,2,opt,name=finally,proto3" json:"finally,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Main    *Trigger               `protobuf:"bytes,1,opt,name=main,proto3" json:"main,omitempty"`
+	xxx_hidden_Finally *Trigger               `protobuf:"bytes,2,opt,name=finally,proto3" json:"finally,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Trigger_OrFinally) Reset() {
@@ -10522,46 +10148,46 @@ func (x *Trigger_OrFinally) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_OrFinally) GetMain() *Trigger {
 	if x != nil {
-		return x.Main
+		return x.xxx_hidden_Main
 	}
 	return nil
 }
 
 func (x *Trigger_OrFinally) GetFinally() *Trigger {
 	if x != nil {
-		return x.Finally
+		return x.xxx_hidden_Finally
 	}
 	return nil
 }
 
 func (x *Trigger_OrFinally) SetMain(v *Trigger) {
-	x.Main = v
+	x.xxx_hidden_Main = v
 }
 
 func (x *Trigger_OrFinally) SetFinally(v *Trigger) {
-	x.Finally = v
+	x.xxx_hidden_Finally = v
 }
 
 func (x *Trigger_OrFinally) HasMain() bool {
 	if x == nil {
 		return false
 	}
-	return x.Main != nil
+	return x.xxx_hidden_Main != nil
 }
 
 func (x *Trigger_OrFinally) HasFinally() bool {
 	if x == nil {
 		return false
 	}
-	return x.Finally != nil
+	return x.xxx_hidden_Finally != nil
 }
 
 func (x *Trigger_OrFinally) ClearMain() {
-	x.Main = nil
+	x.xxx_hidden_Main = nil
 }
 
 func (x *Trigger_OrFinally) ClearFinally() {
-	x.Finally = nil
+	x.xxx_hidden_Finally = nil
 }
 
 type Trigger_OrFinally_builder struct {
@@ -10577,19 +10203,18 @@ func (b0 Trigger_OrFinally_builder) Build() *Trigger_OrFinally {
 	m0 := &Trigger_OrFinally{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Main = b.Main
-	x.Finally = b.Finally
+	x.xxx_hidden_Main = b.Main
+	x.xxx_hidden_Finally = b.Finally
 	return m0
 }
 
 // Ready whenever the subtrigger is ready; resets state when the subtrigger
 // completes.
 type Trigger_Repeat struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Require) Trigger that is run repeatedly.
-	Subtrigger    *Trigger `protobuf:"bytes,1,opt,name=subtrigger,proto3" json:"subtrigger,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Subtrigger *Trigger               `protobuf:"bytes,1,opt,name=subtrigger,proto3" json:"subtrigger,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Trigger_Repeat) Reset() {
@@ -10619,24 +10244,24 @@ func (x *Trigger_Repeat) ProtoReflect() protoreflect.Message {
 
 func (x *Trigger_Repeat) GetSubtrigger() *Trigger {
 	if x != nil {
-		return x.Subtrigger
+		return x.xxx_hidden_Subtrigger
 	}
 	return nil
 }
 
 func (x *Trigger_Repeat) SetSubtrigger(v *Trigger) {
-	x.Subtrigger = v
+	x.xxx_hidden_Subtrigger = v
 }
 
 func (x *Trigger_Repeat) HasSubtrigger() bool {
 	if x == nil {
 		return false
 	}
-	return x.Subtrigger != nil
+	return x.xxx_hidden_Subtrigger != nil
 }
 
 func (x *Trigger_Repeat) ClearSubtrigger() {
-	x.Subtrigger = nil
+	x.xxx_hidden_Subtrigger = nil
 }
 
 type Trigger_Repeat_builder struct {
@@ -10650,16 +10275,15 @@ func (b0 Trigger_Repeat_builder) Build() *Trigger_Repeat {
 	m0 := &Trigger_Repeat{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Subtrigger = b.Subtrigger
+	x.xxx_hidden_Subtrigger = b.Subtrigger
 	return m0
 }
 
 type TimestampTransform_Delay struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The delay, in milliseconds.
-	DelayMillis   int64 `protobuf:"varint,1,opt,name=delay_millis,json=delayMillis,proto3" json:"delay_millis,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_DelayMillis int64                  `protobuf:"varint,1,opt,name=delay_millis,json=delayMillis,proto3" json:"delay_millis,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *TimestampTransform_Delay) Reset() {
@@ -10689,13 +10313,13 @@ func (x *TimestampTransform_Delay) ProtoReflect() protoreflect.Message {
 
 func (x *TimestampTransform_Delay) GetDelayMillis() int64 {
 	if x != nil {
-		return x.DelayMillis
+		return x.xxx_hidden_DelayMillis
 	}
 	return 0
 }
 
 func (x *TimestampTransform_Delay) SetDelayMillis(v int64) {
-	x.DelayMillis = v
+	x.xxx_hidden_DelayMillis = v
 }
 
 type TimestampTransform_Delay_builder struct {
@@ -10709,20 +10333,16 @@ func (b0 TimestampTransform_Delay_builder) Build() *TimestampTransform_Delay {
 	m0 := &TimestampTransform_Delay{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.DelayMillis = b.DelayMillis
+	x.xxx_hidden_DelayMillis = b.DelayMillis
 	return m0
 }
 
 type TimestampTransform_AlignTo struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) A duration to which delays should be quantized
-	// in milliseconds.
-	Period int64 `protobuf:"varint,3,opt,name=period,proto3" json:"period,omitempty"`
-	// (Required) An offset from 0 for the quantization specified by
-	// alignment_size, in milliseconds
-	Offset        int64 `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Period int64                  `protobuf:"varint,3,opt,name=period,proto3" json:"period,omitempty"`
+	xxx_hidden_Offset int64                  `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *TimestampTransform_AlignTo) Reset() {
@@ -10752,24 +10372,24 @@ func (x *TimestampTransform_AlignTo) ProtoReflect() protoreflect.Message {
 
 func (x *TimestampTransform_AlignTo) GetPeriod() int64 {
 	if x != nil {
-		return x.Period
+		return x.xxx_hidden_Period
 	}
 	return 0
 }
 
 func (x *TimestampTransform_AlignTo) GetOffset() int64 {
 	if x != nil {
-		return x.Offset
+		return x.xxx_hidden_Offset
 	}
 	return 0
 }
 
 func (x *TimestampTransform_AlignTo) SetPeriod(v int64) {
-	x.Period = v
+	x.xxx_hidden_Period = v
 }
 
 func (x *TimestampTransform_AlignTo) SetOffset(v int64) {
-	x.Offset = v
+	x.xxx_hidden_Offset = v
 }
 
 type TimestampTransform_AlignTo_builder struct {
@@ -10787,21 +10407,19 @@ func (b0 TimestampTransform_AlignTo_builder) Build() *TimestampTransform_AlignTo
 	m0 := &TimestampTransform_AlignTo{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Period = b.Period
-	x.Offset = b.Offset
+	x.xxx_hidden_Period = b.Period
+	x.xxx_hidden_Offset = b.Offset
 	return m0
 }
 
 // A reference to a side input. Side inputs are uniquely identified by PTransform id and
 // local name.
 type ExecutableStagePayload_SideInputId struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform that references this side input.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The local name of this side input from the PTransform that references it.
-	LocalName     string `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_LocalName   string                 `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ExecutableStagePayload_SideInputId) Reset() {
@@ -10831,24 +10449,24 @@ func (x *ExecutableStagePayload_SideInputId) ProtoReflect() protoreflect.Message
 
 func (x *ExecutableStagePayload_SideInputId) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_SideInputId) GetLocalName() string {
 	if x != nil {
-		return x.LocalName
+		return x.xxx_hidden_LocalName
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_SideInputId) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *ExecutableStagePayload_SideInputId) SetLocalName(v string) {
-	x.LocalName = v
+	x.xxx_hidden_LocalName = v
 }
 
 type ExecutableStagePayload_SideInputId_builder struct {
@@ -10864,21 +10482,19 @@ func (b0 ExecutableStagePayload_SideInputId_builder) Build() *ExecutableStagePay
 	m0 := &ExecutableStagePayload_SideInputId{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.LocalName = b.LocalName
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_LocalName = b.LocalName
 	return m0
 }
 
 // A reference to user state. User states are uniquely identified by PTransform id and
 // local name.
 type ExecutableStagePayload_UserStateId struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform that references this user state.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The local name of this user state for the PTransform that references it.
-	LocalName     string `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_LocalName   string                 `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ExecutableStagePayload_UserStateId) Reset() {
@@ -10908,24 +10524,24 @@ func (x *ExecutableStagePayload_UserStateId) ProtoReflect() protoreflect.Message
 
 func (x *ExecutableStagePayload_UserStateId) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_UserStateId) GetLocalName() string {
 	if x != nil {
-		return x.LocalName
+		return x.xxx_hidden_LocalName
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_UserStateId) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *ExecutableStagePayload_UserStateId) SetLocalName(v string) {
-	x.LocalName = v
+	x.xxx_hidden_LocalName = v
 }
 
 type ExecutableStagePayload_UserStateId_builder struct {
@@ -10941,21 +10557,19 @@ func (b0 ExecutableStagePayload_UserStateId_builder) Build() *ExecutableStagePay
 	m0 := &ExecutableStagePayload_UserStateId{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.LocalName = b.LocalName
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_LocalName = b.LocalName
 	return m0
 }
 
 // A reference to a timer. Timers are uniquely identified by PTransform id and
 // local name.
 type ExecutableStagePayload_TimerId struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform that references this timer.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The local name of this timer for the PTransform that references it.
-	LocalName     string `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_LocalName   string                 `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ExecutableStagePayload_TimerId) Reset() {
@@ -10985,24 +10599,24 @@ func (x *ExecutableStagePayload_TimerId) ProtoReflect() protoreflect.Message {
 
 func (x *ExecutableStagePayload_TimerId) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_TimerId) GetLocalName() string {
 	if x != nil {
-		return x.LocalName
+		return x.xxx_hidden_LocalName
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_TimerId) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *ExecutableStagePayload_TimerId) SetLocalName(v string) {
-	x.LocalName = v
+	x.xxx_hidden_LocalName = v
 }
 
 type ExecutableStagePayload_TimerId_builder struct {
@@ -11018,21 +10632,19 @@ func (b0 ExecutableStagePayload_TimerId_builder) Build() *ExecutableStagePayload
 	m0 := &ExecutableStagePayload_TimerId{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.LocalName = b.LocalName
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_LocalName = b.LocalName
 	return m0
 }
 
 // A reference to a timer. Timers are uniquely identified by PTransform id and
 // local name.
 type ExecutableStagePayload_TimerFamilyId struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The id of the PTransform that references this timer family.
-	TransformId string `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
-	// (Required) The local name of this timer family for the PTransform that references it.
-	LocalName     string `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_TransformId string                 `protobuf:"bytes,1,opt,name=transform_id,json=transformId,proto3" json:"transform_id,omitempty"`
+	xxx_hidden_LocalName   string                 `protobuf:"bytes,2,opt,name=local_name,json=localName,proto3" json:"local_name,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ExecutableStagePayload_TimerFamilyId) Reset() {
@@ -11062,24 +10674,24 @@ func (x *ExecutableStagePayload_TimerFamilyId) ProtoReflect() protoreflect.Messa
 
 func (x *ExecutableStagePayload_TimerFamilyId) GetTransformId() string {
 	if x != nil {
-		return x.TransformId
+		return x.xxx_hidden_TransformId
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_TimerFamilyId) GetLocalName() string {
 	if x != nil {
-		return x.LocalName
+		return x.xxx_hidden_LocalName
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_TimerFamilyId) SetTransformId(v string) {
-	x.TransformId = v
+	x.xxx_hidden_TransformId = v
 }
 
 func (x *ExecutableStagePayload_TimerFamilyId) SetLocalName(v string) {
-	x.LocalName = v
+	x.xxx_hidden_LocalName = v
 }
 
 type ExecutableStagePayload_TimerFamilyId_builder struct {
@@ -11095,33 +10707,19 @@ func (b0 ExecutableStagePayload_TimerFamilyId_builder) Build() *ExecutableStageP
 	m0 := &ExecutableStagePayload_TimerFamilyId{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.TransformId = b.TransformId
-	x.LocalName = b.LocalName
+	x.xxx_hidden_TransformId = b.TransformId
+	x.xxx_hidden_LocalName = b.LocalName
 	return m0
 }
 
 // Settings that decide the coder type of wire coder.
 type ExecutableStagePayload_WireCoderSetting struct {
-	state protoimpl.MessageState `protogen:"hybrid.v1"`
-	// (Required) The URN of the wire coder.
-	// Note that only windowed value coder or parameterized windowed value coder are supported.
-	Urn string `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
-	// (Optional) The data specifying any parameters to the URN. If
-	// the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
-	// beam:coder:param_windowed_value:v1, the payload is an encoded windowed
-	// value using the beam:coder:windowed_value:v1 coder parameterized by
-	// a beam:coder:bytes:v1 element coder and the window coder that this
-	// param_windowed_value coder uses.
-	Payload []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	// (Required) The target(PCollection or Timer) this setting applies to.
-	//
-	// Types that are valid to be assigned to Target:
-	//
-	//	*ExecutableStagePayload_WireCoderSetting_InputOrOutputId
-	//	*ExecutableStagePayload_WireCoderSetting_Timer
-	Target        isExecutableStagePayload_WireCoderSetting_Target `protobuf_oneof:"target"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState                           `protogen:"opaque.v1"`
+	xxx_hidden_Urn     string                                           `protobuf:"bytes,1,opt,name=urn,proto3" json:"urn,omitempty"`
+	xxx_hidden_Payload []byte                                           `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	xxx_hidden_Target  isExecutableStagePayload_WireCoderSetting_Target `protobuf_oneof:"target"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) Reset() {
@@ -11151,28 +10749,21 @@ func (x *ExecutableStagePayload_WireCoderSetting) ProtoReflect() protoreflect.Me
 
 func (x *ExecutableStagePayload_WireCoderSetting) GetUrn() string {
 	if x != nil {
-		return x.Urn
+		return x.xxx_hidden_Urn
 	}
 	return ""
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-func (x *ExecutableStagePayload_WireCoderSetting) GetTarget() isExecutableStagePayload_WireCoderSetting_Target {
-	if x != nil {
-		return x.Target
+		return x.xxx_hidden_Payload
 	}
 	return nil
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) GetInputOrOutputId() string {
 	if x != nil {
-		if x, ok := x.Target.(*ExecutableStagePayload_WireCoderSetting_InputOrOutputId); ok {
+		if x, ok := x.xxx_hidden_Target.(*executableStagePayload_WireCoderSetting_InputOrOutputId); ok {
 			return x.InputOrOutputId
 		}
 	}
@@ -11181,7 +10772,7 @@ func (x *ExecutableStagePayload_WireCoderSetting) GetInputOrOutputId() string {
 
 func (x *ExecutableStagePayload_WireCoderSetting) GetTimer() *ExecutableStagePayload_TimerId {
 	if x != nil {
-		if x, ok := x.Target.(*ExecutableStagePayload_WireCoderSetting_Timer); ok {
+		if x, ok := x.xxx_hidden_Target.(*executableStagePayload_WireCoderSetting_Timer); ok {
 			return x.Timer
 		}
 	}
@@ -11189,40 +10780,40 @@ func (x *ExecutableStagePayload_WireCoderSetting) GetTimer() *ExecutableStagePay
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) SetUrn(v string) {
-	x.Urn = v
+	x.xxx_hidden_Urn = v
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) SetPayload(v []byte) {
 	if v == nil {
 		v = []byte{}
 	}
-	x.Payload = v
+	x.xxx_hidden_Payload = v
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) SetInputOrOutputId(v string) {
-	x.Target = &ExecutableStagePayload_WireCoderSetting_InputOrOutputId{v}
+	x.xxx_hidden_Target = &executableStagePayload_WireCoderSetting_InputOrOutputId{v}
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) SetTimer(v *ExecutableStagePayload_TimerId) {
 	if v == nil {
-		x.Target = nil
+		x.xxx_hidden_Target = nil
 		return
 	}
-	x.Target = &ExecutableStagePayload_WireCoderSetting_Timer{v}
+	x.xxx_hidden_Target = &executableStagePayload_WireCoderSetting_Timer{v}
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) HasTarget() bool {
 	if x == nil {
 		return false
 	}
-	return x.Target != nil
+	return x.xxx_hidden_Target != nil
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) HasInputOrOutputId() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Target.(*ExecutableStagePayload_WireCoderSetting_InputOrOutputId)
+	_, ok := x.xxx_hidden_Target.(*executableStagePayload_WireCoderSetting_InputOrOutputId)
 	return ok
 }
 
@@ -11230,23 +10821,23 @@ func (x *ExecutableStagePayload_WireCoderSetting) HasTimer() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.Target.(*ExecutableStagePayload_WireCoderSetting_Timer)
+	_, ok := x.xxx_hidden_Target.(*executableStagePayload_WireCoderSetting_Timer)
 	return ok
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) ClearTarget() {
-	x.Target = nil
+	x.xxx_hidden_Target = nil
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) ClearInputOrOutputId() {
-	if _, ok := x.Target.(*ExecutableStagePayload_WireCoderSetting_InputOrOutputId); ok {
-		x.Target = nil
+	if _, ok := x.xxx_hidden_Target.(*executableStagePayload_WireCoderSetting_InputOrOutputId); ok {
+		x.xxx_hidden_Target = nil
 	}
 }
 
 func (x *ExecutableStagePayload_WireCoderSetting) ClearTimer() {
-	if _, ok := x.Target.(*ExecutableStagePayload_WireCoderSetting_Timer); ok {
-		x.Target = nil
+	if _, ok := x.xxx_hidden_Target.(*executableStagePayload_WireCoderSetting_Timer); ok {
+		x.xxx_hidden_Target = nil
 	}
 }
 
@@ -11258,10 +10849,10 @@ func (x *ExecutableStagePayload_WireCoderSetting) WhichTarget() case_ExecutableS
 	if x == nil {
 		return ExecutableStagePayload_WireCoderSetting_Target_not_set_case
 	}
-	switch x.Target.(type) {
-	case *ExecutableStagePayload_WireCoderSetting_InputOrOutputId:
+	switch x.xxx_hidden_Target.(type) {
+	case *executableStagePayload_WireCoderSetting_InputOrOutputId:
 		return ExecutableStagePayload_WireCoderSetting_InputOrOutputId_case
-	case *ExecutableStagePayload_WireCoderSetting_Timer:
+	case *executableStagePayload_WireCoderSetting_Timer:
 		return ExecutableStagePayload_WireCoderSetting_Timer_case
 	default:
 		return ExecutableStagePayload_WireCoderSetting_Target_not_set_case
@@ -11283,25 +10874,25 @@ type ExecutableStagePayload_WireCoderSetting_builder struct {
 	Payload []byte
 	// (Required) The target(PCollection or Timer) this setting applies to.
 
-	// Fields of oneof Target:
+	// Fields of oneof xxx_hidden_Target:
 	// The input or output PCollection id this setting applies to.
 	InputOrOutputId *string
 	// The timer id this setting applies to.
 	Timer *ExecutableStagePayload_TimerId
-	// -- end of Target
+	// -- end of xxx_hidden_Target
 }
 
 func (b0 ExecutableStagePayload_WireCoderSetting_builder) Build() *ExecutableStagePayload_WireCoderSetting {
 	m0 := &ExecutableStagePayload_WireCoderSetting{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.Urn = b.Urn
-	x.Payload = b.Payload
+	x.xxx_hidden_Urn = b.Urn
+	x.xxx_hidden_Payload = b.Payload
 	if b.InputOrOutputId != nil {
-		x.Target = &ExecutableStagePayload_WireCoderSetting_InputOrOutputId{*b.InputOrOutputId}
+		x.xxx_hidden_Target = &executableStagePayload_WireCoderSetting_InputOrOutputId{*b.InputOrOutputId}
 	}
 	if b.Timer != nil {
-		x.Target = &ExecutableStagePayload_WireCoderSetting_Timer{b.Timer}
+		x.xxx_hidden_Target = &executableStagePayload_WireCoderSetting_Timer{b.Timer}
 	}
 	return m0
 }
@@ -11320,20 +10911,20 @@ type isExecutableStagePayload_WireCoderSetting_Target interface {
 	isExecutableStagePayload_WireCoderSetting_Target()
 }
 
-type ExecutableStagePayload_WireCoderSetting_InputOrOutputId struct {
+type executableStagePayload_WireCoderSetting_InputOrOutputId struct {
 	// The input or output PCollection id this setting applies to.
 	InputOrOutputId string `protobuf:"bytes,3,opt,name=input_or_output_id,json=inputOrOutputId,proto3,oneof"`
 }
 
-type ExecutableStagePayload_WireCoderSetting_Timer struct {
+type executableStagePayload_WireCoderSetting_Timer struct {
 	// The timer id this setting applies to.
 	Timer *ExecutableStagePayload_TimerId `protobuf:"bytes,4,opt,name=timer,proto3,oneof"`
 }
 
-func (*ExecutableStagePayload_WireCoderSetting_InputOrOutputId) isExecutableStagePayload_WireCoderSetting_Target() {
+func (*executableStagePayload_WireCoderSetting_InputOrOutputId) isExecutableStagePayload_WireCoderSetting_Target() {
 }
 
-func (*ExecutableStagePayload_WireCoderSetting_Timer) isExecutableStagePayload_WireCoderSetting_Target() {
+func (*executableStagePayload_WireCoderSetting_Timer) isExecutableStagePayload_WireCoderSetting_Target() {
 }
 
 var file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_extTypes = []protoimpl.ExtensionInfo{
@@ -13112,58 +12703,58 @@ func file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_init() {
 	}
 	file_org_apache_beam_model_pipeline_v1_endpoints_proto_init()
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[9].OneofWrappers = []any{
-		(*StateSpec_ReadModifyWriteSpec)(nil),
-		(*StateSpec_BagSpec)(nil),
-		(*StateSpec_CombiningSpec)(nil),
-		(*StateSpec_MapSpec)(nil),
-		(*StateSpec_SetSpec)(nil),
-		(*StateSpec_OrderedListSpec)(nil),
-		(*StateSpec_MultimapSpec)(nil),
+		(*stateSpec_ReadModifyWriteSpec)(nil),
+		(*stateSpec_BagSpec)(nil),
+		(*stateSpec_CombiningSpec)(nil),
+		(*stateSpec_MapSpec)(nil),
+		(*stateSpec_SetSpec)(nil),
+		(*stateSpec_OrderedListSpec)(nil),
+		(*stateSpec_MultimapSpec)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[38].OneofWrappers = []any{
-		(*Trigger_AfterAll_)(nil),
-		(*Trigger_AfterAny_)(nil),
-		(*Trigger_AfterEach_)(nil),
-		(*Trigger_AfterEndOfWindow_)(nil),
-		(*Trigger_AfterProcessingTime_)(nil),
-		(*Trigger_AfterSynchronizedProcessingTime_)(nil),
-		(*Trigger_Always_)(nil),
-		(*Trigger_Default_)(nil),
-		(*Trigger_ElementCount_)(nil),
-		(*Trigger_Never_)(nil),
-		(*Trigger_OrFinally_)(nil),
-		(*Trigger_Repeat_)(nil),
+		(*trigger_AfterAll_)(nil),
+		(*trigger_AfterAny_)(nil),
+		(*trigger_AfterEach_)(nil),
+		(*trigger_AfterEndOfWindow_)(nil),
+		(*trigger_AfterProcessingTime_)(nil),
+		(*trigger_AfterSynchronizedProcessingTime_)(nil),
+		(*trigger_Always_)(nil),
+		(*trigger_Default_)(nil),
+		(*trigger_ElementCount_)(nil),
+		(*trigger_Never_)(nil),
+		(*trigger_OrFinally_)(nil),
+		(*trigger_Repeat_)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[39].OneofWrappers = []any{
-		(*TimestampTransform_Delay_)(nil),
-		(*TimestampTransform_AlignTo_)(nil),
+		(*timestampTransform_Delay_)(nil),
+		(*timestampTransform_AlignTo_)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[61].OneofWrappers = []any{
-		(*LabelledPayload_StringValue)(nil),
-		(*LabelledPayload_BoolValue)(nil),
-		(*LabelledPayload_DoubleValue)(nil),
-		(*LabelledPayload_IntValue)(nil),
+		(*labelledPayload_StringValue)(nil),
+		(*labelledPayload_BoolValue)(nil),
+		(*labelledPayload_DoubleValue)(nil),
+		(*labelledPayload_IntValue)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[63].OneofWrappers = []any{
-		(*MessageWithComponents_Coder)(nil),
-		(*MessageWithComponents_CombinePayload)(nil),
-		(*MessageWithComponents_FunctionSpec)(nil),
-		(*MessageWithComponents_ParDoPayload)(nil),
-		(*MessageWithComponents_Ptransform)(nil),
-		(*MessageWithComponents_Pcollection)(nil),
-		(*MessageWithComponents_ReadPayload)(nil),
-		(*MessageWithComponents_SideInput)(nil),
-		(*MessageWithComponents_WindowIntoPayload)(nil),
-		(*MessageWithComponents_WindowingStrategy)(nil),
+		(*messageWithComponents_Coder)(nil),
+		(*messageWithComponents_CombinePayload)(nil),
+		(*messageWithComponents_FunctionSpec)(nil),
+		(*messageWithComponents_ParDoPayload)(nil),
+		(*messageWithComponents_Ptransform)(nil),
+		(*messageWithComponents_Pcollection)(nil),
+		(*messageWithComponents_ReadPayload)(nil),
+		(*messageWithComponents_SideInput)(nil),
+		(*messageWithComponents_WindowIntoPayload)(nil),
+		(*messageWithComponents_WindowingStrategy)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[77].OneofWrappers = []any{
-		(*TestStreamPayload_Event_WatermarkEvent)(nil),
-		(*TestStreamPayload_Event_ProcessingTimeEvent)(nil),
-		(*TestStreamPayload_Event_ElementEvent)(nil),
+		(*testStreamPayload_Event_WatermarkEvent)(nil),
+		(*testStreamPayload_Event_ProcessingTimeEvent)(nil),
+		(*testStreamPayload_Event_ElementEvent)(nil),
 	}
 	file_org_apache_beam_model_pipeline_v1_beam_runner_api_proto_msgTypes[104].OneofWrappers = []any{
-		(*ExecutableStagePayload_WireCoderSetting_InputOrOutputId)(nil),
-		(*ExecutableStagePayload_WireCoderSetting_Timer)(nil),
+		(*executableStagePayload_WireCoderSetting_InputOrOutputId)(nil),
+		(*executableStagePayload_WireCoderSetting_Timer)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
