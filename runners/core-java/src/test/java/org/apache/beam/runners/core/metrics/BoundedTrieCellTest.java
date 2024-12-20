@@ -20,10 +20,15 @@ package org.apache.beam.runners.core.metrics;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for {@link BoundedTrieCell}. */
@@ -70,5 +75,84 @@ public class BoundedTrieCellTest {
     assertThat(
         "Adding a new value made the cell dirty", cell.getDirty().beforeCommit(), equalTo(true));
   }
-  // TODO:Add more tests
+
+  @Test
+  public void testEquals() {
+    BoundedTrieCell boundedTrieCell = new BoundedTrieCell(MetricName.named("namespace", "name"));
+    BoundedTrieCell equal = new BoundedTrieCell(MetricName.named("namespace", "name"));
+    assertEquals(boundedTrieCell, equal);
+    assertEquals(boundedTrieCell.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    BoundedTrieCell boundedTrieCell = new BoundedTrieCell(MetricName.named("namespace", "name"));
+
+    Assert.assertNotEquals(boundedTrieCell, new Object());
+
+    BoundedTrieCell differentDirty = new BoundedTrieCell(MetricName.named("namespace", "name"));
+    differentDirty.getDirty().afterModification();
+    Assert.assertNotEquals(boundedTrieCell, differentDirty);
+    Assert.assertNotEquals(boundedTrieCell.hashCode(), differentDirty.hashCode());
+
+    BoundedTrieCell differentTrieCell = new BoundedTrieCell(MetricName.named("namespace", "name"));
+    BoundedTrieData updateData = new BoundedTrieData(ImmutableList.of("hello"));
+    differentTrieCell.update(updateData);
+    Assert.assertNotEquals(boundedTrieCell, differentTrieCell);
+    Assert.assertNotEquals(boundedTrieCell.hashCode(), differentTrieCell.hashCode());
+
+    BoundedTrieCell differentName = new BoundedTrieCell(MetricName.named("DIFFERENT", "DIFFERENT"));
+    Assert.assertNotEquals(boundedTrieCell, differentName);
+    Assert.assertNotEquals(boundedTrieCell.hashCode(), differentName.hashCode());
+  }
+
+  @Test
+  public void testReset() {
+    BoundedTrieCell boundedTrieCell = new BoundedTrieCell(MetricName.named("namespace", "name"));
+    boundedTrieCell.add("hello");
+    Assert.assertNotEquals(boundedTrieCell.getDirty(), new DirtyState());
+    assertThat(
+        boundedTrieCell.getCumulative(), equalTo(new BoundedTrieData(ImmutableList.of("hello"))));
+
+    boundedTrieCell.reset();
+    assertThat(boundedTrieCell.getCumulative(), equalTo(new BoundedTrieData()));
+    assertThat(boundedTrieCell.getDirty(), equalTo(new DirtyState()));
+  }
+
+  @Test(timeout = 5000)
+  public void testBoundedTrieDiffrentThreadWrite() throws InterruptedException {
+    BoundedTrieCell cell = new BoundedTrieCell(MetricName.named("namespace", "name"));
+    AtomicBoolean finished = new AtomicBoolean(false);
+    Thread increment =
+        new Thread(
+            () -> {
+              for (long i = 0; !finished.get(); ++i) {
+                cell.add(String.valueOf(i));
+                try {
+                  Thread.sleep(1);
+                } catch (InterruptedException e) {
+                  break;
+                }
+              }
+            });
+    increment.start();
+    Instant start = Instant.now();
+    try {
+      while (true) {
+        BoundedTrieData cumulative = cell.getCumulative();
+        if (Instant.now().isAfter(start.plusSeconds(3)) && cumulative.size() > 0) {
+          finished.compareAndSet(false, true);
+          break;
+        }
+      }
+    } finally {
+      increment.interrupt();
+      increment.join();
+    }
+
+    BoundedTrieData s = cell.getCumulative();
+    for (long i = 0; i < s.size(); ++i) {
+      assertTrue(s.contains(ImmutableList.of(String.valueOf(i))));
+    }
+  }
 }
