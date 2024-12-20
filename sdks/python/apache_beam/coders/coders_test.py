@@ -20,6 +20,7 @@ import base64
 import logging
 import unittest
 
+from google.protobuf import message
 import proto
 import pytest
 
@@ -85,6 +86,23 @@ class ProtoCoderTest(unittest.TestCase):
     self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
     self.assertEqual(ma.__class__, real_coder.to_type_hint())
+
+  def test_proto_coder_on_protobuf_message_subclasses(self):
+    # This replicates a scenario where users provide message.Message as the
+    # output typehint for a Map function, even though the actual output messages
+    # are subclasses of message.Message.
+    ma = test_message.MessageA()
+    mb = ma.field2.add()
+    mb.field1 = True
+    ma.field1 = 'hello world'
+
+    coder = coders_registry.get_coder(message.Message)
+    # For messages of google.protobuf.message.Message, the fallback coder will
+    # be FastPrimitiveCoder other than ProtoCoder.
+    # See the comment on ProtoCoder.from_type_hint() for further details.
+    self.assertEqual(coder, coders.FastPrimitivesCoder())
+
+    self.assertEqual(ma, coder.decode(coder.encode(ma)))
 
 
 class DeterministicProtoCoderTest(unittest.TestCase):

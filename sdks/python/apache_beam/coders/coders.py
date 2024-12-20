@@ -1039,11 +1039,16 @@ class ProtoCoder(FastCoder):
 
   @classmethod
   def from_type_hint(cls, typehint, unused_registry):
-    if issubclass(typehint, proto_utils.message_types):
+    # The typehint must be a subclass of google.protobuf.message.Message.
+    # Using message.Message itself prevents ProtoCoder usage, as required APIs
+    # are not implemented in the base class. If this occurs, an error is raised
+    # and the system defaults to other fallback coders.
+    if (issubclass(typehint, proto_utils.message_types) and
+        typehint != message.Message):
       return cls(typehint)
     else:
       raise ValueError((
-          'Expected a subclass of google.protobuf.message.Message'
+          'Expected a strict subclass of google.protobuf.message.Message'
           ', but got a %s' % typehint))
 
   def to_type_hint(self):
