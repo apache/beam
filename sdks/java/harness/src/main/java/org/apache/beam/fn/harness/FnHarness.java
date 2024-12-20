@@ -63,6 +63,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
@@ -411,7 +412,11 @@ public class FnHarness {
               outboundObserverFactory,
               executorService,
               handlers);
-      CompletableFuture.allOf(control.terminationFuture(), logging.terminationFuture()).get();
+      if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
+        CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
+      } else {
+        CompletableFuture.allOf(control.terminationFuture(), logging.terminationFuture()).get();
+      }
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();
       }

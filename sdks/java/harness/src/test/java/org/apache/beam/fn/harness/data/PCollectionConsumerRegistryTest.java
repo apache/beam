@@ -47,7 +47,6 @@ import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.debug.DataSampler;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.logging.LoggingClient;
 import org.apache.beam.fn.harness.logging.LoggingClientFactory;
@@ -650,7 +649,7 @@ public class PCollectionConsumerRegistryTest {
     // that was set up
     // earlier.
     try (LoggingClient ignored =
-         LoggingClientFactory.createAndStart(
+        LoggingClientFactory.createAndStart(
             PipelineOptionsFactory.create(),
             apiServiceDescriptor,
             (Endpoints.ApiServiceDescriptor descriptor) -> channel)) {

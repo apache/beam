@@ -110,11 +110,11 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setLogMdc(boolean value);
 
-   /** This option controls whether logging will be redirected through the FnApi. */
+  /** This option controls whether logging will be redirected through the FnApi. */
   @Description("Controls whether logging will be redirected through the FnApi.")
   @Default.Boolean(true)
   boolean getEnableLogViaFnApi();
-  
+
   void setEnableLogViaFnApi(boolean enableLogViaFnApi);
 
   /**

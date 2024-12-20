@@ -19,10 +19,10 @@ package org.apache.beam.fn.harness.logging;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 
 /**
  * A factory for {@link LoggingClient}s. Provides {@link BeamFnLoggingClient} if the logging service
