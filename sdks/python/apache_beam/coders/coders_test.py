@@ -20,9 +20,9 @@ import base64
 import logging
 import unittest
 
-from google.protobuf import message
 import proto
 import pytest
+from google.protobuf import message
 
 import apache_beam as beam
 from apache_beam import typehints

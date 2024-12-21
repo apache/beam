@@ -53,9 +53,9 @@ from typing import Type
 from typing import TypeVar
 from typing import overload
 
-from google.protobuf import message
 import google.protobuf.wrappers_pb2
 import proto
+from google.protobuf import message
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
