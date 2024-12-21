@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import logging
 import unittest
 
 import yaml
