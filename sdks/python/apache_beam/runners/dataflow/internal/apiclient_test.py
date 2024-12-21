@@ -19,11 +19,13 @@
 
 # pytype: skip-file
 
+import io
 import itertools
 import json
 import logging
 import os
 import sys
+import time
 import unittest
 
 import mock
@@ -1064,7 +1066,11 @@ class UtilTest(unittest.TestCase):
                                side_effect=None):
           client.create_job(job)
           client.stage_file.assert_called_once_with(
-              mock.ANY, "dataflow_graph.json", mock.ANY)
+              mock.ANY,
+              "dataflow_graph.json",
+              mock.ANY,
+              'application/octet-stream',
+              None)
           client.create_job_description.assert_called_once()
 
   def test_create_job_returns_existing_job(self):
@@ -1174,8 +1180,18 @@ class UtilTest(unittest.TestCase):
           client.create_job(job)
 
           client.stage_file.assert_has_calls([
-              mock.call(mock.ANY, 'dataflow_graph.json', mock.ANY),
-              mock.call(mock.ANY, 'template', mock.ANY)
+              mock.call(
+                  mock.ANY,
+                  'dataflow_graph.json',
+                  mock.ANY,
+                  'application/octet-stream',
+                  None),
+              mock.call(
+                  mock.ANY,
+                  'template',
+                  mock.ANY,
+                  'application/octet-stream',
+                  None)
           ])
           client.create_job_description.assert_called_once()
           # template is generated, but job should not be submitted to the
@@ -1652,6 +1668,50 @@ class UtilTest(unittest.TestCase):
                     ])
             }))
     self.assertEqual(pipeline, pipeline_expected)
+
+  def test_stage_file_with_retry(self):
+    count = 0
+
+    def effect(self, *args, **kwargs):
+      nonlocal count
+      count += 1
+      if count > 1:
+        return
+      raise Exception("This exception is raised for testing purpose.")
+
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+    ])
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    with mock.patch.object(time, 'sleep'):
+      count = 0
+      with mock.patch("builtins.open",
+                      mock.mock_open(read_data="data")) as mock_file_open:
+        with mock.patch.object(client, 'stage_file') as mock_stage_file:
+          mock_stage_file.side_effect = effect
+          # call with a file name
+          client.stage_file_with_retry(
+              "/to", "new_name", "/from/old_name", total_size=1024)
+          self.assertEqual(mock_file_open.call_count, 2)
+          self.assertEqual(mock_stage_file.call_count, 2)
+
+      count = 0
+      with mock.patch("builtins.open",
+                      mock.mock_open(read_data="data")) as mock_file_open:
+        with mock.patch.object(client, 'stage_file') as mock_stage_file:
+          mock_stage_file.side_effect = effect
+          # call with a seekable stream
+          client.stage_file_with_retry(
+              "/to", "new_name", io.BytesIO(b'test'), total_size=4)
+          mock_file_open.assert_not_called()
+          self.assertEqual(mock_stage_file.call_count, 2)
 
 
 if __name__ == '__main__':
