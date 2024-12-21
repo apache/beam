@@ -55,6 +55,7 @@ from typing import overload
 
 import google.protobuf.wrappers_pb2
 import proto
+from google.protobuf import message
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -65,7 +66,6 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
-  from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.coders.typecoders import CoderRegistry
   from apache_beam.runners.pipeline_context import PipelineContext
 
@@ -1039,11 +1039,18 @@ class ProtoCoder(FastCoder):
 
   @classmethod
   def from_type_hint(cls, typehint, unused_registry):
-    if issubclass(typehint, proto_utils.message_types):
+    # The typehint must be a strict subclass of google.protobuf.message.Message.
+    # ProtoCoder cannot work with message.Message itself, as deserialization of
+    # a serialized proto requires knowledge of the desired concrete proto
+    # subclass which is not stored in the encoded bytes themselves. If this
+    # occurs, an error is raised and the system defaults to other fallback
+    # coders.
+    if (issubclass(typehint, proto_utils.message_types) and
+        typehint != message.Message):
       return cls(typehint)
     else:
       raise ValueError((
-          'Expected a subclass of google.protobuf.message.Message'
+          'Expected a strict subclass of google.protobuf.message.Message'
           ', but got a %s' % typehint))
 
   def to_type_hint(self):
