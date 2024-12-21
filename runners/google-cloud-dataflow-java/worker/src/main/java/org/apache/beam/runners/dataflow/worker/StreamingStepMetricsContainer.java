@@ -30,11 +30,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.metrics.BoundedTrieCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.runners.core.metrics.StringSetCell;
 import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -78,6 +80,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
+
+  private MetricsMap<MetricName, BoundedTrieCell> boundedTries =
+      new MetricsMap<>(BoundedTrieCell::new);
 
   private final ConcurrentHashMap<MetricName, LockFreeHistogram> perWorkerHistograms =
       new ConcurrentHashMap<>();
@@ -184,6 +189,11 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @Override
   public StringSet getStringSet(MetricName metricName) {
     return stringSets.get(metricName);
+  }
+
+  @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return boundedTries.get(metricName);
   }
 
   @Override
