@@ -717,8 +717,9 @@ class DataflowApplicationClient(object):
           raise exn
         else:
           raise retry.PermanentException(
-              "Failed to tell or seek in stream because we caught exception:",
-              ''.join(traceback.format_exception_only(exn.__class__, exn)))
+              "Skip retrying because we caught exception:",
+              ''.join(traceback.format_exception_only(exn.__class__, exn)),
+              ', but the stream is not seekable')
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
