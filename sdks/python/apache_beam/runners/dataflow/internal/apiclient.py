@@ -707,8 +707,8 @@ class DataflowApplicationClient(object):
             gcs_or_local_path, file_name, stream, mime_type, total_size)
     elif isinstance(stream_or_path, io.BufferedIOBase):
       stream = stream_or_path
-      assert stream.seekable(), "stream must be seekable"
       if stream.tell() > 0:
+        assert stream.seekable(), "stream must be seekable"
         stream.seek(0)
       self.stage_file(
           gcs_or_local_path, file_name, stream, mime_type, total_size)
