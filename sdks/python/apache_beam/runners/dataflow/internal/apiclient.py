@@ -42,6 +42,7 @@ from packaging import version
 import re
 import sys
 import time
+import traceback
 import warnings
 from copy import copy
 from datetime import datetime
@@ -707,11 +708,17 @@ class DataflowApplicationClient(object):
             gcs_or_local_path, file_name, stream, mime_type, total_size)
     elif isinstance(stream_or_path, io.BufferedIOBase):
       stream = stream_or_path
-      if stream.tell() > 0:
-        assert stream.seekable(), "stream must be seekable"
-        stream.seek(0)
-      self.stage_file(
-          gcs_or_local_path, file_name, stream, mime_type, total_size)
+      try:
+        self.stage_file(
+            gcs_or_local_path, file_name, stream, mime_type, total_size)
+      except Exception as exn:
+        if stream.seekable():
+          stream.seek(0)
+          raise exn
+        else:
+          raise retry.PermanentException(
+              "Failed to tell or seek in stream because we caught exception:",
+              ''.join(traceback.format_exception_only(exn.__class__, exn)))
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
