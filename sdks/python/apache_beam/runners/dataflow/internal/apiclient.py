@@ -713,6 +713,7 @@ class DataflowApplicationClient(object):
             gcs_or_local_path, file_name, stream, mime_type, total_size)
       except Exception as exn:
         if stream.seekable():
+          # reset cursor for possible retrying
           stream.seek(0)
           raise exn
         else:
@@ -722,7 +723,8 @@ class DataflowApplicationClient(object):
               ', but the stream is not seekable.')
     else:
       raise retry.PermanentException(
-          f"Unsupported type {type(stream_or_path)} in stream_or_path")
+          "Skip retrying because type " + str(type(stream_or_path)) +
+          "stream_or_path is unsupported.")
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):

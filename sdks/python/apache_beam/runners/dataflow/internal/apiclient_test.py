@@ -1733,8 +1733,27 @@ class UtilTest(unittest.TestCase):
               "new_name",
               Unseekable(),
               total_size=4)
-          # Unseekable is only staged once. There won't be any retry if it fails
+          # Unseekable streams are staged once. If staging fails, no retries are
+          # attempted.
           self.assertEqual(mock_stage_file.call_count, 1)
+          mock_sleep.assert_not_called()
+          mock_file_open.assert_not_called()
+
+          count = 0
+          mock_sleep.reset_mock()
+          mock_file_open.reset_mock()
+          mock_stage_file.reset_mock()
+
+          # calling with something else
+          self.assertRaises(
+              retry.PermanentException,
+              client.stage_file_with_retry,
+              "/to",
+              "new_name",
+              object(),
+              total_size=4)
+          # No staging will be called for wrong arg type
+          mock_stage_file.assert_not_called()
           mock_sleep.assert_not_called()
           mock_file_open.assert_not_called()
 
