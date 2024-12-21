@@ -1678,7 +1678,7 @@ class UtilTest(unittest.TestCase):
       if count <= 2:
         raise Exception("This exception is raised for testing purpose.")
 
-    class Unseekable(io.BufferedIOBase):
+    class Unseekable(io.IOBase):
       def seekable(self):
         return False
 

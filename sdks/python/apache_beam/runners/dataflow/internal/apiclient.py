@@ -706,7 +706,7 @@ class DataflowApplicationClient(object):
       with open(path, 'rb') as stream:
         self.stage_file(
             gcs_or_local_path, file_name, stream, mime_type, total_size)
-    elif isinstance(stream_or_path, io.BufferedIOBase):
+    elif isinstance(stream_or_path, io.IOBase):
       stream = stream_or_path
       try:
         self.stage_file(
@@ -717,9 +717,12 @@ class DataflowApplicationClient(object):
           raise exn
         else:
           raise retry.PermanentException(
-              "Skip retrying because we caught exception:",
-              ''.join(traceback.format_exception_only(exn.__class__, exn)),
-              ', but the stream is not seekable')
+              "Skip retrying because we caught exception:" +
+              ''.join(traceback.format_exception_only(exn.__class__, exn)) +
+              ', but the stream is not seekable.')
+    else:
+      raise retry.PermanentException(
+          f"Unsupported type {type(stream_or_path)} in stream_or_path")
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
