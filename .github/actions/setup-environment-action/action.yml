@@ -34,15 +34,41 @@ inputs:
     required: false
     description: 'Whether to disable the gradle cache'
     default: false
+  python-cache:
+    required: false
+    description: 'Whether to enable Python pip caching'
+    default: true
+  tox-cache:
+    required: false
+    description: 'Whether to enable tox environment caching'
+    default: true
 
 runs:
   using: "composite"
   steps:
     - name: Install Python
       if: ${{ inputs.python-version != '' }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version == 'default' && '3.9' || inputs.python-version }}
+        cache: ${{ inputs.python-cache && 'pip' || 'none' }}
+        cache-dependency-path: |
+          sdks/python/setup.py
+          sdks/python/tox.ini
+
+    - name: Cache tox environments
+      if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
+      uses: actions/cache@v3
+      with:
+        path: |
+          sdks/python/target/.tox
+          !sdks/python/target/.tox/**/log
+          !sdks/python/target/.tox/.package_cache
+        key: tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '39' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-${{ hashFiles('sdks/python/setup.py') }}
+        restore-keys: |
+          tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '39' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-
+          tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '39' || inputs.python-version }}-
+
     - name: Install Java
       if: ${{ inputs.java-version != '' }}
       uses: actions/setup-java@v3
