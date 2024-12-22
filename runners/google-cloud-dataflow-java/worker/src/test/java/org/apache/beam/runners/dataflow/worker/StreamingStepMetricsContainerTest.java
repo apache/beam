@@ -50,8 +50,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
@@ -61,6 +63,7 @@ import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.NoOpHistogram;
 import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsMapContaining;
@@ -323,6 +326,72 @@ public class StreamingStepMetricsContainerTest {
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
+  }
+
+  @Test
+  public void testBoundedTrieUpdateExtraction() {
+    BoundedTrie boundedTrie = c1.getBoundedTrie(name1);
+    boundedTrie.add("ab");
+    boundedTrie.add("cd", "ef");
+    boundedTrie.add("gh");
+    boundedTrie.add("gh");
+
+    BoundedTrieData expectedName1 = new BoundedTrieData();
+    expectedName1.add(ImmutableList.of("ab"));
+    expectedName1.add(ImmutableList.of("cd", "ef"));
+    expectedName1.add(ImmutableList.of("gh"));
+    expectedName1.add(ImmutableList.of("gh"));
+
+    CounterUpdate name1Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name1")
+                            .setOriginalStepName("s1"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.TRIE.toString())))
+            .setCumulative(false)
+            .set(Kind.TRIE.toString(), expectedName1.toProto());
+
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+
+    boundedTrie = c2.getBoundedTrie(name2);
+    boundedTrie.add("ij");
+    boundedTrie.add("kl", "mn");
+    boundedTrie.add("mn");
+
+    BoundedTrieData expectedName2 = new BoundedTrieData();
+    expectedName2.add(ImmutableList.of("ij"));
+    expectedName2.add(ImmutableList.of("kl", "mn"));
+    expectedName2.add(ImmutableList.of("mn"));
+
+    CounterUpdate name2Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name2")
+                            .setOriginalStepName("s2"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.TRIE.toString())))
+            .setCumulative(false)
+            .set(Kind.TRIE.toString(), expectedName2.toProto());
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
+
+    c1.getBoundedTrie(name1).add("op");
+    expectedName1.add(ImmutableList.of("op"));
+    name1Update.set(Kind.TRIE.toString(), expectedName1.toProto());
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
   }
 
   @Test
