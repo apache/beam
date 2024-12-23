@@ -94,8 +94,6 @@ class CoderRegistry(object):
     self._register_coder_internal(str, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     self._register_coder_internal(typehints.DictConstraint, coders.MapCoder)
-    self._register_coder_internal(
-        typehints.WindowedTypeConstraint, coders.WindowedValueCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
     default_fallback_coders = [
