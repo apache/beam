@@ -35,6 +35,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -72,6 +73,10 @@ type stage struct {
 	// the stage to be considered complete.
 	hasTimers            []engine.StaticTimerID
 	processingTimeTimers map[string]bool
+
+	// stateTypeLen maps state values to encoded lengths for the type.
+	// Only used for OrderedListState which must manipulate individual state datavalues.
+	stateTypeLen map[engine.LinkID]func([]byte) int
 
 	exe              transformExecuter
 	inputTransformID string
@@ -438,6 +443,38 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 				rewriteCoder(&s.SetSpec.ElementCoderId)
 			case *pipepb.StateSpec_OrderedListSpec:
 				rewriteCoder(&s.OrderedListSpec.ElementCoderId)
+				// Add the length determination helper for OrderedList state values.
+				if stg.stateTypeLen == nil {
+					stg.stateTypeLen = map[engine.LinkID]func([]byte) int{}
+				}
+				linkID := engine.LinkID{
+					Transform: tid,
+					Local:     stateID,
+				}
+				var fn func([]byte) int
+				switch v := coders[s.OrderedListSpec.GetElementCoderId()]; v.GetSpec().GetUrn() {
+				case urns.CoderBool:
+					fn = func(_ []byte) int {
+						return 1
+					}
+				case urns.CoderDouble:
+					fn = func(_ []byte) int {
+						return 8
+					}
+				case urns.CoderVarInt:
+					fn = func(b []byte) int {
+						_, n := protowire.ConsumeVarint(b)
+						return int(n)
+					}
+				case urns.CoderLengthPrefix, urns.CoderBytes, urns.CoderStringUTF8:
+					fn = func(b []byte) int {
+						l, n := protowire.ConsumeVarint(b)
+						return int(l) + n
+					}
+				default:
+					rewriteErr = fmt.Errorf("unknown coder used for ordered list state after re-write id: %v coder: %v, for state %v for transform %v in stage %v", s.OrderedListSpec.GetElementCoderId(), v, stateID, tid, stg.ID)
+				}
+				stg.stateTypeLen[linkID] = fn
 			case *pipepb.StateSpec_CombiningSpec:
 				rewriteCoder(&s.CombiningSpec.AccumulatorCoderId)
 			case *pipepb.StateSpec_MapSpec:
