@@ -40,6 +40,7 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.internal.http.NoneTlsKeyManagersProvider;
 import software.amazon.awssdk.regions.Region;
 
 /**
@@ -177,6 +178,9 @@ public interface ClientBuilderFactory {
             setOptional(httpConfig.maxConnections(), client::maxConnections);
           }
 
+          // TODO - gate this behind a flag.
+          client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+
           // must use builder to make sure client is managed by the SDK
           ((SdkSyncClientBuilder<?, ?>) builder).httpClientBuilder(client);
         } else if (builder instanceof SdkAsyncClientBuilder) {
@@ -199,6 +203,9 @@ public interface ClientBuilderFactory {
                 httpConfig.socketTimeout(), client::writeTimeout); // fallback for writeTimeout
             setOptional(httpConfig.writeTimeout(), client::writeTimeout);
             setOptional(httpConfig.maxConnections(), client::maxConcurrency);
+
+            // TODO - gate this behind a flag.
+            client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
           }
 
           // must use builder to make sure client is managed by the SDK
