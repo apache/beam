@@ -206,7 +206,10 @@ def createPrismRunnerTestTask(String workerType) {
   def taskName = "prismCompatibilityMatrix${workerType}"
 
   def prismBin = "${rootDir}/runners/prism/build/tmp/prism"
-  def options = "--prism_bin=${prismBin} --environment_type=${workerType}"
+  def options = "--prism_bin=${prismBin}"
+  if (workerType != 'LOOPBACK') {
+    options += " --environment_type=${workerType}"
+  }
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
