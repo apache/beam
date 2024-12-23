@@ -468,6 +468,12 @@ func TestMapW_workerFromMetadataCtx(t *testing.T) {
 			wantErr: "failed to read metadata from context",
 		},
 		{
+			name:    "ctx metadata worker_id=''",
+			ctx:     metadata.NewIncomingContext(context.Background(), metadata.Pairs("worker_id", "")),
+			m:       make(MapW),
+			wantErr: "worker id in ctx metadata is an empty string",
+		},
+		{
 			name: "mismatched ctx metadata",
 			ctx:  metadata.NewIncomingContext(context.Background(), metadata.Pairs("worker_id", "wk1")),
 			m: map[string]*W{

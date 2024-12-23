@@ -180,6 +180,8 @@ class SdkHarness(object):
     # type: (...) -> None
     self._alive = True
     self._worker_index = 0
+    if worker_id == '':
+        raise RuntimeError("worker_id is an empty string")
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
     self._deferred_exception = deferred_exception
