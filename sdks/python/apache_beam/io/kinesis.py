@@ -111,6 +111,7 @@ WriteToKinesisSchema = NamedTuple(
         ('region', str),
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
+        ('verify_certificate', Optional[bool]),
     ],
 )
 
@@ -143,26 +144,14 @@ class WriteToKinesis(ExternalTransform):
     :param aws_secret_key: Kinesis access key secret.
     :param region: AWS region. Example: 'us-east-1'.
     :param service_endpoint: Kinesis service endpoint
-    :param verify_certificate: Deprecated - certificates will always be
-        verified.
+    :param verify_certificate: Enable or disable certificate verification.
+        Never set to False on production. True by default.
     :param partition_key: Specify default partition key.
     :param producer_properties: Specify the configuration properties for Kinesis
         Producer Library (KPL) as dictionary.
         Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    if verify_certificate is False:
-      # Previously, we supported this via
-      # https://javadoc.io/doc/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#isVerifyCertificate--
-      # With the new AWS client, we no longer support it and it is always True
-      raise ValueError(
-          'verify_certificate set to False. This option is no longer ' +
-          'supported and certificate verification will still happen.')
-    if verify_certificate is True:
-      logging.warning(
-          'verify_certificate set to True. This option is no longer ' +
-          'supported and certificate verification will automatically ' +
-          'happen. This option may be removed in a future release')
     if producer_properties is not None:
       raise ValueError(
           'producer_properties is no longer supported and will be removed ' +
@@ -177,6 +166,7 @@ class WriteToKinesis(ExternalTransform):
                 region=region,
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
+                verify_certificate=verify_certificate,
             )),
         expansion_service or default_io_expansion_service(),
     )
@@ -190,6 +180,7 @@ ReadFromKinesisSchema = NamedTuple(
         ('aws_secret_key', str),
         ('region', str),
         ('service_endpoint', Optional[str]),
+        ('verify_certificate', Optional[bool]),
         ('max_num_records', Optional[int]),
         ('max_read_time', Optional[int]),
         ('initial_position_in_stream', Optional[str]),
@@ -240,8 +231,8 @@ class ReadDataFromKinesis(ExternalTransform):
     :param aws_secret_key: Kinesis access key secret.
     :param region: AWS region. Example: 'us-east-1'.
     :param service_endpoint: Kinesis service endpoint
-    :param verify_certificate:  Deprecated - certificates will always be
-        verified.
+    :param verify_certificate: Enable or disable certificate verification.
+        Never set to False on production. True by default.
     :param max_num_records: Specifies to read at most a given number of records.
         Must be greater than 0.
     :param max_read_time: Specifies to read records during x milliseconds.
@@ -288,19 +279,6 @@ class ReadDataFromKinesis(ExternalTransform):
     ):
       logging.warning('Provided timestamp emplaced not in the past.')
 
-    if verify_certificate is False:
-      # Previously, we supported this via
-      # https://javadoc.io/doc/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#isVerifyCertificate--
-      # With the new AWS client, we no longer support it and it is always True
-      raise ValueError(
-          'verify_certificate set to False. This option is no longer ' +
-          'supported and certificate verification will still happen.')
-    if verify_certificate is True:
-      logging.warning(
-          'verify_certificate set to True. This option is no longer ' +
-          'supported and certificate verification will automatically ' +
-          'happen. This option may be removed in a future release')
-
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -310,6 +288,7 @@ class ReadDataFromKinesis(ExternalTransform):
                 aws_secret_key=aws_secret_key,
                 region=region,
                 service_endpoint=service_endpoint,
+                verify_certificate=verify_certificate,
                 max_num_records=max_num_records,
                 max_read_time=max_read_time,
                 initial_position_in_stream=initial_position_in_stream,

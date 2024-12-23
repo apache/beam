@@ -162,7 +162,11 @@ public interface ClientBuilderFactory {
 
       HttpClientConfiguration httpConfig = options.getHttpClientConfiguration();
       ProxyConfiguration proxyConfig = options.getProxyConfiguration();
-      if (proxyConfig != null || httpConfig != null) {
+      boolean skipCertificateVerification = false;
+      if (config.skipCertificateVerification() != null) {
+        skipCertificateVerification = config.skipCertificateVerification();
+      }
+      if (proxyConfig != null || httpConfig != null || skipCertificateVerification) {
         if (builder instanceof SdkSyncClientBuilder) {
           ApacheHttpClient.Builder client = syncClientBuilder();
 
@@ -178,8 +182,9 @@ public interface ClientBuilderFactory {
             setOptional(httpConfig.maxConnections(), client::maxConnections);
           }
 
-          // TODO - gate this behind a flag.
-          client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+          if (skipCertificateVerification) {
+            client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+          }
 
           // must use builder to make sure client is managed by the SDK
           ((SdkSyncClientBuilder<?, ?>) builder).httpClientBuilder(client);
@@ -205,8 +210,9 @@ public interface ClientBuilderFactory {
             setOptional(httpConfig.maxConnections(), client::maxConcurrency);
           }
 
-          // TODO - gate this behind a flag.
-          client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+          if (skipCertificateVerification) {
+            client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+          }
 
           // must use builder to make sure client is managed by the SDK
           ((SdkAsyncClientBuilder<?, ?>) builder).httpClientBuilder(client);

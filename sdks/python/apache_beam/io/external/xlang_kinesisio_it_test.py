@@ -129,6 +129,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               aws_secret_key=self.aws_secret_key,
               region=self.aws_region,
               service_endpoint=self.aws_service_endpoint,
+              verify_certificate=not self.use_localstack,
               max_num_records=NUM_RECORDS,
               max_read_time=MAX_READ_TIME,
               request_records_limit=REQUEST_RECORDS_LIMIT,

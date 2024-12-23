@@ -63,6 +63,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String awsSecretKey;
     String region;
     @Nullable String serviceEndpoint;
+    boolean verifyCertificate;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -82,6 +83,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
       this.serviceEndpoint = serviceEndpoint;
+    }
+
+    public void setVerifyCertificate(@Nullable Boolean verifyCertificate) {
+      this.verifyCertificate = verifyCertificate == null || verifyCertificate;
     }
   }
 
@@ -123,6 +128,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .credentialsProvider(provider)
                       .region(Region.of(configuration.region))
                       .endpoint(endpoint)
+                      .skipCertificateVerification(!configuration.verifyCertificate)
                       .build())
               .withPartitioner(p -> pk)
               .withSerializer(serializer);
@@ -233,6 +239,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .credentialsProvider(provider)
                       .region(Region.of(configuration.region))
                       .endpoint(endpoint)
+                      .skipCertificateVerification(!configuration.verifyCertificate)
                       .build());
 
       if (configuration.maxNumRecords != null) {
