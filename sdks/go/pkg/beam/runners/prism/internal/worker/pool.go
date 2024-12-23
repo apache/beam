@@ -43,6 +43,9 @@ func (m MapW) workerFromMetadataCtx(ctx context.Context) (*W, error) {
 	if err != nil {
 		return nil, err
 	}
+	if id == "" {
+		return nil, fmt.Errorf("worker id in ctx metadata is an empty string")
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if w, ok := m[id]; ok {
