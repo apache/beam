@@ -81,6 +81,7 @@
 ## Breaking Changes
 
 * Upgraded ZetaSQL to 2024.11.1 ([#32902](https://github.com/apache/beam/pull/32902)). Java11+ is now needed if Beam's ZetaSQL component is used.
+* AWS V1 I/Os have been removed (Java). As part of this, x-lang Python I/Os no longer support setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations

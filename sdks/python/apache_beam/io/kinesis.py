@@ -147,9 +147,9 @@ class WriteToKinesis(ExternalTransform):
     :param verify_certificate: Enable or disable certificate verification.
         Never set to False on production. True by default.
     :param partition_key: Specify default partition key.
-    :param producer_properties: Specify the configuration properties for Kinesis
-        Producer Library (KPL) as dictionary.
-        Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
+    :param producer_properties: (Deprecated) This option no longer is available
+        since the AWS IOs upgraded to v2. Trying to set it will lead to an
+        error. For more info, see https://github.com/apache/beam/issues/33430.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     if producer_properties is not None:

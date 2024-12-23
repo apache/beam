@@ -184,6 +184,7 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+            throw new Exception("Made it this far - probably means the tlsKeyManagersProvider is not right");
           }
 
           // must use builder to make sure client is managed by the SDK
@@ -212,6 +213,7 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+            throw new Exception("Made it this far - probably means the tlsKeyManagersProvider is not right");
           }
 
           // must use builder to make sure client is managed by the SDK
