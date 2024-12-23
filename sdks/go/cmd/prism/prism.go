@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ import (
 var (
 	jobPort             = flag.Int("job_port", 8073, "specify the job management service port")
 	webPort             = flag.Int("web_port", 8074, "specify the web ui port")
+	workerPoolPort      = flag.Int("worker_pool_port", 8075, "specify the worker pool port")
 	jobManagerEndpoint  = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
 	serveHTTP           = flag.Bool("serve_http", true, "enable or disable the web ui")
 	idleShutdownTimeout = flag.Duration("idle_shutdown_timeout", -1, "duration that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown. Defaults to never shutting down.")
@@ -100,6 +102,7 @@ func main() {
 			Port:                *jobPort,
 			IdleShutdownTimeout: *idleShutdownTimeout,
 			CancelFn:            cancel,
+			WorkerPoolEndpoint:  fmt.Sprintf("localhost:%d", *workerPoolPort),
 		},
 		*jobManagerEndpoint)
 	if err != nil {
@@ -110,6 +113,18 @@ func main() {
 			log.Fatalf("error creating web server: %v", err)
 		}
 	}
+	g := prism.CreateWorkerPoolServer(ctx)
+	addr := fmt.Sprintf(":%d", *workerPoolPort)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("error creating worker pool server: %v", err)
+	}
+	slog.Info("Serving Worker Pool", "endpoint", fmt.Sprintf("localhost:%d", *workerPoolPort))
+	go g.Serve(lis)
+	go func() {
+		<-ctx.Done()
+		g.GracefulStop()
+	}()
 	// Block main thread forever to keep main from exiting.
 	<-ctx.Done()
 }

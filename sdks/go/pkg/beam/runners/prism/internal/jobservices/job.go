@@ -92,7 +92,8 @@ type Job struct {
 	// Logger for this job.
 	Logger *slog.Logger
 
-	metrics metricsStore
+	metrics            metricsStore
+	WorkerPoolEndpoint string
 }
 
 func (j *Job) ArtifactEndpoint() string {

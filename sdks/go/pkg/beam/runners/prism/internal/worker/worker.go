@@ -23,11 +23,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math"
-	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -38,7 +35,6 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -47,7 +43,7 @@ import (
 
 // A W manages worker environments, sending them work
 // that they're able to execute, and manages the server
-// side handlers for FnAPI RPCs.
+// side handlers for FnAPI RPCs forwarded from a multiplex FnAPI service.
 type W struct {
 	fnpb.UnimplementedBeamFnControlServer
 	fnpb.UnimplementedBeamFnDataServer
@@ -61,10 +57,6 @@ type W struct {
 	EnvPb                    *pipepb.Environment
 	PipelineOptions          *structpb.Struct
 
-	// Server management
-	lis    net.Listener
-	server *grpc.Server
-
 	// These are the ID sources
 	inst               uint64
 	connected, stopped atomic.Bool
@@ -76,51 +68,17 @@ type W struct {
 	mu                 sync.Mutex
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
+
+	WorkerPoolEndpoint string
 }
 
 type controlResponder interface {
 	Respond(*fnpb.InstructionResponse)
 }
 
-// New starts the worker server components of FnAPI Execution.
-func New(id, env string) *W {
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(fmt.Sprintf("failed to listen: %v", err))
-	}
-	opts := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(math.MaxInt32),
-	}
-	wk := &W{
-		ID:     id,
-		Env:    env,
-		lis:    lis,
-		server: grpc.NewServer(opts...),
-
-		InstReqs:    make(chan *fnpb.InstructionRequest, 10),
-		DataReqs:    make(chan *fnpb.Elements, 10),
-		StoppedChan: make(chan struct{}),
-
-		activeInstructions: make(map[string]controlResponder),
-		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
-	}
-	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
-	fnpb.RegisterBeamFnControlServer(wk.server, wk)
-	fnpb.RegisterBeamFnDataServer(wk.server, wk)
-	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
-	fnpb.RegisterBeamFnStateServer(wk.server, wk)
-	fnpb.RegisterProvisionServiceServer(wk.server, wk)
-	return wk
-}
-
+// Endpoint forwards the endpoint of the multiplex gRPC FnAPI service.
 func (wk *W) Endpoint() string {
-	_, port, _ := net.SplitHostPort(wk.lis.Addr().String())
-	return fmt.Sprintf("localhost:%v", port)
-}
-
-// Serve serves on the started listener. Blocks.
-func (wk *W) Serve() {
-	wk.server.Serve(wk.lis)
+	return wk.WorkerPoolEndpoint
 }
 
 func (wk *W) String() string {
@@ -135,10 +93,6 @@ func (wk *W) LogValue() slog.Value {
 }
 
 // shutdown safely closes channels, and can be called in the event of SDK crashes.
-//
-// Splitting this logic from the GRPC server Stop is necessary, since a worker
-// crash would be handled in a streaming RPC context, which will block GRPC
-// stop calls.
 func (wk *W) shutdown() {
 	// If this is the first call to "stop" this worker, also close the channels.
 	if wk.stopped.CompareAndSwap(false, true) {
@@ -151,20 +105,10 @@ func (wk *W) shutdown() {
 	}
 }
 
-// Stop the GRPC server.
+// Stop the worker and delete it from the Pool.
 func (wk *W) Stop() {
 	wk.shutdown()
-
-	// Give the SDK side 5 seconds to gracefully stop, before
-	// hard stopping all RPCs.
-	tim := time.AfterFunc(5*time.Second, func() {
-		wk.server.Stop()
-	})
-	wk.server.GracefulStop()
-	tim.Stop()
-
-	wk.lis.Close()
-	slog.Debug("stopped", "worker", wk)
+	delete(Pool, wk.ID)
 }
 
 func (wk *W) NextInst() string {
