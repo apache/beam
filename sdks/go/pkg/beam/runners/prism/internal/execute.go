@@ -36,6 +36,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -88,28 +91,41 @@ func RunPipeline(j *jobservices.Job) {
 
 // makeWorker creates a worker for that environment.
 func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
-	wk := worker.New(j.String()+"_"+env, env)
+	wk := worker.Pool.NewWorker(j.String()+"_"+env, env)
 
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
 	wk.ArtifactEndpoint = j.ArtifactEndpoint()
-
-	go wk.Serve()
+	wk.WorkerPoolEndpoint = j.WorkerPoolEndpoint
 
 	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
 		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
 	}
 	// Check for connection succeeding after we've created the environment successfully.
 	timeout := 1 * time.Minute
-	time.AfterFunc(timeout, func() {
-		if wk.Connected() || wk.Stopped() {
-			return
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	go func() {
+		<-ctx.Done()
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, j.WorkerPoolEndpoint, timeout)
+			j.Failed(err)
+			j.CancelFn(err)
 		}
-		err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
+	}()
+	conn, err := grpc.NewClient(j.WorkerPoolEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
 		j.Failed(err)
 		j.CancelFn(err)
-	})
+	}
+	health := healthpb.NewHealthClient(conn)
+	_, err = health.Check(ctx, &healthpb.HealthCheckRequest{})
+	if err != nil {
+		j.Failed(err)
+		j.CancelFn(err)
+	}
+
 	return wk, nil
 }
 

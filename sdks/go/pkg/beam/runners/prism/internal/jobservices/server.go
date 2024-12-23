@@ -59,7 +59,8 @@ type Server struct {
 	execute func(*Job)
 
 	// Artifact hack
-	artifacts map[string][]byte
+	artifacts          map[string][]byte
+	WorkerPoolEndpoint string
 }
 
 // NewServer acquires the indicated port.
