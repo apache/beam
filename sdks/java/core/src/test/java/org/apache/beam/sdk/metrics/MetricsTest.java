@@ -45,6 +45,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
+import org.apache.beam.sdk.testing.UsesBoundedTrieMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
 import org.apache.beam.sdk.testing.UsesCounterMetrics;
 import org.apache.beam.sdk.testing.UsesDistributionMetrics;
@@ -122,6 +123,8 @@ public class MetricsTest implements Serializable {
                     public void processElement(ProcessContext c) {
                       Distribution values = Metrics.distribution(MetricsTest.class, "input");
                       StringSet sources = Metrics.stringSet(MetricsTest.class, "sources");
+                      BoundedTrie boundedTrieSources =
+                          Metrics.boundedTrie(MetricsTest.class, "boundedTrieSources");
                       count.inc();
                       values.update(c.element());
 
@@ -131,6 +134,8 @@ public class MetricsTest implements Serializable {
                       sources.add("gcs"); // repeated should appear once
                       sources.add("gcs", "gcs"); // repeated should appear once
                       sideinputs.add("bigtable", "spanner");
+                      boundedTrieSources.add(ImmutableList.of("ab_source", "cd_source"));
+                      boundedTrieSources.add(ImmutableList.of("ef_source"));
                     }
 
                     @DoFn.FinishBundle
@@ -148,6 +153,8 @@ public class MetricsTest implements Serializable {
                           Distribution values = Metrics.distribution(MetricsTest.class, "input");
                           Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
                           StringSet sinks = Metrics.stringSet(MetricsTest.class, "sinks");
+                          BoundedTrie boundedTrieSinks =
+                              Metrics.boundedTrie(MetricsTest.class, "boundedTrieSinks");
                           Integer element = c.element();
                           count.inc();
                           values.update(element);
@@ -155,6 +162,8 @@ public class MetricsTest implements Serializable {
                           c.output(element);
                           sinks.add("bq", "kafka", "kafka"); // repeated should appear once
                           sideinputs.add("bigtable", "sql");
+                          boundedTrieSinks.add(ImmutableList.of("ab_sink", "cd_sink"));
+                          boundedTrieSinks.add(ImmutableList.of("ef_sink"));
                           c.output(output2, element);
                         }
                       })
@@ -277,7 +286,8 @@ public class MetricsTest implements Serializable {
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
       UsesGaugeMetrics.class,
-      UsesStringSetMetrics.class
+      UsesStringSetMetrics.class,
+      UsesBoundedTrieMetrics.class
     })
     @Test
     public void testAllCommittedMetrics() {
@@ -317,6 +327,14 @@ public class MetricsTest implements Serializable {
       PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertStringSetMetrics(metrics, true);
+    }
+
+    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesBoundedTrieMetrics.class})
+    @Test
+    public void testCommittedBoundedTrieMetrics() {
+      PipelineResult result = runPipelineWithMetrics();
+      MetricQueryResults metrics = queryTestMetrics(result);
+      assertBoundedTrieMetrics(metrics, true);
     }
 
     @Test
@@ -405,7 +423,8 @@ public class MetricsTest implements Serializable {
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
       UsesGaugeMetrics.class,
-      UsesStringSetMetrics.class
+      UsesStringSetMetrics.class,
+      UsesBoundedTrieMetrics.class
     })
     @Test
     public void testAllAttemptedMetrics() {
@@ -446,6 +465,14 @@ public class MetricsTest implements Serializable {
       PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertStringSetMetrics(metrics, false);
+    }
+
+    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesBoundedTrieMetrics.class})
+    @Test
+    public void testAttemptedBoundedTrieMetrics() {
+      PipelineResult result = runPipelineWithMetrics();
+      MetricQueryResults metrics = queryTestMetrics(result);
+      assertBoundedTrieMetrics(metrics, false);
     }
 
     @Test
@@ -634,6 +661,32 @@ public class MetricsTest implements Serializable {
                 isCommitted)));
   }
 
+  private static void assertBoundedTrieMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    // TODO(https://github.com/apache/beam/issues/32001) use containsInAnyOrder once portableMetrics
+    //   duplicate metrics issue fixed
+    assertThat(
+        metrics.getBoundedTries(),
+        hasItem(
+            metricsResultPatchStep(
+                "boundedTrieSources",
+                "MyStep1",
+                ImmutableSet.of(
+                    ImmutableList.of("ab_source", "cd_source", String.valueOf(false)),
+                    ImmutableList.of("ef_source", String.valueOf(false))),
+                isCommitted)));
+    assertThat(
+        metrics.getBoundedTries(),
+        hasItem(
+            metricsResult(
+                NAMESPACE,
+                "boundedTrieSinks",
+                "MyStep2",
+                ImmutableSet.of(
+                    ImmutableList.of("ab_sink", "cd_sink", String.valueOf(false)),
+                    ImmutableList.of("ef_sink", String.valueOf(false))),
+                isCommitted)));
+  }
+
   private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
     assertThat(
         metrics.getDistributions(),
@@ -665,5 +718,6 @@ public class MetricsTest implements Serializable {
     assertDistributionMetrics(metrics, isCommitted);
     assertGaugeMetrics(metrics, isCommitted);
     assertStringSetMetrics(metrics, isCommitted);
+    assertBoundedTrieMetrics(metrics, isCommitted);
   }
 }
