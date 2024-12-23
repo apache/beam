@@ -35,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData> {
 
   private final DirtyState dirty = new DirtyState();
-  private final BoundedTrieData value;
+  private BoundedTrieData value;
   private final MetricName name;
 
   public BoundedTrieCell(MetricName name) {
@@ -43,13 +43,13 @@ public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData>
     this.value = new BoundedTrieData();
   }
 
-  public void update(BoundedTrieData other) {
-    this.value.combine(other);
+  public synchronized void update(BoundedTrieData other) {
+    this.value = this.value.combine(other);
     dirty.afterModification();
   }
 
   @Override
-  public void reset() {
+  public synchronized void reset() {
     value.clear();
     dirty.reset();
   }
@@ -60,7 +60,7 @@ public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData>
   }
 
   @Override
-  public BoundedTrieData getCumulative() {
+  public synchronized BoundedTrieData getCumulative() {
     return value.getCumulative();
   }
 
@@ -86,13 +86,13 @@ public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData>
   }
 
   @Override
-  public void add(Iterable<String> values) {
+  public synchronized void add(Iterable<String> values) {
     this.value.add(values);
     dirty.afterModification();
   }
 
   @Override
-  public void add(String... values) {
+  public synchronized void add(String... values) {
     add(Arrays.asList(values));
   }
 }

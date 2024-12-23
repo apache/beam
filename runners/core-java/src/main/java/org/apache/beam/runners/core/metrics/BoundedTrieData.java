@@ -153,7 +153,7 @@ public class BoundedTrieData implements Serializable {
    *
    * @return The set of paths.
    */
-  public synchronized Set<List<String>> getResult() {
+  public synchronized Set<List<String>> extractResult() {
     if (this.root == null) {
       if (this.singleton == null) {
         return ImmutableSet.of();
@@ -195,10 +195,11 @@ public class BoundedTrieData implements Serializable {
    * copy.
    *
    * @param other The other {@link BoundedTrieData} to combine with.
+   * @return The combined {@link BoundedTrieData}.
    */
-  public synchronized void combine(@Nonnull BoundedTrieData other) {
+  public synchronized BoundedTrieData combine(@Nonnull BoundedTrieData other) {
     if (other.root == null && other.singleton == null) {
-      return;
+      return this;
     }
     // other can be modified in some different thread, and we need to atomically access
     // its fields to combine correctly. Furthermore, simply doing this under synchronized(other)
@@ -207,19 +208,17 @@ public class BoundedTrieData implements Serializable {
     // while some other thread is performing `other.combiner(this)` and waiting to get a
     // lock on `this` object.
     BoundedTrieData otherDeepCopy = other.getCumulative();
-    if (this.root != null || this.singleton != null) {
-      // after this we are guaranteed to have non-null otherDeepCopy.root
-      otherDeepCopy.root = otherDeepCopy.asTrie();
-      otherDeepCopy.singleton = null;
-      otherDeepCopy.root.merge(this.asTrie());
-      otherDeepCopy.bound = Math.min(this.bound, otherDeepCopy.bound);
-      while (otherDeepCopy.root.getSize() > otherDeepCopy.bound) {
-        otherDeepCopy.root.trim();
-      }
+    if (this.root == null && this.singleton == null) {
+      return otherDeepCopy;
     }
-    this.root = otherDeepCopy.root;
-    this.singleton = otherDeepCopy.singleton;
-    this.bound = otherDeepCopy.bound;
+    otherDeepCopy.root = otherDeepCopy.asTrie();
+    otherDeepCopy.singleton = null;
+    otherDeepCopy.root.merge(this.asTrie());
+    otherDeepCopy.bound = Math.min(this.bound, otherDeepCopy.bound);
+    while (otherDeepCopy.root.getSize() > otherDeepCopy.bound) {
+      otherDeepCopy.root.trim();
+    }
+    return otherDeepCopy;
   }
 
   /**
