@@ -20,14 +20,17 @@ package org.apache.beam.runners.direct;
 import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
@@ -239,6 +242,28 @@ class DirectMetrics extends MetricResults {
         }
       };
 
+  private static final MetricAggregation<BoundedTrieData, Set<List<String>>> BOUNDED_TRIE =
+      new MetricAggregation<BoundedTrieData, Set<List<String>>>() {
+        @Override
+        public BoundedTrieData zero() {
+          return new BoundedTrieData();
+        }
+
+        @Override
+        public BoundedTrieData combine(Iterable<BoundedTrieData> updates) {
+          BoundedTrieData result = new BoundedTrieData();
+          for (BoundedTrieData update : updates) {
+            result = result.combine(update);
+          }
+          return result;
+        }
+
+        @Override
+        public Set<List<String>> extract(BoundedTrieData data) {
+          return data.extractResult();
+        }
+      };
+
   /** The current values of counters in memory. */
   private final MetricsMap<MetricKey, DirectMetric<Long, Long>> counters;
 
@@ -247,6 +272,7 @@ class DirectMetrics extends MetricResults {
 
   private final MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges;
   private final MetricsMap<MetricKey, DirectMetric<StringSetData, StringSetResult>> stringSet;
+  private final MetricsMap<MetricKey, DirectMetric<BoundedTrieData, Set<List<String>>>> boundedTrie;
 
   DirectMetrics(ExecutorService executorService) {
     this.counters = new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER, executorService));
@@ -254,6 +280,8 @@ class DirectMetrics extends MetricResults {
         new MetricsMap<>(unusedKey -> new DirectMetric<>(DISTRIBUTION, executorService));
     this.gauges = new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE, executorService));
     this.stringSet = new MetricsMap<>(unusedKey -> new DirectMetric<>(STRING_SET, executorService));
+    this.boundedTrie =
+        new MetricsMap<>(unusedKey -> new DirectMetric<>(BOUNDED_TRIE, executorService));
   }
 
   @Override
@@ -279,11 +307,19 @@ class DirectMetrics extends MetricResults {
       maybeExtractResult(filter, stringSetResult, stringSet);
     }
 
+    ImmutableList.Builder<MetricResult<Set<List<String>>>> boundedTrieResult =
+        ImmutableList.builder();
+    for (Entry<MetricKey, DirectMetric<BoundedTrieData, Set<List<String>>>> boundedTrie :
+        boundedTrie.entries()) {
+      maybeExtractResult(filter, boundedTrieResult, boundedTrie);
+    }
+
     return MetricQueryResults.create(
         counterResults.build(),
         distributionResults.build(),
         gaugeResults.build(),
-        stringSetResult.build());
+        stringSetResult.build(),
+        boundedTrieResult.build());
   }
 
   private <ResultT> void maybeExtractResult(
@@ -310,9 +346,11 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
       gauges.get(gauge.getKey()).updatePhysical(bundle, gauge.getUpdate());
     }
-
     for (MetricUpdate<StringSetData> sSet : updates.stringSetUpdates()) {
       stringSet.get(sSet.getKey()).updatePhysical(bundle, sSet.getUpdate());
+    }
+    for (MetricUpdate<BoundedTrieData> bTrie : updates.boundedTrieUpdates()) {
+      boundedTrie.get(bTrie.getKey()).updatePhysical(bundle, bTrie.getUpdate());
     }
   }
 
@@ -329,6 +367,9 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<StringSetData> sSet : updates.stringSetUpdates()) {
       stringSet.get(sSet.getKey()).commitPhysical(bundle, sSet.getUpdate());
     }
+    for (MetricUpdate<BoundedTrieData> bTrie : updates.boundedTrieUpdates()) {
+      boundedTrie.get(bTrie.getKey()).commitPhysical(bundle, bTrie.getUpdate());
+    }
   }
 
   /** Apply metric updates that represent new logical values from a bundle being committed. */
@@ -344,6 +385,9 @@ class DirectMetrics extends MetricResults {
     }
     for (MetricUpdate<StringSetData> sSet : updates.stringSetUpdates()) {
       stringSet.get(sSet.getKey()).commitLogical(bundle, sSet.getUpdate());
+    }
+    for (MetricUpdate<BoundedTrieData> bTrie : updates.boundedTrieUpdates()) {
+      boundedTrie.get(bTrie.getKey()).commitLogical(bundle, bTrie.getUpdate());
     }
   }
 }
