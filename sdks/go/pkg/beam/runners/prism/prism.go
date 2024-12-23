@@ -19,6 +19,8 @@ package prism
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -48,8 +50,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		// One hasn't been selected, so lets start one up and set the address.
 		// Conveniently, this means that if multiple pipelines are executed against
 		// the local runner, they will all use the same server.
+		lis, err := net.Listen("tcp", ":0")
+		if err != nil {
+			return nil, err
+		}
+		_, port, _ := net.SplitHostPort(lis.Addr().String())
+		addr := fmt.Sprintf("localhost:%v", port)
+		g := worker.NewMultiplexW()
+		go g.Serve(lis)
 		s := jobservices.NewServer(0, internal.RunPipeline)
 		*jobopts.Endpoint = s.Endpoint()
+		s.WorkerPoolEndpoint = addr
 		go s.Serve()
 		if !jobopts.IsLoopback() {
 			*jobopts.EnvironmentType = "loopback"
