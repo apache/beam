@@ -118,7 +118,7 @@ hadoopVersions.each { kv ->
     }
 }
 
-task integrationTest(type: Test) {
+task catalogTests(type: Test) {
     group = "Verification"
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://managed-iceberg-integration-tests'
