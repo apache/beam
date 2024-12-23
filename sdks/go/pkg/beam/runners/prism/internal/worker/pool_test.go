@@ -453,3 +453,53 @@ func TestWorker_State_MultimapSideInput(t *testing.T) {
 		})
 	}
 }
+
+func TestMapW_workerFromMetadataCtx(t *testing.T) {
+	tests := []struct {
+		name    string
+		ctx     context.Context
+		m       MapW
+		want    *W
+		wantErr string
+	}{
+		{
+			name:    "missing metadata",
+			m:       make(MapW),
+			wantErr: "failed to read metadata from context",
+		},
+		{
+			name: "mismatched ctx metadata",
+			ctx:  metadata.NewIncomingContext(context.Background(), metadata.Pairs("worker_id", "wk1")),
+			m: map[string]*W{
+				"wk2": {ID: "wk2"},
+			},
+			wantErr: "worker id: 'wk1' read from ctx but not registered in worker pool",
+		},
+		{
+			name: "matching ctx metadata",
+			ctx:  metadata.NewIncomingContext(context.Background(), metadata.Pairs("worker_id", "wk1")),
+			m: map[string]*W{
+				"wk1": {ID: "wk1"},
+			},
+			want: &W{ID: "wk1"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.ctx == nil {
+				tt.ctx = context.Background()
+			}
+			got, err := tt.m.workerFromMetadataCtx(tt.ctx)
+			if err != nil && err.Error() != tt.wantErr {
+				t.Errorf("workerFromMetadataCtx() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr != "" {
+				return
+			}
+			if got.ID != tt.want.ID {
+				t.Errorf("workerFromMetadataCtx() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

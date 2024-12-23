@@ -77,7 +77,6 @@ func NewMultiplexW(opts ...grpc.ServerOption) *grpc.Server {
 	g := grpc.NewServer(opts...)
 	wk := &MultiplexW{
 		logger: slog.Default(),
-		pool:   make(map[string]*W),
 	}
 
 	fnpb.RegisterBeamFnControlServer(g, wk)
@@ -99,9 +98,7 @@ type MultiplexW struct {
 	fnpb.UnimplementedProvisionServiceServer
 	healthpb.UnimplementedHealthServer
 
-	endpoint string
-	logger   *slog.Logger
-	pool     map[string]*W
+	logger *slog.Logger
 }
 
 func (mw *MultiplexW) Check(_ context.Context, _ *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
@@ -159,7 +156,7 @@ func (mw *MultiplexW) State(state fnpb.BeamFnState_StateServer) error {
 func (mw *MultiplexW) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
 	w, err := Pool.workerFromMetadataCtx(ctx)
 	if err != nil {
-		slog.Error(err.Error())
+		mw.logger.Error(err.Error())
 		return nil
 	}
 	return w.MonitoringMetadata(ctx, unknownIDs)
