@@ -249,7 +249,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           return IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, input);
         }
       };
-  private final List<Row> INPUT_ROWS =
+  private final List<Row> inputRows =
       LongStream.range(0, numRecords()).boxed().map(ROW_FUNC::apply).collect(Collectors.toList());
 
   /** Populates the Iceberg table and Returns a {@link List<Row>} of expected elements. */
@@ -335,7 +335,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // Write with Beam
     // Expect the sink to create the table
     Map<String, Object> config = managedIcebergConfig(tableId());
-    PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
@@ -345,7 +345,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // Read back and check records are correct
     List<Record> returnedRecords = readRecords(table);
     assertThat(
-        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
   @Test
@@ -363,14 +363,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     // Write with Beam
     Map<String, Object> config = managedIcebergConfig(tableId());
-    PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Read back and check records are correct
     List<Record> returnedRecords = readRecords(table);
     assertThat(
-        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
   private PeriodicImpulse getStreamingSource() {
@@ -406,7 +406,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
-        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
   @Test
@@ -439,7 +439,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     List<Record> returnedRecords = readRecords(table);
     assertThat(
-        returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
   private void writeToDynamicDestinations(@Nullable String filterOp) {
@@ -511,7 +511,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                   MapElements.into(TypeDescriptors.rows())
                       .via(instant -> ROW_FUNC.apply(instant.getMillis() % numRecords)));
     } else {
-      input = pipeline.apply(Create.of(INPUT_ROWS));
+      input = pipeline.apply(Create.of(inputRows));
     }
 
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
@@ -543,7 +543,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       List<Record> records = returnedRecords.get(i);
       long l = i;
       Stream<Record> expectedRecords =
-          INPUT_ROWS.stream()
+          inputRows.stream()
               .filter(rec -> checkStateNotNull(rec.getInt64("modulo_5")) == l)
               .map(rowFilter::filter)
               .map(recordFunc::apply);
