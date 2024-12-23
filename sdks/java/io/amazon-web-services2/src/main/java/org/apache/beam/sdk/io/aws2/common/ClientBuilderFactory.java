@@ -203,10 +203,10 @@ public interface ClientBuilderFactory {
                 httpConfig.socketTimeout(), client::writeTimeout); // fallback for writeTimeout
             setOptional(httpConfig.writeTimeout(), client::writeTimeout);
             setOptional(httpConfig.maxConnections(), client::maxConcurrency);
-
-            // TODO - gate this behind a flag.
-            client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
           }
+
+          // TODO - gate this behind a flag.
+          client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
 
           // must use builder to make sure client is managed by the SDK
           ((SdkAsyncClientBuilder<?, ?>) builder).httpClientBuilder(client);
