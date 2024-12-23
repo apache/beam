@@ -34,9 +34,38 @@ from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 class BigQueryVectorSearchParameters:
   """Parameters for configuring BigQuery vector similarity search.
 
-    This class encapsulates the configuration needed to perform vector
-    similarity search using BigQuery's VECTOR_SEARCH function. It handles
-    formatting the query with proper embedding vectors and metadata
+    This class is used by BigQueryVectorSearchEnrichmentHandler to perform
+    vector similarity search using BigQuery's VECTOR_SEARCH function. It
+    processes :class:`~apache_beam.ml.rag.types.Chunk` objects that contain
+    :class:`~apache_beam.ml.rag.types.Embedding` and returns similar vectors
+    from a BigQuery table.
+
+    BigQueryVectorSearchEnrichmentHandler is used with
+    :class:`~apache_beam.transforms.enrichment.Enrichment` transform to enrich
+    Chunks with similar content from a vector database. For example:
+
+    >>> # Create search parameters
+    >>> params = BigQueryVectorSearchParameters(
+    ...     table_name='project.dataset.embeddings',
+    ...     embedding_column='embedding',
+    ...     columns=['content'],
+    ...     neighbor_count=5
+    ... )
+    >>> # Use in pipeline
+    >>> enriched = (
+    ...     chunks
+    ...     | "Generate Embeddings" >> MLTransform(...)
+    ...     | "Find Similar" >> Enrichment(
+    ...         BigQueryVectorSearchEnrichmentHandler(
+    ...             project='my-project',
+    ...             vector_search_parameters=params
+    ...         )
+    ...     )
+    ... )
+
+    BigQueryVectorSearchParameters encapsulates the configuration needed to
+    perform vector similarity search using BigQuery's VECTOR_SEARCH function.
+    It handles formatting the query with proper embedding vectors and metadata
     restrictions.
 
     Example with flattened metadata column:
@@ -67,7 +96,7 @@ class BigQueryVectorSearchParameters:
 
         embedding: ARRAY<FLOAT64>  # Vector embedding
         content: STRING           # Document content
-        metadata: ARRAY<STRUCT<   # Nested repeated metadata
+        metadata: ARRAY<STRUCT>   # Nested repeated metadata
           key: STRING,
           value: STRING
         >>
@@ -89,6 +118,7 @@ class BigQueryVectorSearchParameters:
         >>> # Searches for {key: 'language', value: 'en'} in metadata array
 
     Args:
+        project: GCP project ID containing the BigQuery dataset
         table_name: Fully qualified BigQuery table name containing vectors.
         embedding_column: Column name containing the embedding vectors.
         columns: List of columns to retrieve from matched vectors.
@@ -106,16 +136,30 @@ class BigQueryVectorSearchParameters:
                key_to_match is the literal key to search for in the array, and
                metadata_key is used to get value from
                chunk.metadata[metadata_key].
+            
+            Multiple conditions can be combined using AND/OR operators. For
+            example::
+            
+                >>> # Combine metadata check with column filter
+                >>> template = (
+                ...     "check_metadata(metadata, 'language', '{language}') "
+                ...     "AND source = '{source}'"
+                ... )
+                >>> # When chunk.metadata = {'language': 'en', 'source': 'web'}
+                >>> # Generates: WHERE 
+                >>> #             check_metadata(metadata, 'language', 'en')
+                >>> #           AND source = 'web'
         
         distance_type: Optional distance metric to use. Supported values:
             COSINE (default), EUCLIDEAN, or DOT_PRODUCT.
         options: Optional dictionary of additional VECTOR_SEARCH options.
     """
+  project: str
   table_name: str
   embedding_column: str
   columns: List[str]
   neighbor_count: int
-  metadata_restriction_template: str
+  metadata_restriction_template: Optional[str] = None
   distance_type: Optional[str] = None
   options: Optional[Dict[str, Any]] = None
 
@@ -128,7 +172,7 @@ class BigQueryVectorSearchParameters:
         if self.distance_type else "")
     options_clause = (f", options => {self.options}" if self.options else "")
 
-    # Create metadata check function
+    # Create metadata check function only if needed
     metadata_fn = """
         CREATE TEMP FUNCTION check_metadata(
           metadata ARRAY<STRUCT<key STRING, value STRING>>, 
@@ -140,48 +184,66 @@ class BigQueryVectorSearchParameters:
             FROM UNNEST(metadata) 
             WHERE key = search_key AND value = search_value
         ));
+    """ if self.metadata_restriction_template else ""
+
+    # Group chunks by their metadata conditions
+    condition_groups = {}
+    if self.metadata_restriction_template:
+      for chunk in chunks:
+        condition = self.metadata_restriction_template.format(**chunk.metadata)
+        if condition not in condition_groups:
+          condition_groups[condition] = []
+        condition_groups[condition].append(chunk)
+    else:
+      # No metadata filtering - all chunks in one group
+      condition_groups[""] = chunks
+
+    # Generate VECTOR_SEARCH subqueries for each condition group
+    vector_searches = []
+    for condition, group_chunks in condition_groups.items():
+      # Create embeddings subquery for this group
+      embedding_unions = []
+      for chunk in group_chunks:
+        if chunk.embedding is None or chunk.embedding.dense_embedding is None:
+          raise ValueError(f"Chunk {chunk.id} missing embedding")
+        embedding_str = (
+            f"SELECT '{chunk.id}' as id, "
+            f"{[float(x) for x in chunk.embedding.dense_embedding]} "
+            f"as embedding")
+        embedding_unions.append(embedding_str)
+      group_embeddings = " UNION ALL ".join(embedding_unions)
+
+      # Create VECTOR_SEARCH for this condition group
+      where_clause = f"WHERE {condition}" if condition else ""
+      # Create VECTOR_SEARCH for this condition group
+      vector_search = f"""
+            SELECT 
+                query.id,
+                ARRAY_AGG(
+                    STRUCT({base_columns_str})
+                ) as chunks
+            FROM VECTOR_SEARCH(
+                (SELECT {columns_str}, {self.embedding_column} 
+                 FROM `{self.table_name}`
+                 {where_clause}),
+                '{self.embedding_column}',
+                (SELECT * FROM ({group_embeddings})),
+                top_k => {self.neighbor_count}
+                {distance_clause}
+                {options_clause}
+            )
+            GROUP BY query.id
         """
+      vector_searches.append(vector_search)
 
-    # Union embeddings with IDs
-    embedding_unions = []
-    for chunk in chunks:
-      if chunk.embedding is None or chunk.embedding.dense_embedding is None:
-        raise ValueError(f"Chunk {chunk.id} missing embedding")
-      embedding_str = (
-          f"SELECT '{chunk.id}' as id, "
-          f"{[float(x) for x in chunk.embedding.dense_embedding]} as embedding")
-      embedding_unions.append(embedding_str)
-    embeddings_query = " UNION ALL ".join(embedding_unions)
-
-    # Format metadata restrictions for each embedding
-    metadata_restrictions = [
-        f"({self.metadata_restriction_template.format(**chunk.metadata)})"
-        for chunk in chunks
-    ]
-    combined_restrictions = " OR ".join(metadata_restrictions)
+    # Combine all vector searches
+    combined_searches = " UNION ALL ".join(vector_searches)
 
     return f"""
         {metadata_fn}
 
-        WITH query_embeddings AS ({embeddings_query})
-
-        SELECT 
-            query.id,
-            ARRAY_AGG(
-                STRUCT({base_columns_str})
-            ) as chunks
-        FROM VECTOR_SEARCH(
-            (SELECT {columns_str}, {self.embedding_column} 
-             FROM `{self.table_name}`
-             WHERE {combined_restrictions}),
-            '{self.embedding_column}',
-            TABLE query_embeddings,
-            top_k => {self.neighbor_count}
-            {distance_clause}
-            {options_clause}
-        )
-        GROUP BY query.id
-        """
+        {combined_searches}
+    """
 
 
 class BigQueryVectorSearchEnrichmentHandler(
@@ -229,7 +291,6 @@ class BigQueryVectorSearchEnrichmentHandler(
       ...     )
 
   Args:
-      project: GCP project ID containing the BigQuery dataset
       vector_search_parameters: Configuration for the vector search query
       min_batch_size: Minimum number of chunks to batch before processing
       max_batch_size: Maximum number of chunks to process in one batch
@@ -243,13 +304,12 @@ class BigQueryVectorSearchEnrichmentHandler(
   """
   def __init__(
       self,
-      project: str,
       vector_search_parameters: BigQueryVectorSearchParameters,
       *,
       min_batch_size: int = 1,
       max_batch_size: int = 1000,
       **kwargs):
-    self.project = project
+    self.project = vector_search_parameters.project
     self.vector_search_parameters = vector_search_parameters
     self.kwargs = kwargs
     self._batching_kwargs = {
@@ -281,13 +341,17 @@ class BigQueryVectorSearchEnrichmentHandler(
     query_job = self.client.query(query)
     results = query_job.result()
 
-    # Map results back to embeddings
-    id_to_embedding = {emb.id: emb for emb in requests}
-    response = []
+    # Create results dict with empty chunks list as default
+    results_by_id = {}
     for result_row in results:
       result_dict = dict(result_row.items())
-      embedding = id_to_embedding[result_row.id]
-      response.append((embedding, result_dict))
+      results_by_id[result_row.id] = result_dict
+
+    # Return all chunks in original order, with empty results if no matches
+    response = []
+    for chunk in requests:
+      result_dict = results_by_id.get(chunk.id, {})
+      response.append((chunk, result_dict))
 
     return response
 

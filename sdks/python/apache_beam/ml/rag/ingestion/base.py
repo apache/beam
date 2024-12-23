@@ -16,6 +16,7 @@
 
 from abc import ABC
 from abc import abstractmethod
+from typing import Any
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -44,7 +45,7 @@ class VectorDatabaseWriteConfig(ABC):
     ...         )
   """
   @abstractmethod
-  def create_write_transform(self) -> beam.PTransform:
+  def create_write_transform(self) -> beam.PTransform[Chunk, Any]:
     """Creates a PTransform that writes embeddings to the vector database.
     
     Returns:
@@ -55,7 +56,7 @@ class VectorDatabaseWriteConfig(ABC):
         - Setting up database connection/client
         - Writing with appropriate batching/error handling
     """
-    pass
+    raise NotImplementedError(type(self))
 
 
 class VectorDatabaseWriteTransform(beam.PTransform):
@@ -95,7 +96,8 @@ class VectorDatabaseWriteTransform(beam.PTransform):
           f"got {type(database_config)}")
     self.database_config = database_config
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
+  def expand(self,
+             pcoll: beam.PCollection[Chunk]) -> beam.PTransform[Chunk, Any]:
     """Creates and applies the database-specific write transform.
     
     Args:

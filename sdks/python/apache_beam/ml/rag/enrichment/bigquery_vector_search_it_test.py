@@ -72,6 +72,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
   table_data = [{
       "id": "doc1",
       "content": "This is a test document",
+      "domain": "medical",
       "embedding": [0.1, 0.2, 0.3],
       "metadata": [{
           "key": "language", "value": "en"
@@ -80,6 +81,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
                 {
                     "id": "doc2",
                     "content": "Another test document",
+                    "domain": "legal",
                     "embedding": [0.2, 0.3, 0.4],
                     "metadata": [{
                         "key": "language", "value": "en"
@@ -88,6 +90,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
                 {
                     "id": "doc3",
                     "content": "Un document de test",
+                    "domain": "financial",
                     "embedding": [0.3, 0.4, 0.5],
                     "metadata": [{
                         "key": "language", "value": "fr"
@@ -96,7 +99,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
   @classmethod
   def create_table(cls, table_name):
-    fields = [('id', 'STRING'), ('content', 'STRING'),
+    fields = [('id', 'STRING'), ('content', 'STRING'), ('domain', 'STRING'),
               ('embedding', 'FLOAT64', 'REPEATED'),
               (
                   'metadata',
@@ -173,6 +176,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     ]
 
     params = BigQueryVectorSearchParameters(
+        project=self.project,
         table_name=self.table_name,
         embedding_column='embedding',
         columns=['content', 'metadata'],
@@ -181,7 +185,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
             "check_metadata(metadata, 'language', '{language}')"))
 
     handler = BigQueryVectorSearchEnrichmentHandler(
-        project=self.project, vector_search_parameters=params)
+        vector_search_parameters=params)
 
     with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
@@ -212,6 +216,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     ]
 
     params = BigQueryVectorSearchParameters(
+        project=self.project,
         table_name=self.table_name,
         embedding_column='embedding',
         columns=['content', 'metadata'],
@@ -220,7 +225,6 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
             "check_metadata(metadata, 'language', '{language}')"))
 
     handler = BigQueryVectorSearchEnrichmentHandler(
-        project=self.project,
         vector_search_parameters=params,
         min_batch_size=2,  # Force batching
         max_batch_size=2   # Process 2 chunks at a time
@@ -318,6 +322,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     ]
 
     params = BigQueryVectorSearchParameters(
+        project=self.project,
         table_name=self.table_name,
         embedding_column='embedding',
         columns=['content', 'metadata'],
@@ -328,10 +333,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     )
 
     handler = BigQueryVectorSearchEnrichmentHandler(
-        project=self.project,
-        vector_search_parameters=params,
-        min_batch_size=2,
-        max_batch_size=2)
+        vector_search_parameters=params, min_batch_size=2, max_batch_size=2)
 
     expected_chunks = [
         Chunk(
@@ -389,6 +391,254 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
       assert_that(result, equal_to(expected_chunks))
 
+  def test_no_metadata_restriction(self):
+    """Test vector search without metadata filtering."""
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="test query"),
+            metadata={'language': 'fr'},
+            index=0)
+    ]
+
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content', 'metadata'],
+        neighbor_count=2,  # Get top 2 matches
+        metadata_restriction_template=None  # No filtering
+    )
+
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params)
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+      # Should get matches regardless of metadata
+      assert_that(
+          result,
+          equal_to([
+              Chunk(
+                  id="query1",
+                  embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+                  content=Content(text="test query"),
+                  metadata={
+                      "language": "fr",
+                      "enrichment_data": {
+                          "id": "query1",
+                          "chunks": [{
+                              "content": "This is a test document",
+                              "metadata": [{
+                                  "key": "language", "value": "en"
+                              }]
+                          },
+                                     {
+                                         "content": "Another test document",
+                                         "metadata": [{
+                                             "key": "language", "value": "en"
+                                         }]
+                                     }]
+                      }
+                  },
+                  index=0)
+          ]))
+
+  def test_metadata_filter_leakage(self):
+    """Test that metadata filters don't leak between batched chunks."""
+
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="medical query"),
+            metadata={
+                "domain": "medical", "language": "en"
+            },
+            index=0),
+        Chunk(
+            id="query2",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="unmatched query"),
+            metadata={
+                "domain": "doesntexist", "language": "en"
+            },
+            index=1)
+    ]
+
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content', 'metadata', 'domain'],
+        neighbor_count=1,
+        metadata_restriction_template=(
+            "domain = '{domain}' AND "
+            "check_metadata(metadata, 'language', '{language}')"))
+
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params,
+        min_batch_size=2,  # Force batching
+        max_batch_size=2
+    )
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+      assert_that(
+          result,
+          equal_to([
+              Chunk(
+                  id="query1",
+                  embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+                  content=Content(text="medical query"),
+                  metadata={
+                      "domain": "medical",
+                      "language": "en",
+                      "enrichment_data": {
+                          "id": "query1",
+                          "chunks": [{
+                              "content": "This is a test document",
+                              "domain": "medical",
+                              "metadata": [{
+                                  "key": "language", "value": "en"
+                              }]
+                          }]
+                      }
+                  },
+                  index=0),
+              Chunk(
+                  id="query2",
+                  embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+                  content=Content(text="unmatched query"),
+                  metadata={
+                      "domain": "doesntexist",
+                      "language": "en",
+                      "enrichment_data": {}
+                  },
+                  index=1)
+          ]))
+
+  def test_condition_batching(self):
+    """Test that queries with same metadata conditions are batched together."""
+
+    # Create three queries with same conditions but different embeddings
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="english query 1"),
+            metadata={"language": "en"},
+            index=0),
+        Chunk(
+            id="query2",
+            embedding=Embedding(dense_embedding=[0.4, 0.5, 0.6]),
+            content=Content(text="english query 2"),
+            metadata={"language": "en"},
+            index=1),
+        Chunk(
+            id="query3",
+            embedding=Embedding(dense_embedding=[0.7, 0.8, 0.9]),
+            content=Content(text="french query 3"),
+            metadata={"language": "fr"},
+            index=2)
+    ]
+
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content', 'domain', 'metadata'],
+        neighbor_count=3,
+        metadata_restriction_template=(
+            "check_metadata(metadata, 'language', '{language}')"))
+
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params,
+        min_batch_size=10,  # Force batching
+        max_batch_size=100
+    )
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+      # All queries should be handled in a single VECTOR_SEARCH
+      # Each should get its closest match
+      assert_that(
+          result,
+          equal_to([
+              Chunk(
+                  id="query1",
+                  embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+                  content=Content(text="english query 1"),
+                  metadata={
+                      "language": "en",
+                      "enrichment_data": {
+                          "id": "query1",
+                          "chunks": [{
+                              "content": "This is a test document",
+                              "domain": "medical",
+                              "metadata": [{
+                                  "key": "language", "value": "en"
+                              }]
+                          },
+                                     {
+                                         "content": "Another test document",
+                                         "domain": "legal",
+                                         "metadata": [{
+                                             "key": "language", "value": "en"
+                                         }]
+                                     }]
+                      }
+                  },
+                  index=0),
+              Chunk(
+                  id="query2",
+                  embedding=Embedding(dense_embedding=[0.4, 0.5, 0.6]),
+                  content=Content(text="english query 2"),
+                  metadata={
+                      "language": "en",
+                      "enrichment_data": {
+                          "id": "query2",
+                          "chunks": [{
+                              "content": "Another test document",
+                              "domain": "legal",
+                              "metadata": [{
+                                  "key": "language", "value": "en"
+                              }]
+                          },
+                                     {
+                                         "content": "This is a test document",
+                                         "domain": "medical",
+                                         "metadata": [{
+                                             "key": "language", "value": "en"
+                                         }]
+                                     }]
+                      }
+                  },
+                  index=1),
+              Chunk(
+                  id="query3",
+                  embedding=Embedding(dense_embedding=[0.7, 0.8, 0.9]),
+                  content=Content(text="french query 3"),
+                  metadata={
+                      "language": "fr",
+                      "enrichment_data": {
+                          "id": "query3",
+                          "chunks": [{
+                              "content": "Un document de test",
+                              "domain": "financial",
+                              "metadata": [{
+                                  "key": "language", "value": "fr"
+                              }]
+                          }]
+                      }
+                  },
+                  index=2)
+          ]))
+
   def test_invalid_query(self):
     """Test error handling for invalid queries."""
     test_chunks = [
@@ -400,6 +650,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     ]
 
     params = BigQueryVectorSearchParameters(
+        project=self.project,
         table_name=self.table_name,
         embedding_column='nonexistent_column',  # Invalid column
         columns=['content'],
@@ -410,11 +661,52 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     )
 
     handler = BigQueryVectorSearchEnrichmentHandler(
-        project=self.project, vector_search_parameters=params)
+        vector_search_parameters=params)
 
     with self.assertRaises(BadRequest):
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+  def test_empty_input(self):
+    """Test handling of empty input."""
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=1)
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params)
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create([]) | Enrichment(handler))
+      assert_that(result, equal_to([]))
+
+  def test_missing_embedding(self):
+    """Test handling of chunks with missing embeddings."""
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=None,  # Missing embedding
+            content=Content(text="test query"),
+            metadata={"language": "en"},
+            index=0
+        )
+    ]
+
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=1)
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params)
+
+    with self.assertRaises(ValueError) as context:
+      with TestPipeline() as p:
+        _ = (p | beam.Create(test_chunks) | Enrichment(handler))
+    self.assertIn("missing embedding", str(context.exception))
 
 
 if __name__ == '__main__':
