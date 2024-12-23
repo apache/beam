@@ -39,9 +39,6 @@ class WorkerIdInterceptor(grpc.UnaryUnaryClientInterceptor,
   # the corresponding container changes.
   # Unique worker Id for this worker.
   _worker_id = os.environ.get('WORKER_ID')
-  if not _worker_id:
-    import uuid
-    _worker_id = str(uuid.uuid4())
 
   def __init__(self, worker_id: Optional[str] = None) -> None:
     if worker_id:
