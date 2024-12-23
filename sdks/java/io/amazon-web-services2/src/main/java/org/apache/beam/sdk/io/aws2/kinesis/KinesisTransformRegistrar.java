@@ -102,6 +102,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
         Configuration configuration) {
       AwsBasicCredentials creds =
           AwsBasicCredentials.create(configuration.awsAccessKey, configuration.awsSecretKey);
+      String pk = configuration.partitionKey;
       StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
       SerializableFunction<byte[], byte[]> serializer = v -> v;
       @Nullable URI endpoint = null;
@@ -123,7 +124,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .region(Region.of(configuration.region))
                       .endpoint(endpoint)
                       .build())
-              .withPartitioner(p -> configuration.partitionKey)
+              .withPartitioner(p -> pk)
               .withSerializer(serializer);
 
       return writeTransform;
