@@ -44,6 +44,9 @@ public class BoundedTrieCell implements BoundedTrie, MetricCell<BoundedTrieData>
   }
 
   public synchronized void update(BoundedTrieData other) {
+    // although BoundedTrieData is thread-safe the cell is made thread safe too because combine
+    // returns a reference to the combined BoundedTrieData and want the reference update here to
+    // be thread safe too.
     this.value = this.value.combine(other);
     dirty.afterModification();
   }
