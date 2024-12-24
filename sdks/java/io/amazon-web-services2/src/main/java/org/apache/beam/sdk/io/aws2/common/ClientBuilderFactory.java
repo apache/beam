@@ -165,6 +165,7 @@ public interface ClientBuilderFactory {
       boolean skipCertificateVerification = false;
       if (config.skipCertificateVerification() != null) {
         skipCertificateVerification = config.skipCertificateVerification();
+        throw new RuntimeException("config was non-null " + skipCertificateVerification);
       }
       if (proxyConfig != null || httpConfig != null || skipCertificateVerification) {
         if (builder instanceof SdkSyncClientBuilder) {

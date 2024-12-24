@@ -120,6 +120,9 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                   "Service endpoint must be URI format, got: %s", configuration.serviceEndpoint));
         }
       }
+      if (configuration.verifyCertificate) {
+        throw new RuntimeException("This is the problem");
+      }
       KinesisIO.Write<byte[]> writeTransform =
           KinesisIO.<byte[]>write()
               .withStreamName(configuration.streamName)
