@@ -115,6 +115,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               aws_secret_key=self.aws_secret_key,
               region=self.aws_region,
               service_endpoint=self.aws_service_endpoint,
+              verify_certificate=(not self.use_localstack),
               partition_key='1'))
 
   def run_kinesis_read(self):
