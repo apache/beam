@@ -28,9 +28,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.BoundedTrie;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -140,7 +140,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         step1res,
         STEP1,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         false);
 
     MetricQueryResults step2res =
@@ -170,7 +171,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         step2res,
         STEP2,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         false);
 
     MetricQueryResults allres = metricResults.allMetrics();
@@ -255,8 +257,7 @@ public class MetricsContainerStepMapTest {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
-    assertBoundedTrie(
-        BOUNDED_TRIE_NAME, step1res, STEP1, ImmutableSet.of(ImmutableList.of()), true);
+    assertBoundedTrie(BOUNDED_TRIE_NAME, step1res, STEP1, BoundedTrieResult.empty(), true);
   }
 
   @Test
@@ -350,7 +351,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         step1res,
         STEP1,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         false);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, true);
@@ -371,7 +373,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         step1res,
         STEP1,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         true);
 
     MetricQueryResults step2res =
@@ -401,7 +404,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         step2res,
         STEP2,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         false);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, true);
@@ -422,7 +426,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         step2res,
         STEP2,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         true);
 
     MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
@@ -490,7 +495,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         allres,
         STEP1,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         false);
 
     assertCounter(COUNTER_NAME, allres, STEP2, VALUE * 2, false);
@@ -511,7 +517,8 @@ public class MetricsContainerStepMapTest {
         BOUNDED_TRIE_NAME,
         allres,
         STEP2,
-        ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
         false);
 
     attemptedMetrics.reset();
@@ -524,7 +531,7 @@ public class MetricsContainerStepMapTest {
         DISTRIBUTION_NAME, allres, STEP1, DistributionResult.IDENTITY_ELEMENT, false);
     assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.empty(), false);
     assertStringSet(STRING_SET_NAME, allres, STEP1, StringSetResult.empty(), false);
-    assertBoundedTrie(BOUNDED_TRIE_NAME, allres, STEP1, ImmutableSet.of(), false);
+    assertBoundedTrie(BOUNDED_TRIE_NAME, allres, STEP1, BoundedTrieResult.empty(), false);
 
     // Check that the metrics container for STEP2 is reset
     assertCounter(COUNTER_NAME, allres, STEP2, 0L, false);
@@ -532,7 +539,7 @@ public class MetricsContainerStepMapTest {
         DISTRIBUTION_NAME, allres, STEP2, DistributionResult.IDENTITY_ELEMENT, false);
     assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.empty(), false);
     assertStringSet(STRING_SET_NAME, allres, STEP2, StringSetResult.empty(), false);
-    assertBoundedTrie(BOUNDED_TRIE_NAME, allres, STEP2, ImmutableSet.of(), false);
+    assertBoundedTrie(BOUNDED_TRIE_NAME, allres, STEP2, BoundedTrieResult.empty(), false);
   }
 
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {
@@ -587,7 +594,7 @@ public class MetricsContainerStepMapTest {
       String name,
       MetricQueryResults metricQueryResults,
       String step,
-      Set<List<String>> expected,
+      BoundedTrieResult expected,
       boolean isCommitted) {
     assertThat(
         metricQueryResults.getBoundedTries(),

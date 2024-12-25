@@ -670,9 +670,10 @@ public class MetricsTest implements Serializable {
             metricsResultPatchStep(
                 "boundedTrieSources",
                 "MyStep1",
-                ImmutableSet.of(
-                    ImmutableList.of("ab_source", "cd_source", String.valueOf(false)),
-                    ImmutableList.of("ef_source", String.valueOf(false))),
+                BoundedTrieResult.create(
+                    ImmutableSet.of(
+                        ImmutableList.of("ab_source", "cd_source", String.valueOf(false)),
+                        ImmutableList.of("ef_source", String.valueOf(false)))),
                 isCommitted)));
     assertThat(
         metrics.getBoundedTries(),
@@ -681,9 +682,10 @@ public class MetricsTest implements Serializable {
                 NAMESPACE,
                 "boundedTrieSinks",
                 "MyStep2",
-                ImmutableSet.of(
-                    ImmutableList.of("ab_sink", "cd_sink", String.valueOf(false)),
-                    ImmutableList.of("ef_sink", String.valueOf(false))),
+                BoundedTrieResult.create(
+                    ImmutableSet.of(
+                        ImmutableList.of("ab_sink", "cd_sink", String.valueOf(false)),
+                        ImmutableList.of("ef_sink", String.valueOf(false)))),
                 isCommitted)));
   }
 

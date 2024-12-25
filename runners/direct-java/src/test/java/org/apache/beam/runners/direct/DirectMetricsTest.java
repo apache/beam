@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
@@ -158,9 +159,10 @@ public class DirectMetricsTest {
                 "ns2",
                 "name2",
                 "step1",
-                ImmutableSet.of(
-                    ImmutableList.of("ab", String.valueOf(false)),
-                    ImmutableList.of("cd", String.valueOf(false))))));
+                BoundedTrieResult.create(
+                    ImmutableSet.of(
+                        ImmutableList.of("ab", String.valueOf(false)),
+                        ImmutableList.of("cd", String.valueOf(false)))))));
   }
 
   @SuppressWarnings("unchecked")

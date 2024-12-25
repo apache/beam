@@ -20,10 +20,8 @@ package org.apache.beam.runners.direct;
 import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
@@ -37,6 +35,7 @@ import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -242,8 +241,8 @@ class DirectMetrics extends MetricResults {
         }
       };
 
-  private static final MetricAggregation<BoundedTrieData, Set<List<String>>> BOUNDED_TRIE =
-      new MetricAggregation<BoundedTrieData, Set<List<String>>>() {
+  private static final MetricAggregation<BoundedTrieData, BoundedTrieResult> BOUNDED_TRIE =
+      new MetricAggregation<BoundedTrieData, BoundedTrieResult>() {
         @Override
         public BoundedTrieData zero() {
           return new BoundedTrieData();
@@ -259,7 +258,7 @@ class DirectMetrics extends MetricResults {
         }
 
         @Override
-        public Set<List<String>> extract(BoundedTrieData data) {
+        public BoundedTrieResult extract(BoundedTrieData data) {
           return data.extractResult();
         }
       };
@@ -272,7 +271,7 @@ class DirectMetrics extends MetricResults {
 
   private final MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges;
   private final MetricsMap<MetricKey, DirectMetric<StringSetData, StringSetResult>> stringSet;
-  private final MetricsMap<MetricKey, DirectMetric<BoundedTrieData, Set<List<String>>>> boundedTrie;
+  private final MetricsMap<MetricKey, DirectMetric<BoundedTrieData, BoundedTrieResult>> boundedTrie;
 
   DirectMetrics(ExecutorService executorService) {
     this.counters = new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER, executorService));
@@ -307,9 +306,9 @@ class DirectMetrics extends MetricResults {
       maybeExtractResult(filter, stringSetResult, stringSet);
     }
 
-    ImmutableList.Builder<MetricResult<Set<List<String>>>> boundedTrieResult =
+    ImmutableList.Builder<MetricResult<BoundedTrieResult>> boundedTrieResult =
         ImmutableList.builder();
-    for (Entry<MetricKey, DirectMetric<BoundedTrieData, Set<List<String>>>> boundedTrie :
+    for (Entry<MetricKey, DirectMetric<BoundedTrieData, BoundedTrieResult>> boundedTrie :
         boundedTrie.entries()) {
       maybeExtractResult(filter, boundedTrieResult, boundedTrie);
     }

@@ -63,8 +63,7 @@ public class MetricsToCounterUpdateConverter {
     MEAN("MEAN"),
     SUM("SUM"),
     LATEST_VALUE("LATEST_VALUE"),
-    SET("SET"),
-    TRIE("TRIE");
+    SET("SET");
 
     private final String kind;
 
@@ -114,13 +113,13 @@ public class MetricsToCounterUpdateConverter {
   }
 
   public static CounterUpdate fromBoundedTrie(MetricKey key, BoundedTrieData boundedTrieData) {
-    CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.TRIE);
-
-    // TODO: Test this with sandbox.
+    // BoundedTrie uses SET kind metric aggregation which tracks unique strings.
+    CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
+    // TODO (rosinha): Once the CounterUpdate API is updated in dataflow client update this.
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
         .setCumulative(false)
-        .set(Kind.TRIE.toString(), boundedTrieData.toProto());
+        .set("bounded_trie", boundedTrieData.toProto());
   }
 
   public static CounterUpdate fromDistribution(

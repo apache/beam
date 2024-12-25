@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.runners.core.metrics.BoundedTrieData.BoundedTrieNode;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
@@ -411,35 +412,39 @@ public class BoundedTrieNodeTest {
     lotsRoot.addAll(Arrays.asList(Arrays.asList("c", "c"), Arrays.asList("d", "d")));
     BoundedTrieData lots = new BoundedTrieData(lotsRoot);
 
-    assertEquals(Collections.emptySet(), empty.extractResult());
+    assertEquals(BoundedTrieResult.empty(), empty.extractResult());
     empty = empty.combine(singletonA);
     assertEquals(
-        ImmutableSet.of(Arrays.asList("a", "a", String.valueOf(false))), empty.extractResult());
+        BoundedTrieResult.create(ImmutableSet.of(Arrays.asList("a", "a", String.valueOf(false)))),
+        empty.extractResult());
     singletonA = singletonA.combine(empty);
     assertEquals(
-        ImmutableSet.of(Arrays.asList("a", "a", String.valueOf(false))),
+        BoundedTrieResult.create(ImmutableSet.of(Arrays.asList("a", "a", String.valueOf(false)))),
         singletonA.extractResult());
     singletonA = singletonA.combine(singletonB);
     assertEquals(
-        ImmutableSet.of(
-            Arrays.asList("a", "a", String.valueOf(false)),
-            Arrays.asList("b", "b", String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", "a", String.valueOf(false)),
+                Arrays.asList("b", "b", String.valueOf(false)))),
         singletonA.extractResult());
     singletonA = singletonA.combine(lots);
     assertEquals(
-        ImmutableSet.of(
-            Arrays.asList("a", "a", String.valueOf(false)),
-            Arrays.asList("b", "b", String.valueOf(false)),
-            Arrays.asList("c", "c", String.valueOf(false)),
-            Arrays.asList("d", "d", String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", "a", String.valueOf(false)),
+                Arrays.asList("b", "b", String.valueOf(false)),
+                Arrays.asList("c", "c", String.valueOf(false)),
+                Arrays.asList("d", "d", String.valueOf(false)))),
         singletonA.extractResult());
     lots = lots.combine(singletonA);
     assertEquals(
-        ImmutableSet.of(
-            Arrays.asList("a", "a", String.valueOf(false)),
-            Arrays.asList("b", "b", String.valueOf(false)),
-            Arrays.asList("c", "c", String.valueOf(false)),
-            Arrays.asList("d", "d", String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", "a", String.valueOf(false)),
+                Arrays.asList("b", "b", String.valueOf(false)),
+                Arrays.asList("c", "c", String.valueOf(false)),
+                Arrays.asList("d", "d", String.valueOf(false)))),
         lots.extractResult());
   }
 
@@ -454,10 +459,11 @@ public class BoundedTrieNodeTest {
     mainTree = mainTree.combine(new BoundedTrieData(null, right, 3));
 
     assertEquals(
-        ImmutableSet.of(
-            Arrays.asList("a", String.valueOf(true)),
-            Arrays.asList("b", "d", String.valueOf(false)),
-            Arrays.asList("c", "d", String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", String.valueOf(true)),
+                Arrays.asList("b", "d", String.valueOf(false)),
+                Arrays.asList("c", "d", String.valueOf(false)))),
         mainTree.extractResult());
   }
 
@@ -801,7 +807,7 @@ public class BoundedTrieNodeTest {
   public void testEmptyTrie() {
     BoundedTrieData trie = new BoundedTrieData();
     assertEquals(0, trie.size());
-    assertTrue(trie.extractResult().isEmpty());
+    assertTrue(trie.extractResult().result().isEmpty());
   }
 
   @Test
@@ -809,7 +815,9 @@ public class BoundedTrieNodeTest {
     List<String> path = ImmutableList.of("a", "b", "c");
     BoundedTrieData trie = new BoundedTrieData(path);
     assertEquals(1, trie.size());
-    assertEquals(ImmutableSet.of(ImmutableList.of("a", "b", "c", "false")), trie.extractResult());
+    assertEquals(
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("a", "b", "c", "false"))),
+        trie.extractResult());
     assertTrue(trie.contains(path));
     assertFalse(trie.contains(ImmutableList.of("a", "b")));
   }
@@ -820,7 +828,9 @@ public class BoundedTrieNodeTest {
     trie.add(ImmutableList.of("a", "c"));
     assertEquals(2, trie.size());
     assertEquals(
-        ImmutableSet.of(ImmutableList.of("a", "b", "false"), ImmutableList.of("a", "c", "false")),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                ImmutableList.of("a", "b", "false"), ImmutableList.of("a", "c", "false"))),
         trie.extractResult());
   }
 
@@ -831,7 +841,9 @@ public class BoundedTrieNodeTest {
     trie2.add(ImmutableList.of("a", "b"));
     trie1 = trie1.combine(trie2);
     assertEquals(1, trie1.size());
-    assertEquals(ImmutableSet.of(ImmutableList.of("a", "b", "false")), trie1.extractResult());
+    assertEquals(
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("a", "b", "false"))),
+        trie1.extractResult());
   }
 
   @Test
@@ -844,7 +856,9 @@ public class BoundedTrieNodeTest {
     trie1 = trie1.combine(trie2);
     assertEquals(2, trie1.size());
     assertEquals(
-        ImmutableSet.of(ImmutableList.of("a", "b", "false"), ImmutableList.of("c", "d", "false")),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                ImmutableList.of("a", "b", "false"), ImmutableList.of("c", "d", "false"))),
         trie1.extractResult());
   }
 
@@ -854,7 +868,9 @@ public class BoundedTrieNodeTest {
     trie.add(ImmutableList.of("a", "b"));
     trie = trie.combine(trie);
     assertEquals(1, trie.size());
-    assertEquals(ImmutableSet.of(ImmutableList.of("a", "b", "false")), trie.extractResult());
+    assertEquals(
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("a", "b", "false"))),
+        trie.extractResult());
   }
 
   @Test
@@ -863,7 +879,7 @@ public class BoundedTrieNodeTest {
     trie.add(ImmutableList.of("a", "b"));
     trie.clear();
     assertEquals(0, trie.size());
-    assertTrue(trie.extractResult().isEmpty());
+    assertTrue(trie.extractResult().result().isEmpty());
   }
 
   @Test
@@ -936,16 +952,16 @@ public class BoundedTrieNodeTest {
   @Test
   public void testGetResultEmptyTrie() {
     BoundedTrieData trie = new BoundedTrieData();
-    Set<List<String>> result = trie.extractResult();
-    assertEquals(result, ImmutableSet.of());
+    assertEquals(trie.extractResult(), BoundedTrieResult.empty());
   }
 
   @Test
   public void testGetResultSingleton() {
     List<String> singletonList = ImmutableList.of("a", "b");
     BoundedTrieData trie = new BoundedTrieData(singletonList);
-    Set<List<String>> result = trie.extractResult();
-    assertEquals(result, ImmutableSet.of(ImmutableList.of("a", "b", "false")));
+    BoundedTrieResult result = trie.extractResult();
+    assertEquals(
+        result, BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("a", "b", "false"))));
   }
 
   @Test
@@ -989,7 +1005,7 @@ public class BoundedTrieNodeTest {
     BoundedTrieData trie = new BoundedTrieData();
     trie.add(Collections.emptyList());
     assertEquals(1, trie.size());
-    assertTrue(trie.extractResult().contains(ImmutableList.of("false")));
+    assertTrue(trie.extractResult().result().contains(ImmutableList.of("false")));
   }
 
   @Test

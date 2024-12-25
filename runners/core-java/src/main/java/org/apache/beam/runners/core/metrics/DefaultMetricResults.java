@@ -17,8 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import java.util.List;
-import java.util.Set;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -44,14 +43,14 @@ public class DefaultMetricResults extends MetricResults {
   private final Iterable<MetricResult<DistributionResult>> distributions;
   private final Iterable<MetricResult<GaugeResult>> gauges;
   private final Iterable<MetricResult<StringSetResult>> stringSets;
-  private final Iterable<MetricResult<Set<List<String>>>> boundedTries;
+  private final Iterable<MetricResult<BoundedTrieResult>> boundedTries;
 
   public DefaultMetricResults(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
       Iterable<MetricResult<StringSetResult>> stringSets,
-      Iterable<MetricResult<Set<List<String>>>> boundedTries) {
+      Iterable<MetricResult<BoundedTrieResult>> boundedTries) {
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;

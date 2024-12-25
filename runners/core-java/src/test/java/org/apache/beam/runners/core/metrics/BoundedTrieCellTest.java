@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -43,10 +44,11 @@ public class BoundedTrieCellTest {
     cell.add("a", "a");
     BoundedTrieData cumulative = cell.getCumulative();
     assertEquals(
-        ImmutableSet.of(
-            Arrays.asList("a", "a", String.valueOf(false)),
-            Arrays.asList("b", "d", String.valueOf(false)),
-            Arrays.asList("b", "c", String.valueOf(false))),
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", "a", String.valueOf(false)),
+                Arrays.asList("b", "d", String.valueOf(false)),
+                Arrays.asList("b", "c", String.valueOf(false)))),
         cumulative.extractResult());
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
@@ -58,19 +60,21 @@ public class BoundedTrieCellTest {
     BoundedTrieData newCumulative = cell.getCumulative();
     assertEquals(
         newCumulative.extractResult(),
-        ImmutableSet.of(
-            Arrays.asList("a", "a", String.valueOf(false)),
-            Arrays.asList("b", "d", String.valueOf(false)),
-            Arrays.asList("b", "c", String.valueOf(false)),
-            Arrays.asList("b", "a", String.valueOf(false))));
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", "a", String.valueOf(false)),
+                Arrays.asList("b", "d", String.valueOf(false)),
+                Arrays.asList("b", "c", String.valueOf(false)),
+                Arrays.asList("b", "a", String.valueOf(false)))));
 
     // but not previously obtained cumulative value
     assertEquals(
         cumulative.extractResult(),
-        ImmutableSet.of(
-            Arrays.asList("a", "a", String.valueOf(false)),
-            Arrays.asList("b", "d", String.valueOf(false)),
-            Arrays.asList("b", "c", String.valueOf(false))));
+        BoundedTrieResult.create(
+            ImmutableSet.of(
+                Arrays.asList("a", "a", String.valueOf(false)),
+                Arrays.asList("b", "d", String.valueOf(false)),
+                Arrays.asList("b", "c", String.valueOf(false)))));
 
     assertThat(
         "Adding a new value made the cell dirty", cell.getDirty().beforeCommit(), equalTo(true));

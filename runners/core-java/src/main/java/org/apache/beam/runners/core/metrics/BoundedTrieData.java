@@ -22,17 +22,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * Experimental and subject to incompatible changes, or even removal, in a future releases.
@@ -153,17 +153,17 @@ public class BoundedTrieData implements Serializable {
    *
    * @return The set of paths.
    */
-  public synchronized Set<List<String>> extractResult() {
+  public synchronized BoundedTrieResult extractResult() {
     if (this.root == null) {
       if (this.singleton == null) {
-        return ImmutableSet.of();
+        return BoundedTrieResult.empty();
       } else {
         List<String> list = new ArrayList<>(this.singleton);
         list.add(String.valueOf(false));
-        return ImmutableSet.of(list);
+        return BoundedTrieResult.create(Collections.singleton(list));
       }
     } else {
-      return ImmutableSet.copyOf(this.root.flattened());
+      return BoundedTrieResult.create(new HashSet<>(this.root.flattened()));
     }
   }
 
