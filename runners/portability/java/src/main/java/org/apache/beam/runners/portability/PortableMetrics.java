@@ -192,7 +192,7 @@ public class PortableMetrics extends MetricResults {
             MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
 
     BoundedTrieData data = decodeBoundedTrie(monitoringInfo.getPayload());
-    BoundedTrieResult result = BoundedTrieResult.create(data.extractResult().result());
+    BoundedTrieResult result = BoundedTrieResult.create(data.extractResult().getResult());
     return MetricResult.create(key, false, result);
   }
 

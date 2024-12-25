@@ -807,7 +807,7 @@ public class BoundedTrieNodeTest {
   public void testEmptyTrie() {
     BoundedTrieData trie = new BoundedTrieData();
     assertEquals(0, trie.size());
-    assertTrue(trie.extractResult().result().isEmpty());
+    assertTrue(trie.extractResult().getResult().isEmpty());
   }
 
   @Test
@@ -879,7 +879,7 @@ public class BoundedTrieNodeTest {
     trie.add(ImmutableList.of("a", "b"));
     trie.clear();
     assertEquals(0, trie.size());
-    assertTrue(trie.extractResult().result().isEmpty());
+    assertTrue(trie.extractResult().getResult().isEmpty());
   }
 
   @Test
@@ -1005,7 +1005,7 @@ public class BoundedTrieNodeTest {
     BoundedTrieData trie = new BoundedTrieData();
     trie.add(Collections.emptyList());
     assertEquals(1, trie.size());
-    assertTrue(trie.extractResult().result().contains(ImmutableList.of("false")));
+    assertTrue(trie.extractResult().getResult().contains(ImmutableList.of("false")));
   }
 
   @Test

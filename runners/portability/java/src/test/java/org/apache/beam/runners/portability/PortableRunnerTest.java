@@ -138,7 +138,7 @@ public class PortableRunnerTest implements Serializable {
         metricQueryResults.getStringSets().iterator().next().getAttempted().getStringSet(),
         is(STRING_SET_VALUE));
     assertThat(
-        metricQueryResults.getBoundedTries().iterator().next().getAttempted().result(),
+        metricQueryResults.getBoundedTries().iterator().next().getAttempted().getResult(),
         is(ImmutableSet.of(ImmutableList.of("ab", String.valueOf(false)))));
   }
 

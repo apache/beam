@@ -214,7 +214,7 @@ class DataflowMetrics extends MetricResults {
       }
       BoundedTrie bTrie = (BoundedTrie) metricUpdate.get(BOUNDED_TRIE);
       BoundedTrieData trieData = BoundedTrieData.fromProto(bTrie);
-      return BoundedTrieResult.create(trieData.extractResult().result());
+      return BoundedTrieResult.create(trieData.extractResult().getResult());
     }
 
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {
