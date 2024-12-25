@@ -34,6 +34,8 @@ import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
+import org.apache.beam.sdk.metrics.BoundedTrie;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -46,7 +48,7 @@ import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Duration;
@@ -69,6 +71,8 @@ public class ExecutionStateSamplerTest {
   private static final Gauge TEST_USER_GAUGE = Metrics.gauge("foo", "gauge");
 
   private static final StringSet TEST_USER_STRING_SET = Metrics.stringSet("foo", "stringset");
+  private static final BoundedTrie TEST_USER_BOUNDED_TRIE =
+      Metrics.boundedTrie("foo", "boundedtrie");
   private static final Histogram TEST_USER_HISTOGRAM =
       new DelegatingHistogram(
           MetricName.named("foo", "histogram"), HistogramData.LinearBuckets.of(0, 100, 1), false);
@@ -380,6 +384,7 @@ public class ExecutionStateSamplerTest {
     TEST_USER_DISTRIBUTION.update(2);
     TEST_USER_GAUGE.set(3);
     TEST_USER_STRING_SET.add("ab");
+    TEST_USER_BOUNDED_TRIE.add("bt_ab");
     TEST_USER_HISTOGRAM.update(4);
     state.deactivate();
 
@@ -387,6 +392,7 @@ public class ExecutionStateSamplerTest {
     TEST_USER_DISTRIBUTION.update(12);
     TEST_USER_GAUGE.set(13);
     TEST_USER_STRING_SET.add("cd");
+    TEST_USER_BOUNDED_TRIE.add("bt_cd");
     TEST_USER_HISTOGRAM.update(14);
     TEST_USER_HISTOGRAM.update(14);
 
@@ -425,6 +431,14 @@ public class ExecutionStateSamplerTest {
             .getStringSet(TEST_USER_STRING_SET.getName())
             .getCumulative()
             .stringSet());
+    assertEquals(
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("bt_ab", String.valueOf(false)))),
+        tracker
+            .getMetricsContainerRegistry()
+            .getContainer("ptransformId")
+            .getBoundedTrie(TEST_USER_BOUNDED_TRIE.getName())
+            .getCumulative()
+            .extractResult());
     assertEquals(
         1L,
         (long)
@@ -471,6 +485,14 @@ public class ExecutionStateSamplerTest {
             .getStringSet(TEST_USER_STRING_SET.getName())
             .getCumulative()
             .stringSet());
+    assertEquals(
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("bt_cd", String.valueOf(false)))),
+        tracker
+            .getMetricsContainerRegistry()
+            .getUnboundContainer()
+            .getBoundedTrie(TEST_USER_BOUNDED_TRIE.getName())
+            .getCumulative()
+            .extractResult());
     assertEquals(
         2L,
         (long)

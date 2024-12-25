@@ -21,18 +21,23 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
- * The result of a {@link BoundedTrie} metric. The {@link BoundedTrieResult} hold an immutable copy
- * of the set from which it was initially created representing that a result cannot be modified once
- * created.
+ * <b>Internal:</b> For internal use only and not for public consumption. This API is subject to
+ * incompatible changes, or even removal, in a future release.
+ *
+ * <p>The result of a {@link BoundedTrie} metric. The {@link BoundedTrieResult} hold an immutable
+ * copy of the set from which it was initially created representing that a result cannot be modified
+ * once created.
  */
+@Internal
 @AutoValue
 public abstract class BoundedTrieResult {
 
-  public abstract Set<List<String>> result();
+  public abstract Set<List<String>> getResult();
 
   /**
    * Creates a {@link BoundedTrieResult} from the given {@link Set} by making an immutable copy.
