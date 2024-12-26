@@ -120,7 +120,7 @@ public interface ClientBuilderFactory {
   }
 
   /** Trust provider to skip certificate verification. Should only be used for test pipelines. */
-  public class SkipCertificateVerificationTrustManagerProvider implements TlsTrustManagersProvider {
+  class SkipCertificateVerificationTrustManagerProvider implements TlsTrustManagersProvider {
     public SkipCertificateVerificationTrustManagerProvider() {}
 
     @Override
@@ -128,15 +128,15 @@ public interface ClientBuilderFactory {
       TrustManager tm =
           new X509TrustManager() {
             @Override
-            public final void checkClientTrusted(X509Certificate[] x509CertificateArr, String str)
+            public void checkClientTrusted(X509Certificate[] x509CertificateArr, String str)
                 throws CertificateException {}
 
             @Override
-            public final void checkServerTrusted(X509Certificate[] x509CertificateArr, String str)
+            public void checkServerTrusted(X509Certificate[] x509CertificateArr, String str)
                 throws CertificateException {}
 
             @Override
-            public final X509Certificate[] getAcceptedIssuers() {
+            public X509Certificate[] getAcceptedIssuers() {
               return new X509Certificate[0];
             }
           };
