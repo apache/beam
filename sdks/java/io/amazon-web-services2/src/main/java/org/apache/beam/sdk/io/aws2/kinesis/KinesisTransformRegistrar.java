@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -131,6 +132,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .skipCertificateVerification(!configuration.verifyCertificate)
                       .build())
               .withPartitioner(p -> pk)
+              .withRecordAggregationDisabled()
               .withSerializer(serializer);
 
       return writeTransform;
