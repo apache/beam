@@ -24,10 +24,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.Serializable;
 import java.net.URI;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -37,6 +41,7 @@ import software.amazon.awssdk.core.client.builder.SdkAsyncClientBuilder;
 import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.http.TlsTrustManagersProvider;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
@@ -114,6 +119,32 @@ public interface ClientBuilderFactory {
     return ClientBuilderFactory.getFactory(options).create(builder, config, options).build();
   }
 
+  /** Trust provider to skip certificate verification. Should only be used for test pipelines. */
+  public class SkipCertificateVerificationTrustManagerProvider implements TlsTrustManagersProvider {
+    public SkipCertificateVerificationTrustManagerProvider() {}
+
+    @Override
+    public TrustManager[] trustManagers() {
+      TrustManager tm =
+          new X509TrustManager() {
+            @Override
+            public final void checkClientTrusted(X509Certificate[] x509CertificateArr, String str)
+                throws CertificateException {}
+
+            @Override
+            public final void checkServerTrusted(X509Certificate[] x509CertificateArr, String str)
+                throws CertificateException {}
+
+            @Override
+            public final X509Certificate[] getAcceptedIssuers() {
+              return new X509Certificate[0];
+            }
+          };
+      TrustManager[] tms = {tm};
+      return tms;
+    }
+  }
+
   /**
    * Default implementation of {@link ClientBuilderFactory}. This implementation can configure both,
    * synchronous clients using {@link ApacheHttpClient} as well as asynchronous clients using {@link
@@ -184,8 +215,7 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
-            throw new RuntimeException(
-                "Made it this far (SdkSyncClientBuilder) - probably means the tlsKeyManagersProvider is not right");
+            client.tlsTrustManagersProvider(new SkipCertificateVerificationTrustManagerProvider());
           }
 
           // must use builder to make sure client is managed by the SDK
@@ -214,14 +244,11 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
-            throw new RuntimeException(
-                "Made it this far (SdkAsyncClientBuilder) - probably means the tlsKeyManagersProvider is not right");
+            client.tlsTrustManagersProvider(new SkipCertificateVerificationTrustManagerProvider());
           }
 
           // must use builder to make sure client is managed by the SDK
           ((SdkAsyncClientBuilder<?, ?>) builder).httpClientBuilder(client);
-        } else {
-          throw new RuntimeException("Surprising builder type: " + builder.toString());
         }
       }
       return builder;
