@@ -165,7 +165,6 @@ public interface ClientBuilderFactory {
       boolean skipCertificateVerification = false;
       if (config.skipCertificateVerification() != null) {
         skipCertificateVerification = config.skipCertificateVerification();
-        throw new RuntimeException("config was non-null " + skipCertificateVerification);
       }
       if (proxyConfig != null || httpConfig != null || skipCertificateVerification) {
         if (builder instanceof SdkSyncClientBuilder) {
@@ -185,8 +184,6 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
-            throw new RuntimeException(
-                "Made it this far - probably means the tlsKeyManagersProvider is not right");
           }
 
           // must use builder to make sure client is managed by the SDK
@@ -215,8 +212,6 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
-            throw new RuntimeException(
-                "Made it this far - probably means the tlsKeyManagersProvider is not right");
           }
 
           // must use builder to make sure client is managed by the SDK
