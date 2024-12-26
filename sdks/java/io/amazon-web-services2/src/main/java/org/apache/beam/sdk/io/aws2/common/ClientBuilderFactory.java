@@ -184,6 +184,8 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+            throw new RuntimeException(
+                "Made it this far (SdkSyncClientBuilder) - probably means the tlsKeyManagersProvider is not right");
           }
 
           // must use builder to make sure client is managed by the SDK
@@ -212,10 +214,14 @@ public interface ClientBuilderFactory {
 
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+            throw new RuntimeException(
+                "Made it this far (SdkAsyncClientBuilder) - probably means the tlsKeyManagersProvider is not right");
           }
 
           // must use builder to make sure client is managed by the SDK
           ((SdkAsyncClientBuilder<?, ?>) builder).httpClientBuilder(client);
+        } else {
+          throw new RuntimeException("Surprising builder type: " + builder.toString());
         }
       }
       return builder;
