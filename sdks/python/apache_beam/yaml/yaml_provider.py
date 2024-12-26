@@ -907,7 +907,7 @@ class YamlProviders:
 
     def to_loggable_json_recursive(o):
       if isinstance(o, (str, bytes)):
-        return o
+        return str(o)
       elif callable(getattr(o, '_asdict', None)):
         return to_loggable_json_recursive(o._asdict())
       elif isinstance(o, Mapping) and callable(getattr(o, 'items', None)):
