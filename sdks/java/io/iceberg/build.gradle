@@ -45,7 +45,6 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation library.java.avro
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
