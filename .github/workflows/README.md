@@ -27,13 +27,15 @@ The following is guidance on how to practically make changes that fix workflows.
 
 3) Run the workflow designating your branch.
 
-    In the GitHub workflow interface, you can designate any branch of the repository to run the workflow against. Selecting your branch allows you to test the changes you made.
+   In the GitHub workflow interface, you can designate any branch of the repository to run the workflow against. Selecting your branch allows you to test the changes you made. The following screenshot shows an example of this feature.
+    
+   ![image](https://github.com/user-attachments/assets/33ca43fb-b0f8-42c8-80e2-ac84a49e2490)
 
-4) Create a PR, pasting the link to your successful workflow run in the branch
+5) Create a PR, pasting the link to your successful workflow run in the branch
 
     When doing a PR, the checks will not run against your branch. Your reviewer may not know this so you'll want to mention this in your PR description, pasting the link to your successful run.
 
-5) After PR merges, execute the workflow manually to validate your merged changes.
+6) After PR merges, execute the workflow manually to validate your merged changes.
 
 # Running Workflows Manually
 
