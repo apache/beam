@@ -21,6 +21,10 @@ name: TypeScript Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      runXlang:
+        description: 'Type "true" if you want to run xlang tests'
+        default: false
   schedule:
     - cron: '10 2 * * *'
   push:
@@ -68,6 +72,8 @@ jobs:
 #        if: ${{ matrix.os != 'ubuntu-latest' }}
   typescript_xlang_tests:
     name: 'TypeScript xlang Tests'
+    # TODO(https://github.com/apache/beam/issues/33346): remove manual trigger after fixing referenced issue.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runXlang == 'true')
     runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 15
     strategy:
@@ -123,7 +129,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - check_gcp_variables
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     strategy:
       fail-fast: false
     steps:
