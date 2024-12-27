@@ -378,7 +378,8 @@ class GCSFileSystem(FileSystem):
       components = components[:-1]
     lineage.add('gcs', *components)
 
-  def check_splittability(self, path):
+  def is_file_splittable(self, path):
+    return True
     try:
       file_metadata = self._gcsIO()._status(path)
       if file_metadata.get('content_encoding', None) == 'gzip':
