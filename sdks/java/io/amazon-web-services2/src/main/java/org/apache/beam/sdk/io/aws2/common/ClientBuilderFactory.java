@@ -41,6 +41,7 @@ import software.amazon.awssdk.core.client.builder.SdkAsyncClientBuilder;
 import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.http.Protocol;
 import software.amazon.awssdk.http.TlsTrustManagersProvider;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
@@ -245,6 +246,7 @@ public interface ClientBuilderFactory {
           if (skipCertificateVerification) {
             client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
             client.tlsTrustManagersProvider(new SkipCertificateVerificationTrustManagerProvider());
+            client.protocol(Protocol.HTTP1_1);
           }
 
           // must use builder to make sure client is managed by the SDK
