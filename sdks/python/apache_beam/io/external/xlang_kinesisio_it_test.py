@@ -143,12 +143,11 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
 
   def set_localstack(self):
     self.localstack = DockerContainer('localstack/localstack:{}'
-                                      .format(LOCALSTACK_VERSION))\
-      .with_env('SERVICES', 'kinesis')\
-      .with_env('KINESIS_PORT', '4568')\
-      .with_env('USE_SSL', 'true')\
-      .with_exposed_ports(4568)\
-      .with_volume_mapping('/var/run/docker.sock', '/var/run/docker.sock', 'rw')
+                                  .format(LOCALSTACK_VERSION))\
+      .with_bind_ports(4566, 4566)
+
+    for i in range(4510, 4560):
+      self.localstack = self.localstack.with_bind_ports(i, i)
 
     # Repeat if ReadTimeout is raised.
     for i in range(4):
