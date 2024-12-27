@@ -70,7 +70,7 @@
 
 ## Breaking Changes
 
-* AWS V1 I/Os have been removed (Java). As part of this, x-lang Python I/Os have been updated to consume the V2 IOs and they also no longer support setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
+* AWS V1 I/Os have been removed (Java). As part of this, x-lang Python Kinesis I/O has been updated to consume the V2 IO and it also no longer supports setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
 
 ## Deprecations
 
