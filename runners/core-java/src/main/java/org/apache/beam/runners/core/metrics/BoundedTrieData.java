@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>Represents data stored in a bounded trie. This data structure is used to efficiently store and
  * aggregate a collection of string sequences, paths/FQN with a limited size.
  *
- * <p>This class is thread-safe but the underlying BoundedTrieNode contained on it isn't. This is
+ * <p>This class is thread-safe but the underlying BoundedTrieNode contained in it isn't. This is
  * intentional for performance concerns. Hence, this class does not expose the contained node and
  * should not be modified to do so in future when used with multiple threads. This class choose to
  * achieve thread-safety through locks rather than just creating and returning immutable instances
@@ -147,8 +147,8 @@ public class BoundedTrieData implements Serializable {
   }
 
   /**
-   * Returns an immutable set of lists, where each list represents a path in the bounded trie. The
-   * last element in each path is a boolean in string representation denoting whether this path was
+   * Returns {@link BoundedTrieResult}, which represents all path in the bounded trie. The last
+   * element in each path is a boolean in string representation denoting whether this path was
    * truncated. i.e. <["a", "b", "false"], ["c", "true"]>
    *
    * @return The set of paths.
@@ -281,7 +281,6 @@ public class BoundedTrieData implements Serializable {
   }
 
   // ------------------------------ BoundedTrieNode Implementation ------------------------------
-
   /**
    * BoundedTrieNode implementation. This class is not thread-safe and relies on the {@link
    * BoundedTrieData} which uses this class to ensure thread-safety by acquiring a lock on the root

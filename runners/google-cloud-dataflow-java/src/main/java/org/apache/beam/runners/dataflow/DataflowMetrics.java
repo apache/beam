@@ -59,7 +59,8 @@ import org.slf4j.LoggerFactory;
 class DataflowMetrics extends MetricResults {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
-  // TODO: Remove this
+  // TODO (rosinha): Remove this once bounded_trie is available in metrics proto Dataflow
+  //  java client.
   public static final String BOUNDED_TRIE = "bounded_trie";
   /**
    * Client for the Dataflow service. This can be used to query the service for information about
