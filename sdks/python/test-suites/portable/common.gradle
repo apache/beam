@@ -262,10 +262,10 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
 project.tasks.register("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
-              //  ':runners:spark:3:job-server:shadowJar',
-              //  'portableLocalRunnerJuliaSetWithSetupPy',
-              //  'portableWordCountSparkRunnerBatch',
-              //  'portableLocalRunnerTestWithRequirementsFile'
+               ':runners:spark:3:job-server:shadowJar',
+               'portableLocalRunnerJuliaSetWithSetupPy',
+               'portableWordCountSparkRunnerBatch',
+               'portableLocalRunnerTestWithRequirementsFile'
                ]
 }
 
@@ -384,11 +384,11 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
 
   doLast {
     def tests = [
-            // "apache_beam/io/gcp/bigquery_read_it_test.py",
-            // "apache_beam/io/external/xlang_jdbcio_it_test.py",
-            // "apache_beam/io/external/xlang_kafkaio_it_test.py",
+            "apache_beam/io/gcp/bigquery_read_it_test.py",
+            "apache_beam/io/external/xlang_jdbcio_it_test.py",
+            "apache_beam/io/external/xlang_kafkaio_it_test.py",
             "apache_beam/io/external/xlang_kinesisio_it_test.py",
-            // "apache_beam/io/external/xlang_debeziumio_it_test.py",
+            "apache_beam/io/external/xlang_debeziumio_it_test.py",
     ]
     def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
     def pipelineOpts = [
