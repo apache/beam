@@ -239,7 +239,8 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
         extra = set(py_value.keys()) - set(row_type._fields)
         if extra:
           raise ValueError(
-              f"Unknown fields: {extra}. Valid fields: {row_type._fields}")
+              f"Transform '{self.identifier()}' was configured with unknown "
+              f"fields: {extra}. Valid fields: {set(row_type._fields)}")
         return row_type(
             *[
                 dict_to_row_recursive(
@@ -653,8 +654,8 @@ class ExternalTransform(ptransform.PTransform):
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
-    self._inputs = {}  # type: Dict[str, pvalue.PCollection]
-    self._outputs = {}  # type: Dict[str, pvalue.PCollection]
+    self._inputs: Dict[str, pvalue.PCollection] = {}
+    self._outputs: Dict[str, pvalue.PCollection] = {}
 
   def with_output_types(self, *args, **kwargs):
     return WithTypeHints.with_output_types(self, *args, **kwargs)
@@ -691,13 +692,11 @@ class ExternalTransform(ptransform.PTransform):
       cls._external_namespace.value = prev
 
   @classmethod
-  def _fresh_namespace(cls):
-    # type: () -> str
+  def _fresh_namespace(cls) -> str:
     ExternalTransform._namespace_counter += 1
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
-  def expand(self, pvalueish):
-    # type: (pvalue.PCollection) -> pvalue.PCollection
+  def expand(self, pvalueish: pvalue.PCollection) -> pvalue.PCollection:
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}
     elif isinstance(pvalueish, (list, tuple)):
@@ -740,7 +739,7 @@ class ExternalTransform(ptransform.PTransform):
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
-        namespace=self._external_namespace,
+        namespace=self._external_namespace,  # type: ignore[arg-type]
         transform=transform_proto,
         output_coder_requests=output_coders,
         pipeline_options=pipeline._options.to_runner_api())
@@ -923,6 +922,7 @@ class ExternalTransform(ptransform.PTransform):
             for tag,
             pcoll in self._expanded_transform.outputs.items()
         },
+        annotations=self._expanded_transform.annotations,
         environment_id=self._expanded_transform.environment_id)
 
 
@@ -963,14 +963,14 @@ class JavaJarExpansionService(object):
       self, path_to_jar, extra_args=None, classpath=None, append_args=None):
     if extra_args and append_args:
       raise ValueError('Only one of extra_args or append_args may be provided')
-    self._path_to_jar = path_to_jar
+    self.path_to_jar = path_to_jar
     self._extra_args = extra_args
     self._classpath = classpath or []
     self._service_count = 0
     self._append_args = append_args or []
 
   def is_existing_service(self):
-    return subprocess_server.is_service_endpoint(self._path_to_jar)
+    return subprocess_server.is_service_endpoint(self.path_to_jar)
 
   @staticmethod
   def _expand_jars(jar):
@@ -998,7 +998,7 @@ class JavaJarExpansionService(object):
   def _default_args(self):
     """Default arguments to be used by `JavaJarExpansionService`."""
 
-    to_stage = ','.join([self._path_to_jar] + sum((
+    to_stage = ','.join([self.path_to_jar] + sum((
         JavaJarExpansionService._expand_jars(jar)
         for jar in self._classpath or []), []))
     args = ['{{PORT}}', f'--filesToStage={to_stage}']
@@ -1010,8 +1010,8 @@ class JavaJarExpansionService(object):
 
   def __enter__(self):
     if self._service_count == 0:
-      self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
-          self._path_to_jar)
+      self.path_to_jar = subprocess_server.JavaJarServer.local_jar(
+          self.path_to_jar)
       if self._extra_args is None:
         self._extra_args = self._default_args() + self._append_args
       # Consider memoizing these servers (with some timeout).
@@ -1019,7 +1019,7 @@ class JavaJarExpansionService(object):
           'Starting a JAR-based expansion service from JAR %s ' + (
               'and with classpath: %s' %
               self._classpath if self._classpath else ''),
-          self._path_to_jar)
+          self.path_to_jar)
       classpath_urls = [
           subprocess_server.JavaJarServer.local_jar(path)
           for jar in self._classpath
@@ -1027,7 +1027,7 @@ class JavaJarExpansionService(object):
       ]
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
-          self._path_to_jar,
+          self.path_to_jar,
           self._extra_args,
           classpath=classpath_urls)
       self._service = self._service_provider.__enter__()

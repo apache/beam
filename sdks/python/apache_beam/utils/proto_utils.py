@@ -46,7 +46,7 @@ def pack_Any(msg: message.Message) -> any_pb2.Any:
 
 
 @overload
-def pack_Any(msg: None) -> None:
+def pack_Any(msg: None) -> None:  # type: ignore[overload-cannot-match]
   pass
 
 

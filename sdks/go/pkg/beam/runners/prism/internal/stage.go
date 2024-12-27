@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"runtime/debug"
 	"sync/atomic"
 	"time"
@@ -33,8 +34,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -57,19 +58,25 @@ type link struct {
 // account, but all serialization boundaries remain since the pcollections
 // would continue to get serialized.
 type stage struct {
-	ID           string
-	transforms   []string
-	primaryInput string          // PCollection used as the parallel input.
-	outputs      []link          // PCollections that must escape this stage.
-	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
-	internalCols []string        // PCollections that escape. Used for precise coder sending.
-	envID        string
-	finalize     bool
-	stateful     bool
+	ID                 string
+	transforms         []string
+	primaryInput       string          // PCollection used as the parallel input.
+	outputs            []link          // PCollections that must escape this stage.
+	sideInputs         []engine.LinkID // Non-parallel input PCollections and their consumers
+	internalCols       []string        // PCollections that escape. Used for precise coder sending.
+	envID              string
+	finalize           bool
+	stateful           bool
+	onWindowExpiration engine.StaticTimerID
+
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
-	hasTimers            []struct{ Transform, TimerFamily string }
+	hasTimers            []engine.StaticTimerID
 	processingTimeTimers map[string]bool
+
+	// stateTypeLen maps state values to encoded lengths for the type.
+	// Only used for OrderedListState which must manipulate individual state datavalues.
+	stateTypeLen map[engine.LinkID]func([]byte) int
 
 	exe              transformExecuter
 	inputTransformID string
@@ -361,7 +368,7 @@ func portFor(wInCid string, wk *worker.W) []byte {
 	}
 	sourcePortBytes, err := proto.Marshal(sourcePort)
 	if err != nil {
-		slog.Error("bad port", err, slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
+		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
 	}
 	return sourcePortBytes
 }
@@ -436,6 +443,38 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 				rewriteCoder(&s.SetSpec.ElementCoderId)
 			case *pipepb.StateSpec_OrderedListSpec:
 				rewriteCoder(&s.OrderedListSpec.ElementCoderId)
+				// Add the length determination helper for OrderedList state values.
+				if stg.stateTypeLen == nil {
+					stg.stateTypeLen = map[engine.LinkID]func([]byte) int{}
+				}
+				linkID := engine.LinkID{
+					Transform: tid,
+					Local:     stateID,
+				}
+				var fn func([]byte) int
+				switch v := coders[s.OrderedListSpec.GetElementCoderId()]; v.GetSpec().GetUrn() {
+				case urns.CoderBool:
+					fn = func(_ []byte) int {
+						return 1
+					}
+				case urns.CoderDouble:
+					fn = func(_ []byte) int {
+						return 8
+					}
+				case urns.CoderVarInt:
+					fn = func(b []byte) int {
+						_, n := protowire.ConsumeVarint(b)
+						return int(n)
+					}
+				case urns.CoderLengthPrefix, urns.CoderBytes, urns.CoderStringUTF8:
+					fn = func(b []byte) int {
+						l, n := protowire.ConsumeVarint(b)
+						return int(l) + n
+					}
+				default:
+					rewriteErr = fmt.Errorf("unknown coder used for ordered list state after re-write id: %v coder: %v, for state %v for transform %v in stage %v", s.OrderedListSpec.GetElementCoderId(), v, stateID, tid, stg.ID)
+				}
+				stg.stateTypeLen[linkID] = fn
 			case *pipepb.StateSpec_CombiningSpec:
 				rewriteCoder(&s.CombiningSpec.AccumulatorCoderId)
 			case *pipepb.StateSpec_MapSpec:
@@ -452,7 +491,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			}
 		}
 		for timerID, v := range pardo.GetTimerFamilySpecs() {
-			stg.hasTimers = append(stg.hasTimers, struct{ Transform, TimerFamily string }{Transform: tid, TimerFamily: timerID})
+			stg.hasTimers = append(stg.hasTimers, engine.StaticTimerID{TransformID: tid, TimerFamily: timerID})
 			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
 				if stg.processingTimeTimers == nil {
 					stg.processingTimeTimers = map[string]bool{}

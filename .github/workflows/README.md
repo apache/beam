@@ -15,6 +15,27 @@
     under the License.
 -->
 
+# How to fix Workflows for Committers
+
+The following is guidance on how to practically make changes that fix workflows.
+
+1) Create a branch in https://github.com/apache/beam not your fork.
+
+    The reason to perform changes to a branch of the main repo instead of your fork is due to the challenge in replicating the environment within which Beam GitHub workflows execute. GitHub workflows allow you to execute against a branch of a repo.
+
+2) Make changes in this branch you anticipate will fix the failing workflow.
+
+3) Run the workflow designating your branch.
+
+   In the GitHub workflow interface, you can designate any branch of the repository to run the workflow against. Selecting your branch allows you to test the changes you made. The following screenshot shows an example of this feature.
+   ![image](https://github.com/user-attachments/assets/33ca43fb-b0f8-42c8-80e2-ac84a49e2490)
+
+5) Create a PR, pasting the link to your successful workflow run in the branch
+
+    When doing a PR, the checks will not run against your branch. Your reviewer may not know this so you'll want to mention this in your PR description, pasting the link to your successful run.
+
+6) After PR merges, execute the workflow manually to validate your merged changes.
+
 # Running Workflows Manually
 
 Most workflows will get kicked off automatically when you open a PR, push code, or on a schedule.
@@ -285,6 +306,7 @@ Additional PreCommit jobs running basic SDK unit test on a matrices of operating
 | [Java Tests](https://github.com/apache/beam/actions/workflows/java_tests.yml) | [![.github/workflows/java_tests.yml](https://github.com/apache/beam/actions/workflows/java_tests.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/java_tests.yml?query=event%3Aschedule) |
 | [Python Tests](https://github.com/apache/beam/actions/workflows/python_tests.yml) | [![.github/workflows/python_tests.yml](https://github.com/apache/beam/actions/workflows/python_tests.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/python_tests.yml?query=event%3Aschedule) |
 | [TypeScript Tests](https://github.com/apache/beam/actions/workflows/typescript_tests.yml) | [![.github/workflows/typescript_tests.yml](https://github.com/apache/beam/actions/workflows/typescript_tests.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/typescript_tests.yml?query=event%3Aschedule) |
+| [Build Wheels](https://github.com/apache/beam/actions/workflows/build_wheels.yml) | [![.github/workflows/build_wheels.yml](https://github.com/apache/beam/actions/workflows/build_wheels.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/build_wheels.yml?query=event%3Aschedule) |
 
 ### PostCommit Jobs
 
@@ -330,7 +352,6 @@ PostCommit Jobs run in a schedule against master branch and generally do not get
 | [ PostCommit Java SingleStoreIO IT ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml) | N/A |`beam_PostCommit_Java_SingleStoreIO_IT.json`| [![.github/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml?query=event%3Aschedule) |
 | [ PostCommit Java PVR Spark3 Streaming ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml) | N/A |`beam_PostCommit_Java_PVR_Spark3_Streaming.json`| [![.github/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml?query=event%3Aschedule) |
 | [ PostCommit Java PVR Spark Batch ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml) | N/A |`beam_PostCommit_Java_PVR_Spark_Batch.json`| [![.github/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml?query=event%3Aschedule) |
-| [ PostCommit Java Sickbay ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Sickbay.yml) | N/A |`beam_PostCommit_Java_Sickbay.json`| [![.github/workflows/beam_PostCommit_Java_Sickbay.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Sickbay.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Sickbay.yml?query=event%3Aschedule) |
 | [ PostCommit Java Tpcds Dataflow ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Dataflow.yml) | N/A |`beam_PostCommit_Java_Tpcds_Dataflow.json`| [![.github/workflows/beam_PostCommit_Java_Tpcds_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Dataflow.yml?query=event%3Aschedule) |
 | [ PostCommit Java Tpcds Flink ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Flink.yml) | N/A |`beam_PostCommit_Java_Tpcds_Flink.json`| [![.github/workflows/beam_PostCommit_Java_Tpcds_Flink.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Flink.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Flink.yml?query=event%3Aschedule) |
 | [ PostCommit Java Tpcds Spark ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Spark.yml) | N/A |`beam_PostCommit_Java_Tpcds_Spark.json`| [![.github/workflows/beam_PostCommit_Java_Tpcds_Spark.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Spark.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Tpcds_Spark.yml?query=event%3Aschedule) |
@@ -371,7 +392,6 @@ PostCommit Jobs run in a schedule against master branch and generally do not get
 | [ PostCommit Python Xlang Gcp Dataflow ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_Gcp_Dataflow.yml) | N/A |`beam_PostCommit_Python_Xlang_Gcp_Dataflow.json`| [![.github/workflows/beam_PostCommit_Python_Xlang_Gcp_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_Gcp_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_Gcp_Dataflow.yml?query=event%3Aschedule) |
 | [ PostCommit Python Xlang Gcp Direct ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_Gcp_Direct.yml) | N/A |`beam_PostCommit_Python_Xlang_Gcp_Direct.json`| [![.github/workflows/beam_PostCommit_Python_Xlang_Gcp_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_Gcp_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_Gcp_Direct.yml?query=event%3Aschedule) |
 | [ PostCommit Python Xlang IO Dataflow ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_IO_Dataflow.yml) | N/A |`beam_PostCommit_Python_Xlang_IO_Dataflow.json`| [![.github/workflows/beam_PostCommit_Python_Xlang_IO_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_IO_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Python_Xlang_IO_Dataflow.yml?query=event%3Aschedule) |
-| [ PostCommit Sickbay Python ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Sickbay_Python.yml) | ['3.8','3.9','3.10','3.11']  |`beam_PostCommit_Sickbay_Python.json`| [![.github/workflows/beam_PostCommit_Sickbay_Python.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Sickbay_Python.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Sickbay_Python.yml?query=event%3Aschedule) |
 | [ PostCommit SQL ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_SQL.yml) | N/A |`beam_PostCommit_SQL.json`| [![.github/workflows/beam_PostCommit_SQL.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_SQL.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_SQL.yml?query=event%3Aschedule) |
 | [ PostCommit TransformService Direct ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_TransformService_Direct.yml) | N/A |`beam_PostCommit_TransformService_Direct.json`| [![.github/workflows/beam_PostCommit_TransformService_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_TransformService_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_TransformService_Direct.yml?query=event%3Aschedule)
 | [ PostCommit Website Test](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Website_Test.yml) | N/A |`beam_PostCommit_Website_Test.json`| [![.github/workflows/beam_PostCommit_Website_Test.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Website_Test.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Website_Test.yml?query=event%3Aschedule) |

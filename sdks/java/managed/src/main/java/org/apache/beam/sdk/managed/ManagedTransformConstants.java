@@ -50,9 +50,27 @@ public class ManagedTransformConstants {
   private static final Map<String, String> KAFKA_WRITE_MAPPINGS =
       ImmutableMap.<String, String>builder().put("data_format", "format").build();
 
+  private static final Map<String, String> BIGQUERY_READ_MAPPINGS =
+      ImmutableMap.<String, String>builder()
+          .put("table", "table_spec")
+          .put("fields", "selected_fields")
+          .build();
+
+  private static final Map<String, String> BIGQUERY_WRITE_MAPPINGS =
+      ImmutableMap.<String, String>builder()
+          .put("at_least_once", "use_at_least_once_semantics")
+          .put("triggering_frequency", "triggering_frequency_seconds")
+          .build();
+
   public static final Map<String, Map<String, String>> MAPPINGS =
       ImmutableMap.<String, Map<String, String>>builder()
           .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ), KAFKA_READ_MAPPINGS)
           .put(getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE), KAFKA_WRITE_MAPPINGS)
+          .put(
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ),
+              BIGQUERY_READ_MAPPINGS)
+          .put(
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE),
+              BIGQUERY_WRITE_MAPPINGS)
           .build();
 }

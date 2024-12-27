@@ -366,7 +366,6 @@ public class StreamingStepMetricsContainerTest {
             .setMetricsNamespace("BigQuerySink")
             .setMetricValues(Collections.singletonList(expectedCounter));
 
-    // Expected histogram metric
     List<Long> bucketCounts = Collections.singletonList(1L);
 
     Linear linearOptions = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
@@ -391,6 +390,44 @@ public class StreamingStepMetricsContainerTest {
             .setMetricValues(Collections.singletonList(expectedHistogram));
 
     assertThat(updates, containsInAnyOrder(histograms, counters));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdatesKafka_populatedMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+    MetricName histogramMetricName = MetricName.named("KafkaSink", "histogram");
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getPerWorkerHistogram(histogramMetricName, linearBuckets).update(5.0);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+
+    // Expected histogram metric
+    List<Long> bucketCounts = Collections.singletonList(1L);
+
+    Linear linearOptions = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
+    BucketOptions bucketOptions = new BucketOptions().setLinear(linearOptions);
+
+    DataflowHistogramValue linearHistogram =
+        new DataflowHistogramValue()
+            .setCount(1L)
+            .setBucketOptions(bucketOptions)
+            .setBucketCounts(bucketCounts);
+
+    MetricValue expectedHistogram =
+        new MetricValue()
+            .setMetric("histogram")
+            .setMetricLabels(new HashMap<>())
+            .setValueHistogram(linearHistogram);
+
+    PerStepNamespaceMetrics histograms =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s2")
+            .setMetricsNamespace("KafkaSink")
+            .setMetricValues(Collections.singletonList(expectedHistogram));
+
+    assertThat(updates, containsInAnyOrder(histograms));
   }
 
   @Test

@@ -64,6 +64,7 @@ excluded_patterns=(
     'apache_beam/runners/portability/'
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
+    'apache_beam/runners/dask/transform_evaluator.*'
     'apache_beam/testing/benchmarks/chicago_taxi/'
     'apache_beam/testing/benchmarks/cloudml/'
     'apache_beam/testing/benchmarks/inference/'
@@ -124,7 +125,6 @@ extensions = [
 ]
 master_doc = 'index'
 html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 project = 'Apache Beam'
 version = beam_version.__version__
 release = version
@@ -135,7 +135,7 @@ autodoc_member_order = 'bysource'
 autodoc_mock_imports = ["tensorrt", "cuda", "torch",
     "onnxruntime", "onnx", "tensorflow", "tensorflow_hub",
     "tensorflow_transform", "tensorflow_metadata", "transformers", "xgboost", "datatable", "transformers",
-    "sentence_transformers", "redis", "tensorflow_text", "feast",
+    "sentence_transformers", "redis", "tensorflow_text", "feast", "dask",
     ]
 
 # Allow a special section for documenting DataFrame API
@@ -244,6 +244,9 @@ ignore_identifiers = [
 
   # IPython Magics py:class reference target not found
   'IPython.core.magic.Magics',
+
+  # Type variables.
+  'apache_beam.transforms.util.T',
 ]
 ignore_references = [
   'BeamIOError',

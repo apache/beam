@@ -56,6 +56,7 @@
   config: {}
   transforms:
     MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
+    RunInference: 'apache_beam.yaml.yaml_ml.run_inference'
 
 - type: renaming
   transforms:
@@ -101,3 +102,8 @@
         Explode: "beam:schematransform:org.apache.beam:yaml:explode:v1"
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+
+- type: 'python'
+  config: {}
+  transforms:
+    Enrichment: 'apache_beam.yaml.yaml_enrichment.enrichment_transform'

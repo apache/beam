@@ -202,10 +202,10 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
 
   @SuppressWarnings("rawtypes")
   @Override
-  public @NonNull List<FieldValueGetter> fieldValueGetters(
-      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
+  public <T> @NonNull List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      @NonNull TypeDescriptor<T> targetTypeDescriptor, @NonNull Schema schema) {
     return schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema).keySet().stream()
-        .map(FieldExtractor::new)
+        .<FieldExtractor<TFieldIdEnum, @NonNull T>>map(FieldExtractor::new)
         .collect(Collectors.toList());
   }
 
@@ -242,11 +242,12 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
       if (factoryMethods.size() > 1) {
         throw new IllegalStateException("Overloaded factory methods: " + factoryMethods);
       }
-      return FieldValueTypeInformation.forSetter(factoryMethods.get(0), "", Collections.emptyMap());
+      return FieldValueTypeInformation.forSetter(
+          TypeDescriptor.of(type), factoryMethods.get(0), "");
     } else {
       try {
         return FieldValueTypeInformation.forField(
-            type.getDeclaredField(fieldName), 0, Collections.emptyMap());
+            TypeDescriptor.of(type), type.getDeclaredField(fieldName), 0);
       } catch (NoSuchFieldException e) {
         throw new IllegalArgumentException(e);
       }
@@ -374,7 +375,7 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
     }
   }
 
-  private static class FieldExtractor<FieldT extends TFieldIdEnum, T extends TBase<T, FieldT>>
+  private static class FieldExtractor<FieldT extends TFieldIdEnum, T extends @NonNull Object>
       implements FieldValueGetter<T, Object> {
     private final FieldT field;
 
@@ -384,8 +385,9 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
 
     @Override
     public @Nullable Object get(T thrift) {
-      if (!(thrift instanceof TUnion) || thrift.isSet(field)) {
-        final Object value = thrift.getFieldValue(field);
+      TBase<?, TFieldIdEnum> t = (TBase<?, TFieldIdEnum>) thrift;
+      if (!(thrift instanceof TUnion) || t.isSet(field)) {
+        final Object value = t.getFieldValue(field);
         if (value instanceof Enum<?>) {
           return ((Enum<?>) value).ordinal();
         } else {

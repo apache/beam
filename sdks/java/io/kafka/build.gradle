@@ -31,13 +31,11 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext {
     summary = "Library to read Kafka topics."
-    confluentVersion = "7.6.0"
+    // newer versions e.g. 7.6.* require dropping support for older kafka versions.
+    confluentVersion = "7.5.5"
 }
 
 def kafkaVersions = [
-    '01103': "0.11.0.3",
-    '100': "1.0.0",
-    '111': "1.1.1",
     '201': "2.0.1",
     '211': "2.1.1",
     '222': "2.2.2",
@@ -139,15 +137,13 @@ task kafkaVersionsCompatibilityTest {
   description = 'Runs KafkaIO with different Kafka client APIs'
   def testNames = createTestList(kafkaVersions, "Test")
   dependsOn testNames
-  dependsOn (":sdks:java:io:kafka:kafka-01103:kafkaVersion01103BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-100:kafkaVersion100BatchIT")
-  dependsOn (":sdks:java:io:kafka:kafka-111:kafkaVersion111BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-201:kafkaVersion201BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-211:kafkaVersion211BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-222:kafkaVersion222BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-231:kafkaVersion231BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-241:kafkaVersion241BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-251:kafkaVersion251BatchIT")
+  dependsOn (":sdks:java:io:kafka:kafka-312:kafkaVersion312BatchIT")
 }
 
 static def createTestList(Map<String, String> prefixMap, String suffix) {

@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 
@@ -27,7 +28,6 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -92,6 +92,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			cancelFn(err)
 			terminalOnceWrap()
 		},
+		Logger:           s.logger, // TODO substitute with a configured logger.
 		artifactEndpoint: s.Endpoint(),
 	}
 	// Stop the idle timer when a new job appears.
@@ -173,15 +174,14 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Validate all the state features
 			for _, spec := range pardo.GetStateSpecs() {
 				isStateful = true
-				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(),
+					urns.UserStateBag, urns.UserStateMultiMap, urns.UserStateOrderedList)
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
 				isStateful = true
 				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
-
-			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
 
 			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
 			if pardo.GetRestrictionCoderId() != "" && isStateful {

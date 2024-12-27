@@ -80,7 +80,7 @@ jobs:
       - name: run examplesIntegrationTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.15:examplesIntegrationTest
+          gradle-command: :runners:flink:1.19:examplesIntegrationTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -94,3 +94,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true

@@ -107,7 +107,7 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     for i in range(retries):
       try:
         self.db = PostgresContainer(
-            'debezium/example-postgres:latest',
+            'quay.io/debezium/example-postgres:latest',
             user=self.username,
             password=self.password,
             dbname=self.database)

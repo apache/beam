@@ -178,6 +178,32 @@ public class GcsUtilTest {
   }
 
   @Test
+  public void testCreationWithExplicitGoogleCloudStorageReadOptions() throws Exception {
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder()
+            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.AUTO)
+            .setSupportGzipEncoding(true)
+            .setFastFailOnNotFound(false)
+            .build();
+
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGoogleCloudStorageReadOptions(readOptions);
+
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorage googleCloudStorageMock = Mockito.spy(GoogleCloudStorage.class);
+    Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
+        .thenReturn(Mockito.mock(SeekableByteChannel.class));
+    gcsUtil.setCloudStorageImpl(googleCloudStorageMock);
+
+    assertEquals(readOptions, pipelineOptions.getGoogleCloudStorageReadOptions());
+
+    // Assert read options are passed to GCS calls
+    pipelineOptions.getGcsUtil().open(GcsPath.fromUri("gs://bucket/path"));
+    Mockito.verify(googleCloudStorageMock, Mockito.times(1))
+        .open(StorageResourceId.fromStringPath("gs://bucket/path"), readOptions);
+  }
+
+  @Test
   public void testMultipleThreadsCanCompleteOutOfOrderWithDefaultThreadPool() throws Exception {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
     ExecutorService executorService = pipelineOptions.getExecutorService();
@@ -1630,7 +1656,8 @@ public class GcsUtilTest {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null));
+                  : null),
+          gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
     private GcsUtilMock(
@@ -1641,7 +1668,8 @@ public class GcsUtilTest {
         Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
-        GcsCountersOptions gcsCountersOptions) {
+        GcsCountersOptions gcsCountersOptions,
+        GoogleCloudStorageReadOptions gcsReadOptions) {
       super(
           storageClient,
           httpRequestInitializer,
@@ -1650,7 +1678,8 @@ public class GcsUtilTest {
           credentials,
           uploadBufferSizeBytes,
           rewriteDataOpBatchLimit,
-          gcsCountersOptions);
+          gcsCountersOptions,
+          gcsReadOptions);
     }
 
     @Override

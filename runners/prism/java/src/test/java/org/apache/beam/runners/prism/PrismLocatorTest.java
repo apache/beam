@@ -134,7 +134,10 @@ public class PrismLocatorTest {
     PrismLocator underTest = new PrismLocator(options);
     String got = underTest.resolve();
 
-    assertThat(got).contains(DESTINATION_DIRECTORY.toString());
+    // Local file overrides should use the local binary in place, not copy
+    // to the cache. Doing so prevents using a locally built version.
+    assertThat(got).doesNotContain(DESTINATION_DIRECTORY.toString());
+    assertThat(got).contains(options.getPrismLocation());
     Path gotPath = Paths.get(got);
     assertThat(Files.exists(gotPath)).isTrue();
   }

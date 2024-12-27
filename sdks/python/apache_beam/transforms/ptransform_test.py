@@ -787,6 +787,18 @@ class PTransformTest(unittest.TestCase):
       assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
       assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
+  def test_flatten_with(self):
+    with TestPipeline() as pipeline:
+      input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
+
+      result = (
+          input
+          | 'WithPCollection' >> beam.FlattenWith(input | beam.Map(str.lower))
+          | 'WithPTransform' >> beam.FlattenWith(beam.Create(['x', 'y'])))
+
+      assert_that(
+          result, equal_to(['AA', 'BBB', 'CC', 'aa', 'bbb', 'cc', 'x', 'y']))
+
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
       with TestPipeline() as pipeline:
@@ -1099,7 +1111,7 @@ def SamplePTransform(pcoll):
 class PTransformLabelsTest(unittest.TestCase):
   class CustomTransform(beam.PTransform):
 
-    pardo = None  # type: Optional[beam.PTransform]
+    pardo: Optional[beam.PTransform] = None
 
     def expand(self, pcoll):
       self.pardo = '*Do*' >> beam.FlatMap(lambda x: [x + 1])
@@ -1286,16 +1298,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       def process(self, element, prefix):
         return [prefix + element.upper()]
 
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Upper.*requires.*str.*applied.*int'):
       (
           self.p
           | 'T' >> beam.Create([1, 2, 3]).with_output_types(int)
           | 'Upper' >> beam.ParDo(ToUpperCaseWithPrefix(), 'hello'))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Upper': "
-        "requires {} but got {} for element".format(str, int))
 
   def test_do_fn_pipeline_runtime_type_check_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1323,17 +1331,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       def process(self, element, num):
         return [element + num]
 
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Add.*requires.*int.*applied.*str'):
       (
           self.p
           | 'T' >> beam.Create(['1', '2', '3']).with_output_types(str)
           | 'Add' >> beam.ParDo(AddWithNum(), 5))
       self.p.run()
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Add': "
-        "requires {} but got {} for element".format(int, str))
 
   def test_pardo_does_not_type_check_using_type_hint_decorators(self):
     @with_input_types(a=int)
@@ -1343,16 +1347,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     # The function above is expecting an int for its only parameter. However, it
     # will receive a str instead, which should result in a raised exception.
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'ToStr.*requires.*int.*applied.*str'):
       (
           self.p
           | 'S' >> beam.Create(['b', 'a', 'r']).with_output_types(str)
           | 'ToStr' >> beam.FlatMap(int_to_str))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'ToStr': "
-        "requires {} but got {} for a".format(int, str))
 
   def test_pardo_properly_type_checks_using_type_hint_decorators(self):
     @with_input_types(a=str)
@@ -1375,7 +1375,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_pardo_does_not_type_check_using_type_hint_methods(self):
     # The first ParDo outputs pcoll's of type int, however the second ParDo is
     # expecting pcoll's of type str instead.
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Upper.*requires.*str.*applied.*int'):
       (
           self.p
           | 'S' >> beam.Create(['t', 'e', 's', 't']).with_output_types(str)
@@ -1385,11 +1386,6 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (
               'Upper' >> beam.FlatMap(lambda x: [x.upper()]).with_input_types(
                   str).with_output_types(str)))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Upper': "
-        "requires {} but got {} for x".format(str, int))
 
   def test_pardo_properly_type_checks_using_type_hint_methods(self):
     # Pipeline should be created successfully without an error
@@ -1407,17 +1403,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_map_does_not_type_check_using_type_hints_methods(self):
     # The transform before 'Map' has indicated that it outputs PCollections with
     # int's, while Map is expecting one of str.
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Upper.*requires.*str.*applied.*int'):
       (
           self.p
           | 'S' >> beam.Create([1, 2, 3, 4]).with_output_types(int)
           | 'Upper' >> beam.Map(lambda x: x.upper()).with_input_types(
               str).with_output_types(str))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Upper': "
-        "requires {} but got {} for x".format(str, int))
 
   def test_map_properly_type_checks_using_type_hints_methods(self):
     # No error should be raised if this type-checks properly.
@@ -1437,16 +1429,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     # Hinted function above expects a str at pipeline construction.
     # However, 'Map' should detect that Create has hinted an int instead.
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Upper.*requires.*str.*applied.*int'):
       (
           self.p
           | 'S' >> beam.Create([1, 2, 3, 4]).with_output_types(int)
           | 'Upper' >> beam.Map(upper))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Upper': "
-        "requires {} but got {} for s".format(str, int))
 
   def test_map_properly_type_checks_using_type_hints_decorator(self):
     @with_input_types(a=bool)
@@ -1465,7 +1453,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_filter_does_not_type_check_using_type_hints_method(self):
     # Filter is expecting an int but instead looks to the 'left' and sees a str
     # incoming.
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Below 3.*requires.*int.*applied.*str'):
       (
           self.p
           | 'Strs' >> beam.Create(['1', '2', '3', '4', '5'
@@ -1473,11 +1462,6 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Lower' >> beam.Map(lambda x: x.lower()).with_input_types(
               str).with_output_types(str)
           | 'Below 3' >> beam.Filter(lambda x: x < 3).with_input_types(int))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Below 3': "
-        "requires {} but got {} for x".format(int, str))
 
   def test_filter_type_checks_using_type_hints_method(self):
     # No error should be raised if this type-checks properly.
@@ -1496,16 +1480,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       return a > 0.50
 
     # Func above was hinted to only take a float, yet a str will be passed.
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'Half.*requires.*float.*applied.*str'):
       (
           self.p
           | 'Ints' >> beam.Create(['1', '2', '3', '4']).with_output_types(str)
           | 'Half' >> beam.Filter(more_than_half))
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'Half': "
-        "requires {} but got {} for a".format(float, str))
 
   def test_filter_type_checks_using_type_hints_decorator(self):
     @with_input_types(b=int)
@@ -2116,14 +2096,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           self.p
           | 'C' >> beam.Create(['test']).with_output_types(str)
           | 'Mean' >> combine.Mean.Globally())
-
-    expected_msg = \
-      "Type hint violation for 'CombinePerKey': " \
-      "requires Tuple[TypeVariable[K], Union[<class 'float'>, <class 'int'>, " \
-      "<class 'numpy.float64'>, <class 'numpy.int64'>]] " \
-      "but got Tuple[None, <class 'str'>] for element"
-
-    self.assertStartswith(e.exception.args[0], expected_msg)
+    err_msg = e.exception.args[0]
+    assert "CombinePerKey" in err_msg
+    assert "Tuple[TypeVariable[K]" in err_msg
+    assert "Tuple[None, <class 'str'>" in err_msg
 
   def test_mean_globally_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -2183,14 +2159,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                                           typing.Tuple[str, str]))
           | 'EvenMean' >> combine.Mean.PerKey())
       self.p.run()
-
-    expected_msg = \
-      "Type hint violation for 'CombinePerKey(MeanCombineFn)': " \
-      "requires Tuple[TypeVariable[K], Union[<class 'float'>, <class 'int'>, " \
-      "<class 'numpy.float64'>, <class 'numpy.int64'>]] " \
-      "but got Tuple[<class 'str'>, <class 'str'>] for element"
-
-    self.assertStartswith(e.exception.args[0], expected_msg)
+    err_msg = e.exception.args[0]
+    assert "CombinePerKey(MeanCombineFn)" in err_msg
+    assert "requires" in err_msg
+    assert "Tuple[TypeVariable[K]" in err_msg
+    assert "applied" in err_msg
+    assert "Tuple[<class 'str'>, <class 'str'>]" in err_msg
 
   def test_mean_per_key_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True

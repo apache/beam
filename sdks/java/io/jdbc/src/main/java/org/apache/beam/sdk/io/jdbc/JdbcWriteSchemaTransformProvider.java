@@ -141,6 +141,12 @@ public class JdbcWriteSchemaTransformProvider
       if (autosharding != null && autosharding) {
         writeRows = writeRows.withAutoSharding();
       }
+
+      Long writeBatchSize = config.getBatchSize();
+      if (writeBatchSize != null) {
+        writeRows = writeRows.withBatchSize(writeBatchSize);
+      }
+
       PCollection<Row> postWrite =
           input
               .get("input")
@@ -205,6 +211,9 @@ public class JdbcWriteSchemaTransformProvider
     @Nullable
     public abstract String getDriverJars();
 
+    @Nullable
+    public abstract Long getBatchSize();
+
     public void validate() throws IllegalArgumentException {
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
@@ -267,6 +276,8 @@ public class JdbcWriteSchemaTransformProvider
       public abstract Builder setAutosharding(Boolean value);
 
       public abstract Builder setDriverJars(String value);
+
+      public abstract Builder setBatchSize(Long value);
 
       public abstract JdbcWriteSchemaTransformConfiguration build();
     }

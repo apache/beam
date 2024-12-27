@@ -38,9 +38,13 @@ import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * Converts metric updates to {@link PerStepNamespaceMetrics} protos. Currently we only support
- * converting metrics from {@link BigQuerySinkMetrics} with this converter.
+ * converting metrics from {@link BigQuerySinkMetrics} and from {@link KafkaSinkMetrics} with this
+ * converter.
  */
 public class MetricsToPerStepNamespaceMetricsConverter {
+  // Avoids to introduce mandatory kafka-io dependency to Dataflow worker
+  // keep in sync with org.apache.beam.sdk.io.kafka.KafkaSinkMetrics.METRICS_NAMESPACE
+  public static String KAFKA_SINK_METRICS_NAMESPACE = "KafkaSink";
 
   private static Optional<LabeledMetricNameUtils.ParsedMetricName> getParsedMetricName(
       MetricName metricName,
@@ -65,7 +69,10 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       MetricName metricName,
       Long value,
       Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
-    if (value == 0 || !metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)) {
+
+    if (value == 0
+        || (!metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)
+            && !metricName.getNamespace().equals(KAFKA_SINK_METRICS_NAMESPACE))) {
       return Optional.empty();
     }
 

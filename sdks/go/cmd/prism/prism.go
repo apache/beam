@@ -22,9 +22,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
+	"strings"
+	"time"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
+	"github.com/golang-cz/devslog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -37,9 +42,58 @@ var (
 	idleShutdownTimeout = flag.Duration("idle_shutdown_timeout", -1, "duration that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown. Defaults to never shutting down.")
 )
 
+// Logging flags
+var (
+	logKind = flag.String("log_kind", "dev",
+		"Determines the format of prism's logging to std err: valid values are `dev', 'json', or 'text'. Default is `dev`.")
+	logLevelFlag = flag.String("log_level", "info",
+		"Sets the minimum log level of Prism. Valid options are 'debug', 'info','warn', and 'error'. Default is 'info'. Debug adds prism source lines.")
+)
+
+var logLevel = new(slog.LevelVar)
+
 func main() {
 	flag.Parse()
 	ctx, cancel := context.WithCancelCause(context.Background())
+
+	var logHandler slog.Handler
+	loggerOutput := os.Stderr
+	handlerOpts := &slog.HandlerOptions{
+		Level: logLevel,
+	}
+	switch strings.ToLower(*logLevelFlag) {
+	case "debug":
+		logLevel.Set(slog.LevelDebug)
+		handlerOpts.AddSource = true
+	case "info":
+		logLevel.Set(slog.LevelInfo)
+	case "warn":
+		logLevel.Set(slog.LevelWarn)
+	case "error":
+		logLevel.Set(slog.LevelError)
+	default:
+		log.Fatalf("Invalid value for log_level: %v, must be 'debug', 'info', 'warn', or 'error'", *logKind)
+	}
+	switch strings.ToLower(*logKind) {
+	case "dev":
+		logHandler =
+			devslog.NewHandler(loggerOutput, &devslog.Options{
+				TimeFormat:         "[" + time.RFC3339Nano + "]",
+				StringerFormatter:  true,
+				HandlerOptions:     handlerOpts,
+				StringIndentation:  false,
+				NewLineAfterLog:    true,
+				MaxErrorStackTrace: 3,
+			})
+	case "json":
+		logHandler = slog.NewJSONHandler(loggerOutput, handlerOpts)
+	case "text":
+		logHandler = slog.NewTextHandler(loggerOutput, handlerOpts)
+	default:
+		log.Fatalf("Invalid value for log_kind: %v, must be 'dev', 'json', or 'text'", *logKind)
+	}
+
+	slog.SetDefault(slog.New(logHandler))
 
 	cli, err := makeJobClient(ctx,
 		prism.Options{

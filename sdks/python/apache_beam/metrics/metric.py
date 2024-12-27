@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Set
@@ -42,6 +43,7 @@ from typing import Union
 from apache_beam.metrics import cells
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
+from apache_beam.metrics.metricbase import BoundedTrie
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
@@ -135,12 +137,28 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingStringSet(MetricName(namespace, name))
 
+  @staticmethod
+  def bounded_trie(
+      namespace: Union[Type, str],
+      name: str) -> 'Metrics.DelegatingBoundedTrie':
+    """Obtains or creates a Bounded Trie metric.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A BoundedTrie object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingBoundedTrie(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
     def __init__(
         self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
-      self.inc = MetricUpdater(  # type: ignore[assignment]
+      self.inc = MetricUpdater(  # type: ignore[method-assign]
           cells.CounterCell,
           metric_name,
           default_value=1,
@@ -150,19 +168,25 @@ class Metrics(object):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[assignment]
+      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
+      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingStringSet(StringSet):
     """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[assignment]
+      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[method-assign]
+
+  class DelegatingBoundedTrie(BoundedTrie):
+    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    def __init__(self, metric_name: MetricName) -> None:
+      super().__init__(metric_name)
+      self.add = MetricUpdater(cells.BoundedTrieCell, metric_name)  # type: ignore[method-assign]
 
 
 class MetricResults(object):
@@ -170,6 +194,7 @@ class MetricResults(object):
   DISTRIBUTIONS = "distributions"
   GAUGES = "gauges"
   STRINGSETS = "string_sets"
+  BOUNDED_TRIES = "bounded_tries"
 
   @staticmethod
   def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
@@ -318,8 +343,8 @@ class Lineage:
   SINK = "sinks"
 
   _METRICS = {
-      SOURCE: Metrics.string_set(LINEAGE_NAMESPACE, SOURCE),
-      SINK: Metrics.string_set(LINEAGE_NAMESPACE, SINK)
+      SOURCE: Metrics.bounded_trie(LINEAGE_NAMESPACE, SOURCE),
+      SINK: Metrics.bounded_trie(LINEAGE_NAMESPACE, SINK)
   }
 
   def __init__(self, label: str) -> None:
@@ -368,8 +393,32 @@ class Lineage:
       return ':'.join((system, subtype, segs))
     return ':'.join((system, segs))
 
+  @staticmethod
+  def _get_fqn_parts(
+      system: str,
+      *segments: str,
+      subtype: Optional[str] = None,
+      last_segment_sep: Optional[str] = None) -> Iterator[str]:
+    yield system + ':'
+    if subtype:
+      yield subtype + ':'
+    if segments:
+      for segment in segments[:-1]:
+        yield segment + '.'
+      if last_segment_sep:
+        sub_segments = segments[-1].split(last_segment_sep)
+        for sub_segment in sub_segments[:-1]:
+          yield sub_segment + last_segment_sep
+        yield sub_segments[-1]
+      else:
+        yield segments[-1]
+
   def add(
-      self, system: str, *segments: str, subtype: Optional[str] = None) -> None:
+      self,
+      system: str,
+      *segments: str,
+      subtype: Optional[str] = None,
+      last_segment_sep: Optional[str] = None) -> None:
     """
     Adds the given details as Lineage.
 
@@ -390,21 +439,35 @@ class Lineage:
     The first positional argument serves as system, if full segments are
     provided, or the full FQN if it is provided as a single argument.
     """
-    system_or_details = system
-    if len(segments) == 0 and subtype is None:
-      self.metric.add(system_or_details)
-    else:
-      self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
+    self.add_raw(
+        *self._get_fqn_parts(
+            system,
+            *segments,
+            subtype=subtype,
+            last_segment_sep=last_segment_sep))
+
+  def add_raw(self, *rollup_segments: str) -> None:
+    """Adds the given fqn as lineage.
+
+    `rollup_segments` should be an iterable of strings whose concatenation
+    is a valid Dataplex FQN.  In particular, this means they will often have
+    trailing delimiters.
+    """
+    self.metric.add(rollup_segments)
 
   @staticmethod
-  def query(results: MetricResults, label: str) -> Set[str]:
+  def query(results: MetricResults,
+            label: str,
+            truncated_marker: str = '*') -> Set[str]:
     if not label in Lineage._METRICS:
       raise ValueError("Label {} does not exist for Lineage", label)
     response = results.query(
         MetricsFilter().with_namespace(Lineage.LINEAGE_NAMESPACE).with_name(
-            label))[MetricResults.STRINGSETS]
+            label))[MetricResults.BOUNDED_TRIES]
     result = set()
     for metric in response:
-      result.update(metric.committed)
-      result.update(metric.attempted)
+      for fqn in metric.committed.flattened():
+        result.add(''.join(fqn[:-1]) + (truncated_marker if fqn[-1] else ''))
+      for fqn in metric.attempted.flattened():
+        result.add(''.join(fqn[:-1]) + (truncated_marker if fqn[-1] else ''))
     return result

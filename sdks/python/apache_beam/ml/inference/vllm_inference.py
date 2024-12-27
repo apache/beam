@@ -21,6 +21,7 @@ import asyncio
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -118,7 +119,7 @@ class _VLLMModelServer():
   def start_server(self, retries=3):
     if not self._server_started:
       server_cmd = [
-          'python',
+          sys.executable,
           '-m',
           'vllm.entrypoints.openai.api_server',
           '--model',
@@ -131,7 +132,7 @@ class _VLLMModelServer():
         server_cmd.append(v)
       self._server_process, self._server_port = start_process(server_cmd)
 
-    self.check_connectivity()
+    self.check_connectivity(retries)
 
   def get_server_port(self) -> int:
     if not self._server_started:

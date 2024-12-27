@@ -17,6 +17,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -448,6 +448,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				stg.finalize = pardo.RequestsFinalization
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
+				}
+				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
+					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
 				}
 				sis = pardo.GetSideInputs()
 			}

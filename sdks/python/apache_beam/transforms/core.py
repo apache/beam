@@ -103,6 +103,7 @@ __all__ = [
     'Windowing',
     'WindowInto',
     'Flatten',
+    'FlattenWith',
     'Create',
     'Impulse',
     'RestrictionProvider',
@@ -1414,7 +1415,7 @@ class PartitionFn(WithTypeHints):
   def default_label(self):
     return self.__class__.__name__
 
-  def partition_for(self, element, num_partitions, *args, **kwargs):
+  def partition_for(self, element, num_partitions, *args, **kwargs):  # type: ignore[empty-body]
     # type: (T, int, *typing.Any, **typing.Any) -> int
 
     """Specify which partition will receive this element.
@@ -2116,15 +2117,13 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   r""":func:`MapTuple` is like :func:`Map` but expects tuple inputs and
   flattens them into multiple input arguments.
 
-      beam.MapTuple(lambda a, b, ...: ...)
-
   In other words
 
-      beam.MapTuple(fn)
+      "SwapKV" >> beam.Map(lambda kv: (kv[1], kv[0]))
 
   is equivalent to
 
-      beam.Map(lambda element, ...: fn(\*element, ...))
+      "SwapKV" >> beam.MapTuple(lambda k, v: (v, k))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
@@ -2190,19 +2189,13 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   r""":func:`FlatMapTuple` is like :func:`FlatMap` but expects tuple inputs and
   flattens them into multiple input arguments.
 
-      beam.FlatMapTuple(lambda a, b, ...: ...)
-
-  is equivalent to Python 2
-
-      beam.FlatMap(lambda (a, b, ...), ...: ...)
-
   In other words
 
-      beam.FlatMapTuple(fn)
+      beam.FlatMap(lambda start_end: range(start_end[0], start_end[1]))
 
   is equivalent to
 
-      beam.FlatMap(lambda element, ...: fn(\*element, ...))
+      beam.FlatMapTuple(lambda start, end: range(start, end))
 
   This can be useful when processing a PCollection of tuples
   (e.g. key-value pairs).
@@ -2237,7 +2230,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if defaults or args or kwargs:
     wrapper = lambda x, *args, **kwargs: fn(*(tuple(x) + args), **kwargs)
   else:
-    wrapper = lambda x: fn(*x)
+    wrapper = lambda x: fn(*tuple(x))
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
@@ -3450,7 +3443,7 @@ def _dynamic_named_tuple(type_name, field_names):
         type_name, field_names)
     # typing: can't override a method. also, self type is unknown and can't
     # be cast to tuple
-    result.__reduce__ = lambda self: (  # type: ignore[assignment]
+    result.__reduce__ = lambda self: (  # type: ignore[method-assign]
         _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))  # type: ignore[arg-type]
   return result
 
@@ -3879,6 +3872,33 @@ class Flatten(PTransform):
 
 PTransform.register_urn(
     common_urns.primitives.FLATTEN.urn, None, Flatten.from_runner_api_parameter)
+
+
+class FlattenWith(PTransform):
+  """A PTransform that flattens its input with other PCollections.
+
+  This is equivalent to creating a tuple containing both the input and the
+  other PCollection(s), but has the advantage that it can be more easily used
+  inline.
+
+  Root PTransforms can be passed as well as PCollections, in which case their
+  outputs will be flattened.
+  """
+  def __init__(self, *others):
+    self._others = others
+
+  def expand(self, pcoll):
+    pcolls = [pcoll]
+    for other in self._others:
+      if isinstance(other, pvalue.PCollection):
+        pcolls.append(other)
+      elif isinstance(other, PTransform):
+        pcolls.append(pcoll.pipeline | other)
+      else:
+        raise TypeError(
+            'FlattenWith only takes other PCollections and PTransforms, '
+            f'got {other}')
+    return tuple(pcolls) | Flatten()
 
 
 class Create(PTransform):

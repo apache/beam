@@ -34,6 +34,12 @@ import org.joda.time.Instant;
 @ThreadSafe
 public interface WindmillStream {
 
+  /**
+   * Start the stream, opening a connection to the backend server. A call to start() is required for
+   * any further interactions on the stream.
+   */
+  void start();
+
   /** An identifier for the backend worker where the stream is sending/receiving RPCs. */
   String backendWorkerToken();
 
@@ -47,8 +53,9 @@ public interface WindmillStream {
   Instant startTime();
 
   /**
-   * Shutdown the stream. There should be no further interactions with the stream once this has been
-   * called.
+   * Shuts down the stream. No further interactions should be made with the stream, and the stream
+   * will no longer try to connect internally. Any pending retries or in-flight requests will be
+   * cancelled and all responses dropped and considered invalid.
    */
   void shutdown();
 
@@ -56,10 +63,11 @@ public interface WindmillStream {
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {
     /** Adjusts the {@link GetWorkBudget} for the stream. */
-    void adjustBudget(long itemsDelta, long bytesDelta);
+    void setBudget(GetWorkBudget newBudget);
 
-    /** Returns the remaining in-flight {@link GetWorkBudget}. */
-    GetWorkBudget remainingBudget();
+    default void setBudget(long newItems, long newBytes) {
+      setBudget(GetWorkBudget.builder().setItems(newItems).setBytes(newBytes).build());
+    }
   }
 
   /** Interface for streaming GetDataRequests to Windmill. */
@@ -67,13 +75,16 @@ public interface WindmillStream {
   interface GetDataStream extends WindmillStream {
     /** Issues a keyed GetData fetch, blocking until the result is ready. */
     Windmill.KeyedGetDataResponse requestKeyedData(
-        String computation, Windmill.KeyedGetDataRequest request);
+        String computation, Windmill.KeyedGetDataRequest request)
+        throws WindmillStreamShutdownException;
 
     /** Issues a global GetData fetch, blocking until the result is ready. */
-    Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
+    Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request)
+        throws WindmillStreamShutdownException;
 
     /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats);
+    void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats)
+        throws WindmillStreamShutdownException;
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
   }
@@ -85,7 +96,7 @@ public interface WindmillStream {
      * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
      * different builders for the same stream may be used simultaneously.
      */
-    CommitWorkStream.RequestBatcher batcher();
+    RequestBatcher batcher();
 
     @NotThreadSafe
     interface RequestBatcher extends Closeable {

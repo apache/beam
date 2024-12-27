@@ -77,7 +77,7 @@ jobs:
       - name: run PostCommit Java Flink PortableValidatesRunner Streaming script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-            gradle-command: runners:flink:1.15:job-server:validatesPortableRunnerStreaming
+            gradle-command: runners:flink:1.19:job-server:validatesPortableRunnerStreaming
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -91,3 +91,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true

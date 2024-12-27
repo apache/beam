@@ -29,15 +29,15 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
 ext.summary = "Integration with Iceberg data warehouses."
 
 def hadoopVersions = [
-        "285": "2.8.5",
-        "292": "2.9.2",
-        "2102": "2.10.2",
-        "324": "3.2.4",
+    "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    "341": "3.4.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def iceberg_version = "1.4.2"
+def iceberg_version = "1.6.1"
 def parquet_version = "1.12.0"
 def orc_version = "1.9.2"
 
@@ -54,13 +54,13 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
+    runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
 
     testImplementation project(":sdks:java:managed")
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_gcs_connector
     testImplementation library.java.bigdataoss_util_hadoop
-    testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
@@ -70,6 +70,9 @@ dependencies {
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
+        "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
     }
 }
 
@@ -77,6 +80,11 @@ hadoopVersions.each {kv ->
     configurations."hadoopVersion$kv.key" {
         resolutionStrategy {
             force "org.apache.hadoop:hadoop-client:$kv.value"
+            force "org.apache.hadoop:hadoop-common:$kv.value"
+            force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+            force "org.apache.hadoop:hadoop-minicluster:$kv.value"
+            force "org.apache.hadoop:hadoop-hdfs:$kv.value"
+            force "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
         }
     }
 }

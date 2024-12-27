@@ -27,6 +27,7 @@ import os
 import platform
 import shutil
 import stat
+import subprocess
 import typing
 import urllib
 import zipfile
@@ -167,37 +168,92 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
   def path_to_binary(self) -> str:
     if self._path is not None:
-      if not os.path.exists(self._path):
-        url = urllib.parse.urlparse(self._path)
-        if not url.scheme:
-          raise ValueError(
-              'Unable to parse binary URL "%s". If using a full URL, make '
-              'sure the scheme is specified. If using a local file xpath, '
-              'make sure the file exists; you may have to first build prism '
-              'using `go build `.' % (self._path))
+      # The path is overidden, check various cases.
+      if os.path.exists(self._path):
+        # The path is local and exists, use directly.
+        return self._path
 
-        # We have a URL, see if we need to construct a valid file name.
-        if self._path.startswith(GITHUB_DOWNLOAD_PREFIX):
-          # If this URL starts with the download prefix, let it through.
-          return self._path
-        # The only other valid option is a github release page.
-        if not self._path.startswith(GITHUB_TAG_PREFIX):
-          raise ValueError(
-              'Provided --prism_location URL is not an Apache Beam Github '
-              'Release page URL or download URL: %s' % (self._path))
-        # Get the root tag for this URL
-        root_tag = os.path.basename(os.path.normpath(self._path))
-        return self.construct_download_url(
-            root_tag, platform.system(), platform.machine())
-      return self._path
-    else:
-      if '.dev' in self._version:
+      # Check if the path is a URL.
+      url = urllib.parse.urlparse(self._path)
+      if not url.scheme:
         raise ValueError(
-            'Unable to derive URL for dev versions "%s". Please provide an '
-            'alternate version to derive the release URL with the '
-            '--prism_beam_version_override flag.' % (self._version))
+            'Unable to parse binary URL "%s". If using a full URL, make '
+            'sure the scheme is specified. If using a local file xpath, '
+            'make sure the file exists; you may have to first build prism '
+            'using `go build `.' % (self._path))
+
+      # We have a URL, see if we need to construct a valid file name.
+      if self._path.startswith(GITHUB_DOWNLOAD_PREFIX):
+        # If this URL starts with the download prefix, let it through.
+        return self._path
+      # The only other valid option is a github release page.
+      if not self._path.startswith(GITHUB_TAG_PREFIX):
+        raise ValueError(
+            'Provided --prism_location URL is not an Apache Beam Github '
+            'Release page URL or download URL: %s' % (self._path))
+      # Get the root tag for this URL
+      root_tag = os.path.basename(os.path.normpath(self._path))
+      return self.construct_download_url(
+          root_tag, platform.system(), platform.machine())
+
+    if '.dev' not in self._version:
+      # Not a development version, so construct the production download URL
       return self.construct_download_url(
           self._version, platform.system(), platform.machine())
+
+    # This is a development version! Assume Go is installed.
+    # Set the install directory to the cache location.
+    envdict = {**os.environ, "GOBIN": self.BIN_CACHE}
+    PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
+
+    process = subprocess.run(["go", "install", PRISMPKG],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             env=envdict,
+                             check=False)
+    if process.returncode == 0:
+      # Successfully installed
+      return '%s/prism' % (self.BIN_CACHE)
+
+    # We failed to build for some reason.
+    output = process.stdout.decode("utf-8")
+    if ("not in a module" not in output) and (
+        "no required module provides" not in output):
+      # This branch handles two classes of failures:
+      # 1. Go isn't installed, so it needs to be installed by the Beam SDK
+      #   developer.
+      # 2. Go is installed, and they are building in a local version of Prism,
+      #    but there was a compile error that the developer should address.
+      # Either way, the @latest fallback either would fail, or hide the error,
+      # so fail now.
+      _LOGGER.info(output)
+      raise ValueError(
+          'Unable to install a local of Prism: "%s";\n'
+          'Likely Go is not installed, or a local change to Prism did not '
+          'compile.\nPlease install Go (see https://go.dev/doc/install) to '
+          'enable automatic local builds.\n'
+          'Alternatively provide a binary with the --prism_location flag.'
+          '\nCaptured output:\n %s' % (self._version, output))
+
+    # Go is installed and claims we're not in a Go module that has access to
+    # the Prism package.
+
+    # Fallback to using the @latest version of prism, which works everywhere.
+    process = subprocess.run(["go", "install", PRISMPKG + "@latest"],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             env=envdict,
+                             check=False)
+
+    if process.returncode == 0:
+      return '%s/prism' % (self.BIN_CACHE)
+
+    output = process.stdout.decode("utf-8")
+    raise ValueError(
+        'We were unable to execute the subprocess "%s" to automatically '
+        'build prism.\nAlternatively provide an alternate binary with the '
+        '--prism_location flag.'
+        '\nCaptured output:\n %s' % (process.args, output))
 
   def subprocess_cmd_and_endpoint(
       self) -> typing.Tuple[typing.List[typing.Any], str]:

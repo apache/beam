@@ -60,7 +60,6 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -535,7 +534,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
-  private final PipelineOptions pipelineOptions;
+  private final PipelineOptions commandLineOptions;
   private final @Nullable String loopbackAddress;
 
   public ExpansionService() {
@@ -551,7 +550,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   public ExpansionService(PipelineOptions opts, @Nullable String loopbackAddress) {
-    this.pipelineOptions = opts;
+    this.commandLineOptions = opts;
     this.loopbackAddress = loopbackAddress;
   }
 
@@ -587,12 +586,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
-    Pipeline pipeline =
-        createPipeline(PipelineOptionsTranslation.fromProto(request.getPipelineOptions()));
+
+    PipelineOptions pipelineOptionsFromRequest =
+        PipelineOptionsTranslation.fromProto(request.getPipelineOptions());
+    Pipeline pipeline = createPipeline(pipelineOptionsFromRequest);
+
     boolean isUseDeprecatedRead =
-        ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
+        ExperimentalOptions.hasExperiment(commandLineOptions, "use_deprecated_read")
             || ExperimentalOptions.hasExperiment(
-                pipelineOptions, "beam_fn_api_use_deprecated_read");
+                commandLineOptions, "beam_fn_api_use_deprecated_read");
     if (!isUseDeprecatedRead) {
       ExperimentalOptions.addExperiment(
           pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
@@ -629,7 +631,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     if (transformProvider == null) {
       if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
         AllowList allowList =
-            pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
+            commandLineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
         assert allowList != null;
         transformProvider = new JavaClassLookupTransformProvider(allowList);
       } else if (getUrn(SCHEMA_TRANSFORM).equals(urn)) {
@@ -671,7 +673,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     RunnerApi.Environment defaultEnvironment =
         Environments.createOrGetDefaultEnvironment(
             pipeline.getOptions().as(PortablePipelineOptions.class));
-    if (pipelineOptions.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
+    if (commandLineOptions.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
       PortablePipelineOptions externalOptions =
           PipelineOptionsFactory.create().as(PortablePipelineOptions.class);
       externalOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_EXTERNAL);
@@ -723,35 +725,34 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   protected Pipeline createPipeline(PipelineOptions requestOptions) {
-    // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
-    PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
-    PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
-    PortablePipelineOptions specifiedOptions = pipelineOptions.as(PortablePipelineOptions.class);
-    Optional.ofNullable(specifiedOptions.getDefaultEnvironmentType())
-        .ifPresent(portableOptions::setDefaultEnvironmentType);
-    Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
-        .ifPresent(portableOptions::setDefaultEnvironmentConfig);
-    List<String> filesToStage = specifiedOptions.getFilesToStage();
+    // We expect the ExpansionRequest to contain a valid set of options to be used for this
+    // expansion.
+    // Additionally, we override selected options using options values set via command line or
+    // ExpansionService wide overrides.
+
+    PortablePipelineOptions requestPortablePipelineOptions =
+        requestOptions.as(PortablePipelineOptions.class);
+    PortablePipelineOptions commandLinePortablePipelineOptions =
+        commandLineOptions.as(PortablePipelineOptions.class);
+    Optional.ofNullable(commandLinePortablePipelineOptions.getDefaultEnvironmentType())
+        .ifPresent(requestPortablePipelineOptions::setDefaultEnvironmentType);
+    Optional.ofNullable(commandLinePortablePipelineOptions.getDefaultEnvironmentConfig())
+        .ifPresent(requestPortablePipelineOptions::setDefaultEnvironmentConfig);
+    List<String> filesToStage = commandLinePortablePipelineOptions.getFilesToStage();
     if (filesToStage != null) {
-      effectiveOpts.as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
+      requestPortablePipelineOptions
+          .as(PortablePipelineOptions.class)
+          .setFilesToStage(filesToStage);
     }
-    effectiveOpts
+    requestPortablePipelineOptions
         .as(ExperimentalOptions.class)
-        .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
-    effectiveOpts.setRunner(NotRunnableRunner.class);
-    effectiveOpts
+        .setExperiments(commandLineOptions.as(ExperimentalOptions.class).getExperiments());
+    requestPortablePipelineOptions.setRunner(NotRunnableRunner.class);
+    requestPortablePipelineOptions
         .as(ExpansionServiceOptions.class)
         .setExpansionServiceConfig(
-            pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
-    // TODO(https://github.com/apache/beam/issues/20090): Figure out the correct subset of options
-    // to propagate.
-    if (requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion() != null) {
-      effectiveOpts
-          .as(StreamingOptions.class)
-          .setUpdateCompatibilityVersion(
-              requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion());
-    }
-    return Pipeline.create(effectiveOpts);
+            commandLineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
+    return Pipeline.create(requestOptions);
   }
 
   @Override

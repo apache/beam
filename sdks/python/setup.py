@@ -155,7 +155,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
 
@@ -271,18 +271,13 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.8'
+python_requires = '>=3.9'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 12:
+if sys.version_info.major == 3 and sys.version_info.minor >= 13:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
-elif sys.version_info.major == 3 and sys.version_info.minor == 8:
-  warnings.warn('Python 3.8 reaches EOL in October 2024 and support will '
-                'be removed from Apache Beam in version 2.61.0. See '
-                'https://github.com/apache/beam/issues/31192 for more '
-                'information.')
 
 if __name__ == '__main__':
   # In order to find the tree of proto packages, the directory
@@ -366,7 +361,7 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.2.0',  # Update pyproject.toml as well.
+          'numpy>=1.14.3,<2.3.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
@@ -424,7 +419,7 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0',
               'setuptools',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<3.0.0',
+              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
@@ -495,12 +490,9 @@ if __name__ == '__main__':
               'sentence-transformers',
               'skl2onnx',
               'pillow',
-              # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
-              # Once TF version is unpinned, also don't restrict Python version.
-              'tensorflow<2.16.0;python_version<"3.12"',
+              'tensorflow',
               'tensorflow-hub',
-              # https://github.com/tensorflow/transform/issues/313
-              'tensorflow-transform;python_version<"3.11"',
+              'tensorflow-transform',
               'tf2onnx',
               'torch',
               'transformers',
@@ -508,6 +500,19 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+          ],
+          'p312_ml_test': [
+              'datatable',
+              'embeddings',
+              'onnxruntime',
+              'sentence-transformers',
+              'skl2onnx',
+              'pillow',
+              'tensorflow',
+              'tensorflow-hub',
+              'tf2onnx',
+              'torch',
+              'transformers',
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
@@ -517,8 +522,15 @@ if __name__ == '__main__':
           ],
           'dataframe': dataframe_dependency,
           'dask': [
-              'dask >= 2022.6',
-              'distributed >= 2022.6',
+              'distributed >= 2024.4.2',
+              'dask >= 2024.4.2',
+              # For development, 'distributed >= 2023.12.1' should work with
+              # the above dask PR, however it can't be installed as part of
+              # a single `pip` call, since distributed releases are pinned to
+              # specific dask releases. As a workaround, distributed can be
+              # installed first, and then `.[dask]` installed second, with the
+              # `--update` / `-U` flag to replace the dask release brought in
+              # by distributed.
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
@@ -534,7 +546,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',

@@ -54,6 +54,7 @@ import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -628,6 +629,9 @@ public class BigQueryIO {
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
+
+  static final String CONNECTION_ID = "connectionId";
+  static final String STORAGE_URI = "storageUri";
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -2372,6 +2376,8 @@ public class BigQueryIO {
     /** Table description. Default is empty. */
     abstract @Nullable String getTableDescription();
 
+    abstract @Nullable Map<String, String> getBigLakeConfiguration();
+
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
 
@@ -2483,6 +2489,8 @@ public class BigQueryIO {
       abstract Builder<T> setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions);
 
       abstract Builder<T> setTableDescription(String tableDescription);
+
+      abstract Builder<T> setBigLakeConfiguration(Map<String, String> bigLakeConfiguration);
 
       abstract Builder<T> setValidate(boolean validate);
 
@@ -2907,6 +2915,30 @@ public class BigQueryIO {
     public Write<T> withTableDescription(String tableDescription) {
       checkArgument(tableDescription != null, "tableDescription can not be null");
       return toBuilder().setTableDescription(tableDescription).build();
+    }
+
+    /**
+     * Specifies a configuration to create BigLake tables. The following options are available:
+     *
+     * <ul>
+     *   <li>connectionId (REQUIRED): the name of your cloud resource connection.
+     *   <li>storageUri (REQUIRED): the path to your GCS folder where data will be written to. This
+     *       sink will create sub-folders for each project, dataset, and table destination. Example:
+     *       if you specify a storageUri of {@code "gs://foo/bar"} and writing to table {@code
+     *       "my_project.my_dataset.my_table"}, your data will be written under {@code
+     *       "gs://foo/bar/my_project/my_dataset/my_table/"}
+     *   <li>fileFormat (OPTIONAL): defaults to {@code "parquet"}
+     *   <li>tableFormat (OPTIONAL): defaults to {@code "iceberg"}
+     * </ul>
+     *
+     * <p><b>NOTE:</b> This is only supported with the Storage Write API methods.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/docs/iceberg-tables#api">BigQuery Tables for
+     *     Apache Iceberg documentation</a>
+     */
+    public Write<T> withBigLakeConfiguration(Map<String, String> bigLakeConfiguration) {
+      checkArgument(bigLakeConfiguration != null, "bigLakeConfiguration can not be null");
+      return toBuilder().setBigLakeConfiguration(bigLakeConfiguration).build();
     }
 
     /**
@@ -3459,8 +3491,21 @@ public class BigQueryIO {
         checkArgument(
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
-      } else if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
-        LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
+        checkArgument(
+            getBigLakeConfiguration() == null,
+            "bigLakeConfiguration is only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
+      } else {
+        if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
+          LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
+        }
+        if (getBigLakeConfiguration() != null) {
+          checkArgument(
+              Arrays.stream(new String[] {CONNECTION_ID, STORAGE_URI})
+                  .allMatch(getBigLakeConfiguration()::containsKey),
+              String.format(
+                  "bigLakeConfiguration must contain keys '%s' and '%s'",
+                  CONNECTION_ID, STORAGE_URI));
+        }
       }
       if (getRowMutationInformationFn() != null) {
         checkArgument(
@@ -3752,7 +3797,7 @@ public class BigQueryIO {
             if (rowWriterFactory.getOutputType() == OutputType.JsonTableRow) {
               LOG.warn(
                   "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
-                      + "Make sure the TableRow value is a parsed JSON to ensure the read as a "
+                      + "Make sure the TableRow value is a Jackson JsonNode to ensure the read as a "
                       + "JSON type. Otherwise it will read as a raw (escaped) string.\n"
                       + "See https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json#limitations "
                       + "for limitations.");
@@ -3910,6 +3955,7 @@ public class BigQueryIO {
                 getPropagateSuccessfulStorageApiWritesPredicate(),
                 getRowMutationInformationFn() != null,
                 getDefaultMissingValueInterpretation(),
+                getBigLakeConfiguration(),
                 getBadRecordRouter(),
                 getBadRecordErrorHandler());
         return input.apply("StorageApiLoads", storageApiLoads);

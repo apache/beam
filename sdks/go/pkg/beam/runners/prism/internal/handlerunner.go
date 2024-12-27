@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"reflect"
 	"sort"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )

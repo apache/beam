@@ -29,7 +29,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 
-from google.protobuf import text_format  # type: ignore  # typeshed out of date
+from google.protobuf import text_format
 from trainer import taxi
 
 

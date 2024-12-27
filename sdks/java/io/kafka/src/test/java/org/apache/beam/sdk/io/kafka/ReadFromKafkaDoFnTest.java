@@ -205,6 +205,8 @@ public class ReadFromKafkaDoFnTest {
         OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
       super(offsetResetStrategy);
       this.topicPartition = topicPartition;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void reset() {
@@ -214,6 +216,8 @@ public class ReadFromKafkaDoFnTest {
       this.startOffsetForTime = KV.of(0L, Instant.now());
       this.stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
       this.numOfRecordsPerPoll = 0L;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void setRemoved() {
@@ -246,6 +250,17 @@ public class ReadFromKafkaDoFnTest {
           ImmutableList.of(
               new PartitionInfo(
                   topicPartition.topic(), topicPartition.partition(), null, null, null)));
+    }
+
+    @Override
+    public synchronized List<PartitionInfo> partitionsFor(String partition) {
+      if (this.isRemoved) {
+        return ImmutableList.of();
+      } else {
+        return ImmutableList.of(
+            new PartitionInfo(
+                topicPartition.topic(), topicPartition.partition(), null, null, null));
+      }
     }
 
     @Override

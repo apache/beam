@@ -77,6 +77,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
+
   // TODO: Remove once Distributions has shipped.
   @VisibleForTesting
   static final String OUTPUTS_PER_ELEMENT_EXPERIMENT = "outputs_per_element_counter";
@@ -174,6 +175,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   /** Simple state tracker to calculate PerElementOutputCount counter. */
   private interface OutputsPerElementTracker {
+
     void onOutput();
 
     void onProcessElement();
@@ -182,6 +184,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private class OutputsPerElementTrackerImpl implements OutputsPerElementTracker {
+
     private long outputsPerElement;
     private final Counter<Long, CounterFactory.CounterDistribution> counter;
 
@@ -214,6 +217,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   /** No-op {@link OutputsPerElementTracker} implementation used when the counter is disabled. */
   private static class NoopOutputsPerElementTracker implements OutputsPerElementTracker {
+
     private NoopOutputsPerElementTracker() {}
 
     public static final OutputsPerElementTracker INSTANCE = new NoopOutputsPerElementTracker();
@@ -516,10 +520,14 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   private Instant earliestAllowableCleanupTime(
       BoundedWindow window, WindowingStrategy windowingStrategy) {
-    return window
-        .maxTimestamp()
-        .plus(windowingStrategy.getAllowedLateness())
-        .plus(Duration.millis(1L));
+    Instant cleanupTime =
+        window
+            .maxTimestamp()
+            .plus(windowingStrategy.getAllowedLateness())
+            .plus(Duration.millis(1L));
+    return cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)
+        ? BoundedWindow.TIMESTAMP_MAX_VALUE
+        : cleanupTime;
   }
 
   /**
