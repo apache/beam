@@ -165,7 +165,8 @@ class FnApiWorkerStatusHandler(object):
     self._state_cache = state_cache
     ch = GRPCChannelFactory.insecure_channel(status_address)
     grpc.channel_ready_future(ch).result(timeout=60)
-    self._status_channel = grpc.intercept_channel(ch, WorkerIdInterceptor(worker_id))
+    self._status_channel = grpc.intercept_channel(
+        ch, WorkerIdInterceptor(worker_id))
     self._status_stub = beam_fn_api_pb2_grpc.BeamFnWorkerStatusStub(
         self._status_channel)
     self._responses = queue.Queue()
