@@ -900,6 +900,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
     self._state_cache = state_cache
+    self._worker_id = worker_id
 
   def create_state_handler(self, api_service_descriptor):
     # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingStateHandler
