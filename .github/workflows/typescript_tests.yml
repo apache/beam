@@ -25,6 +25,9 @@ on:
       runXlang:
         description: 'Type "true" if you want to run xlang tests'
         default: false
+      runDataflow:
+        description: 'Type "true" if you want to run Dataflow tests'
+        default: false
   schedule:
     - cron: '10 2 * * *'
   push:
@@ -126,6 +129,8 @@ jobs:
 
   typescript_dataflow_tests:
     name: 'TypeScript Dataflow Tests'
+    # TODO(https://github.com/apache/beam/issues/33346): remove manual trigger after fixing referenced issue.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     runs-on: ubuntu-latest
     needs:
       - check_gcp_variables
