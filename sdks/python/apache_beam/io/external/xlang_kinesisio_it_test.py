@@ -64,7 +64,7 @@ except ImportError:
   DockerContainer = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
-LOCALSTACK_VERSION = '0.11.3'
+LOCALSTACK_VERSION = '3.8.1'
 NUM_RECORDS = 10
 MAX_READ_TIME = 5 * 60 * 1000  # 5min
 NOW_SECONDS = time.time()
