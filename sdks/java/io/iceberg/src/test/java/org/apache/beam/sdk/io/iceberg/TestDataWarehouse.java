@@ -32,6 +32,7 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -108,6 +109,16 @@ public class TestDataWarehouse extends ExternalResource {
 
   public DataFile writeRecords(String filename, Schema schema, List<Record> records)
       throws IOException {
+    return writeRecords(filename, schema, PartitionSpec.unpartitioned(), null, records);
+  }
+
+  public DataFile writeRecords(
+      String filename,
+      Schema schema,
+      PartitionSpec spec,
+      StructLike partition,
+      List<Record> records)
+      throws IOException {
     Path path = new Path(location, filename);
     FileFormat format = FileFormat.fromFileName(filename);
 
@@ -134,9 +145,11 @@ public class TestDataWarehouse extends ExternalResource {
     }
     appender.addAll(records);
     appender.close();
-    return DataFiles.builder(PartitionSpec.unpartitioned())
+
+    return DataFiles.builder(spec)
         .withInputFile(HadoopInputFile.fromPath(path, hadoopConf))
         .withMetrics(appender.metrics())
+        .withPartition(partition)
         .build();
   }
 
