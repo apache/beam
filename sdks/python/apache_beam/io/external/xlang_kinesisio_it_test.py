@@ -161,7 +161,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
 
     self.aws_service_endpoint = 'https://{}:{}'.format(
         self.localstack.get_container_host_ip(),
-        self.localstack.get_exposed_port('4568'),
+        self.localstack.get_exposed_port('4566'),
     )
 
   def setUp(self):
