@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg.hive.testutils;
+package org.apache.beam.sdk.io.iceberg.catalog.hiveutils;
 
 import java.io.IOException;
 import java.io.LineNumberReader;

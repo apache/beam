@@ -36,8 +36,7 @@ def avatica_version = "1.25.0"
 dependencies {
     // dependencies needed to run with iceberg's hive catalog
     // these dependencies are going to be included in io-expansion-service
-    implementation ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
-    permitUnusedDeclared ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
+    runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
     // analyzeClassesDependencies fails with "Cannot accept visitor on URL", likely the plugin does not recognize "core" classifier
     // use "core" classifier to depend on un-shaded jar
     runtimeOnly ("org.apache.hive:hive-exec:$hive_version:core") {
@@ -51,53 +50,10 @@ dependencies {
     runtimeOnly ("org.apache.hadoop:hadoop-yarn-server-resourcemanager:$hadoop_version")
     runtimeOnly ("org.apache.hbase:hbase-client:$hbase_version")
     runtimeOnly ("org.apache.calcite.avatica:avatica-core:$avatica_version")
-    implementation ("org.apache.hive:hive-metastore:$hive_version")
-    runtimeOnly ("org.apache.iceberg:iceberg-parquet:$iceberg_version")
-    permitUnusedDeclared ("org.apache.hive:hive-metastore:$hive_version")
-
-    // ----- below dependencies are for testing and will not appear in the shaded jar -----
-    // Beam IcebergIO dependencies
-    testImplementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation project(":sdks:java:managed")
-    testImplementation project(":sdks:java:io:iceberg")
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testRuntimeOnly library.java.snake_yaml
-    testRuntimeOnly library.java.bigdataoss_gcs_connector
-    testRuntimeOnly library.java.hadoop_client
-
-    // needed to set up the test environment
-    testImplementation "org.apache.iceberg:iceberg-common:$iceberg_version"
-    testImplementation "org.apache.iceberg:iceberg-core:$iceberg_version"
-    testImplementation "org.assertj:assertj-core:3.11.1"
-    testImplementation library.java.junit
-
-    // needed to set up test Hive Metastore and run tests
-    testRuntimeOnly ("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
-        exclude group: "org.apache.hive", module: "hive-exec"
-        exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
-    }
-    testImplementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
-    testImplementation "org.apache.parquet:parquet-column:1.12.0"
+    runtimeOnly ("org.apache.hive:hive-metastore:$hive_version")
 }
 
 configurations.all {
     // the fatjar "parquet-hadoop-bundle" conflicts with "parquet-hadoop" used by org.apache.iceberg:iceberg-parquet
     exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
-}
-
-task integrationTest(type: Test) {
-    group = "Verification"
-    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/iceberg-hive-it'
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--tempLocation=${gcpTempLocation}",
-    ])
-
-    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
-    outputs.upToDateWhen { false }
-
-    include '**/*IT.class'
-
-    maxParallelForks 4
-    classpath = sourceSets.test.runtimeClasspath
-    testClassesDirs = sourceSets.test.output.classesDirs
 }
