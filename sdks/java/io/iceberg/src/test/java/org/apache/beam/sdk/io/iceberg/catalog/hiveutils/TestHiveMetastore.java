@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg.hive.testutils;
+package org.apache.beam.sdk.io.iceberg.catalog.hiveutils;
 
 import static java.nio.file.Files.createTempDirectory;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
@@ -33,6 +33,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -63,7 +64,7 @@ import org.apache.thrift.transport.TTransportFactory;
 public class TestHiveMetastore {
 
   private static final String DEFAULT_DATABASE_NAME = "default";
-  private static final int DEFAULT_POOL_SIZE = 5;
+  private static final int DEFAULT_POOL_SIZE = 3;
 
   // create the metastore handlers based on whether we're working with Hive2 or Hive3 dependencies
   // we need to do this because there is a breaking API change between Hive2 and Hive3
@@ -79,18 +80,6 @@ public class TestHiveMetastore {
           .impl(RetryingHMSHandler.class, HiveConf.class, IHMSHandler.class, boolean.class)
           .buildStatic();
 
-  // Hive3 introduces background metastore tasks (MetastoreTaskThread) for performing various
-  // cleanup duties. These
-  // threads are scheduled and executed in a static thread pool
-  // (org.apache.hadoop.hive.metastore.ThreadPool).
-  // This thread pool is shut down normally as part of the JVM shutdown hook, but since we're
-  // creating and tearing down
-  // multiple metastore instances within the same JVM, we have to call this cleanup method manually,
-  // otherwise
-  // threads from our previous test suite will be stuck in the pool with stale config, and keep on
-  // being scheduled.
-  // This can lead to issues, e.g. accidental Persistence Manager closure by
-  // ScheduledQueryExecutionsMaintTask.
   private static final DynMethods.StaticMethod METASTORE_THREADS_SHUTDOWN =
       DynMethods.builder("shutdown")
           .impl("org.apache.hadoop.hive.metastore.ThreadPool")
@@ -140,8 +129,7 @@ public class TestHiveMetastore {
   }
 
   /**
-   * Starts a TestHiveMetastore with the default connection pool size (5) with the provided
-   * HiveConf.
+   * Starts a TestHiveMetastore with the default connection pool size with the provided HiveConf.
    *
    * @param conf The hive configuration to use
    */
@@ -181,7 +169,13 @@ public class TestHiveMetastore {
       server.stop();
     }
     if (executorService != null) {
-      executorService.shutdown();
+      executorService.shutdownNow();
+      try {
+        // Give it a reasonable timeout
+        executorService.awaitTermination(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
     if (baseHandler != null) {
       baseHandler.shutdown();
