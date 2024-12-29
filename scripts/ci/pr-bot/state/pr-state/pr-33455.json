@@ -1,7 +1,11 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "java": "Abacn",
+    "build": "Abacn",
+    "io": "ahmedabu98"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
