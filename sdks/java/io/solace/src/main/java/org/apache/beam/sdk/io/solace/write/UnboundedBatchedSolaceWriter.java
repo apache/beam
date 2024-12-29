@@ -17,23 +17,34 @@
  */
 package org.apache.beam.sdk.io.solace.write;
 
+import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
+import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.common.collect.ImmutableList;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap.KeySetView;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -61,10 +72,9 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
+  // Log
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedBatchedSolaceWriter.class);
-
-  private static final int ACKS_FLUSHING_INTERVAL_SECS = 10;
 
   private final Counter sentToBroker =
       Metrics.counter(UnboundedBatchedSolaceWriter.class, "msgs_sent_to_broker");
@@ -72,73 +82,163 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  // State variables are never explicitly "used"
-  @SuppressWarnings("UnusedVariable")
-  @TimerId("bundle_flusher")
-  private final TimerSpec bundleFlusherTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
-
   public UnboundedBatchedSolaceWriter(
       SerializableFunction<Record, Destination> destinationFn,
       SessionServiceFactory sessionServiceFactory,
       DeliveryMode deliveryMode,
       SubmissionMode submissionMode,
       int producersMapCardinality,
-      boolean publishLatencyMetrics) {
+      boolean publishLatencyMetrics,
+      Duration maxWaitTimeForPublishResponses) {
     super(
         destinationFn,
         sessionServiceFactory,
         deliveryMode,
         submissionMode,
         producersMapCardinality,
-        publishLatencyMetrics);
+        publishLatencyMetrics,
+        maxWaitTimeForPublishResponses);
   }
 
-  // The state variable is here just to force a shuffling with a certain cardinality
   @ProcessElement
   public void processElement(
-      @Element KV<Integer, Solace.Record> element,
-      @TimerId("bundle_flusher") Timer bundleFlusherTimer,
-      @Timestamp Instant timestamp) {
-
+      @Element KV<Integer, Iterable<Solace.Record>> element,
+      @Timestamp Instant timestamp,
+      BoundedWindow window,
+      MultiOutputReceiver outputReceiver) {
     setCurrentBundleTimestamp(timestamp);
+    setCurrentBundleWindow(window);
+    Iterable<Solace.Record> records = element.getValue();
 
-    Solace.Record record = element.getValue();
+    ImmutableList<Record> materializedRecords = ImmutableList.copyOf(records);
 
-    if (record == null) {
-      LOG.error(
-          "SolaceIO.Write: Found null record with key {}. Ignoring record.", element.getKey());
-    } else {
-      addToCurrentBundle(record);
-      // Extend timer for bundle flushing
-      bundleFlusherTimer
-          .offset(Duration.standardSeconds(ACKS_FLUSHING_INTERVAL_SECS))
-          .setRelative();
-    }
+    PublishPhaser phaser = checkNotNull(this.phaser);
+
+    this.bundleRegistrationPhase = phaser.bulkRegister(materializedRecords.size());
+
+    LOG.info(
+        "bzablockilog {} registrationPhase {}, registered parties:{}",
+        this.bundleUuid,
+        bundleRegistrationPhase,
+        phaser.getRegisteredParties());
+    materializedRecords.forEach(
+        record -> {
+          solaceSessionServiceWithProducer()
+              .getPublishedResults()
+              .put(record.getMessageId(), phaser);
+        });
+
+    this.bundleRecords.addAll(materializedRecords);
+    publishBatch(materializedRecords);
   }
 
   @FinishBundle
-  public void finishBundle(FinishBundleContext context) throws IOException {
-    // Take messages in groups of 50 (if there are enough messages)
-    List<Solace.Record> currentBundle = getCurrentBundle();
-    for (int i = 0; i < currentBundle.size(); i += SOLACE_BATCH_LIMIT) {
-      int toIndex = Math.min(i + SOLACE_BATCH_LIMIT, currentBundle.size());
-      List<Solace.Record> batch = currentBundle.subList(i, toIndex);
-      if (batch.isEmpty()) {
-        continue;
-      }
-      publishBatch(batch);
+  public void finishBundle(FinishBundleContext context) {
+    publishResults(BeamContextWrapper.of(context));
+  }
+
+  public void publishResults(BeamContextWrapper context) {
+
+    PublishPhaser phaser = checkNotNull(this.phaser);
+    LOG.info(
+        "bzablockilog {} registered parties: {}",
+        checkNotNull(this.bundleUuid),
+        phaser.getRegisteredParties());
+    long now = System.currentTimeMillis();
+    try {
+      phaser.awaitAdvanceInterruptibly(bundleRegistrationPhase, 20, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (TimeoutException e) {
+      // that's ok, we handle it below.
     }
-    getCurrentBundle().clear();
+    LOG.info(
+        "bzablockilog {} awaitAdvanceInterruptibly took {}ms",
+        checkNotNull(this.bundleUuid),
+        System.currentTimeMillis() - now);
 
-    publishResults(BeamContextWrapper.of(context));
+    if (phaser.getUnarrivedParties() > 0) {
+      phaser.forceTermination();
+    }
+
+    KeySetView<String, PublishResult> responseReceivedIds = phaser.successfulRecords.keySet();
+    // Infer a set of message ids that we have not received based on the list of records that we
+    // published (materializedRecords) and the list of message ids that we received a response for
+    // (responseReceivedIds).
+    Set<String> responseNotReceivedIds =
+        bundleRecords.stream()
+            .map(Record::getMessageId)
+            .filter(id -> !responseReceivedIds.contains(id))
+            .collect(Collectors.toSet());
+
+    LOG.info(
+        "bzablockilog {} materializedRecords: {}, received:{}, responseNotReceivedIds: {}",
+        checkNotNull(this.bundleUuid),
+        this.bundleRecords.size(),
+        responseReceivedIds.size(),
+        responseNotReceivedIds.size());
+
+    responseNotReceivedIds.forEach(
+        recordId -> {
+          BadRecord badRecord =
+              createBadRecord(
+                  PublishResult.builder()
+                      .setPublished(false)
+                      .setError("Did not receive response")
+                      .setMessageId(recordId)
+                      .build());
+          if (badRecord != null) {
+            context.output(
+                FAILED_PUBLISH_TAG,
+                badRecord,
+                getCurrentBundleTimestamp(),
+                getCurrentBundleWindow()); // todo nulls?
+          }
+        });
+
+    phaser.successfulRecords.forEach(
+        (key, value) -> {
+          if (value.getPublished()) {
+            context.output(
+                SUCCESSFUL_PUBLISH_TAG,
+                value,
+                getCurrentBundleTimestamp(),
+                getCurrentBundleWindow()); // todo nulls?
+          } else {
+            BadRecord badRecord = createBadRecord(value);
+            if (badRecord != null) {
+              context.output(
+                  FAILED_PUBLISH_TAG,
+                  badRecord,
+                  getCurrentBundleTimestamp(),
+                  getCurrentBundleWindow()); // todo nulls?
+            }
+          }
+        });
+
+    // Remove entries from the map that stores the SettableFutures with Callbacks
+    this.bundleRecords.stream()
+        .map(Record::getMessageId)
+        .forEach(solaceSessionServiceWithProducer().getPublishedResults()::remove);
   }
 
-  @OnTimer("bundle_flusher")
-  public void flushBundle(OnTimerContext context) throws IOException {
-    publishResults(BeamContextWrapper.of(context));
+  private @Nullable BadRecord createBadRecord(PublishResult result) {
+    try {
+      return BadRecord.fromExceptionInformation(
+          result,
+          null,
+          null,
+          Optional.ofNullable(result.getError())
+              .orElse(
+                  "SolaceIO.Write: message delivery is not confirmed. The response from Solace was not returned before the timeout.")); // todo specify timeout
+    } catch (IOException e) {
+      // ignore, this method can throw the exception only when the `exception` argument is not
+      // null.
+      return null;
+    }
   }
 
-  private void publishBatch(List<Solace.Record> records) {
+  private void publishBatch(List<Record> records) {
     try {
       int entriesPublished =
           solaceSessionServiceWithProducer()
@@ -148,17 +248,18 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
       sentToBroker.inc(entriesPublished);
     } catch (Exception e) {
       batchesRejectedByBroker.inc();
-      Solace.PublishResult errorPublish =
-          Solace.PublishResult.builder()
-              .setPublished(false)
-              .setMessageId(String.format("BATCH_OF_%d_ENTRIES", records.size()))
-              .setError(
-                  String.format(
-                      "Batch could not be published after several" + " retries. Error: %s",
-                      e.getMessage()))
-              .setLatencyNanos(System.nanoTime())
-              .build();
-      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      // Solace.PublishResult errorPublish =
+      //     Solace.PublishResult.builder()
+      //         .setPublished(false)
+      //         .setMessageId(String.format("BATCH_OF_%d_ENTRIES", records.size()))
+      //         .setError(
+      //             String.format(
+      //                 "Batch could not be published after several retries. Error: %s",
+      //                 e.getMessage()))
+      //         .setLatencyNanos(System.nanoTime())
+      //         .build();
+      // todo handle error here
+      // solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
     }
   }
 }
