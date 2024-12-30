@@ -19,11 +19,13 @@
 
 # pytype: skip-file
 
+import io
 import itertools
 import json
 import logging
 import os
 import sys
+import time
 import unittest
 
 import mock
@@ -42,6 +44,7 @@ from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.environments import DockerEnvironment
+from apache_beam.utils import retry
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -1064,7 +1067,11 @@ class UtilTest(unittest.TestCase):
                                side_effect=None):
           client.create_job(job)
           client.stage_file.assert_called_once_with(
-              mock.ANY, "dataflow_graph.json", mock.ANY)
+              mock.ANY,
+              "dataflow_graph.json",
+              mock.ANY,
+              'application/octet-stream',
+              None)
           client.create_job_description.assert_called_once()
 
   def test_create_job_returns_existing_job(self):
@@ -1174,8 +1181,18 @@ class UtilTest(unittest.TestCase):
           client.create_job(job)
 
           client.stage_file.assert_has_calls([
-              mock.call(mock.ANY, 'dataflow_graph.json', mock.ANY),
-              mock.call(mock.ANY, 'template', mock.ANY)
+              mock.call(
+                  mock.ANY,
+                  'dataflow_graph.json',
+                  mock.ANY,
+                  'application/octet-stream',
+                  None),
+              mock.call(
+                  mock.ANY,
+                  'template',
+                  mock.ANY,
+                  'application/octet-stream',
+                  None)
           ])
           client.create_job_description.assert_called_once()
           # template is generated, but job should not be submitted to the
@@ -1652,6 +1669,93 @@ class UtilTest(unittest.TestCase):
                     ])
             }))
     self.assertEqual(pipeline, pipeline_expected)
+
+  def test_stage_file_with_retry(self):
+    def effect(self, *args, **kwargs):
+      nonlocal count
+      count += 1
+      # Fail the first two calls and succeed afterward
+      if count <= 2:
+        raise Exception("This exception is raised for testing purpose.")
+
+    class Unseekable(io.IOBase):
+      def seekable(self):
+        return False
+
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+    ])
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    with mock.patch.object(client, 'stage_file') as mock_stage_file:
+      mock_stage_file.side_effect = effect
+
+      with mock.patch.object(time, 'sleep') as mock_sleep:
+        with mock.patch("builtins.open",
+                        mock.mock_open(read_data="data")) as mock_file_open:
+          count = 0
+          # calling with a file name
+          client.stage_file_with_retry(
+              "/to", "new_name", "/from/old_name", total_size=4)
+          self.assertEqual(mock_stage_file.call_count, 3)
+          self.assertEqual(mock_sleep.call_count, 2)
+          self.assertEqual(mock_file_open.call_count, 3)
+
+          count = 0
+          mock_stage_file.reset_mock()
+          mock_sleep.reset_mock()
+          mock_file_open.reset_mock()
+
+          # calling with a seekable stream
+          client.stage_file_with_retry(
+              "/to", "new_name", io.BytesIO(b'test'), total_size=4)
+          self.assertEqual(mock_stage_file.call_count, 3)
+          self.assertEqual(mock_sleep.call_count, 2)
+          # no open() is called if a stream is provided
+          mock_file_open.assert_not_called()
+
+          count = 0
+          mock_sleep.reset_mock()
+          mock_file_open.reset_mock()
+          mock_stage_file.reset_mock()
+
+          # calling with an unseekable stream
+          self.assertRaises(
+              retry.PermanentException,
+              client.stage_file_with_retry,
+              "/to",
+              "new_name",
+              Unseekable(),
+              total_size=4)
+          # Unseekable streams are staged once. If staging fails, no retries are
+          # attempted.
+          self.assertEqual(mock_stage_file.call_count, 1)
+          mock_sleep.assert_not_called()
+          mock_file_open.assert_not_called()
+
+          count = 0
+          mock_sleep.reset_mock()
+          mock_file_open.reset_mock()
+          mock_stage_file.reset_mock()
+
+          # calling with something else
+          self.assertRaises(
+              retry.PermanentException,
+              client.stage_file_with_retry,
+              "/to",
+              "new_name",
+              object(),
+              total_size=4)
+          # No staging will be called for wrong arg type
+          mock_stage_file.assert_not_called()
+          mock_sleep.assert_not_called()
+          mock_file_open.assert_not_called()
 
 
 if __name__ == '__main__':
