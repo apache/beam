@@ -156,3 +156,24 @@ jobs:
 
         git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
         git push https://github.com/apache/beam "$POST_RELEASE_BRANCH"
+
+  update_master:
+    needs: push_git_tags
+    runs-on: ubuntu-latest
+    env:
+        POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Update .asf.yaml to protect new postrelease branch from force push
+        run: |
+          sed -i -e "s/master: {}/master: {}\n    ${POST_RELEASE_BRANCH}: {}/g" .asf.yaml
+      - name: Commit and Push to master branch files with Next Version
+        run: |
+          git add .asf.yaml
+          git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
+          git push origin ${MASTER_BRANCH}
