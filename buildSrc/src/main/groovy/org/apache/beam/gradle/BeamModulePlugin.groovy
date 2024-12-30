@@ -2200,7 +2200,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: "testRuntimeMigration")
+          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services2", configuration: "testRuntimeMigration")
         }
       }
       project.task('packageIntegrationTests', type: Jar)
