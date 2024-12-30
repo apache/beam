@@ -24,7 +24,7 @@ darwin_install_pip3_packages() {
 
 install_go_packages(){
         echo "Installing goavro"
-        o mod init beam-runtime && go get github.com/linkedin/goavro/v2
+        go mod init beam-runtime && go get github.com/linkedin/goavro/v2
         # As we are using bash, we are assuming .bashrc exists.
         grep -qxF "export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath" ~/.bashrc
         gopathExists=$?
