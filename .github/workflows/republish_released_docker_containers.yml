@@ -45,7 +45,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: "v${{ env.release }}-RC${{ env.rc }}"
+          ref: "release-${{ env.release }}-postrelease"
           repository: apache/beam
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.0
