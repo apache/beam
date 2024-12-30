@@ -285,7 +285,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.Time(e.GetTimestamp())})
 						}
 						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
-						ev.ElementEvent.GetTag()
 					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
 						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.Time(ev.WatermarkEvent.GetNewWatermark()))
 					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:

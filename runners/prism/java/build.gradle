@@ -187,14 +187,6 @@ def sickbayTests = [
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
-    // TestStream + BundleFinalization.
-    // Tests seem to assume individual element bundles from test stream, but prism will aggregate them, preventing
-    // a subsequent firing. Tests ultimately hang until timeout.
-    // Either a test problem, or a misunderstanding of how test stream must work problem in prism.
-    // Biased to test problem, due to how they are constructed.
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalization',
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithSideInputs',
-
     // Filtered by PortableRunner tests.
     // Teardown not called in exceptions
     // https://github.com/apache/beam/issues/20372
