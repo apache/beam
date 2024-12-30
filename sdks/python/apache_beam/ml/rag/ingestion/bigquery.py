@@ -18,7 +18,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Optional
 
 import apache_beam as beam
@@ -123,38 +122,60 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
     return _WriteToBigQueryVectorDatabase(self)
 
 
+def _default_chunk_to_dict_fn(chunk: Chunk):
+  return {
+      'id': chunk.id,
+      'embedding': chunk.embedding.dense_embedding,
+      'content': chunk.content.text,
+      'metadata': [
+          {
+              "key": k, "value": str(v)
+          } for k, v in chunk.metadata.items()
+      ]
+  }
+
+
+def _default_schema():
+  return {
+      'fields': [{
+          'name': 'id', 'type': 'STRING'
+      }, {
+          'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'
+      }, {
+          'name': 'content', 'type': 'STRING'
+      },
+                 {
+                     'name': 'metadata',
+                     'type': 'RECORD',
+                     'mode': 'REPEATED',
+                     'fields': [{
+                         'name': 'key', 'type': 'STRING'
+                     }, {
+                         'name': 'value', 'type': 'STRING'
+                     }]
+                 }]
+  }
+
+
 class _WriteToBigQueryVectorDatabase(beam.PTransform):
   """Implementation of BigQuery vector database write. """
   def __init__(self, config: BigQueryVectorWriterConfig):
     self.config = config
 
   def expand(self, pcoll: beam.PCollection[Chunk]):
-
-    if not self.config.schema_config:
-      rows_to_write = (
-          pcoll
-          | "Convert to schema'd Rows" >> beam.Map(
-              lambda chunk: beam.Row(
-                  id=chunk.id,
-                  embedding=chunk.embedding.dense_embedding,
-                  content=chunk.content.text,
-                  metadata=chunk.metadata)).with_output_types(
-                      RowTypeConstraint.from_fields(
-                          [('id', str), ('content', str),
-                           ('embedding', List[float]),
-                           ('metadata', Dict[str, str])])))
-    else:
-      schema = self.config.schema_config.schema
-      rows_to_write = (
-          pcoll
-          | "Chunk to dict" >> beam.Map(
-              self.config.schema_config.chunk_to_dict_fn)
-          | "Chunk dict to schema'd row" >> beam.Map(
-              lambda chunk_dict: beam_row_from_dict(
-                  row=chunk_dict, schema=schema)).with_output_types(
-                      RowTypeConstraint.from_fields(
-                          get_beam_typehints_from_tableschema(schema))))
+    schema = (
+        self.config.schema_config.schema
+        if self.config.schema_config else _default_schema())
+    chunk_to_dict_fn = (
+        self.config.schema_config.chunk_to_dict_fn
+        if self.config.schema_config else _default_chunk_to_dict_fn)
     return (
-        rows_to_write
+        pcoll
+        | "Chunk to dict" >> beam.Map(chunk_to_dict_fn)
+        | "Chunk dict to schema'd row" >> beam.Map(
+            lambda chunk_dict: beam_row_from_dict(
+                row=chunk_dict, schema=schema)).with_output_types(
+                    RowTypeConstraint.from_fields(
+                        get_beam_typehints_from_tableschema(schema)))
         | "Write to BigQuery" >> beam.managed.Write(
             beam.managed.BIGQUERY, config=self.config.write_config))
