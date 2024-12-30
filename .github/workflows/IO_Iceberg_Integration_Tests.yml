@@ -75,4 +75,4 @@ jobs:
       - name: Run IcebergIO Integration Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:iceberg:catalogTests --info
+          gradle-command: :sdks:java:io:iceberg:integrationTest --info
