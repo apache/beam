@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
@@ -187,12 +188,10 @@ class BigQueryVectorSearchParameters:
     """ if self.metadata_restriction_template else ""
 
     # Group chunks by their metadata conditions
-    condition_groups = {}
+    condition_groups = defaultdict(list)
     if self.metadata_restriction_template:
       for chunk in chunks:
         condition = self.metadata_restriction_template.format(**chunk.metadata)
-        if condition not in condition_groups:
-          condition_groups[condition] = []
         condition_groups[condition].append(chunk)
     else:
       # No metadata filtering - all chunks in one group
