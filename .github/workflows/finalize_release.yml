@@ -138,6 +138,7 @@ jobs:
       env:
         VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
         RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+        POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
         git fetch --all --tags --prune
@@ -152,3 +153,6 @@ jobs:
         # Tag for repo root.
         git tag "$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "$VERSION_TAG"
+
+        git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
+        git push https://github.com/apache/beam "$POST_RELEASE_BRANCH"
