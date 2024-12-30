@@ -193,12 +193,6 @@ public class SyntheticDataPublisher {
             KinesisIO.<byte[]>write()
                 .withStreamName(options.getKinesisStreamName())
                 .withPartitioner(p -> options.getKinesisPartitionKey())
-                // .withPartitionKey(options.getKinesisPartitionKey())
-                // .withAWSClientsProvider(
-                //     options.getKinesisAwsKey(),
-                //     options.getKinesisAwsSecret(),
-                //     Regions.fromName(options.getKinesisAwsRegion())
-                // ));
                 .withClientConfiguration(
                     ClientConfiguration.builder()
                         .credentialsProvider(provider)
