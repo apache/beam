@@ -2,16 +2,14 @@ import json
 import logging
 import random
 import string
-from collections import namedtuple
 
 from apache_beam import PTransform
+from apache_beam.io.lyft.s3_and_kinesis import EventConfig
+from apache_beam.io.lyft.s3_and_kinesis import S3Config
 from apache_beam.pvalue import PBegin
 from apache_beam.pvalue import PCollection
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.window import GlobalWindows
-
-Event = namedtuple('Event', 'name lateness_in_sec lookback_days')
-S3Config = namedtuple('S3Config', 'parallelism lookback_hours')
 
 
 class S3Input(PTransform):
@@ -22,8 +20,8 @@ class S3Input(PTransform):
 
   def __init__(self):
     super().__init__()
-    self.events = []
-    self.s3_config = S3Config(None, None)
+    self.events_config = []
+    self.s3_config = S3Config()
     self.source_name = 'S3_' + self._get_random_source_name()
     self.app_env = "production"
 
@@ -38,8 +36,8 @@ class S3Input(PTransform):
   def infer_output_type(self, unused_input_type):
     return bytes
 
-  def with_event(self, event):
-    self.events.append(event)
+  def with_event_config(self, event):
+    self.events_config.append(event)
     return self
 
   def with_s3_config(self, s3_config):
@@ -69,22 +67,29 @@ class S3Input(PTransform):
     instance.source_name = payload['source_name']
     instance.app_env = payload['app_env']
     s3_config_dict = payload['s3']
-    instance.s3_config = S3Config(
-        parallelism=s3_config_dict.get('parallelism', None),
-        lookback_hours=s3_config_dict.get('lookback_hours', None)
-    )
+
+    lookback_threshold_hours = s3_config_dict.get('lookback_threshold_hours', S3Config.DEFAULT_LOOKBACK_THRESHOLD_HOURS)
+    s3_parallelism = s3_config_dict.get('parallelism', S3Config.DEFAULT_S3_PARALLELISM)
+    s3_config = S3Config()
+    s3_config.with_lookback_threshold_hours(lookback_threshold_hours)
+    s3_config.with_parallelism(s3_parallelism)
+
+    instance.s3_config = s3_config
 
     events_list = payload['events']
-    instance.events = []
+    instance.events_config = []
     for event in events_list:
       assert event.get('name') is not None, "Event name must be set"
-      instance.events.append(
-          Event(
-              name=event.get('name'),
-              lateness_in_sec=event.get('lateness_in_sec', None),
-              lookback_days=event.get('lookback_days', None)
-          )
-      )
+      event_config = EventConfig(event.get('name'))
+      max_out_of_orderness_millis = event.get('max_out_of_orderness_millis',
+                                              EventConfig.DEFAULT_MAX_OUT_OF_ORDERNESS_MILLIS)
+      event_config.with_max_out_of_orderness_millis(max_out_of_orderness_millis)
+
+      lookback_days = event.get('lookback_days', None)
+      if lookback_days is not None:
+        event_config.with_lookback_in_days(lookback_days)
+      instance.events_config.append(event_config)
+
     return instance
 
   def to_runner_api_parameter(self, _unused_context):
@@ -96,14 +101,17 @@ class S3Input(PTransform):
       'app_env': self.app_env,
       's3': {
         'parallelism': self.s3_config.parallelism,
-        'lookback_hours': self.s3_config.lookback_hours
+        'lookback_hours': self.s3_config.lookback_threshold_hours
       },
     }
 
     event_list_json = []
-    for e in self.events:
-      assert isinstance(e, Event), "expected instance of Event, but got %s" % type(e)
-      event_map = {'name': e.name, 'lateness_in_sec': e.lateness_in_sec, 'lookback_days': e.lookback_days}
+    for event_config in self.events_config:
+      event_map = {
+        'name': event_config.name,
+        'max_out_of_orderness_millis': event_config.max_out_of_orderness_millis,
+        'lookback_days': event_config.lookback_days
+      }
       event_list_json.append(event_map)
 
     json_map['events'] = event_list_json
