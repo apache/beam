@@ -201,7 +201,9 @@ class SdkHarness(object):
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials, self._worker_id, data_buffer_time_limit_ms)
     self._state_handler_factory = GrpcStateHandlerFactory(
-        self._state_cache, self._worker_id, credentials)
+        state_cache=self._state_cache,
+        credentials=credentials,
+        worker_id=self._worker_id)
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
@@ -893,8 +895,8 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
   Caches the created channels by ``state descriptor url``.
   """
-  def __init__(self, state_cache, worker_id, credentials=None):
-    # type: (StateCache, Optional[str], Optional[grpc.ChannelCredentials]) -> None
+  def __init__(self, state_cache, credentials=None, worker_id=None):
+    # type: (StateCache, Optional[grpc.ChannelCredentials], Optional[str]) -> None
     self._state_handler_cache = {}  # type: Dict[str, CachingStateHandler]
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
