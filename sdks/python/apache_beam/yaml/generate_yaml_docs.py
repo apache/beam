@@ -194,12 +194,46 @@ def io_grouping_key(transform_name):
 SKIP = {}
 
 
+def add_transform_links(transform, description, provider_list):
+  """
+  Convert references of Providers to urls that link to their respective pages.
+
+  For example,
+    "Some description talking about MyTransform."
+  would be converted to
+    "Some description talking about <a href="#mytransform">MyTransform</a>"
+
+  meanwhile::
+
+    type: MyTransform
+    config:
+      ...
+
+  Would remain unchanged.
+
+  Avoid self-linking within a Transform page.
+  """
+  for p in provider_list:
+    # Match all instances of built-in transforms within the description
+    # excluding the transform whose description is currently being evaluated.
+    # Match the entire word boundary so that partial matches do not count.
+    # (i.e. OtherTransform should not match Transform)
+    description = re.sub(
+        rf"(?<!type: )\b(?!{transform}\b)\b{p}\b",
+        f'<a href="#{p.lower()}">{p}</a>',
+        description or '')
+  return description
+
+
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
   return '\n'.join([
       f'## {transform_base}',
       '',
       longest(
-          lambda t: longest(lambda p: p.description(t), providers[t]),
+          lambda t: longest(
+              lambda p: add_transform_links(
+                  t, p.description(t), providers.keys()),
+              providers[t]),
           transforms).replace('::\n', '\n\n    :::yaml\n'),
       '',
       extra_docs,
