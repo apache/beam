@@ -64,6 +64,10 @@ configurations {
   gradleRun
 }
 
+def excludeNetty = {
+  exclude group: "io.netty", module: "*" // exclude more recent Netty version
+}
+
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
@@ -73,8 +77,9 @@ dependencies {
   implementation project(":sdks:java:testing:test-utils")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
-  implementation project(":sdks:java:io:kinesis")
-  implementation library.java.aws_java_sdk_core
+  implementation project(":sdks:java:io:amazon-web-services2")
+  implementation library.java.aws_java_sdk2_auth, excludeNetty
+  implementation library.java.aws_java_sdk2_regions, excludeNetty
   implementation library.java.google_cloud_core
   implementation library.java.joda_time
   implementation library.java.vendored_guava_32_1_2_jre

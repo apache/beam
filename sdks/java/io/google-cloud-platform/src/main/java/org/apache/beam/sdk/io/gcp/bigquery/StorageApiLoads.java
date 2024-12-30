@@ -373,24 +373,23 @@ public class StorageApiLoads<DestinationT, ElementT>
     }
 
     PCollectionTuple writeRecordsResult =
-        successfulConvertedRows
-            .apply(
-                "StorageApiWriteUnsharded",
-                new StorageApiWriteUnshardedRecords<>(
-                    dynamicDestinations,
-                    bqServices,
-                    failedRowsTag,
-                    successfulWrittenRowsTag,
-                    successfulRowsPredicate,
-                    BigQueryStorageApiInsertErrorCoder.of(),
-                    TableRowJsonCoder.of(),
-                    autoUpdateSchema,
-                    ignoreUnknownValues,
-                    createDisposition,
-                    kmsKey,
-                    usesCdc,
-                    defaultMissingValueInterpretation,
-                    bigLakeConfiguration));
+        successfulConvertedRows.apply(
+            "StorageApiWriteUnsharded",
+            new StorageApiWriteUnshardedRecords<>(
+                dynamicDestinations,
+                bqServices,
+                failedRowsTag,
+                successfulWrittenRowsTag,
+                successfulRowsPredicate,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                TableRowJsonCoder.of(),
+                autoUpdateSchema,
+                ignoreUnknownValues,
+                createDisposition,
+                kmsKey,
+                usesCdc,
+                defaultMissingValueInterpretation,
+                bigLakeConfiguration));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
