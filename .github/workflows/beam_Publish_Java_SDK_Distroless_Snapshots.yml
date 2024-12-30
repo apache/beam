@@ -1,0 +1,92 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Publish Beam Python SDK Distroless Snapshots
+
+on:
+  schedule:
+    - cron: '45 */8 * * *'
+  workflow_dispatch:
+
+  #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  docker_registry: gcr.io
+
+jobs:
+  Python_SDK_Distroless_Snapshots:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 160
+    name: ${{ matrix.job_name }} (${{ matrix.python_version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: ["Python_SDK_Distroless_Snapshots"]
+        job_phrase: ["N/A"]
+        python_version:
+          - "python3.9"
+          - "python3.10"
+          - "python3.11"
+          - "python3.12"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.python_version }})
+      - name: Find Beam Version
+        # We extract the Beam version here and tag the containers with it. Version will be in the form "2.xx.y.dev".
+        # This is needed to run pipelines that use the default environment at HEAD, for example, when a
+        # pipeline uses an expansion service built from HEAD.
+        run: |
+          BEAM_VERSION_LINE=$(cat gradle.properties | grep "sdk_version")
+          echo "BEAM_VERSION=${BEAM_VERSION_LINE#*sdk_version=}" >> $GITHUB_ENV
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.docker_registry }}
+      # TODO(https://github.com/apache/beam/issues/32914): create after merging into main branch
+      # - name: Build and push Python distroless image
+
+
+  
