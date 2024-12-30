@@ -85,9 +85,3 @@ jobs:
           gcloud auth configure-docker ${{ env.docker_registry }}
       # TODO(https://github.com/apache/beam/issues/33201): create after merging into main branch
       # - name: Build and push Java distroless image
-
-
-
-      
-  
-  
