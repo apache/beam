@@ -151,6 +151,7 @@ class FnApiWorkerStatusHandler(object):
       bundle_process_cache=None,
       state_cache=None,
       enable_heap_dump=False,
+      worker_id=None,
       log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
     """Initialize FnApiWorkerStatusHandler.
 
@@ -164,7 +165,8 @@ class FnApiWorkerStatusHandler(object):
     self._state_cache = state_cache
     ch = GRPCChannelFactory.insecure_channel(status_address)
     grpc.channel_ready_future(ch).result(timeout=60)
-    self._status_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
+    self._status_channel = grpc.intercept_channel(
+        ch, WorkerIdInterceptor(worker_id))
     self._status_stub = beam_fn_api_pb2_grpc.BeamFnWorkerStatusStub(
         self._status_channel)
     self._responses = queue.Queue()
