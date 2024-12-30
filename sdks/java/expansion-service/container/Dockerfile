@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM eclipse-temurin:11
+FROM gcr.io/distroless/java:11
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
@@ -39,7 +39,8 @@ COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 # Copy the config file
 COPY target/expansion_service_config.yml ./
 
-# Add golang licenses.
+# Add golang licenses. These commands require having a shell to work with
+COPY --from=busybox:1.35.0-uclibc /bin/sh /bin/sh
 COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 RUN if [ "${pull_licenses}" = "false" ] ; then \
     # Remove above license dir if pull licenses false

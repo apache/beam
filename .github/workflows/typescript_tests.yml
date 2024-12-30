@@ -21,6 +21,13 @@ name: TypeScript Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      runXlang:
+        description: 'Type "true" if you want to run xlang tests'
+        default: false
+      runDataflow:
+        description: 'Type "true" if you want to run Dataflow tests'
+        default: false
   schedule:
     - cron: '10 2 * * *'
   push:
@@ -68,6 +75,8 @@ jobs:
 #        if: ${{ matrix.os != 'ubuntu-latest' }}
   typescript_xlang_tests:
     name: 'TypeScript xlang Tests'
+    # TODO(https://github.com/apache/beam/issues/33346): remove manual trigger after fixing referenced issue.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runXlang == 'true')
     runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 15
     strategy:
@@ -115,16 +124,16 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
           GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
 
   typescript_dataflow_tests:
     name: 'TypeScript Dataflow Tests'
+    # TODO(https://github.com/apache/beam/issues/33346): remove manual trigger after fixing referenced issue.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     runs-on: ubuntu-latest
     needs:
       - check_gcp_variables
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     strategy:
       fail-fast: false
     steps:
@@ -146,11 +155,6 @@ jobs:
         run: |
           pip install 'pandas>=1.0,<1.5'
           pip install -e ".[gcp]"
-      - name: Authenticate on GCP
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
       - run: npm ci
         working-directory: ./sdks/typescript
       - run: npm run build
