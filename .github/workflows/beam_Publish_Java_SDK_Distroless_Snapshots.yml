@@ -83,16 +83,8 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
-      - name: Build and push Java distroless image
-        run: |
-          docker buildx build \ 
-            -t gcr.io/apache-beam-testing/beam-sdk/beam_${{ matrix.java_version }}_sdk_distroless:${{ github.sha }} \
-            -t gcr.io/apache-beam-testing/beam-sdk/beam_${{ matrix.java_version }}_sdk_distroless:${BEAM_VERSION} \
-            -t gcr.io/apache-beam-testing/beam-sdk/beam_${{ matrix.java_version }}_sdk_distroless:latest \
-            -f sdks/java/container/Dockerfile-distroless \
-            --build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${{ matrix.java_version }}_sdk:${BEAM_VERSION} \
-            --build-arg=DISTROLESS_BASE=gcr.io/distroless/${{ matrix.java_version }}-debian12 \
-            .
+      # TODO(https://github.com/apache/beam/issues/33201): create after merging into main branch
+      # - name: Build and push Java distroless image
 
 
 
