@@ -196,7 +196,7 @@ The following must be manually done or confirmed:
 - [ ] The `master` branch has the SNAPSHOT/dev version incremented.
 - [ ] The release branch has the SNAPSHOT/dev version to be released.
 - [ ] The Dataflow container image should be modified to the version to be released.
-- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx.0) to build a snapshot.
+- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx) to build a snapshot.
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
@@ -1398,19 +1398,7 @@ To drive down time to resolution, this can happen in parallel to any discussion 
 
 The above document assumes a minor version bump cut off of the master branch. If you want to do a patch release cut off of a previous release branch, use the following steps instead:
 
-- Create a new release branch:
-
-```
-git clone https://github.com/apache/beam
-cd beam
-git fetch origin release-2.XX.0
-git checkout release-2.XX.0
-git checkout -b release-2.XX.1
-git push origin release-2.XX.1
-```
-
-- Add a PR to add the new release branch to the set of protected branches in .asf.yml - [example PR](https://github.com/apache/beam/pull/30832)
-- Add a PR to bump the Dataflow containers versions - [example PR](https://github.com/apache/beam/pull/30827)
+- Add a PR to bump the Dataflow containers versions on the release branch (`release-2.XX`) - [example PR](https://github.com/apache/beam/pull/30827)
 - Create PRs to cherry-pick any desired commits to the release branch
 - Follow the normal release steps, starting with [release branch stabilization](#stabilize-the-release-branch), to build/vote/validate/finalize the release candidate that are listed above. See Voting and Finalization of a Patch Release to see differences in the voting process.
 - Depending on the nature of the issue, certain post-release finalization steps may be skipped. For example, if an issue doesn’t dramatically impact the Beam Playground, consider skipping that step

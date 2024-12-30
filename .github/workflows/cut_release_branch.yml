@@ -31,11 +31,11 @@ on:
       RELEASE_VERSION:
         description: Beam version of current release (branch being cut)
         required: true
-        default: '2.XX.0'
+        default: '2.XX'
       NEXT_VERSION:
         description: Next release version
         required: true
-        default: '2.XX.0'
+        default: '2.XX'
       CREATE_RELEASE_BRANCH:
         description: Whether to cut the release branch. You shouldnt skip this unless it has already been completed successfully (yes/no)
         required: true
