@@ -150,6 +150,8 @@ public class GrpcDispatcherClient {
       }
     }
 
+    LOG.info("Windmill Service endpoint initialized after {} seconds.", secondsWaited);
+
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();
 
@@ -190,7 +192,7 @@ public class GrpcDispatcherClient {
 
   public synchronized void consumeWindmillDispatcherEndpoints(
       ImmutableSet<HostAndPort> dispatcherEndpoints) {
-    consumeWindmillDispatcherEndpoints(dispatcherEndpoints, /*forceRecreateStubs=*/ false);
+    consumeWindmillDispatcherEndpoints(dispatcherEndpoints, /* forceRecreateStubs= */ false);
   }
 
   private synchronized void consumeWindmillDispatcherEndpoints(

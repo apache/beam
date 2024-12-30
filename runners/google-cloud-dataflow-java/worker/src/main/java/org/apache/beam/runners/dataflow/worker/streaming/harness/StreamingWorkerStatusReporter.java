@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
 import com.google.api.services.dataflow.model.WorkerMessageResponse;
+import com.google.auto.value.AutoBuilder;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -78,7 +80,7 @@ public final class StreamingWorkerStatusReporter {
   private final int initialMaxThreadCount;
   private final int initialMaxBundlesOutstanding;
   private final WorkUnitClient dataflowServiceClient;
-  private final Supplier<Long> windmillQuotaThrottleTime;
+  private final ThrottledTimeTracker windmillQuotaThrottleTime;
   private final Supplier<Collection<StageInfo>> allStageInfo;
   private final FailureTracker failureTracker;
   private final StreamingCounters streamingCounters;
@@ -97,10 +99,10 @@ public final class StreamingWorkerStatusReporter {
   // Used to track the number of WorkerMessages that have been sent without PerWorkerMetrics.
   private final AtomicLong workerMessagesIndex;
 
-  private StreamingWorkerStatusReporter(
+  StreamingWorkerStatusReporter(
       boolean publishCounters,
       WorkUnitClient dataflowServiceClient,
-      Supplier<Long> windmillQuotaThrottleTime,
+      ThrottledTimeTracker windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
       FailureTracker failureTracker,
       StreamingCounters streamingCounters,
@@ -131,57 +133,13 @@ public final class StreamingWorkerStatusReporter {
     this.workerMessagesIndex = new AtomicLong();
   }
 
-  public static StreamingWorkerStatusReporter create(
-      WorkUnitClient workUnitClient,
-      Supplier<Long> windmillQuotaThrottleTime,
-      Supplier<Collection<StageInfo>> allStageInfo,
-      FailureTracker failureTracker,
-      StreamingCounters streamingCounters,
-      MemoryMonitor memoryMonitor,
-      BoundedQueueExecutor workExecutor,
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    return new StreamingWorkerStatusReporter(
-        /* publishCounters= */ true,
-        workUnitClient,
-        windmillQuotaThrottleTime,
-        allStageInfo,
-        failureTracker,
-        streamingCounters,
-        memoryMonitor,
-        workExecutor,
-        threadName ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
-        windmillHarnessUpdateReportingPeriodMillis,
-        perWorkerMetricsUpdateReportingPeriodMillis);
-  }
-
-  @VisibleForTesting
-  public static StreamingWorkerStatusReporter forTesting(
-      boolean publishCounters,
-      WorkUnitClient workUnitClient,
-      Supplier<Long> windmillQuotaThrottleTime,
-      Supplier<Collection<StageInfo>> allStageInfo,
-      FailureTracker failureTracker,
-      StreamingCounters streamingCounters,
-      MemoryMonitor memoryMonitor,
-      BoundedQueueExecutor workExecutor,
-      Function<String, ScheduledExecutorService> executorFactory,
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    return new StreamingWorkerStatusReporter(
-        publishCounters,
-        workUnitClient,
-        windmillQuotaThrottleTime,
-        allStageInfo,
-        failureTracker,
-        streamingCounters,
-        memoryMonitor,
-        workExecutor,
-        executorFactory,
-        windmillHarnessUpdateReportingPeriodMillis,
-        perWorkerMetricsUpdateReportingPeriodMillis);
+  public static Builder builder() {
+    return new AutoBuilder_StreamingWorkerStatusReporter_Builder()
+        .setPublishCounters(true)
+        .setExecutorFactory(
+            threadName ->
+                Executors.newSingleThreadScheduledExecutor(
+                    new ThreadFactoryBuilder().setNameFormat(threadName).build()));
   }
 
   /**
@@ -226,6 +184,22 @@ public final class StreamingWorkerStatusReporter {
       LOG.warn("Error occurred trying to gracefully shutdown executor={}", executor, e);
       executor.shutdownNow();
     }
+  }
+
+  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
+  // WorkerMessages RPC schedule. The desired reporting period
+  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
+  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
+  private static long getPerWorkerMetricsUpdateFrequency(
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
+    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
+      return 0;
+    }
+    return LongMath.divide(
+        perWorkerMetricsUpdateReportingPeriodMillis,
+        windmillHarnessUpdateReportingPeriodMillis,
+        RoundingMode.CEILING);
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -276,27 +250,13 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
-  // WorkerMessages RPC schedule. The desired reporting period
-  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
-  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
-  private static long getPerWorkerMetricsUpdateFrequency(
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
-      return 0;
-    }
-    return LongMath.divide(
-        perWorkerMetricsUpdateReportingPeriodMillis,
-        windmillHarnessUpdateReportingPeriodMillis,
-        RoundingMode.CEILING);
-  }
-
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
     // Throttle time is tracked by the windmillServer but is reported to DFE here.
-    streamingCounters.windmillQuotaThrottling().addValue(windmillQuotaThrottleTime.get());
+    streamingCounters
+        .windmillQuotaThrottling()
+        .addValue(windmillQuotaThrottleTime.getAndResetThrottleTime());
     if (memoryMonitor.isThrashing()) {
       streamingCounters.memoryThrashing().addValue(1);
     }
@@ -495,5 +455,34 @@ public final class StreamingWorkerStatusReporter {
     streamingCounters
         .maxOutstandingBundles()
         .addValue((long) workExecutor.maximumElementsOutstanding());
+  }
+
+  @AutoBuilder
+  public interface Builder {
+    Builder setPublishCounters(boolean publishCounters);
+
+    Builder setDataflowServiceClient(WorkUnitClient dataflowServiceClient);
+
+    Builder setWindmillQuotaThrottleTime(ThrottledTimeTracker windmillQuotaThrottledTimeTracker);
+
+    Builder setAllStageInfo(Supplier<Collection<StageInfo>> allStageInfo);
+
+    Builder setFailureTracker(FailureTracker failureTracker);
+
+    Builder setStreamingCounters(StreamingCounters streamingCounters);
+
+    Builder setMemoryMonitor(MemoryMonitor memoryMonitor);
+
+    Builder setWorkExecutor(BoundedQueueExecutor workExecutor);
+
+    Builder setExecutorFactory(Function<String, ScheduledExecutorService> executorFactory);
+
+    Builder setWindmillHarnessUpdateReportingPeriodMillis(
+        long windmillHarnessUpdateReportingPeriodMillis);
+
+    Builder setPerWorkerMetricsUpdateReportingPeriodMillis(
+        long perWorkerMetricsUpdateReportingPeriodMillis);
+
+    StreamingWorkerStatusReporter build();
   }
 }

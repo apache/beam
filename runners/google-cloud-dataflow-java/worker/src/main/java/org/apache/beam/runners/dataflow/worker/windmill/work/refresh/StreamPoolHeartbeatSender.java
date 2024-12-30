@@ -42,7 +42,7 @@ public final class StreamPoolHeartbeatSender implements HeartbeatSender {
     this.heartbeatStreamPool.set(heartbeatStreamPool);
   }
 
-  public static StreamPoolHeartbeatSender Create(
+  public static StreamPoolHeartbeatSender create(
       @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool) {
     return new StreamPoolHeartbeatSender(heartbeatStreamPool);
   }
@@ -55,7 +55,7 @@ public final class StreamPoolHeartbeatSender implements HeartbeatSender {
    *     enabled.
    * @param getDataPool stream to use when using separate streams for heartbeat is disabled.
    */
-  public static StreamPoolHeartbeatSender Create(
+  public static StreamPoolHeartbeatSender create(
       @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> dedicatedHeartbeatPool,
       @Nonnull WindmillStreamPool<WindmillStream.GetDataStream> getDataPool,
       @Nonnull StreamingGlobalConfigHandle configHandle) {

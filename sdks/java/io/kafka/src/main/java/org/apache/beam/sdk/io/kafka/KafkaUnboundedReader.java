@@ -606,13 +606,20 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
       Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
 
-      consumer.commitSync(
-          checkpointMark.getPartitions().stream()
-              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-              .collect(
-                  Collectors.toMap(
-                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                      p -> new OffsetAndMetadata(p.getNextOffset()))));
+      try {
+        consumer.commitSync(
+            checkpointMark.getPartitions().stream()
+                .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+                .collect(
+                    Collectors.toMap(
+                        p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                        p -> new OffsetAndMetadata(p.getNextOffset()))));
+      } catch (Exception e) {
+        // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
+        // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
+        LOG.warn(
+            String.format("%s: Could not commit finalized checkpoint %s", this, checkpointMark), e);
+      }
     }
   }
 

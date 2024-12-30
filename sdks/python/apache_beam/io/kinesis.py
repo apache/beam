@@ -49,7 +49,8 @@
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) a expansion service jar and use
   that to expand transforms. Currently Kinesis transforms use the
-  'beam-sdks-java-io-kinesis-expansion-service' jar for this purpose.
+  'beam-sdks-java-io-amazon-web-services2-expansion-service' jar for this
+  purpose.
 
   *Option 2: specify a custom expansion service*
 
@@ -81,7 +82,6 @@
 
 import logging
 import time
-from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 
@@ -99,7 +99,7 @@ __all__ = [
 
 def default_io_expansion_service():
   return BeamJarExpansionService(
-      'sdks:java:io:kinesis:expansion-service:shadowJar')
+      'sdks:java:io:amazon-web-services2:expansion-service:shadowJar')
 
 
 WriteToKinesisSchema = NamedTuple(
@@ -112,7 +112,6 @@ WriteToKinesisSchema = NamedTuple(
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
-        ('producer_properties', Optional[Mapping[str, str]]),
     ],
 )
 
@@ -123,7 +122,7 @@ class WriteToKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_write:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_write:v2'
 
   def __init__(
       self,
@@ -148,11 +147,15 @@ class WriteToKinesis(ExternalTransform):
     :param verify_certificate: Enable or disable certificate verification.
         Never set to False on production. True by default.
     :param partition_key: Specify default partition key.
-    :param producer_properties: Specify the configuration properties for Kinesis
-        Producer Library (KPL) as dictionary.
-        Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
+    :param producer_properties: (Deprecated) This option no longer is available
+        since the AWS IOs upgraded to v2. Trying to set it will lead to an
+        error. For more info, see https://github.com/apache/beam/issues/33430.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    if producer_properties is not None:
+      raise ValueError(
+          'producer_properties is no longer supported and will be removed ' +
+          'in a future release.')
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -164,7 +167,6 @@ class WriteToKinesis(ExternalTransform):
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
-                producer_properties=producer_properties,
             )),
         expansion_service or default_io_expansion_service(),
     )
@@ -199,7 +201,7 @@ class ReadDataFromKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v2'
 
   def __init__(
       self,

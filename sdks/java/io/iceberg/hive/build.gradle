@@ -21,60 +21,39 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg.hive',
         exportJavadoc: false,
-        shadowClosure: {},
+        publish: false, // it's an intermediate jar for io-expansion-service
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: Hive"
 ext.summary = "Runtime dependencies needed for Hive catalog integration."
 
 def hive_version = "3.1.3"
-def iceberg_version = "1.4.2"
+def hbase_version = "2.6.1-hadoop3"
+def hadoop_version = "3.4.1"
+def iceberg_version = "1.6.1"
+def avatica_version = "1.25.0"
 
 dependencies {
     // dependencies needed to run with iceberg's hive catalog
+    // these dependencies are going to be included in io-expansion-service
     runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
-    runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
-
-    // ----- below dependencies are for testing and will not appear in the shaded jar -----
-    // Beam IcebergIO dependencies
-    testImplementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation project(":sdks:java:managed")
-    testImplementation project(":sdks:java:io:iceberg")
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testRuntimeOnly library.java.snake_yaml
-    testRuntimeOnly library.java.bigdataoss_gcs_connector
-    testRuntimeOnly library.java.hadoop_client
-
-    // needed to set up the test environment
-    testImplementation "org.apache.iceberg:iceberg-common:$iceberg_version"
-    testImplementation "org.apache.iceberg:iceberg-core:$iceberg_version"
-    testImplementation "org.assertj:assertj-core:3.11.1"
-    testImplementation library.java.junit
-
-    // needed to set up test Hive Metastore and run tests
-    testImplementation ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
-    testImplementation project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
-    testRuntimeOnly ("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
-        exclude group: "org.apache.hive", module: "hive-exec"
-        exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
+    // analyzeClassesDependencies fails with "Cannot accept visitor on URL", likely the plugin does not recognize "core" classifier
+    // use "core" classifier to depend on un-shaded jar
+    runtimeOnly ("org.apache.hive:hive-exec:$hive_version:core") {
+        // old hadoop-yarn-server-resourcemanager contains critical log4j vulneribility
+        exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-resourcemanager"
+        // old hadoop-yarn-server-resourcemanager contains critical log4j and hadoop vulneribility
+        exclude group: "org.apache.hbase", module: "hbase-client"
+        // old calcite leaks old protobuf-java
+        exclude group: "org.apache.calcite.avatica", module: "avatica"
     }
-    testImplementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
-    testImplementation "org.apache.parquet:parquet-column:1.12.0"
+    runtimeOnly ("org.apache.hadoop:hadoop-yarn-server-resourcemanager:$hadoop_version")
+    runtimeOnly ("org.apache.hbase:hbase-client:$hbase_version")
+    runtimeOnly ("org.apache.calcite.avatica:avatica-core:$avatica_version")
+    runtimeOnly ("org.apache.hive:hive-metastore:$hive_version")
 }
 
-task integrationTest(type: Test) {
-    group = "Verification"
-    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/iceberg-hive-it'
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--tempLocation=${gcpTempLocation}",
-    ])
-
-    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
-    outputs.upToDateWhen { false }
-
-    include '**/*IT.class'
-
-    maxParallelForks 4
-    classpath = sourceSets.test.runtimeClasspath
-    testClassesDirs = sourceSets.test.output.classesDirs
+configurations.all {
+    // the fatjar "parquet-hadoop-bundle" conflicts with "parquet-hadoop" used by org.apache.iceberg:iceberg-parquet
+    exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
 }

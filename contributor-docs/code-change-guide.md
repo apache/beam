@@ -375,6 +375,9 @@ Follow these steps for Maven projects.
       <id>Maven-Snapshot</id>
       <name>maven snapshot repository</name>
       <url>https://repository.apache.org/content/groups/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
     </repository>
     ```
 

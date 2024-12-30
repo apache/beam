@@ -19,7 +19,7 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
   }
 }
 
@@ -204,8 +204,8 @@ include(":sdks:java:extensions:timeseries")
 include(":sdks:java:extensions:zetasketch")
 include(":sdks:java:harness")
 include(":sdks:java:harness:jmh")
-include(":sdks:java:io:amazon-web-services")
 include(":sdks:java:io:amazon-web-services2")
+include(":sdks:java:io:amazon-web-services2:expansion-service")
 include(":sdks:java:io:amqp")
 include(":sdks:java:io:azure")
 include(":sdks:java:io:azure-cosmos")
@@ -238,8 +238,6 @@ include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
 include(":sdks:java:io:kafka:upgrade")
-include(":sdks:java:io:kinesis")
-include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")
 include(":sdks:java:io:mongodb")
 include(":sdks:java:io:mqtt")
@@ -357,5 +355,3 @@ include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
 include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
-include("sdks:java:io:iceberg:hive:exec")
-findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"

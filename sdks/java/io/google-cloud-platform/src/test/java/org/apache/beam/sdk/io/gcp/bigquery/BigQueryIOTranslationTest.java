@@ -96,6 +96,7 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteDisposition", "write_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getSchemaUpdateOptions", "schema_update_options");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTableDescription", "table_description");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBigLakeConfiguration", "biglake_configuration");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getValidate", "validate");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBigQueryServices", "bigquery_services");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxFilesPerBundle", "max_files_per_bundle");

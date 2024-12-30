@@ -31,7 +31,7 @@ public final class FakeWindmillStubFactory implements ChannelCachingStubFactory 
   private final ChannelCache channelCache;
 
   public FakeWindmillStubFactory(Supplier<ManagedChannel> channelFactory) {
-    this.channelCache = ChannelCache.create(ignored -> channelFactory.get());
+    this.channelCache = ChannelCache.forTesting(ignored -> channelFactory.get(), () -> {});
   }
 
   @Override
