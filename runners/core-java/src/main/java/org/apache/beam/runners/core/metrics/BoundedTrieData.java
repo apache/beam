@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.BoundedTrieResult;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -44,8 +45,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * intentional for performance concerns. Hence, this class does not expose the contained node and
  * should not be modified to do so in future when used with multiple threads. This class choose to
  * achieve thread-safety through locks rather than just creating and returning immutable instances
- * to its caller because the combining of a large and wide trie require per-node copy which has
- * exponential cost and more expensive than synchronization.
+ * to its caller because the combining of a large and wide trie require per-node copy which is more
+ * expensive than synchronization.
  *
  * <p>Note: {@link #equals(Object)}, {@link #hashCode()} of this class are not synchronized and if
  * their usage needs synchronization then the client should do it.
@@ -197,28 +198,36 @@ public class BoundedTrieData implements Serializable {
    * @param other The other {@link BoundedTrieData} to combine with.
    * @return The combined {@link BoundedTrieData}.
    */
-  public synchronized BoundedTrieData combine(@Nonnull BoundedTrieData other) {
-    if (other.root == null && other.singleton == null) {
-      return this;
-    }
+  public BoundedTrieData combine(@Nonnull BoundedTrieData other) {
+    BoundedTrieData otherDeepCopy;
     // other can be modified in some different thread, and we need to atomically access
-    // its fields to combine correctly. Furthermore, simply doing this under synchronized(other)
-    // is not safe as it might lead to deadlock. Assume the current thread got lock on
-    // 'this' and is executing combine with `other` and waiting to get a lock on `other`
-    // while some other thread is performing `other.combiner(this)` and waiting to get a
-    // lock on `this` object.
-    BoundedTrieData otherDeepCopy = other.getCumulative();
-    if (this.root == null && this.singleton == null) {
+    // its fields to combine correctly. Furthermore, doing this whole method under
+    // synchronized(other) is not safe as it might lead to deadlock. Assume the current
+    // thread got lock on 'this' and is executing combine with `other` and waiting to get a
+    // lock on `other` while some other thread is performing `other.combiner(this)` and
+    // waiting to get a lock on `this` object.
+    // Here it is safe to get a lock on other as we don't yet hold a lock on this to end up with
+    // race condition.
+    synchronized (other) {
+      if (other.root == null && other.singleton == null) {
+        return this;
+      }
+      otherDeepCopy = other.getCumulative();
+    }
+
+    synchronized (this) {
+      if (this.root == null && this.singleton == null) {
+        return otherDeepCopy;
+      }
+      otherDeepCopy.root = otherDeepCopy.asTrie();
+      otherDeepCopy.singleton = null;
+      otherDeepCopy.root.merge(this.asTrie());
+      otherDeepCopy.bound = Math.min(this.bound, otherDeepCopy.bound);
+      while (otherDeepCopy.root.getSize() > otherDeepCopy.bound) {
+        otherDeepCopy.root.trim();
+      }
       return otherDeepCopy;
     }
-    otherDeepCopy.root = otherDeepCopy.asTrie();
-    otherDeepCopy.singleton = null;
-    otherDeepCopy.root.merge(this.asTrie());
-    otherDeepCopy.bound = Math.min(this.bound, otherDeepCopy.bound);
-    while (otherDeepCopy.root.getSize() > otherDeepCopy.bound) {
-      otherDeepCopy.root.trim();
-    }
-    return otherDeepCopy;
   }
 
   /**
@@ -287,6 +296,7 @@ public class BoundedTrieData implements Serializable {
    * of the tree itself. This avoids acquiring and release N nodes in a path. This class is not
    * intended to be used directly outside of {@link BoundedTrieData} with multiple threads.
    */
+  @VisibleForTesting
   static class BoundedTrieNode implements Serializable {
 
     public static final String TRUNCATED_TRUE = String.valueOf(true);
@@ -375,6 +385,7 @@ public class BoundedTrieData implements Serializable {
      * @param segmentsIter An iterator over the paths to add.
      * @return The total change in the size of the subtree rooted at this node.
      */
+    @VisibleForTesting
     int addAll(List<List<String>> segmentsIter) {
       return segmentsIter.stream().mapToInt(this::add).sum();
     }

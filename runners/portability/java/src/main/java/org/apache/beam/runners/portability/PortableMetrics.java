@@ -166,7 +166,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(item -> BOUNDED_TRIE_TYPE.equals(item.getType()))
         .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToStringSet)
+        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToBoundedTrie)
         .collect(Collectors.toList());
   }
 
@@ -183,7 +183,7 @@ public class PortableMetrics extends MetricResults {
     return MetricResult.create(key, false, result);
   }
 
-  private static MetricResult<BoundedTrieResult> convertBoundedTrieMonitoringInfoToStringSet(
+  private static MetricResult<BoundedTrieResult> convertBoundedTrieMonitoringInfoToBoundedTrie(
       MetricsApi.MonitoringInfo monitoringInfo) {
     Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
     MetricKey key =
