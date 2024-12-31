@@ -20,13 +20,14 @@ package org.apache.beam.sdk.io.solace.broker;
 import static org.apache.beam.sdk.io.solace.broker.SessionService.DEFAULT_VPN_NAME;
 
 import com.google.auto.value.AutoValue;
+import com.solacesystems.jcsmp.JCSMPProperties;
 
 /**
- * A factory for creating {@link BasicAuthJcsmpSessionService} instances. Extends {@link
+ * A factory for creating {@link JcsmpSessionService} instances. Extends {@link
  * SessionServiceFactory}.
  *
- * <p>This factory provides a way to create {@link BasicAuthJcsmpSessionService} instances with
- * authenticate to Solace with Basic Authentication.
+ * <p>This factory provides a way to create {@link JcsmpSessionService} that use Basic
+ * Authentication.
  */
 @AutoValue
 public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionServiceFactory {
@@ -69,15 +70,14 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
 
   @Override
   public SessionService create() {
-    BasicAuthJcsmpSessionService.Builder builder = BasicAuthJcsmpSessionService.builder();
-    if (queue != null) {
-      builder = builder.queueName(queue.getName());
-    }
-    return builder
-        .host(host())
-        .username(username())
-        .password(password())
-        .vpnName(vpnName())
-        .build();
+    JCSMPProperties jcsmpProperties = new JCSMPProperties();
+    jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, vpnName());
+    jcsmpProperties.setProperty(
+        JCSMPProperties.AUTHENTICATION_SCHEME, JCSMPProperties.AUTHENTICATION_SCHEME_BASIC);
+    jcsmpProperties.setProperty(JCSMPProperties.USERNAME, username());
+    jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, password());
+    jcsmpProperties.setProperty(JCSMPProperties.HOST, host());
+
+    return JcsmpSessionService.create(jcsmpProperties, getQueue());
   }
 }
