@@ -25,7 +25,7 @@ import (
 )
 
 func TestBundle_ProcessOn(t *testing.T) {
-	wk := Pool.NewWorker("test", "testEnv")
+	wk := newWorker()
 	b := &B{
 		InstID:      "testInst",
 		PBDID:       "testPBDID",

@@ -92,9 +92,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			cancelFn(err)
 			terminalOnceWrap()
 		},
-		Logger:             s.logger, // TODO substitute with a configured logger.
-		artifactEndpoint:   s.Endpoint(),
-		WorkerPoolEndpoint: s.WorkerPoolEndpoint,
+		Logger:           s.logger, // TODO substitute with a configured logger.
+		artifactEndpoint: s.Endpoint(),
+		mw:               s.mw,
 	}
 	// Stop the idle timer when a new job appears.
 	if idleTimer := s.idleTimer.Load(); idleTimer != nil {

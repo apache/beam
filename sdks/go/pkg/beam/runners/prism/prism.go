@@ -19,8 +19,6 @@ package prism
 
 import (
 	"context"
-	"fmt"
-	"net"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -29,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/web"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -50,17 +47,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		// One hasn't been selected, so lets start one up and set the address.
 		// Conveniently, this means that if multiple pipelines are executed against
 		// the local runner, they will all use the same server.
-		lis, err := net.Listen("tcp", ":0")
-		if err != nil {
-			return nil, err
-		}
-		_, port, _ := net.SplitHostPort(lis.Addr().String())
-		addr := fmt.Sprintf("localhost:%v", port)
-		g := worker.NewMultiplexW()
-		go g.Serve(lis)
 		s := jobservices.NewServer(0, internal.RunPipeline)
 		*jobopts.Endpoint = s.Endpoint()
-		s.WorkerPoolEndpoint = addr
 		go s.Serve()
 		if !jobopts.IsLoopback() {
 			*jobopts.EnvironmentType = "loopback"
@@ -74,9 +62,6 @@ type Options struct {
 	// Port the Job Management Server should start on.
 	Port int
 
-	// WorkerPoolEndpoint is the endpoint to connect with the worker pool service.
-	WorkerPoolEndpoint string
-
 	// The time prism will wait for new jobs before shuting itself down.
 	IdleShutdownTimeout time.Duration
 	// CancelFn allows Prism to terminate the program due to it's internal state, such as via the idle shutdown timeout.
@@ -88,7 +73,6 @@ type Options struct {
 // This call is non-blocking.
 func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
 	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
-	s.WorkerPoolEndpoint = opts.WorkerPoolEndpoint
 
 	if opts.IdleShutdownTimeout > 0 {
 		s.IdleShutdown(opts.IdleShutdownTimeout, opts.CancelFn)
@@ -105,9 +89,4 @@ func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient,
 // This call is blocking.
 func CreateWebServer(ctx context.Context, cli jobpb.JobServiceClient, opts Options) error {
 	return web.Initialize(ctx, opts.Port, cli)
-}
-
-// CreateWorkerPoolServer initializes the worker pool server that multiplexes worker.W gRPC requests.
-func CreateWorkerPoolServer(ctx context.Context) *grpc.Server {
-	return worker.NewMultiplexW()
 }

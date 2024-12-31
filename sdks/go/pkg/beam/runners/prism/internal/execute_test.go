@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -31,7 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -45,18 +43,8 @@ func TestMain(m *testing.M) {
 
 func initRunner(t testing.TB) {
 	t.Helper()
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, port, _ := net.SplitHostPort(lis.Addr().String())
-	addr := "localhost:" + port
-	g := worker.NewMultiplexW()
-	t.Cleanup(g.Stop)
-	go g.Serve(lis)
 	if *jobopts.Endpoint == "" {
 		s := jobservices.NewServer(0, internal.RunPipeline)
-		s.WorkerPoolEndpoint = addr
 		*jobopts.Endpoint = s.Endpoint()
 		go s.Serve()
 		t.Cleanup(func() {

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"sync"
 	"sync/atomic"
 
@@ -35,6 +36,8 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -43,7 +46,7 @@ import (
 
 // A W manages worker environments, sending them work
 // that they're able to execute, and manages the server
-// side handlers for FnAPI RPCs forwarded from a multiplex FnAPI service.
+// side handlers for FnAPI RPCs.
 type W struct {
 	fnpb.UnimplementedBeamFnControlServer
 	fnpb.UnimplementedBeamFnDataServer
@@ -68,17 +71,15 @@ type W struct {
 	mu                 sync.Mutex
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
-
-	WorkerPoolEndpoint string
+	mw                 *MultiplexW
 }
 
 type controlResponder interface {
 	Respond(*fnpb.InstructionResponse)
 }
 
-// Endpoint forwards the endpoint of the multiplex gRPC FnAPI service.
 func (wk *W) Endpoint() string {
-	return wk.WorkerPoolEndpoint
+	return wk.mw.endpoint
 }
 
 func (wk *W) String() string {
@@ -93,6 +94,10 @@ func (wk *W) LogValue() slog.Value {
 }
 
 // shutdown safely closes channels, and can be called in the event of SDK crashes.
+//
+// Splitting this logic from the GRPC server Stop is necessary, since a worker
+// crash would be handled in a streaming RPC context, which will block GRPC
+// stop calls.
 func (wk *W) shutdown() {
 	// If this is the first call to "stop" this worker, also close the channels.
 	if wk.stopped.CompareAndSwap(false, true) {
@@ -105,10 +110,11 @@ func (wk *W) shutdown() {
 	}
 }
 
-// Stop the worker and delete it from the Pool.
+// Stop the GRPC server.
 func (wk *W) Stop() {
 	wk.shutdown()
-	delete(Pool, wk.ID)
+	delete(wk.mw.pool, wk.ID)
+	slog.Debug("stopped", "worker", wk)
 }
 
 func (wk *W) NextInst() string {
@@ -653,4 +659,118 @@ func (wk *W) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.
 			},
 		},
 	}).GetMonitoringInfos()
+}
+
+type MultiplexW struct {
+	fnpb.UnimplementedBeamFnControlServer
+	fnpb.UnimplementedBeamFnDataServer
+	fnpb.UnimplementedBeamFnStateServer
+	fnpb.UnimplementedBeamFnLoggingServer
+	fnpb.UnimplementedProvisionServiceServer
+
+	endpoint string
+	logger   *slog.Logger
+	pool     map[string]*W
+}
+
+// New instantiates a new MultiplexW for multiplexing FnAPI requests to a W.
+func New(lis net.Listener, g *grpc.Server, logger *slog.Logger) *MultiplexW {
+	_, p, _ := net.SplitHostPort(lis.Addr().String())
+	mw := &MultiplexW{
+		endpoint: "localhost:" + p,
+		logger:   logger,
+		pool:     make(map[string]*W),
+	}
+
+	fnpb.RegisterBeamFnControlServer(g, mw)
+	fnpb.RegisterBeamFnDataServer(g, mw)
+	fnpb.RegisterBeamFnLoggingServer(g, mw)
+	fnpb.RegisterBeamFnStateServer(g, mw)
+	fnpb.RegisterProvisionServiceServer(g, mw)
+
+	return mw
+}
+
+// MakeWorker creates and registers a W, assigning id and env to W.ID and W.Env, respectively.
+// MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context metadata.
+// A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
+func (mw *MultiplexW) MakeWorker(id, env string) *W {
+	w := &W{
+		ID:  id,
+		Env: env,
+
+		InstReqs:    make(chan *fnpb.InstructionRequest, 10),
+		DataReqs:    make(chan *fnpb.Elements, 10),
+		StoppedChan: make(chan struct{}),
+
+		activeInstructions: make(map[string]controlResponder),
+		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
+		mw:                 mw,
+	}
+	mw.pool[id] = w
+	return w
+}
+
+func (mw *MultiplexW) GetProvisionInfo(ctx context.Context, req *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
+	return handleUnary(mw, ctx, req, (*W).GetProvisionInfo)
+}
+
+func (mw *MultiplexW) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
+	return handleStream(mw, stream.Context(), stream, (*W).Logging)
+}
+
+func (mw *MultiplexW) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProcessBundleDescriptorRequest) (*fnpb.ProcessBundleDescriptor, error) {
+	return handleUnary(mw, ctx, req, (*W).GetProcessBundleDescriptor)
+}
+
+func (mw *MultiplexW) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
+	return handleStream(mw, ctrl.Context(), ctrl, (*W).Control)
+}
+
+func (mw *MultiplexW) Data(data fnpb.BeamFnData_DataServer) error {
+	return handleStream(mw, data.Context(), data, (*W).Data)
+}
+
+func (mw *MultiplexW) State(state fnpb.BeamFnState_StateServer) error {
+	return handleStream(mw, state.Context(), state, (*W).State)
+}
+
+func (mw *MultiplexW) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
+	w, err := mw.workerFromMetadataCtx(ctx)
+	if err != nil {
+		mw.logger.Error(err.Error())
+		return nil
+	}
+	return w.MonitoringMetadata(ctx, unknownIDs)
+}
+
+func (mw *MultiplexW) workerFromMetadataCtx(ctx context.Context) (*W, error) {
+	id, err := grpcx.ReadWorkerID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return nil, fmt.Errorf("worker_id read from context metadata is an empty string")
+	}
+	w, ok := mw.pool[id]
+	if !ok {
+		return nil, fmt.Errorf("worker_id: '%s' read from context metadata but not registered in worker pool", id)
+	}
+	return w, nil
+}
+
+func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {
+	w, err := mw.workerFromMetadataCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return m(w, ctx, req)
+}
+
+func handleStream[Stream any, Method func(*W, Stream) error](mw *MultiplexW, ctx context.Context, stream Stream, m Method) error {
+	w, err := mw.workerFromMetadataCtx(ctx)
+	if err != nil {
+		return err
+	}
+	return m(w, stream)
 }

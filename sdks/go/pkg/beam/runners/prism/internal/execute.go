@@ -36,9 +36,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -56,13 +53,14 @@ func RunPipeline(j *jobservices.Job) {
 	envs := j.Pipeline.GetComponents().GetEnvironments()
 	wks := map[string]*worker.W{}
 	for envID := range envs {
-		wk, err := makeWorker(envID, j)
-		if err != nil {
-			j.Failed(err)
+		wk := j.MakeWorker(envID)
+		wks[envID] = wk
+		if err := runEnvironment(j.RootCtx, j, envID, wk); err != nil {
+			j.Failed(fmt.Errorf("failed to start environment %v for job %v: %w", envID, j, err))
 			return
 		}
-		wks[envID] = wk
 	}
+
 	// When this function exits, we cancel the context to clear
 	// any related job resources.
 	defer func() {
@@ -87,46 +85,6 @@ func RunPipeline(j *jobservices.Job) {
 
 	j.SendMsg("terminating " + j.String())
 	j.Done()
-}
-
-// makeWorker creates a worker for that environment.
-func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
-	wk := worker.Pool.NewWorker(j.String()+"_"+env, env)
-
-	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
-	wk.PipelineOptions = j.PipelineOptions()
-	wk.JobKey = j.JobKey()
-	wk.ArtifactEndpoint = j.ArtifactEndpoint()
-	wk.WorkerPoolEndpoint = j.WorkerPoolEndpoint
-
-	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
-		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
-	}
-	// Check for connection succeeding after we've created the environment successfully.
-	timeout := 1 * time.Minute
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	go func() {
-		<-ctx.Done()
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, j.WorkerPoolEndpoint, timeout)
-			j.Failed(err)
-			j.CancelFn(err)
-		}
-	}()
-	conn, err := grpc.NewClient(j.WorkerPoolEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		j.Failed(err)
-		j.CancelFn(err)
-	}
-	health := healthpb.NewHealthClient(conn)
-	_, err = health.Check(ctx, &healthpb.HealthCheckRequest{})
-	if err != nil {
-		j.Failed(err)
-		j.CancelFn(err)
-	}
-
-	return wk, nil
 }
 
 type transformExecuter interface {

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -32,7 +31,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
@@ -82,23 +80,6 @@ func executeWithT(ctx context.Context, t testing.TB, p *beam.Pipeline) (beam.Pip
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("%v-%v", strings.ToLower(t.Name()), r1.Intn(1000))
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, port, _ := net.SplitHostPort(lis.Addr().String())
-	addr := "localhost:" + port
-	g := worker.NewMultiplexW()
-	t.Cleanup(g.Stop)
-	go g.Serve(lis)
-	s := jobservices.NewServer(0, internal.RunPipeline)
-	s.WorkerPoolEndpoint = addr
-	*jobopts.Endpoint = s.Endpoint()
-	go s.Serve()
-	t.Cleanup(func() {
-		*jobopts.Endpoint = ""
-		s.Stop()
-	})
 	return execute(ctx, p)
 }
 
