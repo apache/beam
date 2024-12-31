@@ -549,8 +549,18 @@ abstract class ReadFromKafkaDoFn<K, V>
             }
           }
         }
-
         backlogBytes.set(
+            (long)
+                (BigDecimal.valueOf(
+                            Preconditions.checkStateNotNull(
+                                offsetEstimatorCache.get(kafkaSourceDescriptor).estimate()))
+                        .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
+                        .doubleValue()
+                    * avgRecordSize.estimateRecordByteSizeToOffsetCountRatio()));
+        KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+        kafkaResults.recordBacklogBytes(
+            kafkaSourceDescriptor.getTopic(),
+            kafkaSourceDescriptor.getPartition(),
             (long)
                 (BigDecimal.valueOf(
                             Preconditions.checkStateNotNull(
