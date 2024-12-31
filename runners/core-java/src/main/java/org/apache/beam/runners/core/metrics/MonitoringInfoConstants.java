@@ -110,6 +110,7 @@ public final class MonitoringInfoConstants {
     public static final String SPANNER_DATABASE_ID = "SPANNER_DATABASE_ID";
     public static final String SPANNER_INSTANCE_ID = "SPANNER_INSTANCE_ID";
     public static final String SPANNER_QUERY_NAME = "SPANNER_QUERY_NAME";
+    public static final String PER_WORKER_METRIC = "PER_WORKER_METRIC";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -151,6 +152,7 @@ public final class MonitoringInfoConstants {
           SPANNER_INSTANCE_ID.equals(extractLabel(MonitoringInfoLabels.SPANNER_INSTANCE_ID)));
       checkArgument(
           SPANNER_QUERY_NAME.equals(extractLabel(MonitoringInfoLabels.SPANNER_QUERY_NAME)));
+      checkArgument(PER_WORKER_METRIC.equals(extractLabel(MonitoringInfoLabels.PER_WORKER_METRIC)));
     }
   }
 

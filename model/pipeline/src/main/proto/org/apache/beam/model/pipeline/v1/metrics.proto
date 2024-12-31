@@ -457,6 +457,7 @@ message MonitoringInfo {
     SPANNER_TABLE_ID = 25 [(label_props) = { name: "SPANNER_TABLE_ID" }];
     SPANNER_INSTANCE_ID = 26 [(label_props) = { name: "SPANNER_INSTANCE_ID" }];
     SPANNER_QUERY_NAME = 27 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
+    PER_WORKER_METRIC = 28 [(label_props) = { name: "PER_WORKER_METRIC" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For

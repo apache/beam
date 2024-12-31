@@ -318,6 +318,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           .setLabel(MonitoringInfoConstants.Labels.NAME, metricKey.metricName().getName())
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricKey.stepName());
     }
+
+    // Based on namespace, add per worker metrics label to enable separate runner based sink based
+    // processing.
+    if (metricName.getNamespace().equals("BigQuerySink")
+        || metricName.getNamespace().equals("KafkaSink")) {
+      builder.setLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
+    }
     return builder;
   }
 
