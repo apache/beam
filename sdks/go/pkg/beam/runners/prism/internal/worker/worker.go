@@ -668,6 +668,7 @@ type MultiplexW struct {
 	fnpb.UnimplementedBeamFnLoggingServer
 	fnpb.UnimplementedProvisionServiceServer
 
+	mu       sync.Mutex
 	endpoint string
 	logger   *slog.Logger
 	pool     map[string]*W
@@ -695,6 +696,8 @@ func New(lis net.Listener, g *grpc.Server, logger *slog.Logger) *MultiplexW {
 // MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context metadata.
 // A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
 func (mw *MultiplexW) MakeWorker(id, env string) *W {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
 	w := &W{
 		ID:  id,
 		Env: env,
@@ -736,6 +739,8 @@ func (mw *MultiplexW) State(state fnpb.BeamFnState_StateServer) error {
 }
 
 func (mw *MultiplexW) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
 	w, err := mw.workerFromMetadataCtx(ctx)
 	if err != nil {
 		mw.logger.Error(err.Error())
@@ -745,6 +750,8 @@ func (mw *MultiplexW) MonitoringMetadata(ctx context.Context, unknownIDs []strin
 }
 
 func (mw *MultiplexW) workerFromMetadataCtx(ctx context.Context) (*W, error) {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
 	id, err := grpcx.ReadWorkerID(ctx)
 	if err != nil {
 		return nil, err
