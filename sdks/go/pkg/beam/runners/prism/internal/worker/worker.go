@@ -113,7 +113,7 @@ func (wk *W) shutdown() {
 // Stop the GRPC server.
 func (wk *W) Stop() {
 	wk.shutdown()
-	delete(wk.mw.pool, wk.ID)
+	wk.mw.delete(wk)
 	slog.Debug("stopped", "worker", wk)
 }
 
@@ -764,6 +764,14 @@ func (mw *MultiplexW) workerFromMetadataCtx(ctx context.Context) (*W, error) {
 		return nil, fmt.Errorf("worker_id: '%s' read from context metadata but not registered in worker pool", id)
 	}
 	return w, nil
+}
+
+func (mw *MultiplexW) delete(w *W) {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+	if _, ok := mw.pool[w.ID]; ok {
+		delete(mw.pool, w.ID)
+	}
 }
 
 func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {
