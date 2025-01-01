@@ -769,9 +769,7 @@ func (mw *MultiplexW) workerFromMetadataCtx(ctx context.Context) (*W, error) {
 func (mw *MultiplexW) delete(w *W) {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
-	if _, ok := mw.pool[w.ID]; ok {
-		delete(mw.pool, w.ID)
-	}
+	delete(mw.pool, w.ID)
 }
 
 func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {
