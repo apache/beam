@@ -108,6 +108,19 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       _ = (p | beam.Create(chunks) | config.create_write_transform())
 
+  def test_default_schema_missing_embedding(self):
+    table_name = 'python_default_schema_table'
+    table_id = '{}.{}.{}'.format(self.project, self.dataset_id, table_name)
+
+    config = BigQueryVectorWriterConfig(write_config={'table': table_id})
+    chunks = [
+        Chunk(id="1", content=Content(text="foo"), metadata={"a": "b"}),
+        Chunk(id="2", content=Content(text="bar"), metadata={"c": "d"})
+    ]
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        _ = (p | beam.Create(chunks) | config.create_write_transform())
+
   def test_custom_schema(self):
     table_name = 'python_custom_schema_table'
     table_id = '{}.{}.{}'.format(self.project, self.dataset_id, table_name)

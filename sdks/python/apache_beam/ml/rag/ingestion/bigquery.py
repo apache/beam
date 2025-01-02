@@ -123,6 +123,8 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
 
 
 def _default_chunk_to_dict_fn(chunk: Chunk):
+  if chunk.embedding is None or chunk.embedding.dense_embedding is None:
+    raise ValueError("chunk must contain dense embedding")
   return {
       'id': chunk.id,
       'embedding': chunk.embedding.dense_embedding,
