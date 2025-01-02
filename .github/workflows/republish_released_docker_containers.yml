@@ -69,5 +69,13 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
       - name: Push docker images
-        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images -Pdocker-tag=${{ env.release }}rc${{ env.rc }} --no-daemon --no-parallel
+        run: |
+          ./gradlew :pushAllDockerImages \
+          -PisRelease \
+          -Pdocker-pull-licenses \
+          -Pprune-images \
+          -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
+          -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
+          --no-daemon \
+          --no-parallel
 
