@@ -94,6 +94,7 @@ dependencies {
   // io-kafka is only used in PTransform override so it is optional
   provided project(":sdks:java:io:kafka")
   implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":runners:core-java")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.commons_codec
