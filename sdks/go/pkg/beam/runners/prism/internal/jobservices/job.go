@@ -201,6 +201,7 @@ func (j *Job) Failed(err error) {
 	j.CancelFn(fmt.Errorf("jobFailed %v: %w", j, err))
 }
 
+// MakeWorker instantiates a worker.W populating environment and pipeline data from the Job.
 func (j *Job) MakeWorker(env string) *worker.W {
 	wk := j.mw.MakeWorker(j.String()+"_"+env, env)
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
