@@ -59,6 +59,16 @@ func RunPipeline(j *jobservices.Job) {
 			j.Failed(fmt.Errorf("failed to start environment %v for job %v: %w", envID, j, err))
 			return
 		}
+		// Check for connection succeeding after we've created the environment successfully.
+		timeout := 1 * time.Minute
+		time.AfterFunc(timeout, func() {
+			if wk.Connected() || wk.Stopped() {
+				return
+			}
+			err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
+			j.Failed(err)
+			j.CancelFn(err)
+		})
 	}
 
 	// When this function exits, we cancel the context to clear

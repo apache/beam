@@ -54,6 +54,8 @@ type W struct {
 	fnpb.UnimplementedBeamFnLoggingServer
 	fnpb.UnimplementedProvisionServiceServer
 
+	parentPool *MultiplexW
+
 	ID, Env string
 
 	JobKey, ArtifactEndpoint string
@@ -71,7 +73,6 @@ type W struct {
 	mu                 sync.Mutex
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
-	mw                 *MultiplexW
 }
 
 type controlResponder interface {
@@ -79,7 +80,7 @@ type controlResponder interface {
 }
 
 func (wk *W) Endpoint() string {
-	return wk.mw.endpoint
+	return wk.parentPool.endpoint
 }
 
 func (wk *W) String() string {
@@ -113,7 +114,7 @@ func (wk *W) shutdown() {
 // Stop the GRPC server.
 func (wk *W) Stop() {
 	wk.shutdown()
-	wk.mw.delete(wk)
+	wk.parentPool.delete(wk)
 	slog.Debug("stopped", "worker", wk)
 }
 
@@ -661,6 +662,7 @@ func (wk *W) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.
 	}).GetMonitoringInfos()
 }
 
+// MultiplexW forwards FnAPI gRPC requests to W it manages in an in-memory pool.
 type MultiplexW struct {
 	fnpb.UnimplementedBeamFnControlServer
 	fnpb.UnimplementedBeamFnDataServer
@@ -674,8 +676,8 @@ type MultiplexW struct {
 	pool     map[string]*W
 }
 
-// New instantiates a new MultiplexW for multiplexing FnAPI requests to a W.
-func New(lis net.Listener, g *grpc.Server, logger *slog.Logger) *MultiplexW {
+// NewMultiplexW instantiates a new FnAPI server for multiplexing FnAPI requests to a W.
+func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *MultiplexW {
 	_, p, _ := net.SplitHostPort(lis.Addr().String())
 	mw := &MultiplexW{
 		endpoint: "localhost:" + p,
@@ -692,9 +694,9 @@ func New(lis net.Listener, g *grpc.Server, logger *slog.Logger) *MultiplexW {
 	return mw
 }
 
-// MakeWorker creates and registers a W, assigning id and env to W.ID and W.Env, respectively.
-// MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context metadata.
-// A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
+// MakeWorker creates and registers a W, assigning id and env to W.ID and W.Env, respectively, associating W.ID
+// to *W for later lookup. MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context
+// metadata. A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
 func (mw *MultiplexW) MakeWorker(id, env string) *W {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
@@ -708,7 +710,7 @@ func (mw *MultiplexW) MakeWorker(id, env string) *W {
 
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
-		mw:                 mw,
+		parentPool:         mw,
 	}
 	mw.pool[id] = w
 	return w

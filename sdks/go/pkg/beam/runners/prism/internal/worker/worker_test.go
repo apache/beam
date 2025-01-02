@@ -36,19 +36,20 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestMultiplexW_MakeWorker(t *testing.T) {
 	w := newWorker()
-	if w.mw == nil {
+	if w.parentPool == nil {
 		t.Errorf("MakeWorker instantiated W with a nil reference to MultiplexW")
 	}
 	if got, want := w.ID, "test"; got != want {
 		t.Errorf("MakeWorker(%q) = %v, want %v", want, got, want)
 	}
-	got, ok := w.mw.pool[w.ID]
+	got, ok := w.parentPool.pool[w.ID]
 	if !ok || got == nil {
-		t.Errorf("MakeWorker(%q) not registered in worker pool %v", w.ID, w.mw.pool)
+		t.Errorf("MakeWorker(%q) not registered in worker pool %v", w.ID, w.parentPool.pool)
 	}
 }
 
@@ -82,7 +83,7 @@ func TestMultiplexW_workerFromMetadataCtx(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			w := newWorker()
-			got, err := w.mw.workerFromMetadataCtx(tt.ctx)
+			got, err := w.parentPool.workerFromMetadataCtx(tt.ctx)
 			if err != nil && err.Error() != tt.wantErr {
 				t.Errorf("workerFromMetadataCtx() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -141,17 +142,21 @@ func serveTestWorker(t *testing.T) (context.Context, *W, *grpc.ClientConn) {
 	t.Cleanup(cancelFn)
 
 	g := grpc.NewServer()
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mw := New(lis, g, slog.Default())
+	//lis, err := net.Listen("tcp", ":0")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	lis := bufconn.Listen(2048)
+	mw := NewMultiplexW(lis, g, slog.Default())
 	t.Cleanup(func() { g.Stop() })
 	go g.Serve(lis)
 	w := mw.MakeWorker("test", "testEnv")
 	ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("worker_id", w.ID))
 	ctx = grpcx.WriteWorkerID(ctx, w.ID)
-	conn, err := grpc.NewClient(w.Endpoint(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.DialContext(ctx, w.Endpoint(), grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+		return lis.Dial()
+	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	//conn, err := grpc.NewClient(w.Endpoint(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal("couldn't create bufconn grpc connection:", err)
 	}

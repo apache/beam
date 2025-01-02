@@ -86,7 +86,7 @@ func NewServer(port int, execute func(*Job)) *Server {
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
 	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
 
-	s.mw = worker.New(lis, s.server, s.logger)
+	s.mw = worker.NewMultiplexW(lis, s.server, s.logger)
 
 	return s
 }
