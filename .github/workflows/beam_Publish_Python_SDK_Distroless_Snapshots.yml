@@ -85,8 +85,15 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
-      # TODO(https://github.com/apache/beam/issues/32914): create after merging into main branch
-      # - name: Build and push Python distroless image
+      - name: Build and push Python distroless image
+        run: |
+          docker buildx build \
+            -t gcr.io/apache-beam-testing/beam-sdk/beam_${python_version}_sdk_distroless:${{ github.sha }} \
+            -t gcr.io/apache-beam-testing/beam-sdk/beam_${python_version}_sdk_distroless:${BEAM_VERSION} \
+            -t gcr.io/apache-beam-testing/beam-sdk/beam_${python_version}_sdk_distroless:latest \
+            -f sdks/python/container/Dockerfile-distroless \
+            --build-arg=BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${python_version}_sdk:${BEAM_VERSION} \
+            .
 
 
   
