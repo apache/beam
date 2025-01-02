@@ -420,6 +420,23 @@ class TestBoundedTrieNode(unittest.TestCase):
             BoundedTrieData(root=right, bound=3)).get_result(),
         set([('a', True), ('b', 'd', False), ('c', 'd', False)]))
 
+  def test_merge_on_empty_node(self):
+    root1 = _BoundedTrieNode()
+    root2 = _BoundedTrieNode()
+    root2.add_all([["a", "b", "c"], ["a", "b", "d"], ["a", "e"]])
+    self.assertEqual(2, root1.merge(root2))
+    self.assertEqual(3, root1.size())
+    self.assertFalse(root1._truncated)
+
+  def test_merge_with_empty_node(self):
+    root1 = _BoundedTrieNode()
+    root1.add_all([["a", "b", "c"], ["a", "b", "d"], ["a", "e"]])
+    root2 = _BoundedTrieNode()
+
+    self.assertEqual(0, root1.merge(root2))
+    self.assertEqual(3, root1.size())
+    self.assertFalse(root1._truncated)
+
 
 if __name__ == '__main__':
   unittest.main()
