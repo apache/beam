@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -32,6 +33,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -117,11 +119,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.ResultCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteRename.TempTableCleanupFn;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -816,6 +820,25 @@ public class BigQueryIOWriteTest implements Serializable {
     // For each table destination, it's expected to create two load jobs based on the triggering
     // frequency and processing time intervals.
     assertEquals(2 * numTables, fakeDatasetService.getInsertCount());
+  }
+
+  @Test
+  public void testFileLoadSchemaTransformUsesAvroFormat() {
+    // ensure we are writing with the more performant avro format
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    BigQueryFileLoadsSchemaTransformProvider provider =
+        new BigQueryFileLoadsSchemaTransformProvider();
+    Row configuration =
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue("table", "some-table")
+            .build();
+    BigQueryFileLoadsSchemaTransform schemaTransform =
+        (BigQueryFileLoadsSchemaTransform) provider.from(configuration);
+    BigQueryIO.Write<Row> write =
+        schemaTransform.toWrite(Schema.of(), PipelineOptionsFactory.create());
+    assertNull(write.getFormatFunction());
+    assertNotNull(write.getAvroRowWriterFactory());
   }
 
   @Test
