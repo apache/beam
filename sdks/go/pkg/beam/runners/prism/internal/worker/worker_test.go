@@ -142,10 +142,6 @@ func serveTestWorker(t *testing.T) (context.Context, *W, *grpc.ClientConn) {
 	t.Cleanup(cancelFn)
 
 	g := grpc.NewServer()
-	//lis, err := net.Listen("tcp", ":0")
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
 	lis := bufconn.Listen(2048)
 	mw := NewMultiplexW(lis, g, slog.Default())
 	t.Cleanup(func() { g.Stop() })
@@ -156,7 +152,6 @@ func serveTestWorker(t *testing.T) (context.Context, *W, *grpc.ClientConn) {
 	conn, err := grpc.DialContext(ctx, w.Endpoint(), grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 		return lis.Dial()
 	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	//conn, err := grpc.NewClient(w.Endpoint(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal("couldn't create bufconn grpc connection:", err)
 	}
