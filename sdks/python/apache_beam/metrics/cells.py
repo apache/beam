@@ -746,7 +746,7 @@ class _BoundedTrieNode(object):
       delta = 0
     elif not self._children:
       self._children = other._children
-      delta = self._size - other._size
+      delta = other._size - self._size
     else:
       delta = 0
       other_child: '_BoundedTrieNode'
