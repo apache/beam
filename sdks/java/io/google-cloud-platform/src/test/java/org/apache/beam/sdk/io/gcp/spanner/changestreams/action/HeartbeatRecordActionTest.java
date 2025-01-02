@@ -29,6 +29,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -42,6 +43,7 @@ public class HeartbeatRecordActionTest {
   private HeartbeatRecordAction action;
   private PartitionMetadata partition;
   private RestrictionTracker<TimestampRange, Timestamp> tracker;
+  private RestrictionInterrupter<Timestamp> interrupter;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
@@ -50,6 +52,7 @@ public class HeartbeatRecordActionTest {
     action = new HeartbeatRecordAction(metrics);
     partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);
+    interrupter = mock(RestrictionInterrupter.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
   }
 
@@ -62,7 +65,12 @@ public class HeartbeatRecordActionTest {
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, new HeartbeatRecord(timestamp, null), tracker, watermarkEstimator);
+        action.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
@@ -77,9 +85,35 @@ public class HeartbeatRecordActionTest {
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(partition, new HeartbeatRecord(timestamp, null), tracker, watermarkEstimator);
+        action.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
+    verify(watermarkEstimator, never()).setWatermark(any());
+  }
+
+  @Test
+  public void testSoftDeadlineReached() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+
+    when(interrupter.tryInterrupt(timestamp)).thenReturn(true);
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator);
+
+    assertEquals(Optional.of(ProcessContinuation.resume()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());
   }
 }
