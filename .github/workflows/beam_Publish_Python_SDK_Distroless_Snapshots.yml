@@ -95,5 +95,5 @@ jobs:
             --build-arg=BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${{ matrix.python_version }}_sdk:${BEAM_VERSION} \
             .
 
-
+          docker push gcr.io/apache-beam-testing/beam-sdk/beam_${{ matrix.python_version }}_sdk_distroless:${BEAM_VERSION}
   
