@@ -30,10 +30,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.metrics.BoundedTrieCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.runners.core.metrics.StringSetCell;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -73,6 +75,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
+
+  private MetricsMap<MetricName, BoundedTrieCell> boundedTries =
+      new MetricsMap<>(BoundedTrieCell::new);
 
   private final ConcurrentHashMap<MetricName, LockFreeHistogram> perWorkerHistograms =
       new ConcurrentHashMap<>();
@@ -169,6 +174,11 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return boundedTries.get(metricName);
+  }
+
+  @Override
   public Histogram getPerWorkerHistogram(
       MetricName metricName, HistogramData.BucketType bucketType) {
     if (!enablePerWorkerMetrics) {
@@ -187,7 +197,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   public Iterable<CounterUpdate> extractUpdates() {
     return counterUpdates()
         .append(distributionUpdates())
-        .append(gaugeUpdates().append(stringSetUpdates()));
+        .append(gaugeUpdates().append(stringSetUpdates()).append(boundedTrieUpdates()));
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -237,6 +247,20 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
               public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, StringSetCell> entry) {
                 return MetricsToCounterUpdateConverter.fromStringSet(
+                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> boundedTrieUpdates() {
+    return FluentIterable.from(boundedTries.entries())
+        .transform(
+            new Function<Entry<MetricName, BoundedTrieCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, BoundedTrieCell> entry) {
+                return MetricsToCounterUpdateConverter.fromBoundedTrie(
                     MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
               }
             })

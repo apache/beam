@@ -34,6 +34,7 @@ public abstract class MetricUpdates {
           Collections.emptyList(),
           Collections.emptyList(),
           Collections.emptyList(),
+          Collections.emptyList(),
           Collections.emptyList());
 
   /**
@@ -66,14 +67,17 @@ public abstract class MetricUpdates {
   /** All the sets updates. */
   public abstract Iterable<MetricUpdate<StringSetData>> stringSetUpdates();
 
+  public abstract Iterable<MetricUpdate<BoundedTrieData>> boundedTrieUpdates();
+
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
       Iterable<MetricUpdate<Long>> counterUpdates,
       Iterable<MetricUpdate<DistributionData>> distributionUpdates,
       Iterable<MetricUpdate<GaugeData>> gaugeUpdates,
-      Iterable<MetricUpdate<StringSetData>> stringSetUpdates) {
+      Iterable<MetricUpdate<StringSetData>> stringSetUpdates,
+      Iterable<MetricUpdate<BoundedTrieData>> boundedTrieUpdates) {
     return new AutoValue_MetricUpdates(
-        counterUpdates, distributionUpdates, gaugeUpdates, stringSetUpdates);
+        counterUpdates, distributionUpdates, gaugeUpdates, stringSetUpdates, boundedTrieUpdates);
   }
 
   /** Returns true if there are no updates in this MetricUpdates object. */
@@ -81,6 +85,7 @@ public abstract class MetricUpdates {
     return Iterables.isEmpty(counterUpdates())
         && Iterables.isEmpty(distributionUpdates())
         && Iterables.isEmpty(gaugeUpdates())
-        && Iterables.isEmpty(stringSetUpdates());
+        && Iterables.isEmpty(stringSetUpdates())
+        && Iterables.isEmpty(boundedTrieUpdates());
   }
 }
