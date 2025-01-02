@@ -75,6 +75,12 @@ public class DataflowMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public Gauge getPerWorkerGauge(MetricName metricName) {
+    Gauge gauge = getCurrentContainer().getPerWorkerGauge(metricName);
+    return gauge;
+  }
+
+  @Override
   public StringSet getStringSet(MetricName metricName) {
     return getCurrentContainer().getStringSet(metricName);
   }
