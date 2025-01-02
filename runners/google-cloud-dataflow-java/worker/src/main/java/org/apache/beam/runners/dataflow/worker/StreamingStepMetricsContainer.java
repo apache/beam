@@ -217,7 +217,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     return counterUpdates()
         .append(distributionUpdates())
         .append(gaugeUpdates())
-        .append(stringSetUpdates());
+        .append(stringSetUpdates())
+        .append(boundedTrieUpdates());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -272,6 +273,20 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                 }
                 return MetricsToCounterUpdateConverter.fromStringSet(
                     MetricKey.create(stepName, entry.getKey()), false, value);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> boundedTrieUpdates() {
+    return FluentIterable.from(boundedTries.entries())
+        .transform(
+            new Function<Entry<MetricName, BoundedTrieCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, BoundedTrieCell> entry) {
+                return MetricsToCounterUpdateConverter.fromBoundedTrie(
+                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
               }
             })
         .filter(Predicates.notNull());

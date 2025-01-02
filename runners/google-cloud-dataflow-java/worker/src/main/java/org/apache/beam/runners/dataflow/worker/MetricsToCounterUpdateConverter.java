@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.StringList;
 import java.util.ArrayList;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.MetricKey;
@@ -109,6 +110,16 @@ public class MetricsToCounterUpdateConverter {
         .setStructuredNameAndMetadata(name)
         .setCumulative(isCumulative)
         .setStringList(stringList);
+  }
+
+  public static CounterUpdate fromBoundedTrie(MetricKey key, BoundedTrieData boundedTrieData) {
+    // BoundedTrie uses SET kind metric aggregation which tracks unique strings.
+    CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
+    // TODO (rosinha): Once the CounterUpdate API is updated in dataflow client update this.
+    return new CounterUpdate()
+        .setStructuredNameAndMetadata(name)
+        .setCumulative(false)
+        .set("bounded_trie", boundedTrieData.toProto());
   }
 
   public static CounterUpdate fromDistribution(
