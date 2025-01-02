@@ -87,6 +87,13 @@ public class PubsubLiteReadSchemaTransformProvider
     return PubsubLiteReadSchemaTransformConfiguration.class;
   }
 
+  @Override
+  public String description() {
+    return "Performs a read from Google Pub/Sub Lite.\n"
+        + "\n"
+        + "**Note**: This provider is deprecated. See Pub/Sub Lite <a href=\"https://cloud.google.com/pubsub/lite/docs\">documentation</a> for more information.";
+  }
+
   public static class ErrorFn extends DoFn<SequencedMessage, Row> {
     private final SerializableFunction<byte[], Row> valueMapper;
     private final Counter errorCounter;

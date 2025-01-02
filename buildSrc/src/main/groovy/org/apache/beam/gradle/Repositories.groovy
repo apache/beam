@@ -39,20 +39,25 @@ class Repositories {
       mavenCentral()
       mavenLocal()
 
-      // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-
-      // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
-
-      // Apache release snapshots
-      maven { url "https://repository.apache.org/content/repositories/releases" }
-
       // For Confluent Kafka dependencies
       maven {
         url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
+
+      // Release staging repository
+      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+
+      // Apache nightly snapshots
+      maven {
+        url "https://repository.apache.org/snapshots"
+        mavenContent {
+          snapshotsOnly()
+        }
+      }
+
+      // Apache release snapshots
+      maven { url "https://repository.apache.org/content/repositories/releases" }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline

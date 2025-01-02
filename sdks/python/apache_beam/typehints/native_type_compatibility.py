@@ -101,10 +101,7 @@ def _match_issubclass(match_against):
 
 def _match_is_exactly_mapping(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
-  if sys.version_info < (3, 7):
-    expected_origin = typing.Mapping
-  else:
-    expected_origin = collections.abc.Mapping
+  expected_origin = collections.abc.Mapping
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
@@ -112,10 +109,7 @@ def _match_is_exactly_iterable(user_type):
   if user_type is typing.Iterable:
     return True
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
-  if sys.version_info < (3, 7):
-    expected_origin = typing.Iterable
-  else:
-    expected_origin = collections.abc.Iterable
+  expected_origin = collections.abc.Iterable
   return getattr(user_type, '__origin__', None) is expected_origin
 
 
@@ -244,11 +238,10 @@ def convert_to_beam_type(typ):
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
 
-  if sys.version_info >= (3, 9) and isinstance(typ, types.GenericAlias):
+  if isinstance(typ, types.GenericAlias):
     typ = convert_builtin_to_typing(typ)
 
-  if sys.version_info >= (3, 9) and getattr(typ, '__module__',
-                                            None) == 'collections.abc':
+  if getattr(typ, '__module__', None) == 'collections.abc':
     typ = convert_collections_to_typing(typ)
 
   typ_module = getattr(typ, '__module__', None)

@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
-import org.apache.beam.sdk.io.kafka.KafkaSinkMetrics;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
@@ -43,6 +42,9 @@ import org.apache.beam.sdk.util.HistogramData;
  * converter.
  */
 public class MetricsToPerStepNamespaceMetricsConverter {
+  // Avoids to introduce mandatory kafka-io dependency to Dataflow worker
+  // keep in sync with org.apache.beam.sdk.io.kafka.KafkaSinkMetrics.METRICS_NAMESPACE
+  public static String KAFKA_SINK_METRICS_NAMESPACE = "KafkaSink";
 
   private static Optional<LabeledMetricNameUtils.ParsedMetricName> getParsedMetricName(
       MetricName metricName,
@@ -70,7 +72,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
     if (value == 0
         || (!metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)
-            && !metricName.getNamespace().equals(KafkaSinkMetrics.METRICS_NAMESPACE))) {
+            && !metricName.getNamespace().equals(KAFKA_SINK_METRICS_NAMESPACE))) {
       return Optional.empty();
     }
 

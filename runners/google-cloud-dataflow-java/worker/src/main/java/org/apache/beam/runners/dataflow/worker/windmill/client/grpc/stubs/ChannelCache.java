@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.io.PrintWriter;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -31,6 +32,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListeners;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,14 +52,11 @@ public final class ChannelCache implements StatusDataProvider {
 
   private ChannelCache(
       Function<WindmillServiceAddress, ManagedChannel> channelFactory,
-      RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved) {
+      RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved,
+      Executor channelCloser) {
     this.channelCache =
         CacheBuilder.newBuilder()
-            .removalListener(
-                RemovalListeners.asynchronous(
-                    onChannelRemoved,
-                    Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build())))
+            .removalListener(RemovalListeners.asynchronous(onChannelRemoved, channelCloser))
             .build(
                 new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
                   @Override
@@ -72,11 +71,13 @@ public final class ChannelCache implements StatusDataProvider {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
-        notification -> shutdownChannel(notification.getValue()));
+        notification -> shutdownChannel(notification.getValue()),
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()));
   }
 
   @VisibleForTesting
-  static ChannelCache forTesting(
+  public static ChannelCache forTesting(
       Function<WindmillServiceAddress, ManagedChannel> channelFactory, Runnable onChannelShutdown) {
     return new ChannelCache(
         channelFactory,
@@ -85,7 +86,11 @@ public final class ChannelCache implements StatusDataProvider {
         notification -> {
           shutdownChannel(notification.getValue());
           onChannelShutdown.run();
-        });
+        },
+        // Run the removal synchronously on the calling thread to prevent waiting on asynchronous
+        // tasks to run and make unit tests deterministic. In testing, we verify that things are
+        // removed from the cache.
+        MoreExecutors.directExecutor());
   }
 
   private static void shutdownChannel(ManagedChannel channel) {
@@ -108,6 +113,7 @@ public final class ChannelCache implements StatusDataProvider {
 
   public void clear() {
     channelCache.invalidateAll();
+    channelCache.cleanUp();
   }
 
   /**

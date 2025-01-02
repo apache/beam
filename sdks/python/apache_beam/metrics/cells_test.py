@@ -17,9 +17,13 @@
 
 # pytype: skip-file
 
+import copy
+import itertools
+import random
 import threading
 import unittest
 
+from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
@@ -27,6 +31,7 @@ from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
+from apache_beam.metrics.cells import _BoundedTrieNode
 from apache_beam.metrics.metricbase import MetricName
 
 
@@ -201,6 +206,219 @@ class TestStringSetCell(unittest.TestCase):
     s.add('2')
     s.add('3')
     self.assertEqual(s.data.string_size, 3)
+
+
+class TestBoundedTrieNode(unittest.TestCase):
+  @classmethod
+  def random_segments_fixed_depth(cls, n, depth, overlap, rand):
+    if depth == 0:
+      yield from ((), ) * n
+    else:
+      seen = []
+      to_string = lambda ix: chr(ord('a') + ix) if ix < 26 else f'z{ix}'
+      for suffix in cls.random_segments_fixed_depth(n, depth - 1, overlap,
+                                                    rand):
+        if not seen or rand.random() > overlap:
+          prefix = to_string(len(seen))
+          seen.append(prefix)
+        else:
+          prefix = rand.choice(seen)
+        yield (prefix, ) + suffix
+
+  @classmethod
+  def random_segments(cls, n, min_depth, max_depth, overlap, rand):
+    for depth, segments in zip(
+        itertools.cycle(range(min_depth, max_depth + 1)),
+        cls.random_segments_fixed_depth(n, max_depth, overlap, rand)):
+      yield segments[:depth]
+
+  def assert_covers(self, node, expected, max_truncated=0):
+    self.assert_covers_flattened(node.flattened(), expected, max_truncated)
+
+  def assert_covers_flattened(self, flattened, expected, max_truncated=0):
+    expected = set(expected)
+    # Split node into the exact and truncated segments.
+    partitioned = {True: set(), False: set()}
+    for segments in flattened:
+      partitioned[segments[-1]].add(segments[:-1])
+    exact, truncated = partitioned[False], partitioned[True]
+    # Check we cover both parts.
+    self.assertLessEqual(len(truncated), max_truncated, truncated)
+    self.assertTrue(exact.issubset(expected), exact - expected)
+    seen_truncated = set()
+    for segments in expected - exact:
+      found = 0
+      for ix in range(len(segments)):
+        if segments[:ix] in truncated:
+          seen_truncated.add(segments[:ix])
+          found += 1
+      if found != 1:
+        self.fail(
+            f"Expected exactly one prefix of {segments} "
+            f"to occur in {truncated}, found {found}")
+    self.assertEqual(seen_truncated, truncated, truncated - seen_truncated)
+
+  def run_covers_test(self, flattened, expected, max_truncated):
+    def parse(s):
+      return tuple(s.strip('*')) + (s.endswith('*'), )
+
+    self.assert_covers_flattened([parse(s) for s in flattened],
+                                 [tuple(s) for s in expected],
+                                 max_truncated)
+
+  def test_covers_exact(self):
+    self.run_covers_test(['ab', 'ac', 'cd'], ['ab', 'ac', 'cd'], 0)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['ab', 'ac', 'cd'], ['ac', 'cd'], 0)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['ab', 'ac'], ['ab', 'ac', 'cd'], 0)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['a*', 'cd'], ['ab', 'ac', 'cd'], 0)
+
+  def test_covers_trunacted(self):
+    self.run_covers_test(['a*', 'cd'], ['ab', 'ac', 'cd'], 1)
+    self.run_covers_test(['a*', 'cd'], ['ab', 'ac', 'abcde', 'cd'], 1)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['ab', 'ac', 'cd'], ['ac', 'cd'], 1)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['ab', 'ac'], ['ab', 'ac', 'cd'], 1)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['a*', 'c*'], ['ab', 'ac', 'cd'], 1)
+    with self.assertRaises(AssertionError):
+      self.run_covers_test(['a*', 'c*'], ['ab', 'ac'], 1)
+
+  def run_test(self, to_add):
+    everything = list(set(to_add))
+    all_prefixees = set(
+        segments[:ix] for segments in everything for ix in range(len(segments)))
+    everything_deduped = set(everything) - all_prefixees
+
+    # Check basic addition.
+    node = _BoundedTrieNode()
+    total_size = node.size()
+    self.assertEqual(total_size, 1)
+    for segments in everything:
+      total_size += node.add(segments)
+    self.assertEqual(node.size(), len(everything_deduped), node)
+    self.assertEqual(node.size(), total_size, node)
+    self.assert_covers(node, everything_deduped)
+
+    # Check merging
+    node0 = _BoundedTrieNode()
+    node0.add_all(everything[0::2])
+    node1 = _BoundedTrieNode()
+    node1.add_all(everything[1::2])
+    pre_merge_size = node0.size()
+    merge_delta = node0.merge(node1)
+    self.assertEqual(node0.size(), pre_merge_size + merge_delta)
+    self.assertEqual(node0, node)
+
+    # Check trimming.
+    if node.size() > 1:
+      trim_delta = node.trim()
+      self.assertLess(trim_delta, 0, node)
+      self.assertEqual(node.size(), total_size + trim_delta)
+      self.assert_covers(node, everything_deduped, max_truncated=1)
+
+    if node.size() > 1:
+      trim2_delta = node.trim()
+      self.assertLess(trim2_delta, 0)
+      self.assertEqual(node.size(), total_size + trim_delta + trim2_delta)
+      self.assert_covers(node, everything_deduped, max_truncated=2)
+
+    # Adding after trimming should be a no-op.
+    node_copy = copy.deepcopy(node)
+    for segments in everything:
+      self.assertEqual(node.add(segments), 0)
+    self.assertEqual(node, node_copy)
+
+    # Merging after trimming should be a no-op.
+    self.assertEqual(node.merge(node0), 0)
+    self.assertEqual(node.merge(node1), 0)
+    self.assertEqual(node, node_copy)
+
+    if node._truncated:
+      expected_delta = 0
+    else:
+      expected_delta = 2
+
+    # Adding something new is not.
+    new_values = [('new1', ), ('new2', 'new2.1')]
+    self.assertEqual(node.add_all(new_values), expected_delta)
+    self.assert_covers(
+        node, list(everything_deduped) + new_values, max_truncated=2)
+
+    # Nor is merging something new.
+    new_values_node = _BoundedTrieNode()
+    new_values_node.add_all(new_values)
+    self.assertEqual(node_copy.merge(new_values_node), expected_delta)
+    self.assert_covers(
+        node_copy, list(everything_deduped) + new_values, max_truncated=2)
+
+  def run_fuzz(self, iterations=10, **params):
+    for _ in range(iterations):
+      seed = random.getrandbits(64)
+      segments = self.random_segments(**params, rand=random.Random(seed))
+      try:
+        self.run_test(segments)
+      except:
+        print("SEED", seed)
+        raise
+
+  def test_trivial(self):
+    self.run_test([('a', 'b'), ('a', 'c')])
+
+  def test_flat(self):
+    self.run_test([('a', 'a'), ('b', 'b'), ('c', 'c')])
+
+  def test_deep(self):
+    self.run_test([('a', ) * 10, ('b', ) * 12])
+
+  def test_small(self):
+    self.run_fuzz(n=5, min_depth=2, max_depth=3, overlap=0.5)
+
+  def test_medium(self):
+    self.run_fuzz(n=20, min_depth=2, max_depth=4, overlap=0.5)
+
+  def test_large_sparse(self):
+    self.run_fuzz(n=120, min_depth=2, max_depth=4, overlap=0.2)
+
+  def test_large_dense(self):
+    self.run_fuzz(n=120, min_depth=2, max_depth=4, overlap=0.8)
+
+  def test_bounded_trie_data_combine(self):
+    empty = BoundedTrieData()
+    # The merging here isn't complicated we're just ensuring that
+    # BoundedTrieData invokes _BoundedTrieNode correctly.
+    singletonA = BoundedTrieData(singleton=('a', 'a'))
+    singletonB = BoundedTrieData(singleton=('b', 'b'))
+    lots_root = _BoundedTrieNode()
+    lots_root.add_all([('c', 'c'), ('d', 'd')])
+    lots = BoundedTrieData(root=lots_root)
+    self.assertEqual(empty.get_result(), set())
+    self.assertEqual(
+        empty.combine(singletonA).get_result(), set([('a', 'a', False)]))
+    self.assertEqual(
+        singletonA.combine(empty).get_result(), set([('a', 'a', False)]))
+    self.assertEqual(
+        singletonA.combine(singletonB).get_result(),
+        set([('a', 'a', False), ('b', 'b', False)]))
+    self.assertEqual(
+        singletonA.combine(lots).get_result(),
+        set([('a', 'a', False), ('c', 'c', False), ('d', 'd', False)]))
+    self.assertEqual(
+        lots.combine(singletonA).get_result(),
+        set([('a', 'a', False), ('c', 'c', False), ('d', 'd', False)]))
+
+  def test_bounded_trie_data_combine_trim(self):
+    left = _BoundedTrieNode()
+    left.add_all([('a', 'x'), ('b', 'd')])
+    right = _BoundedTrieNode()
+    right.add_all([('a', 'y'), ('c', 'd')])
+    self.assertEqual(
+        BoundedTrieData(root=left).combine(
+            BoundedTrieData(root=right, bound=3)).get_result(),
+        set([('a', True), ('b', 'd', False), ('c', 'd', False)]))
 
 
 if __name__ == '__main__':

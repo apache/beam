@@ -29,6 +29,7 @@ import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateFunctionCall;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumnBase;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,7 +95,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       aggregateCalls = new ArrayList<>();
       // For aggregate calls, their input ref follow after GROUP BY input ref.
       int columnRefoff = groupFieldsListSize;
-      for (ResolvedComputedColumn computedColumn : zetaNode.getAggregateList()) {
+      for (ResolvedComputedColumnBase computedColumn : zetaNode.getAggregateList()) {
         AggregateCall aggCall =
             convertAggCall(computedColumn, columnRefoff, groupSet.size(), input);
         aggregateCalls.add(aggCall);
@@ -144,7 +145,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     // LogicalProject should also include columns used by aggregate functions. These columns should
     // follow after GROUP BY columns.
     // TODO: remove duplicate columns in projects.
-    for (ResolvedComputedColumn resolvedComputedColumn : node.getAggregateList()) {
+    for (ResolvedComputedColumnBase resolvedComputedColumn : node.getAggregateList()) {
       // Should create Calcite's RexInputRef from ResolvedColumn from ResolvedComputedColumn.
       // TODO: handle aggregate function with more than one argument and handle OVER
       // TODO: is there is general way for column reference tracking and deduplication for
@@ -180,7 +181,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
   }
 
   private AggregateCall convertAggCall(
-      ResolvedComputedColumn computedColumn, int columnRefOff, int groupCount, RelNode input) {
+      ResolvedComputedColumnBase computedColumn, int columnRefOff, int groupCount, RelNode input) {
     ResolvedAggregateFunctionCall aggregateFunctionCall =
         (ResolvedAggregateFunctionCall) computedColumn.getExpr();
 

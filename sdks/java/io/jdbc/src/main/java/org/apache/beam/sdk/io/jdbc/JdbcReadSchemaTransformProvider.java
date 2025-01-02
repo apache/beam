@@ -28,6 +28,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -50,24 +51,130 @@ public class JdbcReadSchemaTransformProvider
         JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration> {
 
   @Override
+  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+    return "beam:schematransform:org.apache.beam:jdbc_read:v1";
+  }
+
+  @Override
+  public String description() {
+    return "Read from a JDBC source using a SQL query or by directly accessing a single table.\n"
+        + "\n"
+        + "This transform can be used to read from a JDBC source using either a given JDBC driver jar "
+        + "and class name, or by using one of the default packaged drivers given a `jdbc_type`.\n"
+        + "\n"
+        + "#### Using a default driver\n"
+        + "\n"
+        + "This transform comes packaged with drivers for several popular JDBC distributions. The following "
+        + "distributions can be declared as the `jdbc_type`: "
+        + JDBC_DRIVER_MAP.keySet().toString().replaceAll("[\\[\\]]", "")
+        + ".\n"
+        + "\n"
+        + "For example, reading a MySQL source using a SQL query: ::"
+        + "\n"
+        + "    - type: ReadFromJdbc\n"
+        + "      config:\n"
+        + "        jdbc_type: mysql\n"
+        + "        url: \"jdbc:mysql://my-host:3306/database\"\n"
+        + "        query: \"SELECT * FROM table\"\n"
+        + "\n"
+        + "\n"
+        + "**Note**: See the following transforms which are built on top of this transform and simplify "
+        + "this logic for several popular JDBC distributions:\n\n"
+        + " - ReadFromMySql\n"
+        + " - ReadFromPostgres\n"
+        + " - ReadFromOracle\n"
+        + " - ReadFromSqlServer\n"
+        + "\n"
+        + "#### Declaring custom JDBC drivers\n"
+        + "\n"
+        + "If reading from a JDBC source not listed above, or if it is necessary to use a custom driver not "
+        + "packaged with Beam, one must define a JDBC driver and class name.\n"
+        + "\n"
+        + "For example, reading a MySQL source table: ::"
+        + "\n"
+        + "    - type: ReadFromJdbc\n"
+        + "      config:\n"
+        + "        driver_jars: \"path/to/some/jdbc.jar\"\n"
+        + "        driver_class_name: \"com.mysql.jdbc.Driver\"\n"
+        + "        url: \"jdbc:mysql://my-host:3306/database\"\n"
+        + "        table: \"my-table\"\n"
+        + "\n"
+        + "#### Connection Properties\n"
+        + "\n"
+        + "Connection properties are properties sent to the Driver used to connect to the JDBC source. For example, "
+        + "to set the character encoding to UTF-8, one could write: ::\n"
+        + "\n"
+        + "    - type: ReadFromJdbc\n"
+        + "      config:\n"
+        + "        connectionProperties: \"characterEncoding=UTF-8;\"\n"
+        + "        ...\n"
+        + "All properties should be semi-colon-delimited (e.g. \"key1=value1;key2=value2;\")\n";
+  }
+
+  protected String inheritedDescription(
+      String prettyName, String transformName, String databaseSchema, int defaultJdbcPort) {
+    return String.format(
+        "Read from a %s source using a SQL query or by directly accessing a single table.%n"
+            + "%n"
+            + "This is a special case of ReadFromJdbc that includes the "
+            + "necessary %s Driver and classes.%n"
+            + "%n"
+            + "An example of using %s with SQL query: ::%n"
+            + "%n"
+            + "    - type: %s%n"
+            + "      config:%n"
+            + "        url: \"jdbc:%s://my-host:%d/database\"%n"
+            + "        query: \"SELECT * FROM table\"%n"
+            + "%n"
+            + "It is also possible to read a table by specifying a table name. For example, the "
+            + "following configuration will perform a read on an entire table: ::%n"
+            + "%n"
+            + "    - type: %s%n"
+            + "      config:%n"
+            + "        url: \"jdbc:%s://my-host:%d/database\"%n"
+            + "        table: \"my-table\"%n"
+            + "%n"
+            + "#### Advanced Usage%n"
+            + "%n"
+            + "It might be necessary to use a custom JDBC driver that is not packaged with this "
+            + "transform. If that is the case, see ReadFromJdbc which "
+            + "allows for more custom configuration.",
+        prettyName,
+        prettyName,
+        transformName,
+        transformName,
+        databaseSchema,
+        defaultJdbcPort,
+        transformName,
+        databaseSchema,
+        defaultJdbcPort);
+  }
+
+  @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<JdbcReadSchemaTransformConfiguration>
       configurationClass() {
     return JdbcReadSchemaTransformConfiguration.class;
   }
 
+  protected String jdbcType() {
+    return "";
+  }
+
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcReadSchemaTransformConfiguration configuration) {
-    configuration.validate();
-    return new JdbcReadSchemaTransform(configuration);
+    configuration.validate(jdbcType());
+    return new JdbcReadSchemaTransform(configuration, jdbcType());
   }
 
-  static class JdbcReadSchemaTransform extends SchemaTransform implements Serializable {
+  protected static class JdbcReadSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcReadSchemaTransformConfiguration config;
+    private final String jdbcType;
 
-    public JdbcReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
+    public JdbcReadSchemaTransform(JdbcReadSchemaTransformConfiguration config, String jdbcType) {
       this.config = config;
+      this.jdbcType = jdbcType;
     }
 
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
@@ -75,7 +182,10 @@ public class JdbcReadSchemaTransformProvider
 
       if (Strings.isNullOrEmpty(driverClassName)) {
         driverClassName =
-            JDBC_DRIVER_MAP.get(Objects.requireNonNull(config.getJdbcType()).toLowerCase());
+            JDBC_DRIVER_MAP.get(
+                (Objects.requireNonNull(
+                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType()))
+                    .toLowerCase());
       }
 
       JdbcIO.DataSourceConfiguration dsConfig =
@@ -109,7 +219,7 @@ public class JdbcReadSchemaTransformProvider
       }
       JdbcIO.ReadRows readRows =
           JdbcIO.readRows().withDataSourceConfiguration(dataSourceConfiguration()).withQuery(query);
-      Short fetchSize = config.getFetchSize();
+      Integer fetchSize = config.getFetchSize();
       if (fetchSize != null && fetchSize > 0) {
         readRows = readRows.withFetchSize(fetchSize);
       }
@@ -123,11 +233,6 @@ public class JdbcReadSchemaTransformProvider
       }
       return PCollectionRowTuple.of("output", input.getPipeline().apply(readRows));
     }
-  }
-
-  @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:jdbc_read:v1";
   }
 
   @Override
@@ -145,62 +250,91 @@ public class JdbcReadSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class JdbcReadSchemaTransformConfiguration implements Serializable {
-    @Nullable
-    public abstract String getDriverClassName();
 
-    @Nullable
-    public abstract String getJdbcType();
-
+    @SchemaFieldDescription("Connection URL for the JDBC source.")
     public abstract String getJdbcUrl();
 
-    @Nullable
-    public abstract String getUsername();
-
-    @Nullable
-    public abstract String getPassword();
-
-    @Nullable
-    public abstract String getConnectionProperties();
-
+    @SchemaFieldDescription(
+        "Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.")
     @Nullable
     public abstract List<@org.checkerframework.checker.nullness.qual.Nullable String>
         getConnectionInitSql();
 
+    @SchemaFieldDescription(
+        "Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be \"key1=value1;key2=value2;\".")
     @Nullable
-    public abstract String getReadQuery();
+    public abstract String getConnectionProperties();
 
-    @Nullable
-    public abstract String getLocation();
-
-    @Nullable
-    public abstract Short getFetchSize();
-
-    @Nullable
-    public abstract Boolean getOutputParallelization();
-
+    @SchemaFieldDescription(
+        "Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.")
     @Nullable
     public abstract Boolean getDisableAutoCommit();
 
+    @SchemaFieldDescription(
+        "Name of a Java Driver class to use to connect to the JDBC source. For example, \"com.mysql.jdbc.Driver\".")
+    @Nullable
+    public abstract String getDriverClassName();
+
+    @SchemaFieldDescription(
+        "Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.")
     @Nullable
     public abstract String getDriverJars();
 
-    public void validate() throws IllegalArgumentException {
+    @SchemaFieldDescription(
+        "This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.")
+    @Nullable
+    public abstract Integer getFetchSize();
+
+    @SchemaFieldDescription(
+        "Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.")
+    @Nullable
+    public abstract String getJdbcType();
+
+    @SchemaFieldDescription("Name of the table to read from.")
+    @Nullable
+    public abstract String getLocation();
+
+    @SchemaFieldDescription(
+        "Whether to reshuffle the resulting PCollection so results are distributed to all workers.")
+    @Nullable
+    public abstract Boolean getOutputParallelization();
+
+    @SchemaFieldDescription("Password for the JDBC source.")
+    @Nullable
+    public abstract String getPassword();
+
+    @SchemaFieldDescription("SQL query used to query the JDBC source.")
+    @Nullable
+    public abstract String getReadQuery();
+
+    @SchemaFieldDescription("Username for the JDBC source.")
+    @Nullable
+    public abstract String getUsername();
+
+    public void validate() {
+      validate("");
+    }
+
+    public void validate(String jdbcType) throws IllegalArgumentException {
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
       }
 
+      jdbcType = !Strings.isNullOrEmpty(jdbcType) ? jdbcType : getJdbcType();
+
       boolean driverClassNamePresent = !Strings.isNullOrEmpty(getDriverClassName());
-      boolean jdbcTypePresent = !Strings.isNullOrEmpty(getJdbcType());
-      if (driverClassNamePresent && jdbcTypePresent) {
+      boolean driverJarsPresent = !Strings.isNullOrEmpty(getDriverJars());
+      boolean jdbcTypePresent = !Strings.isNullOrEmpty(jdbcType);
+      if (!driverClassNamePresent && !driverJarsPresent && !jdbcTypePresent) {
         throw new IllegalArgumentException(
-            "JDBC Driver class name and JDBC type are mutually exclusive configurations.");
+            "If JDBC type is not specified, then Driver Class Name and Driver Jars must be specified.");
       }
       if (!driverClassNamePresent && !jdbcTypePresent) {
         throw new IllegalArgumentException(
             "One of JDBC Driver class name or JDBC type must be specified.");
       }
       if (jdbcTypePresent
-          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(getJdbcType()).toLowerCase())) {
+          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(jdbcType).toLowerCase())) {
         throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
       }
 
@@ -208,11 +342,10 @@ public class JdbcReadSchemaTransformProvider
       boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
 
       if (readQueryPresent && locationPresent) {
-        throw new IllegalArgumentException(
-            "ReadQuery and Location are mutually exclusive configurations");
+        throw new IllegalArgumentException("Query and Table are mutually exclusive configurations");
       }
       if (!readQueryPresent && !locationPresent) {
-        throw new IllegalArgumentException("Either ReadQuery or Location must be set.");
+        throw new IllegalArgumentException("Either Query or Table must be specified.");
       }
     }
 
@@ -241,7 +374,7 @@ public class JdbcReadSchemaTransformProvider
 
       public abstract Builder setConnectionInitSql(List<String> value);
 
-      public abstract Builder setFetchSize(Short value);
+      public abstract Builder setFetchSize(Integer value);
 
       public abstract Builder setOutputParallelization(Boolean value);
 

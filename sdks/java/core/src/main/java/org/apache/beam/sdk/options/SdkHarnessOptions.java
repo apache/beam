@@ -20,6 +20,7 @@ package org.apache.beam.sdk.options;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -385,5 +386,22 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
       }
     }
     return configuredLoggers;
+  }
+
+  @Hidden
+  @Description(
+      "Timeout used for cache of bundle processors. Defaults to a minute for batch and an hour for streaming.")
+  @Default.InstanceFactory(BundleProcessorCacheTimeoutFactory.class)
+  Duration getBundleProcessorCacheTimeout();
+
+  void setBundleProcessorCacheTimeout(Duration duration);
+
+  class BundleProcessorCacheTimeoutFactory implements DefaultValueFactory<Duration> {
+    @Override
+    public Duration create(PipelineOptions options) {
+      return options.as(StreamingOptions.class).isStreaming()
+          ? Duration.ofHours(1)
+          : Duration.ofMinutes(1);
+    }
   }
 }

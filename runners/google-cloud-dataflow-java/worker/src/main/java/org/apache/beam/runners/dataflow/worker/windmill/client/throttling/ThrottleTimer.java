@@ -25,7 +25,7 @@ import org.joda.time.Instant;
  * CommitWork are both blocked for x, totalTime will be 2x. However, if 2 GetWork streams are both
  * blocked for x totalTime will be x. All methods are thread safe.
  */
-public final class ThrottleTimer {
+public final class ThrottleTimer implements ThrottledTimeTracker {
   // This is -1 if not currently being throttled or the time in
   // milliseconds when throttling for this type started.
   private long startTime = -1;
@@ -56,6 +56,7 @@ public final class ThrottleTimer {
   }
 
   /** Returns the combined total of all throttle times and resets those times to 0. */
+  @Override
   public synchronized long getAndResetThrottleTime() {
     if (throttled()) {
       stop();

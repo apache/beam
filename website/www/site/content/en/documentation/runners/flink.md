@@ -166,7 +166,7 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 To run a pipeline on Flink, set the runner to `FlinkRunner`
 and `flink_master` to the master URL of a Flink cluster.
 In addition, optionally set `environment_type` set to `LOOPBACK`. For example,
-after starting up a [local flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html),
+after starting up a [local flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.18/getting-started/tutorials/local_setup.html),
 one could run:
 {{< /paragraph >}}
 
@@ -216,8 +216,8 @@ It creates a Flink job from your pipeline and executes it.
 You might encounter an error message like `Caused by: java.io.IOException: Insufficient number of network buffers:...`.
 This can be resolved by providing a Flink configuration file to override the default settings.
 You can find an example configuration file [here](https://github.com/apache/beam/blob/master/runners/flink/src/test/resources/flink-conf.yaml).
-To start the Job Service endpoint with your custom configuration, mount a local directory containing your Flink configuration to the `/flink-conf` path in the Docker container:
-`docker run --net=host -v <your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.18_job_server:latest`
+To start the Job Service endpoint with your custom configuration, mount a local directory containing your Flink configuration to the `/flink-conf` path in the Docker container and pass this as `--flink-conf-dir`:
+`docker run --net=host -v <your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.18_job_server:latest --flink-conf-dir /flink-conf`
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
@@ -240,7 +240,7 @@ with beam.Pipeline(options) as p:
 <!-- Span implicitly ended -->
 
 {{< paragraph class="language-portable" >}}
-To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html):
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.18/getting-started/tutorials/local_setup.html):
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}

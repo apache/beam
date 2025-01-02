@@ -106,6 +106,12 @@ def sickbayTests = [
     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
     'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
 
+    // GroupIntoBatchesTest tests that fail:
+    // Teststream has bad KV encodings due to using an outer context.
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
+    // ShardedKey not yet implemented.
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+
     // Coding error somehow: short write: reached end of stream after reading 5 bytes; 98 bytes expected
     'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
@@ -178,10 +184,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
 
-    // Timer race condition/ordering issue in Prism.
-    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded',
-
-    // Missing output due to timer skew.
+    // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
     // TestStream + BundleFinalization.
@@ -230,21 +233,15 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
 
-      // Not yet implemented in Prism
-      // https://github.com/apache/beam/issues/32211
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      // https://github.com/apache/beam/issues/32929
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+      // Not supported in Portable Java SDK yet.
+      // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
 
-       // Not supported in Portable Java SDK yet.
-       // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
-       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
+      // Processing time with TestStream is unreliable without being able to control
+      // SDK side time portably. Ignore these tests.
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
     }
     filter {
-      // Hangs forever with prism. Put here instead of sickbay to allow sickbay runs to terminate.
-      // https://github.com/apache/beam/issues/32222
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate'
-
       for (String test : sickbayTests) {
           excludeTestsMatching test
       }

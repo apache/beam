@@ -55,6 +55,8 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.google.api.services.storage"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.fasterxml.jackson.annotation"),
+            classesInPackage("com.google.cloud.hadoop.gcsio"),
+            classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
             classesInPackage("java"),
             classesInPackage("javax"),
             classesInPackage("org.apache.beam.sdk"),

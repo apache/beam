@@ -1309,6 +1309,12 @@ You can also update the versions in https://github.com/apache/beam-starter-pytho
 https://github.com/apache/beam-starter-go if you would like. This is optional because dependabot will automatically
 open a PR to do this if you don't.
 
+### Update the container republishing workflow
+
+After the Beam release is published, update the default versions in https://github.com/apache/beam/blob/master/.github/workflows/republish_released_docker_containers.yml#L37
+to point to the most recent release and its accepted RC version. This script will then regularly
+republish containers using the same underlying source (but updated base images) to allow users to stay ahead of vulnerabilities.
+
 ### Update Beam Playground
 
 After new Beam Release is published, Beam Playground can be updated following the steps below. If any steps fail, make

@@ -26,6 +26,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/python/apache_beam/runners/dask/**']
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:

@@ -83,7 +83,7 @@ public class GroupIntoBatchesTranslation {
     return RunnerApi.GroupIntoBatchesPayload.newBuilder()
         .setBatchSize(params.getBatchSize())
         .setBatchSizeBytes(params.getBatchSizeBytes())
-        .setMaxBufferingDurationMillis(params.getMaxBufferingDuration().getStandardSeconds() * 1000)
+        .setMaxBufferingDurationMillis(params.getMaxBufferingDuration().getMillis())
         .build();
   }
 
