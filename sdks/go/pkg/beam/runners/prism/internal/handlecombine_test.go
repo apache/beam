@@ -28,18 +28,18 @@ import (
 func TestHandleCombine(t *testing.T) {
 	undertest := "UnderTest"
 
-	combineTransform := &pipepb.PTransform{
+	combineTransform := pipepb.PTransform_builder{
 		UniqueName: "COMBINE",
-		Spec: &pipepb.FunctionSpec{
+		Spec: pipepb.FunctionSpec_builder{
 			Urn: urns.TransformCombinePerKey,
-			Payload: protox.MustEncode(&pipepb.CombinePayload{
-				CombineFn: &pipepb.FunctionSpec{
+			Payload: protox.MustEncode(pipepb.CombinePayload_builder{
+				CombineFn: pipepb.FunctionSpec_builder{
 					Urn:     "foo",
 					Payload: []byte("bar"),
-				},
+				}.Build(),
 				AccumulatorCoderId: "AccumID",
-			}),
-		},
+			}.Build()),
+		}.Build(),
 		Inputs: map[string]string{
 			"input": "combineIn",
 		},
@@ -50,39 +50,39 @@ func TestHandleCombine(t *testing.T) {
 			"gbk",
 			"combine_values",
 		},
-	}
-	combineValuesTransform := &pipepb.PTransform{
+	}.Build()
+	combineValuesTransform := pipepb.PTransform_builder{
 		UniqueName: "combine_values",
 		Subtransforms: []string{
 			"bonus_leaf",
 		},
-	}
+	}.Build()
 	basePCollectionMap := map[string]*pipepb.PCollection{
-		"combineIn": {
+		"combineIn": pipepb.PCollection_builder{
 			CoderId: "inputCoder",
-		},
-		"combineOut": {
+		}.Build(),
+		"combineOut": pipepb.PCollection_builder{
 			CoderId: "outputCoder",
-		},
+		}.Build(),
 	}
 	baseCoderMap := map[string]*pipepb.Coder{
-		"int": {
-			Spec: &pipepb.FunctionSpec{Urn: urns.CoderVarInt},
-		},
-		"string": {
-			Spec: &pipepb.FunctionSpec{Urn: urns.CoderStringUTF8},
-		},
-		"AccumID": {
-			Spec: &pipepb.FunctionSpec{Urn: urns.CoderBytes},
-		},
-		"inputCoder": {
-			Spec:              &pipepb.FunctionSpec{Urn: urns.CoderKV},
+		"int": pipepb.Coder_builder{
+			Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderVarInt}.Build(),
+		}.Build(),
+		"string": pipepb.Coder_builder{
+			Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderStringUTF8}.Build(),
+		}.Build(),
+		"AccumID": pipepb.Coder_builder{
+			Spec: pipepb.FunctionSpec_builder{Urn: urns.CoderBytes}.Build(),
+		}.Build(),
+		"inputCoder": pipepb.Coder_builder{
+			Spec:              pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(),
 			ComponentCoderIds: []string{"int", "int"},
-		},
-		"outputCoder": {
-			Spec:              &pipepb.FunctionSpec{Urn: urns.CoderKV},
+		}.Build(),
+		"outputCoder": pipepb.Coder_builder{
+			Spec:              pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(),
 			ComponentCoderIds: []string{"int", "string"},
-		},
+		}.Build(),
 	}
 
 	tests := []struct {
@@ -95,104 +95,104 @@ func TestHandleCombine(t *testing.T) {
 		{
 			name:   "unlifted",
 			lifted: false,
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
 					undertest:        combineTransform,
 					"combine_values": combineValuesTransform,
 				},
 				Pcollections: basePCollectionMap,
 				Coders:       baseCoderMap,
-			},
+			}.Build(),
 			want: prepareResult{
-				SubbedComps: &pipepb.Components{
+				SubbedComps: pipepb.Components_builder{
 					Transforms: map[string]*pipepb.PTransform{
 						undertest: combineTransform,
 					},
-				},
+				}.Build(),
 			},
 		}, {
 			name:   "lifted",
 			lifted: true,
-			comps: &pipepb.Components{
+			comps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
 					undertest:        combineTransform,
 					"combine_values": combineValuesTransform,
 				},
 				Pcollections: basePCollectionMap,
 				Coders:       baseCoderMap,
-			},
+			}.Build(),
 			want: prepareResult{
 				RemovedLeaves: []string{"gbk", "combine_values", "bonus_leaf"},
-				SubbedComps: &pipepb.Components{
+				SubbedComps: pipepb.Components_builder{
 					Coders: map[string]*pipepb.Coder{
-						"cUnderTest_iter_AccumID": {
-							Spec:              &pipepb.FunctionSpec{Urn: urns.CoderIterable},
+						"cUnderTest_iter_AccumID": pipepb.Coder_builder{
+							Spec:              pipepb.FunctionSpec_builder{Urn: urns.CoderIterable}.Build(),
 							ComponentCoderIds: []string{"AccumID"},
-						},
-						"cUnderTest_kv_int_AccumID": {
-							Spec:              &pipepb.FunctionSpec{Urn: urns.CoderKV},
+						}.Build(),
+						"cUnderTest_kv_int_AccumID": pipepb.Coder_builder{
+							Spec:              pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(),
 							ComponentCoderIds: []string{"int", "AccumID"},
-						},
-						"cUnderTest_kv_int_iterAccumID": {
-							Spec:              &pipepb.FunctionSpec{Urn: urns.CoderKV},
+						}.Build(),
+						"cUnderTest_kv_int_iterAccumID": pipepb.Coder_builder{
+							Spec:              pipepb.FunctionSpec_builder{Urn: urns.CoderKV}.Build(),
 							ComponentCoderIds: []string{"int", "cUnderTest_iter_AccumID"},
-						},
+						}.Build(),
 					},
 					Pcollections: map[string]*pipepb.PCollection{
-						"nUnderTest_lifted": {
+						"nUnderTest_lifted": pipepb.PCollection_builder{
 							UniqueName: "nUnderTest_lifted",
 							CoderId:    "cUnderTest_kv_int_AccumID",
-						},
-						"nUnderTest_grouped": {
+						}.Build(),
+						"nUnderTest_grouped": pipepb.PCollection_builder{
 							UniqueName: "nUnderTest_grouped",
 							CoderId:    "cUnderTest_kv_int_iterAccumID",
-						},
-						"nUnderTest_merged": {
+						}.Build(),
+						"nUnderTest_merged": pipepb.PCollection_builder{
 							UniqueName: "nUnderTest_merged",
 							CoderId:    "cUnderTest_kv_int_AccumID",
-						},
+						}.Build(),
 					},
 					Transforms: map[string]*pipepb.PTransform{
-						"eUnderTest_lift": {
+						"eUnderTest_lift": pipepb.PTransform_builder{
 							UniqueName: "eUnderTest_lift",
-							Spec: &pipepb.FunctionSpec{
+							Spec: pipepb.FunctionSpec_builder{
 								Urn:     urns.TransformPreCombine,
 								Payload: combineTransform.GetSpec().GetPayload(),
-							},
+							}.Build(),
 							Inputs:  map[string]string{"i0": "combineIn"},
 							Outputs: map[string]string{"i0": "nUnderTest_lifted"},
-						},
-						"eUnderTest_gbk": {
+						}.Build(),
+						"eUnderTest_gbk": pipepb.PTransform_builder{
 							UniqueName: "eUnderTest_gbk",
-							Spec: &pipepb.FunctionSpec{
+							Spec: pipepb.FunctionSpec_builder{
 								Urn: urns.TransformGBK,
 								// Technically shouldn't be here, but since GBK execution doesn't escape the runner
 								// this never gets examined.
 								Payload: combineTransform.GetSpec().GetPayload(),
-							},
+							}.Build(),
 							Inputs:  map[string]string{"i0": "nUnderTest_lifted"},
 							Outputs: map[string]string{"i0": "nUnderTest_grouped"},
-						},
-						"eUnderTest_merge": {
+						}.Build(),
+						"eUnderTest_merge": pipepb.PTransform_builder{
 							UniqueName: "eUnderTest_merge",
-							Spec: &pipepb.FunctionSpec{
+							Spec: pipepb.FunctionSpec_builder{
 								Urn:     urns.TransformMerge,
 								Payload: combineTransform.GetSpec().GetPayload(),
-							},
+							}.Build(),
 							Inputs:  map[string]string{"i0": "nUnderTest_grouped"},
 							Outputs: map[string]string{"i0": "nUnderTest_merged"},
-						},
-						"eUnderTest_extract": {
+						}.Build(),
+						"eUnderTest_extract": pipepb.PTransform_builder{
 							UniqueName: "eUnderTest_extract",
-							Spec: &pipepb.FunctionSpec{
+							Spec: pipepb.FunctionSpec_builder{
 								Urn:     urns.TransformExtract,
 								Payload: combineTransform.GetSpec().GetPayload(),
-							},
+							}.Build(),
 							Inputs:  map[string]string{"i0": "nUnderTest_merged"},
 							Outputs: map[string]string{"i0": "combineOut"},
-						},
+						}.Build(),
 					},
-				},
+				}.Build(),
 			},
 		},
 	}

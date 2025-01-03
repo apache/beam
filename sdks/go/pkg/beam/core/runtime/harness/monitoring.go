@@ -69,11 +69,11 @@ func (c *shortIDCache) getShortID(l metrics.Labels, urn metricsx.Urn) string {
 	}
 	s = c.getNextShortID()
 	c.labels2ShortIds[k] = s
-	c.shortIds2Infos[s] = &pipepb.MonitoringInfo{
+	c.shortIds2Infos[s] = pipepb.MonitoringInfo_builder{
 		Urn:    metricsx.UrnToString(urn),
 		Type:   metricsx.UrnToType(urn),
 		Labels: l.Map(),
-	}
+	}.Build()
 	return s
 }
 
@@ -120,12 +120,12 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 			payloads[getShortID(l, metricsx.UrnUserSumInt64)] = payload
 			if !supportShortID {
 				monitoringInfo = append(monitoringInfo,
-					&pipepb.MonitoringInfo{
+					pipepb.MonitoringInfo_builder{
 						Urn:     metricsx.UrnToString(metricsx.UrnUserSumInt64),
 						Type:    metricsx.UrnToType(metricsx.UrnUserSumInt64),
 						Labels:  l.Map(),
 						Payload: payload,
-					})
+					}.Build())
 			}
 		},
 		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
@@ -136,12 +136,12 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 			payloads[getShortID(l, metricsx.UrnUserDistInt64)] = payload
 			if !supportShortID {
 				monitoringInfo = append(monitoringInfo,
-					&pipepb.MonitoringInfo{
+					pipepb.MonitoringInfo_builder{
 						Urn:     metricsx.UrnToString(metricsx.UrnUserDistInt64),
 						Type:    metricsx.UrnToType(metricsx.UrnUserDistInt64),
 						Labels:  l.Map(),
 						Payload: payload,
-					})
+					}.Build())
 			}
 		},
 		GaugeInt64: func(l metrics.Labels, v int64, t time.Time) {
@@ -152,12 +152,12 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 			payloads[getShortID(l, metricsx.UrnUserLatestMsInt64)] = payload
 			if !supportShortID {
 				monitoringInfo = append(monitoringInfo,
-					&pipepb.MonitoringInfo{
+					pipepb.MonitoringInfo_builder{
 						Urn:     metricsx.UrnToString(metricsx.UrnUserLatestMsInt64),
 						Type:    metricsx.UrnToType(metricsx.UrnUserLatestMsInt64),
 						Labels:  l.Map(),
 						Payload: payload,
-					})
+					}.Build())
 			}
 		},
 		MsecsInt64: func(l string, states *[4]metrics.ExecutionState) {
@@ -171,12 +171,12 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 				payloads[getShortID(metrics.PTransformLabels(l), ul)] = payload
 				if !supportShortID {
 					monitoringInfo = append(monitoringInfo,
-						&pipepb.MonitoringInfo{
+						pipepb.MonitoringInfo_builder{
 							Urn:     metricsx.UrnToString(ul),
 							Type:    metricsx.UrnToType(ul),
 							Labels:  label,
 							Payload: payload,
-						})
+						}.Build())
 				}
 			}
 		},
@@ -199,14 +199,14 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 
 		if !supportShortID {
 			monitoringInfo = append(monitoringInfo,
-				&pipepb.MonitoringInfo{
+				pipepb.MonitoringInfo_builder{
 					Urn:  metricsx.UrnToString(metricsx.UrnElementCount),
 					Type: metricsx.UrnToType(metricsx.UrnElementCount),
 					Labels: map[string]string{
 						"PCOLLECTION": pcol.ID,
 					},
 					Payload: payload,
-				})
+				}.Build())
 		}
 		// Skip pcollections without size
 		if pcol.SizeCount != 0 {
@@ -218,14 +218,14 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 
 			if !supportShortID {
 				monitoringInfo = append(monitoringInfo,
-					&pipepb.MonitoringInfo{
+					pipepb.MonitoringInfo_builder{
 						Urn:  metricsx.UrnToString(metricsx.UrnSampledByteSize),
 						Type: metricsx.UrnToType(metricsx.UrnSampledByteSize),
 						Labels: map[string]string{
 							"PCOLLECTION": pcol.ID,
 						},
 						Payload: payload,
-					})
+					}.Build())
 			}
 		}
 	}
@@ -238,14 +238,14 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 	payloads[getShortID(metrics.PTransformLabels(snapshot.Source.ID), metricsx.UrnDataChannelReadIndex)] = payload
 	if !supportShortID {
 		monitoringInfo = append(monitoringInfo,
-			&pipepb.MonitoringInfo{
+			pipepb.MonitoringInfo_builder{
 				Urn:  metricsx.UrnToString(metricsx.UrnDataChannelReadIndex),
 				Type: metricsx.UrnToType(metricsx.UrnDataChannelReadIndex),
 				Labels: map[string]string{
 					"PTRANSFORM": snapshot.Source.ID,
 				},
 				Payload: payload,
-			})
+			}.Build())
 	}
 	return monitoringInfo, payloads, snapshot.Source.ConsumingReceivedData
 }

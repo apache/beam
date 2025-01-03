@@ -70,12 +70,12 @@ func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[str
 
 	// Produce ID for the Windowed Value Coder
 	wvcID := "cwv_" + pID
-	wInC := &pipepb.Coder{
-		Spec: &pipepb.FunctionSpec{
+	wInC := pipepb.Coder_builder{
+		Spec: pipepb.FunctionSpec_builder{
 			Urn: urns.CoderWindowedValue,
-		},
+		}.Build(),
 		ComponentCoderIds: []string{cID, wcID},
-	}
+	}.Build()
 	// Populate the coders to send with the new windowed value coder.
 	coders[wvcID] = wInC
 	return wvcID, nil
@@ -127,12 +127,12 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 	// we must LP it, and we return the LP'd version.
 	leaf := isLeafCoder(c)
 	if len(c.GetComponentCoderIds()) == 0 && !leaf {
-		lpc := &pipepb.Coder{
-			Spec: &pipepb.FunctionSpec{
+		lpc := pipepb.Coder_builder{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn: urns.CoderLengthPrefix,
-			},
+			}.Build(),
 			ComponentCoderIds: []string{cID},
-		}
+		}.Build()
 		bundle[lpcID] = lpc
 		return lpcID, nil
 	}
@@ -158,10 +158,10 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 		comps = append(comps, rcc)
 	}
 	if needNewComposite {
-		lpc := &pipepb.Coder{
+		lpc := pipepb.Coder_builder{
 			Spec:              c.GetSpec(),
 			ComponentCoderIds: comps,
-		}
+		}.Build()
 		bundle[lpcID] = lpc
 		return lpcID, nil
 	}
@@ -283,9 +283,9 @@ func debugCoder(cid string, coders map[string]*pipepb.Coder) string {
 	b.WriteString(cid)
 	b.WriteRune('\n')
 	c := coders[cid]
-	if len(c.ComponentCoderIds) > 0 {
+	if len(c.GetComponentCoderIds()) > 0 {
 		b.WriteRune('\t')
-		b.WriteString(strings.Join(c.ComponentCoderIds, ", "))
+		b.WriteString(strings.Join(c.GetComponentCoderIds(), ", "))
 		b.WriteRune('\n')
 		for _, ccid := range c.GetComponentCoderIds() {
 			b.WriteString(debugCoder(ccid, coders))

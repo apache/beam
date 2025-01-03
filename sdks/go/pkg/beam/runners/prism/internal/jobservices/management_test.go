@@ -40,9 +40,9 @@ import (
 func TestServer(t *testing.T) {
 	wantName := "testJob"
 
-	wantPipeline := &pipepb.Pipeline{
+	wantPipeline := pipepb.Pipeline_builder{
 		Requirements: []string{urns.RequirementSplittableDoFn},
-	}
+	}.Build()
 
 	cmpOpts := []cmp.Option{protocmp.Transform(), cmpopts.EquateEmpty()}
 	tests := []struct {
@@ -72,15 +72,15 @@ func TestServer(t *testing.T) {
 				if err != nil {
 					t.Fatalf("GetJobs() = %v, want nil", err)
 				}
-				if diff := cmp.Diff(&jobpb.GetJobsResponse{
+				if diff := cmp.Diff(jobpb.GetJobsResponse_builder{
 					JobInfo: []*jobpb.JobInfo{
-						{
+						jobpb.JobInfo_builder{
 							JobId:   "job-001", // Expected initial JobID.
 							JobName: wantName,
 							State:   jobpb.JobState_STOPPED,
-						},
+						}.Build(),
 					},
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("GetJobs() (-want, +got):\n%v", diff)
 				}
 			},
@@ -89,86 +89,86 @@ func TestServer(t *testing.T) {
 				if err != nil {
 					t.Fatalf("GetJobs() = %v, want nil", err)
 				}
-				if diff := cmp.Diff(&jobpb.GetJobsResponse{
+				if diff := cmp.Diff(jobpb.GetJobsResponse_builder{
 					JobInfo: []*jobpb.JobInfo{
-						{
+						jobpb.JobInfo_builder{
 							JobId:   jobID,
 							JobName: wantName,
 							State:   jobpb.JobState_DONE,
-						},
+						}.Build(),
 					},
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("GetJobs() (-want, +got):\n%v", diff)
 				}
 			},
 		}, {
 			name: "GetMetrics",
 			noJobsCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				_, err := undertest.GetJobMetrics(ctx, &jobpb.GetJobMetricsRequest{JobId: "job-001"})
+				_, err := undertest.GetJobMetrics(ctx, jobpb.GetJobMetricsRequest_builder{JobId: "job-001"}.Build())
 				if err == nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want not found error", err)
 				}
 			},
 			postPrepCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				resp, err := undertest.GetJobMetrics(ctx, &jobpb.GetJobMetricsRequest{JobId: "job-001"})
+				resp, err := undertest.GetJobMetrics(ctx, jobpb.GetJobMetricsRequest_builder{JobId: "job-001"}.Build())
 				if err != nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want nil", err)
 				}
-				if diff := cmp.Diff(&jobpb.GetJobMetricsResponse{
+				if diff := cmp.Diff(jobpb.GetJobMetricsResponse_builder{
 					Metrics: &jobpb.MetricResults{},
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("GetPipeline(\"job-001\") (-want, +got):\n%v", diff)
 				}
 			},
 			postRunCheck: func(ctx context.Context, t *testing.T, undertest *Server, jobID string) {
-				resp, err := undertest.GetJobMetrics(ctx, &jobpb.GetJobMetricsRequest{JobId: jobID})
+				resp, err := undertest.GetJobMetrics(ctx, jobpb.GetJobMetricsRequest_builder{JobId: jobID}.Build())
 				if err != nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want nil", err)
 				}
-				if diff := cmp.Diff(&jobpb.GetJobMetricsResponse{
-					Metrics: &jobpb.MetricResults{
+				if diff := cmp.Diff(jobpb.GetJobMetricsResponse_builder{
+					Metrics: jobpb.MetricResults_builder{
 						Committed: []*pipepb.MonitoringInfo{
-							{
+							pipepb.MonitoringInfo_builder{
 								Urn:     metricsx.UrnToString(metricsx.UrnElementCount),
 								Type:    metricsx.UrnToType(metricsx.UrnElementCount),
 								Payload: []byte("\x01"),
 								Labels: map[string]string{
 									"PCOLLECTION": "id.out",
 								},
-							},
+							}.Build(),
 						},
-					},
-				}, resp, cmpOpts...); diff != "" {
+					}.Build(),
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("GetPipeline(\"job-001\") (-want, +got):\n%v", diff)
 				}
 			},
 		}, {
 			name: "GetPipeline",
 			noJobsCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				_, err := undertest.GetPipeline(ctx, &jobpb.GetJobPipelineRequest{JobId: "job-001"})
+				_, err := undertest.GetPipeline(ctx, jobpb.GetJobPipelineRequest_builder{JobId: "job-001"}.Build())
 				if err == nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want not found error", err)
 				}
 			},
 			postPrepCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				resp, err := undertest.GetPipeline(ctx, &jobpb.GetJobPipelineRequest{JobId: "job-001"})
+				resp, err := undertest.GetPipeline(ctx, jobpb.GetJobPipelineRequest_builder{JobId: "job-001"}.Build())
 				if err != nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want nil", err)
 				}
-				if diff := cmp.Diff(&jobpb.GetJobPipelineResponse{
+				if diff := cmp.Diff(jobpb.GetJobPipelineResponse_builder{
 					Pipeline: wantPipeline,
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("GetPipeline(\"job-001\") (-want, +got):\n%v", diff)
 				}
 			},
 			postRunCheck: func(ctx context.Context, t *testing.T, undertest *Server, jobID string) {
-				resp, err := undertest.GetPipeline(ctx, &jobpb.GetJobPipelineRequest{JobId: jobID})
+				resp, err := undertest.GetPipeline(ctx, jobpb.GetJobPipelineRequest_builder{JobId: jobID}.Build())
 				if err != nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want nil", err)
 				}
-				if diff := cmp.Diff(&jobpb.GetJobPipelineResponse{
+				if diff := cmp.Diff(jobpb.GetJobPipelineResponse_builder{
 					Pipeline: wantPipeline,
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("GetPipeline(\"job-001\") (-want, +got):\n%v", diff)
 				}
 			},
@@ -178,7 +178,7 @@ func TestServer(t *testing.T) {
 			postRunState: jobpb.JobState_RUNNING,
 			noJobsCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
 				id := "job-001"
-				_, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
+				_, err := undertest.Cancel(ctx, jobpb.CancelJobRequest_builder{JobId: id}.Build())
 				// Cancel currently returns nil, nil when Job not found
 				if err != nil {
 					t.Errorf("Cancel(%q) = %v, want not found error", id, err)
@@ -186,25 +186,25 @@ func TestServer(t *testing.T) {
 			},
 			postPrepCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
 				id := "job-001"
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
+				resp, err := undertest.Cancel(ctx, jobpb.CancelJobRequest_builder{JobId: id}.Build())
 				if err != nil {
 					t.Errorf("Cancel(%q) = %v, want not found error", id, err)
 				}
-				if diff := cmp.Diff(&jobpb.CancelJobResponse{
+				if diff := cmp.Diff(jobpb.CancelJobResponse_builder{
 					State: jobpb.JobState_CANCELLING,
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("Cancel(%q) (-want, +got):\n%s", id, diff)
 				}
 			},
 			postRunCheck: func(ctx context.Context, t *testing.T, undertest *Server, jobID string) {
 				id := "job-001"
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
+				resp, err := undertest.Cancel(ctx, jobpb.CancelJobRequest_builder{JobId: id}.Build())
 				if err != nil {
 					t.Errorf("Cancel(%q) = %v, want not found error", id, err)
 				}
-				if diff := cmp.Diff(&jobpb.CancelJobResponse{
+				if diff := cmp.Diff(jobpb.CancelJobResponse_builder{
 					State: jobpb.JobState_CANCELLING,
-				}, resp, cmpOpts...); diff != "" {
+				}.Build(), resp, cmpOpts...); diff != "" {
 					t.Errorf("Cancel(%q) (-want, +got):\n%s", id, diff)
 				}
 			},
@@ -219,23 +219,23 @@ func TestServer(t *testing.T) {
 
 			shortIDCount := "elemCount"
 			shortIDSize := "elemSize"
-			j.AddMetricShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			j.AddMetricShortIDs(fnpb.MonitoringInfosMetadataResponse_builder{
 				MonitoringInfo: map[string]*pipepb.MonitoringInfo{
-					shortIDCount: {
+					shortIDCount: pipepb.MonitoringInfo_builder{
 						Urn:  metricsx.UrnToString(metricsx.UrnElementCount),
 						Type: metricsx.UrnToType(metricsx.UrnElementCount),
 						Labels: map[string]string{
 							"PCOLLECTION": "id.out",
 						},
-					},
+					}.Build(),
 				},
-			})
-			j.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			}.Build())
+			j.ContributeFinalMetrics(fnpb.ProcessBundleResponse_builder{
 				MonitoringData: map[string][]byte{
 					shortIDCount: countData,
 					shortIDSize:  sizeData,
 				},
-			})
+			}.Build())
 			state := jobpb.JobState_DONE
 			if test.postRunState != jobpb.JobState_UNSPECIFIED {
 				state = test.postRunState
@@ -247,19 +247,19 @@ func TestServer(t *testing.T) {
 		ctx := context.Background()
 		test.noJobsCheck(ctx, t, undertest)
 
-		prepResp, err := undertest.Prepare(ctx, &jobpb.PrepareJobRequest{
+		prepResp, err := undertest.Prepare(ctx, jobpb.PrepareJobRequest_builder{
 			Pipeline: wantPipeline,
 			JobName:  wantName,
-		})
+		}.Build())
 		if err != nil {
 			t.Fatalf("Prepare(%v) = %v, want nil", wantName, err)
 		}
 
 		test.postPrepCheck(ctx, t, undertest)
 
-		jrResp, err := undertest.Run(ctx, &jobpb.RunJobRequest{
+		jrResp, err := undertest.Run(ctx, jobpb.RunJobRequest_builder{
 			PreparationId: prepResp.GetPreparationId(),
-		})
+		}.Build())
 		if err != nil {
 			t.Fatalf("Run(%v) = %v, want nil", wantName, err)
 		}
@@ -271,9 +271,9 @@ func TestServer(t *testing.T) {
 
 func TestGetMessageStream(t *testing.T) {
 	wantName := "testJob"
-	wantPipeline := &pipepb.Pipeline{
+	wantPipeline := pipepb.Pipeline_builder{
 		Requirements: []string{urns.RequirementSplittableDoFn},
-	}
+	}.Build()
 	var called sync.WaitGroup
 	called.Add(1)
 	ctx, _, clientConn := serveTestServer(t, func(j *Job) {
@@ -289,9 +289,9 @@ func TestGetMessageStream(t *testing.T) {
 	jobCli := jobpb.NewJobServiceClient(clientConn)
 
 	// PreJob submission
-	msgStream, err := jobCli.GetMessageStream(ctx, &jobpb.JobMessagesRequest{
+	msgStream, err := jobCli.GetMessageStream(ctx, jobpb.JobMessagesRequest_builder{
 		JobId: "job-001",
-	})
+	}.Build())
 	if err != nil {
 		t.Errorf("GetMessageStream: wanted successful connection, got %v", err)
 	}
@@ -300,18 +300,18 @@ func TestGetMessageStream(t *testing.T) {
 		t.Error("wanted error on non-existent job, but didn't happen.")
 	}
 
-	prepResp, err := jobCli.Prepare(ctx, &jobpb.PrepareJobRequest{
+	prepResp, err := jobCli.Prepare(ctx, jobpb.PrepareJobRequest_builder{
 		Pipeline: wantPipeline,
 		JobName:  wantName,
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("Prepare(%v) = %v, want nil", wantName, err)
 	}
 
 	// Post Job submission
-	msgStream, err = jobCli.GetMessageStream(ctx, &jobpb.JobMessagesRequest{
+	msgStream, err = jobCli.GetMessageStream(ctx, jobpb.JobMessagesRequest_builder{
 		JobId: "job-001",
-	})
+	}.Build())
 	if err != nil {
 		t.Errorf("GetMessageStream: wanted successful connection, got %v", err)
 	}
@@ -323,9 +323,9 @@ func TestGetMessageStream(t *testing.T) {
 		t.Errorf("GetMessageStream().Recv() = %v, want %v", got, want)
 	}
 
-	_, err = jobCli.Run(ctx, &jobpb.RunJobRequest{
+	_, err = jobCli.Run(ctx, jobpb.RunJobRequest_builder{
 		PreparationId: prepResp.GetPreparationId(),
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("Run(%v) = %v, want nil", wantName, err)
 	}
@@ -363,9 +363,9 @@ func TestGetMessageStream(t *testing.T) {
 
 	// Create a new message stream, we should still get a tail of messages (in this case, all of them)
 	// And the final state.
-	msgStream, err = jobCli.GetMessageStream(ctx, &jobpb.JobMessagesRequest{
+	msgStream, err = jobCli.GetMessageStream(ctx, jobpb.JobMessagesRequest_builder{
 		JobId: "job-001",
-	})
+	}.Build())
 	if err != nil {
 		t.Errorf("GetMessageStream: wanted successful connection, got %v", err)
 	}
@@ -401,9 +401,9 @@ func TestGetMessageStream(t *testing.T) {
 
 func TestGetMessageStream_BufferCycling(t *testing.T) {
 	wantName := "testJob"
-	wantPipeline := &pipepb.Pipeline{
+	wantPipeline := pipepb.Pipeline_builder{
 		Requirements: []string{urns.RequirementSplittableDoFn},
-	}
+	}.Build()
 	var called sync.WaitGroup
 	called.Add(1)
 	ctx, _, clientConn := serveTestServer(t, func(j *Job) {
@@ -418,16 +418,16 @@ func TestGetMessageStream_BufferCycling(t *testing.T) {
 	})
 	jobCli := jobpb.NewJobServiceClient(clientConn)
 
-	prepResp, err := jobCli.Prepare(ctx, &jobpb.PrepareJobRequest{
+	prepResp, err := jobCli.Prepare(ctx, jobpb.PrepareJobRequest_builder{
 		Pipeline: wantPipeline,
 		JobName:  wantName,
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("Prepare(%v) = %v, want nil", wantName, err)
 	}
-	_, err = jobCli.Run(ctx, &jobpb.RunJobRequest{
+	_, err = jobCli.Run(ctx, jobpb.RunJobRequest_builder{
 		PreparationId: prepResp.GetPreparationId(),
-	})
+	}.Build())
 	if err != nil {
 		t.Fatalf("Run(%v) = %v, want nil", wantName, err)
 	}
@@ -436,9 +436,9 @@ func TestGetMessageStream_BufferCycling(t *testing.T) {
 
 	// Create a new message stream, we should still get a tail of messages (in this case, all of them)
 	// And the final state.
-	msgStream, err := jobCli.GetMessageStream(ctx, &jobpb.JobMessagesRequest{
+	msgStream, err := jobCli.GetMessageStream(ctx, jobpb.JobMessagesRequest_builder{
 		JobId: "job-001",
-	})
+	}.Build())
 	if err != nil {
 		t.Errorf("GetMessageStream: wanted successful connection, got %v", err)
 	}

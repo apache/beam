@@ -223,12 +223,12 @@ func Test_containerImages(t *testing.T) {
 		display := []string{}
 
 		for _, i := range imgs {
-			envs[i.id] = &pipepb.Environment{
+			envs[i.id] = pipepb.Environment_builder{
 				Capabilities: i.caps,
-				Payload: protox.MustEncode(&pipepb.DockerPayload{
+				Payload: protox.MustEncode(pipepb.DockerPayload_builder{
 					ContainerImage: i.image,
-				}),
-			}
+				}.Build()),
+			}.Build()
 			images = append(images, &df.SdkHarnessContainerImage{
 				ContainerImage:            i.image,
 				UseSingleCorePerContainer: i.single,
@@ -257,11 +257,11 @@ func Test_containerImages(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pipeline := &pipepb.Pipeline{
-				Components: &pipepb.Components{
+			pipeline := pipepb.Pipeline_builder{
+				Components: pipepb.Components_builder{
 					Environments: test.envs,
-				},
-			}
+				}.Build(),
+			}.Build()
 			gotImages, gotDisplay, err := containerImages(pipeline)
 			if err != nil {
 				t.Fatalf("containerImages(...) error = %v, want nil", err)

@@ -206,7 +206,7 @@ func launchSDKProcess() error {
 		logger.Printf(ctx, "Found artifact: %s", name)
 		fileNames[i] = name
 
-		if v.RoleUrn == artifact.URNPipRequirementsFile {
+		if v.GetRoleUrn() == artifact.URNPipRequirementsFile {
 			requirementsFiles = append(requirementsFiles, name)
 		}
 	}
@@ -222,8 +222,8 @@ func launchSDKProcess() error {
 
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (pipepb.ApiServiceDescriptor_builder{Url: *loggingEndpoint}.Build()).String())
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (pipepb.ApiServiceDescriptor_builder{Url: *controlEndpoint}.Build()).String())
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 
 	if info.GetStatusEndpoint() != nil {

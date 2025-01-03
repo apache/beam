@@ -78,17 +78,17 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	defer conn.Close()
 	pool := fnpb.NewBeamFnExternalWorkerPoolClient(conn)
 
-	endpoint := &pipepb.ApiServiceDescriptor{
+	endpoint := pipepb.ApiServiceDescriptor_builder{
 		Url: wk.Endpoint(),
-	}
-	pool.StartWorker(ctx, &fnpb.StartWorkerRequest{
+	}.Build()
+	pool.StartWorker(ctx, fnpb.StartWorkerRequest_builder{
 		WorkerId:          wk.ID,
 		ControlEndpoint:   endpoint,
 		LoggingEndpoint:   endpoint,
 		ArtifactEndpoint:  endpoint,
 		ProvisionEndpoint: endpoint,
 		Params:            ep.GetParams(),
-	})
+	}.Build())
 	// Job processing happens here, but orchestrated by other goroutines
 	// This goroutine blocks until the context is cancelled, signalling
 	// that the pool runner should stop the worker.
@@ -96,9 +96,9 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 
 	// Previous context cancelled so we need a new one
 	// for this request.
-	pool.StopWorker(context.Background(), &fnpb.StopWorkerRequest{
+	pool.StopWorker(context.Background(), fnpb.StopWorkerRequest_builder{
 		WorkerId: wk.ID,
-	})
+	}.Build())
 	wk.Stop()
 }
 

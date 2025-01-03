@@ -360,15 +360,15 @@ func getSideInputs(t *pipepb.PTransform) (map[string]*pipepb.SideInput, error) {
 }
 
 func portFor(wInCid string, wk *worker.W) []byte {
-	sourcePort := &fnpb.RemoteGrpcPort{
+	sourcePort := fnpb.RemoteGrpcPort_builder{
 		CoderId: wInCid,
-		ApiServiceDescriptor: &pipepb.ApiServiceDescriptor{
+		ApiServiceDescriptor: pipepb.ApiServiceDescriptor_builder{
 			Url: wk.Endpoint(),
-		},
-	}
+		}.Build(),
+	}.Build()
 	sourcePortBytes, err := proto.Marshal(sourcePort)
 	if err != nil {
-		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
+		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.GetApiServiceDescriptor().GetUrl()))
 	}
 	return sourcePortBytes
 }
@@ -436,13 +436,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 				}
 				*cid = newCid
 			}
-			switch s := s.GetSpec().(type) {
-			case *pipepb.StateSpec_BagSpec:
-				rewriteCoder(&s.BagSpec.ElementCoderId)
-			case *pipepb.StateSpec_SetSpec:
-				rewriteCoder(&s.SetSpec.ElementCoderId)
-			case *pipepb.StateSpec_OrderedListSpec:
-				rewriteCoder(&s.OrderedListSpec.ElementCoderId)
+			switch s.WhichSpec() {
+			case pipepb.StateSpec_BagSpec_case:
+				rewriteCoder(proto.String(s.GetBagSpec().GetElementCoderId()))
+			case pipepb.StateSpec_SetSpec_case:
+				rewriteCoder(proto.String(s.GetSetSpec().GetElementCoderId()))
+			case pipepb.StateSpec_OrderedListSpec_case:
+				rewriteCoder(proto.String(s.GetOrderedListSpec().GetElementCoderId()))
 				// Add the length determination helper for OrderedList state values.
 				if stg.stateTypeLen == nil {
 					stg.stateTypeLen = map[engine.LinkID]func([]byte) int{}
@@ -452,7 +452,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 					Local:     stateID,
 				}
 				var fn func([]byte) int
-				switch v := coders[s.OrderedListSpec.GetElementCoderId()]; v.GetSpec().GetUrn() {
+				switch v := coders[s.GetOrderedListSpec().GetElementCoderId()]; v.GetSpec().GetUrn() {
 				case urns.CoderBool:
 					fn = func(_ []byte) int {
 						return 1
@@ -472,19 +472,19 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 						return int(l) + n
 					}
 				default:
-					rewriteErr = fmt.Errorf("unknown coder used for ordered list state after re-write id: %v coder: %v, for state %v for transform %v in stage %v", s.OrderedListSpec.GetElementCoderId(), v, stateID, tid, stg.ID)
+					rewriteErr = fmt.Errorf("unknown coder used for ordered list state after re-write id: %v coder: %v, for state %v for transform %v in stage %v", s.GetOrderedListSpec().GetElementCoderId(), v, stateID, tid, stg.ID)
 				}
 				stg.stateTypeLen[linkID] = fn
-			case *pipepb.StateSpec_CombiningSpec:
-				rewriteCoder(&s.CombiningSpec.AccumulatorCoderId)
-			case *pipepb.StateSpec_MapSpec:
-				rewriteCoder(&s.MapSpec.KeyCoderId)
-				rewriteCoder(&s.MapSpec.ValueCoderId)
-			case *pipepb.StateSpec_MultimapSpec:
-				rewriteCoder(&s.MultimapSpec.KeyCoderId)
-				rewriteCoder(&s.MultimapSpec.ValueCoderId)
-			case *pipepb.StateSpec_ReadModifyWriteSpec:
-				rewriteCoder(&s.ReadModifyWriteSpec.CoderId)
+			case pipepb.StateSpec_CombiningSpec_case:
+				rewriteCoder(proto.String(s.GetCombiningSpec().GetAccumulatorCoderId()))
+			case pipepb.StateSpec_MapSpec_case:
+				rewriteCoder(proto.String(s.GetMapSpec().GetKeyCoderId()))
+				rewriteCoder(proto.String(s.GetMapSpec().GetValueCoderId()))
+			case pipepb.StateSpec_MultimapSpec_case:
+				rewriteCoder(proto.String(s.GetMultimapSpec().GetKeyCoderId()))
+				rewriteCoder(proto.String(s.GetMultimapSpec().GetValueCoderId()))
+			case pipepb.StateSpec_ReadModifyWriteSpec_case:
+				rewriteCoder(proto.String(s.GetReadModifyWriteSpec().GetCoderId()))
 			}
 			if rewriteErr != nil {
 				return rewriteErr
@@ -492,7 +492,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		}
 		for timerID, v := range pardo.GetTimerFamilySpecs() {
 			stg.hasTimers = append(stg.hasTimers, engine.StaticTimerID{TransformID: tid, TimerFamily: timerID})
-			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
+			if v.GetTimeDomain() == pipepb.TimeDomain_PROCESSING_TIME {
 				if stg.processingTimeTimers == nil {
 					stg.processingTimeTimers = map[string]bool{}
 				}
@@ -503,14 +503,14 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			if err != nil {
 				return fmt.Errorf("unable to rewrite coder %v for timer %v for transform %v in stage %v: %w", v.GetTimerFamilyCoderId(), timerID, tid, stg.ID, err)
 			}
-			v.TimerFamilyCoderId = newCid
+			v.SetTimerFamilyCoderId(newCid)
 		}
 		if rewrite {
 			pyld, err := proto.MarshalOptions{}.Marshal(pardo)
 			if err != nil {
 				return fmt.Errorf("unable to encode ParDoPayload for %v in stage %v after rewrite", tid, stg.ID)
 			}
-			t.Spec.Payload = pyld
+			t.GetSpec().SetPayload(pyld)
 		}
 	}
 	if len(transforms) == 0 {
@@ -559,13 +559,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		if oCID != nCID {
 			// Add a synthetic PCollection set with the new coder.
 			newGlobal := si.Global + "_prismside"
-			pcollections[newGlobal] = &pipepb.PCollection{
+			pcollections[newGlobal] = pipepb.PCollection_builder{
 				DisplayData:         col.GetDisplayData(),
 				UniqueName:          col.GetUniqueName(),
 				CoderId:             nCID,
 				IsBounded:           col.GetIsBounded(),
-				WindowingStrategyId: col.WindowingStrategyId,
-			}
+				WindowingStrategyId: col.GetWindowingStrategyId(),
+			}.Build()
 			// Update side inputs to point to new PCollection with any replaced coders.
 			transforms[si.Transform].GetInputs()[si.Local] = newGlobal
 			// TODO: replace si.Global with newGlobal?
@@ -585,7 +585,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 
 	col := clonePColToBundle(stg.primaryInput)
 	if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
-		col.CoderId = newCID
+		col.SetCoderId(newCID)
 	} else if err != nil {
 		return fmt.Errorf("buildDescriptor: couldn't rewrite coder %q for primary input pcollection %q: %w", col.GetCoderId(), stg.primaryInput, err)
 	}
@@ -618,7 +618,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	for _, pid := range stg.internalCols {
 		col := clonePColToBundle(pid)
 		if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
-			col.CoderId = newCID
+			col.SetCoderId(newCID)
 		} else if err != nil {
 			return fmt.Errorf("buildDescriptor: coder  couldn't rewrite coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
 		}
@@ -633,22 +633,22 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 
 	var timerServiceDescriptor *pipepb.ApiServiceDescriptor
 	if len(stg.hasTimers) > 0 {
-		timerServiceDescriptor = &pipepb.ApiServiceDescriptor{
+		timerServiceDescriptor = pipepb.ApiServiceDescriptor_builder{
 			Url: wk.Endpoint(),
-		}
+		}.Build()
 	}
 
-	desc := &fnpb.ProcessBundleDescriptor{
+	desc := fnpb.ProcessBundleDescriptor_builder{
 		Id:                  stg.ID,
 		Transforms:          transforms,
 		WindowingStrategies: comps.GetWindowingStrategies(),
 		Pcollections:        pcollections,
 		Coders:              coders,
-		StateApiServiceDescriptor: &pipepb.ApiServiceDescriptor{
+		StateApiServiceDescriptor: pipepb.ApiServiceDescriptor_builder{
 			Url: wk.Endpoint(),
-		},
+		}.Build(),
 		TimerApiServiceDescriptor: timerServiceDescriptor,
-	}
+	}.Build()
 
 	stg.desc = desc
 	stg.prepareSides = func(b *worker.B, watermark mtime.Time) {
@@ -747,29 +747,29 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms ma
 }
 
 func sourceTransform(parentID string, sourcePortBytes []byte, outPID string) *pipepb.PTransform {
-	source := &pipepb.PTransform{
+	source := pipepb.PTransform_builder{
 		UniqueName: parentID,
-		Spec: &pipepb.FunctionSpec{
+		Spec: pipepb.FunctionSpec_builder{
 			Urn:     urns.TransformSource,
 			Payload: sourcePortBytes,
-		},
+		}.Build(),
 		Outputs: map[string]string{
 			"i0": outPID,
 		},
-	}
+	}.Build()
 	return source
 }
 
 func sinkTransform(sinkID string, sinkPortBytes []byte, inPID string) *pipepb.PTransform {
-	source := &pipepb.PTransform{
+	source := pipepb.PTransform_builder{
 		UniqueName: sinkID,
-		Spec: &pipepb.FunctionSpec{
+		Spec: pipepb.FunctionSpec_builder{
 			Urn:     urns.TransformSink,
 			Payload: sinkPortBytes,
-		},
+		}.Build(),
 		Inputs: map[string]string{
 			"i0": inPID,
 		},
-	}
+	}.Build()
 	return source
 }

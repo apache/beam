@@ -95,7 +95,7 @@ func listFn(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, a := range md.GetManifest().GetArtifact() {
-		cmd.Println(a.Name)
+		cmd.Println(a.GetName())
 	}
 	return nil
 }

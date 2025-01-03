@@ -486,13 +486,13 @@ func (s *Spec) parseCoder(c Coder) string {
 	for _, comp := range c.Components {
 		compIDs = append(compIDs, s.parseCoder(comp))
 	}
-	s.coderPBs[id] = &pipepb.Coder{
-		Spec: &pipepb.FunctionSpec{
+	s.coderPBs[id] = pipepb.Coder_builder{
+		Spec: pipepb.FunctionSpec_builder{
 			Urn:     c.Urn,
 			Payload: []byte(c.Payload),
-		},
+		}.Build(),
 		ComponentCoderIds: compIDs,
-	}
+	}.Build()
 	return id
 }
 

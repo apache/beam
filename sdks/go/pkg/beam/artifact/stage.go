@@ -31,17 +31,18 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
+	"google.golang.org/protobuf/proto"
 )
 
 // Commit commits a manifest with the given staged artifacts. It returns the
 // staging token, if successful.
 func Commit(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient, artifacts []*jobpb.ArtifactMetadata, st string) (string, error) {
-	req := &jobpb.CommitManifestRequest{
-		Manifest: &jobpb.Manifest{
+	req := jobpb.CommitManifestRequest_builder{
+		Manifest: jobpb.Manifest_builder{
 			Artifact: artifacts,
-		},
+		}.Build(),
 		StagingSessionToken: st,
-	}
+	}.Build()
 	resp, err := client.CommitManifest(ctx, req)
 	if err != nil {
 		return "", err
@@ -127,15 +128,15 @@ func Stage(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient,
 	if err != nil {
 		return nil, err
 	}
-	md := &jobpb.ArtifactMetadata{
+	md := jobpb.ArtifactMetadata_builder{
 		Name:        key,
 		Permissions: uint32(stat.Mode()),
 		Sha256:      hash,
-	}
-	pmd := &jobpb.PutArtifactMetadata{
+	}.Build()
+	pmd := jobpb.PutArtifactMetadata_builder{
 		Metadata:            md,
 		StagingSessionToken: st,
-	}
+	}.Build()
 
 	fd, err := os.Open(filename)
 	if err != nil {
@@ -148,11 +149,9 @@ func Stage(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient,
 		return nil, err
 	}
 
-	header := &jobpb.PutArtifactRequest{
-		Content: &jobpb.PutArtifactRequest_Metadata{
-			Metadata: pmd,
-		},
-	}
+	header := jobpb.PutArtifactRequest_builder{
+		Metadata: proto.ValueOrDefault(pmd),
+	}.Build()
 	if err := stream.Send(header); err != nil {
 		stream.CloseAndRecv() // ignore error
 		return nil, errors.Wrapf(err, "failed to send header for %v", filename)
@@ -181,13 +180,11 @@ func stageChunks(stream jobpb.LegacyArtifactStagingService_PutArtifactClient, r 
 				panic(err) // cannot fail
 			}
 
-			chunk := &jobpb.PutArtifactRequest{
-				Content: &jobpb.PutArtifactRequest_Data{
-					Data: &jobpb.ArtifactChunk{
-						Data: data[:n],
-					},
-				},
-			}
+			chunk := jobpb.PutArtifactRequest_builder{
+				Data: jobpb.ArtifactChunk_builder{
+					Data: data[:n],
+				}.Build(),
+			}.Build()
 			err := stream.Send(chunk)
 			if err == io.EOF {
 				return "", err

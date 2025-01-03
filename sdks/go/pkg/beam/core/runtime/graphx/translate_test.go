@@ -170,12 +170,12 @@ func TestMarshal(t *testing.T) {
 				t.Fatalf("got %v edges, want %v", got, want)
 			}
 
-			payload, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: "foo"})
+			payload, err := proto.Marshal(pipepb.DockerPayload_builder{ContainerImage: "foo"}.Build())
 			if err != nil {
 				t.Fatal(err)
 			}
 			p, err := graphx.Marshal(edges,
-				&graphx.Options{Environment: &pipepb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
+				&graphx.Options{Environment: pipepb.Environment_builder{Urn: "beam:env:docker:v1", Payload: payload}.Build()})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -236,12 +236,12 @@ func TestMarshal_PTransformAnnotations(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			payload, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: "foo"})
+			payload, err := proto.Marshal(pipepb.DockerPayload_builder{ContainerImage: "foo"}.Build())
 			if err != nil {
 				t.Fatal(err)
 			}
 			p, err := graphx.Marshal(edges,
-				&graphx.Options{Environment: &pipepb.Environment{Urn: "beam:env:docker:v1", Payload: payload}, ContextReg: &creg})
+				&graphx.Options{Environment: pipepb.Environment_builder{Urn: "beam:env:docker:v1", Payload: payload}.Build(), ContextReg: &creg})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -317,19 +317,19 @@ func TestCreateEnvironment(t *testing.T) {
 			name: "external",
 			urn:  graphx.URNEnvExternal,
 			payload: func(name string) []byte {
-				return protox.MustEncode(&pipepb.ExternalPayload{
-					Endpoint: &pipepb.ApiServiceDescriptor{
+				return protox.MustEncode(pipepb.ExternalPayload_builder{
+					Endpoint: pipepb.ApiServiceDescriptor_builder{
 						Url: name,
-					},
-				})
+					}.Build(),
+				}.Build())
 			},
 		}, {
 			name: "docker",
 			urn:  graphx.URNEnvDocker,
 			payload: func(name string) []byte {
-				return protox.MustEncode(&pipepb.DockerPayload{
+				return protox.MustEncode(pipepb.DockerPayload_builder{
 					ContainerImage: name,
-				})
+				}.Build())
 			},
 		},
 	}
@@ -340,17 +340,17 @@ func TestCreateEnvironment(t *testing.T) {
 			if err != nil {
 				t.Errorf("CreateEnvironment(%v) = %v error, want nil", test.urn, err)
 			}
-			want := &pipepb.Environment{
+			want := pipepb.Environment_builder{
 				Urn:     test.urn,
 				Payload: test.payload(test.name),
 				Dependencies: []*pipepb.ArtifactInformation{
-					{
+					pipepb.ArtifactInformation_builder{
 						TypeUrn:     graphx.URNArtifactFileType,
 						TypePayload: protox.MustEncode(&pipepb.ArtifactFilePayload{}),
 						RoleUrn:     graphx.URNArtifactGoWorkerRole,
-					},
+					}.Build(),
 				},
-			}
+			}.Build()
 			opts := []cmp.Option{
 				protocmp.Transform(),
 				// Ignore the capabilities field, since we can't access that method here.
@@ -365,87 +365,87 @@ func TestCreateEnvironment(t *testing.T) {
 
 func TestUpdateDefaultEnvWorkerType(t *testing.T) {
 	t.Run("noEnvs", func(t *testing.T) {
-		if err := graphx.UpdateDefaultEnvWorkerType("unused", nil, &pipepb.Pipeline{
+		if err := graphx.UpdateDefaultEnvWorkerType("unused", nil, pipepb.Pipeline_builder{
 			Components: &pipepb.Components{},
-		}); err == nil {
+		}.Build()); err == nil {
 			t.Error("UpdateDefaultEnvWorkerType(<emptyEnv>) no error, want err")
 		}
 	})
 	t.Run("noGoEnvs", func(t *testing.T) {
-		if err := graphx.UpdateDefaultEnvWorkerType("unused", nil, &pipepb.Pipeline{
-			Components: &pipepb.Components{
+		if err := graphx.UpdateDefaultEnvWorkerType("unused", nil, pipepb.Pipeline_builder{
+			Components: pipepb.Components_builder{
 				Environments: map[string]*pipepb.Environment{
-					"java":       {Urn: "java"},
-					"python":     {Urn: "python"},
-					"typescript": {Urn: "typescript"},
+					"java":       pipepb.Environment_builder{Urn: "java"}.Build(),
+					"python":     pipepb.Environment_builder{Urn: "python"}.Build(),
+					"typescript": pipepb.Environment_builder{Urn: "typescript"}.Build(),
 				},
-			},
-		}); err == nil {
+			}.Build(),
+		}.Build()); err == nil {
 			t.Error("UpdateDefaultEnvWorkerType(<noGoEnvs>) no error, want err")
 		}
 	})
 	t.Run("badGoEnv", func(t *testing.T) {
-		if err := graphx.UpdateDefaultEnvWorkerType("unused", nil, &pipepb.Pipeline{
-			Components: &pipepb.Components{
+		if err := graphx.UpdateDefaultEnvWorkerType("unused", nil, pipepb.Pipeline_builder{
+			Components: pipepb.Components_builder{
 				Environments: map[string]*pipepb.Environment{
-					"java":       {Urn: "java"},
-					"python":     {Urn: "python"},
-					"typescript": {Urn: "typescript"},
-					"go": {
+					"java":       pipepb.Environment_builder{Urn: "java"}.Build(),
+					"python":     pipepb.Environment_builder{Urn: "python"}.Build(),
+					"typescript": pipepb.Environment_builder{Urn: "typescript"}.Build(),
+					"go": pipepb.Environment_builder{
 						Urn:     "test",
 						Payload: []byte("test"),
 						Dependencies: []*pipepb.ArtifactInformation{
-							{
+							pipepb.ArtifactInformation_builder{
 								RoleUrn: "unset",
-							},
+							}.Build(),
 						},
-					},
+					}.Build(),
 				},
-			},
-		}); err == nil {
+			}.Build(),
+		}.Build()); err == nil {
 			t.Error("UpdateDefaultEnvWorkerType(<badGoEnv>) no error, want err")
 		}
 	})
 	t.Run("goEnv", func(t *testing.T) {
 		wantUrn := graphx.URNArtifactFileType
-		wantPyld := protox.MustEncode(&pipepb.ArtifactFilePayload{
+		wantPyld := protox.MustEncode(pipepb.ArtifactFilePayload_builder{
 			Path: "good",
-		})
-		p := &pipepb.Pipeline{
-			Components: &pipepb.Components{
+		}.Build())
+		p := pipepb.Pipeline_builder{
+			Components: pipepb.Components_builder{
 				Environments: map[string]*pipepb.Environment{
-					"java":       {Urn: "java"},
-					"python":     {Urn: "python"},
-					"typescript": {Urn: "typescript"},
-					"go": {
+					"java":       pipepb.Environment_builder{Urn: "java"}.Build(),
+					"python":     pipepb.Environment_builder{Urn: "python"}.Build(),
+					"typescript": pipepb.Environment_builder{Urn: "typescript"}.Build(),
+					"go": pipepb.Environment_builder{
 						Urn:     "test",
 						Payload: []byte("test"),
 						Dependencies: []*pipepb.ArtifactInformation{
-							{
+							pipepb.ArtifactInformation_builder{
 								TypeUrn:     "to be removed",
 								TypePayload: nil,
 								RoleUrn:     graphx.URNArtifactGoWorkerRole,
-							},
+							}.Build(),
 						},
-					},
+					}.Build(),
 				},
-			},
-		}
+			}.Build(),
+		}.Build()
 		if err := graphx.UpdateDefaultEnvWorkerType(wantUrn, wantPyld, p); err != nil {
 			t.Errorf("UpdateDefaultEnvWorkerType(<goEnv>) = %v, want nil", err)
 		}
 		got := p.GetComponents().GetEnvironments()["go"]
-		want := &pipepb.Environment{
+		want := pipepb.Environment_builder{
 			Urn:     "test",
 			Payload: []byte("test"),
 			Dependencies: []*pipepb.ArtifactInformation{
-				{
+				pipepb.ArtifactInformation_builder{
 					TypeUrn:     wantUrn,
 					TypePayload: wantPyld,
 					RoleUrn:     graphx.URNArtifactGoWorkerRole,
-				},
+				}.Build(),
 			},
-		}
+		}.Build()
 		opts := []cmp.Option{
 			protocmp.Transform(),
 		}

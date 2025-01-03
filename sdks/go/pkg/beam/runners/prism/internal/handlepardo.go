@@ -78,7 +78,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 
 	// Lets check for and remove anything that makes things less simple.
-	if pdo.RestrictionCoderId == "" {
+	if pdo.GetRestrictionCoderId() == "" {
 		// Which inputs are Side inputs don't change the graph further,
 		// so they're not included here. Any nearly any ParDo can have them.
 
@@ -86,16 +86,16 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 
 		// StatefulDoFns need to be marked as being roots.
 		var forcedRoots []string
-		if len(pdo.StateSpecs)+len(pdo.TimerFamilySpecs) > 0 {
+		if len(pdo.GetStateSpecs())+len(pdo.GetTimerFamilySpecs()) > 0 {
 			forcedRoots = append(forcedRoots, tid)
 		}
 
 		return prepareResult{
-			SubbedComps: &pipepb.Components{
+			SubbedComps: pipepb.Components_builder{
 				Transforms: map[string]*pipepb.PTransform{
 					tid: t,
 				},
-			},
+			}.Build(),
 			ForcedRoots: forcedRoots,
 		}
 	}
@@ -146,7 +146,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	var pcolInID, inputLocalID string
 	for localID, globalID := range t.GetInputs() {
 		// The parallel input is the one that isn't a side input.
-		if _, ok := pdo.SideInputs[localID]; !ok {
+		if _, ok := pdo.GetSideInputs()[localID]; !ok {
 			inputLocalID = localID
 			pcolInID = globalID
 			break
@@ -154,18 +154,18 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 	inputPCol := comps.GetPcollections()[pcolInID]
 	cEID := inputPCol.GetCoderId()
-	cRID := pdo.RestrictionCoderId
+	cRID := pdo.GetRestrictionCoderId()
 	cSID := "c" + tid + "size"
 	ckvERID := "c" + tid + "kv_ele_rest"
 	ckvERSID := ckvERID + "_size"
 
 	coder := func(urn string, componentIDs ...string) *pipepb.Coder {
-		return &pipepb.Coder{
-			Spec: &pipepb.FunctionSpec{
+		return pipepb.Coder_builder{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn: urn,
-			},
+			}.Build(),
 			ComponentCoderIds: componentIDs,
-		}
+		}.Build()
 	}
 
 	coders := map[string]*pipepb.Coder{
@@ -184,12 +184,12 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	nSPLITnSIZEDID := "n" + tid + "_splitnsized"
 
 	pcol := func(name, coderID string) *pipepb.PCollection {
-		return &pipepb.PCollection{
+		return pipepb.PCollection_builder{
 			UniqueName:          name,
 			CoderId:             coderID,
 			IsBounded:           inputPCol.GetIsBounded(),
 			WindowingStrategyId: inputPCol.GetWindowingStrategyId(),
-		}
+		}.Build()
 	}
 
 	pcols := map[string]*pipepb.PCollection{
@@ -211,18 +211,18 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		// could lead to an additional fusion oppportunity.
 		newInputs := maps.Clone(t.GetInputs())
 		newInputs[inputLocalID] = in
-		return &pipepb.PTransform{
+		return pipepb.PTransform_builder{
 			UniqueName: name,
-			Spec: &pipepb.FunctionSpec{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn:     urn,
 				Payload: pardoPayload,
-			},
+			}.Build(),
 			Inputs: newInputs,
 			Outputs: map[string]string{
 				"i0": out,
 			},
 			EnvironmentId: t.GetEnvironmentId(),
-		}
+		}.Build()
 	}
 
 	newInputs := maps.Clone(t.GetInputs())
@@ -231,23 +231,23 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	tforms := map[string]*pipepb.PTransform{
 		ePWRID:         tform(ePWRID, urns.TransformPairWithRestriction, pcolInID, nPWRID),
 		eSPLITnSIZEDID: tform(eSPLITnSIZEDID, urns.TransformSplitAndSize, nPWRID, nSPLITnSIZEDID),
-		eProcessID: {
+		eProcessID: pipepb.PTransform_builder{
 			UniqueName: eProcessID,
-			Spec: &pipepb.FunctionSpec{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn:     urns.TransformProcessSizedElements,
 				Payload: pardoPayload,
-			},
+			}.Build(),
 			Inputs:        newInputs,
 			Outputs:       t.GetOutputs(),
 			EnvironmentId: t.GetEnvironmentId(),
-		},
+		}.Build(),
 	}
 	return prepareResult{
-		SubbedComps: &pipepb.Components{
+		SubbedComps: pipepb.Components_builder{
 			Coders:       coders,
 			Pcollections: pcols,
 			Transforms:   tforms,
-		},
+		}.Build(),
 		RemovedLeaves: removeSubTransforms(comps, t.GetSubtransforms()),
 		// Force ProcessSized to be a root to ensure SDFs are able to split
 		// between elements or within elements.

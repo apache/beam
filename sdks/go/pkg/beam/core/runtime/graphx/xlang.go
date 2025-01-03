@@ -34,7 +34,7 @@ func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 		exp := e.External.Expanded
 		id := fmt.Sprintf("e%v", e.ID())
 
-		p.Requirements = append(p.Requirements, exp.Requirements...)
+		p.SetRequirements(append(p.GetRequirements(), exp.Requirements...))
 
 		// Adding components of the Expanded Transforms to the current Pipeline
 		components, err := ExpandedComponents(exp)
@@ -42,16 +42,16 @@ func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			panic(err)
 		}
 		for k, v := range components.GetTransforms() {
-			p.Components.Transforms[k] = v
+			p.GetComponents().GetTransforms()[k] = v
 		}
 		for k, v := range components.GetPcollections() {
-			p.Components.Pcollections[k] = v
+			p.GetComponents().GetPcollections()[k] = v
 		}
 		for k, v := range components.GetWindowingStrategies() {
-			p.Components.WindowingStrategies[k] = v
+			p.GetComponents().GetWindowingStrategies()[k] = v
 		}
 		for k, v := range components.GetCoders() {
-			p.Components.Coders[k] = v
+			p.GetComponents().GetCoders()[k] = v
 		}
 		for k, v := range components.GetEnvironments() {
 			if k == defaultEnvId {
@@ -61,14 +61,14 @@ func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 				// using unique namespace prevents collision.
 				continue
 			}
-			p.Components.Environments[k] = v
+			p.GetComponents().GetEnvironments()[k] = v
 		}
 
 		transform, err := ExpandedTransform(exp)
 		if err != nil {
 			panic(err)
 		}
-		p.Components.Transforms[id] = transform
+		p.GetComponents().GetTransforms()[id] = transform
 	}
 }
 
@@ -102,7 +102,7 @@ func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			}
 
 			idxMap[nodeID] = pcolID
-			delete(components.Pcollections, nodeID)
+			delete(components.GetPcollections(), nodeID)
 		}
 	}
 
@@ -200,13 +200,13 @@ func AddFakeImpulses(p *pipepb.Pipeline) {
 		key := fmt.Sprintf("%s_%s", "impulse", tag)
 		output := map[string]string{"out": id}
 
-		impulse := &pipepb.PTransform{
+		impulse := pipepb.PTransform_builder{
 			UniqueName: key,
-			Spec: &pipepb.FunctionSpec{
+			Spec: pipepb.FunctionSpec_builder{
 				Urn: URNImpulse,
-			},
+			}.Build(),
 			Outputs: output,
-		}
+		}.Build()
 
 		transforms[key] = impulse
 	}

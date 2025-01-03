@@ -40,16 +40,16 @@ func makeInfo(enum pipepb.MonitoringInfoSpecs_Enum) *pipepb.MonitoringInfo {
 	for _, l := range spec.GetRequiredLabels() {
 		labels[l] = l
 	}
-	return &pipepb.MonitoringInfo{
+	return pipepb.MonitoringInfo_builder{
 		Urn:    spec.GetUrn(),
 		Type:   spec.GetType(),
 		Labels: labels,
-	}
+	}.Build()
 }
 
 func makeInfoWBytes(enum pipepb.MonitoringInfoSpecs_Enum, payload []byte) *pipepb.MonitoringInfo {
 	info := makeInfo(enum)
-	info.Payload = payload
+	info.SetPayload(payload)
 	return info
 }
 
@@ -173,14 +173,14 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ms := metricsStore{}
 
-			ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			ms.AddShortIDs(fnpb.MonitoringInfosMetadataResponse_builder{
 				MonitoringInfo: test.shortIDs,
-			})
+			}.Build())
 
 			for _, payload := range test.input {
-				ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+				ms.ContributeFinalMetrics(fnpb.ProcessBundleResponse_builder{
 					MonitoringData: payload,
-				})
+				}.Build())
 			}
 
 			got := ms.Results(committed)
