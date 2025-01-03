@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['sdks/python/**', 'model/**', 'release/**']
+    paths: ['.github/workflows/build_wheels.yml']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
