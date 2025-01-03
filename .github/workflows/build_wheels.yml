@@ -230,7 +230,6 @@ jobs:
         ]
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
         py_version: ["cp39-", "cp310-", "cp311-", "cp312-"]
-      max-parallel: 8
     steps:
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v4.1.8
