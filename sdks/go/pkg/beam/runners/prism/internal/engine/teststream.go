@@ -142,10 +142,8 @@ func (ts *testStreamHandler) UpdateHold(em *ElementManager, newHold mtime.Time) 
 	ts.currentHold = newHold
 	ss.watermarkHolds.Add(ts.currentHold, 1)
 
-	// kick the TestStream and Impulse stages too.
+	// kick the TestStream stage to ensure downstream watermark propagation.
 	kick := singleSet(ts.ID)
-	kick.merge(em.impulses)
-
 	// This executes under the refreshCond lock, so we can't call em.addRefreshes.
 	em.changedStages.merge(kick)
 	em.refreshCond.Broadcast()
