@@ -133,16 +133,22 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
   def __init__(
       self,
       source_handler: EnrichmentSourceHandler,
-      join_fn: JoinFn = cross_join,
+      join_fn: Optional[JoinFn] = None,
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       repeater: Repeater = ExponentialBackOffRepeater(),
-      throttler: PreCallThrottler = DefaultThrottler()):
+      throttler: PreCallThrottler = DefaultThrottler(),
+      use_custom_types: bool = False):
     self._cache = None
     self._source_handler = source_handler
-    self._join_fn = join_fn
+    self._join_fn = (
+        join_fn if join_fn else source_handler.join_fn if hasattr(
+            source_handler, 'join_fn') else cross_join)
     self._timeout = timeout
     self._repeater = repeater
     self._throttler = throttler
+    self._use_custom_types = (
+        source_handler.use_custom_types if hasattr(
+            source_handler, 'use_custom_types') else use_custom_types)
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
@@ -165,8 +171,9 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return (
         fetched_data
-        | "enrichment_join" >>
-        beam.Map(lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())))
+        | "enrichment_join" >> beam.Map(
+            lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())
+            if not self._use_custom_types else self._join_fn(x[0], x[1])))
 
   def with_redis_cache(
       self,
