@@ -447,9 +447,6 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				}
 				if pardo.GetRequestsFinalization() {
 					stg.finalize = true
-					// Key based execution encourages smaller bundles which
-					// have better finalization behavior.
-					stg.stateful = true
 				}
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
