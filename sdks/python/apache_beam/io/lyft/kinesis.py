@@ -98,7 +98,7 @@ class FlinkKinesisInput(PTransform):
   def with_global_watermark_tracker(self, use_global_watermark_tracker):
     """
     Enables consumer watermark synchronization. This can be enabled to reduce event time skew.
-    https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/kinesis/#event-time-alignment-for-shard-consumers
+    https://nightlies.apache.org/flink/flink-docs-release-1.18/docs/connectors/datastream/kinesis/#event-time-alignment-for-shard-consumers
     """
     self.use_global_watermark_tracker = use_global_watermark_tracker
     return self

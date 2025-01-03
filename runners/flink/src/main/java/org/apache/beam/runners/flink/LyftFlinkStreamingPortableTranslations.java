@@ -389,15 +389,15 @@ public class LyftFlinkStreamingPortableTranslations {
           throw new IllegalArgumentException("Unknown encoding '" + encoding + "'");
       }
 
-      if (params.hasNonNull("use_global_watermark_tracker") && params.get("use_global_watermark_tracker").asBoolean()) {
-        source.setWatermarkTracker(GLOBAL_WATERMARK);
-      }
       LOG.info(
           "Kinesis consumer for stream {} with properties {} and encoding {}",
           stream,
           properties,
           encoding);
-
+      if (params.hasNonNull("use_global_watermark_tracker") && params.get("use_global_watermark_tracker").asBoolean()) {
+        LOG.info("Using global watermark tracker on Kinesis consumer");
+        source.setWatermarkTracker(GLOBAL_WATERMARK);
+      }
     } catch (IOException e) {
       throw new RuntimeException("Could not parse Kinesis consumer properties.", e);
     }
