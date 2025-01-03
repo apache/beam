@@ -34,9 +34,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Test;
@@ -117,6 +122,38 @@ public class MetricsContainerImplTest {
 
     CounterCell readC1 = container.tryGetCounter(MetricName.named("ns", "name1"));
     assertEquals(13L, (long) readC1.getCumulative());
+  }
+
+  @Test
+  public void testBoundedTrieCumulatives() {
+    MetricsContainerImpl container = new MetricsContainerImpl("step1");
+    BoundedTrieCell c1 = container.getBoundedTrie(MetricName.named("ns", "name1"));
+    BoundedTrieCell c2 = container.getBoundedTrie(MetricName.named("ns", "name2"));
+    c1.add("a");
+    c2.add("b");
+
+    container.getUpdates();
+    container.commitUpdates();
+    assertThat(
+        "Committing updates shouldn't affect cumulative counter values",
+        container.getCumulative().boundedTrieUpdates(),
+        containsInAnyOrder(
+            metricUpdate("name1", new BoundedTrieData(ImmutableList.of("a"))),
+            metricUpdate("name2", new BoundedTrieData(ImmutableList.of("b")))));
+
+    c1.add("c");
+    BoundedTrieData c1Expected = new BoundedTrieData(ImmutableList.of("a"));
+    c1Expected.add(ImmutableList.of("c"));
+    assertThat(
+        "Committing updates shouldn't affect cumulative counter values",
+        container.getCumulative().boundedTrieUpdates(),
+        containsInAnyOrder(
+            metricUpdate("name1", c1Expected),
+            metricUpdate("name2", new BoundedTrieData(ImmutableList.of("b")))));
+
+    BoundedTrieCell readC1 = container.tryGetBoundedTrie(MetricName.named("ns", "name1"));
+    assert readC1 != null;
+    assertEquals(c1Expected, readC1.getCumulative());
   }
 
   @Test
@@ -303,6 +340,38 @@ public class MetricsContainerImplTest {
   }
 
   @Test
+  public void testMonitoringInfosArePopulatedForUserBoundedTries() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+    BoundedTrieCell boundedTrieCellA = testObject.getBoundedTrie(MetricName.named("ns", "nameA"));
+    BoundedTrieCell boundedTrieCellB = testObject.getBoundedTrie(MetricName.named("ns", "nameB"));
+    boundedTrieCellA.add("A");
+    boundedTrieCellB.add("BBB");
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_BOUNDED_TRIE)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "nameA")
+        .setBoundedTrieValue(boundedTrieCellA.getCumulative())
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_BOUNDED_TRIE)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "nameB")
+        .setBoundedTrieValue(boundedTrieCellB.getCumulative())
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    List<MonitoringInfo> actualMonitoringInfos = new ArrayList<>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(mi);
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+  }
+
+  @Test
   public void testMonitoringInfosArePopulatedForSystemDistributions() {
     MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
     HashMap<String, String> labels = new HashMap<>();
@@ -457,6 +526,11 @@ public class MetricsContainerImplTest {
     differentStringSets.getStringSet(MetricName.named("namespace", "name"));
     Assert.assertNotEquals(metricsContainerImpl, differentStringSets);
     Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentStringSets.hashCode());
+
+    MetricsContainerImpl differentBoundedTrie = new MetricsContainerImpl("stepName");
+    differentBoundedTrie.getBoundedTrie(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentBoundedTrie);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentBoundedTrie.hashCode());
   }
 
   @Test
@@ -490,5 +564,33 @@ public class MetricsContainerImplTest {
             MonitoringInfoConstants.Urns.ELEMENT_COUNT,
             Collections.singletonMap("name", "counter"));
     assertFalse(MetricsContainerImpl.matchMetric(elementCountName, allowedMetricUrns));
+  }
+
+  @Test
+  public void testBoundedTrieMultithreaded() throws InterruptedException {
+    MetricsContainerImpl container = new MetricsContainerImpl("step1");
+    BoundedTrieCell boundedTrieCell =
+        container.getBoundedTrie(MetricName.named("test", "boundedTrie"));
+    int numThreads = 10;
+    int numUpdatesPerThread = 9; // be under the default bound of 100
+
+    CountDownLatch latch = new CountDownLatch(numThreads);
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    List<Runnable> tasks = new ArrayList<>();
+    for (int i = 0; i < numThreads; i++) {
+      tasks.add(
+          () -> {
+            for (int j = 0; j < numUpdatesPerThread; j++) {
+              boundedTrieCell.add("value-" + Thread.currentThread().getId() + "-" + j);
+            }
+            latch.countDown();
+          });
+    }
+
+    tasks.forEach(executor::execute);
+    latch.await(1, TimeUnit.MINUTES);
+    executor.shutdown();
+
+    assertEquals(numThreads * numUpdatesPerThread, boundedTrieCell.getCumulative().size());
   }
 }
