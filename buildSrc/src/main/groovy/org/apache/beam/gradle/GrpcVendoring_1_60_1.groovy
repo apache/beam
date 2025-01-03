@@ -37,7 +37,12 @@ class GrpcVendoring_1_60_1 {
   // See https://github.com/grpc/grpc-java/blob/v1.60.1/gradle/libs.versions.toml
   // or https://search.maven.org/search?q=io.grpc%201.60.1
   static def guava_version = "32.0.1-jre"
-  static def protobuf_version = "3.24.0"
+  // Force protobuf version to 4.X to match the rest of the project. Per
+  // https://github.com/grpc/grpc-java/issues/11015 this is ok.
+  // Keep in sync with https://github.com/apache/beam/blob/f3972c7c6d12e8cdaed1d7d2b489565e00860fff/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L633
+  // until a new version of grpc is released with latest protobuf and we can
+  // just vendor the correct version.
+  static def protobuf_version = "4.28.3"
   static def gson_version = "2.10.1"
   static def google_auth_version = "1.4.0"
   static def opencensus_version = "0.31.1"
