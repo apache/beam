@@ -36,8 +36,8 @@ class S3Input(PTransform):
   def infer_output_type(self, unused_input_type):
     return bytes
 
-  def with_event_config(self, event):
-    self.events_config.append(event)
+  def with_event_config(self, event_config):
+    self.events_config.append(event_config)
     return self
 
   def with_s3_config(self, s3_config):
