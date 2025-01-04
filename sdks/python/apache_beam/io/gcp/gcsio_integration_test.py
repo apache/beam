@@ -31,14 +31,22 @@ Run the following in 'sdks/python' directory to run these tests manually:
 import logging
 import unittest
 import uuid
+import zlib
 
 import mock
 import pytest
+from parameterized import parameterized
 from parameterized import parameterized_class
 
+from apache_beam import Create
+from apache_beam.io.textio import ReadAllFromText
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms.combiners import Count
 
 try:
   from apache_beam.io.gcp import gcsio
@@ -228,6 +236,68 @@ class GcsIOIntegrationTest(unittest.TestCase):
     bucket.delete()
 
     self.assertIsNone(self.gcsio.get_bucket(overridden_bucket_name))
+
+
+class GcsIOReadGzipTest(unittest.TestCase):
+  gzip_test_files = [
+      "gs://apache-beam-samples/textio/textio-test-data.content-type-gzip-content-encoding-gzip.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.content-type-gzip-content-encoding-none.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.content-type-none-content-encoding-gzip.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.content-type-none-content-encoding-none.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.content-type-text-content-encoding-gzip.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.content-type-text-content-encoding-none.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.default.1k.txt",
+      "gs://apache-beam-samples/textio/textio-test-data.default.1k.txt.gz",
+      "gs://apache-beam-samples/textio/textio-test-data.gzip-local.1k.txt.gz",
+  ]
+
+  @parameterized.expand([
+      (gzip_test_files[0], CompressionTypes.UNCOMPRESSED, NotImplementedError),
+      (gzip_test_files[0], CompressionTypes.GZIP, NotImplementedError),
+      (gzip_test_files[0], CompressionTypes.AUTO, NotImplementedError),
+      (gzip_test_files[1], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[1], CompressionTypes.GZIP, None),
+      (gzip_test_files[1], CompressionTypes.AUTO, None),
+      (gzip_test_files[2], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[2], CompressionTypes.GZIP, None),
+      (gzip_test_files[2], CompressionTypes.AUTO, None),
+      (gzip_test_files[3], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[3], CompressionTypes.GZIP, None),
+      (gzip_test_files[3], CompressionTypes.AUTO, None),
+      (gzip_test_files[4], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[4], CompressionTypes.GZIP, None),
+      (gzip_test_files[4], CompressionTypes.AUTO, None),
+      (gzip_test_files[5], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[5], CompressionTypes.GZIP, None),
+      (gzip_test_files[5], CompressionTypes.AUTO, None),
+      (gzip_test_files[6], CompressionTypes.UNCOMPRESSED, None),
+      (gzip_test_files[6], CompressionTypes.GZIP, zlib.error),
+      (gzip_test_files[6], CompressionTypes.AUTO, None),
+      (gzip_test_files[7], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[7], CompressionTypes.GZIP, None),
+      (gzip_test_files[7], CompressionTypes.AUTO, None),
+      (gzip_test_files[8], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
+      (gzip_test_files[8], CompressionTypes.GZIP, None),
+      (gzip_test_files[8], CompressionTypes.AUTO, None),
+  ])
+  @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
+  def test_read_gzip_file(self, file_name, compression_type, exception):
+    p = TestPipeline(runner="Direct", is_integration_test=True)
+    r = (
+        p
+        | Create([file_name])
+        | "Read File from GCS" >>
+        ReadAllFromText(compression_type=compression_type)
+        | Count.Globally())
+    assert_that(r, equal_to([1000]))
+
+    if exception is None:
+      result = p.run()
+      result.wait_until_finish()
+    else:
+      with self.assertRaises(exception):
+        result = p.run()
+        result.wait_until_finish()
 
 
 if __name__ == '__main__':
