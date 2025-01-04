@@ -945,6 +945,3 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     Unless override by FileSystem implementations, default to no-op.
     """
     pass
-
-  def check_splittability(self, path):
-    return True

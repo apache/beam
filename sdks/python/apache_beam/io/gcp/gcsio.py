@@ -591,10 +591,18 @@ class BeamBlobReader(BlobReader):
       blob,
       chunk_size=DEFAULT_READ_BUFFER_SIZE,
       enable_read_bucket_metric=False,
-      retry=DEFAULT_RETRY):
-    super().__init__(blob, chunk_size=chunk_size, retry=retry)
+      retry=DEFAULT_RETRY,
+      raw_download=True):
+    super().__init__(blob, chunk_size=chunk_size, retry=retry, raw_download=raw_download)
+    # TODO: Remove this after
+    # https://github.com/googleapis/python-storage/issues/1406 is fixed.
+    # As a workaround, we manually trigger a reload here. Otherwise, an internal
+    # call of reader.seek() will cause an exception if raw_download is set
+    # when initializing BlobReader(),
+    blob.reload()
     self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
+
 
   def read(self, size=-1):
     bytesRead = super().read(size)

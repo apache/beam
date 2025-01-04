@@ -258,10 +258,8 @@ class FileBasedSource(iobase.BoundedSource):
   def splittable(self):
     return self._splittable
 
-def _determine_splittability_from_compression_type(file_path, compression_type):
-  if not FileSystems.is_file_splittable(file_path):
-    return False
 
+def _determine_splittability_from_compression_type(file_path, compression_type):
   if compression_type == CompressionTypes.AUTO:
     compression_type = CompressionTypes.detect_compression_type(file_path)
 
