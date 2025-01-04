@@ -832,3 +832,36 @@ task GCSUpload(type: JavaExec) {
   args "--stagingLocation=${dataflowUploadTemp}/staging",
        "--filesToStage=${testFilesToStage}"
 }
+
+def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
+  def javaVer = getSupportedJavaVersion()
+  if(project.hasProperty('testJavaVersion')) {
+    javaVer = "java${project.getProperty('testJavaVersion')}"
+  }
+  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
+  def defaultDockerImageName = containerImageName(
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+          root: "apache",
+          tag: project.sdk_version)
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
+    }
+  }
+}
+
+task examplesJavaDistrolessRunnerV2PreCommit(type: Test) {
+  group = "Verification"
+  dependsOn buildAndPushDistrolessDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
