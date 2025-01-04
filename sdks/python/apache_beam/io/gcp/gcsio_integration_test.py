@@ -239,16 +239,17 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
 
 class GcsIOReadGzipTest(unittest.TestCase):
+  gcs_path_prefix = "gs://apache-beam-samples/textio/"
   gzip_test_files = [
-      "gs://apache-beam-samples/textio/textio-test-data.content-type-gzip-content-encoding-gzip.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.content-type-gzip-content-encoding-none.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.content-type-none-content-encoding-gzip.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.content-type-none-content-encoding-none.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.content-type-text-content-encoding-gzip.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.content-type-text-content-encoding-none.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.default.1k.txt",
-      "gs://apache-beam-samples/textio/textio-test-data.default.1k.txt.gz",
-      "gs://apache-beam-samples/textio/textio-test-data.gzip-local.1k.txt.gz",
+      "textio-test-data.content-type-gzip-content-encoding-gzip.1k.txt.gz",
+      "textio-test-data.content-type-gzip-content-encoding-none.1k.txt.gz",
+      "textio-test-data.content-type-none-content-encoding-gzip.1k.txt.gz",
+      "textio-test-data.content-type-none-content-encoding-none.1k.txt.gz",
+      "textio-test-data.content-type-text-content-encoding-gzip.1k.txt.gz",
+      "textio-test-data.content-type-text-content-encoding-none.1k.txt.gz",
+      "textio-test-data.default.1k.txt",
+      "textio-test-data.default.1k.txt.gz",
+      "textio-test-data.gzip-local.1k.txt.gz",
   ]
 
   @parameterized.expand([
@@ -285,7 +286,7 @@ class GcsIOReadGzipTest(unittest.TestCase):
     p = TestPipeline(runner="Direct", is_integration_test=True)
     r = (
         p
-        | Create([file_name])
+        | Create([f"{GcsIOReadGzipTest.gcs_path_prefix}{file_name}"])
         | "Read File from GCS" >>
         ReadAllFromText(compression_type=compression_type)
         | Count.Globally())
