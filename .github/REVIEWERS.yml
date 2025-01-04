@@ -56,6 +56,9 @@ labels:
     reviewers:
       - igorbernstein2
       - mutianf
+      - djyau
+      - andre-sampaio
+      - meeral-k
     exclusionList: []
   - name: healthcare
     reviewers:
