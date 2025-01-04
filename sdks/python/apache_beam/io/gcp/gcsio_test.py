@@ -178,6 +178,11 @@ class FakeBlob(object):
     self._fail_when_getting_metadata = fail_when_getting_metadata
     self._fail_when_reading = fail_when_reading
     self.generation = random.randint(0, (1 << 63) - 1)
+    self.content_encoding = None
+    self.content_type = None
+
+  def reload(self):
+    pass
 
   def delete(self):
     self.bucket.delete_blob(self.name)
