@@ -39,9 +39,9 @@ from parameterized import parameterized
 from parameterized import parameterized_class
 
 from apache_beam import Create
-from apache_beam.io.textio import ReadAllFromText
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.io.textio import ReadAllFromText
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
