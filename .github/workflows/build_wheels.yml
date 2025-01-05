@@ -72,7 +72,7 @@ jobs:
           set -xeu
           if [ $EVENT_NAME == "pull_request" ]; then
             # run highest supported version on pull request.
-            echo "py-versions-test=${PY_VERSIONS_FULL##* }" >> $GITHUB_OUTPUT
+            echo "py-versions-test=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
           else
             # run full version for push and cron jobs.
             echo "py-versions-test=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
