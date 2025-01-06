@@ -219,13 +219,14 @@ jobs:
     runs-on: ${{ matrix.os_python.runner }}
     timeout-minutes: 480
     strategy:
+      fail-fast: false
       matrix:
         os_python: [
-          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
+          # {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
           # Temporarily pin to macos-13 because macos-latest breaks this build
           # TODO(https://github.com/apache/beam/issues/31114)
-          {"os": "macos-13", "runner": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
-          {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
+          # {"os": "macos-13", "runner": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
+          # {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
           {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
@@ -252,6 +253,12 @@ jobs:
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
       run: pip install cibuildwheel==2.17.0 setuptools
+    - name: which gcc
+      run: which gcc
+    - name: ldd /usr/bin/gcc
+      run: ldd /usr/bin/gcc
+    - name: gcc --version
+      run: gcc --version
     - name: Build wheel
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
