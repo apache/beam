@@ -216,6 +216,7 @@ jobs:
       - build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.os_python.arch}}
+      CIBW_ENVIRONMENT_LINUX: ${{ matrix.os_python.arch == 'aarch64' && 'CFLAGS=''-O2 -pipe''' || '' }}
     runs-on: ${{ matrix.os_python.runner }}
     timeout-minutes: 480
     strategy:
