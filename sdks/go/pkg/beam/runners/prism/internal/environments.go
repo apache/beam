@@ -147,7 +147,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	ccr, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: dp.GetContainerImage(),
 		Cmd: []string{
-			fmt.Sprintf("--id=%v-%v", wk.JobKey, wk.Env),
+			fmt.Sprintf("--id=%v", wk.ID),
 			fmt.Sprintf("--control_endpoint=%v", wk.Endpoint()),
 			fmt.Sprintf("--artifact_endpoint=%v", artifactEndpoint),
 			fmt.Sprintf("--provision_endpoint=%v", wk.Endpoint()),
