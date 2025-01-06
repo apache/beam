@@ -403,6 +403,10 @@ public class IcebergUtils {
     }
   }
 
+  public static Row icebergRecordToBeamRow(org.apache.iceberg.Schema schema, Record record) {
+    return icebergRecordToBeamRow(icebergSchemaToBeamSchema(schema), record);
+  }
+
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);

@@ -405,6 +405,12 @@ public class IcebergIO {
 
     abstract @Nullable TableIdentifier getTableIdentifier();
 
+    abstract @Nullable Long getFromSnapshotExclusive();
+
+    abstract @Nullable Long getToSnapshot();
+
+    abstract @Nullable Duration getTriggeringFrequency();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -413,11 +419,29 @@ public class IcebergIO {
 
       abstract Builder setTableIdentifier(TableIdentifier identifier);
 
+      abstract Builder setFromSnapshotExclusive(@Nullable Long fromSnapshotExclusive);
+
+      abstract Builder setToSnapshot(@Nullable Long toSnapshot);
+
+      abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
+
       abstract ReadRows build();
     }
 
     public ReadRows from(TableIdentifier tableIdentifier) {
       return toBuilder().setTableIdentifier(tableIdentifier).build();
+    }
+
+    public ReadRows fromSnapshotExclusive(@Nullable Long fromSnapshotExclusive) {
+      return toBuilder().setFromSnapshotExclusive(fromSnapshotExclusive).build();
+    }
+
+    public ReadRows toSnapshot(@Nullable Long toSnapshot) {
+      return toBuilder().setToSnapshot(toSnapshot).build();
+    }
+
+    public ReadRows withTriggeringFrequency(Duration triggeringFrequency) {
+      return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
     }
 
     @Override
@@ -427,15 +451,24 @@ public class IcebergIO {
 
       Table table = getCatalogConfig().catalog().loadTable(tableId);
 
-      return input.apply(
-          Read.from(
-              new ScanSource(
-                  IcebergScanConfig.builder()
-                      .setCatalogConfig(getCatalogConfig())
-                      .setScanType(IcebergScanConfig.ScanType.TABLE)
-                      .setTableIdentifier(tableId)
-                      .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
-                      .build())));
+      IcebergScanConfig scanConfig =
+          IcebergScanConfig.builder()
+              .setCatalogConfig(getCatalogConfig())
+              .setScanType(IcebergScanConfig.ScanType.TABLE)
+              .setTableIdentifier(tableId)
+              .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
+              .setFromSnapshotExclusive(getFromSnapshotExclusive())
+              .setToSnapshot(getToSnapshot())
+              .build();
+
+      @Nullable Duration triggeringFrequency = getTriggeringFrequency();
+      if (triggeringFrequency != null) {
+        return input
+            .apply(new IncrementalScanSource(scanConfig, triggeringFrequency))
+            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()));
+      }
+
+      return input.apply(Read.from(new ScanSource(scanConfig)));
     }
   }
 }

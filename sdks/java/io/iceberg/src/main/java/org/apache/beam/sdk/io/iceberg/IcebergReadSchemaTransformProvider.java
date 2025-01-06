@@ -17,14 +17,20 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -32,6 +38,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * SchemaTransform implementation for {@link IcebergIO#readRows}. Reads records from Iceberg and
@@ -40,11 +48,11 @@ import org.apache.iceberg.catalog.TableIdentifier;
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergReadSchemaTransformProvider
-    extends TypedSchemaTransformProvider<SchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<Configuration> {
   static final String OUTPUT_TAG = "output";
 
   @Override
-  protected SchemaTransform from(SchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(Configuration configuration) {
     return new IcebergReadSchemaTransform(configuration);
   }
 
@@ -59,9 +67,9 @@ public class IcebergReadSchemaTransformProvider
   }
 
   static class IcebergReadSchemaTransform extends SchemaTransform {
-    private final SchemaTransformConfiguration configuration;
+    private final Configuration configuration;
 
-    IcebergReadSchemaTransform(SchemaTransformConfiguration configuration) {
+    IcebergReadSchemaTransform(Configuration configuration) {
       this.configuration = configuration;
     }
 
@@ -70,7 +78,7 @@ public class IcebergReadSchemaTransformProvider
         // To stay consistent with our SchemaTransform configuration naming conventions,
         // we sort lexicographically and convert field names to snake_case
         return SchemaRegistry.createDefault()
-            .getToRowFunction(SchemaTransformConfiguration.class)
+            .getToRowFunction(Configuration.class)
             .apply(configuration)
             .sorted()
             .toSnakeCase();
@@ -81,14 +89,86 @@ public class IcebergReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> output =
-          input
-              .getPipeline()
-              .apply(
-                  IcebergIO.readRows(configuration.getIcebergCatalog())
-                      .from(TableIdentifier.parse(configuration.getTable())));
+      IcebergIO.ReadRows readRows =
+          IcebergIO.readRows(configuration.getIcebergCatalog())
+              .from(TableIdentifier.parse(configuration.getTable()));
+
+      @Nullable Integer triggeringFrequencySeconds = configuration.getTriggeringFrequencySeconds();
+      if (triggeringFrequencySeconds != null) {
+        readRows =
+            readRows
+                .fromSnapshotExclusive(configuration.getFromSnapshotExclusive())
+                .toSnapshot(configuration.getToSnapshot())
+                .withTriggeringFrequency(Duration.standardSeconds(triggeringFrequencySeconds));
+      }
+
+      PCollection<Row> output = input.getPipeline().apply(readRows);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
+    }
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class Configuration {
+    static Builder builder() {
+      return new AutoValue_IcebergReadSchemaTransformProvider_Configuration.Builder();
+    }
+
+    @SchemaFieldDescription("Identifier of the Iceberg table.")
+    abstract String getTable();
+
+    @SchemaFieldDescription("Name of the catalog containing the table.")
+    @Nullable
+    abstract String getCatalogName();
+
+    @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
+    @Nullable
+    abstract Map<String, String> getCatalogProperties();
+
+    @SchemaFieldDescription("Properties passed to the Hadoop Configuration.")
+    @Nullable
+    abstract Map<String, String> getConfigProperties();
+
+    @SchemaFieldDescription(
+        "The frequency at which to poll for new snapshots. An unbounded source is used when this is set.")
+    abstract @Nullable Integer getTriggeringFrequencySeconds();
+
+    @SchemaFieldDescription(
+        "Starts reading from this snapshot ID (exclusive). If unset, the source will "
+            + "start reading from the oldest snapshot (inclusive).")
+    abstract @Nullable Long getFromSnapshotExclusive();
+
+    @SchemaFieldDescription(
+        "Reads up to this snapshot ID (inclusive). If unset, the source will poll "
+            + "for new snapshots forever.")
+    abstract @Nullable Long getToSnapshot();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setTable(String table);
+
+      abstract Builder setCatalogName(String catalogName);
+
+      abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
+
+      abstract Builder setConfigProperties(Map<String, String> confProperties);
+
+      abstract Builder setTriggeringFrequencySeconds(Integer snapshot);
+
+      abstract Builder setFromSnapshotExclusive(Long snapshot);
+
+      abstract Builder setToSnapshot(Long snapshot);
+
+      abstract Configuration build();
+    }
+
+    IcebergCatalogConfig getIcebergCatalog() {
+      return IcebergCatalogConfig.builder()
+          .setCatalogName(getCatalogName())
+          .setCatalogProperties(getCatalogProperties())
+          .setConfigProperties(getConfigProperties())
+          .build();
     }
   }
 }
