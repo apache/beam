@@ -24,11 +24,11 @@ on:
     inputs:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
-        required: true
+        required: false
         default: '2.XX.0'
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
-        required: true
+        required: false
   schedule:
   - cron: "0 6 * * 1"
 env:
