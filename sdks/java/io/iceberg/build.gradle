@@ -67,7 +67,6 @@ dependencies {
     testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
     testImplementation "org.apache.parquet:parquet-common:$parquet_version"
-    testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
