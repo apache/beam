@@ -1179,6 +1179,18 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	// TODO(#https://github.com/apache/beam/issues/31438):
+	// Adjust with AllowedLateness
+	// Data that arrives after the *output* watermark is late.
+	threshold := ss.output
+	origPending := make([]element, 0, ss.pending.Len())
+	for _, e := range newPending {
+		if e.timestamp < threshold {
+			continue
+		}
+		origPending = append(origPending, e)
+	}
+	newPending = origPending
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
