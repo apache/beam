@@ -64,6 +64,8 @@ dependencies {
   // Needed for HiveCatalog
   runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
   runtimeOnly project(path: ":sdks:java:io:iceberg:hive")
+  // BigQuery Metastore catalog (Java 11+)
+  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms")
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14

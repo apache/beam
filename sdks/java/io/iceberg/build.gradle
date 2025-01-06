@@ -81,6 +81,9 @@ dependencies {
         exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
     }
 
+    // BigQueryMetastore catalog dep
+    testImplementation project(path: ":sdks:java:io:iceberg:bqms")
+
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
@@ -134,6 +137,11 @@ task integrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+    // BQ metastore catalog doesn't support java 8
+    if (project.findProperty('testJavaVersion') == '8' ||
+            JavaVersion.current().equals(JavaVersion.VERSION_1_8)) {
+        exclude '**/BigQueryMetastoreCatalogIT.class'
+    }
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath

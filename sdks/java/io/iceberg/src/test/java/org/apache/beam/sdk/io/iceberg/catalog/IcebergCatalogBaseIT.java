@@ -145,7 +145,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @After
   public void cleanUp() throws Exception {
-    catalogCleanup();
+    try {
+      catalogCleanup();
+    } catch (Exception e) {
+      LOG.warn("Catalog cleanup failed.", e);
+    }
 
     try {
       GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
@@ -315,7 +319,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return writtenRecords;
   }
 
-  @Test
+  private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testRead() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
@@ -330,7 +336,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testWrite() {
     // Write with Beam
     // Expect the sink to create the table
@@ -348,7 +354,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testWriteToPartitionedTable() {
     // For an example row where bool=true, modulo_5=3, str=value_303,
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
@@ -379,7 +385,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         .withInterval(Duration.millis(1));
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testStreamingWrite() {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
@@ -409,7 +415,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testStreamingWriteWithPriorWindowing() {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
@@ -552,27 +558,27 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testWriteToDynamicDestinations() {
     writeToDynamicDestinations(null);
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testWriteToDynamicDestinationsAndDropFields() {
     writeToDynamicDestinations("drop");
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testWriteToDynamicDestinationsWithOnlyRecord() {
     writeToDynamicDestinations("only");
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testStreamToDynamicDestinationsAndKeepFields() {
     writeToDynamicDestinations("keep", true, false);
   }
 
-  @Test
+  @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testStreamToPartitionedDynamicDestinations() {
     writeToDynamicDestinations(null, true, true);
   }
