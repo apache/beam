@@ -100,6 +100,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     // which are not null-safe.
     @SuppressWarnings("nullness")
     org.apache.iceberg.@NonNull Schema project = this.project;
+    @Nullable
     String nameMapping = source.getTable().properties().get(TableProperties.DEFAULT_NAME_MAPPING);
 
     do {
