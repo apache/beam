@@ -30,7 +30,8 @@ from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
-from apache_beam.typehints.native_type_compatibility import convert_typing_to_builtin, is_any
+from apache_beam.typehints.native_type_compatibility import convert_typing_to_builtin
+from apache_beam.typehints.native_type_compatibility import is_any
 
 _TestNamedTuple = typing.NamedTuple(
     '_TestNamedTuple', [('age', int), ('name', bytes)])
