@@ -185,6 +185,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             .setSendKeyedGetDataRequests(sendKeyedGetDataRequests)
             .setHealthCheckIntervalMillis(
                 testOptions.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+            .setMultipleItemsInGetWorkResponse(
+                testOptions.getWindmillMultipleItemsInGetWorkResponse())
             .build();
 
     return new GrpcWindmillServer(testOptions, windmillStreamFactory, dispatcherClient);

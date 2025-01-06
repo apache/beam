@@ -52,6 +52,7 @@ final class GrpcGetWorkStream
   private final Map<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
+  private final boolean multipleItemsInGetWorkResponse;
 
   private GrpcGetWorkStream(
       String backendWorkerToken,
@@ -64,6 +65,7 @@ final class GrpcGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean multipleItemsInGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
@@ -81,6 +83,7 @@ final class GrpcGetWorkStream
     this.workItemAssemblers = new ConcurrentHashMap<>();
     this.inflightMessages = new AtomicLong();
     this.inflightBytes = new AtomicLong();
+    this.multipleItemsInGetWorkResponse = multipleItemsInGetWorkResponse;
   }
 
   public static GrpcGetWorkStream create(
@@ -94,6 +97,7 @@ final class GrpcGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean multipleItemsInGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     return new GrpcGetWorkStream(
@@ -104,6 +108,7 @@ final class GrpcGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
+        multipleItemsInGetWorkResponse,
         getWorkThrottleTimer,
         receiver);
   }
@@ -115,6 +120,7 @@ final class GrpcGetWorkStream
                 StreamingGetWorkRequestExtension.newBuilder()
                     .setMaxItems(moreItems)
                     .setMaxBytes(moreBytes))
+            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
             .build();
 
     executeSafely(
@@ -132,7 +138,11 @@ final class GrpcGetWorkStream
     workItemAssemblers.clear();
     inflightMessages.set(request.getMaxItems());
     inflightBytes.set(request.getMaxBytes());
-    trySend(StreamingGetWorkRequest.newBuilder().setRequest(request).build());
+    trySend(
+        StreamingGetWorkRequest.newBuilder()
+            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
+            .setRequest(request)
+            .build());
   }
 
   @Override
@@ -157,6 +167,7 @@ final class GrpcGetWorkStream
         StreamingGetWorkRequest.newBuilder()
             .setRequestExtension(
                 StreamingGetWorkRequestExtension.newBuilder().setMaxItems(0).setMaxBytes(0).build())
+            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
             .build());
   }
 
@@ -166,7 +177,7 @@ final class GrpcGetWorkStream
     workItemAssemblers
         .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
         .append(chunk)
-        .ifPresent(this::consumeAssembledWorkItem);
+        .forEach(this::consumeAssembledWorkItem);
   }
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {

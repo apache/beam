@@ -161,7 +161,7 @@ public class GrpcDirectGetWorkStreamTest {
                 .setInputDataWatermark(1L)
                 .setDependentRealtimeInputWatermark(1L)
                 .build())
-        .setSerializedWorkItem(workItem.toByteString())
+        .addSerializedWorkItem(workItem.toByteString())
         .setRemainingBytesForWorkItem(0)
         .build();
   }

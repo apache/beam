@@ -61,14 +61,6 @@ final class GrpcDirectGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectGetWorkStream.class);
-  private static final StreamingGetWorkRequest HEALTH_CHECK_REQUEST =
-      StreamingGetWorkRequest.newBuilder()
-          .setRequestExtension(
-              Windmill.StreamingGetWorkRequestExtension.newBuilder()
-                  .setMaxItems(0)
-                  .setMaxBytes(0)
-                  .build())
-          .build();
 
   private final GetWorkBudgetTracker budgetTracker;
   private final GetWorkRequest requestHeader;
@@ -88,6 +80,8 @@ final class GrpcDirectGetWorkStream
    */
   private final ConcurrentMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
 
+  private final boolean multipleItemsInGetWorkResponse;
+
   private GrpcDirectGetWorkStream(
       String backendWorkerToken,
       Function<
@@ -99,6 +93,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean multipleItemsInGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -127,6 +122,7 @@ final class GrpcDirectGetWorkStream
                 .setItems(requestHeader.getMaxItems())
                 .setBytes(requestHeader.getMaxBytes())
                 .build());
+    this.multipleItemsInGetWorkResponse = multipleItemsInGetWorkResponse;
   }
 
   static GrpcDirectGetWorkStream create(
@@ -140,6 +136,7 @@ final class GrpcDirectGetWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
+      boolean multipleItemsInGetWorkResponse,
       ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
@@ -153,6 +150,7 @@ final class GrpcDirectGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
+        multipleItemsInGetWorkResponse,
         getWorkThrottleTimer,
         heartbeatSender,
         getDataClient,
@@ -184,6 +182,7 @@ final class GrpcDirectGetWorkStream
                         Windmill.StreamingGetWorkRequestExtension.newBuilder()
                             .setMaxItems(extension.items())
                             .setMaxBytes(extension.bytes()))
+                    .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
                     .build();
             lastRequest.set(request);
             budgetTracker.recordBudgetRequested(extension);
@@ -209,6 +208,7 @@ final class GrpcDirectGetWorkStream
                     .setMaxItems(initialGetWorkBudget.items())
                     .setMaxBytes(initialGetWorkBudget.bytes())
                     .build())
+            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
             .build();
     lastRequest.set(request);
     budgetTracker.recordBudgetRequested(initialGetWorkBudget);
@@ -231,7 +231,15 @@ final class GrpcDirectGetWorkStream
 
   @Override
   public void sendHealthCheck() throws WindmillStreamShutdownException {
-    trySend(HEALTH_CHECK_REQUEST);
+    trySend(
+        StreamingGetWorkRequest.newBuilder()
+            .setRequestExtension(
+                Windmill.StreamingGetWorkRequestExtension.newBuilder()
+                    .setMaxItems(0)
+                    .setMaxBytes(0)
+                    .build())
+            .setSupportsMultipleWorkItemsInChunk(multipleItemsInGetWorkResponse)
+            .build());
   }
 
   @Override
@@ -243,7 +251,7 @@ final class GrpcDirectGetWorkStream
     workItemAssemblers
         .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
         .append(chunk)
-        .ifPresent(this::consumeAssembledWorkItem);
+        .forEach(this::consumeAssembledWorkItem);
   }
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {

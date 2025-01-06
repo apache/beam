@@ -788,7 +788,8 @@ public final class StreamingDataflowWorker {
         .setSendKeyedGetDataRequests(
             !options.isEnableStreamingEngine()
                 || DataflowRunner.hasExperiment(
-                    options, "streaming_engine_disable_new_heartbeat_requests"));
+                    options, "streaming_engine_disable_new_heartbeat_requests"))
+        .setMultipleItemsInGetWorkResponse(options.getWindmillMultipleItemsInGetWorkResponse());
   }
 
   private static JobHeader createJobHeader(DataflowWorkerHarnessOptions options, long clientId) {

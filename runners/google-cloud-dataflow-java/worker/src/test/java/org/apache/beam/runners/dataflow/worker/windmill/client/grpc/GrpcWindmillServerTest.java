@@ -291,7 +291,7 @@ public class GrpcWindmillServerTest {
                       StreamingGetWorkResponseChunk.Builder builder =
                           StreamingGetWorkResponseChunk.newBuilder()
                               .setStreamId(id)
-                              .setSerializedWorkItem(serializedResponse.substring(i, end))
+                              .addSerializedWorkItem(serializedResponse.substring(i, end))
                               .setRemainingBytesForWorkItem(serializedResponse.size() - end);
 
                       if (i == 0) {
@@ -1166,7 +1166,7 @@ public class GrpcWindmillServerTest {
                     StreamingGetWorkResponseChunk.Builder builder =
                         StreamingGetWorkResponseChunk.newBuilder()
                             .setStreamId(id)
-                            .setSerializedWorkItem(serializedResponse)
+                            .addSerializedWorkItem(serializedResponse)
                             .setRemainingBytesForWorkItem(0)
                             .setComputationMetadata(
                                 ComputationWorkItemMetadata.newBuilder()

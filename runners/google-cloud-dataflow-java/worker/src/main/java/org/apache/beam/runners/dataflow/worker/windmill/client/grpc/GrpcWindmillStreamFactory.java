@@ -91,6 +91,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
+  private final boolean multipleItemsInGetWorkResponse;
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcWindmillStreamFactory(
@@ -99,6 +100,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       int streamingRpcBatchLimit,
       int windmillMessagesBetweenIsReadyChecks,
       boolean sendKeyedGetDataRequests,
+      boolean multipleItemsInGetWorkResponse,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier) {
     this.jobHeader = jobHeader;
@@ -115,6 +117,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
                     .backoff());
     this.streamRegistry = ConcurrentHashMap.newKeySet();
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
+    this.multipleItemsInGetWorkResponse = multipleItemsInGetWorkResponse;
     this.processHeartbeatResponses = processHeartbeatResponses;
     this.streamIdGenerator = new AtomicLong();
   }
@@ -126,6 +129,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       int streamingRpcBatchLimit,
       int windmillMessagesBetweenIsReadyChecks,
       boolean sendKeyedGetDataRequests,
+      boolean multipleItemsInGetWorkResponse,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier,
       int healthCheckIntervalMillis) {
@@ -136,6 +140,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
             streamingRpcBatchLimit,
             windmillMessagesBetweenIsReadyChecks,
             sendKeyedGetDataRequests,
+            multipleItemsInGetWorkResponse,
             processHeartbeatResponses,
             maxBackOffSupplier);
 
@@ -209,6 +214,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
+        multipleItemsInGetWorkResponse,
         getWorkThrottleTimer,
         processWorkItem);
   }
@@ -229,6 +235,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         newStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
+        multipleItemsInGetWorkResponse,
         getWorkThrottleTimer,
         heartbeatSender,
         getDataClient,
@@ -355,6 +362,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses);
 
     Builder setHealthCheckIntervalMillis(int healthCheckIntervalMillis);
+
+    Builder setMultipleItemsInGetWorkResponse(boolean enabled);
 
     GrpcWindmillStreamFactory build();
   }
