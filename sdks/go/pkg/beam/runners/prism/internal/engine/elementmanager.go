@@ -187,8 +187,7 @@ type ElementManager struct {
 	config     Config
 	nextBundID func() string // Generates unique bundleIDs. Set in the Bundles method.
 
-	impulses set[string]            // List of impulse stages.
-	stages   map[string]*stageState // The state for each stage.
+	stages map[string]*stageState // The state for each stage.
 
 	consumers     map[string][]string // Map from pcollectionID to stageIDs that consumes them as primary input.
 	sideConsumers map[string][]LinkID // Map from pcollectionID to the stage+transform+input that consumes them as side input.
@@ -250,7 +249,6 @@ func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, side
 	// so we must do it here.
 	if len(inputIDs) == 0 {
 		refreshes := singleSet(ss.ID)
-		em.addToTestStreamImpulseSet(refreshes)
 		em.markStagesAsChanged(refreshes)
 	}
 
@@ -319,20 +317,7 @@ func (em *ElementManager) Impulse(stageID string) {
 		em.addPending(count)
 	}
 	refreshes := stage.updateWatermarks(em)
-
-	em.addToTestStreamImpulseSet(refreshes)
 	em.markStagesAsChanged(refreshes)
-}
-
-// addToTestStreamImpulseSet adds to the set of stages to refresh on pipeline start.
-// We keep this separate since impulses are synthetic. In a test stream driven pipeline
-// these will need to be stimulated separately, to ensure the test stream has progressed.
-func (em *ElementManager) addToTestStreamImpulseSet(refreshes set[string]) {
-	if em.impulses == nil {
-		em.impulses = refreshes
-	} else {
-		em.impulses.merge(refreshes)
-	}
 }
 
 type RunBundle struct {
@@ -372,12 +357,6 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 			}
 		}()
 		defer close(runStageCh)
-
-		// If we have a test stream, clear out existing changed stages,
-		// so the test stream can insert any elements it needs.
-		if em.testStreamHandler != nil {
-			em.changedStages = singleSet(em.testStreamHandler.ID)
-		}
 
 		for {
 			em.refreshCond.L.Lock()
