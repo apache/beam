@@ -24,18 +24,16 @@ on:
     inputs:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
-        required: true
-        default: '2.61.0'
+        required: false
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
-        required: true
-        default: '3'
+        required: false
   schedule:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE }}"
-  rc: "${{ github.event.inputs.RC}}"
+  release: "${{ github.event.inputs.RELEASE || '2.61.0' }}"
+  rc: "${{ github.event.inputs.RC || '3' }}"
 
 jobs:
 
