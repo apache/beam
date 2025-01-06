@@ -25,12 +25,8 @@ import logging
 import sys
 import types
 import typing
-from typing import Generic
-from typing import TypeVar
 
 from apache_beam.typehints import typehints
-
-T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -292,7 +288,7 @@ class TypedWindowedValue(Generic[T]):
   def __init__(self, *args, **kwargs):
     raise NotImplementedError("This class is solely for type inference")
 
-
+ 
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -347,7 +343,7 @@ def convert_to_beam_type(typ):
     # to the correct type constraint in Beam
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
-
+ 
   elif (typ_module != 'typing') and (typ_module !=
                                      'collections.abc') and not is_builtin(typ):
     # Only translate primatives and types from collections.abc and typing.
@@ -401,10 +397,6 @@ def convert_to_beam_type(typ):
           match=_match_is_exactly_collection,
           arity=1,
           beam_type=typehints.Collection),
-      _TypeMapEntry(
-          match=_match_issubclass(TypedWindowedValue),
-          arity=1,
-          beam_type=typehints.WindowedValue),
   ]
 
   # Find the first matching entry.

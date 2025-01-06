@@ -36,6 +36,7 @@ from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
+from typing import List
 from typing import Mapping
 from typing import Optional
 
@@ -349,7 +350,7 @@ def python(urns, packages=()):
 
 @ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
-  def __init__(self, urns, packages):
+  def __init__(self, urns, packages: Iterable[str]):
     super().__init__(urns, PypiExpansionService(packages))
 
   def available(self):
@@ -907,7 +908,7 @@ class YamlProviders:
 
     def to_loggable_json_recursive(o):
       if isinstance(o, (str, bytes)):
-        return o
+        return str(o)
       elif callable(getattr(o, '_asdict', None)):
         return to_loggable_json_recursive(o._asdict())
       elif isinstance(o, Mapping) and callable(getattr(o, 'items', None)):
@@ -1017,26 +1018,31 @@ class PypiExpansionService:
   """
   VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
-  def __init__(self, packages, base_python=sys.executable):
-    self._packages = packages
+  def __init__(
+      self, packages: Iterable[str], base_python: str = sys.executable):
+    if not isinstance(packages, Iterable) or isinstance(packages, str):
+      raise TypeError(
+          "Packages must be an iterable of strings, got %r" % packages)
+    self._packages = list(packages)
     self._base_python = base_python
 
   @classmethod
-  def _key(cls, base_python, packages):
+  def _key(cls, base_python: str, packages: List[str]) -> str:
     return json.dumps({
         'binary': base_python, 'packages': sorted(packages)
     },
                       sort_keys=True)
 
   @classmethod
-  def _path(cls, base_python, packages):
+  def _path(cls, base_python: str, packages: List[str]) -> str:
     return os.path.join(
         cls.VENV_CACHE,
         hashlib.sha256(cls._key(base_python,
                                 packages).encode('utf-8')).hexdigest())
 
   @classmethod
-  def _create_venv_from_scratch(cls, base_python, packages):
+  def _create_venv_from_scratch(
+      cls, base_python: str, packages: List[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1054,7 +1060,8 @@ class PypiExpansionService:
     return venv
 
   @classmethod
-  def _create_venv_from_clone(cls, base_python, packages):
+  def _create_venv_from_clone(
+      cls, base_python: str, packages: List[str]) -> str:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
@@ -1074,7 +1081,7 @@ class PypiExpansionService:
     return venv
 
   @classmethod
-  def _create_venv_to_clone(cls, base_python):
+  def _create_venv_to_clone(cls, base_python: str) -> str:
     if '.dev' in beam_version:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
@@ -1085,7 +1092,7 @@ class PypiExpansionService:
             'virtualenv-clone'
         ])
 
-  def _venv(self):
+  def _venv(self) -> str:
     return self._create_venv_from_clone(self._base_python, self._packages)
 
   def __enter__(self):

@@ -21,6 +21,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +36,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
@@ -38,14 +44,20 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.apache.iceberg.expressions.Literal;
+import org.apache.iceberg.transforms.Transform;
+import org.apache.iceberg.transforms.Transforms;
+import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +102,7 @@ class RecordWriterManager implements AutoCloseable {
     final Cache<PartitionKey, RecordWriter> writers;
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
+    private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
@@ -98,6 +111,9 @@ class RecordWriterManager implements AutoCloseable {
       this.spec = table.spec();
       this.partitionKey = new PartitionKey(spec, schema);
       this.table = table;
+      for (PartitionField partitionField : spec.fields()) {
+        partitionFieldMap.put(partitionField.name(), partitionField);
+      }
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -123,7 +139,9 @@ class RecordWriterManager implements AutoCloseable {
                       throw rethrow;
                     }
                     openWriters--;
-                    dataFiles.add(SerializableDataFile.from(recordWriter.getDataFile(), pk));
+                    String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
+                    dataFiles.add(
+                        SerializableDataFile.from(recordWriter.getDataFile(), partitionPath));
                   })
               .build();
     }
@@ -136,7 +154,7 @@ class RecordWriterManager implements AutoCloseable {
      * can't create a new writer, the {@link Record} is rejected and {@code false} is returned.
      */
     boolean write(Record record) {
-      partitionKey.partition(record);
+      partitionKey.partition(getPartitionableRecord(record));
 
       if (!writers.asMap().containsKey(partitionKey) && openWriters >= maxNumWriters) {
         return false;
@@ -185,7 +203,64 @@ class RecordWriterManager implements AutoCloseable {
             e);
       }
     }
+
+    /**
+     * Resolves an input {@link Record}'s partition values and returns another {@link Record} that
+     * can be applied to the destination's {@link PartitionSpec}.
+     */
+    private Record getPartitionableRecord(Record record) {
+      if (spec.isUnpartitioned()) {
+        return record;
+      }
+      Record output = GenericRecord.create(schema);
+      for (PartitionField partitionField : spec.fields()) {
+        Transform<?, ?> transform = partitionField.transform();
+        Types.NestedField field = schema.findField(partitionField.sourceId());
+        String name = field.name();
+        Object value = record.getField(name);
+        @Nullable Literal<Object> literal = Literal.of(value.toString()).to(field.type());
+        if (literal == null || transform.isVoid() || transform.isIdentity()) {
+          output.setField(name, value);
+        } else {
+          output.setField(name, literal.value());
+        }
+      }
+      return output;
+    }
   }
+
+  /**
+   * Returns an equivalent partition path that is made up of partition data. Needed to reconstruct a
+   * {@link DataFile}.
+   */
+  @VisibleForTesting
+  static String getPartitionDataPath(
+      String partitionPath, Map<String, PartitionField> partitionFieldMap) {
+    if (partitionPath.isEmpty() || partitionFieldMap.isEmpty()) {
+      return partitionPath;
+    }
+    List<String> resolved = new ArrayList<>();
+    for (String partition : Splitter.on('/').splitToList(partitionPath)) {
+      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
+      String name = nameAndValue.get(0);
+      String value = nameAndValue.get(1);
+      String transformName =
+          Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
+      if (Transforms.month().toString().equals(transformName)) {
+        int month = YearMonth.parse(value).getMonthValue();
+        value = String.valueOf(month);
+      } else if (Transforms.hour().toString().equals(transformName)) {
+        long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
+        value = String.valueOf(hour);
+      }
+      resolved.add(name + "=" + value);
+    }
+    return String.join("/", resolved);
+  }
+
+  private static final DateTimeFormatter HOUR_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
+  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
 
   private final Catalog catalog;
   private final String filePrefix;

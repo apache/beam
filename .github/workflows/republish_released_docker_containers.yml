@@ -25,17 +25,17 @@ on:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
         required: true
-        default: ''
+        default: '2.61.0'
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: true
-        default: ''
+        default: '3'
   schedule:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: ${{ github.event.inputs.RELEASE || "2.61.0" }}
-  rc: ${{ github.event.inputs.RC || "3" }}
+  release: "${{ github.event.inputs.RELEASE }}"
+  rc: "${{ github.event.inputs.RC}}"
 
 jobs:
 
@@ -69,5 +69,13 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
       - name: Push docker images
-        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images -Pdocker-tag=${{ env.release }}rc${{ env.rc }} --no-daemon --no-parallel
+        run: |
+          ./gradlew :pushAllDockerImages \
+          -PisRelease \
+          -Pdocker-pull-licenses \
+          -Pprune-images \
+          -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
+          -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
+          --no-daemon \
+          --no-parallel
 

@@ -3040,9 +3040,14 @@ public class BigQueryIO {
     }
 
     /**
-     * Control how many parallel streams are used when using Storage API writes. Applicable only for
-     * streaming pipelines, and when {@link #withTriggeringFrequency} is also set. To let runner
-     * determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()} instead.
+     * Control how many parallel streams are used when using Storage API writes.
+     *
+     * <p>For streaming pipelines, and when {@link #withTriggeringFrequency} is also set. To let
+     * runner determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()}
+     * instead.
+     *
+     * <p>For batch pipelines, it inserts a redistribute. To not reshufle and keep the pipeline
+     * parallelism as is, set this to zero.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
       return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
