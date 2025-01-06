@@ -25,7 +25,6 @@ on:
       RELEASE:
         description: Beam version of current release (e.g. 2.XX.0)
         required: false
-        default: '2.XX.0'
       RC:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: false
