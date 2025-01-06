@@ -350,7 +350,7 @@ def convert_to_beam_type(typ):
 
   elif (typ_module != 'typing') and (typ_module !=
                                      'collections.abc') and not is_builtin(typ):
-    # Only translate primatives and types from the typing and collections.abc modules.
+    # Only translate primatives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
       typ.__origin__ not in _CONVERTED_COLLECTIONS):
