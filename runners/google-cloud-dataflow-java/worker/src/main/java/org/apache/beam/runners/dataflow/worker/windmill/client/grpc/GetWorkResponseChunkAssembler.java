@@ -50,7 +50,7 @@ final class GetWorkResponseChunkAssembler {
   private final GetWorkTimingInfosTracker workTimingInfosTracker;
   private @Nullable ComputationMetadata metadata;
   private ByteString data;
-  private long remainingSize;
+  private long bufferedSize;
 
   GetWorkResponseChunkAssembler() {
     workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
@@ -70,18 +70,16 @@ final class GetWorkResponseChunkAssembler {
 
     List<AssembledWorkItem> response = new ArrayList<>();
     for (int i = 0; i < chunk.getSerializedWorkItemList().size(); i++) {
-      data = data.concat(chunk.getSerializedWorkItemList().get(i));
+      ByteString serializedWorkItem = chunk.getSerializedWorkItemList().get(i);
+      data = data.concat(serializedWorkItem);
+      bufferedSize += serializedWorkItem.size();
+      long remainingSize = 0;
       if (i == chunk.getSerializedWorkItemList().size() - 1) {
         remainingSize = chunk.getRemainingBytesForWorkItem();
-      } else {
-        remainingSize = 0;
       }
       if (remainingSize == 0) {
         flushToWorkItem().ifPresent(response::add);
       }
-    }
-    if (remainingSize == 0) {
-      workTimingInfosTracker.reset();
     }
     return response;
   }
@@ -93,18 +91,18 @@ final class GetWorkResponseChunkAssembler {
    */
   private Optional<AssembledWorkItem> flushToWorkItem() {
     try {
-      long size = data.size();
       return Optional.of(
           AssembledWorkItem.create(
               WorkItem.parseFrom(data.newInput()),
               Preconditions.checkNotNull(metadata),
               workTimingInfosTracker.getLatencyAttributions(),
-              size));
+              bufferedSize));
     } catch (IOException e) {
       LOG.error("Failed to parse work item from stream: ", e);
     } finally {
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
+      bufferedSize = 0;
     }
 
     return Optional.empty();
