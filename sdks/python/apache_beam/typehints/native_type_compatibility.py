@@ -25,12 +25,8 @@ import logging
 import sys
 import types
 import typing
-from typing import Generic
-from typing import TypeVar
 
 from apache_beam.typehints import typehints
-
-T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
 
