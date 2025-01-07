@@ -78,6 +78,10 @@ class BaseMLTransformTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
+  def test_ml_transform_no_read_or_write_artifact_lcoation(self):
+    with self.assertRaises(ValueError):
+      _ = base.MLTransform(transforms=[])
+
   @unittest.skipIf(tft is None, 'tft module is not installed.')
   def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
     fake_fn_1 = _FakeOperation(name='fake_fn_1', columns=['x'])
@@ -354,6 +358,21 @@ class FakeEmbeddingsManager(base.EmbeddingsManager):
     return 'FakeEmbeddingsManager'
 
 
+class InvalidEmbeddingsManager(base.EmbeddingsManager):
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
+  def get_model_handler(self) -> ModelHandler:
+    InvalidEmbeddingsManager.__repr__ = lambda x: 'InvalidEmbeddingsManager'  # type: ignore[method-assign]
+    return FakeModelHandler()
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    return (RunInference(model_handler=base._TextEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'InvalidEmbeddingsManager'
+
+
 class TextEmbeddingHandlerTest(unittest.TestCase):
   def setUp(self) -> None:
     self.embedding_conig = FakeEmbeddingsManager(columns=['x'])
@@ -361,6 +380,10 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
+
+  def test_no_columns_or_type_adapter(self):
+    with self.assertRaises(ValueError):
+      _ = InvalidEmbeddingsManager()
 
   def test_handler_with_incompatible_datatype(self):
     text_handler = base._TextEmbeddingHandler(
@@ -430,9 +453,9 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam", 'y': "Hello world", 'z': 'unchanged'
         },
     ]
-    self.embedding_conig.columns = ['x', 'y']
+    embedding_config = FakeEmbeddingsManager(columns=['x', 'y'])
     expected_data = [{
-        key: (value[::-1] if key in self.embedding_conig.columns else value)
+        key: (value[::-1] if key in embedding_config.columns else value)
         for key,
         value in d.items()
     } for d in data]
@@ -440,9 +463,8 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       result = (
           p
           | beam.Create(data)
-          | base.MLTransform(
-              write_artifact_location=self.artifact_location).with_transform(
-                  self.embedding_conig))
+          | base.MLTransform(write_artifact_location=self.artifact_location).
+          with_transform(embedding_config))
       assert_that(
           result,
           equal_to(expected_data),
@@ -457,16 +479,15 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam", 'y': "Hello world"
         },
     ]
-    self.embedding_conig.columns = ['x', 'y', 'a']
+    embedding_config = FakeEmbeddingsManager(columns=['x', 'y', 'a'])
 
     with self.assertRaises(RuntimeError):
       with beam.Pipeline() as p:
         _ = (
             p
             | beam.Create(data)
-            | base.MLTransform(
-                write_artifact_location=self.artifact_location).with_transform(
-                    self.embedding_conig))
+            | base.MLTransform(write_artifact_location=self.artifact_location).
+            with_transform(embedding_config))
 
   def test_handler_with_list_data(self):
     data = [{
@@ -550,13 +571,31 @@ class TestImageEmbeddingHandler(unittest.TestCase):
     shutil.rmtree(self.artifact_location)
 
   @unittest.skipIf(PIL is None, 'PIL module is not installed.')
-  def test_handler_with_incompatible_datatype(self):
+  def test_handler_with_non_dict_datatype(self):
     image_handler = base._ImageEmbeddingHandler(
         embeddings_manager=self.embedding_config)
     data = [
         ('x', 'hi there'),
         ('x', 'not an image'),
         ('x', 'image_path.jpg'),
+    ]
+    with self.assertRaises(TypeError):
+      image_handler.run_inference(data, None, None)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_non_image_datatype(self):
+    image_handler = base._ImageEmbeddingHandler(
+        embeddings_manager=self.embedding_config)
+    data = [
+        {
+            'x': 'hi there'
+        },
+        {
+            'x': 'not an image'
+        },
+        {
+            'x': 'image_path.jpg'
+        },
     ]
     with self.assertRaises(TypeError):
       image_handler.run_inference(data, None, None)
@@ -588,31 +627,37 @@ class TestImageEmbeddingHandler(unittest.TestCase):
 
 
 class TestUtilFunctions(unittest.TestCase):
-  def test_list_of_dicts_to_dict_of_lists_normal(self):
+  def test_dict_input_fn_normal(self):
     input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
-    expected_output = {'a': [1, 3], 'b': [2, 4]}
-    self.assertEqual(
-        base._convert_list_of_dicts_to_dict_of_lists(input_list),
-        expected_output)
+    columns = ['a', 'b']
 
-  def test_list_of_dicts_to_dict_of_lists_on_list_inputs(self):
+    expected_output = [1, 2, 3, 4]
+    self.assertEqual(base._dict_input_fn(columns, input_list), expected_output)
+
+  def test_dict_output_fn_normal(self):
+    input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
+    columns = ['a', 'b']
+    embeddings = [1.1, 2.2, 3.3, 4.4]
+
+    expected_output = [{'a': 1.1, 'b': 2.2}, {'a': 3.3, 'b': 4.4}]
+    self.assertEqual(
+        base._dict_output_fn(columns, input_list, embeddings), expected_output)
+
+  def test_dict_input_fn_on_list_inputs(self):
     input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]
-    expected_output = {'a': [[1, 2, 10], [1]], 'b': [3, 5]}
-    self.assertEqual(
-        base._convert_list_of_dicts_to_dict_of_lists(input_list),
-        expected_output)
+    columns = ['a', 'b']
 
-  def test_dict_of_lists_to_lists_of_dict_normal(self):
-    input_dict = {'a': [1, 3], 'b': [2, 4]}
-    expected_output = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
-    self.assertEqual(
-        base._convert_dict_of_lists_to_lists_of_dict(input_dict),
-        expected_output)
+    expected_output = [[1, 2, 10], 3, [1], 5]
+    self.assertEqual(base._dict_input_fn(columns, input_list), expected_output)
 
-  def test_dict_of_lists_to_lists_of_dict_unequal_length(self):
-    input_dict = {'a': [1, 3], 'b': [2]}
-    with self.assertRaises(AssertionError):
-      base._convert_dict_of_lists_to_lists_of_dict(input_dict)
+  def test_dict_output_fn_on_list_inputs(self):
+    input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]
+    columns = ['a', 'b']
+    embeddings = [1.1, 2.2, 3.3, 4.4]
+
+    expected_output = [{'a': 1.1, 'b': 2.2}, {'a': 3.3, 'b': 4.4}]
+    self.assertEqual(
+        base._dict_output_fn(columns, input_list, embeddings), expected_output)
 
 
 class TestJsonPickleTransformAttributeManager(unittest.TestCase):

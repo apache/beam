@@ -94,6 +94,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 		},
 		Logger:           s.logger, // TODO substitute with a configured logger.
 		artifactEndpoint: s.Endpoint(),
+		mw:               s.mw,
 	}
 	// Stop the idle timer when a new job appears.
 	if idleTimer := s.idleTimer.Load(); idleTimer != nil {
@@ -174,15 +175,14 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Validate all the state features
 			for _, spec := range pardo.GetStateSpecs() {
 				isStateful = true
-				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(),
+					urns.UserStateBag, urns.UserStateMultiMap, urns.UserStateOrderedList)
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
 				isStateful = true
 				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
-
-			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
 
 			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
 			if pardo.GetRestrictionCoderId() != "" && isStateful {
