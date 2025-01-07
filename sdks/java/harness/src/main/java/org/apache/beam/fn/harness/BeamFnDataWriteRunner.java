@@ -27,7 +27,6 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -64,13 +63,11 @@ public class BeamFnDataWriteRunner<InputT> {
     public BeamFnDataWriteRunner createRunnerForPTransform(Context context) throws IOException {
 
       RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(context.getPTransform()).getPort();
-      RehydratedComponents components =
-          RehydratedComponents.forComponents(
-              Components.newBuilder().putAllCoders(context.getCoders()).build());
+      RehydratedComponents components = RehydratedComponents.forComponents(context.getComponents());
       Coder<WindowedValue<InputT>> coder =
           (Coder<WindowedValue<InputT>>)
               CoderTranslation.fromProto(
-                  context.getCoders().get(port.getCoderId()),
+                  context.getComponents().getCodersMap().get(port.getCoderId()),
                   components,
                   new StateBackedIterableTranslationContext() {
                     @Override

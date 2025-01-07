@@ -62,6 +62,13 @@ public interface PTransformRunnerFactory<T> {
     /** The id of the PTransform. */
     String getPTransformId();
 
+    /**
+     * An immutable component with mapping from coder id to coder definition, mapping from
+     * windowing strategy id to windowing strategy definition and mapping from PCollection id to
+     * PCollection definition.
+     */
+    RunnerApi.Components getComponents();
+
     /** The PTransform definition. */
     RunnerApi.PTransform getPTransform();
 
@@ -76,15 +83,6 @@ public interface PTransformRunnerFactory<T> {
 
     /** A cache that is process wide and persists across bundle boundaries. */
     Cache<?, ?> getProcessWideCache();
-
-    /** An immutable mapping from PCollection id to PCollection definition. */
-    Map<String, RunnerApi.PCollection> getPCollections();
-
-    /** An immutable mapping from coder id to coder definition. */
-    Map<String, RunnerApi.Coder> getCoders();
-
-    /** An immutable mapping from windowing strategy id to windowing strategy definition. */
-    Map<String, RunnerApi.WindowingStrategy> getWindowingStrategies();
 
     /** An immutable set of runner capability urns. */
     Set<String> getRunnerCapabilities();
