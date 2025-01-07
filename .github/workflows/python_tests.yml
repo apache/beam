@@ -23,12 +23,12 @@ on:
   schedule:
     - cron: '10 2 * * *'
   push:
-    branches: [ 'master', 'release-*' ]
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
-    branches: [ 'master', 'release-*' ]
+    branches: ['master', 'release-*']
     tags: 'v*'
-    paths: [ 'sdks/python/**', 'model/**' ]
+    paths: ['sdks/python/**', 'model/**']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -41,7 +41,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: [ self-hosted, ubuntu-20.04, main ]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -65,7 +65,7 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: [ self-hosted, ubuntu-20.04, main ]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -91,7 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, windows-latest ]
+        os: [macos-latest, windows-latest]
         params: [
           { "py_ver": "3.9", "tox_env": "py39" },
           { "py_ver": "3.10", "tox_env": "py310" },
@@ -132,8 +132,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ [ self-hosted, ubuntu-20.04, main ], macos-latest, windows-latest ]
-        python: [ "3.9", "3.10", "3.11", "3.12" ]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
+        python: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
