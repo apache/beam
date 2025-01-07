@@ -115,15 +115,15 @@ def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
-def _is_primative(user_type, primative):
-  # catch bare primatives
-  if user_type is primative:
+def _is_primitive(user_type, primitive):
+  # catch bare primitives
+  if user_type is primitive:
     return True
-  return getattr(user_type, '__origin__', None) is primative
+  return getattr(user_type, '__origin__', None) is primitive
 
 
-def _match_is_primative(match_against):
-  return lambda user_type: _is_primative(user_type, match_against)
+def _match_is_primitive(match_against):
+  return lambda user_type: _is_primitive(user_type, match_against)
 
 
 def _match_is_exactly_mapping(user_type):
@@ -180,7 +180,7 @@ def _match_is_union(user_type):
 
 
 def _match_is_set(user_type):
-  if _safe_issubclass(user_type, typing.Set) or _is_primative(user_type, set):
+  if _safe_issubclass(user_type, typing.Set) or _is_primitive(user_type, set):
     return True
   elif getattr(user_type, '__origin__', None) is not None:
     return _safe_issubclass(
@@ -233,11 +233,11 @@ def convert_typing_to_builtin(typ):
     typ: A typing type (e.g., typing.List[int]).
 
   Returns:
-    type: The corresponding builtin type (e.g., list).
+    type: The corresponding builtin type (e.g., list[int]).
   """
   origin = getattr(typ, '__origin__', None)
   args = getattr(typ, '__args__', None)
-  # Typing types return the primative type as the origin from 3.9 on
+  # Typing types return the primitive type as the origin from 3.9 on
   if origin not in _BUILTINS:
     return typ
   # Early return for bare types
@@ -279,18 +279,6 @@ def is_builtin(typ):
   if typ in _BUILTINS:
     return True
   return getattr(typ, '__origin__', None) in _BUILTINS
-
-
-# During type inference of WindowedValue, we need to pass in the inner value
-# type. This cannot be achieved immediately with WindowedValue class because it
-# is not parameterized. Changing it to a generic class (e.g. WindowedValue[T])
-# could work in theory. However, the class is cythonized and it seems that
-# cython does not handle generic classes well.
-# The workaround here is to create a separate class solely for the type
-# inference purpose. This class should never be used for creating instances.
-class TypedWindowedValue(Generic[T]):
-  def __init__(self, *args, **kwargs):
-    raise NotImplementedError("This class is solely for type inference")
 
 
 def convert_to_beam_type(typ):
@@ -350,7 +338,7 @@ def convert_to_beam_type(typ):
 
   elif (typ_module != 'typing') and (typ_module !=
                                      'collections.abc') and not is_builtin(typ):
-    # Only translate primatives and types from collections.abc and typing.
+    # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
       typ.__origin__ not in _CONVERTED_COLLECTIONS):
@@ -367,16 +355,16 @@ def convert_to_beam_type(typ):
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
-          match=_match_is_primative(dict), arity=2, beam_type=typehints.Dict),
+          match=_match_is_primitive(dict), arity=2, beam_type=typehints.Dict),
       _TypeMapEntry(
           match=_match_is_exactly_iterable,
           arity=1,
           beam_type=typehints.Iterable),
       _TypeMapEntry(
-          match=_match_is_primative(list), arity=1, beam_type=typehints.List),
+          match=_match_is_primitive(list), arity=1, beam_type=typehints.List),
       # FrozenSets are a specific instance of a set, so we check this first.
       _TypeMapEntry(
-          match=_match_is_primative(frozenset),
+          match=_match_is_primitive(frozenset),
           arity=1,
           beam_type=typehints.FrozenSet),
       _TypeMapEntry(match=_match_is_set, arity=1, beam_type=typehints.Set),
@@ -386,7 +374,7 @@ def convert_to_beam_type(typ):
       _TypeMapEntry(
           match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
-          match=_match_is_primative(tuple), arity=-1,
+          match=_match_is_primitive(tuple), arity=-1,
           beam_type=typehints.Tuple),
       _TypeMapEntry(match=_match_is_union, arity=-1, beam_type=typehints.Union),
       _TypeMapEntry(
