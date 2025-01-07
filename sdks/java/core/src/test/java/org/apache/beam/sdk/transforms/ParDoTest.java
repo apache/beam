@@ -3731,7 +3731,9 @@ public class ParDoTest implements Serializable {
         if (stamp == 100) {
           // advance watermark when we have 100 remaining elements
           // all the rest are going to be late elements
-          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+          input =
+              input.advanceWatermarkTo(
+                  GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.standardSeconds(1)));
         }
       }
       testTimeSortedInput(
@@ -3764,7 +3766,9 @@ public class ParDoTest implements Serializable {
         if (stamp == 100) {
           // advance watermark when we have 100 remaining elements
           // all the rest are going to be late elements
-          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+          input =
+              input.advanceWatermarkTo(
+                  GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.standardSeconds(1)));
         }
       }
       testTimeSortedInput(
@@ -3796,7 +3800,9 @@ public class ParDoTest implements Serializable {
         if (stamp == 100) {
           // advance watermark when we have 100 remaining elements
           // all the rest are going to be late elements
-          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+          input =
+              input.advanceWatermarkTo(
+                  GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.standardSeconds(1)));
         }
       }
       // apply the sorted function for the first time
