@@ -84,9 +84,12 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 
 		// At their simplest, we don't need to do anything special at pre-processing time, and simply pass through as normal.
 
-		// StatefulDoFns need to be marked as being roots.
+		// ForceRoots cause fusion breaks in the optimized graph.
+		// StatefulDoFns need to be marked as being roots, for correct per-key state handling.
+		// Prism already sorts input elements for a stage by EventTime, so a fusion break enables the sorted behavior.
 		var forcedRoots []string
-		if len(pdo.StateSpecs)+len(pdo.TimerFamilySpecs) > 0 {
+		if len(pdo.GetStateSpecs())+len(pdo.GetTimerFamilySpecs()) > 0 ||
+			pdo.GetRequiresTimeSortedInput() {
 			forcedRoots = append(forcedRoots, tid)
 		}
 

@@ -98,6 +98,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
     // Requires Allowed Lateness, among others.
     'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
     'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate',
     'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode',
     'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
@@ -160,6 +161,14 @@ def sickbayTests = [
     // TODO(https://github.com/apache/beam/issues/31231)
     'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata',
 
+
+    // These tests fail once Late Data was being precisely dropped.
+    // They set a single element to be late data, and expect it (correctly) to be preserved.
+    // Since presently, these are treated as No-ops, the fix is to disable the
+    // dropping behavior when a stage's input is a Reshuffle/Redistribute transform.
+    'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
+    'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeWithTimestampsStreaming',
+
     // Prism isn't handling Java's side input views properly.
     // https://github.com/apache/beam/issues/32932
     // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view.
@@ -176,13 +185,6 @@ def sickbayTests = [
     // Prism side encoding error.
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
-
-    // Requires Time Sorted Input
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInput',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
 
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
