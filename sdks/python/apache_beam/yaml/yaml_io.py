@@ -25,13 +25,11 @@ implementations of the same transforms, the configs must be kept in sync.
 
 import io
 import os
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Mapping
 from typing import Optional
-from typing import Tuple
 
 import fastavro
 import yaml
@@ -110,7 +108,7 @@ def read_from_bigquery(
     row_restriction (str): Optional SQL text filtering statement, similar to a
       WHERE clause in a query. Aggregates are not supported. Restricted to a
       maximum length for 1 MB.
-    selected_fields (List[str]): Optional List of names of the fields in the
+    selected_fields (list[str]): Optional List of names of the fields in the
       table that should be read. If empty, all fields will be read. If the
       specified field is a nested field, all the sub-fields in the field will be
       selected. The output field order is unrelated to the order of fields
@@ -211,7 +209,7 @@ def write_to_bigquery(
 
 def _create_parser(
     format,
-    schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
+    schema: Any) -> tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
 
   format = format.upper()
 
@@ -355,7 +353,7 @@ def read_from_pubsub(
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
   payload_schema, parser = _create_parser(format, schema)
-  extra_fields: List[schema_pb2.Field] = []
+  extra_fields: list[schema_pb2.Field] = []
   if not attributes and not attributes_map:
     mapper = lambda msg: parser(msg)
   else:
@@ -443,7 +441,7 @@ def write_to_pubsub(
   """
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 
-  extra_fields: List[str] = []
+  extra_fields: list[str] = []
   if isinstance(attributes, str):
     attributes = [attributes]
   if attributes:

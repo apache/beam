@@ -23,11 +23,9 @@ import logging
 import os
 import pprint
 import re
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Iterable
-from typing import List
-from typing import Mapping
-from typing import Set
 
 import jinja2
 import yaml
@@ -177,7 +175,7 @@ class Scope(LightweightScope):
     self.root = root
     self._inputs = inputs
     self.providers = providers
-    self._seen_names: Set[str] = set()
+    self._seen_names: set[str] = set()
     self.input_providers = input_providers
     self._all_followers = None
 
@@ -255,7 +253,7 @@ class Scope(LightweightScope):
     def best_matches(
         possible_providers: Iterable[yaml_provider.Provider],
         adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
-    ) -> List[yaml_provider.Provider]:
+    ) -> list[yaml_provider.Provider]:
       """Given a set of possible providers, and a set of providers for each
       adjacent transform, returns the top possible providers as ranked by
       affinity to the adjacent transforms' providers.
