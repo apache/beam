@@ -37,6 +37,7 @@ val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
   server = "https://develocity.apache.org"
+  projectId = "beam"
 
   buildScan {
     uploadInBackground = !isCi
