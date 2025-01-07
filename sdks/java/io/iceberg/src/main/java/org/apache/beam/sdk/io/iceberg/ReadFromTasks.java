@@ -60,6 +60,9 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
       throws IOException, ExecutionException {
     Table table =
         TableCache.get(taskDescriptor.getTableIdentifierString(), catalogConfig.catalog());
+    Schema tableSchema = table.schema();
+    org.apache.beam.sdk.schemas.Schema beamSchema =
+        IcebergUtils.icebergSchemaToBeamSchema(tableSchema);
     @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
     NameMapping mapping =
         nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
@@ -78,7 +81,6 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
       }
       FileScanTask task = taskDescriptor.getFileScanTasks().get((int) taskIndex);
       InputFile inputFile = decryptor.getInputFile(task);
-      Schema tableSchema = table.schema();
 
       Map<Integer, ?> idToConstants =
           IcebergUtils.constantsMap(
@@ -96,7 +98,7 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
 
       try (CloseableIterable<Record> iterable = readBuilder.build()) {
         for (Record record : iterable) {
-          Row row = IcebergUtils.icebergRecordToBeamRow(tableSchema, record);
+          Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
           out.output(row);
         }
       }
