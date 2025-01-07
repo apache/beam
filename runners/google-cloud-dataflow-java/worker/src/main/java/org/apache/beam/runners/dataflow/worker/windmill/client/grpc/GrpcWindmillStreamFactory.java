@@ -179,6 +179,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setStreamingRpcBatchLimit(DEFAULT_STREAMING_RPC_BATCH_LIMIT)
         .setHealthCheckIntervalMillis(NO_HEALTH_CHECKS)
         .setSendKeyedGetDataRequests(true)
+        .setMultipleItemsInGetWorkResponse(false)
         .setProcessHeartbeatResponses(ignored -> {});
   }
 
