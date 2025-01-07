@@ -184,11 +184,7 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput',
     // Prism side encoding error.
     // java.lang.IllegalStateException: java.io.EOFException
-    'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
-
-    // Requires Time Sorted Input
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInput',
-    // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream',
+    'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables', 
 
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
