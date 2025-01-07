@@ -28,7 +28,6 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
@@ -539,12 +538,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // missed an update.
                 // If so, use the new schema instead of the base schema
                 @Nullable
-                WriteStream writeStream =
-                    writeStreamService.getWriteStream(getOrCreateStream.get());
                 TableSchema streamSchema =
-                    writeStream == null
-                        ? TableSchema.getDefaultInstance()
-                        : writeStream.getTableSchema();
+                    MoreObjects.firstNonNull(
+                        writeStreamService.getWriteStreamSchema(getOrCreateStream.get()),
+                        TableSchema.getDefaultInstance());
                 Optional<TableSchema> newSchema =
                     TableSchemaUpdateUtils.getUpdatedSchema(tableSchema, streamSchema);
 

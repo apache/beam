@@ -1420,12 +1420,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public @Nullable WriteStream getWriteStream(String writeStream) {
-      return newWriteClient.getWriteStream(
-          GetWriteStreamRequest.newBuilder()
-              .setView(WriteStreamView.FULL)
-              .setName(writeStream)
-              .build());
+    public @Nullable TableSchema getWriteStreamSchema(String writeStream) {
+      @Nullable
+      WriteStream stream =
+          newWriteClient.getWriteStream(
+              GetWriteStreamRequest.newBuilder()
+                  .setView(WriteStreamView.FULL)
+                  .setName(writeStream)
+                  .build());
+      return (stream != null && stream.hasTableSchema()) ? stream.getTableSchema() : null;
     }
 
     @Override
