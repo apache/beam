@@ -173,12 +173,11 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Encodes the value and sets the type to {@link
-   * MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM_TYPE}.
+   * Encodes the value and sets the type to {@link MonitoringInfoConstants.TypeUrns#HISTOGRAM_TYPE}.
    */
   public SimpleMonitoringInfoBuilder setInt64HistogramValue(HistogramData data) {
     this.builder.setPayload(encodeInt64Histogram(data));
-    this.builder.setType(MonitoringInfoConstants.TypeUrns.PER_WORKER_HISTOGRAM_TYPE);
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE);
     return this;
   }
 
