@@ -85,7 +85,7 @@ class CustomMetricQueryResults extends MetricQueryResults {
   }
 
   @Override
-  public Iterable<MetricResult<HistogramData>> getPerWorkerHistograms() {
+  public Iterable<MetricResult<HistogramData>> getHistograms() {
     return Collections.emptyList();
   }
 }

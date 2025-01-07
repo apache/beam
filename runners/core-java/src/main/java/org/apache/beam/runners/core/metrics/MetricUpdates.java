@@ -69,7 +69,7 @@ public abstract class MetricUpdates {
   public abstract Iterable<MetricUpdate<StringSetData>> stringSetUpdates();
 
   /** All the histogram updates. */
-  public abstract Iterable<MetricUpdate<HistogramData>> perWorkerHistogramsUpdates();
+  public abstract Iterable<MetricUpdate<HistogramData>> histogramsUpdates();
 
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
@@ -77,13 +77,9 @@ public abstract class MetricUpdates {
       Iterable<MetricUpdate<DistributionData>> distributionUpdates,
       Iterable<MetricUpdate<GaugeData>> gaugeUpdates,
       Iterable<MetricUpdate<StringSetData>> stringSetUpdates,
-      Iterable<MetricUpdate<HistogramData>> perWorkerHistogramsUpdates) {
+      Iterable<MetricUpdate<HistogramData>> histogramsUpdates) {
     return new AutoValue_MetricUpdates(
-        counterUpdates,
-        distributionUpdates,
-        gaugeUpdates,
-        stringSetUpdates,
-        perWorkerHistogramsUpdates);
+        counterUpdates, distributionUpdates, gaugeUpdates, stringSetUpdates, histogramsUpdates);
   }
 
   /** Returns true if there are no updates in this MetricUpdates object. */
@@ -92,6 +88,6 @@ public abstract class MetricUpdates {
         && Iterables.isEmpty(distributionUpdates())
         && Iterables.isEmpty(gaugeUpdates())
         && Iterables.isEmpty(stringSetUpdates())
-        && Iterables.isEmpty(perWorkerHistogramsUpdates());
+        && Iterables.isEmpty(histogramsUpdates());
   }
 }

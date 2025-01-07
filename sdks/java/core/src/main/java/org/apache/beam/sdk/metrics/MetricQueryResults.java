@@ -39,7 +39,7 @@ public abstract class MetricQueryResults {
   public abstract Iterable<MetricResult<StringSetResult>> getStringSets();
 
   /** Return the metric results for the sets that matched the filter. */
-  public abstract Iterable<MetricResult<HistogramData>> getPerWorkerHistograms();
+  public abstract Iterable<MetricResult<HistogramData>> getHistograms();
 
   static <T> void printMetrics(String type, Iterable<MetricResult<T>> metrics, StringBuilder sb) {
     List<MetricResult<T>> metricsList = ImmutableList.copyOf(metrics);

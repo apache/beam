@@ -138,7 +138,7 @@ public class MetricsContainerStepMap implements Serializable {
     Map<MetricKey, MetricResult<DistributionData>> distributions = new HashMap<>();
     Map<MetricKey, MetricResult<GaugeData>> gauges = new HashMap<>();
     Map<MetricKey, MetricResult<StringSetData>> sets = new HashMap<>();
-    Map<MetricKey, MetricResult<HistogramData>> perWorkerHistograms = new HashMap<>();
+    Map<MetricKey, MetricResult<HistogramData>> histograms = new HashMap<>();
 
     attemptedMetricsContainers.forEachMetricContainer(
         container -> {
@@ -148,8 +148,7 @@ public class MetricsContainerStepMap implements Serializable {
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeAttemptedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
           mergeAttemptedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
-          mergeAttemptedResults(
-              perWorkerHistograms, cumulative.perWorkerHistogramsUpdates(), HistogramData::combine);
+          mergeAttemptedResults(histograms, cumulative.histogramsUpdates(), HistogramData::combine);
         });
     committedMetricsContainers.forEachMetricContainer(
         container -> {
@@ -159,8 +158,7 @@ public class MetricsContainerStepMap implements Serializable {
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeCommittedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
           mergeCommittedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
-          mergeCommittedResults(
-              perWorkerHistograms, cumulative.perWorkerHistogramsUpdates(), HistogramData::combine);
+          mergeCommittedResults(histograms, cumulative.histogramsUpdates(), HistogramData::combine);
         });
 
     return new DefaultMetricResults(
@@ -174,7 +172,7 @@ public class MetricsContainerStepMap implements Serializable {
         sets.values().stream()
             .map(result -> result.transform(StringSetData::extractResult))
             .collect(toList()),
-        perWorkerHistograms.values().stream()
+        histograms.values().stream()
             .map(result -> result.transform(HistogramData::extractResult))
             .collect(toList()));
   }

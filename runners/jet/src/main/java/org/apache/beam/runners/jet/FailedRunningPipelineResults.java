@@ -93,7 +93,7 @@ public class FailedRunningPipelineResults implements PipelineResult {
           }
 
           @Override
-          public Iterable<MetricResult<HistogramData>> getPerWorkerHistograms() {
+          public Iterable<MetricResult<HistogramData>> getHistograms() {
             return Collections.emptyList();
           }
         };

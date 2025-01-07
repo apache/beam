@@ -106,7 +106,7 @@ public class JetMetricResults extends MetricResults {
     private final Iterable<MetricResult<DistributionResult>> distributions;
     private final Iterable<MetricResult<GaugeResult>> gauges;
     private final Iterable<MetricResult<StringSetResult>> stringSets;
-    private final Iterable<MetricResult<HistogramData>> perWorkerHistograms;
+    private final Iterable<MetricResult<HistogramData>> histograms;
 
     private QueryResults(
         Iterable<MetricResult<Long>> counters,
@@ -117,7 +117,7 @@ public class JetMetricResults extends MetricResults {
       this.distributions = distributions;
       this.gauges = gauges;
       this.stringSets = stringSets;
-      this.perWorkerHistograms = Collections.emptyList(); // not implemented
+      this.histograms = Collections.emptyList(); // not implemented
     }
 
     @Override
@@ -141,8 +141,8 @@ public class JetMetricResults extends MetricResults {
     }
 
     @Override
-    public Iterable<MetricResult<HistogramData>> getPerWorkerHistograms() {
-      return perWorkerHistograms;
+    public Iterable<MetricResult<HistogramData>> getHistograms() {
+      return histograms;
     }
   }
 
