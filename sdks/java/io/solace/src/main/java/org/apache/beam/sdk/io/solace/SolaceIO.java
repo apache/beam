@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import static org.apache.beam.sdk.io.solace.broker.MessageProducerUtils.SOLACE_BATCH_LIMIT;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -842,6 +844,9 @@ public class SolaceIO {
     public static final TupleTag<BadRecord> FAILED_PUBLISH_TAG = new TupleTag<BadRecord>() {};
     public static final TupleTag<Solace.PublishResult> SUCCESSFUL_PUBLISH_TAG =
         new TupleTag<Solace.PublishResult>() {};
+    private static final Duration DEFAULT_MAX_BUFFERING_DURATION = Duration.standardSeconds(10);
+    private static final Duration DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES =
+        Duration.standardSeconds(5);
 
     /**
      * Write to a Solace topic.
@@ -874,7 +879,7 @@ public class SolaceIO {
     /**
      * The number of workers used by the job to write to Solace.
      *
-     * <p>This is optional, the default value is 20.
+     * <p>This is optional, the default value is {@link #DEFAULT_WRITER_NUM_SHARDS}.
      *
      * <p>This is the maximum value that the job would use, but depending on the amount of data, the
      * actual number of writers may be lower than this value. With the Dataflow runner, the
@@ -972,11 +977,10 @@ public class SolaceIO {
      * lower.
      *
      * <p>With the batched mode, messages are accumulated until a batch size of 50 is reached, or
-     * {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS} seconds have elapsed since
-     * the first message in the batch was received. The 50 messages are sent to Solace in a single
-     * batch. This writer offers higher throughput but higher publishing latency, as messages can be
-     * held up for up to {@link UnboundedBatchedSolaceWriter#ACKS_FLUSHING_INTERVAL_SECS}5seconds
-     * until they are published.
+     * {@link Write#getMaxBufferingDuration()} seconds have elapsed since the first message in the
+     * batch was received. The 50 messages are sent to Solace in a single batch. This writer offers
+     * higher throughput but higher publishing latency, as messages can be held up for up to {@link
+     * Write#getMaxBufferingDuration()} seconds until they are published.
      *
      * <p>Notice that this is the message publishing latency, not the end-to-end latency. For very
      * large scale pipelines, you will probably prefer to use the HIGHER_THROUGHPUT mode, as with
@@ -1012,6 +1016,23 @@ public class SolaceIO {
       return toBuilder().setErrorHandler(errorHandler).build();
     }
 
+    /**
+     * Set the maximum buffering duration for batches, when the {@link
+     * SolaceIO.Write#getWriterType()} is {@link WriterType#BATCHED}. This is optional, the default
+     * value is {@link #DEFAULT_MAX_BUFFERING_DURATION} seconds.
+     *
+     * <p>If a batch is not full after this duration, it will be emitted anyway. This prevents the
+     * pipeline from blocking indefinitely if there are not enough elements to fill a batch.
+     */
+    public Write<T> withMaxBufferingDuration(Duration maxBufferingDuration) {
+      return toBuilder().setMaxBufferingDuration(maxBufferingDuration).build();
+    }
+
+    /** todo add docs {@link #DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES} */
+    public Write<T> withMaxWaitTimeForPublishResponses(Duration maxWaitTimeForPublishResponses) {
+      return toBuilder().setMaxWaitTimeForPublishResponses(maxWaitTimeForPublishResponses).build();
+    }
+
     abstract int getNumShards();
 
     abstract int getNumberOfClientsPerWorker();
@@ -1032,6 +1053,10 @@ public class SolaceIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getErrorHandler();
 
+    abstract Duration getMaxBufferingDuration();
+
+    abstract Duration getMaxWaitTimeForPublishResponses();
+
     static <T> Builder<T> builder() {
       return new AutoValue_SolaceIO_Write.Builder<T>()
           .setDeliveryMode(DEFAULT_WRITER_DELIVERY_MODE)
@@ -1039,7 +1064,9 @@ public class SolaceIO {
           .setNumberOfClientsPerWorker(DEFAULT_WRITER_CLIENTS_PER_WORKER)
           .setPublishLatencyMetrics(DEFAULT_WRITER_PUBLISH_LATENCY_METRICS)
           .setDispatchMode(DEFAULT_WRITER_SUBMISSION_MODE)
-          .setWriterType(DEFAULT_WRITER_TYPE);
+          .setWriterType(DEFAULT_WRITER_TYPE)
+          .setMaxBufferingDuration(DEFAULT_MAX_BUFFERING_DURATION)
+          .setMaxWaitTimeForPublishResponses(DEFAULT_MAX_WAIT_TIME_FOR_PUBLISH_RESPONSES);
     }
 
     abstract Builder<T> toBuilder();
@@ -1065,6 +1092,11 @@ public class SolaceIO {
       abstract Builder<T> setSessionServiceFactory(SessionServiceFactory factory);
 
       abstract Builder<T> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
+
+      abstract Builder<T> setMaxBufferingDuration(Duration maxBufferingDuration);
+
+      abstract Builder<T> setMaxWaitTimeForPublishResponses(
+          Duration maxWaitTimeForPublishResponses);
 
       abstract Write<T> build();
     }
@@ -1106,7 +1138,16 @@ public class SolaceIO {
       String label =
           getWriterType() == WriterType.STREAMING ? "Publish (streaming)" : "Publish (batched)";
 
-      PCollectionTuple solaceOutput = withShardKeys.apply(label, getWriterTransform(destinationFn));
+      int batchSize = getWriterType() == WriterType.STREAMING ? 1 : SOLACE_BATCH_LIMIT;
+
+      PCollection<KV<Integer, Iterable<Record>>> groupIntoBatches =
+          withShardKeys.apply(
+              "Group into batches",
+              GroupIntoBatches.<Integer, Record>ofSize(batchSize)
+                  .withMaxBufferingDuration(getMaxBufferingDuration()));
+
+      PCollectionTuple solaceOutput =
+          groupIntoBatches.apply(label, getWriterTransform(destinationFn));
 
       SolaceOutput output;
       if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
@@ -1123,10 +1164,10 @@ public class SolaceIO {
       return output;
     }
 
-    private ParDo.MultiOutput<KV<Integer, Solace.Record>, Solace.PublishResult> getWriterTransform(
-        SerializableFunction<Record, Destination> destinationFn) {
+    private ParDo.MultiOutput<KV<Integer, Iterable<Solace.Record>>, Solace.PublishResult>
+        getWriterTransform(SerializableFunction<Record, Destination> destinationFn) {
 
-      ParDo.SingleOutput<KV<Integer, Solace.Record>, Solace.PublishResult> writer =
+      ParDo.SingleOutput<KV<Integer, Iterable<Solace.Record>>, Solace.PublishResult> writer =
           ParDo.of(
               getWriterType() == WriterType.STREAMING
                   ? new UnboundedStreamingSolaceWriter(
@@ -1135,14 +1176,16 @@ public class SolaceIO {
                       getDeliveryMode(),
                       getDispatchMode(),
                       getNumberOfClientsPerWorker(),
-                      getPublishLatencyMetrics())
+                      getPublishLatencyMetrics(),
+                      getMaxWaitTimeForPublishResponses())
                   : new UnboundedBatchedSolaceWriter(
                       destinationFn,
                       checkNotNull(getSessionServiceFactory()),
                       getDeliveryMode(),
                       getDispatchMode(),
                       getNumberOfClientsPerWorker(),
-                      getPublishLatencyMetrics()));
+                      getPublishLatencyMetrics(),
+                      getMaxWaitTimeForPublishResponses()));
 
       return writer.withOutputTags(SUCCESSFUL_PUBLISH_TAG, TupleTagList.of(FAILED_PUBLISH_TAG));
     }

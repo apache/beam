@@ -33,11 +33,11 @@ import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
+import org.apache.beam.sdk.io.solace.write.PublishPhaser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
@@ -86,8 +86,10 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   @Nullable private transient JCSMPSession jcsmpSession;
   @Nullable private transient MessageReceiver messageReceiver;
   @Nullable private transient MessageProducer messageProducer;
-  private final java.util.Queue<PublishResult> publishedResultsQueue =
-      new ConcurrentLinkedQueue<>();
+
+  // todo cache with cleanup policy.
+  private final ConcurrentHashMap<String, PublishPhaser> publishPhaserMap =
+      new ConcurrentHashMap<>();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   @Override
@@ -132,8 +134,8 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public java.util.Queue<PublishResult> getPublishedResultsQueue() {
-    return publishedResultsQueue;
+  public ConcurrentHashMap<String, PublishPhaser> getPublishedResults() {
+    return publishPhaserMap;
   }
 
   private MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
@@ -147,7 +149,7 @@ public abstract class BasicAuthJcsmpSessionService extends SessionService {
     Callable<XMLMessageProducer> initProducer =
         () ->
             Objects.requireNonNull(jcsmpSession)
-                .getMessageProducer(new PublishResultHandler(publishedResultsQueue));
+                .getMessageProducer(new PublishResultHandler(publishPhaserMap));
 
     XMLMessageProducer producer =
         retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));
