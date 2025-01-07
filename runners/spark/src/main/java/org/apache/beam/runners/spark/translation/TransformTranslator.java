@@ -149,32 +149,32 @@ public final class TransformTranslator {
         if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows
           groupedByKey =
-                  GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
-                          inRDD, keyCoder, coder.getValueCoder(), windowingStrategy, partitioner);
+              GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
+                  inRDD, keyCoder, coder.getValueCoder(), windowingStrategy, partitioner);
         } else {
 
           // As this is batch, we can ignore triggering and allowed lateness parameters.
           if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
-                  && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+              && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
 
             // we can drop the windows and recover them later
             groupedByKey =
-                    GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
-                            inRDD, keyCoder, coder.getValueCoder(), partitioner);
+                GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+                    inRDD, keyCoder, coder.getValueCoder(), partitioner);
           } else {
             // --- group by key only.
             JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
-                    GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
+                GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
             // --- now group also by window.
             // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
             groupedByKey =
-                    groupedByKeyOnly.flatMap(
-                            new SparkGroupAlsoByWindowViaOutputBufferFn<>(
-                                    windowingStrategy,
-                                    new TranslationUtils.InMemoryStateInternalsFactory<>(),
-                                    SystemReduceFn.buffering(coder.getValueCoder()),
-                                    context.getSerializableOptions()));
+                groupedByKeyOnly.flatMap(
+                    new SparkGroupAlsoByWindowViaOutputBufferFn<>(
+                        windowingStrategy,
+                        new TranslationUtils.InMemoryStateInternalsFactory<>(),
+                        SystemReduceFn.buffering(coder.getValueCoder()),
+                        context.getSerializableOptions()));
           }
         }
         context.putDataset(transform, new BoundedDataset<>(groupedByKey));
