@@ -55,6 +55,7 @@ final class GetWorkResponseChunkAssembler {
   GetWorkResponseChunkAssembler() {
     workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
     data = ByteString.EMPTY;
+    bufferedSize = 0;
     metadata = null;
   }
 
