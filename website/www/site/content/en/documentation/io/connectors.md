@@ -37,7 +37,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <th>Typescript</th>
     <th>Batch Supported</th>
     <th>Streaming Supported</th>
-    <th>Managed I/O supported</th>
+    <th>Supported via Managed API</th>
   </tr>
   <tr>
     <td>FileIO</td>
@@ -80,6 +80,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/avroio.ts">via X-language</a>
     </td>
+    <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
