@@ -22,9 +22,9 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
-import org.apache.iceberg.ScanTaskParser;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.CloseableIterable;
 import org.slf4j.Logger;
@@ -57,16 +57,14 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
     if (fromSnapshot > -1) {
       scan = scan.fromSnapshotExclusive(fromSnapshot);
     }
-    try (CloseableIterable<FileScanTask> tasks = scan.planFiles()) {
-      for (FileScanTask task : tasks) {
+    try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
+      for (CombinedScanTask combinedScanTask : combinedScanTasks) {
         ReadTaskDescriptor taskDescriptor =
             ReadTaskDescriptor.builder()
                 .setTableIdentifierString(descriptor.getTable())
-                .setFileScanTaskJson(ScanTaskParser.toJson(task))
-                .setRecordCount(task.file().recordCount())
+                .setCombinedScanTask(combinedScanTask)
                 .build();
-
-        numFileScanTasks.inc();
+        numFileScanTasks.inc(combinedScanTask.filesCount());
         out.output(taskDescriptor);
       }
     }

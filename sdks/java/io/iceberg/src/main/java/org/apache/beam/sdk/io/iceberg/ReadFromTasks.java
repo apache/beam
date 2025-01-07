@@ -18,24 +18,27 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.Row;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
-import org.apache.iceberg.encryption.EncryptedFiles;
+import org.apache.iceberg.encryption.InputFilesDecryptor;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Reads Iceberg {@link Record}s from a {@link FileScanTask} and converts to Beam {@link Row}s
@@ -57,56 +60,62 @@ class ReadFromTasks extends DoFn<ReadTaskDescriptor, Row> {
       throws IOException, ExecutionException {
     Table table =
         TableCache.get(taskDescriptor.getTableIdentifierString(), catalogConfig.catalog());
+    @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
+    NameMapping mapping =
+        nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
-    FileScanTask task = taskDescriptor.getFileScanTask();
-    DataFile dataFile = task.file();
-    String filePath = dataFile.path().toString();
-    ByteBuffer encryptionKeyMetadata = dataFile.keyMetadata();
-    Schema tableSchema = table.schema();
-
-    // TODO(ahmedabu98): maybe cache this file ref?
-    InputFile inputFile;
+    InputFilesDecryptor decryptor;
     try (FileIO io = table.io()) {
-      inputFile = io.newInputFile(filePath);
-    }
-    if (encryptionKeyMetadata != null) {
-      inputFile =
-          table
-              .encryption()
-              .decrypt(EncryptedFiles.encryptedInput(inputFile, encryptionKeyMetadata));
+      decryptor =
+          new InputFilesDecryptor(taskDescriptor.getCombinedScanTask(), io, table.encryption());
     }
 
-    Parquet.ReadBuilder readBuilder =
-        Parquet.read(inputFile)
-            .split(task.start(), task.length())
-            .project(tableSchema)
-            .createReaderFunc(
-                fileSchema -> GenericParquetReaders.buildReader(tableSchema, fileSchema))
-            .filter(task.residual());
-
-    long fromRecord = tracker.currentRestriction().getFrom();
-    long toRecord = tracker.currentRestriction().getTo();
-    try (CloseableIterable<Record> iterable = readBuilder.build()) {
-      CloseableIterator<Record> reader = iterable.iterator();
-      // Skip until fromRecord
-      // TODO(ahmedabu98): this is extremely inefficient
-      for (long skipped = 0; skipped < fromRecord && reader.hasNext(); ++skipped) {
-        reader.next();
+    for (long taskIndex = tracker.currentRestriction().getFrom();
+        taskIndex < tracker.currentRestriction().getTo();
+        ++taskIndex) {
+      if (!tracker.tryClaim(taskIndex)) {
+        return;
       }
+      FileScanTask task = taskDescriptor.getFileScanTasks().get((int) taskIndex);
+      InputFile inputFile = decryptor.getInputFile(task);
+      Schema tableSchema = table.schema();
 
-      for (long l = fromRecord; l < toRecord && reader.hasNext(); ++l) {
-        if (!tracker.tryClaim(l)) {
-          break;
+      Map<Integer, ?> idToConstants =
+          IcebergUtils.constantsMap(
+              task, IdentityPartitionConverters::convertConstant, tableSchema);
+
+      Parquet.ReadBuilder readBuilder =
+          Parquet.read(inputFile)
+              .split(task.start(), task.length())
+              .project(tableSchema)
+              .createReaderFunc(
+                  fileSchema ->
+                      GenericParquetReaders.buildReader(tableSchema, fileSchema, idToConstants))
+              .withNameMapping(mapping)
+              .filter(task.residual());
+
+      try (CloseableIterable<Record> iterable = readBuilder.build()) {
+        for (Record record : iterable) {
+          Row row = IcebergUtils.icebergRecordToBeamRow(tableSchema, record);
+          out.output(row);
         }
-        Record record = reader.next();
-        Row row = IcebergUtils.icebergRecordToBeamRow(tableSchema, record);
-        out.output(row);
       }
     }
   }
 
   @GetInitialRestriction
-  public OffsetRange getInitialRange(@Element ReadTaskDescriptor task) {
-    return new OffsetRange(0, task.getRecordCount());
+  public OffsetRange getInitialRange(@Element ReadTaskDescriptor taskDescriptor) {
+    return new OffsetRange(0, taskDescriptor.getFileScanTaskJsonList().size());
+  }
+
+  @GetSize
+  public double getSize(
+      @Element ReadTaskDescriptor taskDescriptor, @Restriction OffsetRange restriction)
+      throws Exception {
+    double size = 0;
+    for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+      size += taskDescriptor.getFileScanTasks().get((int) i).sizeBytes();
+    }
+    return size;
   }
 }

@@ -19,37 +19,64 @@ package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.iceberg.BaseCombinedScanTask;
+import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.ScanTaskParser;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class ReadTaskDescriptor implements Serializable {
+  private transient @MonotonicNonNull CombinedScanTask cachedCombinedScanTask;
+  private transient @MonotonicNonNull List<FileScanTask> cachedFileScanTasks;
+
   static Builder builder() {
     return new AutoValue_ReadTaskDescriptor.Builder();
   }
 
   abstract String getTableIdentifierString();
 
-  abstract String getFileScanTaskJson();
-
-  abstract long getRecordCount();
+  abstract List<String> getFileScanTaskJsonList();
 
   @SchemaIgnore
-  FileScanTask getFileScanTask() {
-    return ScanTaskParser.fromJson(getFileScanTaskJson(), true);
+  CombinedScanTask getCombinedScanTask() {
+    if (cachedCombinedScanTask == null) {
+      cachedCombinedScanTask = new BaseCombinedScanTask(getFileScanTasks());
+    }
+    return cachedCombinedScanTask;
+  }
+
+  @SchemaIgnore
+  List<FileScanTask> getFileScanTasks() {
+    if (cachedFileScanTasks == null) {
+      cachedFileScanTasks =
+          getFileScanTaskJsonList().stream()
+              .map(json -> ScanTaskParser.fromJson(json, true))
+              .collect(Collectors.toList());
+    }
+    return cachedFileScanTasks;
   }
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
 
-    abstract Builder setFileScanTaskJson(String fromSnapshot);
+    abstract Builder setFileScanTaskJsonList(List<String> fromSnapshot);
 
-    abstract Builder setRecordCount(long recordCount);
+    @SchemaIgnore
+    Builder setCombinedScanTask(CombinedScanTask combinedScanTask) {
+      List<FileScanTask> tasks = new ArrayList<>(combinedScanTask.tasks());
+      List<String> jsonTasks =
+          tasks.stream().map(ScanTaskParser::toJson).collect(Collectors.toList());
+      return setFileScanTaskJsonList(jsonTasks);
+    }
 
     abstract ReadTaskDescriptor build();
   }
