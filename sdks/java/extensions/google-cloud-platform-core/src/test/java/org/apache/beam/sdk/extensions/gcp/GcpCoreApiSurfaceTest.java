@@ -40,6 +40,7 @@ public class GcpCoreApiSurfaceTest {
     final ApiSurface apiSurface =
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+            .pruningPattern("org[.]apache[.]beam[.].*vendor.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
@@ -52,15 +53,14 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.google.api.client.http"),
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
-            classesInPackage("com.google.api.services.dataflow"),
             classesInPackage("com.google.api.services.storage"),
-            classesInPackage("com.google.api.services.dataflow"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("com.google.cloud.hadoop.gcsio"),
             classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
             classesInPackage("java"),
             classesInPackage("javax"),
+            classesInPackage("org.apache.beam.model.pipeline.v1"),
             classesInPackage("org.apache.beam.sdk"),
             classesInPackage("org.joda.time"));
 

@@ -179,7 +179,7 @@ public class JetMetricsContainer implements MetricsContainer {
     }
 
     @Override
-    public Iterable<MetricUpdate<HistogramData>> perWorkerHistogramsUpdates() {
+    public Iterable<MetricUpdate<HistogramData>> histogramsUpdates() {
       return Collections.emptyList(); // not implemented
     }
   }

@@ -19,8 +19,8 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE;
-import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.PER_WORKER_HISTOGRAM_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeBoundedTrie;
@@ -96,9 +96,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   private MetricsMap<MetricName, StringSetCell> stringSets = new MetricsMap<>(StringSetCell::new);
-
-  private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> perWorkerHistograms =
-      new MetricsMap<>(HistogramCell::new);
 
   private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> histograms =
       new MetricsMap<>(HistogramCell::new);
@@ -247,20 +244,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return boundedTries.tryGet(metricName);
   }
 
-  /**
-   * Return the {@link Histogram} that should be used for implementing the given per-worker {@code
-   * metricName} in this container.
-   */
-  @Override
-  public HistogramCell getPerWorkerHistogram(
-      MetricName metricName, HistogramData.BucketType bucketType) {
-    HistogramCell val = perWorkerHistograms.get(KV.of(metricName, bucketType));
-    return val;
-  }
-
-  public MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell>
-      getPerWorkerHistogram() {
-    return perWorkerHistograms;
+  public MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> getHistogram() {
+    return histograms;
   }
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
@@ -303,7 +288,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractUpdates(gauges),
         extractUpdates(stringSets),
         extractUpdates(boundedTries),
-        extractHistogramUpdates(perWorkerHistograms));
+        extractHistogramUpdates(histograms));
   }
 
   /** @return The MonitoringInfo metadata from the metric. */
@@ -434,8 +419,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private @Nullable SimpleMonitoringInfoBuilder histogramToMonitoringMetadata(MetricKey metricKey) {
     return metricToMonitoringMetadata(
         metricKey,
-        MonitoringInfoConstants.TypeUrns.PER_WORKER_HISTOGRAM_TYPE,
-        MonitoringInfoConstants.Urns.USER_PER_WORKER_HISTOGRAM);
+        MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE,
+        MonitoringInfoConstants.Urns.USER_HISTOGRAM);
   }
 
   /**
@@ -507,7 +492,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       }
     }
 
-    for (MetricUpdate<HistogramData> metricUpdate : metricUpdates.perWorkerHistogramsUpdates()) {
+    for (MetricUpdate<HistogramData> metricUpdate : metricUpdates.histogramsUpdates()) {
       MonitoringInfo mi = histogramUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
         monitoringInfos.add(mi);
@@ -566,7 +551,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
             }
           }
         });
-    perWorkerHistograms.forEach(
+    histograms.forEach(
         (metricName, histogramCell) -> {
           if (histogramCell.getDirty().beforeCommit()) {
             String shortId =
@@ -612,7 +597,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     gauges.forEachValue(gauge -> gauge.getDirty().afterCommit());
     stringSets.forEachValue(sSets -> sSets.getDirty().afterCommit());
     boundedTries.forEachValue(bTrie -> bTrie.getDirty().afterCommit());
-    perWorkerHistograms.forEachValue(
+    histograms.forEachValue(
         histogram -> {
           histogram.getDirty().afterCommit();
         });
@@ -652,7 +637,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractCumulatives(gauges),
         extractCumulatives(stringSets),
         extractCumulatives(boundedTries),
-        extractHistogramCumulatives(perWorkerHistograms));
+        extractHistogramCumulatives(histograms));
   }
 
   /** Update values of this {@link MetricsContainerImpl} by merging the value of another cell. */
@@ -696,10 +681,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     boundedTrie.update(decodeBoundedTrie(monitoringInfo.getPayload()));
   }
 
-  private void updateForPerWorkerHistogramInt64(MonitoringInfo monitoringInfo) {
+  private void updateForHistogramInt64(MonitoringInfo monitoringInfo) {
     MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
-    Histogram histogram = getPerWorkerHistogram(metricName, buckets);
+    Histogram histogram = getHistogram(metricName, buckets);
     HistogramData data = decodeInt64Histogram(monitoringInfo.getPayload());
     histogram.update(data);
   }
@@ -732,8 +717,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           updateForBoundedTrieType(monitoringInfo);
           break;
 
-        case PER_WORKER_HISTOGRAM_TYPE:
-          updateForPerWorkerHistogramInt64(monitoringInfo); // use type, and not urn info
+        case HISTOGRAM_TYPE:
+          updateForHistogramInt64(monitoringInfo); // use type, and not urn info
           break;
         default:
           LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
@@ -785,14 +770,15 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           && Objects.equals(gauges, metricsContainerImpl.gauges)
           && Objects.equals(stringSets, metricsContainerImpl.stringSets)
           && Objects.equals(boundedTries, metricsContainerImpl.boundedTries)
-          && Objects.equals(perWorkerHistograms, metricsContainerImpl.perWorkerHistograms);
+          && Objects.equals(histograms, metricsContainerImpl.histograms);
     }
     return false;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(stepName, counters, distributions, gauges, stringSets, boundedTries, perWorkerHistograms);
+    return Objects.hash(
+        stepName, counters, distributions, gauges, stringSets, boundedTries, histograms);
   }
 
   /**
@@ -915,21 +901,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       HistogramData prevValue = prev.histograms.get(cell.getKey()).getCumulative();
       HistogramData currValue = cell.getValue().getCumulative();
       HistogramCell deltaValueCell = deltaContainer.histograms.get(cell.getKey());
-      deltaValueCell.incBottomBucketCount(
-          currValue.getBottomBucketCount() - prevValue.getBottomBucketCount());
-      for (int i = 0; i < bt.getNumBuckets(); i++) {
-        Long bucketCountDelta = currValue.getCount(i) - prevValue.getCount(i);
-        deltaValueCell.incBucketCount(i, bucketCountDelta);
-      }
-      deltaValueCell.incTopBucketCount(
-          currValue.getTopBucketCount() - prevValue.getTopBucketCount());
-    }
-    for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
-        curr.perWorkerHistograms.entries()) {
-      HistogramData.BucketType bt = cell.getKey().getValue();
-      HistogramData prevValue = prev.perWorkerHistograms.get(cell.getKey()).getCumulative();
-      HistogramData currValue = cell.getValue().getCumulative();
-      HistogramCell deltaValueCell = deltaContainer.perWorkerHistograms.get(cell.getKey());
       deltaValueCell.incBottomBucketCount(
           currValue.getBottomBucketCount() - prevValue.getBottomBucketCount());
       for (int i = 0; i < bt.getNumBuckets(); i++) {

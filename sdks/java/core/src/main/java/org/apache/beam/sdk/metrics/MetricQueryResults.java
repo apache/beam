@@ -42,7 +42,7 @@ public abstract class MetricQueryResults {
   public abstract Iterable<MetricResult<BoundedTrieResult>> getBoundedTries();
 
   /** Return the metric results for the sets that matched the filter. */
-  public abstract Iterable<MetricResult<HistogramData>> getPerWorkerHistograms();
+  public abstract Iterable<MetricResult<HistogramData>> getHistograms();
 
   static <T> void printMetrics(String type, Iterable<MetricResult<T>> metrics, StringBuilder sb) {
     List<MetricResult<T>> metricsList = ImmutableList.copyOf(metrics);
@@ -83,9 +83,9 @@ public abstract class MetricQueryResults {
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
       Iterable<MetricResult<StringSetResult>> stringSets,
-      Iterable<MetricResult<BoundedTrieResult>> boundedTries,  Iterable<MetricResult<HistogramData>> histogramData) {
+      Iterable<MetricResult<BoundedTrieResult>> boundedTries,
+      Iterable<MetricResult<HistogramData>> histogramData) {
     return new AutoValue_MetricQueryResults(
-        
         counters, distributions, gauges, stringSets, boundedTries, Collections.emptyList());
   }
 }
