@@ -167,7 +167,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
       gcsUtil.remove(filesToDelete);
     } catch (Exception e) {
-      LOG.warn("Failed to clean up files.", e);
+      LOG.warn("Failed to clean up GCS files.", e);
     }
   }
 

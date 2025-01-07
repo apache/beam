@@ -82,7 +82,7 @@ dependencies {
     }
 
     // BigQueryMetastore catalog dep
-    testImplementation project(path: ":sdks:java:io:iceberg:bqms")
+    testImplementation project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
 
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
