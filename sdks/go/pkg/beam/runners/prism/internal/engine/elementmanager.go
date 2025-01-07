@@ -1185,7 +1185,7 @@ func (ss *stageState) AddPending(newPending []element) int {
 	threshold := ss.output
 	origPending := make([]element, 0, ss.pending.Len())
 	for _, e := range newPending {
-		if e.timestamp < threshold {
+		if e.window.MaxTimestamp() < threshold {
 			continue
 		}
 		origPending = append(origPending, e)
