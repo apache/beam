@@ -29,7 +29,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -276,7 +276,7 @@ public class FnHarness {
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
-    ExecutorService executorService =
+    ScheduledExecutorService scheduledExecutorService =
         options.as(ExecutorOptions.class).getScheduledExecutorService();
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
@@ -308,7 +308,8 @@ public class FnHarness {
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);
 
-      FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(scheduledExecutorService);
 
       // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
       // doesn't exist. Additionally, runs any graph modifications.
@@ -410,7 +411,7 @@ public class FnHarness {
           new BeamFnControlClient(
               controlStub.withExecutor(MoreExecutors.directExecutor()),
               outboundObserverFactory,
-              executorService,
+              scheduledExecutorService,
               handlers);
       if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
         CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
@@ -427,7 +428,7 @@ public class FnHarness {
     } finally {
       LOG.info("Shutting SDK harness down.");
       executionStateSampler.stop();
-      executorService.shutdown();
+      scheduledExecutorService.shutdown();
     }
   }
 }
