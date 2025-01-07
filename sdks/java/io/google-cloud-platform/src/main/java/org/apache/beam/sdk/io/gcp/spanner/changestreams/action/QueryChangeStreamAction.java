@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -62,6 +63,13 @@ public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
   private static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardMinutes(5);
+  /*
+   * Corresponds to the best effort timeout in case the restriction tracker cannot split the processing
+   * interval before the hard deadline. When reached it will assure that the already processed timestamps
+   * will be committed instead of thrown away (DEADLINE_EXCEEDED). The value should be less than
+   * the RetrySetting RPC timeout setting of SpannerIO#ReadChangeStream.
+   */
+  private static final Duration RESTRICTION_TRACKER_TIMEOUT = Duration.standardSeconds(40);
   private static final String OUT_OF_RANGE_ERROR_MESSAGE = "Specified start_timestamp is invalid";
 
   private final ChangeStreamDao changeStreamDao;
@@ -164,6 +172,10 @@ public class QueryChangeStreamAction {
                     new IllegalStateException(
                         "Partition " + token + " not found in metadata table"));
 
+    // Interrupter with soft timeout to commit the work if any records have been processed.
+    RestrictionInterrupter<Timestamp> interrupter =
+        RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
+
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
@@ -182,16 +194,25 @@ public class QueryChangeStreamAction {
                     updatedPartition,
                     (DataChangeRecord) record,
                     tracker,
+                    interrupter,
                     receiver,
                     watermarkEstimator);
           } else if (record instanceof HeartbeatRecord) {
             maybeContinuation =
                 heartbeatRecordAction.run(
-                    updatedPartition, (HeartbeatRecord) record, tracker, watermarkEstimator);
+                    updatedPartition,
+                    (HeartbeatRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
           } else if (record instanceof ChildPartitionsRecord) {
             maybeContinuation =
                 childPartitionsRecordAction.run(
-                    updatedPartition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
+                    updatedPartition,
+                    (ChildPartitionsRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
           } else {
             LOG.error("[{}] Unknown record type {}", token, record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
