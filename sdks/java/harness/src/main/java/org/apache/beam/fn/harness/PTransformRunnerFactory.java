@@ -63,9 +63,9 @@ public interface PTransformRunnerFactory<T> {
     String getPTransformId();
 
     /**
-     * An immutable component with mapping from coder id to coder definition, mapping from
-     * windowing strategy id to windowing strategy definition and mapping from PCollection id to
-     * PCollection definition.
+     * An immutable component with mapping from coder id to coder definition, mapping from windowing
+     * strategy id to windowing strategy definition and mapping from PCollection id to PCollection
+     * definition.
      */
     RunnerApi.Components getComponents();
 
