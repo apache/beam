@@ -161,6 +161,14 @@ def sickbayTests = [
     // TODO(https://github.com/apache/beam/issues/31231)
     'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata',
 
+
+    // These tests fail once Late Data was being precisely dropped.
+    // They set a single element to be late data, and expect it (correctly) to be preserved.
+    // Since presently, these are treated as No-ops, the fix is to disable the
+    // dropping behavior when a stage's input is a Reshuffle/Redistribute transform.
+    'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
+    'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeWithTimestampsStreaming',
+
     // Prism isn't handling Java's side input views properly.
     // https://github.com/apache/beam/issues/32932
     // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view.
