@@ -1180,17 +1180,21 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	// Late Data is data that has arrived after that window has expired.
-	threshold := ss.output
-	origPending := make([]element, 0, ss.pending.Len())
-	for _, e := range newPending {
-		if ss.strat.EarliestCompletion(e.window) < threshold {
-			// TODO: figure out Pane and trigger firings.
-			continue
+	if ss.aggregate {
+		// Late Data is data that has arrived after that window has expired.
+		// We only need to drop late data before aggregations.
+		// TODO - handle for side inputs too.
+		threshold := ss.output
+		origPending := make([]element, 0, ss.pending.Len())
+		for _, e := range newPending {
+			if ss.strat.EarliestCompletion(e.window) < threshold {
+				// TODO: figure out Pane and trigger firings.
+				continue
+			}
+			origPending = append(origPending, e)
 		}
-		origPending = append(origPending, e)
+		newPending = origPending
 	}
-	newPending = origPending
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
