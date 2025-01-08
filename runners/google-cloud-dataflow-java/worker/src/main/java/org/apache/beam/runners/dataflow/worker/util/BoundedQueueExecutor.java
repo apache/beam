@@ -17,20 +17,30 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.runners.dataflow.worker.util.common.ResizableSemaphore;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** An executor for executing work on windmill items. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BoundedQueueExecutor {
-  private final ThreadPoolExecutor executor;
+
+  private static final Logger LOG = LoggerFactory.getLogger(BoundedQueueExecutor.class);
+
+  private final Executor executor;
   private final long maximumBytesOutstanding;
 
   // Used to guard elementsOutstanding and bytesOutstanding.
@@ -41,57 +51,20 @@ public class BoundedQueueExecutor {
   @GuardedBy("this")
   private int maximumElementsOutstanding;
 
-  @GuardedBy("this")
-  private int activeCount;
-
-  @GuardedBy("this")
-  private int maximumPoolSize;
-
-  @GuardedBy("this")
-  private long startTimeMaxActiveThreadsUsed;
-
-  @GuardedBy("this")
-  private long totalTimeMaxActiveThreadsUsed;
-
   public BoundedQueueExecutor(
+      boolean useVirtualThreads,
       int maximumPoolSize,
       long keepAliveTime,
       TimeUnit unit,
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
-    this.maximumPoolSize = maximumPoolSize;
-    executor =
-        new ThreadPoolExecutor(
-            maximumPoolSize,
-            maximumPoolSize,
-            keepAliveTime,
-            unit,
-            new LinkedBlockingQueue<>(),
-            threadFactory) {
-          @Override
-          protected void beforeExecute(Thread t, Runnable r) {
-            super.beforeExecute(t, r);
-            synchronized (BoundedQueueExecutor.this) {
-              if (++activeCount >= maximumPoolSize && startTimeMaxActiveThreadsUsed == 0) {
-                startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
-              }
-            }
-          }
-
-          @Override
-          protected void afterExecute(Runnable r, Throwable t) {
-            super.afterExecute(r, t);
-            synchronized (BoundedQueueExecutor.this) {
-              if (--activeCount < maximumPoolSize && startTimeMaxActiveThreadsUsed > 0) {
-                totalTimeMaxActiveThreadsUsed +=
-                    (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
-                startTimeMaxActiveThreadsUsed = 0;
-              }
-            }
-          }
-        };
-    executor.allowCoreThreadTimeOut(true);
+    if (useVirtualThreads) {
+      this.executor = new DataflowVirtualThreadExecutor(maximumPoolSize);
+    } else {
+      this.executor =
+          new DataflowPlatformThreadExecutor(maximumPoolSize, keepAliveTime, unit, threadFactory);
+    }
     this.maximumElementsOutstanding = maximumElementsOutstanding;
     this.maximumBytesOutstanding = maximumBytesOutstanding;
   }
@@ -119,36 +92,24 @@ public class BoundedQueueExecutor {
 
   // Set the maximum/core pool size of the executor.
   public synchronized void setMaximumPoolSize(int maximumPoolSize, int maximumElementsOutstanding) {
-    // For ThreadPoolExecutor, the maximum pool size should always greater than or equal to core
-    // pool size.
-    if (maximumPoolSize > executor.getCorePoolSize()) {
-      executor.setMaximumPoolSize(maximumPoolSize);
-      executor.setCorePoolSize(maximumPoolSize);
-    } else {
-      executor.setCorePoolSize(maximumPoolSize);
-      executor.setMaximumPoolSize(maximumPoolSize);
-    }
-    this.maximumPoolSize = maximumPoolSize;
+    executor.setMaximumPoolSize(maximumPoolSize);
     this.maximumElementsOutstanding = maximumElementsOutstanding;
   }
 
   public void shutdown() throws InterruptedException {
     executor.shutdown();
-    if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
-      throw new RuntimeException("Work executor did not terminate within 5 minutes");
-    }
   }
 
   public boolean executorQueueIsEmpty() {
-    return executor.getQueue().isEmpty();
+    return executor.executorQueueIsEmpty();
   }
 
-  public synchronized long allThreadsActiveTime() {
-    return totalTimeMaxActiveThreadsUsed;
+  public long allThreadsActiveTime() {
+    return executor.allThreadsActiveTime();
   }
 
-  public synchronized int activeCount() {
-    return activeCount;
+  public int activeCount() {
+    return executor.getActiveCount();
   }
 
   public long bytesOutstanding() {
@@ -177,8 +138,8 @@ public class BoundedQueueExecutor {
     return maximumElementsOutstanding;
   }
 
-  public synchronized int getMaximumPoolSize() {
-    return maximumPoolSize;
+  public int getMaximumPoolSize() {
+    return executor.getMaximumPoolSize();
   }
 
   public String summaryHtml() {
@@ -243,5 +204,263 @@ public class BoundedQueueExecutor {
 
   private long bytesAvailable() {
     return maximumBytesOutstanding - bytesOutstanding;
+  }
+
+  interface Executor {
+
+    void setMaximumPoolSize(int maximumPoolSize);
+
+    long allThreadsActiveTime();
+
+    boolean executorQueueIsEmpty();
+
+    void shutdown() throws InterruptedException;
+
+    void execute(Runnable runnable);
+
+    int getPoolSize();
+
+    int getMaximumPoolSize();
+
+    int getActiveCount();
+  }
+
+  private static class DataflowVirtualThreadExecutor implements Executor {
+
+    private final ThreadPoolExecutor dispatchExecutor;
+
+    private final ExecutorService virtualThreadExecutor;
+
+    @GuardedBy("this")
+    private int maximumPoolSize;
+
+    @GuardedBy("this")
+    private int activeCount;
+
+    @GuardedBy("this")
+    private long startTimeMaxActiveThreadsUsed;
+
+    @GuardedBy("this")
+    private long totalTimeMaxActiveThreadsUsed;
+
+    private final ResizableSemaphore semaphore;
+
+    public DataflowVirtualThreadExecutor(int maximumPoolSize) {
+      this.maximumPoolSize = maximumPoolSize;
+      semaphore = new ResizableSemaphore(maximumPoolSize);
+      dispatchExecutor =
+          new ThreadPoolExecutor(
+              1,
+              1,
+              0L,
+              TimeUnit.MILLISECONDS,
+              new LinkedBlockingQueue<>(),
+              new ThreadFactoryBuilder().setNameFormat("DataflowVirtualThreadDispatch").build());
+      try {
+        // Using Reflection to instantiate VirtualThreadPerTaskExecutor
+        // This allows enabling virtual threads on java21 while maintaining
+        // java8 source compatability.
+        virtualThreadExecutor =
+            (ExecutorService)
+                Executors.class.getMethod("newVirtualThreadPerTaskExecutor").invoke(null);
+      } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public void setMaximumPoolSize(int maximumPoolSize) {
+      synchronized (this) {
+        this.maximumPoolSize = maximumPoolSize;
+      }
+      semaphore.setTotalPermits(maximumPoolSize);
+    }
+
+    @Override
+    public long allThreadsActiveTime() {
+      synchronized (this) {
+        return totalTimeMaxActiveThreadsUsed;
+      }
+    }
+
+    @Override
+    public boolean executorQueueIsEmpty() {
+      return semaphore.getQueueLength() == 0 && dispatchExecutor.getQueue().isEmpty();
+    }
+
+    @Override
+    public void shutdown() throws InterruptedException {
+      dispatchExecutor.shutdown();
+      if (!dispatchExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
+        throw new RuntimeException("Dispatch executor did not terminate within 5 minutes");
+      }
+      virtualThreadExecutor.shutdown();
+      if (!virtualThreadExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
+        throw new RuntimeException(
+            "VirtualThreadExecutor executor did not terminate within 5 minutes");
+      }
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+      dispatchExecutor.execute(
+          () -> {
+            try {
+              semaphore.acquire();
+            } catch (InterruptedException e) {
+              LOG.info("Dispatch thread interrupted", e);
+              return;
+            }
+            virtualThreadExecutor.execute(
+                () -> {
+                  try {
+                    synchronized (DataflowVirtualThreadExecutor.this) {
+                      if (++activeCount >= maximumPoolSize && startTimeMaxActiveThreadsUsed == 0) {
+                        startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
+                      }
+                    }
+                    runnable.run();
+                  } finally {
+                    synchronized (DataflowVirtualThreadExecutor.this) {
+                      if (--activeCount < maximumPoolSize && startTimeMaxActiveThreadsUsed > 0) {
+                        totalTimeMaxActiveThreadsUsed +=
+                            (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
+                        startTimeMaxActiveThreadsUsed = 0;
+                      }
+                    }
+                    semaphore.release();
+                  }
+                });
+          });
+    }
+
+    @Override
+    public int getPoolSize() {
+      return getMaximumPoolSize();
+    }
+
+    @Override
+    public int getMaximumPoolSize() {
+      synchronized (this) {
+        return maximumPoolSize;
+      }
+    }
+
+    @Override
+    public int getActiveCount() {
+      synchronized (this) {
+        return activeCount;
+      }
+    }
+  }
+
+  private static class DataflowPlatformThreadExecutor implements Executor {
+
+    private final ThreadPoolExecutor executor;
+
+    @GuardedBy("this")
+    private int activeCount;
+
+    @GuardedBy("this")
+    private int maximumPoolSize;
+
+    @GuardedBy("this")
+    private long startTimeMaxActiveThreadsUsed;
+
+    @GuardedBy("this")
+    private long totalTimeMaxActiveThreadsUsed;
+
+    DataflowPlatformThreadExecutor(
+        int maximumPoolSize, long keepAliveTime, TimeUnit unit, ThreadFactory threadFactory) {
+      executor =
+          new ThreadPoolExecutor(
+              maximumPoolSize,
+              maximumPoolSize,
+              keepAliveTime,
+              unit,
+              new LinkedBlockingQueue<>(),
+              threadFactory) {
+            @Override
+            protected void beforeExecute(Thread t, Runnable r) {
+              super.beforeExecute(t, r);
+              synchronized (DataflowPlatformThreadExecutor.this) {
+                if (++activeCount >= DataflowPlatformThreadExecutor.this.maximumPoolSize
+                    && startTimeMaxActiveThreadsUsed == 0) {
+                  startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
+                }
+              }
+            }
+
+            @Override
+            protected void afterExecute(Runnable r, Throwable t) {
+              super.afterExecute(r, t);
+              synchronized (DataflowPlatformThreadExecutor.this) {
+                if (--activeCount < DataflowPlatformThreadExecutor.this.maximumPoolSize
+                    && startTimeMaxActiveThreadsUsed > 0) {
+                  totalTimeMaxActiveThreadsUsed +=
+                      (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
+                  startTimeMaxActiveThreadsUsed = 0;
+                }
+              }
+            }
+          };
+      executor.allowCoreThreadTimeOut(true);
+    }
+
+    @Override
+    public void setMaximumPoolSize(int maximumPoolSize) {
+      synchronized (this) {
+        // For ThreadPoolExecutor, the maximum pool size should always greater than or equal to core
+        // pool size.
+        if (maximumPoolSize > executor.getCorePoolSize()) {
+          executor.setMaximumPoolSize(maximumPoolSize);
+          executor.setCorePoolSize(maximumPoolSize);
+        } else {
+          executor.setCorePoolSize(maximumPoolSize);
+          executor.setMaximumPoolSize(maximumPoolSize);
+        }
+        this.maximumPoolSize = maximumPoolSize;
+      }
+    }
+
+    @Override
+    public long allThreadsActiveTime() {
+      synchronized (this) {
+        return totalTimeMaxActiveThreadsUsed;
+      }
+    }
+
+    @Override
+    public boolean executorQueueIsEmpty() {
+      return executor.getQueue().isEmpty();
+    }
+
+    @Override
+    public void shutdown() throws InterruptedException {
+      executor.shutdown();
+      if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+        throw new RuntimeException("Work executor did not terminate within 5 minutes");
+      }
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+      executor.execute(runnable);
+    }
+
+    @Override
+    public int getPoolSize() {
+      return executor.getPoolSize();
+    }
+
+    @Override
+    public int getMaximumPoolSize() {
+      return executor.getMaximumPoolSize();
+    }
+
+    @Override
+    public int getActiveCount() {
+      return executor.getActiveCount();
+    }
   }
 }

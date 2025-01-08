@@ -802,6 +802,7 @@ public final class StreamingDataflowWorker {
 
   private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
     return new BoundedQueueExecutor(
+        options.getVirtualHarnessThreads(),
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
         TimeUnit.SECONDS,

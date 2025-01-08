@@ -226,11 +226,19 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
 
+  @Description(
+      "Use virtual threads for harness threads, requires Java 21+. This is experimental, "
+          + "user need to make sure no code pins the platform threads for too long")
+  boolean getVirtualHarnessThreads();
+
+  void setVirtualHarnessThreads(boolean value);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.
    */
   class LocalWindmillHostportFactory implements DefaultValueFactory<String> {
+
     private static final String WINDMILL_HOSTPORT_PROPERTY = "windmill.hostport";
 
     @Override

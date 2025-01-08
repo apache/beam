@@ -91,6 +91,7 @@ public class BoundedQueueExecutorTest {
   public void setUp() {
     this.executor =
         new BoundedQueueExecutor(
+            false,
             DEFAULT_MAX_THREADS,
             DEFAULT_THREAD_EXPIRATION_SEC,
             TimeUnit.SECONDS,
