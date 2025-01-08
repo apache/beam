@@ -124,7 +124,8 @@ public class DebeziumReadSchemaTransformTest {
         result.getSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toList()),
-        Matchers.containsInAnyOrder("before", "after", "source", "op", "ts_ms", "transaction"));
+        Matchers.containsInAnyOrder(
+            "before", "after", "source", "op", "ts_ms", "ts_us", "ts_ns", "transaction"));
   }
 
   @Test

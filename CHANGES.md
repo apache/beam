@@ -71,6 +71,7 @@
 ## Breaking Changes
 
 * AWS V1 I/Os have been removed (Java). As part of this, x-lang Python Kinesis I/O has been updated to consume the V2 IO and it also no longer supports setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
+* Debezium IO (Java) has been upgraded from depending on version 1.3.1.Final of io.debezium to 2.7.4.Final. This may cause some breaking changes since the libraries do not maintain full compatibility ([#33526](https://github.com/apache/beam/issues/33526)).
 
 ## Deprecations
 

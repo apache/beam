@@ -554,10 +554,11 @@ public class DebeziumIO {
         configuration.computeIfAbsent(entry.getKey(), k -> entry.getValue());
       }
 
-      // Set default Database History impl. if not provided
+      // Set default Database History impl and kafka topic prefix if not provided
       configuration.computeIfAbsent(
           "database.history",
           k -> KafkaSourceConsumerFn.DebeziumSDFDatabaseHistory.class.getName());
+      configuration.computeIfAbsent("topic.prefix", k -> "beam-debezium-connector");
 
       String stringProperties = Joiner.on('\n').withKeyValueSeparator(" -> ").join(configuration);
       LOG.debug("---------------- Connector configuration: {}", stringProperties);
