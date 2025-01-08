@@ -53,13 +53,24 @@ func RunPipeline(j *jobservices.Job) {
 	envs := j.Pipeline.GetComponents().GetEnvironments()
 	wks := map[string]*worker.W{}
 	for envID := range envs {
-		wk, err := makeWorker(envID, j)
-		if err != nil {
-			j.Failed(err)
+		wk := j.MakeWorker(envID)
+		wks[envID] = wk
+		if err := runEnvironment(j.RootCtx, j, envID, wk); err != nil {
+			j.Failed(fmt.Errorf("failed to start environment %v for job %v: %w", envID, j, err))
 			return
 		}
-		wks[envID] = wk
+		// Check for connection succeeding after we've created the environment successfully.
+		timeout := 1 * time.Minute
+		time.AfterFunc(timeout, func() {
+			if wk.Connected() || wk.Stopped() {
+				return
+			}
+			err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
+			j.Failed(err)
+			j.CancelFn(err)
+		})
 	}
+
 	// When this function exits, we cancel the context to clear
 	// any related job resources.
 	defer func() {
@@ -84,33 +95,6 @@ func RunPipeline(j *jobservices.Job) {
 
 	j.SendMsg("terminating " + j.String())
 	j.Done()
-}
-
-// makeWorker creates a worker for that environment.
-func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
-	wk := worker.New(j.String()+"_"+env, env)
-
-	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
-	wk.PipelineOptions = j.PipelineOptions()
-	wk.JobKey = j.JobKey()
-	wk.ArtifactEndpoint = j.ArtifactEndpoint()
-
-	go wk.Serve()
-
-	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
-		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
-	}
-	// Check for connection succeeding after we've created the environment successfully.
-	timeout := 1 * time.Minute
-	time.AfterFunc(timeout, func() {
-		if wk.Connected() || wk.Stopped() {
-			return
-		}
-		err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
-		j.Failed(err)
-		j.CancelFn(err)
-	})
-	return wk, nil
 }
 
 type transformExecuter interface {
@@ -285,7 +269,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.Time(e.GetTimestamp())})
 						}
 						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
-						ev.ElementEvent.GetTag()
 					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
 						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.Time(ev.WatermarkEvent.GetNewWatermark()))
 					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:
