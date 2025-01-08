@@ -651,6 +651,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
+    // version for BigQueryMetastore catalog (used by sdks:java:io:iceberg:bqms)
+    // TODO: remove this and download the jar normally when the catalog gets
+    // open-sourced (https://github.com/apache/iceberg/pull/11039)
+    project.ext.iceberg_bqms_catalog_version = iceberg_bqms_catalog_version
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -798,7 +802,6 @@ class BeamModulePlugin implements Plugin<Project> {
         hamcrest                                    : "org.hamcrest:hamcrest:$hamcrest_version",
         http_client                                 : "org.apache.httpcomponents:httpclient:$httpclient_version",
         http_core                                   : "org.apache.httpcomponents:httpcore:$httpcore_version",
-        iceberg_bqms_catalog                        : "https://storage.googleapis.com/spark-lib/bigquery/iceberg-bigquery-catalog-${iceberg_bqms_catalog_version}.jar",
         influxdb_library                            : "org.influxdb:influxdb-java:$influxdb_version",
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",

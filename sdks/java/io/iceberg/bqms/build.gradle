@@ -28,9 +28,11 @@ applyJavaNature(
 )
 
 def libDir = "$buildDir/libs"
-def bqmsFileName = "iceberg-bqms-catalog.jar"
+def bqmsFileName = "iceberg-bqms-catalog-${iceberg_bqms_catalog_version}.jar"
 task downloadBqmsJar(type: Copy) {
-    def jarUrl = library.java.iceberg_bqms_catalog
+    // TODO: remove this workaround and downlooad normally when the catalog gets open-sourced:
+    // (https://github.com/apache/iceberg/pull/11039)
+    def jarUrl = "https://storage.googleapis.com/spark-lib/bigquery/iceberg-bigquery-catalog-${iceberg_bqms_catalog_version}.jar"
     def outputDir = file("$libDir")
     outputDir.mkdirs()
     def destFile = new File(outputDir, bqmsFileName)
