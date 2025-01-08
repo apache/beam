@@ -29,7 +29,6 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
@@ -475,15 +474,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             () -> {
               if (autoUpdateSchema) {
                 @Nullable
-                WriteStream writeStream =
+                TableSchema streamSchema =
                     Preconditions.checkStateNotNull(maybeWriteStreamService)
-                        .getWriteStream(streamName);
-                if (writeStream != null && writeStream.hasTableSchema()) {
-                  TableSchema updatedFromStream = writeStream.getTableSchema();
-                  currentSchema.set(updatedFromStream);
-                  updated.set(true);
-                  LOG.debug(
-                      "Fetched updated schema for table {}:\n\t{}", tableUrn, updatedFromStream);
+                        .getWriteStreamSchema(streamName);
+                if (streamSchema != null) {
+                  Optional<TableSchema> newSchema =
+                      TableSchemaUpdateUtils.getUpdatedSchema(initialTableSchema, streamSchema);
+                  if (newSchema.isPresent()) {
+                    currentSchema.set(newSchema.get());
+                    updated.set(true);
+                    LOG.debug(
+                        "Fetched updated schema for table {}:\n\t{}", tableUrn, newSchema.get());
+                  }
                 }
               }
               return null;
