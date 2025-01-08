@@ -37,6 +37,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <th>Typescript</th>
     <th>Batch Supported</th>
     <th>Streaming Supported</th>
+    <th>Supported via Managed API</th>
   </tr>
   <tr>
     <td>FileIO</td>
@@ -57,6 +58,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>AvroIO</td>
@@ -80,6 +82,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>TextIO (<a href="/performance/textio">metrics</a>)</td>
@@ -103,6 +106,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>TFRecordIO</td>
@@ -120,6 +124,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>XmlIO</td>
@@ -133,6 +138,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -148,6 +154,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>ParquetIO (<a href="/documentation/io/built-in/parquet/">guide</a>)</td>
@@ -171,6 +178,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>ThriftIO</td>
@@ -184,6 +192,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -203,6 +212,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔via X-language
     </td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -226,6 +236,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>LocalFileSystem</td>
@@ -248,6 +259,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>S3FileSystem</td>
@@ -267,6 +279,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>In-memory</td>
@@ -280,6 +293,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="absent">✘</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -298,6 +312,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>AmqpIO</td>
@@ -312,6 +327,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>KafkaIO</td>
@@ -333,6 +349,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/kafka.ts">via X-language</a>
     </td>
+    <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
@@ -358,6 +375,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>JmsIO</td>
@@ -372,6 +390,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>MqttIO</td>
@@ -386,6 +405,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>RabbitMqIO</td>
@@ -400,6 +420,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>SqsIO</td>
@@ -414,6 +435,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>SnsIO</td>
@@ -427,6 +449,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -442,6 +465,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>HadoopFormatIO (<a href="/documentation/io/built-in/hadoop/">guide</a>)</td>
@@ -456,6 +480,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>HBaseIO</td>
@@ -469,6 +494,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -484,6 +510,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>KuduIO</td>
@@ -497,6 +524,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -512,6 +540,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>ElasticsearchIO</td>
@@ -526,6 +555,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>) (<a href="/performance/bigquery">metrics</a>)</td>
@@ -550,6 +580,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/bigqueryio.ts">via X-language</a>
     </td>
+    <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
@@ -578,6 +609,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>DatastoreIO</td>
@@ -598,6 +630,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>SnowflakeIO (<a href="/documentation/io/built-in/snowflake">guide</a>)</td>
@@ -614,6 +647,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -635,6 +669,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>JdbcIO</td>
@@ -654,6 +689,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -675,6 +711,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>MongoDbIO</td>
@@ -695,6 +732,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>MongoDbGridFSIO</td>
@@ -708,6 +746,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -723,6 +762,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>DynamoDBIO</td>
@@ -737,6 +777,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
      <td>Not available</td>
    <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>ClickHouseIO</td>
@@ -750,6 +791,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -765,6 +807,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>GenerateSequence</td>
@@ -779,6 +822,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>SplunkIO</td>
@@ -793,6 +837,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>FhirIO</td>
@@ -810,6 +855,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>HL7v2IO</td>
@@ -824,6 +870,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>DicomIO</td>
@@ -841,6 +888,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>
@@ -857,6 +905,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>Firestore IO</td>
@@ -871,6 +920,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>Neo4j</td>
@@ -884,6 +934,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -905,6 +956,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>InfluxDB</td>
@@ -919,6 +971,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>SparkReceiverIO (<a href="/documentation/io/built-in/sparkreceiver/">guide</a>)</td>
@@ -933,6 +986,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="absent">✘</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>CdapIO (<a href="/documentation/io/built-in/cdap/">guide</a>)</td>
@@ -947,6 +1001,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>SingleStoreDB (<a href="/documentation/io/built-in/singlestore/">guide</a>)</td>
@@ -960,6 +1015,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -975,6 +1031,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>
@@ -988,6 +1045,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
   <tr>
     <td>
@@ -999,6 +1057,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
+    <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
