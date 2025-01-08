@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.iceberg.BaseCombinedScanTask;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
@@ -45,12 +48,12 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
   }
 
   @ProcessElement
-  public void process(@Element SnapshotRange descriptor, OutputReceiver<ReadTaskDescriptor> out)
+  public void process(@Element SnapshotRange range, OutputReceiver<ReadTaskDescriptor> out)
       throws IOException, ExecutionException {
-    Table table = TableCache.get(descriptor.getTableIdentifier(), catalogConfig.catalog());
+    Table table = TableCache.get(range.getTableIdentifier(), catalogConfig.catalog());
 
-    long fromSnapshot = descriptor.getFromSnapshot();
-    long toSnapshot = descriptor.getToSnapshot();
+    long fromSnapshot = range.getFromSnapshot();
+    long toSnapshot = range.getToSnapshot();
 
     LOG.info("Planning to scan snapshot range ({}, {}]", fromSnapshot, toSnapshot);
     IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
@@ -58,15 +61,16 @@ class CreateReadTasksDoFn extends DoFn<SnapshotRange, ReadTaskDescriptor> {
       scan = scan.fromSnapshotExclusive(fromSnapshot);
     }
     try (CloseableIterable<CombinedScanTask> combinedScanTasks = scan.planTasks()) {
-      for (CombinedScanTask combinedScanTask : combinedScanTasks) {
-        ReadTaskDescriptor taskDescriptor =
-            ReadTaskDescriptor.builder()
-                .setTableIdentifierString(descriptor.getTable())
-                .setCombinedScanTask(combinedScanTask)
-                .build();
-        numFileScanTasks.inc(combinedScanTask.filesCount());
-        out.output(taskDescriptor);
-      }
+      List<FileScanTask> taskList = new ArrayList<>();
+      combinedScanTasks.forEach(combined -> taskList.addAll(combined.tasks()));
+
+      ReadTaskDescriptor taskDescriptor =
+          ReadTaskDescriptor.builder()
+              .setTableIdentifierString(range.getTable())
+              .setCombinedScanTask(new BaseCombinedScanTask(taskList))
+              .build();
+      numFileScanTasks.inc(taskList.size());
+      out.output(taskDescriptor);
     }
   }
 }
