@@ -27,12 +27,13 @@ applyJavaNature(
         validateShadowJar: false
 )
 
-def bqmsLocation = "$buildDir/libs"
+def libDir = "$buildDir/libs"
+def bqmsFileName = "iceberg-bqms-catalog.jar"
 task downloadBqmsJar(type: Copy) {
-    def jarUrl = 'https://storage.googleapis.com/spark-lib/bigquery/iceberg-bigquery-catalog-1.5.2-0.1.0.jar'
-    def outputDir = file("$bqmsLocation")
+    def jarUrl = library.java.iceberg_bqms_catalog
+    def outputDir = file("$libDir")
     outputDir.mkdirs()
-    def destFile = new File(outputDir, 'iceberg-bigquery-catalog-1.5.2-0.1.0.jar')
+    def destFile = new File(outputDir, bqmsFileName)
 
     if (!destFile.exists()) {
         try {
@@ -46,14 +47,14 @@ task downloadBqmsJar(type: Copy) {
 
 repositories {
     flatDir {
-        dirs "$bqmsLocation"
+        dirs "$libDir"
     }
 }
 
 compileJava.dependsOn downloadBqmsJar
 
 dependencies {
-    implementation files("$bqmsLocation/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")
+    implementation files("$libDir/$bqmsFileName")
 }
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: BigQuery Metastore"
