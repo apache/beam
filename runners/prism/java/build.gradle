@@ -116,10 +116,6 @@ def sickbayTests = [
     // Coding error somehow: short write: reached end of stream after reading 5 bytes; 98 bytes expected
     'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
-    // Prism not firing sessions correctly (seems to be merging inapppropriately)
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine',
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
-
     // Java side dying during execution.
     // https://github.com/apache/beam/issues/32930
     'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders',
