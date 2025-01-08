@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "python": "jrmccluskey",
-    "java": "robertwb",
+    "python": "damccorm",
+    "java": "damondouglas",
     "go": "jrmccluskey",
-    "io": "chamikaramj"
+    "io": "johnjcasey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
