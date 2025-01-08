@@ -85,6 +85,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,6 +178,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   private static final String RANDOM = UUID.randomUUID().toString();
   @Rule public TestPipeline pipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final int NUM_SHARDS = 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
@@ -319,9 +321,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     return writtenRecords;
   }
 
-  private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
-
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testRead() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
@@ -336,7 +336,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testWrite() {
     // Write with Beam
     // Expect the sink to create the table
@@ -354,7 +354,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testWriteToPartitionedTable() {
     // For an example row where bool=true, modulo_5=3, str=value_303,
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
@@ -385,7 +385,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         .withInterval(Duration.millis(1));
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testStreamingWrite() {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
@@ -415,7 +415,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testStreamingWriteWithPriorWindowing() {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
@@ -558,27 +558,27 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testWriteToDynamicDestinations() {
     writeToDynamicDestinations(null);
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testWriteToDynamicDestinationsAndDropFields() {
     writeToDynamicDestinations("drop");
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testWriteToDynamicDestinationsWithOnlyRecord() {
     writeToDynamicDestinations("only");
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testStreamToDynamicDestinationsAndKeepFields() {
     writeToDynamicDestinations("keep", true, false);
   }
 
-  @Test(timeout = FIVE_MINUTES_IN_MS)
+  @Test
   public void testStreamToPartitionedDynamicDestinations() {
     writeToDynamicDestinations(null, true, true);
   }
