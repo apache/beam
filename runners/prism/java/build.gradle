@@ -96,9 +96,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerEarly',
     'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle',
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
-    // Requires Allowed Lateness, among others.
-   // 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
-   // 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
     'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate',
     'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode',
     'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
