@@ -143,7 +143,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
-		case urns.TransformReshuffle:
+		case urns.TransformReshuffle, urns.TransformRedistributeArbitrarily, urns.TransformRedistributeByKey:
 			// Reshuffles use features we don't yet support, but we would like to
 			// support them by making them the no-op they are, and be precise about
 			// what we're ignoring.

@@ -65,7 +65,12 @@ func (*runner) ConfigCharacteristic() reflect.Type {
 var _ transformPreparer = (*runner)(nil)
 
 func (*runner) PrepareUrns() []string {
-	return []string{urns.TransformReshuffle, urns.TransformFlatten}
+	return []string{
+		urns.TransformReshuffle,
+		urns.TransformRedistributeArbitrarily,
+		urns.TransformRedistributeByKey,
+		urns.TransformFlatten,
+	}
 }
 
 // PrepareTransform handles special processing with respect runner transforms, like reshuffle.
@@ -73,7 +78,7 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 	switch t.GetSpec().GetUrn() {
 	case urns.TransformFlatten:
 		return h.handleFlatten(tid, t, comps)
-	case urns.TransformReshuffle:
+	case urns.TransformReshuffle, urns.TransformRedistributeArbitrarily, urns.TransformRedistributeByKey:
 		return h.handleReshuffle(tid, t, comps)
 	default:
 		panic("unknown urn to Prepare: " + t.GetSpec().GetUrn())
@@ -188,7 +193,13 @@ func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb
 var _ transformExecuter = (*runner)(nil)
 
 func (*runner) ExecuteUrns() []string {
-	return []string{urns.TransformFlatten, urns.TransformGBK, urns.TransformReshuffle}
+	return []string{
+		urns.TransformFlatten,
+		urns.TransformGBK,
+		urns.TransformReshuffle,
+		urns.TransformRedistributeArbitrarily,
+		urns.TransformRedistributeByKey,
+	}
 }
 
 // ExecuteWith returns what environment the transform should execute in.
