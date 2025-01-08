@@ -372,6 +372,7 @@ public class BoundedQueueExecutor {
 
     DataflowPlatformThreadExecutor(
         int maximumPoolSize, long keepAliveTime, TimeUnit unit, ThreadFactory threadFactory) {
+      this.maximumPoolSize = maximumPoolSize;
       executor =
           new ThreadPoolExecutor(
               maximumPoolSize,
