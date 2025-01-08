@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log/slog"
 	"reflect"
 	"sort"
 
@@ -33,7 +32,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
 )
 
 // This file retains the logic for the pardo handler
@@ -289,6 +287,17 @@ func windowingStrategy(comps *pipepb.Components, tid string) *pipepb.WindowingSt
 	return comps.GetWindowingStrategies()[pcol.GetWindowingStrategyId()]
 }
 
+// getOrMake is a generic helper function for extracting or initializing a sub map.
+// Avoids an amount of boiler plate.
+func getOrMake[K, VK comparable, VV any, V map[VK]VV, M map[K]V](m M, key K) V {
+	v, ok := m[key]
+	if !ok {
+		v = make(V)
+		m[key] = v
+	}
+	return v
+}
+
 // gbkBytes re-encodes gbk inputs in a gbk result.
 func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregate [][]byte, coders map[string]*pipepb.Coder) []byte {
 	// Pick how the timestamp of the aggregated output is computed.
@@ -325,15 +334,15 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 		time   mtime.Time
 		values [][]byte
 	}
-	// Map windows to a map of keys to a map of keys to time.
+	// Map keys to windows to element batches.
 	// We ultimately emit the window, the key, the time, and the iterable of elements,
 	// all contained in the final value.
-	windows := map[typex.Window]map[string]keyTime{}
+	keys := map[string]map[typex.Window]keyTime{}
 
 	kd := pullDecoder(kc, coders)
 	vd := pullDecoder(vc, coders)
 
-	// Aggregate by windows and keys, using the window coder and KV coders.
+	// Aggregate by keys, and windows, using the window coder and KV coders.
 	// We need to extract and split the key bytes from the element bytes.
 	for _, data := range toAggregate {
 		// Parse out each element's data, and repeat.
@@ -351,12 +360,8 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 			key := string(keyByt)
 			value := vd(buf)
 			for _, w := range ws {
-				wk, ok := windows[w]
-				if !ok {
-					wk = make(map[string]keyTime)
-					windows[w] = wk
-				}
-				kt, ok := wk[key]
+				wins := getOrMake(keys, key)
+				kt, ok := wins[w]
 				if !ok {
 					// If the window+key map doesn't have a value, inititialize time with the element time.
 					// This allows earliest or latest to work properly in the outputTime function's first use.
@@ -366,69 +371,64 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 				kt.key = keyByt
 				kt.w = w
 				kt.values = append(kt.values, value)
-				wk[key] = kt
+				wins[w] = kt
 			}
 		}
 	}
 
 	// If the strategy is session windows, then we need to get all the windows, sort them
 	// and see which ones need to be merged together.
+	// Each key has their windows merged separately.
 	if ws.GetWindowFn().GetUrn() == urns.WindowFnSession {
-		slog.Debug("sorting by session window")
-		session := &pipepb.SessionWindowsPayload{}
-		if err := (proto.UnmarshalOptions{}).Unmarshal(ws.GetWindowFn().GetPayload(), session); err != nil {
-			panic("unable to decode SessionWindowsPayload")
-		}
-		gapSize := mtime.Time(session.GetGapSize().AsDuration())
-
-		ordered := make([]window.IntervalWindow, 0, len(windows))
-		for k := range windows {
-			ordered = append(ordered, k.(window.IntervalWindow))
-		}
-		// Use a decreasing sort (latest to earliest) so we can correct
-		// the output timestamp to the new end of window immeadiately.
-		sort.Slice(ordered, func(i, j int) bool {
-			return ordered[i].MaxTimestamp() > ordered[j].MaxTimestamp()
-		})
-
-		cur := ordered[0]
-		sessionData := windows[cur]
-		delete(windows, cur)
-		for _, iw := range ordered[1:] {
-			// Check if the gap between windows is less than the gapSize.
-			// If not, this window is done, and we start a next window.
-			if iw.End+gapSize < cur.Start {
-				// Store current data with the current window.
-				windows[cur] = sessionData
-				// Use the incoming window instead, and clear it from the map.
-				cur = iw
-				sessionData = windows[iw]
-				delete(windows, cur)
-				// There's nothing to merge, since we've just started with this windowed data.
-				continue
+		for _, windows := range keys {
+			ordered := make([]window.IntervalWindow, 0, len(windows))
+			for win := range windows {
+				ordered = append(ordered, win.(window.IntervalWindow))
 			}
-			// Extend the session with the incoming window, and merge the the incoming window's data.
-			cur.Start = iw.Start
-			toMerge := windows[iw]
-			delete(windows, iw)
-			for k, kt := range toMerge {
-				skt := sessionData[k]
+			// Use a decreasing sort (latest to earliest) so we can correct
+			// the output timestamp to the new end of window immeadiately.
+			sort.Slice(ordered, func(i, j int) bool {
+				return ordered[i].MaxTimestamp() > ordered[j].MaxTimestamp()
+			})
+
+			cur := ordered[0]
+			sessionData := windows[cur]
+			delete(windows, cur)
+			for _, iw := range ordered[1:] {
+				// GapSize is already incorporated into the windows,
+				// check for consecutive windows that don't overlap.
+				if cur.Start-iw.End > 0 {
+					// If so, this window is done, and we start a next window.
+					// Store current data with the current window.
+					windows[cur] = sessionData
+					// Use the incoming window instead, and clear it from the map.
+					cur = iw
+					sessionData = windows[iw]
+					delete(windows, cur)
+					// There's nothing to merge, since we've just started with this windowed data.
+					continue
+				}
+				// Extend the session with the incoming window, and merge the the incoming window's data.
+				cur.Start = iw.Start
+				toMerge := windows[iw]
+				delete(windows, iw)
+
 				// Ensure the output time matches the given function.
-				skt.time = outputTime(cur, kt.time, skt.time)
-				skt.key = kt.key
-				skt.w = cur
-				skt.values = append(skt.values, kt.values...)
-				sessionData[k] = skt
+				sessionData.time = outputTime(cur, toMerge.time, sessionData.time)
+				sessionData.key = toMerge.key
+				sessionData.w = cur
+				// TODO: May need to adjust the ordering here.
+				sessionData.values = append(sessionData.values, toMerge.values...)
 			}
+			windows[cur] = sessionData
 		}
-		windows[cur] = sessionData
 	}
 	// Everything's aggregated!
 	// Time to turn things into a windowed KV<K, Iterable<V>>
 
 	var buf bytes.Buffer
-	for _, w := range windows {
-		for _, kt := range w {
+	for _, wins := range keys {
+		for _, kt := range wins {
 			exec.EncodeWindowedValueHeader(
 				wEnc,
 				[]typex.Window{kt.w},
